@@ -182,6 +182,77 @@ func (s *Store) Summary() (contracts.Summary, error) {
 	return summary, nil
 }
 
+func (s *Store) ListCustomers() ([]contracts.CustomerSummary, error) {
+	devices, err := s.ListDevices()
+	if err != nil {
+		return nil, err
+	}
+
+	byOrg := map[string]*contracts.CustomerSummary{}
+	order := []string{}
+	for _, device := range devices {
+		customer, ok := byOrg[device.OrganizationID]
+		if !ok {
+			customer = &contracts.CustomerSummary{
+				OrganizationID: device.OrganizationID,
+				Organization:   device.Organization,
+			}
+			byOrg[device.OrganizationID] = customer
+			order = append(order, device.OrganizationID)
+		}
+		customer.TotalDevices++
+		switch device.Readiness {
+		case contracts.ReadinessOnline:
+			customer.OnlineDevices++
+			customer.ActivatedDevices++
+		case contracts.ReadinessActivated:
+			customer.ActivatedDevices++
+		case contracts.ReadinessCloudActivationPending, contracts.ReadinessClaimPending, contracts.ReadinessLocalOnboardingPending, contracts.ReadinessDeactivationPending:
+			customer.PendingDevices++
+		case contracts.ReadinessFailed:
+			customer.FailedDevices++
+		}
+		if device.LastSeenAt > customer.LastSeenAt {
+			customer.LastSeenAt = device.LastSeenAt
+		}
+	}
+
+	customers := make([]contracts.CustomerSummary, 0, len(order))
+	for _, orgID := range order {
+		customers = append(customers, *byOrg[orgID])
+	}
+	return customers, nil
+}
+
+func (s *Store) ListAuditEvents() ([]contracts.AuditEvent, error) {
+	rows, err := s.db.Query(`
+SELECT id, actor, action, target, created_at
+FROM audit_events
+ORDER BY created_at DESC, id DESC
+LIMIT 100`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	events := []contracts.AuditEvent{}
+	for rows.Next() {
+		var event contracts.AuditEvent
+		if err := rows.Scan(&event.ID, &event.Actor, &event.Action, &event.Target, &event.CreatedAt); err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	return events, rows.Err()
+}
+
+func (s *Store) insertAuditEvent(tx *sql.Tx, actor, action, target, createdAt string) error {
+	_, err := tx.Exec(`
+INSERT INTO audit_events (actor, action, target, created_at)
+VALUES (?, ?, ?, ?)`, actor, action, target, createdAt)
+	return err
+}
+
 func (s *Store) CreateLifecycleOperation(deviceID, operationType string) (contracts.Operation, error) {
 	device, err := s.GetDevice(deviceID)
 	if err != nil {
@@ -220,6 +291,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		return contracts.Operation{}, err
 	}
 	if _, err := tx.Exec(`UPDATE devices SET readiness = ?, updated_at = ? WHERE id = ?`, string(nextReadiness), now, device.ID); err != nil {
+		return contracts.Operation{}, err
+	}
+	if err := s.insertAuditEvent(tx, "demo-platform-operator", operationType, device.ID, now); err != nil {
 		return contracts.Operation{}, err
 	}
 	if err := tx.Commit(); err != nil {

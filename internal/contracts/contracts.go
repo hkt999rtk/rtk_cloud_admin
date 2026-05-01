@@ -61,8 +61,27 @@ type Summary struct {
 	Customers        int `json:"customers"`
 }
 
+type CustomerSummary struct {
+	OrganizationID   string `json:"organization_id"`
+	Organization     string `json:"organization"`
+	TotalDevices     int    `json:"total_devices"`
+	OnlineDevices    int    `json:"online_devices"`
+	ActivatedDevices int    `json:"activated_devices"`
+	PendingDevices   int    `json:"pending_devices"`
+	FailedDevices    int    `json:"failed_devices"`
+	LastSeenAt       string `json:"last_seen_at"`
+}
+
 type ServiceHealth struct {
 	Name   string `json:"name"`
 	Status string `json:"status"`
 	Detail string `json:"detail"`
+}
+
+type AuditEvent struct {
+	ID        int64  `json:"id"`
+	Actor     string `json:"actor"`
+	Action    string `json:"action"`
+	Target    string `json:"target"`
+	CreatedAt string `json:"created_at"`
 }

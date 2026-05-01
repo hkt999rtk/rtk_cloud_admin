@@ -46,9 +46,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /healthz", s.health)
 	s.mux.HandleFunc("GET /api/summary", s.apiSummary)
+	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
 	s.mux.HandleFunc("GET /api/operations", s.apiOperations)
 	s.mux.HandleFunc("GET /api/service-health", s.apiServiceHealth)
+	s.mux.HandleFunc("GET /api/audit", s.apiAudit)
 	s.mux.HandleFunc("POST /api/devices/{id}/provision", s.apiProvisionDevice)
 	s.mux.HandleFunc("POST /api/devices/{id}/deactivate", s.apiDeactivateDevice)
 	s.mux.HandleFunc("GET /assets/", s.assets)
@@ -139,6 +141,15 @@ func (s *Server) apiDevices(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, devices)
 }
 
+func (s *Server) apiCustomers(w http.ResponseWriter, _ *http.Request) {
+	customers, err := s.store.ListCustomers()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, customers)
+}
+
 func (s *Server) apiOperations(w http.ResponseWriter, _ *http.Request) {
 	ops, err := s.store.ListOperations()
 	if err != nil {
@@ -154,6 +165,15 @@ func (s *Server) apiServiceHealth(w http.ResponseWriter, _ *http.Request) {
 		{Name: "Video Cloud", Status: "demo", Detail: "VIDEO_CLOUD_BASE_URL is not configured; lifecycle actions are simulated."},
 		{Name: "SQLite", Status: "ok", Detail: "Local console cache is available."},
 	})
+}
+
+func (s *Server) apiAudit(w http.ResponseWriter, _ *http.Request) {
+	events, err := s.store.ListAuditEvents()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, events)
 }
 
 func (s *Server) apiProvisionDevice(w http.ResponseWriter, r *http.Request) {

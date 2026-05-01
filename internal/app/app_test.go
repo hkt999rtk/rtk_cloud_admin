@@ -61,6 +61,36 @@ func TestProvisionActionPublishesOperation(t *testing.T) {
 	if op.State != contracts.OperationPublished {
 		t.Fatalf("operation state = %q, want published", op.State)
 	}
+
+	audit := httptest.NewRecorder()
+	srv.ServeHTTP(audit, httptest.NewRequest(http.MethodGet, "/api/audit", nil))
+	if audit.Code != http.StatusOK {
+		t.Fatalf("audit status = %d, want %d; body=%s", audit.Code, http.StatusOK, audit.Body.String())
+	}
+	if !strings.Contains(audit.Body.String(), "DeviceProvisionRequested") {
+		t.Fatalf("audit body does not contain DeviceProvisionRequested: %s", audit.Body.String())
+	}
+}
+
+func TestCustomersAPI(t *testing.T) {
+	t.Parallel()
+
+	srv, err := NewTestServer(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("NewTestServer returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/customers", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("customers status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Acme Smart Camera") {
+		t.Fatalf("customers body does not contain Acme Smart Camera: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Nova Home Labs") {
+		t.Fatalf("customers body does not contain Nova Home Labs: %s", rec.Body.String())
+	}
 }
 
 func TestConsoleAndAdminPagesRenderSeedData(t *testing.T) {

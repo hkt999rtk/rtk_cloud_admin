@@ -36,6 +36,34 @@ func TestStoreInitializesWithSeedData(t *testing.T) {
 	if len(ops) < 2 {
 		t.Fatalf("operation count = %d, want at least 2", len(ops))
 	}
+
+	auditEvents, err := st.ListAuditEvents()
+	if err != nil {
+		t.Fatalf("ListAuditEvents returned error: %v", err)
+	}
+	if auditEvents == nil {
+		t.Fatalf("audit events = nil, want empty slice")
+	}
+	if len(auditEvents) != 0 {
+		t.Fatalf("audit event count = %d, want 0", len(auditEvents))
+	}
+
+	customers, err := st.ListCustomers()
+	if err != nil {
+		t.Fatalf("ListCustomers returned error: %v", err)
+	}
+	if len(customers) != 2 {
+		t.Fatalf("customer count = %d, want 2", len(customers))
+	}
+	if customers[0].OrganizationID != "org-acme" {
+		t.Fatalf("first customer org = %q, want org-acme", customers[0].OrganizationID)
+	}
+	if customers[0].TotalDevices != 2 {
+		t.Fatalf("org-acme devices = %d, want 2", customers[0].TotalDevices)
+	}
+	if customers[1].FailedDevices != 1 {
+		t.Fatalf("org-nova failed devices = %d, want 1", customers[1].FailedDevices)
+	}
 }
 
 func TestCreateLifecycleOperationUpdatesDeviceReadiness(t *testing.T) {
@@ -74,5 +102,19 @@ func TestCreateLifecycleOperationUpdatesDeviceReadiness(t *testing.T) {
 	}
 	if device.Readiness != "deactivation_pending" {
 		t.Fatalf("device readiness = %q, want deactivation_pending", device.Readiness)
+	}
+
+	auditEvents, err := st.ListAuditEvents()
+	if err != nil {
+		t.Fatalf("ListAuditEvents returned error: %v", err)
+	}
+	if len(auditEvents) != 1 {
+		t.Fatalf("audit event count = %d, want 1", len(auditEvents))
+	}
+	if auditEvents[0].Action != "DeviceDeactivateRequested" {
+		t.Fatalf("audit action = %q, want DeviceDeactivateRequested", auditEvents[0].Action)
+	}
+	if auditEvents[0].Target != "dev-002" {
+		t.Fatalf("audit target = %q, want dev-002", auditEvents[0].Target)
 	}
 }

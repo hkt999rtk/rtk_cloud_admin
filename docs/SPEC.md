@@ -25,8 +25,11 @@ Included in v0.1:
 - JSON API routes for the React frontend.
 - React SPA with JavaScript, HTML, and CSS.
 - Static serving of the built React assets from the Go backend.
+- Local Realtek logo asset under `web/public/assets/realtek-logo.png`, sourced
+  from the Realtek Connect+ marketing site and served locally by the app.
 - Customer console pages:
   - dashboard overview
+  - customer overview
   - device list
   - device detail
   - provisioning/deactivation actions
@@ -38,6 +41,8 @@ Included in v0.1:
   - lifecycle operations
   - service health
   - audit log
+- Audit events are recorded when demo lifecycle actions are created from the
+  console.
 - Local demo mode backed by SQLite seed data so the console is useful before real service endpoints are configured.
 
 Out of scope for v0.1:

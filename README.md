@@ -21,11 +21,14 @@ Implemented in this first version:
 - SQLite persistence for local demo/cache data
 - React frontend built with Vite
 - device fleet dashboard
+- customer overview with organization-level fleet health
 - device list with readiness states
 - provisioning and deactivation demo actions
 - lifecycle operation list
+- audit log for local lifecycle actions
 - service health summary
 - shared frontend style contract in `rtk_cloud_contracts_doc/FRONTEND_STYLE.md`
+- local Realtek logo asset copied from the Realtek Connect+ marketing site
 
 The current data is demo seed data stored in SQLite. Account Manager and Video
 Cloud upstream integration points are documented in `docs/SPEC.md`, but real
@@ -142,3 +145,8 @@ Frontend color, typography, layout, and status presentation rules are defined in
 rtk_cloud_contracts_doc/FRONTEND_STYLE.md
 ```
 
+The React console uses a local copy of the Realtek logo at:
+
+```text
+web/public/assets/realtek-logo.png
+```
