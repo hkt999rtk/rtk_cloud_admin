@@ -1,6 +1,10 @@
 package store
 
-import "testing"
+import (
+	"database/sql"
+	"testing"
+	"time"
+)
 
 func TestStoreInitializesWithSeedData(t *testing.T) {
 	t.Parallel()
@@ -63,6 +67,76 @@ func TestStoreInitializesWithSeedData(t *testing.T) {
 	}
 	if customers[1].FailedDevices != 1 {
 		t.Fatalf("org-nova failed devices = %d, want 1", customers[1].FailedDevices)
+	}
+}
+
+func TestMigrateTracksVersionsAndIsIdempotent(t *testing.T) {
+	t.Parallel()
+
+	st, err := Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("second Migrate returned error: %v", err)
+	}
+	versions, err := st.AppliedMigrations()
+	if err != nil {
+		t.Fatalf("AppliedMigrations returned error: %v", err)
+	}
+	if len(versions) != len(migrations) {
+		t.Fatalf("versions = %#v, want %d migrations", versions, len(migrations))
+	}
+}
+
+func TestPlatformAdminAndSessions(t *testing.T) {
+	t.Parallel()
+
+	st, err := Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.BootstrapPlatformAdmin("admin@example.com", "secret"); err != nil {
+		t.Fatalf("BootstrapPlatformAdmin returned error: %v", err)
+	}
+	if _, err := st.VerifyPlatformAdmin("admin@example.com", "wrong"); err == nil {
+		t.Fatalf("VerifyPlatformAdmin with wrong password unexpectedly succeeded")
+	}
+	admin, err := st.VerifyPlatformAdmin("admin@example.com", "secret")
+	if err != nil {
+		t.Fatalf("VerifyPlatformAdmin returned error: %v", err)
+	}
+	if admin.Email != "admin@example.com" {
+		t.Fatalf("admin email = %q", admin.Email)
+	}
+
+	session, err := st.CreateSession("platform_admin", admin.ID, admin.Email, "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	got, err := st.GetSession(session.ID)
+	if err != nil {
+		t.Fatalf("GetSession returned error: %v", err)
+	}
+	if got.Email != admin.Email || got.Kind != "platform_admin" {
+		t.Fatalf("session = %#v", got)
+	}
+
+	expired, err := st.CreateSession("customer", "u1", "user@example.com", "token", "", "org-1", -time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession expired returned error: %v", err)
+	}
+	if _, err := st.GetSession(expired.ID); err != sql.ErrNoRows {
+		t.Fatalf("expired GetSession err = %v, want sql.ErrNoRows", err)
 	}
 }
 

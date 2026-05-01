@@ -27,12 +27,19 @@ Implemented in this first version:
 - lifecycle operation list
 - audit log for local lifecycle actions
 - service health summary
+- customer login/session endpoint backed by Account Manager when configured
+- local platform admin login/session endpoint backed by SQLite
+- Account Manager proxy mode for organizations, devices, provision, and deactivate
+- explicit SQLite schema migrations tracked in `schema_migrations`
+- URL routes for `/console`, `/console/customers`, `/console/devices`,
+  `/console/operations`, `/console/audit`, and `/admin`
+- Docker packaging and GitHub Actions CI
 - shared frontend style contract in `rtk_cloud_contracts_doc/FRONTEND_STYLE.md`
 - local Realtek logo asset copied from the Realtek Connect+ marketing site
 
-The current data is demo seed data stored in SQLite. Account Manager and Video
-Cloud upstream integration points are documented in `docs/SPEC.md`, but real
-upstream calls are not wired yet.
+When `ACCOUNT_MANAGER_BASE_URL` is unset, the app runs from SQLite demo/cache
+data. When it is set and a customer signs in, customer, device, and lifecycle
+actions proxy through Account Manager while preserving the current frontend DTOs.
 
 ## Requirements
 
@@ -121,8 +128,44 @@ Environment variables:
 
 - `PORT`: HTTP port, default `8080`
 - `DATABASE_PATH`: SQLite path, default `data/rtk-cloud-admin.db`
-- `ACCOUNT_MANAGER_BASE_URL`: planned upstream Account Manager URL
-- `VIDEO_CLOUD_BASE_URL`: planned upstream Video Cloud URL
+- `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL
+- `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL
+- `ADMIN_BOOTSTRAP_EMAIL`: optional local platform admin email
+- `ADMIN_BOOTSTRAP_PASSWORD`: optional local platform admin password
+
+If both admin bootstrap variables are set, startup creates the first local
+platform admin if it does not already exist. Passwords are stored as bcrypt
+hashes. Session rows store metadata and upstream bearer/refresh tokens, never
+plaintext credentials.
+
+SQLite schema changes are applied through versioned migrations. Existing local
+databases are upgraded in place and applied versions are stored in
+`schema_migrations`.
+
+## Docker
+
+Build:
+
+```sh
+docker build -t rtk-cloud-admin .
+```
+
+Run with a mounted SQLite data path:
+
+```sh
+docker run --rm -p 18081:8080 \
+  -v "$PWD/data:/data" \
+  -e ACCOUNT_MANAGER_BASE_URL="https://account-manager.example" \
+  -e VIDEO_CLOUD_BASE_URL="https://video-cloud.example" \
+  rtk-cloud-admin
+```
+
+Container health uses `/healthz`.
+
+## CI
+
+`.github/workflows/ci.yml` checks out submodules and runs `go test ./...`,
+`go build ./cmd/server`, `npm ci`, and `npm run build`.
 
 ## Contracts
 

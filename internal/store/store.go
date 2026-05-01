@@ -1,10 +1,13 @@
 package store
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 
 	"rtk_cloud_admin/internal/contracts"
@@ -12,6 +15,25 @@ import (
 
 type Store struct {
 	db *sql.DB
+}
+
+type Session struct {
+	ID           string
+	Kind         string
+	Subject      string
+	Email        string
+	AccessToken  string
+	RefreshToken string
+	ActiveOrgID  string
+	ExpiresAt    string
+	CreatedAt    string
+}
+
+type PlatformAdmin struct {
+	ID        string
+	Email     string
+	Role      string
+	CreatedAt string
 }
 
 func Open(path string) (*Store, error) {
@@ -28,7 +50,53 @@ func (s *Store) Close() error {
 }
 
 func (s *Store) Migrate() error {
-	_, err := s.db.Exec(`
+	if _, err := s.db.Exec(`
+CREATE TABLE IF NOT EXISTS schema_migrations (
+	version INTEGER PRIMARY KEY,
+	name TEXT NOT NULL,
+	applied_at TEXT NOT NULL
+);`); err != nil {
+		return err
+	}
+
+	for _, migration := range migrations {
+		var applied int
+		if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, migration.version).Scan(&applied); err != nil {
+			return err
+		}
+		if applied > 0 {
+			continue
+		}
+		tx, err := s.db.Begin()
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(migration.sql); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+		if _, err := tx.Exec(`INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)`, migration.version, migration.name, time.Now().UTC().Format(time.RFC3339)); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type migration struct {
+	version int
+	name    string
+	sql     string
+}
+
+var migrations = []migration{
+	{
+		version: 1,
+		name:    "base_console_projection",
+		sql: `
 CREATE TABLE IF NOT EXISTS devices (
 	id TEXT PRIMARY KEY,
 	organization_id TEXT NOT NULL,
@@ -60,8 +128,49 @@ CREATE TABLE IF NOT EXISTS audit_events (
 	target TEXT NOT NULL,
 	created_at TEXT NOT NULL
 );
-`)
-	return err
+`,
+	},
+	{
+		version: 2,
+		name:    "auth_sessions_platform_admins",
+		sql: `
+CREATE TABLE IF NOT EXISTS platform_admins (
+	id TEXT PRIMARY KEY,
+	email TEXT NOT NULL UNIQUE,
+	password_hash TEXT NOT NULL,
+	role TEXT NOT NULL,
+	created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+	id TEXT PRIMARY KEY,
+	kind TEXT NOT NULL,
+	subject TEXT NOT NULL,
+	email TEXT NOT NULL,
+	access_token TEXT NOT NULL,
+	refresh_token TEXT NOT NULL,
+	active_org_id TEXT NOT NULL,
+	expires_at TEXT NOT NULL,
+	created_at TEXT NOT NULL
+);
+`,
+	},
+}
+
+func (s *Store) AppliedMigrations() ([]int, error) {
+	rows, err := s.db.Query(`SELECT version FROM schema_migrations ORDER BY version`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var versions []int
+	for rows.Next() {
+		var version int
+		if err := rows.Scan(&version); err != nil {
+			return nil, err
+		}
+		versions = append(versions, version)
+	}
+	return versions, rows.Err()
 }
 
 func (s *Store) SeedDemoData() error {
@@ -251,6 +360,113 @@ func (s *Store) insertAuditEvent(tx *sql.Tx, actor, action, target, createdAt st
 INSERT INTO audit_events (actor, action, target, created_at)
 VALUES (?, ?, ?, ?)`, actor, action, target, createdAt)
 	return err
+}
+
+func (s *Store) CreateAuditEvent(actor, action, target string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.Exec(`
+INSERT INTO audit_events (actor, action, target, created_at)
+VALUES (?, ?, ?, ?)`, actor, action, target, now)
+	return err
+}
+
+func (s *Store) BootstrapPlatformAdmin(email, password string) error {
+	if email == "" || password == "" {
+		return nil
+	}
+	var count int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM platform_admins WHERE email = ?`, email).Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err = s.db.Exec(`
+INSERT INTO platform_admins (id, email, password_hash, role, created_at)
+VALUES (?, ?, ?, ?, ?)`, "admin-"+randomHex(12), email, string(hash), "platform_admin", now)
+	return err
+}
+
+func (s *Store) VerifyPlatformAdmin(email, password string) (PlatformAdmin, error) {
+	var admin PlatformAdmin
+	var hash string
+	err := s.db.QueryRow(`
+SELECT id, email, password_hash, role, created_at
+FROM platform_admins
+WHERE email = ?`, email).Scan(&admin.ID, &admin.Email, &hash, &admin.Role, &admin.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			_ = bcrypt.CompareHashAndPassword([]byte("$2a$10$000000000000000000000O4vRLXwD8C6VJpygDgMMtFdQFb7MCcfu"), []byte(password))
+		}
+		return PlatformAdmin{}, err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
+		return PlatformAdmin{}, err
+	}
+	return admin, nil
+}
+
+func (s *Store) CreateSession(kind, subject, email, accessToken, refreshToken, activeOrgID string, ttl time.Duration) (Session, error) {
+	now := time.Now().UTC()
+	session := Session{
+		ID:           "sess-" + randomHex(24),
+		Kind:         kind,
+		Subject:      subject,
+		Email:        email,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ActiveOrgID:  activeOrgID,
+		ExpiresAt:    now.Add(ttl).Format(time.RFC3339),
+		CreatedAt:    now.Format(time.RFC3339),
+	}
+	_, err := s.db.Exec(`
+INSERT INTO sessions (id, kind, subject, email, access_token, refresh_token, active_org_id, expires_at, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		session.ID, session.Kind, session.Subject, session.Email, session.AccessToken, session.RefreshToken, session.ActiveOrgID, session.ExpiresAt, session.CreatedAt)
+	return session, err
+}
+
+func (s *Store) GetSession(id string) (Session, error) {
+	var session Session
+	err := s.db.QueryRow(`
+SELECT id, kind, subject, email, access_token, refresh_token, active_org_id, expires_at, created_at
+FROM sessions
+WHERE id = ?`, id).Scan(&session.ID, &session.Kind, &session.Subject, &session.Email, &session.AccessToken, &session.RefreshToken, &session.ActiveOrgID, &session.ExpiresAt, &session.CreatedAt)
+	if err != nil {
+		return Session{}, err
+	}
+	expiresAt, err := time.Parse(time.RFC3339, session.ExpiresAt)
+	if err != nil {
+		return Session{}, err
+	}
+	if !expiresAt.After(time.Now().UTC()) {
+		_ = s.DeleteSession(id)
+		return Session{}, sql.ErrNoRows
+	}
+	return session, nil
+}
+
+func (s *Store) UpdateSessionActiveOrg(id, orgID string) error {
+	_, err := s.db.Exec(`UPDATE sessions SET active_org_id = ? WHERE id = ?`, orgID, id)
+	return err
+}
+
+func (s *Store) DeleteSession(id string) error {
+	_, err := s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id)
+	return err
+}
+
+func randomHex(bytesLen int) string {
+	buf := make([]byte, bytesLen)
+	if _, err := rand.Read(buf); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(buf)
 }
 
 func (s *Store) CreateLifecycleOperation(deviceID, operationType string) (contracts.Operation, error) {

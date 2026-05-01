@@ -171,13 +171,29 @@ p {
   color: var(--muted);
 }
 
-.env-pill {
+.env-pill,
+.session-strip {
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--brand-dark);
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.82);
   box-shadow: var(--shadow-soft);
+}
+
+.session-strip {
+  display: grid;
+  gap: 2px;
+  min-width: 190px;
+}
+
+.session-strip span {
+  font-size: 13px;
+}
+
+.session-strip span:first-child {
+  color: var(--navy);
+  font-weight: 700;
 }
 
 .metrics {
@@ -336,6 +352,73 @@ dd {
   color: var(--brand-dark);
 }
 
+.source-facts {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+}
+
+.source-facts h3 {
+  color: var(--navy);
+  font-size: 15px;
+  margin: 0;
+}
+
+.source-fact {
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.source-fact strong,
+.source-fact span,
+.source-fact small {
+  display: block;
+}
+
+.source-fact span,
+.source-fact small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.login-panel {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.login-panel form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.login-panel input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.login-panel button {
+  background: var(--brand);
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
 .split-panel > div {
   flex: 1;
 }
@@ -436,6 +519,13 @@ th {
   font-size: 13px;
 }
 
+.health-row small,
+.health-row time {
+  color: var(--muted);
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
 .audit-list {
   display: grid;
   gap: 10px;
@@ -487,7 +577,8 @@ th {
 
 .status-online,
 .status-ok,
-.status-succeeded {
+.status-succeeded,
+.status-present {
   background: #e7f6f7;
   color: var(--brand-dark);
 }
@@ -501,13 +592,16 @@ th {
 
 .status-cloud-activation-pending,
 .status-pending,
-.status-retrying {
+.status-retrying,
+.status-stale,
+.status-missing {
   background: rgba(109, 206, 221, 0.16);
   color: var(--navy);
 }
 
 .status-failed,
-.status-dead-lettered {
+.status-dead-lettered,
+.status-down {
   background: #fef3f2;
   color: var(--danger);
 }

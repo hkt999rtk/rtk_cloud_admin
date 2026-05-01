@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: [self-hosted, linux, x64, rtk-cloud-admin-ci]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Go tests
+        run: go test ./...
+
+      - name: Go build
+        run: go build ./cmd/server
+
+      - name: Frontend install
+        working-directory: web
+        run: npm ci
+
+      - name: Frontend build
+        working-directory: web
+        run: npm run build
+
+      - name: Docker build
+        run: docker build -t rtk-cloud-admin:ci .

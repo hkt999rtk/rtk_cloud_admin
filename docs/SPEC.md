@@ -76,6 +76,11 @@ Data ownership:
 Public and shared routes:
 
 - `GET /healthz`: plain health check.
+- `POST /api/auth/customer/login`: customer login through Account Manager when configured.
+- `POST /api/auth/platform/login`: local SQLite platform admin login.
+- `POST /api/auth/logout`: deletes local session metadata.
+- `GET /api/me`: current user, memberships, active organization, and demo/auth state.
+- `POST /api/me/active-org`: switches active organization for the current session.
 - `GET /api/summary`: customer and platform dashboard summary.
 - `GET /api/devices`: device list from cache/demo or upstream aggregation.
 - `GET /api/devices/{id}`: device detail.
@@ -84,10 +89,46 @@ Public and shared routes:
 - `GET /api/operations`: lifecycle operation list.
 - `GET /api/service-health`: configured upstream service health.
 - `GET /api/audit`: audit log.
+- `GET /api/admin/audit`: platform-admin protected audit log.
 - `GET /assets/...`: built frontend assets.
 - `GET /*`: React SPA fallback.
 
-The v0.1 implementation may run without configured upstream services. In that mode, API responses use SQLite seed data and clearly show local demo status in service health.
+The v0.1 implementation may run without configured upstream services. In that mode, API responses use SQLite seed data and clearly show local demo status in service health. When `ACCOUNT_MANAGER_BASE_URL` is configured and a customer session exists, `/api/customers`, `/api/devices`, and lifecycle actions use Account Manager proxy mode and preserve the frontend DTO shape.
+
+## Authentication And Sessions
+
+Customer sessions:
+
+- customer credentials are posted only to Account Manager login
+- the BFF stores session metadata plus upstream access/refresh tokens
+- plaintext passwords are never stored
+- `/api/me` returns user, memberships, active organization, and auth state
+- active organization can be switched with `/api/me/active-org`
+- demo mode remains available when Account Manager is not configured
+
+Platform admin sessions:
+
+- local platform admin users are stored in SQLite
+- `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` create the first admin on startup
+- passwords are bcrypt hashed
+- platform-only API routes require a `platform_admin` session
+
+## Upstream Integration
+
+Account Manager proxy mode:
+
+- `GET /api/customers` calls Account Manager organizations
+- `GET /api/devices` calls Account Manager devices for visible organizations
+- `POST /api/devices/{id}/provision` calls the Account Manager provision endpoint
+- `POST /api/devices/{id}/deactivate` calls the Account Manager deactivate endpoint
+- upstream failures return a gateway error instead of silently falling back
+- attempted, completed, and failed lifecycle actions are recorded in audit
+
+Service health:
+
+- unset URLs report `demo`
+- configured URLs are checked with a timeout
+- responses include status, latency, and last checked timestamp
 
 ## UI Direction
 
@@ -100,6 +141,8 @@ The visual system follows `rtk_cloud_contracts_doc/FRONTEND_STYLE.md` and should
 - filterable React tables for devices and operations
 - detail pages with a readiness timeline and right-side action panel
 - status labels using the contract vocabulary instead of vague UI-only names
+- URL-backed routes so console views are directly linkable
+- device readiness detail panels that show source facts, including missing/stale facts
 
 Avoid marketing-style hero sections, decorative card grids, and large illustration-led pages.
 
@@ -141,5 +184,7 @@ Environment variables:
 
 - Unit tests for app wiring, health endpoint, JSON API handlers, and SPA fallback.
 - Store tests for SQLite schema creation, seed data, device queries, operation queries, and audit insertion.
+- Store tests for versioned migrations, admin password verification, and session expiry.
+- App tests for customer login, upstream proxy mode, provision proxy, and platform admin route guards.
 - Frontend build verification with `npm run build`.
 - Backend build verification with `go test ./...` and `go build ./cmd/server`.

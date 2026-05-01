@@ -36,8 +36,19 @@ type Device struct {
 	VideoCloudDevID string         `json:"video_cloud_devid"`
 	Status          string         `json:"status"`
 	Readiness       ReadinessState `json:"readiness"`
+	SourceFacts     []SourceFact   `json:"source_facts,omitempty"`
 	LastSeenAt      string         `json:"last_seen_at"`
 	UpdatedAt       string         `json:"updated_at"`
+}
+
+type SourceFact struct {
+	Layer       string `json:"layer"`
+	State       string `json:"state"`
+	Detail      string `json:"detail"`
+	Retryable   bool   `json:"retryable"`
+	ErrorCode   string `json:"error_code,omitempty"`
+	OperationID string `json:"operation_id,omitempty"`
+	UpdatedAt   string `json:"updated_at,omitempty"`
 }
 
 type Operation struct {
@@ -73,9 +84,28 @@ type CustomerSummary struct {
 }
 
 type ServiceHealth struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Detail string `json:"detail"`
+	Name          string `json:"name"`
+	Status        string `json:"status"`
+	Detail        string `json:"detail"`
+	LatencyMillis int64  `json:"latency_ms,omitempty"`
+	LastCheckedAt string `json:"last_checked_at,omitempty"`
+}
+
+type Membership struct {
+	OrganizationID string `json:"organization_id"`
+	Organization   string `json:"organization"`
+	Role           string `json:"role"`
+}
+
+type Me struct {
+	UserID        string       `json:"user_id"`
+	Email         string       `json:"email"`
+	Name          string       `json:"name"`
+	Kind          string       `json:"kind"`
+	Memberships   []Membership `json:"memberships"`
+	ActiveOrgID   string       `json:"active_org_id"`
+	DemoMode      bool         `json:"demo_mode"`
+	Authenticated bool         `json:"authenticated"`
 }
 
 type AuditEvent struct {

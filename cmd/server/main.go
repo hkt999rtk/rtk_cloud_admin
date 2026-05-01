@@ -11,18 +11,18 @@ import (
 	"time"
 
 	"rtk_cloud_admin/internal/app"
+	"rtk_cloud_admin/internal/config"
 	"rtk_cloud_admin/internal/store"
 )
 
 func main() {
-	port := getenv("PORT", "8080")
-	dbPath := getenv("DATABASE_PATH", filepath.Join("data", "rtk-cloud-admin.db"))
+	cfg := config.FromEnv()
 
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(cfg.DatabasePath), 0o755); err != nil {
 		log.Fatalf("create data dir: %v", err)
 	}
 
-	st, err := store.Open(dbPath)
+	st, err := store.Open(cfg.DatabasePath)
 	if err != nil {
 		log.Fatalf("open store: %v", err)
 	}
@@ -34,10 +34,13 @@ func main() {
 	if err := st.SeedDemoData(); err != nil {
 		log.Fatalf("seed demo data: %v", err)
 	}
+	if err := st.BootstrapPlatformAdmin(cfg.AdminBootstrapEmail, cfg.AdminBootstrapPassword); err != nil {
+		log.Fatalf("bootstrap platform admin: %v", err)
+	}
 
-	handler := app.New(st)
+	handler := app.NewWithOptions(st, app.Options{Config: cfg})
 	server := &http.Server{
-		Addr:              ":" + port,
+		Addr:              ":" + cfg.Port,
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
@@ -46,7 +49,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("rtk cloud admin listening on http://localhost:%s", port)
+		log.Printf("rtk cloud admin listening on http://localhost:%s", cfg.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("serve: %v", err)
 		}
@@ -61,11 +64,4 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		log.Printf("shutdown: %v", err)
 	}
-}
-
-func getenv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
 }

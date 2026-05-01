@@ -3,16 +3,17 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 const navItems = [
-  { id: 'console', label: 'Customer Fleet' },
-  { id: 'customers', label: 'Customers' },
-  { id: 'devices', label: 'Devices' },
-  { id: 'operations', label: 'Provisioning' },
-  { id: 'admin', label: 'Platform Admin' },
-  { id: 'audit', label: 'Audit' },
+  { id: 'console', label: 'Customer Fleet', path: '/console' },
+  { id: 'customers', label: 'Customers', path: '/console/customers' },
+  { id: 'devices', label: 'Devices', path: '/console/devices' },
+  { id: 'operations', label: 'Provisioning', path: '/console/operations' },
+  { id: 'admin', label: 'Platform Admin', path: '/admin' },
+  { id: 'audit', label: 'Audit', path: '/console/audit' },
 ];
 
 function App() {
-  const [active, setActive] = useState('console');
+  const [active, setActive] = useState(routeFromLocation());
+  const [me, setMe] = useState(null);
   const [summary, setSummary] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [devices, setDevices] = useState([]);
@@ -26,6 +27,7 @@ function App() {
   const loadData = () => {
     let alive = true;
     Promise.all([
+      fetchJSON('/api/me'),
       fetchJSON('/api/summary'),
       fetchJSON('/api/customers'),
       fetchJSON('/api/devices'),
@@ -33,8 +35,9 @@ function App() {
       fetchJSON('/api/service-health'),
       fetchJSON('/api/audit'),
     ])
-      .then(([nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit]) => {
+      .then(([nextMe, nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit]) => {
         if (!alive) return;
+        setMe(nextMe);
         setSummary(nextSummary);
         setCustomers(nextCustomers);
         setDevices(nextDevices);
@@ -54,6 +57,30 @@ function App() {
     return loadData();
   }, []);
 
+  useEffect(() => {
+    const onPopState = () => setActive(routeFromLocation());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const deviceId = params.get('device');
+    if (deviceId) setSelectedDeviceId(deviceId);
+  }, [active]);
+
+  function navigate(item) {
+    window.history.pushState({}, '', item.path);
+    setActive(item.id);
+  }
+
+  function selectDevice(deviceId) {
+    setSelectedDeviceId(deviceId);
+    const path = '/console/devices';
+    window.history.pushState({}, '', `${path}?device=${encodeURIComponent(deviceId)}`);
+    setActive('devices');
+  }
+
   async function runDeviceAction(deviceId, action) {
     setError('');
     const response = await fetch(`/api/devices/${deviceId}/${action}`, { method: 'POST' });
@@ -62,7 +89,23 @@ function App() {
       return;
     }
     loadData();
+    window.history.pushState({}, '', '/console/operations');
     setActive('operations');
+  }
+
+  async function handleLogin(kind, credentials) {
+    setError('');
+    const url = kind === 'platform' ? '/api/auth/platform/login' : '/api/auth/customer/login';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    });
+    if (!response.ok) {
+      setError(`${kind} login failed with ${response.status}`);
+      return;
+    }
+    loadData();
   }
 
   const filteredDevices = useMemo(() => {
@@ -98,7 +141,7 @@ function App() {
             <button
               key={item.id}
               className={active === item.id ? 'active' : ''}
-              onClick={() => setActive(item.id)}
+              onClick={() => navigate(item)}
             >
               {item.label}
             </button>
@@ -112,12 +155,15 @@ function App() {
             <p className="eyebrow">Tenant-first B2B operations</p>
             <h1>{titleFor(active)}</h1>
           </div>
-          <div className="env-pill">Demo data via Go + SQLite</div>
+          <div className="session-strip">
+            <span>{me?.authenticated ? `${me.email} / ${me.kind}` : 'Demo mode'}</span>
+            <span>{me?.active_org_id || 'all orgs'}</span>
+          </div>
         </header>
 
         {error ? <div className="error">{error}</div> : null}
 
-        {active === 'console' ? <Dashboard summary={summary} health={health} operations={operations} /> : null}
+        {active === 'console' ? <Dashboard summary={summary} health={health} operations={operations} me={me} onLogin={handleLogin} /> : null}
         {active === 'customers' ? <Customers customers={customers} /> : null}
         {active === 'devices' ? (
           <Devices
@@ -125,22 +171,23 @@ function App() {
             query={query}
             selectedDevice={selectedDevice}
             setQuery={setQuery}
-            setSelectedDeviceId={setSelectedDeviceId}
+            setSelectedDeviceId={selectDevice}
             onAction={runDeviceAction}
           />
         ) : null}
         {active === 'operations' ? <Operations operations={operations} /> : null}
-        {active === 'admin' ? <PlatformAdmin summary={summary} health={health} devices={devices} customers={customers} audit={audit} /> : null}
+        {active === 'admin' ? <PlatformAdmin summary={summary} health={health} devices={devices} customers={customers} audit={audit} me={me} onLogin={handleLogin} /> : null}
         {active === 'audit' ? <AuditLog audit={audit} /> : null}
       </main>
     </div>
   );
 }
 
-function Dashboard({ summary, health, operations }) {
+function Dashboard({ summary, health, operations, me, onLogin }) {
   return (
     <>
       <MetricGrid summary={summary} />
+      {!me?.authenticated ? <LoginPanel mode="customer" title="Customer Account Manager login" onLogin={onLogin} /> : null}
       <section className="panel split-panel">
         <div>
           <h2>Lifecycle focus</h2>
@@ -313,6 +360,20 @@ function DeviceDetail({ device, onAction }) {
           <span key={step} className={device.readiness === step ? 'current' : ''}>{step}</span>
         ))}
       </div>
+      <div className="source-facts">
+        <h3>Source facts</h3>
+        {(device.source_facts?.length ? device.source_facts : fallbackFacts(device)).map((fact) => (
+          <article className="source-fact" key={`${fact.layer}-${fact.state}-${fact.operation_id || ''}`}>
+            <div>
+              <strong>{fact.layer}</strong>
+              <span>{fact.detail}</span>
+              {fact.error_code ? <small>{fact.error_code}</small> : null}
+              {fact.operation_id ? <small>{fact.operation_id}</small> : null}
+            </div>
+            <StatusBadge value={fact.state || 'missing'} />
+          </article>
+        ))}
+      </div>
       <div className="detail-actions">
         <button onClick={() => onAction(device.id, 'provision')}>Provision device</button>
         <button onClick={() => onAction(device.id, 'deactivate')}>Deactivate device</button>
@@ -353,10 +414,11 @@ function OperationList({ operations, detailed = false }) {
   );
 }
 
-function PlatformAdmin({ summary, health, devices, customers, audit }) {
+function PlatformAdmin({ summary, health, devices, customers, audit, me, onLogin }) {
   const customerCount = summary?.customers ?? '-';
   return (
     <>
+      {me?.kind !== 'platform_admin' ? <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} /> : null}
       <section className="panel split-panel">
         <div>
           <h2>Platform Operations</h2>
@@ -411,8 +473,31 @@ function ServiceHealth({ health, compact = false }) {
           <strong>{item.name}</strong>
           <StatusBadge value={item.status} />
           <span>{item.detail}</span>
+          {item.latency_ms ? <small>{item.latency_ms} ms</small> : null}
+          {item.last_checked_at ? <time>{item.last_checked_at}</time> : null}
         </div>
       ))}
+    </section>
+  );
+}
+
+function LoginPanel({ mode, title, onLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  return (
+    <section className="panel login-panel">
+      <div>
+        <h2>{title}</h2>
+        <p>{mode === 'platform' ? 'Local SQLite platform admin session.' : 'Uses Account Manager when configured.'}</p>
+      </div>
+      <form onSubmit={(event) => {
+        event.preventDefault();
+        onLogin(mode, { email, password });
+      }}>
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" />
+        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" />
+        <button type="submit">Login</button>
+      </form>
     </section>
   );
 }
@@ -430,6 +515,36 @@ function titleFor(active) {
     admin: 'Platform Operations',
     audit: 'Audit',
   }[active];
+}
+
+function routeFromLocation() {
+  const path = window.location.pathname;
+  if (path === '/admin' || path.startsWith('/admin/')) return 'admin';
+  if (path === '/console/customers') return 'customers';
+  if (path === '/console/devices') return 'devices';
+  if (path === '/console/operations') return 'operations';
+  if (path === '/console/audit') return 'audit';
+  return 'console';
+}
+
+function fallbackFacts(device) {
+  return [
+    {
+      layer: 'account_registry',
+      state: device.id ? 'present' : 'missing',
+      detail: device.id ? 'Registry device exists in current projection.' : 'Missing registry device id.',
+    },
+    {
+      layer: 'cloud_activation',
+      state: device.video_cloud_devid ? 'present' : 'missing',
+      detail: device.video_cloud_devid ? 'Video Cloud device identity is present.' : 'Missing video_cloud_devid.',
+    },
+    {
+      layer: 'transport_online',
+      state: device.last_seen_at ? device.status : 'stale',
+      detail: device.last_seen_at ? `Last transport evidence at ${device.last_seen_at}.` : 'No recent transport evidence.',
+    },
+  ];
 }
 
 async function fetchJSON(url) {
