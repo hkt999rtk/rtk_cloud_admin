@@ -1,0 +1,9 @@
+.DS_Store
+.superpowers/
+bin/
+data/
+web/dist/
+web/node_modules/
+*.db
+*.db-shm
+*.db-wal
