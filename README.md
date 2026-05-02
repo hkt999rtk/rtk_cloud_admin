@@ -165,7 +165,10 @@ Container health uses `/healthz`.
 ## CI
 
 `.github/workflows/ci.yml` checks out submodules and runs `go test ./...`,
-`go build ./cmd/server`, `npm ci`, and `npm run build`.
+`go build ./cmd/server`, `npm ci`, `npm run build`, a container smoke test, and
+Docker cache cleanup on the self-hosted `rtk-cloud-admin-ci` runner.
+
+Runner health and recovery notes live in [`docs/ci-runner.md`](docs/ci-runner.md).
 
 ## Contracts
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -63,17 +64,40 @@ type LoginResult struct {
 	Tokens Tokens `json:"tokens"`
 }
 
+type RefreshResult struct {
+	Tokens Tokens `json:"tokens"`
+}
+
 type MeResult struct {
 	User          User           `json:"user"`
 	Organizations []Organization `json:"organizations"`
 }
 
+type HTTPError struct {
+	Method     string
+	Path       string
+	StatusCode int
+	Body       string
+}
+
+func (e *HTTPError) Error() string {
+	if e.Body != "" {
+		return fmt.Sprintf("upstream %s %s returned %d: %s", e.Method, e.Path, e.StatusCode, e.Body)
+	}
+	return fmt.Sprintf("upstream %s %s returned %d", e.Method, e.Path, e.StatusCode)
+}
+
 func New(baseURL string) *Client {
+	return NewWithHTTPClient(baseURL, &http.Client{Timeout: 6 * time.Second})
+}
+
+func NewWithHTTPClient(baseURL string, httpClient *http.Client) *Client {
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 6 * time.Second}
+	}
 	return &Client{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		httpClient: &http.Client{
-			Timeout: 6 * time.Second,
-		},
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		httpClient: httpClient,
 	}
 }
 
@@ -86,6 +110,14 @@ func (c *Client) Login(ctx context.Context, email, password string) (LoginResult
 	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/login", "", map[string]string{
 		"email":    email,
 		"password": password,
+	}, &out)
+	return out, err
+}
+
+func (c *Client) Refresh(ctx context.Context, refreshToken string) (RefreshResult, error) {
+	var out RefreshResult
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/refresh", "", map[string]string{
+		"refresh_token": refreshToken,
 	}, &out)
 	return out, err
 }
@@ -189,7 +221,13 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, in any,
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("upstream %s %s returned %d", method, path, resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return &HTTPError{
+			Method:     method,
+			Path:       path,
+			StatusCode: resp.StatusCode,
+			Body:       strings.TrimSpace(string(body)),
+		}
 	}
 	if out == nil {
 		return nil

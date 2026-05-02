@@ -11,6 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"rtk_cloud_admin/internal/contracts"
+	"rtk_cloud_admin/internal/readinessfacts"
 )
 
 type Store struct {
@@ -223,7 +224,17 @@ ORDER BY organization, name`)
 		}
 		devices = append(devices, d)
 	}
-	return devices, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range devices {
+		facts, err := s.sourceFactsForDevice(devices[i])
+		if err != nil {
+			return nil, err
+		}
+		devices[i].SourceFacts = facts
+	}
+	return devices, nil
 }
 
 func (s *Store) GetDevice(id string) (contracts.Device, error) {
@@ -232,6 +243,10 @@ func (s *Store) GetDevice(id string) (contracts.Device, error) {
 SELECT id, organization_id, organization, name, category, model, serial_number, video_cloud_devid, status, readiness, last_seen_at, updated_at
 FROM devices
 WHERE id = ?`, id).Scan(&d.ID, &d.OrganizationID, &d.Organization, &d.Name, &d.Category, &d.Model, &d.SerialNumber, &d.VideoCloudDevID, &d.Status, &d.Readiness, &d.LastSeenAt, &d.UpdatedAt)
+	if err != nil {
+		return d, err
+	}
+	d.SourceFacts, err = s.sourceFactsForDevice(d)
 	return d, err
 }
 
@@ -456,6 +471,12 @@ func (s *Store) UpdateSessionActiveOrg(id, orgID string) error {
 	return err
 }
 
+func (s *Store) UpdateSessionTokens(id, accessToken, refreshToken string, ttl time.Duration) error {
+	expiresAt := time.Now().UTC().Add(ttl).Format(time.RFC3339)
+	_, err := s.db.Exec(`UPDATE sessions SET access_token = ?, refresh_token = ?, expires_at = ? WHERE id = ?`, accessToken, refreshToken, expiresAt, id)
+	return err
+}
+
 func (s *Store) DeleteSession(id string) error {
 	_, err := s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id)
 	return err
@@ -516,4 +537,29 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		return contracts.Operation{}, err
 	}
 	return op, nil
+}
+
+func (s *Store) sourceFactsForDevice(device contracts.Device) ([]contracts.SourceFact, error) {
+	latest, err := s.latestOperationForDevice(device.ID)
+	if err != nil {
+		return nil, err
+	}
+	return readinessfacts.Build(device, latest), nil
+}
+
+func (s *Store) latestOperationForDevice(deviceID string) (*contracts.Operation, error) {
+	var op contracts.Operation
+	err := s.db.QueryRow(`
+SELECT id, device_id, device_name, organization, type, state, message, updated_at
+FROM operations
+WHERE device_id = ?
+ORDER BY updated_at DESC, id DESC
+LIMIT 1`, deviceID).Scan(&op.ID, &op.DeviceID, &op.DeviceName, &op.Organization, &op.Type, &op.State, &op.Message, &op.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &op, nil
 }

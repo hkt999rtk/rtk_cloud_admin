@@ -40,3 +40,45 @@ jobs:
 
       - name: Docker build
         run: docker build -t rtk-cloud-admin:ci .
+
+      - name: Container smoke
+        run: |
+          set -euo pipefail
+          smoke_dir="$(mktemp -d)"
+          chmod 0777 "$smoke_dir"
+          container_id=""
+          cleanup() {
+            if [ -n "$container_id" ]; then
+              docker rm -f "$container_id" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$smoke_dir"
+          }
+          trap cleanup EXIT
+
+          container_id="$(docker run -d \
+            --name rtk-cloud-admin-ci-smoke \
+            -e PORT=8080 \
+            -e DATABASE_PATH=/data/ci.db \
+            -v "$smoke_dir:/data" \
+            rtk-cloud-admin:ci)"
+
+          for _ in $(seq 1 30); do
+            if docker exec "$container_id" wget -qO- http://127.0.0.1:8080/healthz | grep -qx 'ok'; then
+              break
+            fi
+            if ! docker inspect -f '{{.State.Running}}' "$container_id" >/dev/null 2>&1; then
+              docker logs "$container_id" >&2 || true
+              exit 1
+            fi
+            sleep 1
+          done
+
+          docker exec "$container_id" wget -qO- http://127.0.0.1:8080/healthz | grep -qx 'ok'
+          docker exec "$container_id" wget -qO- http://127.0.0.1:8080/api/summary | grep -q '"total_devices"'
+          docker exec "$container_id" wget -qO- http://127.0.0.1:8080/console | grep -q 'id="root"'
+
+      - name: Docker cleanup
+        if: always()
+        run: |
+          docker image rm rtk-cloud-admin:ci >/dev/null 2>&1 || true
+          docker builder prune -af >/dev/null 2>&1 || true
