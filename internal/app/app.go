@@ -169,7 +169,7 @@ func (s *Server) apiSummary(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		summary, err := s.customerSummary(r.Context(), session)
 		if err != nil {
-			writeError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, summary)
@@ -302,6 +302,14 @@ func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	login, err := s.accountClient.Login(r.Context(), body.Email, body.Password)
 	if err != nil {
+		if status, ok := customerUpstreamStatus(err); ok {
+			if status == http.StatusUnauthorized {
+				http.Error(w, "invalid credentials", http.StatusUnauthorized)
+				return
+			}
+			s.writeCustomerError(w, err)
+			return
+		}
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -359,7 +367,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		devices, err := s.customerDevices(r.Context(), session)
 		if err != nil {
-			writeError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, devices)
@@ -389,7 +397,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		devices, err := s.customerDevices(r.Context(), session)
 		if err != nil {
-			writeError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		for _, device := range devices {
@@ -417,7 +425,7 @@ func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		customers, err := s.customerCustomers(r.Context(), session)
 		if err != nil {
-			writeError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, customers)
@@ -447,7 +455,7 @@ func (s *Server) apiOperations(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		ops, err := s.customerOperations(r.Context(), session)
 		if err != nil {
-			writeError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, ops)
@@ -488,7 +496,7 @@ func (s *Server) apiAudit(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		events, err := s.customerAudit(r.Context(), session)
 		if err != nil {
-			writeError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, events)
@@ -549,13 +557,21 @@ func (s *Server) serviceHealth(ctx context.Context) []contracts.ServiceHealth {
 }
 
 func (s *Server) customerDevices(ctx context.Context, session store.Session) ([]contracts.Device, error) {
-	org, err := s.activeCustomerOrg(ctx, session)
+	org, tokens, err := s.activeCustomerOrg(ctx, session)
 	if err != nil {
 		return nil, err
 	}
-	devices, err := s.accountClient.Devices(ctx, session.AccessToken, org.ID)
+	var devices []accountclient.Device
+	tokens, err = s.customerCall(ctx, tokens, func(token string) error {
+		var callErr error
+		devices, callErr = s.accountClient.Devices(ctx, token, org.ID)
+		return callErr
+	})
 	if err != nil {
 		return nil, err
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	out := make([]contracts.Device, 0, len(devices))
 	for _, device := range devices {
@@ -565,7 +581,7 @@ func (s *Server) customerDevices(ctx context.Context, session store.Session) ([]
 }
 
 func (s *Server) customerCustomers(ctx context.Context, session store.Session) ([]contracts.CustomerSummary, error) {
-	org, err := s.activeCustomerOrg(ctx, session)
+	org, _, err := s.activeCustomerOrg(ctx, session)
 	if err != nil {
 		return nil, err
 	}
@@ -670,22 +686,35 @@ func (s *Server) customerAudit(ctx context.Context, session store.Session) ([]co
 	return filtered, nil
 }
 
-func (s *Server) activeCustomerOrg(ctx context.Context, session store.Session) (accountclient.Organization, error) {
-	me, err := s.accountClient.Me(ctx, session.AccessToken)
+func (s *Server) activeCustomerOrg(ctx context.Context, session store.Session) (accountclient.Organization, accountclient.Tokens, error) {
+	tokens := accountclient.Tokens{
+		AccessToken:  session.AccessToken,
+		RefreshToken: session.RefreshToken,
+	}
+	var me accountclient.MeResult
+	nextTokens, err := s.customerCall(ctx, tokens, func(token string) error {
+		var callErr error
+		me, callErr = s.accountClient.Me(ctx, token)
+		return callErr
+	})
 	if err != nil {
-		return accountclient.Organization{}, err
+		return accountclient.Organization{}, accountclient.Tokens{}, err
+	}
+	if nextTokens.AccessToken != session.AccessToken || nextTokens.RefreshToken != session.RefreshToken {
+		_ = s.store.UpdateSessionTokens(session.ID, nextTokens.AccessToken, nextTokens.RefreshToken, tokenTTL(nextTokens))
 	}
 	if session.ActiveOrgID != "" {
 		for _, org := range me.Organizations {
 			if org.ID == session.ActiveOrgID {
-				return org, nil
+				return org, nextTokens, nil
 			}
 		}
+		return accountclient.Organization{}, nextTokens, errCustomerActiveOrgInvalid
 	}
 	if len(me.Organizations) > 0 {
-		return me.Organizations[0], nil
+		return me.Organizations[0], nextTokens, nil
 	}
-	return accountclient.Organization{}, fmt.Errorf("no accessible organizations available")
+	return accountclient.Organization{}, accountclient.Tokens{}, fmt.Errorf("no accessible organizations available")
 }
 
 func (s *Server) apiProvisionDevice(w http.ResponseWriter, r *http.Request) {
@@ -754,6 +783,7 @@ func tokenTTL(tokens accountclient.Tokens) time.Duration {
 }
 
 var errCustomerSessionInvalid = errors.New("customer session is invalid")
+var errCustomerActiveOrgInvalid = errors.New("active organization is not part of the current customer memberships")
 
 func (s *Server) invalidateCustomerSession(w http.ResponseWriter, sessionID string) {
 	_ = s.store.DeleteSession(sessionID)
@@ -841,9 +871,20 @@ func customerUpstreamStatus(err error) (int, bool) {
 	return 0, false
 }
 
+func (s *Server) writeCustomerErrorForSession(w http.ResponseWriter, sessionID string, err error) {
+	if errors.Is(err, errCustomerSessionInvalid) {
+		s.invalidateCustomerSession(w, sessionID)
+	}
+	s.writeCustomerError(w, err)
+}
+
 func (s *Server) writeCustomerError(w http.ResponseWriter, err error) {
 	if errors.Is(err, errCustomerSessionInvalid) {
 		http.Error(w, "customer session expired; please sign in again", http.StatusUnauthorized)
+		return
+	}
+	if errors.Is(err, errCustomerActiveOrgInvalid) {
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 	if status, ok := customerUpstreamStatus(err); ok {
@@ -1181,6 +1222,27 @@ func fallback(value, fallbackValue string) string {
 		return value
 	}
 	return fallbackValue
+}
+
+func (s *Server) httpHealth(ctx context.Context, name, baseURL string) contracts.ServiceHealth {
+	return s.upstreamHealth(ctx, name, baseURL, func(ctx context.Context) error {
+		if baseURL == "" {
+			return nil
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/healthz", nil)
+		if err != nil {
+			return err
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return err
+		}
+		_ = res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			return fmt.Errorf("unexpected status %d", res.StatusCode)
+		}
+		return nil
+	})
 }
 
 func (s *Server) upstreamHealth(ctx context.Context, name, baseURL string, check func(context.Context) error) contracts.ServiceHealth {

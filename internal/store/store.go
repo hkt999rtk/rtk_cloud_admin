@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 	`,
 	},
 	{
-		version: 3,
+		version: 4,
 		name:    "cache_settings_audit_metadata",
 		sql: `
 CREATE TABLE IF NOT EXISTS upstream_organizations (
