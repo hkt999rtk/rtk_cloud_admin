@@ -36,7 +36,7 @@ type Device struct {
 	VideoCloudDevID string         `json:"video_cloud_devid"`
 	Status          string         `json:"status"`
 	Readiness       ReadinessState `json:"readiness"`
-	SourceFacts     []SourceFact   `json:"source_facts,omitempty"`
+	SourceFacts     []SourceFact   `json:"source_facts"`
 	LastSeenAt      string         `json:"last_seen_at"`
 	UpdatedAt       string         `json:"updated_at"`
 }
