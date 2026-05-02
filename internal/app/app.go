@@ -511,13 +511,35 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	} else {
 		op, err = s.accountClient.Provision(r.Context(), session.AccessToken, session.ActiveOrgID, deviceID)
 	}
-	_ = s.store.CreateAuditEvent(session.Email, operationType+".attempted", deviceID)
+	_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:          session.Email,
+		ActorKind:      session.Kind,
+		Action:         operationType + ".attempted",
+		Target:         deviceID,
+		OrganizationID: session.ActiveOrgID,
+		Result:         "attempted",
+	})
 	if err != nil {
-		_ = s.store.CreateAuditEvent(session.Email, operationType+".failed", deviceID)
+		_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+			Actor:          session.Email,
+			ActorKind:      session.Kind,
+			Action:         operationType + ".failed",
+			Target:         deviceID,
+			OrganizationID: session.ActiveOrgID,
+			Result:         "failed",
+		})
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return true
 	}
-	_ = s.store.CreateAuditEvent(session.Email, operationType+".completed", deviceID)
+	_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:               session.Email,
+		ActorKind:           session.Kind,
+		Action:              operationType + ".completed",
+		Target:              deviceID,
+		OrganizationID:      session.ActiveOrgID,
+		Result:              "accepted",
+		UpstreamOperationID: op.ID,
+	})
 	writeJSON(w, contracts.Operation{
 		ID:        fallback(op.ID, fmt.Sprintf("op-%d", time.Now().UTC().UnixNano())),
 		DeviceID:  deviceID,

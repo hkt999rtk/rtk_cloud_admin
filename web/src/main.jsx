@@ -452,6 +452,7 @@ function AuditLog({ audit, compact = false }) {
               <div>
                 <strong>{event.action}</strong>
                 <span>{event.actor} / {event.target}</span>
+                <small>{[event.actor_kind, event.organization_id, event.result, event.upstream_operation_id].filter(Boolean).join(' / ')}</small>
               </div>
               <time>{event.created_at}</time>
             </article>
