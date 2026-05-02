@@ -3,6 +3,7 @@ package app
 import (
 	"database/sql"
 	"encoding/json"
+	"io"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -99,6 +100,51 @@ func TestCustomersAPI(t *testing.T) {
 	}
 }
 
+func TestServiceHealthReportsVideoCloudOK(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/healthz" {
+			t.Fatalf("path = %q, want /healthz", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "" {
+			t.Fatalf("Authorization = %q, want empty", got)
+		}
+		_, _ = w.Write([]byte("ok\n"))
+	}))
+	defer upstream.Close()
+
+	srv := newSeededTestServer(t, config.Config{VideoCloudBaseURL: upstream.URL})
+	health := requestJSON[[]contracts.ServiceHealth](t, srv, http.MethodGet, "/api/service-health", nil)
+
+	video := findServiceHealth(t, health, "Video Cloud")
+	if video.Status != "ok" {
+		t.Fatalf("Video Cloud status = %q, want ok; detail=%s", video.Status, video.Detail)
+	}
+	if video.LastCheckedAt == "" {
+		t.Fatal("Video Cloud last_checked_at is empty")
+	}
+}
+
+func TestServiceHealthReportsVideoCloudDown(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "failed", http.StatusInternalServerError)
+	}))
+	defer upstream.Close()
+
+	srv := newSeededTestServer(t, config.Config{VideoCloudBaseURL: upstream.URL})
+	health := requestJSON[[]contracts.ServiceHealth](t, srv, http.MethodGet, "/api/service-health", nil)
+
+	video := findServiceHealth(t, health, "Video Cloud")
+	if video.Status != "down" {
+		t.Fatalf("Video Cloud status = %q, want down", video.Status)
+	}
+	if !strings.Contains(video.Detail, "status 500") {
+		t.Fatalf("Video Cloud detail = %q, want status 500", video.Detail)
+	}
+}
 func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 	t.Parallel()
 
@@ -577,6 +623,50 @@ func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 	if !strings.Contains(audit.Body.String(), "DeviceProvisionRequested") {
 		t.Fatalf("admin audit body does not contain demo audit events: %s", audit.Body.String())
 	}
+}
+
+func newSeededTestServer(t *testing.T, cfg config.Config) *Server {
+	t.Helper()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	return NewWithOptions(st, Options{Config: cfg})
+}
+
+func requestJSON[T any](t *testing.T, srv *Server, method string, path string, body io.Reader) T {
+	t.Helper()
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(method, path, body))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("%s %s status = %d, want %d; body=%s", method, path, rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var out T
+	if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+		t.Fatalf("decode %s %s: %v", method, path, err)
+	}
+	return out
+}
+
+func findServiceHealth(t *testing.T, health []contracts.ServiceHealth, name string) contracts.ServiceHealth {
+	t.Helper()
+
+	for _, item := range health {
+		if item.Name == name {
+			return item
+		}
+	}
+	t.Fatalf("service health %q not found in %#v", name, health)
+	return contracts.ServiceHealth{}
 }
 
 func TestPlatformAdminLogin(t *testing.T) {
