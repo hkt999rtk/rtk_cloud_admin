@@ -362,17 +362,19 @@ function DeviceDetail({ device, onAction }) {
       </div>
       <div className="source-facts">
         <h3>Source facts</h3>
-        {(device.source_facts?.length ? device.source_facts : fallbackFacts(device)).map((fact) => (
+        {(device.source_facts || []).length ? (device.source_facts || []).map((fact) => (
           <article className="source-fact" key={`${fact.layer}-${fact.state}-${fact.operation_id || ''}`}>
             <div>
               <strong>{fact.layer}</strong>
               <span>{fact.detail}</span>
+              {fact.updated_at ? <time>{fact.updated_at}</time> : null}
               {fact.error_code ? <small>{fact.error_code}</small> : null}
               {fact.operation_id ? <small>{fact.operation_id}</small> : null}
+              {fact.state === 'failed' ? <small>{fact.retryable ? 'retryable' : 'not retryable'}</small> : null}
             </div>
             <StatusBadge value={fact.state || 'missing'} />
           </article>
-        ))}
+        )) : <p>No source facts available.</p>}
       </div>
       <div className="detail-actions">
         <button onClick={() => onAction(device.id, 'provision')}>Provision device</button>
@@ -525,26 +527,6 @@ function routeFromLocation() {
   if (path === '/console/operations') return 'operations';
   if (path === '/console/audit') return 'audit';
   return 'console';
-}
-
-function fallbackFacts(device) {
-  return [
-    {
-      layer: 'account_registry',
-      state: device.id ? 'present' : 'missing',
-      detail: device.id ? 'Registry device exists in current projection.' : 'Missing registry device id.',
-    },
-    {
-      layer: 'cloud_activation',
-      state: device.video_cloud_devid ? 'present' : 'missing',
-      detail: device.video_cloud_devid ? 'Video Cloud device identity is present.' : 'Missing video_cloud_devid.',
-    },
-    {
-      layer: 'transport_online',
-      state: device.last_seen_at ? device.status : 'stale',
-      detail: device.last_seen_at ? `Last transport evidence at ${device.last_seen_at}.` : 'No recent transport evidence.',
-    },
-  ];
 }
 
 async function fetchJSON(url) {

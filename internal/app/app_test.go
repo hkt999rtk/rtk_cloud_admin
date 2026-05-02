@@ -226,6 +226,9 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 	if !strings.Contains(devices.Body.String(), "edge-01") || strings.Contains(devices.Body.String(), "cam-a-001") {
 		t.Fatalf("devices should use upstream projection, got %s", devices.Body.String())
 	}
+	if !strings.Contains(devices.Body.String(), "source_facts") {
+		t.Fatalf("devices response does not include source_facts: %s", devices.Body.String())
+	}
 
 	provision := httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/devices/dev-up/provision", nil)
@@ -468,6 +471,27 @@ func TestCustomerUpstreamErrorsMapDeterministically(t *testing.T) {
 	srv.ServeHTTP(provision, req)
 	if provision.Code != http.StatusGatewayTimeout {
 		t.Fatalf("provision status = %d, body=%s", provision.Code, provision.Body.String())
+	}
+}
+
+func TestDeviceAPIIncludesSourceFacts(t *testing.T) {
+	t.Parallel()
+
+	srv, err := NewTestServer(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("NewTestServer returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/devices/dev-004", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("device status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "\"source_facts\"") {
+		t.Fatalf("device body does not include source_facts: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "\"failed\"") {
+		t.Fatalf("device body does not include failed source fact: %s", rec.Body.String())
 	}
 }
 

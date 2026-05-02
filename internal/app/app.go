@@ -15,6 +15,7 @@ import (
 	"rtk_cloud_admin/internal/accountclient"
 	"rtk_cloud_admin/internal/config"
 	"rtk_cloud_admin/internal/contracts"
+	"rtk_cloud_admin/internal/readinessfacts"
 	"rtk_cloud_admin/internal/store"
 )
 
@@ -772,7 +773,7 @@ func mapUpstreamDevice(org accountclient.Organization, device accountclient.Devi
 	status := fallback(device.Status, metadataString(device.Metadata, "status", "unknown"))
 	videoID := fallback(device.VideoCloudDevID, metadataString(device.Metadata, "video_cloud_devid", ""))
 	updatedAt := fallback(device.UpdatedAt, now)
-	return contracts.Device{
+	mapped := contracts.Device{
 		ID:              device.ID,
 		OrganizationID:  fallback(device.OrganizationID, org.ID),
 		Organization:    fallback(device.Organization, org.Name),
@@ -785,18 +786,23 @@ func mapUpstreamDevice(org accountclient.Organization, device accountclient.Devi
 		Readiness:       readiness,
 		LastSeenAt:      fallback(device.LastSeenAt, metadataString(device.Metadata, "last_seen_at", "")),
 		UpdatedAt:       updatedAt,
-		SourceFacts: []contracts.SourceFact{
-			{Layer: "account_registry", State: "present", Detail: "Device returned by Account Manager.", UpdatedAt: updatedAt},
-			{Layer: "cloud_activation", State: status, Detail: sourceFactDetail(videoID), UpdatedAt: updatedAt},
-		},
 	}
+	mapped.SourceFacts = readinessfacts.Build(mapped, upstreamOperationFromMetadata(device, updatedAt))
+	return mapped
 }
 
-func sourceFactDetail(videoID string) string {
-	if videoID == "" {
-		return "Missing video_cloud_devid from Account Manager metadata."
+func upstreamOperationFromMetadata(device accountclient.Device, fallbackUpdatedAt string) *contracts.Operation {
+	operationID := metadataString(device.Metadata, "operation_id", "")
+	if operationID == "" {
+		return nil
 	}
-	return "Video Cloud device identity is present."
+	return &contracts.Operation{
+		ID:        operationID,
+		Type:      metadataString(device.Metadata, "operation_type", "DeviceProvisionRequested"),
+		State:     mapOperationState(metadataString(device.Metadata, "operation_state", string(contracts.OperationPublished))),
+		Message:   metadataString(device.Metadata, "operation_message", "Account Manager projection metadata"),
+		UpdatedAt: fallback(metadataString(device.Metadata, "operation_updated_at", ""), fallbackUpdatedAt),
+	}
 }
 
 func mapOperationState(state string) contracts.OperationState {

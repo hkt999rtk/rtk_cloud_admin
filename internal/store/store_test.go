@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 	"time"
+
+	"rtk_cloud_admin/internal/contracts"
 )
 
 func TestStoreInitializesWithSeedData(t *testing.T) {
@@ -31,6 +33,23 @@ func TestStoreInitializesWithSeedData(t *testing.T) {
 	}
 	if devices[0].Readiness == "" {
 		t.Fatalf("first device readiness is empty")
+	}
+	acmeOnline := deviceByID(t, devices, "dev-001")
+	if len(acmeOnline.SourceFacts) != 3 {
+		t.Fatalf("dev-001 source facts = %d, want 3", len(acmeOnline.SourceFacts))
+	}
+	if acmeOnline.SourceFacts[0].State != "present" || acmeOnline.SourceFacts[1].State != "present" || acmeOnline.SourceFacts[2].State != "present" {
+		t.Fatalf("dev-001 source facts = %#v", acmeOnline.SourceFacts)
+	}
+	failed := deviceByID(t, devices, "dev-004")
+	if failed.SourceFacts[1].State != "failed" {
+		t.Fatalf("dev-004 cloud activation state = %q, want failed", failed.SourceFacts[1].State)
+	}
+	if failed.SourceFacts[1].OperationID == "" {
+		t.Fatalf("dev-004 cloud activation missing operation id: %#v", failed.SourceFacts[1])
+	}
+	if failed.SourceFacts[1].ErrorCode == "" {
+		t.Fatalf("dev-004 cloud activation missing error code: %#v", failed.SourceFacts[1])
 	}
 
 	ops, err := st.ListOperations()
@@ -191,4 +210,15 @@ func TestCreateLifecycleOperationUpdatesDeviceReadiness(t *testing.T) {
 	if auditEvents[0].Target != "dev-002" {
 		t.Fatalf("audit target = %q, want dev-002", auditEvents[0].Target)
 	}
+}
+
+func deviceByID(t *testing.T, devices []contracts.Device, id string) contracts.Device {
+	t.Helper()
+	for _, device := range devices {
+		if device.ID == id {
+			return device
+		}
+	}
+	t.Fatalf("device %s not found", id)
+	return contracts.Device{}
 }
