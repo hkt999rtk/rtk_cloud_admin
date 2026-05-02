@@ -186,14 +186,25 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 	}
 	me := contracts.Me{UserID: session.Subject, Email: session.Email, Name: session.Email, Kind: session.Kind, ActiveOrgID: session.ActiveOrgID, Authenticated: true}
 	if s.accountClient.Enabled() {
-		upstream, err := s.accountClient.Me(r.Context(), session.AccessToken)
-		if err == nil {
-			me.UserID = upstream.User.ID
-			me.Email = upstream.User.Email
-			me.Name = fallback(upstream.User.Name, upstream.User.Email)
-			for _, org := range upstream.Organizations {
-				me.Memberships = append(me.Memberships, contracts.Membership{OrganizationID: org.ID, Organization: org.Name, Role: org.Role})
+		upstream, tokens, err := s.resolveCustomerProfile(r.Context(), accountclient.Tokens{
+			AccessToken:  session.AccessToken,
+			RefreshToken: session.RefreshToken,
+		})
+		if err != nil {
+			if errors.Is(err, errCustomerSessionInvalid) {
+				s.invalidateCustomerSession(w, session.ID)
 			}
+			s.writeCustomerError(w, err)
+			return
+		}
+		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		}
+		me.UserID = upstream.User.ID
+		me.Email = upstream.User.Email
+		me.Name = fallback(upstream.User.Name, upstream.User.Email)
+		for _, org := range upstream.Organizations {
+			me.Memberships = append(me.Memberships, contracts.Membership{OrganizationID: org.ID, Organization: org.Name, Role: org.Role})
 		}
 	}
 	writeJSON(w, me)
@@ -211,6 +222,26 @@ func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.OrganizationID == "" {
 		http.Error(w, "organization_id is required", http.StatusBadRequest)
 		return
+	}
+	if s.accountClient.Enabled() && session.Kind == "customer" {
+		orgs, tokens, err := s.customerOrganizations(r.Context(), accountclient.Tokens{
+			AccessToken:  session.AccessToken,
+			RefreshToken: session.RefreshToken,
+		})
+		if err != nil {
+			if errors.Is(err, errCustomerSessionInvalid) {
+				s.invalidateCustomerSession(w, session.ID)
+			}
+			s.writeCustomerError(w, err)
+			return
+		}
+		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		}
+		if !organizationAllowed(orgs, body.OrganizationID) {
+			http.Error(w, "organization is not part of the current customer memberships", http.StatusForbidden)
+			return
+		}
 	}
 	if err := s.store.UpdateSessionActiveOrg(session.ID, body.OrganizationID); err != nil {
 		writeError(w, err)
@@ -237,12 +268,16 @@ func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
-	me, _ := s.accountClient.Me(r.Context(), login.Tokens.AccessToken)
+	me, tokens, err := s.resolveCustomerProfile(r.Context(), login.Tokens)
+	if err != nil {
+		s.writeCustomerError(w, err)
+		return
+	}
 	activeOrgID := ""
 	if len(me.Organizations) > 0 {
 		activeOrgID = me.Organizations[0].ID
 	}
-	session, err := s.store.CreateSession("customer", login.User.ID, login.User.Email, login.Tokens.AccessToken, login.Tokens.RefreshToken, activeOrgID, tokenTTL(login.Tokens))
+	session, err := s.store.CreateSession("customer", login.User.ID, login.User.Email, tokens.AccessToken, tokens.RefreshToken, activeOrgID, tokenTTL(tokens))
 	if err != nil {
 		writeError(w, err)
 		return
@@ -428,15 +463,146 @@ func tokenTTL(tokens accountclient.Tokens) time.Duration {
 	return time.Hour
 }
 
+var errCustomerSessionInvalid = errors.New("customer session is invalid")
+
+func (s *Server) invalidateCustomerSession(w http.ResponseWriter, sessionID string) {
+	_ = s.store.DeleteSession(sessionID)
+	http.SetCookie(w, &http.Cookie{Name: "rtk_admin_session", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+}
+
+func (s *Server) resolveCustomerProfile(ctx context.Context, tokens accountclient.Tokens) (accountclient.MeResult, accountclient.Tokens, error) {
+	var upstream accountclient.MeResult
+	nextTokens, err := s.customerCall(ctx, tokens, func(token string) error {
+		var callErr error
+		upstream, callErr = s.accountClient.Me(ctx, token)
+		return callErr
+	})
+	if err != nil {
+		return accountclient.MeResult{}, accountclient.Tokens{}, err
+	}
+	return upstream, nextTokens, nil
+}
+
+func (s *Server) customerOrganizations(ctx context.Context, tokens accountclient.Tokens) ([]accountclient.Organization, accountclient.Tokens, error) {
+	var orgs []accountclient.Organization
+	nextTokens, err := s.customerCall(ctx, tokens, func(token string) error {
+		var callErr error
+		orgs, callErr = s.accountClient.Organizations(ctx, token)
+		return callErr
+	})
+	if err != nil {
+		return nil, accountclient.Tokens{}, err
+	}
+	return orgs, nextTokens, nil
+}
+
+func (s *Server) customerCall(ctx context.Context, tokens accountclient.Tokens, call func(token string) error) (accountclient.Tokens, error) {
+	if !s.accountClient.Enabled() {
+		return tokens, errors.New("ACCOUNT_MANAGER_BASE_URL is not configured")
+	}
+	err := call(tokens.AccessToken)
+	if err == nil {
+		return tokens, nil
+	}
+	if status, ok := customerUpstreamStatus(err); !ok || status != http.StatusUnauthorized {
+		return tokens, err
+	}
+	if tokens.RefreshToken == "" {
+		return accountclient.Tokens{}, errCustomerSessionInvalid
+	}
+	refreshed, refreshErr := s.accountClient.Refresh(ctx, tokens.RefreshToken)
+	if refreshErr != nil {
+		if status, ok := customerUpstreamStatus(refreshErr); ok && status == http.StatusUnauthorized {
+			return accountclient.Tokens{}, errCustomerSessionInvalid
+		}
+		return tokens, refreshErr
+	}
+	nextTokens := refreshed.Tokens
+	if nextTokens.AccessToken == "" {
+		return accountclient.Tokens{}, errCustomerSessionInvalid
+	}
+	err = call(nextTokens.AccessToken)
+	if err == nil {
+		return nextTokens, nil
+	}
+	if status, ok := customerUpstreamStatus(err); ok && status == http.StatusUnauthorized {
+		return accountclient.Tokens{}, errCustomerSessionInvalid
+	}
+	return nextTokens, err
+}
+
+func customerUpstreamStatus(err error) (int, bool) {
+	var httpErr *accountclient.HTTPError
+	if errors.As(err, &httpErr) {
+		switch httpErr.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return httpErr.StatusCode, true
+		case http.StatusNotFound, http.StatusBadRequest, http.StatusConflict, http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable:
+			return http.StatusBadGateway, true
+		}
+	}
+	var timeoutErr interface{ Timeout() bool }
+	if errors.As(err, &timeoutErr) && timeoutErr.Timeout() {
+		return http.StatusGatewayTimeout, true
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return http.StatusGatewayTimeout, true
+	}
+	return 0, false
+}
+
+func (s *Server) writeCustomerError(w http.ResponseWriter, err error) {
+	if errors.Is(err, errCustomerSessionInvalid) {
+		http.Error(w, "customer session expired; please sign in again", http.StatusUnauthorized)
+		return
+	}
+	if status, ok := customerUpstreamStatus(err); ok {
+		switch status {
+		case http.StatusUnauthorized:
+			http.Error(w, "customer session expired; please sign in again", http.StatusUnauthorized)
+		case http.StatusForbidden:
+			http.Error(w, "Account Manager denied access to the requested resource", http.StatusForbidden)
+		case http.StatusGatewayTimeout:
+			http.Error(w, "Account Manager request timed out", http.StatusGatewayTimeout)
+		default:
+			http.Error(w, "Account Manager request failed", http.StatusBadGateway)
+		}
+		return
+	}
+	writeError(w, err)
+}
+
+func organizationAllowed(orgs []accountclient.Organization, orgID string) bool {
+	for _, org := range orgs {
+		if org.ID == orgID {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) upstreamCustomers(w http.ResponseWriter, r *http.Request) ([]contracts.CustomerSummary, bool) {
 	session, ok := s.requestSession(r)
 	if !ok || !s.accountClient.Enabled() || session.Kind != "customer" {
 		return nil, false
 	}
-	orgs, err := s.accountClient.Organizations(r.Context(), session.AccessToken)
+	tokens := accountclient.Tokens{AccessToken: session.AccessToken, RefreshToken: session.RefreshToken}
+	var orgs []accountclient.Organization
+	var err error
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		orgs, callErr = s.accountClient.Organizations(r.Context(), token)
+		return callErr
+	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		if errors.Is(err, errCustomerSessionInvalid) {
+			s.invalidateCustomerSession(w, session.ID)
+		}
+		s.writeCustomerError(w, err)
 		return nil, true
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	customers := make([]contracts.CustomerSummary, 0, len(orgs))
 	for _, org := range orgs {
@@ -444,10 +610,21 @@ func (s *Server) upstreamCustomers(w http.ResponseWriter, r *http.Request) ([]co
 			OrganizationID: org.ID,
 			Organization:   org.Name,
 		}
-		devices, err := s.accountClient.Devices(r.Context(), session.AccessToken, org.ID)
+		var devices []accountclient.Device
+		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+			var callErr error
+			devices, callErr = s.accountClient.Devices(r.Context(), token, org.ID)
+			return callErr
+		})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			if errors.Is(err, errCustomerSessionInvalid) {
+				s.invalidateCustomerSession(w, session.ID)
+			}
+			s.writeCustomerError(w, err)
 			return nil, true
+		}
+		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
 		for _, device := range devices {
 			mapped := mapUpstreamDevice(org, device)
@@ -477,17 +654,41 @@ func (s *Server) upstreamDevices(w http.ResponseWriter, r *http.Request) ([]cont
 	if !ok || !s.accountClient.Enabled() || session.Kind != "customer" {
 		return nil, false
 	}
-	orgs, err := s.accountClient.Organizations(r.Context(), session.AccessToken)
+	tokens := accountclient.Tokens{AccessToken: session.AccessToken, RefreshToken: session.RefreshToken}
+	var orgs []accountclient.Organization
+	var err error
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		orgs, callErr = s.accountClient.Organizations(r.Context(), token)
+		return callErr
+	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		if errors.Is(err, errCustomerSessionInvalid) {
+			s.invalidateCustomerSession(w, session.ID)
+		}
+		s.writeCustomerError(w, err)
 		return nil, true
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	var out []contracts.Device
 	for _, org := range orgs {
-		devices, err := s.accountClient.Devices(r.Context(), session.AccessToken, org.ID)
+		var devices []accountclient.Device
+		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+			var callErr error
+			devices, callErr = s.accountClient.Devices(r.Context(), token, org.ID)
+			return callErr
+		})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			if errors.Is(err, errCustomerSessionInvalid) {
+				s.invalidateCustomerSession(w, session.ID)
+			}
+			s.writeCustomerError(w, err)
 			return nil, true
+		}
+		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
 		for _, device := range devices {
 			out = append(out, mapUpstreamDevice(org, device))
@@ -501,21 +702,56 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	if !ok || !s.accountClient.Enabled() || session.Kind != "customer" || session.ActiveOrgID == "" {
 		return false
 	}
+	tokens := accountclient.Tokens{AccessToken: session.AccessToken, RefreshToken: session.RefreshToken}
+	var orgs []accountclient.Organization
+	var err error
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		orgs, callErr = s.accountClient.Organizations(r.Context(), token)
+		return callErr
+	})
+	if err != nil {
+		if errors.Is(err, errCustomerSessionInvalid) {
+			s.invalidateCustomerSession(w, session.ID)
+		}
+		s.writeCustomerError(w, err)
+		return true
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+	}
+	if !organizationAllowed(orgs, session.ActiveOrgID) {
+		http.Error(w, "active organization is not part of the current customer memberships", http.StatusForbidden)
+		return true
+	}
 	deviceID := r.PathValue("id")
 	operationType := "DeviceProvisionRequested"
 	var op accountclient.Operation
-	var err error
 	if action == "deactivate" {
 		operationType = "DeviceDeactivateRequested"
-		op, err = s.accountClient.Deactivate(r.Context(), session.AccessToken, session.ActiveOrgID, deviceID)
+		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+			var callErr error
+			op, callErr = s.accountClient.Deactivate(r.Context(), token, session.ActiveOrgID, deviceID)
+			return callErr
+		})
 	} else {
-		op, err = s.accountClient.Provision(r.Context(), session.AccessToken, session.ActiveOrgID, deviceID)
+		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+			var callErr error
+			op, callErr = s.accountClient.Provision(r.Context(), token, session.ActiveOrgID, deviceID)
+			return callErr
+		})
 	}
 	_ = s.store.CreateAuditEvent(session.Email, operationType+".attempted", deviceID)
 	if err != nil {
+		if errors.Is(err, errCustomerSessionInvalid) {
+			s.invalidateCustomerSession(w, session.ID)
+		}
 		_ = s.store.CreateAuditEvent(session.Email, operationType+".failed", deviceID)
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		s.writeCustomerError(w, err)
 		return true
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	_ = s.store.CreateAuditEvent(session.Email, operationType+".completed", deviceID)
 	writeJSON(w, contracts.Operation{

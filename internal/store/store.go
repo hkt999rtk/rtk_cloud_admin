@@ -456,6 +456,12 @@ func (s *Store) UpdateSessionActiveOrg(id, orgID string) error {
 	return err
 }
 
+func (s *Store) UpdateSessionTokens(id, accessToken, refreshToken string, ttl time.Duration) error {
+	expiresAt := time.Now().UTC().Add(ttl).Format(time.RFC3339)
+	_, err := s.db.Exec(`UPDATE sessions SET access_token = ?, refresh_token = ?, expires_at = ? WHERE id = ?`, accessToken, refreshToken, expiresAt, id)
+	return err
+}
+
 func (s *Store) DeleteSession(id string) error {
 	_, err := s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id)
 	return err

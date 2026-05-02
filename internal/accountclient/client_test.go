@@ -40,3 +40,28 @@ func TestClientLoginAndMe(t *testing.T) {
 		t.Fatalf("organizations = %#v", me.Organizations)
 	}
 }
+
+func TestClientRefresh(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/refresh":
+			if r.Method != http.MethodPost {
+				t.Fatalf("method = %s", r.Method)
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"tokens":{"access_token":"refreshed","refresh_token":"refresh-2","expires_in":1800}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	refresh, err := client.Refresh(t.Context(), "refresh-1")
+	if err != nil {
+		t.Fatalf("Refresh returned error: %v", err)
+	}
+	if refresh.Tokens.AccessToken != "refreshed" || refresh.Tokens.RefreshToken != "refresh-2" {
+		t.Fatalf("tokens = %#v", refresh.Tokens)
+	}
+}
