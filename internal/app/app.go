@@ -16,6 +16,7 @@ import (
 	"rtk_cloud_admin/internal/config"
 	"rtk_cloud_admin/internal/contracts"
 	"rtk_cloud_admin/internal/store"
+	"rtk_cloud_admin/internal/videoclient"
 )
 
 type Server struct {
@@ -23,11 +24,13 @@ type Server struct {
 	mux           *http.ServeMux
 	cfg           config.Config
 	accountClient *accountclient.Client
+	videoClient   *videoclient.Client
 }
 
 type Options struct {
 	Config        config.Config
 	AccountClient *accountclient.Client
+	VideoClient   *videoclient.Client
 }
 
 func NewTestServer(dbPath string) (*Server, error) {
@@ -54,7 +57,10 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 	if opts.AccountClient == nil && opts.Config.AccountManagerBaseURL != "" {
 		opts.AccountClient = accountclient.New(opts.Config.AccountManagerBaseURL)
 	}
-	s := &Server{store: st, mux: http.NewServeMux(), cfg: opts.Config, accountClient: opts.AccountClient}
+	if opts.VideoClient == nil && opts.Config.VideoCloudBaseURL != "" {
+		opts.VideoClient = videoclient.New(opts.Config.VideoCloudBaseURL)
+	}
+	s := &Server{store: st, mux: http.NewServeMux(), cfg: opts.Config, accountClient: opts.AccountClient, videoClient: opts.VideoClient}
 	s.routes()
 	return s
 }
@@ -348,7 +354,12 @@ func (s *Server) apiServiceHealth(w http.ResponseWriter, r *http.Request) {
 			}
 			return s.accountClient.Health(ctx)
 		}),
-		s.httpHealth(r.Context(), "Video Cloud", s.cfg.VideoCloudBaseURL),
+		s.upstreamHealth(r.Context(), "Video Cloud", s.cfg.VideoCloudBaseURL, func(ctx context.Context) error {
+			if !s.videoClient.Enabled() {
+				return nil
+			}
+			return s.videoClient.Health(ctx)
+		}),
 		{Name: "SQLite", Status: "ok", Detail: "Local console cache is available.", LastCheckedAt: time.Now().UTC().Format(time.RFC3339)},
 	})
 }
@@ -607,22 +618,4 @@ func (s *Server) upstreamHealth(ctx context.Context, name, baseURL string, check
 		detail = err.Error()
 	}
 	return contracts.ServiceHealth{Name: name, Status: status, Detail: detail, LatencyMillis: time.Since(start).Milliseconds(), LastCheckedAt: time.Now().UTC().Format(time.RFC3339)}
-}
-
-func (s *Server) httpHealth(ctx context.Context, name, baseURL string) contracts.ServiceHealth {
-	return s.upstreamHealth(ctx, name, baseURL, func(ctx context.Context) error {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/healthz", nil)
-		if err != nil {
-			return err
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("status %d", resp.StatusCode)
-		}
-		return nil
-	})
 }
