@@ -11,6 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"rtk_cloud_admin/internal/contracts"
+	"rtk_cloud_admin/internal/readinessfacts"
 )
 
 type Store struct {
@@ -34,6 +35,18 @@ type PlatformAdmin struct {
 	Email     string
 	Role      string
 	CreatedAt string
+}
+
+type AuditEventInput struct {
+	Actor               string
+	ActorKind           string
+	Action              string
+	Target              string
+	OrganizationID      string
+	Result              string
+	RequestID           string
+	UpstreamOperationID string
+	CreatedAt           string
 }
 
 func Open(path string) (*Store, error) {
@@ -154,6 +167,77 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 `,
 	},
+	{
+		version: 3,
+		name:    "cache_settings_audit_metadata",
+		sql: `
+CREATE TABLE IF NOT EXISTS upstream_organizations (
+	id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
+	role TEXT NOT NULL,
+	source TEXT NOT NULL,
+	fetched_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS upstream_devices (
+	id TEXT PRIMARY KEY,
+	organization_id TEXT NOT NULL,
+	name TEXT NOT NULL,
+	category TEXT NOT NULL,
+	model TEXT NOT NULL,
+	serial_number TEXT NOT NULL,
+	video_cloud_devid TEXT NOT NULL,
+	status TEXT NOT NULL,
+	readiness TEXT NOT NULL,
+	last_seen_at TEXT NOT NULL,
+	source TEXT NOT NULL,
+	fetched_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS upstream_operations (
+	id TEXT PRIMARY KEY,
+	device_id TEXT NOT NULL,
+	organization_id TEXT NOT NULL,
+	type TEXT NOT NULL,
+	state TEXT NOT NULL,
+	message TEXT NOT NULL,
+	source TEXT NOT NULL,
+	fetched_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS readiness_facts (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	device_id TEXT NOT NULL,
+	organization_id TEXT NOT NULL,
+	layer TEXT NOT NULL,
+	state TEXT NOT NULL,
+	detail TEXT NOT NULL,
+	retryable INTEGER NOT NULL DEFAULT 0,
+	error_code TEXT NOT NULL DEFAULT '',
+	operation_id TEXT NOT NULL DEFAULT '',
+	source TEXT NOT NULL,
+	fetched_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL,
+	UNIQUE(device_id, layer)
+);
+CREATE TABLE IF NOT EXISTS integration_settings (
+	key TEXT PRIMARY KEY,
+	value TEXT NOT NULL,
+	source TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_upstream_devices_org ON upstream_devices (organization_id, name);
+CREATE INDEX IF NOT EXISTS idx_upstream_operations_device ON upstream_operations (device_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_readiness_facts_device ON readiness_facts (device_id, layer);
+ALTER TABLE audit_events ADD COLUMN actor_kind TEXT NOT NULL DEFAULT 'operator';
+ALTER TABLE audit_events ADD COLUMN organization_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE audit_events ADD COLUMN result TEXT NOT NULL DEFAULT 'accepted';
+ALTER TABLE audit_events ADD COLUMN request_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE audit_events ADD COLUMN upstream_operation_id TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_audit_events_org_created ON audit_events (organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_events_upstream_operation ON audit_events (upstream_operation_id);
+`,
+	},
 }
 
 func (s *Store) AppliedMigrations() ([]int, error) {
@@ -223,7 +307,17 @@ ORDER BY organization, name`)
 		}
 		devices = append(devices, d)
 	}
-	return devices, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range devices {
+		facts, err := s.sourceFactsForDevice(devices[i])
+		if err != nil {
+			return nil, err
+		}
+		devices[i].SourceFacts = facts
+	}
+	return devices, nil
 }
 
 func (s *Store) GetDevice(id string) (contracts.Device, error) {
@@ -232,6 +326,10 @@ func (s *Store) GetDevice(id string) (contracts.Device, error) {
 SELECT id, organization_id, organization, name, category, model, serial_number, video_cloud_devid, status, readiness, last_seen_at, updated_at
 FROM devices
 WHERE id = ?`, id).Scan(&d.ID, &d.OrganizationID, &d.Organization, &d.Name, &d.Category, &d.Model, &d.SerialNumber, &d.VideoCloudDevID, &d.Status, &d.Readiness, &d.LastSeenAt, &d.UpdatedAt)
+	if err != nil {
+		return d, err
+	}
+	d.SourceFacts, err = s.sourceFactsForDevice(d)
 	return d, err
 }
 
@@ -335,7 +433,7 @@ func (s *Store) ListCustomers() ([]contracts.CustomerSummary, error) {
 
 func (s *Store) ListAuditEvents() ([]contracts.AuditEvent, error) {
 	rows, err := s.db.Query(`
-SELECT id, actor, action, target, created_at
+SELECT id, actor, actor_kind, action, target, organization_id, result, request_id, upstream_operation_id, created_at
 FROM audit_events
 ORDER BY created_at DESC, id DESC
 LIMIT 100`)
@@ -347,7 +445,7 @@ LIMIT 100`)
 	events := []contracts.AuditEvent{}
 	for rows.Next() {
 		var event contracts.AuditEvent
-		if err := rows.Scan(&event.ID, &event.Actor, &event.Action, &event.Target, &event.CreatedAt); err != nil {
+		if err := rows.Scan(&event.ID, &event.Actor, &event.ActorKind, &event.Action, &event.Target, &event.OrganizationID, &event.Result, &event.RequestID, &event.UpstreamOperationID, &event.CreatedAt); err != nil {
 			return nil, err
 		}
 		events = append(events, event)
@@ -357,16 +455,35 @@ LIMIT 100`)
 
 func (s *Store) insertAuditEvent(tx *sql.Tx, actor, action, target, createdAt string) error {
 	_, err := tx.Exec(`
-INSERT INTO audit_events (actor, action, target, created_at)
-VALUES (?, ?, ?, ?)`, actor, action, target, createdAt)
+INSERT INTO audit_events (actor, actor_kind, action, target, organization_id, result, request_id, upstream_operation_id, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, actor, "demo", action, target, "", "accepted", "", "", createdAt)
 	return err
 }
 
 func (s *Store) CreateAuditEvent(actor, action, target string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
+	return s.CreateAuditEventWithMetadata(AuditEventInput{
+		Actor:     actor,
+		ActorKind: "operator",
+		Action:    action,
+		Target:    target,
+		Result:    "accepted",
+	})
+}
+
+func (s *Store) CreateAuditEventWithMetadata(input AuditEventInput) error {
+	if input.ActorKind == "" {
+		input.ActorKind = "operator"
+	}
+	if input.Result == "" {
+		input.Result = "accepted"
+	}
+	if input.CreatedAt == "" {
+		input.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
 	_, err := s.db.Exec(`
-INSERT INTO audit_events (actor, action, target, created_at)
-VALUES (?, ?, ?, ?)`, actor, action, target, now)
+INSERT INTO audit_events (actor, actor_kind, action, target, organization_id, result, request_id, upstream_operation_id, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		input.Actor, input.ActorKind, input.Action, input.Target, input.OrganizationID, input.Result, input.RequestID, input.UpstreamOperationID, input.CreatedAt)
 	return err
 }
 
@@ -456,6 +573,12 @@ func (s *Store) UpdateSessionActiveOrg(id, orgID string) error {
 	return err
 }
 
+func (s *Store) UpdateSessionTokens(id, accessToken, refreshToken string, ttl time.Duration) error {
+	expiresAt := time.Now().UTC().Add(ttl).Format(time.RFC3339)
+	_, err := s.db.Exec(`UPDATE sessions SET access_token = ?, refresh_token = ?, expires_at = ? WHERE id = ?`, accessToken, refreshToken, expiresAt, id)
+	return err
+}
+
 func (s *Store) DeleteSession(id string) error {
 	_, err := s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id)
 	return err
@@ -516,4 +639,29 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		return contracts.Operation{}, err
 	}
 	return op, nil
+}
+
+func (s *Store) sourceFactsForDevice(device contracts.Device) ([]contracts.SourceFact, error) {
+	latest, err := s.latestOperationForDevice(device.ID)
+	if err != nil {
+		return nil, err
+	}
+	return readinessfacts.Build(device, latest), nil
+}
+
+func (s *Store) latestOperationForDevice(deviceID string) (*contracts.Operation, error) {
+	var op contracts.Operation
+	err := s.db.QueryRow(`
+SELECT id, device_id, device_name, organization, type, state, message, updated_at
+FROM operations
+WHERE device_id = ?
+ORDER BY updated_at DESC, id DESC
+LIMIT 1`, deviceID).Scan(&op.ID, &op.DeviceID, &op.DeviceName, &op.Organization, &op.Type, &op.State, &op.Message, &op.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &op, nil
 }

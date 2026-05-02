@@ -36,7 +36,7 @@ type Device struct {
 	VideoCloudDevID string         `json:"video_cloud_devid"`
 	Status          string         `json:"status"`
 	Readiness       ReadinessState `json:"readiness"`
-	SourceFacts     []SourceFact   `json:"source_facts,omitempty"`
+	SourceFacts     []SourceFact   `json:"source_facts"`
 	LastSeenAt      string         `json:"last_seen_at"`
 	UpdatedAt       string         `json:"updated_at"`
 }
@@ -109,9 +109,14 @@ type Me struct {
 }
 
 type AuditEvent struct {
-	ID        int64  `json:"id"`
-	Actor     string `json:"actor"`
-	Action    string `json:"action"`
-	Target    string `json:"target"`
-	CreatedAt string `json:"created_at"`
+	ID                  int64  `json:"id"`
+	Actor               string `json:"actor"`
+	ActorKind           string `json:"actor_kind"`
+	Action              string `json:"action"`
+	Target              string `json:"target"`
+	OrganizationID      string `json:"organization_id,omitempty"`
+	Result              string `json:"result"`
+	RequestID           string `json:"request_id,omitempty"`
+	UpstreamOperationID string `json:"upstream_operation_id,omitempty"`
+	CreatedAt           string `json:"created_at"`
 }

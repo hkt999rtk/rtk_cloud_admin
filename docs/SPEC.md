@@ -67,7 +67,8 @@ Runtime components:
 
 Data ownership:
 
-- SQLite is authoritative only for console-local data: platform admins, sessions, audit, settings, preferences, and cache/demo projections.
+- SQLite is authoritative only for console-local data: platform admins, sessions, audit, settings, preferences, and demo projections.
+- SQLite cache tables for upstream organizations, devices, operations, and readiness facts are non-authoritative mirrors that can be refreshed from Account Manager and Video Cloud.
 - Account Manager remains authoritative for customer users, organizations, membership, and registry devices.
 - Video Cloud remains authoritative for activation, transport, streaming, media, firmware, and device runtime facts.
 
@@ -122,7 +123,7 @@ Account Manager proxy mode:
 - `POST /api/devices/{id}/provision` calls the Account Manager provision endpoint
 - `POST /api/devices/{id}/deactivate` calls the Account Manager deactivate endpoint
 - upstream failures return a gateway error instead of silently falling back
-- attempted, completed, and failed lifecycle actions are recorded in audit
+- attempted, accepted/completed, and failed lifecycle actions are recorded in audit with actor kind, organization id, result, request id, and upstream operation id fields where available
 
 Service health:
 
@@ -183,7 +184,7 @@ Environment variables:
 ## Test Plan
 
 - Unit tests for app wiring, health endpoint, JSON API handlers, and SPA fallback.
-- Store tests for SQLite schema creation, seed data, device queries, operation queries, and audit insertion.
+- Store tests for SQLite schema creation, seed data, device queries, operation queries, audit metadata insertion, migration idempotence, and upgrade from the current v2 schema.
 - Store tests for versioned migrations, admin password verification, and session expiry.
 - App tests for customer login, upstream proxy mode, provision proxy, and platform admin route guards.
 - Frontend build verification with `npm run build`.
