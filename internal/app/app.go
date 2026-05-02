@@ -190,15 +190,15 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 			AccessToken:  session.AccessToken,
 			RefreshToken: session.RefreshToken,
 		})
+		if tokens.AccessToken != "" && (tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken) {
+			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		}
 		if err != nil {
 			if errors.Is(err, errCustomerSessionInvalid) {
 				s.invalidateCustomerSession(w, session.ID)
 			}
 			s.writeCustomerError(w, err)
 			return
-		}
-		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
 		me.UserID = upstream.User.ID
 		me.Email = upstream.User.Email
@@ -270,11 +270,12 @@ func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	me, tokens, err := s.resolveCustomerProfile(r.Context(), login.Tokens)
 	if err != nil {
-		s.writeCustomerError(w, err)
-		return
+		if tokens.AccessToken == "" {
+			tokens = login.Tokens
+		}
 	}
 	activeOrgID := ""
-	if len(me.Organizations) > 0 {
+	if err == nil && len(me.Organizations) > 0 {
 		activeOrgID = me.Organizations[0].ID
 	}
 	session, err := s.store.CreateSession("customer", login.User.ID, login.User.Email, tokens.AccessToken, tokens.RefreshToken, activeOrgID, tokenTTL(tokens))
@@ -478,7 +479,7 @@ func (s *Server) resolveCustomerProfile(ctx context.Context, tokens accountclien
 		return callErr
 	})
 	if err != nil {
-		return accountclient.MeResult{}, accountclient.Tokens{}, err
+		return upstream, nextTokens, err
 	}
 	return upstream, nextTokens, nil
 }

@@ -247,6 +247,64 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 	}
 }
 
+func TestCustomerLoginSurvivesProfileRetryFailure(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/login":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"tokens":{"access_token":"expired-access","refresh_token":"refresh-1","expires_in":3600}}`))
+		case "/v1/me":
+			switch r.Header.Get("Authorization") {
+			case "Bearer expired-access":
+				http.Error(w, "expired", http.StatusUnauthorized)
+			case "Bearer refreshed-access":
+				http.Error(w, "profile unavailable", http.StatusInternalServerError)
+			default:
+				http.Error(w, fmt.Sprintf("unexpected bearer token %q", r.Header.Get("Authorization")), http.StatusUnauthorized)
+			}
+		case "/v1/auth/refresh":
+			_, _ = w.Write([]byte(`{"tokens":{"access_token":"refreshed-access","refresh_token":"refresh-2","expires_in":1800}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	login := httptest.NewRecorder()
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	if login.Code != http.StatusOK {
+		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
+	}
+	if len(login.Result().Cookies()) != 1 {
+		t.Fatalf("login did not set cookie")
+	}
+
+	session, err := st.GetSession(login.Result().Cookies()[0].Value)
+	if err != nil {
+		t.Fatalf("GetSession returned error: %v", err)
+	}
+	if session.AccessToken != "refreshed-access" || session.RefreshToken != "refresh-2" {
+		t.Fatalf("session tokens = %#v, want refreshed tokens", session)
+	}
+	if session.ActiveOrgID != "" {
+		t.Fatalf("session active org = %q, want empty", session.ActiveOrgID)
+	}
+}
+
 func TestCustomerSessionInvalidRefreshClearsStoredSession(t *testing.T) {
 	t.Parallel()
 
@@ -292,6 +350,62 @@ func TestCustomerSessionInvalidRefreshClearsStoredSession(t *testing.T) {
 	}
 	if _, err := st.GetSession(session.ID); err != sql.ErrNoRows {
 		t.Fatalf("session should be cleared, got %v", err)
+	}
+}
+
+func TestCustomerMePersistsRotatedTokensOnRetryFailure(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/me":
+			switch r.Header.Get("Authorization") {
+			case "Bearer expired-access":
+				http.Error(w, "expired", http.StatusUnauthorized)
+			case "Bearer refreshed-access":
+				http.Error(w, "profile unavailable", http.StatusInternalServerError)
+			default:
+				http.Error(w, fmt.Sprintf("unexpected bearer token %q", r.Header.Get("Authorization")), http.StatusUnauthorized)
+			}
+		case "/v1/auth/refresh":
+			_, _ = w.Write([]byte(`{"tokens":{"access_token":"refreshed-access","refresh_token":"refresh-2","expires_in":1800}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u1", "user@example.com", "expired-access", "refresh-1", "org-up", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("me status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+
+	updated, err := st.GetSession(session.ID)
+	if err != nil {
+		t.Fatalf("GetSession returned error: %v", err)
+	}
+	if updated.AccessToken != "refreshed-access" || updated.RefreshToken != "refresh-2" {
+		t.Fatalf("session tokens = %#v, want refreshed tokens", updated)
 	}
 }
 
