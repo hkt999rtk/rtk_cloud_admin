@@ -39,11 +39,21 @@ jobs:
         run: npm run build
 
       - name: Docker build
-        run: docker build -t rtk-cloud-admin:ci .
+        id: docker_build
+        run: |
+          image_tag="rtk-cloud-admin:${GITHUB_SHA}"
+          docker build -t "${image_tag}" -t rtk-cloud-admin:ci .
+          echo "ci_image_tag=${image_tag}" >> "$GITHUB_OUTPUT"
 
       - name: Container smoke
         run: |
           set -euo pipefail
+
+          ci_image_tag="${{ steps.docker_build.outputs.ci_image_tag }}"
+          if [ -z "${ci_image_tag}" ]; then
+            ci_image_tag="rtk-cloud-admin:ci"
+          fi
+          container_name="rtk-cloud-admin-ci-smoke-${GITHUB_RUN_ID}"
           smoke_dir="$(mktemp -d)"
           chmod 0777 "$smoke_dir"
           container_id=""
@@ -51,19 +61,22 @@ jobs:
             if [ -n "$container_id" ]; then
               docker rm -f "$container_id" >/dev/null 2>&1 || true
             fi
+            docker rm -f "$container_name" >/dev/null 2>&1 || true
             rm -rf "$smoke_dir"
           }
           trap cleanup EXIT
 
           container_id="$(docker run -d \
-            --name rtk-cloud-admin-ci-smoke \
+            --name "$container_name" \
             -e PORT=8080 \
             -e DATABASE_PATH=/data/ci.db \
             -v "$smoke_dir:/data" \
-            rtk-cloud-admin:ci)"
+            "$ci_image_tag")"
 
+          ready=0
           for _ in $(seq 1 30); do
             if docker exec "$container_id" wget -qO- http://127.0.0.1:8080/healthz | grep -qx 'ok'; then
+              ready=1
               break
             fi
             if ! docker inspect -f '{{.State.Running}}' "$container_id" >/dev/null 2>&1; then
@@ -72,6 +85,11 @@ jobs:
             fi
             sleep 1
           done
+          if [ "$ready" -ne 1 ]; then
+            docker logs "$container_id" >&2 || true
+            echo "timeout: service did not become ready within 30s" >&2
+            exit 1
+          fi
 
           docker exec "$container_id" wget -qO- http://127.0.0.1:8080/healthz | grep -qx 'ok'
           docker exec "$container_id" wget -qO- http://127.0.0.1:8080/api/summary | grep -q '"total_devices"'
@@ -80,5 +98,6 @@ jobs:
       - name: Docker cleanup
         if: always()
         run: |
-          docker image rm rtk-cloud-admin:ci >/dev/null 2>&1 || true
+          docker image rm rtk-cloud-admin:ci "${{ steps.docker_build.outputs.ci_image_tag }}" >/dev/null 2>&1 || true
+          docker image prune -af >/dev/null 2>&1 || true
           docker builder prune -af >/dev/null 2>&1 || true

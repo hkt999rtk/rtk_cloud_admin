@@ -30,6 +30,19 @@ docker info
 If the runner gets stuck or disk usage climbs too high:
 
 1. Restart the runner service on `cloud-admin-ci.local`.
-2. Prune the Docker build cache with `docker builder prune -af`.
-3. Remove any stale local CI image with `docker image rm rtk-cloud-admin:ci`.
-4. Rerun the workflow from GitHub.
+2. Check current runner/container state:
+   - `docker ps -a`
+   - `docker images | head`
+   - `docker system df`
+3. Prune stale local CI artifacts:
+   - `docker image rm rtk-cloud-admin:ci`
+   - `docker image prune -af`
+   - `docker builder prune -af`
+4. Prune and restart the runner service if needed:
+   - `sudo systemctl restart actions.runner.hkt999rtk-rtk-cloud-admin-ci-1.service`
+5. Rerun the workflow from GitHub.
+6. If smoke checks fail again, reproduce locally:
+   - `docker run --rm -p 18080:8080 -e DATABASE_PATH=/tmp/ci.db rtk-cloud-admin:ci`
+   - `curl http://127.0.0.1:18080/healthz`
+   - `curl http://127.0.0.1:18080/api/summary`
+   - `curl http://127.0.0.1:18080/console`
