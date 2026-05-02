@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
+const DEFAULT_PAGE_SIZE = 8;
+
 const navItems = [
   { id: 'console', label: 'Customer Fleet', path: '/console' },
   { id: 'customers', label: 'Customers', path: '/console/customers' },
@@ -20,42 +22,55 @@ function App() {
   const [operations, setOperations] = useState([]);
   const [health, setHealth] = useState([]);
   const [audit, setAudit] = useState([]);
-  const [query, setQuery] = useState('');
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [error, setError] = useState('');
+  const [refreshTick, setRefreshTick] = useState(0);
 
-  const loadData = () => {
+  useEffect(() => {
     let alive = true;
-    Promise.all([
-      fetchJSON('/api/me'),
-      fetchJSON('/api/summary'),
-      fetchJSON('/api/customers'),
-      fetchJSON('/api/devices'),
-      fetchJSON('/api/operations'),
-      fetchJSON('/api/service-health'),
-      fetchJSON('/api/audit'),
-    ])
-      .then(([nextMe, nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit]) => {
+    async function loadData() {
+      setError('');
+      try {
+        const nextMe = await fetchJSON('/api/me');
         if (!alive) return;
         setMe(nextMe);
+
+        const useAdminApi = active === 'admin' && nextMe.kind === 'platform_admin';
+        if (active === 'admin' && nextMe.kind !== 'platform_admin') {
+          setSummary(null);
+          setCustomers([]);
+          setDevices([]);
+          setOperations([]);
+          setHealth([]);
+          setAudit([]);
+          return;
+        }
+
+        const prefix = useAdminApi ? '/api/admin' : '/api';
+        const [nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit] = await Promise.all([
+          fetchJSON(`${prefix}/summary`),
+          fetchJSON(`${prefix}/customers`),
+          fetchJSON(`${prefix}/devices`),
+          fetchJSON(`${prefix}/operations`),
+          fetchJSON(`${prefix}/service-health`),
+          fetchJSON(`${prefix}/audit`),
+        ]);
+        if (!alive) return;
         setSummary(nextSummary);
         setCustomers(nextCustomers);
         setDevices(nextDevices);
         setOperations(nextOperations);
         setHealth(nextHealth);
         setAudit(nextAudit);
-      })
-      .catch((err) => {
+      } catch (err) {
         if (alive) setError(err.message);
-      });
+      }
+    }
+    loadData();
     return () => {
       alive = false;
     };
-  };
-
-  useEffect(() => {
-    return loadData();
-  }, []);
+  }, [active, refreshTick]);
 
   useEffect(() => {
     const onPopState = () => setActive(routeFromLocation());
@@ -88,7 +103,7 @@ function App() {
       setError(`${action} failed with ${response.status}`);
       return;
     }
-    loadData();
+    setRefreshTick((tick) => tick + 1);
     window.history.pushState({}, '', '/console/operations');
     setActive('operations');
   }
@@ -105,24 +120,23 @@ function App() {
       setError(`${kind} login failed with ${response.status}`);
       return;
     }
-    loadData();
+    setRefreshTick((tick) => tick + 1);
   }
 
-  const filteredDevices = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return devices;
-    return devices.filter((device) =>
-      [device.name, device.organization, device.model, device.serial_number, device.readiness]
-        .join(' ')
-        .toLowerCase()
-        .includes(needle),
-    );
-  }, [devices, query]);
+  async function handleLogout() {
+    setError('');
+    const response = await fetch('/api/auth/logout', { method: 'POST' });
+    if (!response.ok) {
+      setError(`logout failed with ${response.status}`);
+      return;
+    }
+    setRefreshTick((tick) => tick + 1);
+  }
 
   const selectedDevice = useMemo(() => {
     if (!devices.length) return null;
-    return devices.find((device) => device.id === selectedDeviceId) || filteredDevices[0] || devices[0];
-  }, [devices, filteredDevices, selectedDeviceId]);
+    return devices.find((device) => device.id === selectedDeviceId) || devices[0];
+  }, [devices, selectedDeviceId]);
 
   return (
     <div className="app-shell">
@@ -158,6 +172,7 @@ function App() {
           <div className="session-strip">
             <span>{me?.authenticated ? `${me.email} / ${me.kind}` : 'Demo mode'}</span>
             <span>{me?.active_org_id || 'all orgs'}</span>
+            {me?.authenticated ? <button onClick={handleLogout}>Logout</button> : null}
           </div>
         </header>
 
@@ -167,16 +182,14 @@ function App() {
         {active === 'customers' ? <Customers customers={customers} /> : null}
         {active === 'devices' ? (
           <Devices
-            devices={filteredDevices}
-            query={query}
+            devices={devices}
             selectedDevice={selectedDevice}
-            setQuery={setQuery}
             setSelectedDeviceId={selectDevice}
             onAction={runDeviceAction}
           />
         ) : null}
         {active === 'operations' ? <Operations operations={operations} /> : null}
-        {active === 'admin' ? <PlatformAdmin summary={summary} health={health} devices={devices} customers={customers} audit={audit} me={me} onLogin={handleLogin} /> : null}
+        {active === 'admin' ? <PlatformAdmin summary={summary} health={health} devices={devices} customers={customers} operations={operations} audit={audit} me={me} onLogin={handleLogin} /> : null}
         {active === 'audit' ? <AuditLog audit={audit} /> : null}
       </main>
     </div>
@@ -231,7 +244,48 @@ function MetricGrid({ summary }) {
   );
 }
 
-function Devices({ devices, query, selectedDevice, setQuery, setSelectedDeviceId, onAction }) {
+function Devices({ devices, selectedDevice, setSelectedDeviceId, onAction }) {
+  const columns = useMemo(() => [
+    {
+      key: 'name',
+      label: 'Device',
+      value: (device) => device.name,
+      render: (device) => (
+        <>
+          <strong>{device.name}</strong>
+          <small>{device.serial_number}</small>
+        </>
+      ),
+    },
+    { key: 'organization', label: 'Customer', value: (device) => device.organization },
+    { key: 'model', label: 'Model', value: (device) => device.model },
+    { key: 'video_cloud_devid', label: 'Video ID', value: (device) => device.video_cloud_devid },
+    {
+      key: 'readiness',
+      label: 'Readiness',
+      value: (device) => device.readiness,
+      render: (device) => <StatusBadge value={device.readiness} />,
+    },
+    {
+      key: 'last_seen_at',
+      label: 'Last seen',
+      value: (device) => device.last_seen_at,
+      render: (device) => device.last_seen_at || 'No transport evidence',
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      value: () => '',
+      render: (device) => (
+        <div className="row-actions">
+          <button onClick={(event) => runRowAction(event, onAction, device.id, 'provision')}>Provision</button>
+          <button onClick={(event) => runRowAction(event, onAction, device.id, 'deactivate')}>Deactivate</button>
+        </div>
+      ),
+    },
+  ], [onAction]);
+
   return (
     <section className="device-workspace">
       <div className="panel device-table-panel">
@@ -240,46 +294,17 @@ function Devices({ devices, query, selectedDevice, setQuery, setSelectedDeviceId
             <h2>Device fleet</h2>
             <p>Registry, video identity, readiness, and last known status.</p>
           </div>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search devices" />
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Device</th>
-              <th>Customer</th>
-              <th>Model</th>
-              <th>Video ID</th>
-              <th>Readiness</th>
-              <th>Last seen</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {devices.map((device) => (
-              <tr
-                key={device.id}
-                className={selectedDevice?.id === device.id ? 'selected-row' : ''}
-                onClick={() => setSelectedDeviceId(device.id)}
-              >
-                <td>
-                  <strong>{device.name}</strong>
-                  <small>{device.serial_number}</small>
-                </td>
-                <td>{device.organization}</td>
-                <td>{device.model}</td>
-                <td>{device.video_cloud_devid}</td>
-                <td><StatusBadge value={device.readiness} /></td>
-                <td>{device.last_seen_at || 'No transport evidence'}</td>
-                <td>
-                  <div className="row-actions">
-                    <button onClick={(event) => runRowAction(event, onAction, device.id, 'provision')}>Provision</button>
-                    <button onClick={(event) => runRowAction(event, onAction, device.id, 'deactivate')}>Deactivate</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable
+          columns={columns}
+          rows={devices}
+          rowKey={(device) => device.id}
+          initialSortKey="name"
+          searchPlaceholder="Search devices"
+          emptyLabel="No devices match the current filter."
+          rowClassName={(device) => selectedDevice?.id === device.id ? 'selected-row' : ''}
+          onRowClick={(device) => setSelectedDeviceId(device.id)}
+        />
       </div>
       <DeviceDetail device={selectedDevice} onAction={onAction} />
     </section>
@@ -287,6 +312,31 @@ function Devices({ devices, query, selectedDevice, setQuery, setSelectedDeviceId
 }
 
 function Customers({ customers }) {
+  const columns = useMemo(() => [
+    {
+      key: 'organization',
+      label: 'Customer',
+      value: (customer) => customer.organization,
+      render: (customer) => (
+        <>
+          <strong>{customer.organization}</strong>
+          <small>{customer.organization_id}</small>
+        </>
+      ),
+    },
+    { key: 'total_devices', label: 'Total', value: (customer) => customer.total_devices },
+    { key: 'online_devices', label: 'Online', value: (customer) => customer.online_devices },
+    { key: 'activated_devices', label: 'Activated', value: (customer) => customer.activated_devices },
+    { key: 'pending_devices', label: 'Pending', value: (customer) => customer.pending_devices },
+    { key: 'failed_devices', label: 'Failed', value: (customer) => customer.failed_devices },
+    {
+      key: 'last_seen_at',
+      label: 'Last seen',
+      value: (customer) => customer.last_seen_at,
+      render: (customer) => customer.last_seen_at || 'No activity',
+    },
+  ], []);
+
   return (
     <section className="panel">
       <div className="panel-head">
@@ -295,35 +345,15 @@ function Customers({ customers }) {
           <p>Organization-level fleet health aggregated from cached device projections.</p>
         </div>
       </div>
-      <table className="customers-table">
-        <thead>
-          <tr>
-            <th>Customer</th>
-            <th>Total</th>
-            <th>Online</th>
-            <th>Activated</th>
-            <th>Pending</th>
-            <th>Failed</th>
-            <th>Last seen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {customers.map((customer) => (
-            <tr key={customer.organization_id}>
-              <td>
-                <strong>{customer.organization}</strong>
-                <small>{customer.organization_id}</small>
-              </td>
-              <td>{customer.total_devices}</td>
-              <td>{customer.online_devices}</td>
-              <td>{customer.activated_devices}</td>
-              <td>{customer.pending_devices}</td>
-              <td>{customer.failed_devices}</td>
-              <td>{customer.last_seen_at || 'No activity'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <DataTable
+        columns={columns}
+        rows={customers}
+        rowKey={(customer) => customer.organization_id}
+        initialSortKey="organization"
+        searchPlaceholder="Search customers"
+        emptyLabel="No customers match the current filter."
+        tableClassName="customers-table"
+      />
     </section>
   );
 }
@@ -362,17 +392,19 @@ function DeviceDetail({ device, onAction }) {
       </div>
       <div className="source-facts">
         <h3>Source facts</h3>
-        {(device.source_facts?.length ? device.source_facts : fallbackFacts(device)).map((fact) => (
+        {(device.source_facts || []).length ? (device.source_facts || []).map((fact) => (
           <article className="source-fact" key={`${fact.layer}-${fact.state}-${fact.operation_id || ''}`}>
             <div>
               <strong>{fact.layer}</strong>
               <span>{fact.detail}</span>
+              {fact.updated_at ? <time>{fact.updated_at}</time> : null}
               {fact.error_code ? <small>{fact.error_code}</small> : null}
               {fact.operation_id ? <small>{fact.operation_id}</small> : null}
+              {fact.state === 'failed' ? <small>{fact.retryable ? 'retryable' : 'not retryable'}</small> : null}
             </div>
             <StatusBadge value={fact.state || 'missing'} />
           </article>
-        ))}
+        )) : <p>No source facts available.</p>}
       </div>
       <div className="detail-actions">
         <button onClick={() => onAction(device.id, 'provision')}>Provision device</button>
@@ -383,6 +415,20 @@ function DeviceDetail({ device, onAction }) {
 }
 
 function Operations({ operations }) {
+  const columns = useMemo(() => [
+    { key: 'type', label: 'Type', value: (operation) => operation.type },
+    { key: 'organization', label: 'Customer', value: (operation) => operation.organization },
+    { key: 'device_name', label: 'Device', value: (operation) => operation.device_name },
+    {
+      key: 'state',
+      label: 'State',
+      value: (operation) => operation.state,
+      render: (operation) => <StatusBadge value={operation.state} />,
+    },
+    { key: 'updated_at', label: 'Updated', value: (operation) => operation.updated_at },
+    { key: 'message', label: 'Message', value: (operation) => operation.message },
+  ], []);
+
   return (
     <section className="panel">
       <div className="panel-head">
@@ -391,7 +437,16 @@ function Operations({ operations }) {
           <p>Provisioning and deactivation commands projected from account/video contracts.</p>
         </div>
       </div>
-      <OperationList operations={operations} detailed />
+      <DataTable
+        columns={columns}
+        rows={operations}
+        rowKey={(operation) => operation.id}
+        initialSortKey="updated_at"
+        initialDirection="desc"
+        searchPlaceholder="Search operations"
+        emptyLabel="No operations match the current filter."
+        tableClassName="operations-table"
+      />
     </section>
   );
 }
@@ -414,7 +469,7 @@ function OperationList({ operations, detailed = false }) {
   );
 }
 
-function PlatformAdmin({ summary, health, devices, customers, audit, me, onLogin }) {
+function PlatformAdmin({ summary, health, devices, customers, operations, audit, me, onLogin }) {
   const customerCount = summary?.customers ?? '-';
   return (
     <>
@@ -430,6 +485,15 @@ function PlatformAdmin({ summary, health, devices, customers, audit, me, onLogin
         </div>
         <ServiceHealth health={health} compact />
       </section>
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Lifecycle operations</h2>
+            <p>Cross-customer provisioning and deactivation activity.</p>
+          </div>
+        </div>
+        <OperationList operations={operations} detailed />
+      </section>
       <Customers customers={customers} />
       <AuditLog audit={audit.slice(0, 5)} compact />
     </>
@@ -437,6 +501,13 @@ function PlatformAdmin({ summary, health, devices, customers, audit, me, onLogin
 }
 
 function AuditLog({ audit, compact = false }) {
+  const columns = useMemo(() => [
+    { key: 'action', label: 'Action', value: (event) => event.action },
+    { key: 'actor', label: 'Actor', value: (event) => event.actor },
+    { key: 'target', label: 'Target', value: (event) => event.target },
+    { key: 'created_at', label: 'Created', value: (event) => event.created_at },
+  ], []);
+
   return (
     <section className="panel">
       <div className="panel-head">
@@ -445,7 +516,7 @@ function AuditLog({ audit, compact = false }) {
           <p>Local operator actions captured by the Go BFF.</p>
         </div>
       </div>
-      {audit.length ? (
+      {compact && audit.length ? (
         <div className="audit-list">
           {audit.map((event) => (
             <article className="audit-event" key={event.id}>
@@ -458,11 +529,159 @@ function AuditLog({ audit, compact = false }) {
             </article>
           ))}
         </div>
-      ) : (
+      ) : compact ? (
         <p>No audit events yet.</p>
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={audit}
+          rowKey={(event) => event.id}
+          initialSortKey="created_at"
+          initialDirection="desc"
+          searchPlaceholder="Search audit"
+          emptyLabel="No audit events match the current filter."
+          tableClassName="audit-table"
+        />
       )}
     </section>
   );
+}
+
+function DataTable({
+  columns,
+  rows,
+  rowKey,
+  initialSortKey,
+  initialDirection = 'asc',
+  searchPlaceholder,
+  emptyLabel,
+  rowClassName,
+  onRowClick,
+  tableClassName = '',
+  pageSize = DEFAULT_PAGE_SIZE,
+}) {
+  const {
+    filter,
+    setFilter,
+    sort,
+    requestSort,
+    visibleRows,
+    totalRows,
+    page,
+    maxPage,
+    setPage,
+  } = useTableControls(rows, columns, initialSortKey, initialDirection, pageSize);
+
+  return (
+    <>
+      <div className="table-toolbar">
+        <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={searchPlaceholder} />
+        <span>{totalRows} of {rows.length}</span>
+      </div>
+      <table className={tableClassName}>
+        <thead>
+          <tr>
+            {columns.map((column) => (
+              <th key={column.key}>
+                {column.sortable === false ? (
+                  column.label
+                ) : (
+                  <button className="sort-button" onClick={() => requestSort(column.key)}>
+                    <span>{column.label}</span>
+                    <span aria-hidden="true">{sort.key === column.key ? (sort.direction === 'asc' ? '^' : 'v') : '-'}</span>
+                  </button>
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {visibleRows.map((row) => (
+            <tr
+              key={rowKey(row)}
+              className={[onRowClick ? 'clickable-row' : '', rowClassName ? rowClassName(row) : ''].filter(Boolean).join(' ')}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+            >
+              {columns.map((column) => (
+                <td key={column.key}>{column.render ? column.render(row) : displayValue(column.value(row))}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!visibleRows.length ? <p className="empty-table">{emptyLabel}</p> : null}
+      <div className="pagination">
+        <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
+        <span>Page {page} of {maxPage}</span>
+        <button disabled={page >= maxPage} onClick={() => setPage(page + 1)}>Next</button>
+      </div>
+    </>
+  );
+}
+
+function useTableControls(rows, columns, initialSortKey, initialDirection, pageSize) {
+  const [filter, setFilter] = useState('');
+  const [sort, setSort] = useState({ key: initialSortKey, direction: initialDirection });
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, rows]);
+
+  const filteredRows = useMemo(() => {
+    const needle = filter.trim().toLowerCase();
+    if (!needle) return rows;
+    return rows.filter((row) =>
+      columns.some((column) => String(column.value(row) ?? '').toLowerCase().includes(needle)),
+    );
+  }, [columns, filter, rows]);
+
+  const sortedRows = useMemo(() => {
+    const column = columns.find((candidate) => candidate.key === sort.key) || columns[0];
+    const direction = sort.direction === 'desc' ? -1 : 1;
+    return [...filteredRows].sort((left, right) => compareValues(column.value(left), column.value(right)) * direction);
+  }, [columns, filteredRows, sort]);
+
+  const maxPage = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const safePage = Math.min(page, maxPage);
+  const start = (safePage - 1) * pageSize;
+  const visibleRows = sortedRows.slice(start, start + pageSize);
+
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
+
+  function requestSort(key) {
+    setSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  }
+
+  return {
+    filter,
+    setFilter,
+    sort,
+    requestSort,
+    visibleRows,
+    totalRows: sortedRows.length,
+    page: safePage,
+    maxPage,
+    setPage,
+  };
+}
+
+function compareValues(left, right) {
+  if (left === right) return 0;
+  if (left === null || left === undefined || left === '') return 1;
+  if (right === null || right === undefined || right === '') return -1;
+  if (typeof left === 'number' && typeof right === 'number') return left - right;
+  return String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function displayValue(value) {
+  if (value === null || value === undefined || value === '') return '-';
+  return value;
 }
 
 function ServiceHealth({ health, compact = false }) {
@@ -526,26 +745,6 @@ function routeFromLocation() {
   if (path === '/console/operations') return 'operations';
   if (path === '/console/audit') return 'audit';
   return 'console';
-}
-
-function fallbackFacts(device) {
-  return [
-    {
-      layer: 'account_registry',
-      state: device.id ? 'present' : 'missing',
-      detail: device.id ? 'Registry device exists in current projection.' : 'Missing registry device id.',
-    },
-    {
-      layer: 'cloud_activation',
-      state: device.video_cloud_devid ? 'present' : 'missing',
-      detail: device.video_cloud_devid ? 'Video Cloud device identity is present.' : 'Missing video_cloud_devid.',
-    },
-    {
-      layer: 'transport_online',
-      state: device.last_seen_at ? device.status : 'stale',
-      detail: device.last_seen_at ? `Last transport evidence at ${device.last_seen_at}.` : 'No recent transport evidence.',
-    },
-  ];
 }
 
 async function fetchJSON(url) {
