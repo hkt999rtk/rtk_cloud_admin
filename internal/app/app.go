@@ -66,16 +66,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /healthz", s.health)
 	s.mux.HandleFunc("GET /api/summary", s.apiSummary)
+	s.mux.HandleFunc("GET /api/admin/summary", s.apiAdminSummary)
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
 	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
 	s.mux.HandleFunc("POST /api/auth/platform/login", s.apiPlatformLogin)
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
 	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)
+	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
+	s.mux.HandleFunc("GET /api/admin/devices", s.apiAdminDevices)
 	s.mux.HandleFunc("GET /api/devices/{id}", s.apiDevice)
 	s.mux.HandleFunc("GET /api/operations", s.apiOperations)
+	s.mux.HandleFunc("GET /api/admin/operations", s.apiAdminOperations)
 	s.mux.HandleFunc("GET /api/service-health", s.apiServiceHealth)
+	s.mux.HandleFunc("GET /api/admin/service-health", s.apiAdminServiceHealth)
 	s.mux.HandleFunc("GET /api/audit", s.apiAudit)
 	s.mux.HandleFunc("GET /api/admin/audit", s.apiAdminAudit)
 	s.mux.HandleFunc("POST /api/devices/{id}/provision", s.apiProvisionDevice)
@@ -153,7 +158,28 @@ func serveDistIndex(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-func (s *Server) apiSummary(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) apiSummary(w http.ResponseWriter, r *http.Request) {
+	if session, ok := s.customerSession(r); ok {
+		summary, err := s.customerSummary(r.Context(), session)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, summary)
+		return
+	}
+	summary, err := s.store.Summary()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, summary)
+}
+
+func (s *Server) apiAdminSummary(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+		return
+	}
 	summary, err := s.store.Summary()
 	if err != nil {
 		writeError(w, err)
@@ -203,6 +229,10 @@ func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.requestSession(r)
 	if !ok {
 		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+	if session.Kind != "customer" {
+		http.Error(w, "customer session required", http.StatusForbidden)
 		return
 	}
 	var body struct {
@@ -283,7 +313,12 @@ func (s *Server) apiLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
-	if devices, ok := s.upstreamDevices(w, r); ok {
+	if session, ok := s.customerSession(r); ok {
+		devices, err := s.customerDevices(r.Context(), session)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
 		writeJSON(w, devices)
 		return
 	}
@@ -295,8 +330,25 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, devices)
 }
 
+func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+		return
+	}
+	devices, err := s.store.ListDevices()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, devices)
+}
+
 func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
-	if devices, ok := s.upstreamDevices(w, r); ok {
+	if session, ok := s.customerSession(r); ok {
+		devices, err := s.customerDevices(r.Context(), session)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
 				writeJSON(w, device)
@@ -319,7 +371,12 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {
-	if customers, ok := s.upstreamCustomers(w, r); ok {
+	if session, ok := s.customerSession(r); ok {
+		customers, err := s.customerCustomers(r.Context(), session)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
 		writeJSON(w, customers)
 		return
 	}
@@ -331,7 +388,40 @@ func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, customers)
 }
 
-func (s *Server) apiOperations(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) apiAdminCustomers(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+		return
+	}
+	customers, err := s.store.ListCustomers()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, customers)
+}
+
+func (s *Server) apiOperations(w http.ResponseWriter, r *http.Request) {
+	if session, ok := s.customerSession(r); ok {
+		ops, err := s.customerOperations(r.Context(), session)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, ops)
+		return
+	}
+	ops, err := s.store.ListOperations()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, ops)
+}
+
+func (s *Server) apiAdminOperations(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+		return
+	}
 	ops, err := s.store.ListOperations()
 	if err != nil {
 		writeError(w, err)
@@ -341,19 +431,26 @@ func (s *Server) apiOperations(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) apiServiceHealth(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, []contracts.ServiceHealth{
-		s.upstreamHealth(r.Context(), "Account Manager", s.cfg.AccountManagerBaseURL, func(ctx context.Context) error {
-			if !s.accountClient.Enabled() {
-				return nil
-			}
-			return s.accountClient.Health(ctx)
-		}),
-		s.httpHealth(r.Context(), "Video Cloud", s.cfg.VideoCloudBaseURL),
-		{Name: "SQLite", Status: "ok", Detail: "Local console cache is available.", LastCheckedAt: time.Now().UTC().Format(time.RFC3339)},
-	})
+	writeJSON(w, s.serviceHealth(r.Context()))
 }
 
-func (s *Server) apiAudit(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) apiAdminServiceHealth(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+		return
+	}
+	writeJSON(w, s.serviceHealth(r.Context()))
+}
+
+func (s *Server) apiAudit(w http.ResponseWriter, r *http.Request) {
+	if session, ok := s.customerSession(r); ok {
+		events, err := s.customerAudit(r.Context(), session)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, events)
+		return
+	}
 	events, err := s.store.ListAuditEvents()
 	if err != nil {
 		writeError(w, err)
@@ -363,15 +460,196 @@ func (s *Server) apiAudit(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) apiAdminAudit(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.requestSession(r)
-	if !ok || session.Kind != "platform_admin" {
-		http.Error(w, "platform admin authentication required", http.StatusUnauthorized)
+	if _, ok := s.requirePlatformAdmin(w, r); !ok {
 		return
 	}
-	s.apiAudit(w, r)
+	events, err := s.store.ListAuditEvents()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, events)
+}
+
+func (s *Server) requirePlatformAdmin(w http.ResponseWriter, r *http.Request) (store.Session, bool) {
+	session, ok := s.requestSession(r)
+	if !ok {
+		http.Error(w, "platform admin authentication required", http.StatusUnauthorized)
+		return store.Session{}, false
+	}
+	if session.Kind != "platform_admin" {
+		http.Error(w, "platform admin authentication required", http.StatusForbidden)
+		return store.Session{}, false
+	}
+	return session, true
+}
+
+func (s *Server) customerSession(r *http.Request) (store.Session, bool) {
+	session, ok := s.requestSession(r)
+	if !ok || session.Kind != "customer" || !s.accountClient.Enabled() {
+		return store.Session{}, false
+	}
+	return session, true
+}
+
+func (s *Server) serviceHealth(ctx context.Context) []contracts.ServiceHealth {
+	return []contracts.ServiceHealth{
+		s.upstreamHealth(ctx, "Account Manager", s.cfg.AccountManagerBaseURL, func(ctx context.Context) error {
+			if !s.accountClient.Enabled() {
+				return nil
+			}
+			return s.accountClient.Health(ctx)
+		}),
+		s.httpHealth(ctx, "Video Cloud", s.cfg.VideoCloudBaseURL),
+		{Name: "SQLite", Status: "ok", Detail: "Local console cache is available.", LastCheckedAt: time.Now().UTC().Format(time.RFC3339)},
+	}
+}
+
+func (s *Server) customerDevices(ctx context.Context, session store.Session) ([]contracts.Device, error) {
+	org, err := s.activeCustomerOrg(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+	devices, err := s.accountClient.Devices(ctx, session.AccessToken, org.ID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]contracts.Device, 0, len(devices))
+	for _, device := range devices {
+		out = append(out, mapUpstreamDevice(org, device))
+	}
+	return out, nil
+}
+
+func (s *Server) customerCustomers(ctx context.Context, session store.Session) ([]contracts.CustomerSummary, error) {
+	org, err := s.activeCustomerOrg(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+	devices, err := s.customerDevices(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+	summary := contracts.CustomerSummary{
+		OrganizationID: org.ID,
+		Organization:   org.Name,
+	}
+	for _, device := range devices {
+		summary.TotalDevices++
+		switch device.Readiness {
+		case contracts.ReadinessOnline:
+			summary.OnlineDevices++
+			summary.ActivatedDevices++
+		case contracts.ReadinessActivated:
+			summary.ActivatedDevices++
+		case contracts.ReadinessCloudActivationPending, contracts.ReadinessClaimPending, contracts.ReadinessLocalOnboardingPending, contracts.ReadinessDeactivationPending:
+			summary.PendingDevices++
+		case contracts.ReadinessFailed:
+			summary.FailedDevices++
+		}
+		if device.LastSeenAt > summary.LastSeenAt {
+			summary.LastSeenAt = device.LastSeenAt
+		}
+	}
+	return []contracts.CustomerSummary{summary}, nil
+}
+
+func (s *Server) customerSummary(ctx context.Context, session store.Session) (contracts.Summary, error) {
+	devices, err := s.customerDevices(ctx, session)
+	if err != nil {
+		return contracts.Summary{}, err
+	}
+	summary := contracts.Summary{Customers: 1}
+	for _, device := range devices {
+		summary.TotalDevices++
+		switch device.Readiness {
+		case contracts.ReadinessOnline:
+			summary.OnlineDevices++
+			summary.ActivatedDevices++
+		case contracts.ReadinessActivated:
+			summary.ActivatedDevices++
+		case contracts.ReadinessCloudActivationPending, contracts.ReadinessClaimPending, contracts.ReadinessLocalOnboardingPending, contracts.ReadinessDeactivationPending:
+			summary.PendingDevices++
+		case contracts.ReadinessFailed:
+			summary.FailedDevices++
+		}
+	}
+	return summary, nil
+}
+
+func (s *Server) customerOperations(ctx context.Context, session store.Session) ([]contracts.Operation, error) {
+	devices, err := s.customerDevices(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+	allowed := make(map[string]struct{}, len(devices))
+	for _, device := range devices {
+		allowed[device.ID] = struct{}{}
+	}
+	ops, err := s.store.ListOperations()
+	if err != nil {
+		return nil, err
+	}
+	if len(allowed) == 0 {
+		return []contracts.Operation{}, nil
+	}
+	filtered := make([]contracts.Operation, 0, len(ops))
+	for _, op := range ops {
+		if _, ok := allowed[op.DeviceID]; ok {
+			filtered = append(filtered, op)
+		}
+	}
+	return filtered, nil
+}
+
+func (s *Server) customerAudit(ctx context.Context, session store.Session) ([]contracts.AuditEvent, error) {
+	devices, err := s.customerDevices(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+	allowed := make(map[string]struct{}, len(devices))
+	for _, device := range devices {
+		allowed[device.ID] = struct{}{}
+	}
+	events, err := s.store.ListAuditEvents()
+	if err != nil {
+		return nil, err
+	}
+	if len(allowed) == 0 {
+		return []contracts.AuditEvent{}, nil
+	}
+	filtered := make([]contracts.AuditEvent, 0, len(events))
+	for _, event := range events {
+		if _, ok := allowed[event.Target]; ok {
+			filtered = append(filtered, event)
+		}
+	}
+	return filtered, nil
+}
+
+func (s *Server) activeCustomerOrg(ctx context.Context, session store.Session) (accountclient.Organization, error) {
+	me, err := s.accountClient.Me(ctx, session.AccessToken)
+	if err != nil {
+		return accountclient.Organization{}, err
+	}
+	if session.ActiveOrgID != "" {
+		for _, org := range me.Organizations {
+			if org.ID == session.ActiveOrgID {
+				return org, nil
+			}
+		}
+	}
+	if len(me.Organizations) > 0 {
+		return me.Organizations[0], nil
+	}
+	return accountclient.Organization{}, fmt.Errorf("no accessible organizations available")
 }
 
 func (s *Server) apiProvisionDevice(w http.ResponseWriter, r *http.Request) {
+	if session, ok := s.requestSession(r); ok && session.Kind == "platform_admin" {
+		http.Error(w, "customer session required", http.StatusForbidden)
+		return
+	}
 	if s.tryUpstreamLifecycle(w, r, "provision") {
 		return
 	}
@@ -385,6 +663,10 @@ func (s *Server) apiProvisionDevice(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiDeactivateDevice(w http.ResponseWriter, r *http.Request) {
+	if session, ok := s.requestSession(r); ok && session.Kind == "platform_admin" {
+		http.Error(w, "customer session required", http.StatusForbidden)
+		return
+	}
 	if s.tryUpstreamLifecycle(w, r, "deactivate") {
 		return
 	}
