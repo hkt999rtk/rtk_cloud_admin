@@ -164,8 +164,16 @@ CREATE TABLE IF NOT EXISTS sessions (
 	active_org_id TEXT NOT NULL,
 	expires_at TEXT NOT NULL,
 	created_at TEXT NOT NULL
-);
-`,
+	);
+	`,
+	},
+	{
+		version: 3,
+		name:    "operations_upstream_projection",
+		sql: `
+	ALTER TABLE operations ADD COLUMN upstream_operation_id TEXT;
+	ALTER TABLE operations ADD COLUMN upstream_state TEXT;
+	`,
 	},
 	{
 		version: 3,
@@ -280,9 +288,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	}
 	for _, op := range operations {
 		if _, err := s.db.Exec(`
-INSERT OR IGNORE INTO operations (id, device_id, device_name, organization, type, state, message, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			op.ID, op.DeviceID, op.DeviceName, op.Organization, op.Type, string(op.State), op.Message, op.UpdatedAt); err != nil {
+	INSERT OR IGNORE INTO operations (id, device_id, device_name, organization, type, state, message, updated_at, upstream_operation_id, upstream_state)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			op.ID, op.DeviceID, op.DeviceName, op.Organization, op.Type, string(op.State), op.Message, op.UpdatedAt, "", ""); err != nil {
 			return err
 		}
 	}
@@ -335,9 +343,9 @@ WHERE id = ?`, id).Scan(&d.ID, &d.OrganizationID, &d.Organization, &d.Name, &d.C
 
 func (s *Store) ListOperations() ([]contracts.Operation, error) {
 	rows, err := s.db.Query(`
-SELECT id, device_id, device_name, organization, type, state, message, updated_at
-FROM operations
-ORDER BY updated_at DESC, id`)
+	SELECT id, device_id, device_name, organization, type, state, message, updated_at, upstream_operation_id, upstream_state
+	FROM operations
+	ORDER BY updated_at DESC, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +354,7 @@ ORDER BY updated_at DESC, id`)
 	var ops []contracts.Operation
 	for rows.Next() {
 		var op contracts.Operation
-		if err := rows.Scan(&op.ID, &op.DeviceID, &op.DeviceName, &op.Organization, &op.Type, &op.State, &op.Message, &op.UpdatedAt); err != nil {
+		if err := rows.Scan(&op.ID, &op.DeviceID, &op.DeviceName, &op.Organization, &op.Type, &op.State, &op.Message, &op.UpdatedAt, &op.UpstreamOperationID, &op.UpstreamState); err != nil {
 			return nil, err
 		}
 		ops = append(ops, op)
@@ -593,6 +601,37 @@ func randomHex(bytesLen int) string {
 }
 
 func (s *Store) CreateLifecycleOperation(deviceID, operationType string) (contracts.Operation, error) {
+	return s.createLifecycleOperation(deviceID, operationType, "demo-platform-operator", operationType, "", "", "Published lifecycle command to account.video.commands demo queue", true)
+}
+
+func (s *Store) CreateUpstreamLifecycleOperation(deviceID, operationType, actor, upstreamOperationID, upstreamState, message string) (contracts.Operation, error) {
+	return s.createLifecycleOperation(deviceID, operationType, actor, operationType+".completed", upstreamOperationID, upstreamState, message, true)
+}
+
+func (s *Store) CreateFailedUpstreamLifecycleOperation(deviceID, operationType, actor, message string) (contracts.Operation, error) {
+	return s.createLifecycleOperation(deviceID, operationType, actor, operationType+".failed", "", string(contracts.OperationFailed), message, false)
+}
+
+func (s *Store) GetOpenLifecycleOperation(deviceID, operationType string) (contracts.Operation, bool, error) {
+	var op contracts.Operation
+	err := s.db.QueryRow(`
+	SELECT id, device_id, device_name, organization, type, state, message, updated_at, upstream_operation_id, upstream_state
+	FROM operations
+	WHERE device_id = ? AND type = ? AND state != ?
+	ORDER BY updated_at DESC, id DESC
+	LIMIT 1`, deviceID, operationType, string(contracts.OperationSucceeded)).Scan(
+		&op.ID, &op.DeviceID, &op.DeviceName, &op.Organization, &op.Type, &op.State, &op.Message, &op.UpdatedAt, &op.UpstreamOperationID, &op.UpstreamState,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return contracts.Operation{}, false, nil
+		}
+		return contracts.Operation{}, false, err
+	}
+	return op, true, nil
+}
+
+func (s *Store) createLifecycleOperation(deviceID, operationType, actor, auditAction, upstreamOperationID, upstreamState, message string, updateReadiness bool) (contracts.Operation, error) {
 	device, err := s.GetDevice(deviceID)
 	if err != nil {
 		return contracts.Operation{}, err
@@ -600,21 +639,46 @@ func (s *Store) CreateLifecycleOperation(deviceID, operationType string) (contra
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	nextReadiness := contracts.ReadinessCloudActivationPending
-	message := "Published lifecycle command to account.video.commands demo queue"
+	operationState := mapOperationState(upstreamState)
 	if operationType == "DeviceDeactivateRequested" {
 		nextReadiness = contracts.ReadinessDeactivationPending
-		message = "Published deactivation command to account.video.commands demo queue"
+	}
+	if message == "" {
+		message = "Accepted by Account Manager."
+	}
+	if operationState == contracts.OperationFailed {
+		updateReadiness = false
+	}
+	if operationType == "DeviceProvisionRequested" && operationState == contracts.OperationSucceeded {
+		nextReadiness = contracts.ReadinessActivated
+	}
+	if operationType == "DeviceDeactivateRequested" && operationState == contracts.OperationSucceeded {
+		nextReadiness = contracts.ReadinessDeactivated
 	}
 
 	op := contracts.Operation{
-		ID:           fmt.Sprintf("op-%d", time.Now().UTC().UnixNano()),
-		DeviceID:     device.ID,
-		DeviceName:   device.Name,
-		Organization: device.Organization,
-		Type:         operationType,
-		State:        contracts.OperationPublished,
-		Message:      message,
-		UpdatedAt:    now,
+		ID:                  fallback(fmt.Sprintf("op-%d", time.Now().UTC().UnixNano()), ""),
+		DeviceID:            device.ID,
+		DeviceName:          device.Name,
+		Organization:        device.Organization,
+		Type:                operationType,
+		State:               operationState,
+		Message:             message,
+		UpstreamOperationID: upstreamOperationID,
+		UpstreamState:       upstreamState,
+		UpdatedAt:           now,
+	}
+	if op.ID == "" {
+		op.ID = fmt.Sprintf("op-%d", time.Now().UTC().UnixNano())
+	}
+	if upstreamOperationID != "" {
+		op.ID = upstreamOperationID
+	}
+	if op.State == "" {
+		op.State = contracts.OperationPublished
+	}
+	if op.UpdatedAt == "" {
+		op.UpdatedAt = now
 	}
 
 	tx, err := s.db.Begin()
@@ -624,21 +688,41 @@ func (s *Store) CreateLifecycleOperation(deviceID, operationType string) (contra
 	defer tx.Rollback()
 
 	if _, err := tx.Exec(`
-INSERT INTO operations (id, device_id, device_name, organization, type, state, message, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		op.ID, op.DeviceID, op.DeviceName, op.Organization, op.Type, string(op.State), op.Message, op.UpdatedAt); err != nil {
+	INSERT INTO operations (id, device_id, device_name, organization, type, state, message, updated_at, upstream_operation_id, upstream_state)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		op.ID, op.DeviceID, op.DeviceName, op.Organization, op.Type, string(op.State), op.Message, op.UpdatedAt, op.UpstreamOperationID, op.UpstreamState); err != nil {
 		return contracts.Operation{}, err
 	}
-	if _, err := tx.Exec(`UPDATE devices SET readiness = ?, updated_at = ? WHERE id = ?`, string(nextReadiness), now, device.ID); err != nil {
-		return contracts.Operation{}, err
+	if updateReadiness {
+		if _, err := tx.Exec(`UPDATE devices SET readiness = ?, updated_at = ? WHERE id = ?`, string(nextReadiness), now, device.ID); err != nil {
+			return contracts.Operation{}, err
+		}
 	}
-	if err := s.insertAuditEvent(tx, "demo-platform-operator", operationType, device.ID, now); err != nil {
-		return contracts.Operation{}, err
+	if actor != "" {
+		if err := s.insertAuditEvent(tx, actor, auditAction, device.ID, now); err != nil {
+			return contracts.Operation{}, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return contracts.Operation{}, err
 	}
 	return op, nil
+}
+
+func mapOperationState(state string) contracts.OperationState {
+	switch contracts.OperationState(state) {
+	case contracts.OperationPending, contracts.OperationPublished, contracts.OperationSucceeded, contracts.OperationFailed, contracts.OperationRetrying, contracts.OperationDeadLettered:
+		return contracts.OperationState(state)
+	default:
+		return contracts.OperationPublished
+	}
+}
+
+func fallback(value, fallbackValue string) string {
+	if value != "" {
+		return value
+	}
+	return fallbackValue
 }
 
 func (s *Store) sourceFactsForDevice(device contracts.Device) ([]contracts.SourceFact, error) {
@@ -652,11 +736,11 @@ func (s *Store) sourceFactsForDevice(device contracts.Device) ([]contracts.Sourc
 func (s *Store) latestOperationForDevice(deviceID string) (*contracts.Operation, error) {
 	var op contracts.Operation
 	err := s.db.QueryRow(`
-SELECT id, device_id, device_name, organization, type, state, message, updated_at
-FROM operations
-WHERE device_id = ?
-ORDER BY updated_at DESC, id DESC
-LIMIT 1`, deviceID).Scan(&op.ID, &op.DeviceID, &op.DeviceName, &op.Organization, &op.Type, &op.State, &op.Message, &op.UpdatedAt)
+	SELECT id, device_id, device_name, organization, type, state, message, updated_at
+	FROM operations
+	WHERE device_id = ?
+	ORDER BY updated_at DESC, id DESC
+	LIMIT 1`, deviceID).Scan(&op.ID, &op.DeviceID, &op.DeviceName, &op.Organization, &op.Type, &op.State, &op.Message, &op.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil

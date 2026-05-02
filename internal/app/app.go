@@ -1016,9 +1016,26 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	}
 	deviceID := r.PathValue("id")
 	operationType := "DeviceProvisionRequested"
+	if existing, ok, err := s.store.GetOpenLifecycleOperation(deviceID, operationType); err == nil && ok {
+		_ = s.store.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
+		writeJSON(w, existing)
+		return true
+	} else if err != nil {
+		writeError(w, err)
+		return true
+	}
+
 	var op accountclient.Operation
 	if action == "deactivate" {
 		operationType = "DeviceDeactivateRequested"
+		if existing, ok, err := s.store.GetOpenLifecycleOperation(deviceID, operationType); err == nil && ok {
+			_ = s.store.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
+			writeJSON(w, existing)
+			return true
+		} else if err != nil {
+			writeError(w, err)
+			return true
+		}
 		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
 			var callErr error
 			op, callErr = s.accountClient.Deactivate(r.Context(), token, session.ActiveOrgID, deviceID)
@@ -1043,6 +1060,16 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 		if errors.Is(err, errCustomerSessionInvalid) {
 			s.invalidateCustomerSession(w, session.ID)
 		}
+		if _, createErr := s.store.CreateFailedUpstreamLifecycleOperation(deviceID, operationType, session.Email, err.Error()); createErr != nil {
+			_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+				Actor:          session.Email,
+				ActorKind:      session.Kind,
+				Action:         operationType + ".failed",
+				Target:         deviceID,
+				OrganizationID: session.ActiveOrgID,
+				Result:         "failed",
+			})
+		}
 		_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
 			Actor:          session.Email,
 			ActorKind:      session.Kind,
@@ -1051,7 +1078,23 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 			OrganizationID: session.ActiveOrgID,
 			Result:         "failed",
 		})
+		if strings.Contains(err.Error(), "returned 409") {
+			if existing, ok, lookupErr := s.store.GetOpenLifecycleOperation(deviceID, operationType); lookupErr == nil && ok {
+				_ = s.store.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
+				writeJSON(w, existing)
+				return true
+			}
+		}
 		s.writeCustomerError(w, err)
+		return true
+	}
+
+	operationState := mapOperationState(op.State)
+	upstreamID := fallback(op.ID, fmt.Sprintf("op-%d", time.Now().UTC().UnixNano()))
+	upstreamMessage := fallback(op.Message, "Accepted by Account Manager.")
+	recorded, err := s.store.CreateUpstreamLifecycleOperation(deviceID, operationType, session.Email, upstreamID, string(operationState), upstreamMessage)
+	if err != nil {
+		writeError(w, err)
 		return true
 	}
 	_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
@@ -1061,19 +1104,14 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 		Target:              deviceID,
 		OrganizationID:      session.ActiveOrgID,
 		Result:              "accepted",
-		UpstreamOperationID: op.ID,
+		UpstreamOperationID: recorded.UpstreamOperationID,
 	})
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
-	writeJSON(w, contracts.Operation{
-		ID:        fallback(op.ID, fmt.Sprintf("op-%d", time.Now().UTC().UnixNano())),
-		DeviceID:  deviceID,
-		Type:      operationType,
-		State:     mapOperationState(op.State),
-		Message:   fallback(op.Message, "Accepted by Account Manager."),
-		UpdatedAt: fallback(op.UpdatedAt, time.Now().UTC().Format(time.RFC3339)),
-	})
+	recorded.Message = fallback(recorded.Message, upstreamMessage)
+	recorded.UpdatedAt = fallback(op.UpdatedAt, recorded.UpdatedAt)
+	writeJSON(w, recorded)
 	return true
 }
 

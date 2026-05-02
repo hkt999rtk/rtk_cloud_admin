@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -388,4 +389,73 @@ func deviceByID(t *testing.T, devices []contracts.Device, id string) contracts.D
 	}
 	t.Fatalf("device %s not found", id)
 	return contracts.Device{}
+}
+
+func TestGetOpenLifecycleOperation(t *testing.T) {
+	t.Parallel()
+
+	st, err := Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	op, found, err := st.GetOpenLifecycleOperation("dev-004", "DeviceProvisionRequested")
+	if err != nil {
+		t.Fatalf("GetOpenLifecycleOperation returned error: %v", err)
+	}
+	if !found {
+		t.Fatalf("expected open operation for dev-004")
+	}
+	if op.UpstreamState != "" {
+		t.Fatalf("upstream state = %q, want empty", op.UpstreamState)
+	}
+}
+
+func TestCreateUpstreamLifecycleOperationPersistsProjection(t *testing.T) {
+	t.Parallel()
+
+	st, err := Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	recorded, err := st.CreateUpstreamLifecycleOperation("dev-002", "DeviceProvisionRequested", "user@example.com", "up-op-1", "published", "accepted")
+	if err != nil {
+		t.Fatalf("CreateUpstreamLifecycleOperation returned error: %v", err)
+	}
+	if recorded.ID != "up-op-1" {
+		t.Fatalf("recorded id = %q, want up-op-1", recorded.ID)
+	}
+	if recorded.UpstreamOperationID != "up-op-1" {
+		t.Fatalf("upstream id = %q, want up-op-1", recorded.UpstreamOperationID)
+	}
+	if recorded.UpstreamState != "published" {
+		t.Fatalf("upstream state = %q, want published", recorded.UpstreamState)
+	}
+
+	open, found, err := st.GetOpenLifecycleOperation("dev-002", "DeviceProvisionRequested")
+	if err != nil {
+		t.Fatalf("GetOpenLifecycleOperation returned error: %v", err)
+	}
+	if !found || open.ID != recorded.ID {
+		t.Fatalf("expected open operation to match recorded, found=%v open=%#v", found, open)
+	}
+
+	if !strings.Contains(recorded.Message, "accepted") {
+		t.Fatalf("message = %q", recorded.Message)
+	}
 }
