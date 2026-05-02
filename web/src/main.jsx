@@ -24,39 +24,53 @@ function App() {
   const [audit, setAudit] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [error, setError] = useState('');
+  const [refreshTick, setRefreshTick] = useState(0);
 
-  const loadData = () => {
+  useEffect(() => {
     let alive = true;
-    Promise.all([
-      fetchJSON('/api/me'),
-      fetchJSON('/api/summary'),
-      fetchJSON('/api/customers'),
-      fetchJSON('/api/devices'),
-      fetchJSON('/api/operations'),
-      fetchJSON('/api/service-health'),
-      fetchJSON('/api/audit'),
-    ])
-      .then(([nextMe, nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit]) => {
+    async function loadData() {
+      setError('');
+      try {
+        const nextMe = await fetchJSON('/api/me');
         if (!alive) return;
         setMe(nextMe);
+
+        const useAdminApi = active === 'admin' && nextMe.kind === 'platform_admin';
+        if (active === 'admin' && nextMe.kind !== 'platform_admin') {
+          setSummary(null);
+          setCustomers([]);
+          setDevices([]);
+          setOperations([]);
+          setHealth([]);
+          setAudit([]);
+          return;
+        }
+
+        const prefix = useAdminApi ? '/api/admin' : '/api';
+        const [nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit] = await Promise.all([
+          fetchJSON(`${prefix}/summary`),
+          fetchJSON(`${prefix}/customers`),
+          fetchJSON(`${prefix}/devices`),
+          fetchJSON(`${prefix}/operations`),
+          fetchJSON(`${prefix}/service-health`),
+          fetchJSON(`${prefix}/audit`),
+        ]);
+        if (!alive) return;
         setSummary(nextSummary);
         setCustomers(nextCustomers);
         setDevices(nextDevices);
         setOperations(nextOperations);
         setHealth(nextHealth);
         setAudit(nextAudit);
-      })
-      .catch((err) => {
+      } catch (err) {
         if (alive) setError(err.message);
-      });
+      }
+    }
+    loadData();
     return () => {
       alive = false;
     };
-  };
-
-  useEffect(() => {
-    return loadData();
-  }, []);
+  }, [active, refreshTick]);
 
   useEffect(() => {
     const onPopState = () => setActive(routeFromLocation());
@@ -89,7 +103,7 @@ function App() {
       setError(`${action} failed with ${response.status}`);
       return;
     }
-    loadData();
+    setRefreshTick((tick) => tick + 1);
     window.history.pushState({}, '', '/console/operations');
     setActive('operations');
   }
@@ -106,7 +120,17 @@ function App() {
       setError(`${kind} login failed with ${response.status}`);
       return;
     }
-    loadData();
+    setRefreshTick((tick) => tick + 1);
+  }
+
+  async function handleLogout() {
+    setError('');
+    const response = await fetch('/api/auth/logout', { method: 'POST' });
+    if (!response.ok) {
+      setError(`logout failed with ${response.status}`);
+      return;
+    }
+    setRefreshTick((tick) => tick + 1);
   }
 
   const selectedDevice = useMemo(() => {
@@ -148,6 +172,7 @@ function App() {
           <div className="session-strip">
             <span>{me?.authenticated ? `${me.email} / ${me.kind}` : 'Demo mode'}</span>
             <span>{me?.active_org_id || 'all orgs'}</span>
+            {me?.authenticated ? <button onClick={handleLogout}>Logout</button> : null}
           </div>
         </header>
 
@@ -164,7 +189,7 @@ function App() {
           />
         ) : null}
         {active === 'operations' ? <Operations operations={operations} /> : null}
-        {active === 'admin' ? <PlatformAdmin summary={summary} health={health} devices={devices} customers={customers} audit={audit} me={me} onLogin={handleLogin} /> : null}
+        {active === 'admin' ? <PlatformAdmin summary={summary} health={health} devices={devices} customers={customers} operations={operations} audit={audit} me={me} onLogin={handleLogin} /> : null}
         {active === 'audit' ? <AuditLog audit={audit} /> : null}
       </main>
     </div>
@@ -444,7 +469,7 @@ function OperationList({ operations, detailed = false }) {
   );
 }
 
-function PlatformAdmin({ summary, health, devices, customers, audit, me, onLogin }) {
+function PlatformAdmin({ summary, health, devices, customers, operations, audit, me, onLogin }) {
   const customerCount = summary?.customers ?? '-';
   return (
     <>
@@ -459,6 +484,15 @@ function PlatformAdmin({ summary, health, devices, customers, audit, me, onLogin
           </div>
         </div>
         <ServiceHealth health={health} compact />
+      </section>
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Lifecycle operations</h2>
+            <p>Cross-customer provisioning and deactivation activity.</p>
+          </div>
+        </div>
+        <OperationList operations={operations} detailed />
       </section>
       <Customers customers={customers} />
       <AuditLog audit={audit.slice(0, 5)} compact />

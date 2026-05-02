@@ -134,6 +134,8 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 				return
 			}
 			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-up","name":"edge-01","model":"RTK-CAM-X","serial_number":"UP-1","readiness":"online","status":"online","metadata":{"video_cloud_devid":"video-up"}}]}`))
+		case "/v1/orgs/org-other/devices":
+			t.Fatalf("should not request devices for non-active org")
 		case "/v1/orgs/org-up/devices/dev-up/provision":
 			if r.Header.Get("Authorization") != "Bearer refreshed-access" {
 				http.Error(w, "unexpected bearer token", http.StatusUnauthorized)
@@ -147,7 +149,7 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 			}
 			_, _ = w.Write([]byte(`{"operation":{"id":"op-down","state":"published","message":"accepted"}}`))
 		default:
-			http.NotFound(w, r)
+			t.Fatalf("unexpected request path: %s", r.URL.Path)
 		}
 	}))
 	defer upstream.Close()
@@ -492,6 +494,88 @@ func TestDeviceAPIIncludesSourceFacts(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "\"failed\"") {
 		t.Fatalf("device body does not include failed source fact: %s", rec.Body.String())
+	}
+}
+
+func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	if err := st.CreateAuditEvent("demo-platform-operator", "DeviceProvisionRequested", "dev-001"); err != nil {
+		t.Fatalf("CreateAuditEvent returned error: %v", err)
+	}
+	if err := st.BootstrapPlatformAdmin("admin@example.com", "secret"); err != nil {
+		t.Fatalf("BootstrapPlatformAdmin returned error: %v", err)
+	}
+	srv := New(st)
+
+	adminPaths := []string{
+		"/api/admin/summary",
+		"/api/admin/customers",
+		"/api/admin/devices",
+		"/api/admin/operations",
+		"/api/admin/service-health",
+		"/api/admin/audit",
+	}
+
+	for _, path := range adminPaths {
+		unauth := httptest.NewRecorder()
+		srv.ServeHTTP(unauth, httptest.NewRequest(http.MethodGet, path, nil))
+		if unauth.Code != http.StatusUnauthorized {
+			t.Fatalf("%s without session status = %d, want %d", path, unauth.Code, http.StatusUnauthorized)
+		}
+	}
+
+	customerSession, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession customer returned error: %v", err)
+	}
+
+	for _, path := range adminPaths {
+		blocked := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: customerSession.ID})
+		srv.ServeHTTP(blocked, req)
+		if blocked.Code != http.StatusForbidden {
+			t.Fatalf("%s with customer session status = %d, want %d", path, blocked.Code, http.StatusForbidden)
+		}
+	}
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("platform login status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	if len(rec.Result().Cookies()) == 0 {
+		t.Fatalf("platform login did not set session cookie")
+	}
+
+	for _, path := range adminPaths {
+		admin := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(rec.Result().Cookies()[0])
+		srv.ServeHTTP(admin, req)
+		if admin.Code != http.StatusOK {
+			t.Fatalf("%s with session status = %d, want %d", path, admin.Code, http.StatusOK)
+		}
+	}
+
+	audit := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/audit", nil)
+	req.AddCookie(rec.Result().Cookies()[0])
+	srv.ServeHTTP(audit, req)
+	if !strings.Contains(audit.Body.String(), "DeviceProvisionRequested") {
+		t.Fatalf("admin audit body does not contain demo audit events: %s", audit.Body.String())
 	}
 }
 
