@@ -503,10 +503,27 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	}
 	deviceID := r.PathValue("id")
 	operationType := "DeviceProvisionRequested"
+	if existing, ok, err := s.store.GetOpenLifecycleOperation(deviceID, operationType); err == nil && ok {
+		_ = s.store.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
+		writeJSON(w, existing)
+		return true
+	} else if err != nil {
+		writeError(w, err)
+		return true
+	}
+
 	var op accountclient.Operation
 	var err error
 	if action == "deactivate" {
 		operationType = "DeviceDeactivateRequested"
+		if existing, ok, err := s.store.GetOpenLifecycleOperation(deviceID, operationType); err == nil && ok {
+			_ = s.store.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
+			writeJSON(w, existing)
+			return true
+		} else if err != nil {
+			writeError(w, err)
+			return true
+		}
 		op, err = s.accountClient.Deactivate(r.Context(), session.AccessToken, session.ActiveOrgID, deviceID)
 	} else {
 		op, err = s.accountClient.Provision(r.Context(), session.AccessToken, session.ActiveOrgID, deviceID)
@@ -514,18 +531,32 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	_ = s.store.CreateAuditEvent(session.Email, operationType+".attempted", deviceID)
 	if err != nil {
 		_ = s.store.CreateAuditEvent(session.Email, operationType+".failed", deviceID)
+		_, _ = s.store.CreateFailedUpstreamLifecycleOperation(deviceID, operationType, session.Email, err.Error())
+		if strings.Contains(err.Error(), "returned 409") {
+			if existing, ok, lookupErr := s.store.GetOpenLifecycleOperation(deviceID, operationType); lookupErr == nil && ok {
+				_ = s.store.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
+				writeJSON(w, existing)
+				return true
+			}
+		}
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return true
 	}
-	_ = s.store.CreateAuditEvent(session.Email, operationType+".completed", deviceID)
-	writeJSON(w, contracts.Operation{
-		ID:        fallback(op.ID, fmt.Sprintf("op-%d", time.Now().UTC().UnixNano())),
-		DeviceID:  deviceID,
-		Type:      operationType,
-		State:     mapOperationState(op.State),
-		Message:   fallback(op.Message, "Accepted by Account Manager."),
-		UpdatedAt: fallback(op.UpdatedAt, time.Now().UTC().Format(time.RFC3339)),
-	})
+
+	operationState := mapOperationState(op.State)
+	upstreamID := fallback(op.ID, fmt.Sprintf("op-%d", time.Now().UTC().UnixNano()))
+	upstreamMessage := fallback(op.Message, "Accepted by Account Manager.")
+	recorded, err := s.store.CreateUpstreamLifecycleOperation(deviceID, operationType, session.Email, upstreamID, string(operationState), upstreamMessage)
+	if err != nil {
+		writeError(w, err)
+		return true
+	}
+	if recorded.Message == "" {
+		recorded.Message = upstreamMessage
+	}
+	recorded.Message = upstreamMessage
+	recorded.UpdatedAt = fallback(op.UpdatedAt, recorded.UpdatedAt)
+	writeJSON(w, recorded)
 	return true
 }
 

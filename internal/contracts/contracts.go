@@ -52,14 +52,16 @@ type SourceFact struct {
 }
 
 type Operation struct {
-	ID           string         `json:"id"`
-	DeviceID     string         `json:"device_id"`
-	DeviceName   string         `json:"device_name"`
-	Organization string         `json:"organization"`
-	Type         string         `json:"type"`
-	State        OperationState `json:"state"`
-	Message      string         `json:"message"`
-	UpdatedAt    string         `json:"updated_at"`
+	ID                  string         `json:"id"`
+	DeviceID            string         `json:"device_id"`
+	DeviceName          string         `json:"device_name"`
+	Organization        string         `json:"organization"`
+	Type                string         `json:"type"`
+	State               OperationState `json:"state"`
+	UpstreamOperationID string         `json:"upstream_operation_id,omitempty"`
+	UpstreamState       string         `json:"upstream_state,omitempty"`
+	Message             string         `json:"message"`
+	UpdatedAt           string         `json:"updated_at"`
 }
 
 type Summary struct {

@@ -4,13 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
-	"testing"
-
 	"rtk_cloud_admin/internal/accountclient"
 	"rtk_cloud_admin/internal/config"
 	"rtk_cloud_admin/internal/contracts"
 	"rtk_cloud_admin/internal/store"
+	"strings"
+	"testing"
 )
 
 func TestServerHealthAndHomeRedirect(t *testing.T) {
@@ -111,8 +110,10 @@ func TestCustomerLoginAndUpstreamProxyMode(t *testing.T) {
 		case "/v1/orgs":
 			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
 		case "/v1/orgs/org-up/devices":
-			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-up","name":"edge-01","model":"RTK-CAM-X","serial_number":"UP-1","readiness":"online","status":"online","metadata":{"video_cloud_devid":"video-up"}}]}`))
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"offline","metadata":{"video_cloud_devid":"device-2"}}]}`))
 		case "/v1/orgs/org-up/devices/dev-up/provision":
+			fallthrough
+		case "/v1/orgs/org-up/devices/dev-002/provision":
 			_, _ = w.Write([]byte(`{"operation":{"id":"op-up","state":"published","message":"accepted"}}`))
 		default:
 			http.NotFound(w, r)
@@ -164,6 +165,187 @@ func TestCustomerLoginAndUpstreamProxyMode(t *testing.T) {
 	if !strings.Contains(provision.Body.String(), "op-up") {
 		t.Fatalf("provision body = %s", provision.Body.String())
 	}
+}
+
+func TestCustomerUpstreamLifecycleIsIdempotentAndDurable(t *testing.T) {
+	t.Parallel()
+
+	callCount := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/login":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"tokens":{"access_token":"access","refresh_token":"refresh","expires_in":3600}}`))
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
+		case "/v1/orgs/org-up/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"offline","metadata":{"video_cloud_devid":"device-2"}}]}`))
+		case "/v1/orgs/org-up/devices/dev-up/provision":
+			fallthrough
+		case "/v1/orgs/org-up/devices/dev-002/provision":
+			callCount++
+			_, _ = w.Write([]byte(`{"operation":{"id":"op-up","state":"published","message":"accepted"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	login := httptest.NewRecorder()
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	if login.Code != http.StatusOK {
+		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
+	}
+	cookie := login.Result().Cookies()[0]
+
+	first := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/provision", nil)
+	req.AddCookie(cookie)
+	srv.ServeHTTP(first, req)
+	if first.Code != http.StatusOK {
+		t.Fatalf("first provision status = %d, body=%s", first.Code, first.Body.String())
+	}
+
+	second := httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/provision", nil)
+	req.AddCookie(cookie)
+	srv.ServeHTTP(second, req)
+	if second.Code != http.StatusOK {
+		t.Fatalf("second provision status = %d, body=%s", second.Code, second.Body.String())
+	}
+	if callCount != 1 {
+		t.Fatalf("provision upstream call count = %d, want 1", callCount)
+	}
+
+	var firstOp contracts.Operation
+	if err := json.NewDecoder(first.Body).Decode(&firstOp); err != nil {
+		t.Fatalf("decode first op: %v", err)
+	}
+	var secondOp contracts.Operation
+	if err := json.NewDecoder(second.Body).Decode(&secondOp); err != nil {
+		t.Fatalf("decode second op: %v", err)
+	}
+	if firstOp.UpstreamOperationID != "op-up" {
+		t.Fatalf("first upstream id = %q, want op-up", firstOp.UpstreamOperationID)
+	}
+	if secondOp.ID != firstOp.ID {
+		t.Fatalf("expected idempotent operation id=%q, got %q", firstOp.ID, secondOp.ID)
+	}
+
+	ops := httptest.NewRecorder()
+	srv.ServeHTTP(ops, httptest.NewRequest(http.MethodGet, "/api/operations", nil))
+	var list []contracts.Operation
+	if err := json.NewDecoder(ops.Body).Decode(&list); err != nil {
+		t.Fatalf("decode operations: %v", err)
+	}
+	if len(list) == 0 {
+		t.Fatalf("operations list should not be empty")
+	}
+}
+
+func TestCustomerUpstreamLifecycleFailurePersistsFailedOperation(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/login":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"tokens":{"access_token":"access","refresh_token":"refresh","expires_in":3600}}`))
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
+		case "/v1/orgs/org-up/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"offline","metadata":{"video_cloud_devid":"device-2"}}]}`))
+		case "/v1/orgs/org-up/devices/dev-up/provision":
+			fallthrough
+		case "/v1/orgs/org-up/devices/dev-002/provision":
+			http.Error(w, "downstream failure", http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	login := httptest.NewRecorder()
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	if login.Code != http.StatusOK {
+		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
+	}
+	cookie := login.Result().Cookies()[0]
+
+	provision := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/provision", nil)
+	req.AddCookie(cookie)
+	srv.ServeHTTP(provision, req)
+	if provision.Code != http.StatusBadGateway {
+		t.Fatalf("provision status = %d, body=%s", provision.Code, provision.Body.String())
+	}
+
+	ops := httptest.NewRecorder()
+	srv.ServeHTTP(ops, httptest.NewRequest(http.MethodGet, "/api/operations", nil))
+	var operations []contracts.Operation
+	if err := json.NewDecoder(ops.Body).Decode(&operations); err != nil {
+		t.Fatalf("decode operations: %v", err)
+	}
+	hasFailed := false
+	for _, op := range operations {
+		if op.Type == "DeviceProvisionRequested" && op.State == contracts.OperationFailed {
+			hasFailed = true
+		}
+	}
+	if !hasFailed {
+		t.Fatalf("expected failed operation projection after upstream failure")
+	}
+
+	audit := httptest.NewRecorder()
+	srv.ServeHTTP(audit, httptest.NewRequest(http.MethodGet, "/api/audit", nil))
+	var events []contracts.AuditEvent
+	if err := json.NewDecoder(audit.Body).Decode(&events); err != nil {
+		t.Fatalf("decode audit events: %v", err)
+	}
+	hasFailedAudit := false
+	for _, event := range events {
+		if event.Action == "DeviceProvisionRequested.failed" {
+			hasFailedAudit = true
+		}
+	}
+	if !hasFailedAudit {
+		t.Fatalf("expected DeviceProvisionRequested.failed audit event")
+	}
+
 }
 
 func TestPlatformAdminLogin(t *testing.T) {
