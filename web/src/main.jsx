@@ -201,7 +201,7 @@ function App() {
           />
         ) : null}
         {active === 'operations' ? <Operations operations={operations} /> : null}
-        {active === 'admin' ? <PlatformAdmin summary={summary} health={health} devices={devices} customers={customers} audit={audit} me={me} onLogin={handleLogin} /> : null}
+        {active === 'admin' ? <PlatformAdmin summary={summary} health={health} devices={devices} customers={customers} operations={operations} audit={audit} me={me} onLogin={handleLogin} /> : null}
         {active === 'audit' ? <AuditLog audit={audit} /> : null}
       </main>
     </div>
@@ -439,7 +439,7 @@ function OperationList({ operations, detailed = false }) {
   );
 }
 
-function PlatformAdmin({ summary, health, devices, customers, audit, me, onLogin }) {
+function PlatformAdmin({ summary, health, devices, customers, operations, audit, me, onLogin }) {
   const customerCount = summary?.customers ?? '-';
   return (
     <>
@@ -454,6 +454,15 @@ function PlatformAdmin({ summary, health, devices, customers, audit, me, onLogin
           </div>
         </div>
         <ServiceHealth health={health} compact />
+      </section>
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Lifecycle operations</h2>
+            <p>Cross-customer provisioning and deactivation activity.</p>
+          </div>
+        </div>
+        <OperationList operations={operations} detailed />
       </section>
       <Customers customers={customers} />
       <AuditLog audit={audit.slice(0, 5)} compact />

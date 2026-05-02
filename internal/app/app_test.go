@@ -203,10 +203,21 @@ func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 	}
 	srv := New(st)
 
-	unauth := httptest.NewRecorder()
-	srv.ServeHTTP(unauth, httptest.NewRequest(http.MethodGet, "/api/admin/audit", nil))
-	if unauth.Code != http.StatusUnauthorized {
-		t.Fatalf("admin audit without session status = %d, want %d", unauth.Code, http.StatusUnauthorized)
+	adminPaths := []string{
+		"/api/admin/summary",
+		"/api/admin/customers",
+		"/api/admin/devices",
+		"/api/admin/operations",
+		"/api/admin/service-health",
+		"/api/admin/audit",
+	}
+
+	for _, path := range adminPaths {
+		unauth := httptest.NewRecorder()
+		srv.ServeHTTP(unauth, httptest.NewRequest(http.MethodGet, path, nil))
+		if unauth.Code != http.StatusUnauthorized {
+			t.Fatalf("%s without session status = %d, want %d", path, unauth.Code, http.StatusUnauthorized)
+		}
 	}
 
 	customerSession, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
@@ -214,12 +225,14 @@ func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 		t.Fatalf("CreateSession customer returned error: %v", err)
 	}
 
-	blocked := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/audit", nil)
-	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: customerSession.ID})
-	srv.ServeHTTP(blocked, req)
-	if blocked.Code != http.StatusForbidden {
-		t.Fatalf("admin audit with customer session status = %d, want %d", blocked.Code, http.StatusForbidden)
+	for _, path := range adminPaths {
+		blocked := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: customerSession.ID})
+		srv.ServeHTTP(blocked, req)
+		if blocked.Code != http.StatusForbidden {
+			t.Fatalf("%s with customer session status = %d, want %d", path, blocked.Code, http.StatusForbidden)
+		}
 	}
 
 	rec := httptest.NewRecorder()
@@ -231,13 +244,20 @@ func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 		t.Fatalf("platform login did not set session cookie")
 	}
 
+	for _, path := range adminPaths {
+		admin := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(rec.Result().Cookies()[0])
+		srv.ServeHTTP(admin, req)
+		if admin.Code != http.StatusOK {
+			t.Fatalf("%s with session status = %d, want %d", path, admin.Code, http.StatusOK)
+		}
+	}
+
 	audit := httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/api/admin/audit", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/audit", nil)
 	req.AddCookie(rec.Result().Cookies()[0])
 	srv.ServeHTTP(audit, req)
-	if audit.Code != http.StatusOK {
-		t.Fatalf("admin audit with session status = %d, want %d", audit.Code, http.StatusOK)
-	}
 	if !strings.Contains(audit.Body.String(), "DeviceProvisionRequested") {
 		t.Fatalf("admin audit body does not contain demo audit events: %s", audit.Body.String())
 	}
