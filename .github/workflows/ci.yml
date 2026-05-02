@@ -45,6 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           smoke_dir="$(mktemp -d)"
+          chmod 0777 "$smoke_dir"
           container_id=""
           cleanup() {
             if [ -n "$container_id" ]; then
