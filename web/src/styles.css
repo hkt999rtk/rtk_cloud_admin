@@ -461,14 +461,33 @@ input:focus {
   outline: none;
 }
 
+.table-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 14px 0;
+}
+
+.table-toolbar span {
+  color: var(--muted);
+  flex: 0 0 auto;
+  font-size: 13px;
+}
+
 table {
   border-collapse: collapse;
   min-width: 980px;
   width: 100%;
 }
 
-.customers-table {
+.customers-table,
+.audit-table {
   min-width: 760px;
+}
+
+.operations-table {
+  min-width: 900px;
 }
 
 th,
@@ -479,7 +498,7 @@ td {
   vertical-align: top;
 }
 
-tbody tr {
+tbody tr.clickable-row {
   cursor: pointer;
 }
 
@@ -492,6 +511,63 @@ th {
   color: var(--muted);
   font-size: 12px;
   text-transform: uppercase;
+}
+
+.sort-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: 6px;
+  padding: 0;
+  text-align: left;
+  text-transform: inherit;
+}
+
+.sort-button:hover {
+  color: var(--brand-dark);
+}
+
+.sort-button span:last-child {
+  color: var(--brand);
+  font-size: 11px;
+  min-width: 10px;
+}
+
+.empty-table {
+  margin: 14px 0 0;
+}
+
+.pagination {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.pagination button {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--brand-dark);
+  cursor: pointer;
+  min-height: 34px;
+  padding: 6px 12px;
+}
+
+.pagination button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.pagination span {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .operation-list {
@@ -644,5 +720,12 @@ th {
 
   input {
     min-width: 100%;
+  }
+
+  .table-toolbar,
+  .pagination {
+    align-items: stretch;
+    display: grid;
+    justify-content: stretch;
   }
 }
