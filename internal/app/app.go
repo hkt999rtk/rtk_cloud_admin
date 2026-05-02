@@ -1025,19 +1025,41 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 			return callErr
 		})
 	}
-	_ = s.store.CreateAuditEvent(session.Email, operationType+".attempted", deviceID)
+	_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:          session.Email,
+		ActorKind:      session.Kind,
+		Action:         operationType + ".attempted",
+		Target:         deviceID,
+		OrganizationID: session.ActiveOrgID,
+		Result:         "attempted",
+	})
 	if err != nil {
 		if errors.Is(err, errCustomerSessionInvalid) {
 			s.invalidateCustomerSession(w, session.ID)
 		}
-		_ = s.store.CreateAuditEvent(session.Email, operationType+".failed", deviceID)
+		_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+			Actor:          session.Email,
+			ActorKind:      session.Kind,
+			Action:         operationType + ".failed",
+			Target:         deviceID,
+			OrganizationID: session.ActiveOrgID,
+			Result:         "failed",
+		})
 		s.writeCustomerError(w, err)
 		return true
 	}
+	_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:               session.Email,
+		ActorKind:           session.Kind,
+		Action:              operationType + ".completed",
+		Target:              deviceID,
+		OrganizationID:      session.ActiveOrgID,
+		Result:              "accepted",
+		UpstreamOperationID: op.ID,
+	})
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
-	_ = s.store.CreateAuditEvent(session.Email, operationType+".completed", deviceID)
 	writeJSON(w, contracts.Operation{
 		ID:        fallback(op.ID, fmt.Sprintf("op-%d", time.Now().UTC().UnixNano())),
 		DeviceID:  deviceID,
