@@ -397,6 +397,55 @@ func TestCustomerSessionInvalidRefreshClearsStoredSession(t *testing.T) {
 	}
 }
 
+func TestCustomerDevicesInvalidSessionRefreshClearsStoredSession(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/me":
+			if r.Header.Get("Authorization") == "Bearer expired-access" {
+				http.Error(w, "expired", http.StatusUnauthorized)
+				return
+			}
+			http.NotFound(w, r)
+		case "/v1/auth/refresh":
+			http.Error(w, "refresh expired", http.StatusUnauthorized)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u1", "user@example.com", "expired-access", "refresh-1", "org-up", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("devices status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+
+	if _, err := st.GetSession(session.ID); err != sql.ErrNoRows {
+		t.Fatalf("session should be cleared, got %v", err)
+	}
+}
+
 func TestCustomerMePersistsRotatedTokensOnRetryFailure(t *testing.T) {
 	t.Parallel()
 

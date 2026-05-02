@@ -169,7 +169,7 @@ func (s *Server) apiSummary(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		summary, err := s.customerSummary(r.Context(), session)
 		if err != nil {
-			s.writeCustomerError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, summary)
@@ -367,7 +367,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		devices, err := s.customerDevices(r.Context(), session)
 		if err != nil {
-			s.writeCustomerError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, devices)
@@ -397,7 +397,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		devices, err := s.customerDevices(r.Context(), session)
 		if err != nil {
-			s.writeCustomerError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		for _, device := range devices {
@@ -425,7 +425,7 @@ func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		customers, err := s.customerCustomers(r.Context(), session)
 		if err != nil {
-			s.writeCustomerError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, customers)
@@ -455,7 +455,7 @@ func (s *Server) apiOperations(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		ops, err := s.customerOperations(r.Context(), session)
 		if err != nil {
-			s.writeCustomerError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, ops)
@@ -496,7 +496,7 @@ func (s *Server) apiAudit(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		events, err := s.customerAudit(r.Context(), session)
 		if err != nil {
-			s.writeCustomerError(w, err)
+			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, events)
@@ -869,6 +869,13 @@ func customerUpstreamStatus(err error) (int, bool) {
 		return http.StatusGatewayTimeout, true
 	}
 	return 0, false
+}
+
+func (s *Server) writeCustomerErrorForSession(w http.ResponseWriter, sessionID string, err error) {
+	if errors.Is(err, errCustomerSessionInvalid) {
+		s.invalidateCustomerSession(w, sessionID)
+	}
+	s.writeCustomerError(w, err)
 }
 
 func (s *Server) writeCustomerError(w http.ResponseWriter, err error) {
