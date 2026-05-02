@@ -3,8 +3,8 @@ package app
 import (
 	"database/sql"
 	"encoding/json"
-	"io"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"rtk_cloud_admin/internal/accountclient"
@@ -180,6 +180,8 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 		case "/v1/orgs/org-up/devices/dev-002/provision":
 			_, _ = w.Write([]byte(`{"operation":{"id":"op-up","state":"published","message":"accepted"}}`))
 		case "/v1/orgs/org-up/devices/dev-up/deactivate":
+			fallthrough
+		case "/v1/orgs/org-up/devices/dev-002/deactivate":
 			if r.Header.Get("Authorization") != "Bearer refreshed-access" {
 				http.Error(w, "unexpected bearer token", http.StatusUnauthorized)
 				return
@@ -262,7 +264,7 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 	if devices.Code != http.StatusOK {
 		t.Fatalf("devices status = %d, body=%s", devices.Code, devices.Body.String())
 	}
-	if !strings.Contains(devices.Body.String(), "edge-01") || strings.Contains(devices.Body.String(), "cam-a-001") {
+	if !strings.Contains(devices.Body.String(), "dev-002") || strings.Contains(devices.Body.String(), "cam-a-001") {
 		t.Fatalf("devices should use upstream projection, got %s", devices.Body.String())
 	}
 	if !strings.Contains(devices.Body.String(), "source_facts") {
@@ -270,7 +272,7 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 	}
 
 	provision := httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodPost, "/api/devices/dev-up/provision", nil)
+	req = httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/provision", nil)
 	req.AddCookie(cookie)
 	srv.ServeHTTP(provision, req)
 	if provision.Code != http.StatusOK {
@@ -281,7 +283,7 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 	}
 
 	deactivate := httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodPost, "/api/devices/dev-up/deactivate", nil)
+	req = httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/deactivate", nil)
 	req.AddCookie(cookie)
 	srv.ServeHTTP(deactivate, req)
 	if deactivate.Code != http.StatusOK {
@@ -448,6 +450,171 @@ func TestCustomerMePersistsRotatedTokensOnRetryFailure(t *testing.T) {
 	}
 	if updated.AccessToken != "refreshed-access" || updated.RefreshToken != "refresh-2" {
 		t.Fatalf("session tokens = %#v, want refreshed tokens", updated)
+	}
+}
+
+func TestCustomerLoginMapsUpstreamFailures(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unauthorized", func(t *testing.T) {
+		t.Parallel()
+
+		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		}))
+		defer upstream.Close()
+
+		st, err := store.Open(t.TempDir() + "/admin.db")
+		if err != nil {
+			t.Fatalf("Open returned error: %v", err)
+		}
+		defer st.Close()
+		if err := st.Migrate(); err != nil {
+			t.Fatalf("Migrate returned error: %v", err)
+		}
+		srv := NewWithOptions(st, Options{
+			Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+			AccountClient: accountclient.New(upstream.URL),
+		})
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`))
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("login status = %d, body=%s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("server error", func(t *testing.T) {
+		t.Parallel()
+
+		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "upstream failure", http.StatusInternalServerError)
+		}))
+		defer upstream.Close()
+
+		st, err := store.Open(t.TempDir() + "/admin.db")
+		if err != nil {
+			t.Fatalf("Open returned error: %v", err)
+		}
+		defer st.Close()
+		if err := st.Migrate(); err != nil {
+			t.Fatalf("Migrate returned error: %v", err)
+		}
+		srv := NewWithOptions(st, Options{
+			Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+			AccountClient: accountclient.New(upstream.URL),
+		})
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`))
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("login status = %d, body=%s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), "Account Manager request failed") {
+			t.Fatalf("login body = %s", rec.Body.String())
+		}
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		t.Parallel()
+
+		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(200 * time.Millisecond)
+			_, _ = w.Write([]byte("too slow"))
+		}))
+		defer upstream.Close()
+
+		st, err := store.Open(t.TempDir() + "/admin.db")
+		if err != nil {
+			t.Fatalf("Open returned error: %v", err)
+		}
+		defer st.Close()
+		if err := st.Migrate(); err != nil {
+			t.Fatalf("Migrate returned error: %v", err)
+		}
+		srv := NewWithOptions(st, Options{
+			Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+			AccountClient: accountclient.NewWithHTTPClient(upstream.URL, &http.Client{Timeout: 40 * time.Millisecond}),
+		})
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`))
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusGatewayTimeout {
+			t.Fatalf("login status = %d, body=%s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestCustomerDevicesRefreshesExpiredAccessAndRejectsInvalidActiveOrg(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/me":
+			switch r.Header.Get("Authorization") {
+			case "Bearer access":
+				http.Error(w, "expired", http.StatusUnauthorized)
+			case "Bearer refreshed-access":
+				_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
+			default:
+				http.Error(w, fmt.Sprintf("unexpected bearer token %q", r.Header.Get("Authorization")), http.StatusUnauthorized)
+			}
+		case "/v1/auth/refresh":
+			_, _ = w.Write([]byte(`{"tokens":{"access_token":"refreshed-access","refresh_token":"refresh-2","expires_in":1800}}`))
+		case "/v1/orgs/org-up/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-up","name":"cam-up","readiness":"activated","status":"offline","metadata":{"video_cloud_devid":"device-up"}}]}`))
+		default:
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+	session, err := st.CreateSession("customer", "u1", "user@example.com", "access", "refresh", "org-up", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	reqCookie := &http.Cookie{Name: "rtk_admin_session", Value: session.ID}
+
+	devices := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	req.AddCookie(reqCookie)
+	srv.ServeHTTP(devices, req)
+	if devices.Code != http.StatusOK {
+		t.Fatalf("devices status = %d, body=%s", devices.Code, devices.Body.String())
+	}
+	updated, err := st.GetSession(session.ID)
+	if err != nil {
+		t.Fatalf("GetSession returned error: %v", err)
+	}
+	if updated.AccessToken != "refreshed-access" || updated.RefreshToken != "refresh-2" {
+		t.Fatalf("session tokens = %#v, want refreshed tokens", updated)
+	}
+
+	badOrgSession, err := st.CreateSession("customer", "u1", "user@example.com", "access", "refresh-2", "org-bad", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	bad := httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: badOrgSession.ID})
+	srv.ServeHTTP(bad, req)
+	if bad.Code != http.StatusForbidden {
+		t.Fatalf("bad active org status = %d, body=%s", bad.Code, bad.Body.String())
 	}
 }
 
