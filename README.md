@@ -18,7 +18,8 @@ The product and integration contracts live in the
 Implemented in this first version:
 
 - Go HTTP server using `net/http`
-- SQLite persistence for local demo/cache data
+- SQLite persistence for local demo data, upstream cache projections, settings,
+  sessions, and audit metadata
 - React frontend built with Vite
 - device fleet dashboard
 - customer overview with organization-level fleet health
@@ -140,7 +141,10 @@ plaintext credentials.
 
 SQLite schema changes are applied through versioned migrations. Existing local
 databases are upgraded in place and applied versions are stored in
-`schema_migrations`.
+`schema_migrations`. Upstream cache tables are non-authoritative mirrors of
+Account Manager and Video Cloud facts; they can be refreshed or rebuilt from the
+owning services. Local SQLite remains authoritative only for console-local
+sessions, platform admins, integration settings, and audit metadata.
 
 ## Docker
 
@@ -165,7 +169,10 @@ Container health uses `/healthz`.
 ## CI
 
 `.github/workflows/ci.yml` checks out submodules and runs `go test ./...`,
-`go build ./cmd/server`, `npm ci`, and `npm run build`.
+`go build ./cmd/server`, `npm ci`, `npm run build`, a container smoke test, and
+Docker cache cleanup on the self-hosted `rtk-cloud-admin-ci` runner.
+
+Runner health and recovery notes live in [`docs/ci-runner.md`](docs/ci-runner.md).
 
 ## Contracts
 
