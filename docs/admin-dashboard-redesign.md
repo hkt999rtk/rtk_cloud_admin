@@ -13,10 +13,10 @@ Audience:
 
 Related contracts:
 
-- [TELEMETRY_INSIGHTS.md](../repos/rtk_cloud_contracts_doc/TELEMETRY_INSIGHTS.md)
-- [FIRMWARE_CAMPAIGN.md](../repos/rtk_cloud_contracts_doc/FIRMWARE_CAMPAIGN.md)
-- [FRONTEND_STYLE.md](../repos/rtk_cloud_contracts_doc/FRONTEND_STYLE.md)
-- [HTTP_API.md](../repos/rtk_cloud_contracts_doc/HTTP_API.md)
+- [TELEMETRY_INSIGHTS.md](../rtk_cloud_contracts_doc/TELEMETRY_INSIGHTS.md)
+- [FIRMWARE_CAMPAIGN.md](../rtk_cloud_contracts_doc/FIRMWARE_CAMPAIGN.md)
+- [FRONTEND_STYLE.md](../rtk_cloud_contracts_doc/FRONTEND_STYLE.md)
+- [HTTP_API.md](../rtk_cloud_contracts_doc/HTTP_API.md)
 
 ---
 
