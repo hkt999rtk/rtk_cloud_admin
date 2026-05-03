@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"rtk_cloud_admin/internal/accountclient"
@@ -573,9 +574,11 @@ func (s *Server) customerDevices(ctx context.Context, session store.Session) ([]
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
+	vcFacts := s.videoCloudFacts(ctx, devices)
 	out := make([]contracts.Device, 0, len(devices))
 	for _, device := range devices {
-		out = append(out, mapUpstreamDevice(org, device))
+		vid := fallback(device.VideoCloudDevID, metadataString(device.Metadata, "video_cloud_devid", ""))
+		out = append(out, mapUpstreamDevice(org, device, vcFacts[vid]))
 	}
 	return out, nil
 }
@@ -958,7 +961,7 @@ func (s *Server) upstreamCustomers(w http.ResponseWriter, r *http.Request) ([]co
 			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
 		for _, device := range devices {
-			mapped := mapUpstreamDevice(org, device)
+			mapped := mapUpstreamDevice(org, device, nil)
 			customer.TotalDevices++
 			switch mapped.Readiness {
 			case contracts.ReadinessOnline:
@@ -1021,8 +1024,10 @@ func (s *Server) upstreamDevices(w http.ResponseWriter, r *http.Request) ([]cont
 		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
+		vcFacts := s.videoCloudFacts(r.Context(), devices)
 		for _, device := range devices {
-			out = append(out, mapUpstreamDevice(org, device))
+			vid := fallback(device.VideoCloudDevID, metadataString(device.Metadata, "video_cloud_devid", ""))
+			out = append(out, mapUpstreamDevice(org, device, vcFacts[vid]))
 		}
 	}
 	return out, true
@@ -1150,7 +1155,7 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	return true
 }
 
-func mapUpstreamDevice(org accountclient.Organization, device accountclient.Device) contracts.Device {
+func mapUpstreamDevice(org accountclient.Organization, device accountclient.Device, vcFacts *readinessfacts.VideoCloudFacts) contracts.Device {
 	now := time.Now().UTC().Format(time.RFC3339)
 	readiness := contracts.ReadinessState(fallback(device.Readiness, metadataString(device.Metadata, "readiness", string(contracts.ReadinessRegistered))))
 	status := fallback(device.Status, metadataString(device.Metadata, "status", "unknown"))
@@ -1170,7 +1175,7 @@ func mapUpstreamDevice(org accountclient.Organization, device accountclient.Devi
 		LastSeenAt:      fallback(device.LastSeenAt, metadataString(device.Metadata, "last_seen_at", "")),
 		UpdatedAt:       updatedAt,
 	}
-	mapped.SourceFacts = readinessfacts.Build(mapped, upstreamOperationFromMetadata(device, updatedAt))
+	mapped.SourceFacts = readinessfacts.Build(mapped, upstreamOperationFromMetadata(device, updatedAt), vcFacts)
 	return mapped
 }
 
@@ -1254,4 +1259,80 @@ func (s *Server) upstreamHealth(ctx context.Context, name, baseURL string, check
 		detail = err.Error()
 	}
 	return contracts.ServiceHealth{Name: name, Status: status, Detail: detail, LatencyMillis: time.Since(start).Milliseconds(), LastCheckedAt: time.Now().UTC().Format(time.RFC3339)}
+}
+
+// videoCloudFacts queries Video Cloud for activation and transport facts for a
+// batch of Account Manager devices. Returns a map keyed by VideoCloudDevID.
+// Non-nil facts are only present for devices that have a VideoCloudDevID.
+// Errors are logged and silently ignored — Video Cloud is best-effort.
+func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.Device) map[string]*readinessfacts.VideoCloudFacts {
+	if !s.videoClient.Enabled() || s.cfg.VideoCloudAdminToken == "" {
+		return nil
+	}
+
+	// Collect device IDs that have a VideoCloudDevID.
+	var vcIDs []string
+	idToVC := make(map[string]string) // accountclient device ID → video_cloud_devid
+	for _, d := range devices {
+		vid := fallback(d.VideoCloudDevID, metadataString(d.Metadata, "video_cloud_devid", ""))
+		if vid != "" {
+			vcIDs = append(vcIDs, vid)
+			idToVC[d.ID] = vid
+		}
+	}
+	if len(vcIDs) == 0 {
+		return nil
+	}
+
+	qCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	activated, err := s.videoClient.QueryActivation(qCtx, s.cfg.VideoCloudAdminToken, vcIDs)
+	if err != nil {
+		return nil
+	}
+
+	updatedAt := time.Now().UTC().Format(time.RFC3339)
+
+	// Fan out GetCameraInfo for activated devices concurrently.
+	type transportResult struct {
+		vcID      string
+		transport string
+	}
+	resultsCh := make(chan transportResult, len(vcIDs))
+	var wg sync.WaitGroup
+	for _, vcID := range vcIDs {
+		if !activated[vcID] {
+			continue
+		}
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			tCtx, tCancel := context.WithTimeout(ctx, 4*time.Second)
+			defer tCancel()
+			transport, err := s.videoClient.GetCameraInfo(tCtx, s.cfg.VideoCloudAdminToken, id)
+			if err != nil {
+				resultsCh <- transportResult{vcID: id}
+				return
+			}
+			resultsCh <- transportResult{vcID: id, transport: transport}
+		}(vcID)
+	}
+	wg.Wait()
+	close(resultsCh)
+
+	transports := make(map[string]string, len(vcIDs))
+	for r := range resultsCh {
+		transports[r.vcID] = r.transport
+	}
+
+	out := make(map[string]*readinessfacts.VideoCloudFacts, len(vcIDs))
+	for _, vcID := range vcIDs {
+		out[vcID] = &readinessfacts.VideoCloudFacts{
+			Activated: activated[vcID],
+			Transport: transports[vcID],
+			UpdatedAt: updatedAt,
+		}
+	}
+	return out
 }

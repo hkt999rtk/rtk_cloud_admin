@@ -13,6 +13,7 @@ func TestBuildSourceFacts(t *testing.T) {
 		name            string
 		device          contracts.Device
 		latestOp        *contracts.Operation
+		vcFacts         *VideoCloudFacts
 		wantStates      []string
 		wantErrorCode   string
 		wantRetryable   bool
@@ -101,6 +102,57 @@ func TestBuildSourceFacts(t *testing.T) {
 			},
 			wantStates: []string{"present", "present", "stale"},
 		},
+		{
+			name: "vc_activated_with_transport",
+			device: contracts.Device{
+				ID:              "dev-7",
+				VideoCloudDevID: "video-7",
+				Status:          "offline",
+				Readiness:       contracts.ReadinessCloudActivationPending,
+				UpdatedAt:       "2026-05-01T10:00:00Z",
+			},
+			vcFacts: &VideoCloudFacts{
+				Activated: true,
+				Transport: "websocket",
+				UpdatedAt: "2026-05-01T10:05:00Z",
+			},
+			wantStates: []string{"present", "present", "present"},
+		},
+		{
+			name: "vc_not_activated",
+			device: contracts.Device{
+				ID:              "dev-8",
+				VideoCloudDevID: "video-8",
+				Status:          "online",
+				Readiness:       contracts.ReadinessOnline,
+				LastSeenAt:      "2026-05-01T10:00:00Z",
+				UpdatedAt:       "2026-05-01T10:00:00Z",
+			},
+			vcFacts: &VideoCloudFacts{
+				Activated: false,
+				UpdatedAt: "2026-05-01T10:05:00Z",
+			},
+			wantStates:    []string{"present", "stale", "present"},
+			wantRetryable: true,
+		},
+		{
+			name: "vc_activated_no_transport",
+			device: contracts.Device{
+				ID:              "dev-9",
+				VideoCloudDevID: "video-9",
+				Status:          "offline",
+				Readiness:       contracts.ReadinessActivated,
+				LastSeenAt:      "2026-05-01T10:00:00Z",
+				UpdatedAt:       "2026-05-01T10:00:00Z",
+			},
+			vcFacts: &VideoCloudFacts{
+				Activated: true,
+				Transport: "",
+				UpdatedAt: "2026-05-01T10:05:00Z",
+			},
+			// transport falls back to inferred "stale" (status=offline, no VC transport)
+			wantStates: []string{"present", "present", "stale"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -108,7 +160,7 @@ func TestBuildSourceFacts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			facts := Build(tt.device, tt.latestOp)
+			facts := Build(tt.device, tt.latestOp, tt.vcFacts)
 			if len(facts) != 3 {
 				t.Fatalf("facts len = %d, want 3", len(facts))
 			}

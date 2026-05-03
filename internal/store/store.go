@@ -730,7 +730,7 @@ func (s *Store) sourceFactsForDevice(device contracts.Device) ([]contracts.Sourc
 	if err != nil {
 		return nil, err
 	}
-	return readinessfacts.Build(device, latest), nil
+	return readinessfacts.Build(device, latest, nil), nil
 }
 
 func (s *Store) latestOperationForDevice(deviceID string) (*contracts.Operation, error) {

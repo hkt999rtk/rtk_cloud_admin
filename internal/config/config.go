@@ -10,6 +10,7 @@ type Config struct {
 	DatabasePath           string
 	AccountManagerBaseURL  string
 	VideoCloudBaseURL      string
+	VideoCloudAdminToken   string
 	AdminBootstrapEmail    string
 	AdminBootstrapPassword string
 }
@@ -20,6 +21,7 @@ func FromEnv() Config {
 		DatabasePath:           getenv("DATABASE_PATH", filepath.Join("data", "rtk-cloud-admin.db")),
 		AccountManagerBaseURL:  os.Getenv("ACCOUNT_MANAGER_BASE_URL"),
 		VideoCloudBaseURL:      os.Getenv("VIDEO_CLOUD_BASE_URL"),
+		VideoCloudAdminToken:   os.Getenv("VIDEO_CLOUD_ADMIN_TOKEN"),
 		AdminBootstrapEmail:    os.Getenv("ADMIN_BOOTSTRAP_EMAIL"),
 		AdminBootstrapPassword: os.Getenv("ADMIN_BOOTSTRAP_PASSWORD"),
 	}
