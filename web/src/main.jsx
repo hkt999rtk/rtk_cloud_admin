@@ -63,6 +63,19 @@ function App() {
         setHealth(nextHealth);
         setAudit(nextAudit);
       } catch (err) {
+        if (!alive) return;
+        if (err.isAuthError) {
+          try {
+            const freshMe = await fetch('/api/me').then((r) => r.json());
+            if (alive) setMe(freshMe);
+          } catch (_) {}
+          setSummary(null);
+          setCustomers([]);
+          setDevices([]);
+          setOperations([]);
+          setHealth([]);
+          setAudit([]);
+        }
         if (alive) setError(err.message);
       }
     }
@@ -123,6 +136,20 @@ function App() {
     setRefreshTick((tick) => tick + 1);
   }
 
+  async function handleSwitchOrg(orgId) {
+    setError('');
+    const response = await fetch('/api/me/active-org', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ organization_id: orgId }),
+    });
+    if (!response.ok) {
+      setError(`org switch failed with ${response.status}`);
+      return;
+    }
+    setRefreshTick((tick) => tick + 1);
+  }
+
   async function handleLogout() {
     setError('');
     const response = await fetch('/api/auth/logout', { method: 'POST' });
@@ -171,7 +198,19 @@ function App() {
           </div>
           <div className="session-strip">
             <span>{me?.authenticated ? `${me.email} / ${me.kind}` : 'Demo mode'}</span>
-            <span>{me?.active_org_id || 'all orgs'}</span>
+            {me?.kind === 'customer' && (me?.memberships?.length ?? 0) > 1 ? (
+              <select
+                className="org-switcher"
+                value={me.active_org_id || ''}
+                onChange={(e) => handleSwitchOrg(e.target.value)}
+              >
+                {(me.memberships || []).map((m) => (
+                  <option key={m.organization_id} value={m.organization_id}>{m.organization}</option>
+                ))}
+              </select>
+            ) : (
+              <span>{me?.active_org_id || 'all orgs'}</span>
+            )}
             {me?.authenticated ? <button onClick={handleLogout}>Logout</button> : null}
           </div>
         </header>
@@ -747,8 +786,18 @@ function routeFromLocation() {
   return 'console';
 }
 
+class AuthError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+    this.isAuthError = true;
+  }
+}
+
 async function fetchJSON(url) {
   const response = await fetch(url);
+  if (response.status === 401) throw new AuthError(401, 'Session expired; please sign in again.');
+  if (response.status === 403) throw new AuthError(403, 'Access denied.');
   if (!response.ok) throw new Error(`${url} failed with ${response.status}`);
   return response.json();
 }
