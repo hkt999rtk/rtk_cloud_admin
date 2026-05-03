@@ -1057,6 +1057,9 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	}
 	deviceID := r.PathValue("id")
 	operationType := "DeviceProvisionRequested"
+	if action == "deactivate" {
+		operationType = "DeviceDeactivateRequested"
+	}
 	if existing, ok, err := s.store.GetOpenLifecycleOperation(deviceID, operationType); err == nil && ok {
 		_ = s.store.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
 		writeJSON(w, existing)
@@ -1068,15 +1071,6 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 
 	var op accountclient.Operation
 	if action == "deactivate" {
-		operationType = "DeviceDeactivateRequested"
-		if existing, ok, err := s.store.GetOpenLifecycleOperation(deviceID, operationType); err == nil && ok {
-			_ = s.store.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
-			writeJSON(w, existing)
-			return true
-		} else if err != nil {
-			writeError(w, err)
-			return true
-		}
 		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
 			var callErr error
 			op, callErr = s.accountClient.Deactivate(r.Context(), token, session.ActiveOrgID, deviceID)

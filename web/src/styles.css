@@ -196,6 +196,17 @@ p {
   font-weight: 700;
 }
 
+.org-switcher {
+  font-size: 13px;
+  color: var(--brand-dark);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  max-width: 160px;
+}
+
 .metrics {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));

@@ -969,6 +969,78 @@ func TestCustomerUpstreamLifecycleIsIdempotentAndDurable(t *testing.T) {
 	}
 }
 
+func TestDeactivateDoesNotReturnOpenProvisionOperation(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/login":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"tokens":{"access_token":"access","refresh_token":"refresh","expires_in":3600}}`))
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
+		case "/v1/orgs/org-up/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"offline"}]}`))
+		case "/v1/orgs/org-up/devices/dev-002/provision":
+			_, _ = w.Write([]byte(`{"operation":{"id":"op-prov","state":"published","message":"accepted"}}`))
+		case "/v1/orgs/org-up/devices/dev-002/deactivate":
+			_, _ = w.Write([]byte(`{"operation":{"id":"op-deact","state":"published","message":"deactivation accepted"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	login := httptest.NewRecorder()
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	if login.Code != http.StatusOK {
+		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
+	}
+	cookie := login.Result().Cookies()[0]
+
+	provision := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/provision", nil)
+	req.AddCookie(cookie)
+	srv.ServeHTTP(provision, req)
+	if provision.Code != http.StatusOK {
+		t.Fatalf("provision status = %d, body=%s", provision.Code, provision.Body.String())
+	}
+	if !strings.Contains(provision.Body.String(), "op-prov") {
+		t.Fatalf("provision body missing op-prov: %s", provision.Body.String())
+	}
+
+	deactivate := httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/deactivate", nil)
+	req.AddCookie(cookie)
+	srv.ServeHTTP(deactivate, req)
+	if deactivate.Code != http.StatusOK {
+		t.Fatalf("deactivate status = %d, body=%s", deactivate.Code, deactivate.Body.String())
+	}
+	if strings.Contains(deactivate.Body.String(), "op-prov") {
+		t.Fatalf("deactivate returned provision operation instead of deactivate operation: %s", deactivate.Body.String())
+	}
+	if !strings.Contains(deactivate.Body.String(), "op-deact") {
+		t.Fatalf("deactivate body missing op-deact: %s", deactivate.Body.String())
+	}
+}
+
 func TestCustomerUpstreamLifecycleFailurePersistsFailedOperation(t *testing.T) {
 	t.Parallel()
 
