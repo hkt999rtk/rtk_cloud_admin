@@ -13,6 +13,7 @@ Audience:
 
 Related contracts:
 
+- [ROLES.md](ROLES.md) — three-tier role definitions (read this first)
 - [TELEMETRY_INSIGHTS.md](../rtk_cloud_contracts_doc/TELEMETRY_INSIGHTS.md)
 - [FIRMWARE_CAMPAIGN.md](../rtk_cloud_contracts_doc/FIRMWARE_CAMPAIGN.md)
 - [FRONTEND_STYLE.md](../rtk_cloud_contracts_doc/FRONTEND_STYLE.md)
@@ -22,30 +23,36 @@ Related contracts:
 
 ## Background And Motivation
 
+RTK Cloud is a three-tier platform (see [ROLES.md](ROLES.md)). Two of those
+tiers use this admin console: Tier 2 Brand Operators (Fleet Managers and
+Read-only Observers managing their own device fleet) and Tier 1 Realtek
+Platform Admins (operating the platform across all tenants). Tier 3 end users
+do not use this console.
+
 The current admin dashboard was designed from a system-implementation perspective.
 It surfaces internal operational vocabulary (`cloud_activation_pending`,
 `dead_lettered`, `video_cloud_devid`) and exposes service-health indicators that
-are meaningful only to platform engineers. Customer operators — the primary
-users — cannot derive actionable answers to their everyday questions from the
-current UI.
+are meaningful only to Tier 1 platform engineers. Tier 2 Fleet Managers — the
+primary daily users — cannot derive actionable answers to their everyday
+questions from the current UI.
 
-Typical customer operator questions the current dashboard cannot answer:
+Typical Tier 2 Fleet Manager questions the current dashboard cannot answer:
 
 - Which of my devices have been unreliable this week?
 - How many devices still run the old firmware, and how is the OTA rollout going?
 - Is my fleet's signal quality degrading?
 - How often are streams actually working?
 
-This spec defines the redesign required to make the dashboard customer-useful
-while preserving an operator/internal view for platform teams.
+This spec defines the redesign required to make the dashboard useful for Tier 2
+operators while preserving a clean internal view for Tier 1 roles.
 
 ---
 
 ## Goals
 
-1. Surface the data customer operators actually need to manage their fleet.
-2. Remove internal implementation details from the customer-facing view.
-3. Separate customer views from platform/operator views cleanly.
+1. Surface the data Tier 2 operators actually need to manage their fleet.
+2. Remove internal implementation vocabulary (`cloud_activation_pending`, `dead_lettered`, `video_cloud_devid`, etc.) from Customer View routes.
+3. Ensure no Customer View route exposes Platform View data, and no Platform View route is reachable from Customer View navigation.
 4. Ground all new data surfaces in existing contracts (TELEMETRY_INSIGHTS,
    FIRMWARE_CAMPAIGN) to avoid inventing new vocabulary.
 
@@ -64,7 +71,7 @@ Platform Admin   →  customer count + service health
 
 ### Proposed Navigation (2 top-level views)
 
-**Customer View** — default landing for org operators:
+**Customer View** — default landing for Tier 2 roles (Fleet Manager, Read-only Observer):
 
 ```
 Overview         →  fleet health summary (new)
@@ -74,7 +81,7 @@ Stream Health    →  new section
 Groups           →  new section (depends on device-group feature)
 ```
 
-**Platform View** — separate top-level context for internal operators:
+**Platform View** — Tier 1 Platform Admin only:
 
 ```
 Service Health   →  moved from customer view
@@ -83,18 +90,20 @@ Audit Log        →  new section (uses existing audit_events table)
 ```
 
 The two views should have clearly differentiated entry points. A nav switcher
-or separate route prefix (`/admin/ops`) is acceptable. Do not intermix customer
-and platform content on the same page.
+or separate route prefix (`/admin/ops`) is acceptable. Do not intermix Tier 2
+customer content and Tier 1 platform content on the same page.
 
 ---
 
 ## Section 1: Fleet Health Overview (new)
 
+Primary users: Tier 2 Fleet Manager, Read-only Observer.
+
 This replaces the current Customer Fleet Dashboard.
 
 ### Purpose
 
-Give the customer operator a single-glance answer to: "Is my fleet healthy right
+Give the Tier 2 operator a single-glance answer to: "Is my fleet healthy right
 now, and has it been healthy recently?"
 
 ### KPI Strip (top of page)
@@ -145,12 +154,15 @@ Data source: `device.health.summary` latest event per device per org.
 | Signal | `low_rssi` / `recent_crash` / `offline_risk` etc., from TELEMETRY_INSIGHTS |
 | Health | resulting health state |
 
-No service-internal fields. No operation type codes. Customer-readable signal
-names only.
+Field visibility for this table follows the rules in
+[ROLES.md — Field-Level Visibility Rules](ROLES.md#field-level-visibility-rules).
+Use Customer-readable signal names from TELEMETRY_INSIGHTS.md only.
 
 ---
 
 ## Section 2: Devices Table (improved)
+
+Primary users: Tier 2 Fleet Manager, Read-only Observer.
 
 ### Columns
 
@@ -210,12 +222,14 @@ When clicking a device row, open a side drawer or detail page showing:
 - Recent events (last 10 telemetry events from this device)
 - Active stream status (is there currently an open session?)
 
-This panel should not expose video_cloud_devid or internal operation IDs to
-non-platform users.
+Field visibility follows
+[ROLES.md — Field-Level Visibility Rules](ROLES.md#field-level-visibility-rules).
 
 ---
 
 ## Section 3: Firmware & OTA (new)
+
+Primary users: Tier 2 Fleet Manager, Read-only Observer.
 
 ### Purpose
 
@@ -276,6 +290,8 @@ and `/query_firmware_rollout` existing route.
 
 ## Section 4: Stream Health (new)
 
+Primary users: Tier 2 Fleet Manager, Read-only Observer.
+
 ### Purpose
 
 Answer: "Are my devices' video streams actually working for end users?"
@@ -328,26 +344,30 @@ When available, the Groups section provides:
 
 ## Section 6: Platform View — Retained And Refined
 
+Primary users: Tier 1 Platform Admin. Not visible to any Tier 2 role.
+
 ### Service Health (moved from Customer View)
 
-The Account Manager, Video Cloud, and SQLite health indicators remain. Move
-them entirely out of the customer-facing view. They belong in the Platform View
-only.
+The Account Manager, Video Cloud, and SQLite health indicators remain, but
+move out of Customer View into Platform View.
 
-When a service is in `demo` mode, add a visible "Demo Mode" banner to the
-Platform View page, not to any customer-facing page.
+When a service is in `demo` mode, the "Demo Mode" banner appears in Platform
+View only.
 
 ### Operations Log (refined)
 
-The Operations page is retained for platform operators.
+The Operations page is retained for Tier 1 platform operators.
 
 Changes:
 
-- Add a `Friendly Summary` column that translates internal operation types into
-  readable sentences. Example:
-  - `DeviceProvisionRequested` → "Provisioning requested"
-  - `dead_lettered` → "Failed after retries — needs investigation"
-- Keep raw type and state values visible as secondary text for platform engineers.
+- Add a `Friendly Summary` column that combines the operation's `type` and
+  `state` into a single readable sentence. Mapping is composed from a `type`
+  phrase plus a `state` qualifier:
+  - `DeviceProvisionRequested` (type) + `pending` (state) → "Provisioning requested"
+  - `DeviceProvisionRequested` (type) + `succeeded` (state) → "Provisioning succeeded"
+  - `DeviceDeactivationRequested` (type) + `failed` (state) → "Deactivation failed"
+  - any type + `dead_lettered` (state) → "Failed after retries — needs investigation"
+- Show raw `type` and `state` values as secondary text beneath the Friendly Summary, per [ROLES.md — Field-Level Visibility Rules](ROLES.md#field-level-visibility-rules) (Tier 1 visibility).
 - Add filter by state: All / Pending / Succeeded / Failed / Dead Lettered.
 
 ### Audit Log (new, minimal)
@@ -355,6 +375,14 @@ Changes:
 Surface the existing `audit_events` table (actor, action, target, created_at)
 as a read-only table in Platform View. No new data model required; the table
 already exists in the store.
+
+**Write-side status:** `audit_events` is populated today by the device
+lifecycle handlers in `internal/app/app.go` (`CreateAuditEvent` /
+`CreateAuditEventWithMetadata` are called on provision and deactivate flows,
+including idempotent paths). Other actions (login, session invalidation,
+firmware campaign control) do not yet write audit rows. The Audit Log UI
+should expect populated data for device lifecycle actions only in the first
+release; expanding write coverage is a separate work item.
 
 ---
 
@@ -514,7 +542,9 @@ The following are intentionally deferred:
 - Alert notification rules and email/webhook delivery
 - Multi-org / platform-level fleet aggregation (single-org only for now)
 - Stream viewer / live preview
-- User roles and permission management
+- Read-only Observer as a distinct Tier 2 session type
+- Tenant impersonation for Tier 1 Platform Admin
+- Role assignment UI
 - Audit log export
 
 ---
@@ -551,8 +581,7 @@ audit log surface) can proceed immediately.
 
 For each new frontend section, the implementation must verify:
 
-- No internal IDs (`video_cloud_devid`, operation IDs) are exposed in
-  customer-facing views
+- All field visibility matches [ROLES.md — Field-Level Visibility Rules](ROLES.md#field-level-visibility-rules) (in particular: no `video_cloud_devid`, operation IDs, raw operation type names, or `dead_lettered` state in any Customer View route)
 - State labels use contract vocabulary (title-cased) from PRODUCT_READINESS.md
   and FIRMWARE_CAMPAIGN.md
 - Health signals use vocabulary from TELEMETRY_INSIGHTS.md
@@ -560,4 +589,5 @@ For each new frontend section, the implementation must verify:
 - Empty states are defined (e.g., "No campaigns active", "No stream data yet")
 - Tables show the most actionable items first (worst-performing devices at top)
 - Color usage follows FRONTEND_STYLE.md tokens
-- Platform View content does not appear in Customer View routes
+- Platform View content does not appear in any Customer View route, and no Customer View navigation links to a Platform View route
+- The backend route handler for each section returns 403 for any session whose role is not listed in that section's "Primary users" annotation (once role enforcement is implemented; until then, the annotation is descriptive — see ROLES.md current implementation notes)
