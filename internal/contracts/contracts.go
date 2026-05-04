@@ -124,9 +124,9 @@ type AuditEvent struct {
 }
 
 type TelemetryRssiSample struct {
-	Date     string `json:"date"`
-	AvgDBM   int    `json:"avg_dbm"`
-	Quality  string `json:"quality"`
+	Date    string `json:"date"`
+	AvgDBM  int    `json:"avg_dbm"`
+	Quality string `json:"quality"`
 }
 
 type TelemetryUptimeSample struct {
@@ -136,16 +136,37 @@ type TelemetryUptimeSample struct {
 
 type TelemetryEvent struct {
 	OccurredAt string `json:"occurred_at"`
-	EventType string `json:"event_type"`
-	Summary   string `json:"summary"`
+	EventType  string `json:"event_type"`
+	Summary    string `json:"summary"`
 }
 
 type DeviceTelemetry struct {
-	DeviceID        string               `json:"device_id"`
-	Health          string               `json:"health"`
-	Signals         []string             `json:"signals"`
-	FirmwareVersion string               `json:"firmware_version"`
-	RSSI7D          []TelemetryRssiSample `json:"rssi_7d"`
+	DeviceID        string                  `json:"device_id"`
+	Health          string                  `json:"health"`
+	Signals         []string                `json:"signals"`
+	FirmwareVersion string                  `json:"firmware_version"`
+	RSSI7D          []TelemetryRssiSample   `json:"rssi_7d"`
 	Uptime7D        []TelemetryUptimeSample `json:"uptime_7d"`
-	RecentEvents    []TelemetryEvent     `json:"recent_events"`
+	RecentEvents    []TelemetryEvent        `json:"recent_events"`
+}
+
+type FleetHealthCurrent struct {
+	Healthy  int `json:"healthy"`
+	Warning  int `json:"warning"`
+	Critical int `json:"critical"`
+	Unknown  int `json:"unknown"`
+}
+
+type FleetHealthTrendPoint struct {
+	Date          string  `json:"date"`
+	OnlinePct     float64 `json:"online_pct"`
+	WarningCount  int     `json:"warning_count"`
+	CriticalCount int     `json:"critical_count"`
+}
+
+type FleetHealthSummary struct {
+	OrgID           string                  `json:"org_id"`
+	Current         FleetHealthCurrent      `json:"current"`
+	OnlineRate7dPct float64                 `json:"online_rate_7d_pct"`
+	Trend           []FleetHealthTrendPoint `json:"trend"`
 }
