@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +87,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
 	s.mux.HandleFunc("GET /api/admin/devices", s.apiAdminDevices)
 	s.mux.HandleFunc("GET /api/devices/{id}", s.apiDevice)
+	s.mux.HandleFunc("GET /api/devices/{id}/telemetry", s.apiDeviceTelemetry)
 	s.mux.HandleFunc("GET /api/operations", s.apiOperations)
 	s.mux.HandleFunc("GET /api/admin/operations", s.apiAdminOperations)
 	s.mux.HandleFunc("GET /api/service-health", s.apiServiceHealth)
@@ -420,6 +423,155 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, device)
+}
+
+func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requestSession(r)
+	if !ok || session.Kind != "customer" {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	devices, err := s.customerDevices(r.Context(), session)
+	if s.accountClient.Enabled() {
+		if err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		for _, device := range devices {
+			if device.ID == r.PathValue("id") {
+				writeJSON(w, demoTelemetryForDevice(device))
+				return
+			}
+		}
+		http.NotFound(w, r)
+		return
+	}
+	if session.ActiveOrgID == "" {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	device, err := s.store.GetDevice(r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if device.OrganizationID != session.ActiveOrgID {
+		http.NotFound(w, r)
+		return
+	}
+	writeJSON(w, demoTelemetryForDevice(contracts.Device{
+		ID:              device.ID,
+		OrganizationID:  device.OrganizationID,
+		Organization:    device.Organization,
+		Name:            device.Name,
+		Category:        device.Category,
+		Model:           device.Model,
+		SerialNumber:    device.SerialNumber,
+		VideoCloudDevID: device.VideoCloudDevID,
+		Status:          device.Status,
+		Readiness:       device.Readiness,
+		LastSeenAt:      device.LastSeenAt,
+		UpdatedAt:       device.UpdatedAt,
+	}))
+}
+
+func demoTelemetryForDevice(device contracts.Device) contracts.DeviceTelemetry {
+	health := "healthy"
+	signals := []string{}
+	switch device.Readiness {
+	case contracts.ReadinessFailed, contracts.ReadinessCloudActivationPending:
+		health = "critical"
+		signals = append(signals, "low_rssi", "offline_risk", "low_memory")
+	case contracts.ReadinessActivated:
+		health = "warning"
+		signals = append(signals, "low_rssi")
+	case contracts.ReadinessLocalOnboardingPending, contracts.ReadinessClaimPending, contracts.ReadinessDeactivationPending:
+		health = "warning"
+		signals = append(signals, "recent_reboot")
+	default:
+		health = "healthy"
+	}
+
+	rssi := make([]contracts.TelemetryRssiSample, 0, 7)
+	uptime := make([]contracts.TelemetryUptimeSample, 0, 7)
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	baseDBM := -64
+	for i := 6; i >= 0; i-- {
+		date := today.AddDate(0, 0, -i).Format("2006-01-02")
+		avg := baseDBM - (6-i)*2
+		rssi = append(rssi, contracts.TelemetryRssiSample{
+			Date:    date,
+			AvgDBM:  avg,
+			Quality: telemetryQualityFromDBM(avg),
+		})
+		uptime = append(uptime, contracts.TelemetryUptimeSample{
+			Date:      date,
+			OnlinePct: 96.0 + float64(i)/10.0,
+		})
+	}
+
+	recent := []contracts.TelemetryEvent{
+		{
+			OccurredAt: time.Now().UTC().Add(-1 * time.Hour).Format(time.RFC3339),
+			EventType:  "device.health.summary",
+			Summary:    "Health summary indicates elevated wifi variance",
+		},
+		{
+			OccurredAt: time.Now().UTC().Add(-3 * time.Hour).Format(time.RFC3339),
+			EventType:  "device.health.rssi_sample",
+			Summary:    "Signal quality dropped to fair due interference",
+		},
+		{
+			OccurredAt: time.Now().UTC().Add(-6 * time.Hour).Format(time.RFC3339),
+			EventType:  "device.reboot.reported",
+			Summary:    "Device reboot reported by endpoint",
+		},
+		{
+			OccurredAt: time.Now().UTC().Add(-10 * time.Hour).Format(time.RFC3339),
+			EventType:  "device.crash.reported",
+			Summary:    "Crash event recovered automatically",
+		},
+	}
+	sort.Slice(recent, func(i, j int) bool {
+		left, err := time.Parse(time.RFC3339, recent[i].OccurredAt)
+		if err != nil {
+			return false
+		}
+		right, err := time.Parse(time.RFC3339, recent[j].OccurredAt)
+		if err != nil {
+			return false
+		}
+		return left.After(right)
+	})
+
+	version := firmwareVersionFromDevice(device)
+	return contracts.DeviceTelemetry{
+		DeviceID:        device.ID,
+		Health:          health,
+		Signals:         signals,
+		FirmwareVersion: version,
+		RSSI7D:          rssi,
+		Uptime7D:        uptime,
+		RecentEvents:    recent,
+	}
+}
+
+func telemetryQualityFromDBM(avgDBM int) string {
+	if avgDBM >= -60 {
+		return "good"
+	}
+	if avgDBM >= -75 {
+		return "fair"
+	}
+	return "poor"
+}
+
+func firmwareVersionFromDevice(device contracts.Device) string {
+	suffix := strings.TrimPrefix(device.ID, "dev-")
+	if parsed, err := strconv.Atoi(suffix); err == nil {
+		return fmt.Sprintf("v1.2.%d", parsed)
+	}
+	return fmt.Sprintf("v1.2.%d", len(device.Model))
 }
 
 func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {

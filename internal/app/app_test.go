@@ -750,6 +750,154 @@ func TestDeviceAPIIncludesSourceFacts(t *testing.T) {
 	}
 }
 
+func TestDeviceTelemetryAPIRequiresCustomerSession(t *testing.T) {
+	t.Parallel()
+
+	srv, err := NewTestServer(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("NewTestServer returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/devices/dev-001/telemetry", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("telemetry status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	}
+}
+
+func TestDeviceTelemetryDemoReturns404ForOutOfOrgDevice(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := New(st)
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/devices/dev-003/telemetry", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("out-of-org telemetry status = %d, want %d; body=%s", rec.Code, http.StatusNotFound, rec.Body.String())
+	}
+}
+
+func TestDeviceTelemetryDemoPayload(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := New(st)
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/devices/dev-001/telemetry", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("telemetry status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "video_cloud_devid") {
+		t.Fatalf("telemetry response should not expose video_cloud_devid: %s", rec.Body.String())
+	}
+
+	var payload contracts.DeviceTelemetry
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode telemetry payload: %v", err)
+	}
+	if payload.DeviceID != "dev-001" {
+		t.Fatalf("device_id = %q, want %q", payload.DeviceID, "dev-001")
+	}
+	if payload.Health != "healthy" && payload.Health != "warning" && payload.Health != "critical" {
+		t.Fatalf("health = %q, want healthy|warning|critical", payload.Health)
+	}
+	if len(payload.RSSI7D) != 7 {
+		t.Fatalf("rssi_7d length = %d, want 7", len(payload.RSSI7D))
+	}
+	if len(payload.Uptime7D) != 7 {
+		t.Fatalf("uptime_7d length = %d, want 7", len(payload.Uptime7D))
+	}
+	validQuality := map[string]bool{"good": true, "fair": true, "poor": true}
+	for _, sample := range payload.RSSI7D {
+		if !validQuality[sample.Quality] {
+			t.Fatalf("invalid RSSI quality %q", sample.Quality)
+		}
+	}
+	if len(payload.RecentEvents) == 0 || len(payload.RecentEvents) > 10 {
+		t.Fatalf("recent_events length = %d, want 1..10", len(payload.RecentEvents))
+	}
+	prev, err := time.Parse(time.RFC3339, payload.RecentEvents[0].OccurredAt)
+	if err != nil {
+		t.Fatalf("parse first occurred_at %q: %v", payload.RecentEvents[0].OccurredAt, err)
+	}
+	for i := 1; i < len(payload.RecentEvents); i++ {
+		cur, err := time.Parse(time.RFC3339, payload.RecentEvents[i].OccurredAt)
+		if err != nil {
+			t.Fatalf("parse occurred_at %q: %v", payload.RecentEvents[i].OccurredAt, err)
+		}
+		if prev.Before(cur) {
+			t.Fatalf("recent_events not sorted desc: index=%d", i)
+		}
+		prev = cur
+	}
+	validSignals := map[string]bool{
+		"low_rssi":      true,
+		"recent_reboot":  true,
+		"low_memory":    true,
+		"recent_crash":  true,
+		"offline_risk":  true,
+	}
+	for _, signal := range payload.Signals {
+		if !validSignals[signal] {
+			t.Fatalf("invalid signal %q", signal)
+		}
+	}
+	validEventTypes := map[string]bool{
+		"device.health.summary":      true,
+		"device.health.rssi_sample":  true,
+		"device.reboot.reported":     true,
+		"device.crash.reported":      true,
+		"firmware.version.observed":  true,
+	}
+	for _, event := range payload.RecentEvents {
+		if !validEventTypes[event.EventType] {
+			t.Fatalf("invalid event type %q", event.EventType)
+		}
+		if strings.TrimSpace(event.Summary) == "" {
+			t.Fatalf("event summary is empty for %q", event.EventType)
+		}
+	}
+	if payload.FirmwareVersion == "" {
+		t.Fatalf("firmware_version is empty")
+	}
+}
+
 func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 	t.Parallel()
 
