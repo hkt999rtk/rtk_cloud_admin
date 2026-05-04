@@ -320,6 +320,8 @@ function GroupsPage() {
 
 function PlatformHealth({ summary, health, me, onLogin }) {
   const customerCount = summary?.customers ?? '-';
+  const demoServices = health.filter((item) => item.status === 'demo');
+  const hasDemo = demoServices.length > 0;
   return (
     <>
       {me?.kind !== 'platform_admin' ? <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} /> : null}
@@ -334,6 +336,7 @@ function PlatformHealth({ summary, health, me, onLogin }) {
         </div>
         <ServiceHealth health={health} compact />
       </section>
+      {hasDemo ? <section className="panel demo-banner"><p>{`Demo services active: ${demoServices.map((service) => service.name).join(', ')}`}</p></section> : null}
     </>
   );
 }
@@ -620,16 +623,30 @@ function DeviceDetail({ device, onAction }) {
 }
 
 function Operations({ operations }) {
+  const [stateFilter, setStateFilter] = useState('all');
+  const filteredOperations = useMemo(() => {
+    if (stateFilter === 'all') return operations;
+    const filter = stateFilter.toLowerCase();
+    return operations.filter((operation) => operation.state === filter);
+  }, [operations, stateFilter]);
+
   const columns = useMemo(() => [
-    { key: 'type', label: 'Type', value: (operation) => operation.type },
+    {
+      key: 'summary',
+      label: 'Friendly Summary',
+      value: (operation) => operationSummary(operation),
+      render: (operation) => (
+        <div className="operation-summary">
+          <strong>{operationSummary(operation)}</strong>
+          <span className="operation-summary__raw">
+            <small>Raw type: {operation.type}</small>
+            <small>Raw state: <StatusBadge value={operation.state} /></small>
+          </span>
+        </div>
+      ),
+    },
     { key: 'organization', label: 'Customer', value: (operation) => operation.organization },
     { key: 'device_name', label: 'Device', value: (operation) => operation.device_name },
-    {
-      key: 'state',
-      label: 'State',
-      value: (operation) => operation.state,
-      render: (operation) => <StatusBadge value={operation.state} />,
-    },
     { key: 'updated_at', label: 'Updated', value: (operation) => operation.updated_at },
     { key: 'message', label: 'Message', value: (operation) => operation.message },
   ], []);
@@ -641,10 +658,24 @@ function Operations({ operations }) {
           <h2>Lifecycle operations</h2>
           <p>Provisioning and deactivation commands projected from account/video contracts.</p>
         </div>
+        <label className="operation-filter">
+          <span>State</span>
+          <select
+            value={stateFilter}
+            onChange={(event) => setStateFilter(event.target.value)}
+            aria-label="Filter operations by state"
+          >
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="succeeded">Succeeded</option>
+            <option value="failed">Failed</option>
+            <option value="dead_lettered">Dead Lettered</option>
+          </select>
+        </label>
       </div>
       <DataTable
         columns={columns}
-        rows={operations}
+        rows={filteredOperations}
         rowKey={(operation) => operation.id}
         initialSortKey="updated_at"
         initialDirection="desc"
@@ -968,6 +999,37 @@ function titleFor(active) {
     'platform-operations': 'Operations',
     'platform-audit': 'Audit Log',
   }[active];
+}
+
+function operationSummary(operation) {
+  const typeSummary = operationTypeSummary(operation.type);
+  const stateSummary = operationStateSummary(operation.state);
+  return stateSummary ? `${typeSummary} — ${stateSummary}` : typeSummary;
+}
+
+function operationTypeSummary(type) {
+  const map = {
+    DeviceProvisionRequested: 'Provisioning requested',
+    DeviceProvisionRequestedFailed: 'Provisioning failed',
+    DeviceProvisionSucceeded: 'Provisioning succeeded',
+    DeviceDeactivateRequested: 'Deactivation requested',
+    DeviceDeactivateRequestedFailed: 'Deactivation failed',
+    DeviceDeactivateSucceeded: 'Deactivation succeeded',
+  };
+  if (map[type]) return map[type];
+  return toTitleCase(String(type).replaceAll(/[._]/g, ' '));
+}
+
+function operationStateSummary(state) {
+  const map = {
+    pending: 'Pending',
+    published: 'Published',
+    succeeded: 'Succeeded',
+    failed: 'Failed',
+    retrying: 'Retrying',
+    dead_lettered: 'Failed after retries — needs investigation',
+  };
+  return map[(state || '').toLowerCase()];
 }
 
 function routeFromLocation() {
