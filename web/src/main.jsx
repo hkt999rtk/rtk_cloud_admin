@@ -32,6 +32,7 @@ function App() {
   const [refreshTick, setRefreshTick] = useState(0);
   const isPlatformView = active.startsWith('platform');
   const visibleNavItems = isPlatformView ? platformNavItems : customerNavItems;
+  const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
 
   useEffect(() => {
     let alive = true;
@@ -240,8 +241,9 @@ function App() {
 
         {error ? <div className="error">{error}</div> : null}
 
-        {active === 'overview' ? <Overview summary={summary} me={me} onLogin={handleLogin} /> : null}
-        {active === 'devices' ? (
+        {needsPlatformAccess ? <PlatformAccessGate active={active} onLogin={handleLogin} /> : null}
+        {!needsPlatformAccess && active === 'overview' ? <Overview summary={summary} me={me} onLogin={handleLogin} /> : null}
+        {!needsPlatformAccess && active === 'devices' ? (
           <Devices
             devices={devices}
             selectedDevice={selectedDevice}
@@ -249,12 +251,12 @@ function App() {
             onAction={runDeviceAction}
           />
         ) : null}
-        {active === 'firmware-ota' ? <FirmwareOTAPage /> : null}
-        {active === 'stream-health' ? <StreamHealthPage /> : null}
-        {active === 'groups' ? <GroupsPage /> : null}
-        {active === 'platform-health' ? <PlatformHealth summary={summary} health={health} me={me} onLogin={handleLogin} /> : null}
-        {active === 'platform-operations' ? <Operations operations={operations} /> : null}
-        {active === 'platform-audit' ? <AuditLog audit={audit} /> : null}
+        {!needsPlatformAccess && active === 'firmware-ota' ? <FirmwareOTAPage /> : null}
+        {!needsPlatformAccess && active === 'stream-health' ? <StreamHealthPage /> : null}
+        {!needsPlatformAccess && active === 'groups' ? <GroupsPage /> : null}
+        {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
+        {!needsPlatformAccess && active === 'platform-operations' ? <Operations operations={operations} /> : null}
+        {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} /> : null}
       </main>
     </div>
   );
@@ -318,11 +320,24 @@ function GroupsPage() {
   );
 }
 
-function PlatformHealth({ summary, health, me, onLogin }) {
+function PlatformAccessGate({ active, onLogin }) {
+  return (
+    <>
+      <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} />
+      <section className="panel split-panel">
+        <div>
+          <h2>Platform access required</h2>
+          <p>Sign in with a platform admin session to open {titleFor(active)}.</p>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function PlatformHealth({ summary, health }) {
   const customerCount = summary?.customers ?? '-';
   return (
     <>
-      {me?.kind !== 'platform_admin' ? <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} /> : null}
       <section className="panel split-panel">
         <div>
           <h2>Platform Operations</h2>
