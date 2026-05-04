@@ -868,7 +868,7 @@ func TestDeviceTelemetryDemoPayload(t *testing.T) {
 	}
 	validSignals := map[string]bool{
 		"low_rssi":      true,
-		"recent_reboot":  true,
+		"recent_reboot": true,
 		"low_memory":    true,
 		"recent_crash":  true,
 		"offline_risk":  true,
@@ -879,11 +879,11 @@ func TestDeviceTelemetryDemoPayload(t *testing.T) {
 		}
 	}
 	validEventTypes := map[string]bool{
-		"device.health.summary":      true,
-		"device.health.rssi_sample":  true,
-		"device.reboot.reported":     true,
-		"device.crash.reported":      true,
-		"firmware.version.observed":  true,
+		"device.health.summary":     true,
+		"device.health.rssi_sample": true,
+		"device.reboot.reported":    true,
+		"device.crash.reported":     true,
+		"firmware.version.observed": true,
 	}
 	for _, event := range payload.RecentEvents {
 		if !validEventTypes[event.EventType] {
