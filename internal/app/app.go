@@ -440,7 +440,7 @@ func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-	window, days, err := parseFleetWindow(r.URL.Query().Get("window"))
+	_, days, err := parseFleetWindow(r.URL.Query().Get("window"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -590,8 +590,10 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 			totalSuccesses += successes
 			agg.requests += requests
 			agg.successes += successes
-			modeStats[agg.mode].requests += requests
-			modeStats[agg.mode].successes += successes
+			mode := modeStats[agg.mode]
+			mode.requests += requests
+			mode.successes += successes
+			modeStats[agg.mode] = mode
 			totalDuration += duration
 		}
 	}
