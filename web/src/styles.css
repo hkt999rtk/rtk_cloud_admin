@@ -704,36 +704,6 @@ th {
   color: var(--brand);
 }
 
-.operation-filter {
-  align-items: center;
-  color: var(--muted);
-  display: inline-flex;
-  flex-direction: column;
-  font-size: 12px;
-  gap: 6px;
-}
-
-.operation-summary {
-  display: grid;
-  gap: 6px;
-}
-
-.operation-summary strong {
-  display: block;
-}
-
-.operation-summary__raw {
-  color: var(--muted);
-  display: grid;
-  gap: 2px;
-}
-
-.operation-summary__raw small {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .status-cloud-activation-pending,
 .status-pending,
 .status-retrying,
@@ -757,16 +727,6 @@ th {
   color: var(--danger);
   margin-bottom: 16px;
   padding: 12px;
-}
-
-.demo-banner {
-  border: 1px solid #ffcc62;
-  background: #fff8e1;
-  color: #7a5b00;
-}
-
-.demo-banner p {
-  margin: 0;
 }
 
 @media (max-width: 900px) {
