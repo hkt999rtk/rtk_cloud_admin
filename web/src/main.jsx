@@ -850,7 +850,6 @@ function LoginPanel({ mode, title, onLogin }) {
   );
 }
 
-function StatusBadge({ value }) {
 function StatusBadge({ value, label }) {
   const text = label ?? value;
   return <span className={`status status-${String(value).replaceAll('_', '-')}`}>{text}</span>;
