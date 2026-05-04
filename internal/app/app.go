@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -89,6 +90,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/devices/{id}", s.apiDevice)
 	s.mux.HandleFunc("GET /api/devices/{id}/telemetry", s.apiDeviceTelemetry)
 	s.mux.HandleFunc("GET /api/fleet/health-summary", s.apiFleetHealthSummary)
+	s.mux.HandleFunc("GET /api/fleet/stream-stats", s.apiFleetStreamStats)
 	s.mux.HandleFunc("GET /api/operations", s.apiOperations)
 	s.mux.HandleFunc("GET /api/admin/operations", s.apiAdminOperations)
 	s.mux.HandleFunc("GET /api/service-health", s.apiServiceHealth)
@@ -107,6 +109,12 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /console/operations", s.shell)
 	s.mux.HandleFunc("GET /console/audit", s.shell)
 }
+
+const (
+	streamModeRTSP   = "rtsp"
+	streamModeRelay  = "relay"
+	streamModeWebRTC = "webrtc"
+)
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -432,18 +440,9 @@ func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-	window := r.URL.Query().Get("window")
-	if window == "" {
-		window = "7d"
-	}
-	days := 0
-	switch window {
-	case "7d":
-		days = 7
-	case "30d":
-		days = 30
-	default:
-		http.Error(w, "window must be 7d or 30d", http.StatusBadRequest)
+	window, days, err := parseFleetWindow(r.URL.Query().Get("window"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	orgID, err := s.customerOrgIDForSession(r.Context(), session)
@@ -476,6 +475,261 @@ func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, fleetHealthSummary(orgID, devices, days))
+}
+
+func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requestSession(r)
+	if !ok || session.Kind != "customer" {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	window, days, err := parseFleetWindow(r.URL.Query().Get("window"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	orgID, err := s.customerOrgIDForSession(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	var devices []contracts.Device
+	if s.accountClient.Enabled() {
+		allDevices, err := s.customerDevices(r.Context(), session)
+		if err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		devices = append(devices, allDevices...)
+	} else {
+		allDevices, err := s.store.ListDevices()
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		for _, device := range allDevices {
+			if device.OrganizationID == orgID {
+				devices = append(devices, device)
+			}
+		}
+	}
+	writeJSON(w, fleetStreamStats(orgID, devices, days, window))
+}
+
+func parseFleetWindow(raw string) (string, int, error) {
+	window := raw
+	if window == "" {
+		window = "7d"
+	}
+	switch window {
+	case "7d":
+		return window, 7, nil
+	case "30d":
+		return window, 30, nil
+	default:
+		return "", 0, fmt.Errorf("window must be 7d or 30d")
+	}
+}
+
+func fleetStreamStats(orgID string, devices []contracts.Device, days int, window string) contracts.FleetStreamStats {
+	byMode := map[string]contracts.FleetStreamStatsMode{
+		streamModeRTSP:   {Requests: 0, SuccessRatePct: 0},
+		streamModeRelay:  {Requests: 0, SuccessRatePct: 0},
+		streamModeWebRTC: {Requests: 0, SuccessRatePct: 0},
+	}
+	type modeAccumulator struct {
+		requests  int
+		successes int
+	}
+	type deviceAccumulator struct {
+		deviceID   string
+		deviceName string
+		mode       string
+		readiness  contracts.ReadinessState
+		requests   int
+		successes  int
+		never      bool
+	}
+	modeStats := map[string]modeAccumulator{
+		streamModeRTSP:   {},
+		streamModeRelay:  {},
+		streamModeWebRTC: {},
+	}
+	deviceStats := make(map[string]*deviceAccumulator, len(devices))
+	for idx, device := range devices {
+		profile := streamProfile(idx, device)
+		deviceStats[device.ID] = &deviceAccumulator{
+			deviceID:   device.ID,
+			deviceName: device.Name,
+			mode:       profile.mode,
+			readiness:  device.Readiness,
+			never:      profile.never,
+		}
+	}
+
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	trend := make([]contracts.FleetStreamTrendPoint, 0, days)
+	dailyRequestsByDay := make([]int, days)
+	dailySuccessesByDay := make([]int, days)
+	var totalRequests, totalSuccesses, totalDuration int
+	activeSessions := 0
+	neverStreamedCount := 0
+	for idx, device := range devices {
+		if device.Readiness == contracts.ReadinessOnline {
+			activeSessions++
+		}
+		agg := deviceStats[device.ID]
+		if agg == nil {
+			continue
+		}
+		for day := 0; day < days; day++ {
+			requests, successes, duration := streamDevicesForDay(day, len(devices), idx, device, agg.never)
+			dailyRequestsByDay[day] += requests
+			dailySuccessesByDay[day] += successes
+			totalRequests += requests
+			totalSuccesses += successes
+			agg.requests += requests
+			agg.successes += successes
+			modeStats[agg.mode].requests += requests
+			modeStats[agg.mode].successes += successes
+			totalDuration += duration
+		}
+	}
+	for _, agg := range deviceStats {
+		if agg.readiness == contracts.ReadinessOnline && agg.requests == 0 && agg.never {
+			neverStreamedCount++
+		}
+	}
+	for day := 0; day < days; day++ {
+		date := today.AddDate(0, 0, day-days+1).Format("2006-01-02")
+		successRate := streamRate(dailySuccessesByDay[day], dailyRequestsByDay[day])
+		trend = append(trend, contracts.FleetStreamTrendPoint{
+			Date:          date,
+			Requests:      dailyRequestsByDay[day],
+			SuccessRatePct: successRate,
+		})
+	}
+	for mode, stats := range modeStats {
+		byMode[mode] = contracts.FleetStreamStatsMode{
+			Requests:       stats.requests,
+			SuccessRatePct: streamRate(stats.successes, stats.requests),
+		}
+	}
+
+	worst := make([]contracts.FleetStreamWorstDevice, 0, len(deviceStats))
+	for _, agg := range deviceStats {
+		if agg.requests == 0 {
+			continue
+		}
+		worst = append(worst, contracts.FleetStreamWorstDevice{
+			DeviceID:       agg.deviceID,
+			DeviceName:     agg.deviceName,
+			Requests:       agg.requests,
+			SuccessRatePct: streamRate(agg.successes, agg.requests),
+		})
+	}
+	sort.Slice(worst, func(i, j int) bool {
+		if worst[i].SuccessRatePct != worst[j].SuccessRatePct {
+			return worst[i].SuccessRatePct < worst[j].SuccessRatePct
+		}
+		return worst[i].Requests < worst[j].Requests
+	})
+	if len(worst) > 10 {
+		worst = worst[:10]
+	}
+
+	return contracts.FleetStreamStats{
+		OrgID:              orgID,
+		Window:             window,
+		SuccessRatePct:     streamRate(totalSuccesses, totalRequests),
+		AvgDurationSeconds: averageDuration(totalDuration, totalRequests),
+		ActiveSessions:     activeSessions,
+		NeverStreamedCount: neverStreamedCount,
+		ByMode:             byMode,
+		Trend:              trend,
+		WorstDevices:       worst,
+	}
+}
+
+type streamProfileData struct {
+	mode        string
+	baseRequest int
+	successRate float64
+	never       bool
+}
+
+func streamProfile(index int, device contracts.Device) streamProfileData {
+	baseRequests := 4
+	baseSuccess := 84.0
+	never := false
+	switch device.Readiness {
+	case contracts.ReadinessOnline:
+		baseRequests = 6
+		baseSuccess = 94
+		if strings.HasSuffix(device.VideoCloudDevID, "-1") || strings.HasSuffix(device.ID, "-1") || strings.HasSuffix(device.ID, "1") {
+			never = true
+		}
+	case contracts.ReadinessActivated, contracts.ReadinessCloudActivationPending:
+		baseRequests = 4
+		baseSuccess = 78
+	case contracts.ReadinessClaimPending, contracts.ReadinessLocalOnboardingPending, contracts.ReadinessDeactivationPending:
+		baseRequests = 3
+		baseSuccess = 68
+	case contracts.ReadinessFailed:
+		baseRequests = 1
+		baseSuccess = 40
+	default:
+		baseRequests = 2
+		baseSuccess = 55
+	}
+	switch index % 3 {
+	case 0:
+		return streamProfileData{mode: streamModeRTSP, baseRequest: baseRequests, successRate: baseSuccess, never: never}
+	case 1:
+		return streamProfileData{mode: streamModeRelay, baseRequest: baseRequests - 1, successRate: math.Min(baseSuccess+4, 100), never: never}
+	default:
+		return streamProfileData{mode: streamModeWebRTC, baseRequest: baseRequests - 2, successRate: math.Max(baseSuccess-8, 0), never: never}
+	}
+}
+
+func streamDevicesForDay(day, totalDevices, index int, device contracts.Device, _ bool) (int, int, int) {
+	profile := streamProfile(index, device)
+	if profile.never {
+		return 0, 0, 0
+	}
+	requests := profile.baseRequest + ((day * 3) % 5) + (totalDevices % 4)
+	if requests < 0 {
+		return 0, 0, 0
+	}
+	variable := float64((day % 7) * 2)
+	successRate := profile.successRate + (float64(day%3) - variable/6)
+	successRate = math.Min(100, math.Max(0, successRate))
+	successes := int(math.Round(float64(requests) * (successRate / 100)))
+	if successes < 0 {
+		successes = 0
+	}
+	if successes > requests {
+		successes = requests
+	}
+	baseDuration := 80 + int(profile.successRate)/2 + (len(device.ID) % 4) + (day % 3)
+	successBoost := successes * 3
+	failurePenalty := requests*2 - successes
+	duration := requests*baseDuration + successBoost - failurePenalty
+	return requests, successes, duration
+}
+
+func streamRate(successes, requests int) float64 {
+	if requests <= 0 {
+		return 0
+	}
+	return toTwoDecimal(float64(successes) * 100 / float64(requests))
+}
+
+func averageDuration(totalDuration, totalRequests int) float64 {
+	if totalRequests <= 0 {
+		return 0
+	}
+	return toTwoDecimal(float64(totalDuration) / float64(totalRequests))
 }
 
 func (s *Server) customerOrgIDForSession(ctx context.Context, session store.Session) (string, error) {

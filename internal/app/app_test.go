@@ -998,6 +998,171 @@ func TestFleetHealthSummaryWindow30dAndOrgScope(t *testing.T) {
 	}
 }
 
+func TestFleetStreamStatsAPIRequiresCustomerSession(t *testing.T) {
+	t.Parallel()
+
+	srv, err := NewTestServer(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("NewTestServer returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	}
+}
+
+func TestFleetStreamStatsDemoDefaultsTo7d(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := New(st)
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var payload contracts.FleetStreamStats
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode stream stats payload: %v", err)
+	}
+	if payload.OrgID != "org-acme" {
+		t.Fatalf("org_id = %q, want %q", payload.OrgID, "org-acme")
+	}
+	if payload.Window != "7d" {
+		t.Fatalf("window = %q, want %q", payload.Window, "7d")
+	}
+	if len(payload.Trend) != 7 {
+		t.Fatalf("trend length = %d, want %d", len(payload.Trend), 7)
+	}
+	for _, mode := range []string{"rtsp", "relay", "webrtc"} {
+		stats, ok := payload.ByMode[mode]
+		if !ok {
+			t.Fatalf("by_mode is missing key %q", mode)
+		}
+		if stats.Requests < 0 {
+			t.Fatalf("by_mode.%s.requests = %d, want >=0", mode, stats.Requests)
+		}
+		if stats.SuccessRatePct < 0 || stats.SuccessRatePct > 100 {
+			t.Fatalf("by_mode.%s.success_rate_pct = %f, want 0..100", mode, stats.SuccessRatePct)
+		}
+	}
+	if payload.SuccessRatePct < 0 || payload.SuccessRatePct > 100 {
+		t.Fatalf("success_rate_pct = %f, want 0..100", payload.SuccessRatePct)
+	}
+	if payload.NeverStreamedCount < 0 {
+		t.Fatalf("never_streamed_count = %d, want >=0", payload.NeverStreamedCount)
+	}
+	if len(payload.WorstDevices) > 10 {
+		t.Fatalf("worst_devices length = %d, want <=10", len(payload.WorstDevices))
+	}
+}
+
+func TestFleetStreamStatsWindow30dAndOrgScope(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := New(st)
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats?window=30d", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var payload contracts.FleetStreamStats
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode stream stats payload: %v", err)
+	}
+	if payload.Window != "30d" {
+		t.Fatalf("window = %q, want %q", payload.Window, "30d")
+	}
+	if len(payload.Trend) != 30 {
+		t.Fatalf("trend length = %d, want %d", len(payload.Trend), 30)
+	}
+	for _, dev := range payload.WorstDevices {
+		if dev.DeviceID == "dev-003" || dev.DeviceID == "dev-004" {
+			t.Fatalf("worst_devices includes out-of-org device %q", dev.DeviceID)
+		}
+	}
+}
+
+func TestFleetStreamStatsWorstDevicesSortedAsc(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := New(st)
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats?window=7d", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var payload contracts.FleetStreamStats
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode stream stats payload: %v", err)
+	}
+	if len(payload.WorstDevices) > 10 {
+		t.Fatalf("worst_devices length = %d, want <=10", len(payload.WorstDevices))
+	}
+	for i := 1; i < len(payload.WorstDevices); i++ {
+		if payload.WorstDevices[i-1].SuccessRatePct > payload.WorstDevices[i].SuccessRatePct {
+			t.Fatalf("worst_devices not sorted asc at index %d: %f > %f", i, payload.WorstDevices[i-1].SuccessRatePct, payload.WorstDevices[i].SuccessRatePct)
+		}
+	}
+}
+
 func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 	t.Parallel()
 
