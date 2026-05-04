@@ -4,18 +4,13 @@ import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
 
-const customerNavItems = [
-  { id: 'overview', label: 'Overview', path: '/console/overview' },
+const navItems = [
+  { id: 'console', label: 'Customer Fleet', path: '/console' },
+  { id: 'customers', label: 'Customers', path: '/console/customers' },
   { id: 'devices', label: 'Devices', path: '/console/devices' },
-  { id: 'firmware-ota', label: 'Firmware & OTA', path: '/console/firmware-ota' },
-  { id: 'stream-health', label: 'Stream Health', path: '/console/stream-health' },
-  { id: 'groups', label: 'Groups', path: '/console/groups' },
-];
-
-const platformNavItems = [
-  { id: 'platform-health', label: 'Service Health', path: '/admin' },
-  { id: 'platform-operations', label: 'Operations Log', path: '/admin/ops' },
-  { id: 'platform-audit', label: 'Audit Log', path: '/admin/audit' },
+  { id: 'operations', label: 'Provisioning', path: '/console/operations' },
+  { id: 'admin', label: 'Platform Admin', path: '/admin' },
+  { id: 'audit', label: 'Audit', path: '/console/audit' },
 ];
 
 function App() {
@@ -30,8 +25,6 @@ function App() {
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
-  const isPlatformView = active.startsWith('platform');
-  const visibleNavItems = isPlatformView ? platformNavItems : customerNavItems;
 
   useEffect(() => {
     let alive = true;
@@ -42,8 +35,8 @@ function App() {
         if (!alive) return;
         setMe(nextMe);
 
-        const useAdminApi = isPlatformView && nextMe.kind === 'platform_admin';
-        if (isPlatformView && nextMe.kind !== 'platform_admin') {
+        const useAdminApi = active === 'admin' && nextMe.kind === 'platform_admin';
+        if (active === 'admin' && nextMe.kind !== 'platform_admin') {
           setSummary(null);
           setCustomers([]);
           setDevices([]);
@@ -109,11 +102,6 @@ function App() {
     setActive(item.id);
   }
 
-  function switchView(targetActive) {
-    const target = targetActive === 'platform' ? platformNavItems[0] : customerNavItems[0];
-    navigate(target);
-  }
-
   function selectDevice(deviceId) {
     setSelectedDeviceId(deviceId);
     const path = '/console/devices';
@@ -129,8 +117,8 @@ function App() {
       return;
     }
     setRefreshTick((tick) => tick + 1);
-    window.history.pushState({}, '', '/admin/ops');
-    setActive('platform-operations');
+    window.history.pushState({}, '', '/console/operations');
+    setActive('operations');
   }
 
   async function handleLogin(kind, credentials) {
@@ -189,19 +177,8 @@ function App() {
             <small>Admin Console</small>
           </div>
         </div>
-        <div className="view-switcher">
-          <small>Workspace</small>
-          <div className="view-switcher-buttons">
-            <button className={!isPlatformView ? 'active' : ''} onClick={() => switchView('customer')}>
-              Customer View
-            </button>
-            <button className={isPlatformView ? 'active' : ''} onClick={() => switchView('platform')}>
-              Platform View
-            </button>
-          </div>
-        </div>
         <nav>
-          {visibleNavItems.map((item) => (
+          {navItems.map((item) => (
             <button
               key={item.id}
               className={active === item.id ? 'active' : ''}
@@ -240,7 +217,8 @@ function App() {
 
         {error ? <div className="error">{error}</div> : null}
 
-        {active === 'overview' ? <Overview summary={summary} me={me} onLogin={handleLogin} /> : null}
+        {active === 'console' ? <Dashboard summary={summary} health={health} operations={operations} me={me} onLogin={handleLogin} /> : null}
+        {active === 'customers' ? <Customers customers={customers} /> : null}
         {active === 'devices' ? (
           <Devices
             devices={devices}
@@ -249,91 +227,36 @@ function App() {
             onAction={runDeviceAction}
           />
         ) : null}
-        {active === 'firmware-ota' ? <FirmwareOTAPage /> : null}
-        {active === 'stream-health' ? <StreamHealthPage /> : null}
-        {active === 'groups' ? <GroupsPage /> : null}
-        {active === 'platform-health' ? <PlatformHealth summary={summary} health={health} me={me} onLogin={handleLogin} /> : null}
-        {active === 'platform-operations' ? <Operations operations={operations} /> : null}
-        {active === 'platform-audit' ? <AuditLog audit={audit} /> : null}
+        {active === 'operations' ? <Operations operations={operations} /> : null}
+        {active === 'admin' ? <PlatformAdmin summary={summary} health={health} devices={devices} customers={customers} operations={operations} audit={audit} me={me} onLogin={handleLogin} /> : null}
+        {active === 'audit' ? <AuditLog audit={audit} /> : null}
       </main>
     </div>
   );
 }
 
-function Overview({ summary, me, onLogin }) {
+function Dashboard({ summary, health, operations, me, onLogin }) {
   return (
     <>
       <MetricGrid summary={summary} />
       {!me?.authenticated ? <LoginPanel mode="customer" title="Customer Account Manager login" onLogin={onLogin} /> : null}
       <section className="panel split-panel">
         <div>
-          <h2>Customer overview</h2>
-          <p>Monitor fleet key metrics and access fleet management pages.</p>
-          <p>Use the Devices page to perform read and lifecycle actions for your own organization.</p>
-        </div>
-      </section>
-    </>
-  );
-}
-
-function FirmwareOTAPage() {
-  return (
-    <section className="panel">
-      <div className="panel-head">
-        <div>
-          <h2>Firmware &amp; OTA</h2>
-          <p>Firmware policy and rollout staging is in progress and will be added in this section.</p>
-        </div>
-      </div>
-      <p className="placeholder-subtitle">This section is a temporary placeholder while the OTA workflow is being integrated.</p>
-    </section>
-  );
-}
-
-function StreamHealthPage() {
-  return (
-    <section className="panel">
-      <div className="panel-head">
-        <div>
-          <h2>Stream Health</h2>
-          <p>Stream diagnostics and quality summaries will be available in the next milestone.</p>
-        </div>
-      </div>
-      <p className="placeholder-subtitle">Placeholder area for customer-facing stream observability insights.</p>
-    </section>
-  );
-}
-
-function GroupsPage() {
-  return (
-    <section className="panel">
-      <div className="panel-head">
-        <div>
-          <h2>Groups</h2>
-          <p>Customer group management and membership assignment will be added here.</p>
-        </div>
-      </div>
-      <p className="placeholder-subtitle">Placeholder area for customer group workspace.</p>
-    </section>
-  );
-}
-
-function PlatformHealth({ summary, health, me, onLogin }) {
-  const customerCount = summary?.customers ?? '-';
-  return (
-    <>
-      {me?.kind !== 'platform_admin' ? <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} /> : null}
-      <section className="panel split-panel">
-        <div>
-          <h2>Platform Operations</h2>
-          <p>Cross-customer view for service and operations support teams.</p>
-          <div className="admin-kpis">
-            <div><strong>{customerCount}</strong><span>Customers</span></div>
-            <div><strong>{health.length}</strong><span>Service checks</span></div>
+          <h2>Lifecycle focus</h2>
+          <p>Provisioning and readiness use the shared contract vocabulary.</p>
+          <div className="timeline">
+            <span>registered</span>
+            <span>cloud_activation_pending</span>
+            <span>activated</span>
+            <span>online</span>
           </div>
         </div>
-        <ServiceHealth health={health} compact />
+        <div>
+          <h2>Recent operations</h2>
+          <OperationList operations={operations.slice(0, 3)} />
+        </div>
       </section>
+      <ServiceHealth health={health} />
     </>
   );
 }
@@ -959,29 +882,23 @@ function toTitleCase(value) {
 
 function titleFor(active) {
   return {
-    overview: 'Customer Overview',
+    console: 'Customer Fleet',
+    customers: 'Customers',
     devices: 'Devices',
-    'firmware-ota': 'Firmware & OTA',
-    'stream-health': 'Stream Health',
-    groups: 'Groups',
-    'platform-health': 'Service Health',
-    'platform-operations': 'Operations',
-    'platform-audit': 'Audit Log',
+    operations: 'Provisioning',
+    admin: 'Platform Operations',
+    audit: 'Audit',
   }[active];
 }
 
 function routeFromLocation() {
   const path = window.location.pathname;
-  if (path === '/admin' || path === '/admin/') return 'platform-health';
-  if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
-  if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
-  if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
-  if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
-  if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';
-  if (path === '/console/stream-health' || path.startsWith('/console/stream-health/')) return 'stream-health';
-  if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
-  if (path === '/console/customers' || path === '/console/operations' || path === '/console/audit') return 'overview';
-  return 'overview';
+  if (path === '/admin' || path.startsWith('/admin/')) return 'admin';
+  if (path === '/console/customers') return 'customers';
+  if (path === '/console/devices') return 'devices';
+  if (path === '/console/operations') return 'operations';
+  if (path === '/console/audit') return 'audit';
+  return 'console';
 }
 
 class AuthError extends Error {
