@@ -284,6 +284,39 @@ function MetricGrid({ summary }) {
 }
 
 function Devices({ devices, selectedDevice, setSelectedDeviceId, onAction }) {
+  const [readinessFilter, setReadinessFilter] = useState('All');
+  const [healthFilter, setHealthFilter] = useState('All');
+  const [signalFilter, setSignalFilter] = useState('All');
+  const [firmwareFilter, setFirmwareFilter] = useState('All');
+
+  const processedDevices = useMemo(() => {
+    const withDeviceSignals = devices.map((device) => ({
+      ...device,
+      firmware_version_display: device.firmware_version || '—',
+      health_display: device.health || 'Unknown',
+      signal_display: device.signal_quality || '—',
+      readiness_display: formatReadinessLabel(device.readiness),
+    }));
+
+    const signalValues = new Set(['—', 'Good', 'Fair', 'Poor', 'Unknown']);
+    return {
+      rows: withDeviceSignals,
+      firmwareValues: ['All', ...new Set(withDeviceSignals.map((device) => device.firmware_version_display))],
+      readinessValues: ['All', ...new Set(withDeviceSignals.map((device) => device.readiness_display))],
+      healthValues: ['All', ...new Set(withDeviceSignals.map((device) => device.health_display))],
+      signalValues: ['All', ...new Set(withDeviceSignals.map((device) => device.signal_display).filter((value) => signalValues.has(value)))],
+    };
+  }, [devices]);
+
+  const tableRows = useMemo(() => {
+    const readinessMatch = (row) => readinessFilter === 'All' || row.readiness_display === readinessFilter;
+    const healthMatch = (row) => healthFilter === 'All' || row.health_display === healthFilter;
+    const signalMatch = (row) => signalFilter === 'All' || row.signal_display === signalFilter;
+    const firmwareMatch = (row) => firmwareFilter === 'All' || row.firmware_version_display === firmwareFilter;
+
+    return processedDevices.rows.filter((device) => readinessMatch(device) && healthMatch(device) && signalMatch(device) && firmwareMatch(device));
+  }, [processedDevices.rows, readinessFilter, healthFilter, signalFilter, firmwareFilter]);
+
   const columns = useMemo(() => [
     {
       key: 'name',
@@ -298,12 +331,29 @@ function Devices({ devices, selectedDevice, setSelectedDeviceId, onAction }) {
     },
     { key: 'organization', label: 'Customer', value: (device) => device.organization },
     { key: 'model', label: 'Model', value: (device) => device.model },
-    { key: 'video_cloud_devid', label: 'Video ID', value: (device) => device.video_cloud_devid },
+    {
+      key: 'firmware',
+      label: 'Firmware',
+      value: (device) => device.firmware_version_display,
+      render: (device) => device.firmware_version_display,
+    },
+    {
+      key: 'health',
+      label: 'Health',
+      value: (device) => device.health_display,
+      render: (device) => <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />,
+    },
+    {
+      key: 'signal',
+      label: 'Signal',
+      value: (device) => device.signal_display,
+      render: (device) => <StatusBadge value={normalizeStatusKey(device.signal_display)} label={device.signal_display} />,
+    },
     {
       key: 'readiness',
       label: 'Readiness',
-      value: (device) => device.readiness,
-      render: (device) => <StatusBadge value={device.readiness} />,
+      value: (device) => device.readiness_display,
+      render: (device) => <StatusBadge value={normalizeStatusKey(device.readiness)} label={device.readiness_display} />,
     },
     {
       key: 'last_seen_at',
@@ -334,9 +384,46 @@ function Devices({ devices, selectedDevice, setSelectedDeviceId, onAction }) {
             <p>Registry, video identity, readiness, and last known status.</p>
           </div>
         </div>
+        <div className="device-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+          <label>
+            Health
+            <select value={healthFilter} onChange={(event) => setHealthFilter(event.target.value)} style={{ marginLeft: '0.5rem' }}>
+              {processedDevices.healthValues.map((value) => (
+                <option key={`health-${value}`} value={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Readiness
+            <select value={readinessFilter} onChange={(event) => setReadinessFilter(event.target.value)} style={{ marginLeft: '0.5rem' }}>
+              {processedDevices.readinessValues.map((value) => (
+                <option key={`readiness-${value}`} value={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Signal
+            <select value={signalFilter} onChange={(event) => setSignalFilter(event.target.value)} style={{ marginLeft: '0.5rem' }}>
+              {processedDevices.signalValues.map((value) => (
+                <option key={`signal-${value}`} value={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Firmware
+            <select value={firmwareFilter} onChange={(event) => setFirmwareFilter(event.target.value)} style={{ marginLeft: '0.5rem' }}>
+              {processedDevices.firmwareValues.map((value) => (
+                <option key={`firmware-${value}`} value={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" onClick={() => { setReadinessFilter('All'); setHealthFilter('All'); setSignalFilter('All'); setFirmwareFilter('All'); }}>
+            Clear filters
+          </button>
+        </div>
         <DataTable
           columns={columns}
-          rows={devices}
+          rows={tableRows}
           rowKey={(device) => device.id}
           initialSortKey="name"
           searchPlaceholder="Search devices"
@@ -420,13 +507,15 @@ function DeviceDetail({ device, onAction }) {
         <div><dt>Customer</dt><dd>{device.organization}</dd></div>
         <div><dt>Model</dt><dd>{device.model}</dd></div>
         <div><dt>Serial</dt><dd>{device.serial_number}</dd></div>
-        <div><dt>Video Cloud ID</dt><dd>{device.video_cloud_devid}</dd></div>
+        <div><dt>Firmware</dt><dd>{device.firmware_version || '—'}</dd></div>
+        <div><dt>Health</dt><dd>{device.health || 'Unknown'}</dd></div>
+        <div><dt>Signal</dt><dd>{device.signal_quality || '—'}</dd></div>
         <div><dt>Registry status</dt><dd>{device.status}</dd></div>
         <div><dt>Last seen</dt><dd>{device.last_seen_at || 'No transport evidence'}</dd></div>
       </dl>
       <div className="readiness-steps">
         {['registered', 'cloud_activation_pending', 'activated', 'online'].map((step) => (
-          <span key={step} className={device.readiness === step ? 'current' : ''}>{step}</span>
+          <span key={step} className={device.readiness === step ? 'current' : ''}>{formatReadinessLabel(step)}</span>
         ))}
       </div>
       <div className="source-facts">
@@ -761,8 +850,34 @@ function LoginPanel({ mode, title, onLogin }) {
   );
 }
 
-function StatusBadge({ value }) {
-  return <span className={`status status-${String(value).replaceAll('_', '-')}`}>{value}</span>;
+function StatusBadge({ value, label }) {
+  const text = label ?? value;
+  return <span className={`status status-${String(value).replaceAll('_', '-')}`}>{text}</span>;
+}
+
+function formatReadinessLabel(readiness) {
+  const map = {
+    registered: 'Registered',
+    cloud_activation_pending: 'Cloud Activation',
+    activated: 'Activated',
+    online: 'Online',
+    offline: 'Offline',
+  };
+  if (readiness === null || readiness === undefined) return 'Unknown';
+  return map[readiness] || toTitleCase(String(readiness).replaceAll('_', ' '));
+}
+
+function normalizeStatusKey(value) {
+  if (value === null || value === undefined || value === '') return 'unknown';
+  return String(value).toLowerCase().replaceAll(' ', '-');
+}
+
+function toTitleCase(value) {
+  return String(value)
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 }
 
 function titleFor(active) {
