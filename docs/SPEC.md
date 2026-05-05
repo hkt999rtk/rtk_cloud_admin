@@ -78,9 +78,9 @@ Account Manager when configured. Local SQLite stays authoritative only for
 platform-admin users, sessions, audit, settings, and demo data — it does not
 become authoritative for self-service customer accounts.
 
-Self-service signup is not yet implemented; track the implementation work
-through the issues opened against this repo and `rtk_account_manager` once
-the doc baseline is approved.
+Self-service signup UI is implemented in this repo; track the remaining
+quota, verification, and cross-repo integration work through the issues opened
+against this repo and `rtk_account_manager` once the doc baseline is approved.
 
 ## Architecture
 

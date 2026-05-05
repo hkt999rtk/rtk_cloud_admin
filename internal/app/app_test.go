@@ -66,6 +66,114 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 	}
 }
 
+func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
+	t.Parallel()
+
+	var quotaRaiseBody string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/signup":
+			_, _ = w.Write([]byte(`{"user":{"id":"u-signup","email":"signup@example.com","name":"Signup User"},"organization":{"id":"org-1","name":"Acme Eval","role":"owner","tier":"evaluation","evaluation_device_quota":5}}`))
+		case "/v1/auth/verify-email":
+			_, _ = w.Write([]byte(`{"user":{"id":"u-signup","email":"signup@example.com","name":"Signup User"},"tokens":{"access_token":"access-1","refresh_token":"refresh-1","expires_in":3600}}`))
+		case "/v1/auth/resend-verification":
+			w.WriteHeader(http.StatusAccepted)
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u-signup","email":"signup@example.com","name":"Signup User"},"organizations":[{"id":"org-1","name":"Acme Eval","role":"owner","tier":"evaluation","evaluation_device_quota":5}]}`))
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-1","name":"Acme Eval","role":"owner","tier":"evaluation","evaluation_device_quota":5}]}`))
+		case "/v1/orgs/org-1/quota-raise-requests":
+			if got := r.Header.Get("Authorization"); got != "Bearer access-1" {
+				t.Fatalf("Authorization = %q, want Bearer access-1", got)
+			}
+			body, _ := io.ReadAll(r.Body)
+			quotaRaiseBody = string(body)
+			_, _ = w.Write([]byte(`{"quota_raise_request":{"id":"req-1","organization_id":"org-1","requested_by":"u-signup","requested_quota":25,"use_case":"growth","contact_info":{"email":"owner@example.com"},"status":"pending","created_at":"2026-05-05T00:00:00Z","updated_at":"2026-05-05T00:00:00Z"},"organization":{"id":"org-1","name":"Acme Eval","role":"owner","tier":"evaluation","evaluation_device_quota":5}}`))
+		default:
+			t.Fatalf("unexpected upstream request path: %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	srv := NewWithOptions(mustOpenStore(t), Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	for _, path := range []string{"/signup", "/signup/check-email", "/verify"} {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, body=%s", path, rec.Code, rec.Body.String())
+		}
+	}
+
+	signupRec := httptest.NewRecorder()
+	srv.ServeHTTP(signupRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/signup", strings.NewReader(`{"email":"signup@example.com","password":"password123","organization_name":"Acme Eval","display_name":"Signup User"}`)))
+	if signupRec.Code != http.StatusAccepted {
+		t.Fatalf("signup status = %d, body=%s", signupRec.Code, signupRec.Body.String())
+	}
+	if !strings.Contains(signupRec.Body.String(), `"tier":"evaluation"`) {
+		t.Fatalf("signup body = %s", signupRec.Body.String())
+	}
+
+	resendRec := httptest.NewRecorder()
+	srv.ServeHTTP(resendRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/resend-verification", strings.NewReader(`{"email":"signup@example.com"}`)))
+	if resendRec.Code != http.StatusAccepted {
+		t.Fatalf("resend status = %d, body=%s", resendRec.Code, resendRec.Body.String())
+	}
+
+	verifyRec := httptest.NewRecorder()
+	srv.ServeHTTP(verifyRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verify-email", strings.NewReader(`{"token":"token-1"}`)))
+	if verifyRec.Code != http.StatusOK {
+		t.Fatalf("verify status = %d, body=%s", verifyRec.Code, verifyRec.Body.String())
+	}
+	if len(verifyRec.Result().Cookies()) != 1 {
+		t.Fatalf("verify did not set a session cookie")
+	}
+	sessionCookie := verifyRec.Result().Cookies()[0]
+
+	meRec := httptest.NewRecorder()
+	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meReq.AddCookie(sessionCookie)
+	srv.ServeHTTP(meRec, meReq)
+	if meRec.Code != http.StatusOK {
+		t.Fatalf("me status = %d, body=%s", meRec.Code, meRec.Body.String())
+	}
+	if !strings.Contains(meRec.Body.String(), `"evaluation_device_quota":5`) {
+		t.Fatalf("me body = %s", meRec.Body.String())
+	}
+
+	quotaRec := httptest.NewRecorder()
+	quotaReq := httptest.NewRequest(http.MethodPost, "/api/orgs/org-1/quota-raise-requests", strings.NewReader(`{"requested_quota":25,"use_case":"growth","contact_info":{"email":"owner@example.com"}}`))
+	quotaReq.AddCookie(sessionCookie)
+	srv.ServeHTTP(quotaRec, quotaReq)
+	if quotaRec.Code != http.StatusCreated {
+		t.Fatalf("quota raise status = %d, body=%s", quotaRec.Code, quotaRec.Body.String())
+	}
+	if !strings.Contains(quotaRaiseBody, `"requested_quota":25`) {
+		t.Fatalf("quota raise body = %s", quotaRaiseBody)
+	}
+}
+
+func mustOpenStore(t *testing.T) *store.Store {
+	t.Helper()
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = st.Close()
+	})
+	return st
+}
+
 func TestProvisionActionPublishesOperation(t *testing.T) {
 	t.Parallel()
 

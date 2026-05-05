@@ -24,9 +24,11 @@ type User struct {
 }
 
 type Organization struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Role string `json:"role"`
+	ID                    string `json:"id"`
+	Name                  string `json:"name"`
+	Role                  string `json:"role"`
+	Tier                  string `json:"tier,omitempty"`
+	EvaluationDeviceQuota int    `json:"evaluation_device_quota,omitempty"`
 }
 
 type Device struct {
@@ -73,6 +75,58 @@ type MeResult struct {
 	Organizations []Organization `json:"organizations"`
 }
 
+type SignupRequest struct {
+	Email            string `json:"email"`
+	Password         string `json:"password"`
+	DisplayName      string `json:"display_name,omitempty"`
+	OrganizationName string `json:"organization_name"`
+	CaptchaToken     string `json:"captcha_token,omitempty"`
+}
+
+type SignupResult struct {
+	User         User         `json:"user"`
+	Organization Organization `json:"organization"`
+}
+
+type AuthTokenRequest struct {
+	Token string `json:"token"`
+}
+
+type VerifyEmailResult struct {
+	User   User   `json:"user"`
+	Tokens Tokens `json:"tokens,omitempty"`
+}
+
+type EmailRequest struct {
+	Email string `json:"email"`
+}
+
+type QuotaRaiseRequest struct {
+	RequestedQuota int            `json:"requested_quota"`
+	UseCase        string         `json:"use_case"`
+	ContactInfo    map[string]any `json:"contact_info"`
+}
+
+type QuotaRaiseRequestRecord struct {
+	ID             string         `json:"id"`
+	OrganizationID string         `json:"organization_id"`
+	RequestedBy    string         `json:"requested_by"`
+	RequestedQuota int            `json:"requested_quota"`
+	UseCase        string         `json:"use_case"`
+	ContactInfo    map[string]any `json:"contact_info"`
+	Status         string         `json:"status"`
+	DecidedBy      string         `json:"decided_by,omitempty"`
+	DecisionReason string         `json:"decision_reason,omitempty"`
+	CreatedAt      string         `json:"created_at"`
+	UpdatedAt      string         `json:"updated_at"`
+	DecidedAt      string         `json:"decided_at,omitempty"`
+}
+
+type QuotaRaiseRequestResult struct {
+	QuotaRaiseRequest QuotaRaiseRequestRecord `json:"quota_raise_request"`
+	Organization      Organization            `json:"organization"`
+}
+
 type HTTPError struct {
 	Method     string
 	Path       string
@@ -114,6 +168,22 @@ func (c *Client) Login(ctx context.Context, email, password string) (LoginResult
 	return out, err
 }
 
+func (c *Client) Signup(ctx context.Context, req SignupRequest) (SignupResult, error) {
+	var out SignupResult
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/signup", "", req, &out)
+	return out, err
+}
+
+func (c *Client) VerifyEmail(ctx context.Context, token string) (VerifyEmailResult, error) {
+	var out VerifyEmailResult
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/verify-email", "", AuthTokenRequest{Token: token}, &out)
+	return out, err
+}
+
+func (c *Client) ResendVerification(ctx context.Context, email string) error {
+	return c.doJSON(ctx, http.MethodPost, "/v1/auth/resend-verification", "", EmailRequest{Email: email}, nil)
+}
+
 func (c *Client) Refresh(ctx context.Context, refreshToken string) (RefreshResult, error) {
 	var out RefreshResult
 	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/refresh", "", map[string]string{
@@ -146,6 +216,13 @@ func (c *Client) Devices(ctx context.Context, accessToken, orgID string) ([]Devi
 		return nil, err
 	}
 	return body.Devices, nil
+}
+
+func (c *Client) CreateQuotaRaiseRequest(ctx context.Context, accessToken, orgID string, req QuotaRaiseRequest) (QuotaRaiseRequestResult, error) {
+	var out QuotaRaiseRequestResult
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/quota-raise-requests"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, req, &out)
+	return out, err
 }
 
 func (c *Client) Provision(ctx context.Context, accessToken, orgID, deviceID string) (Operation, error) {
