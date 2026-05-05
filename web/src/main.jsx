@@ -1385,15 +1385,21 @@ function buildFleetTrendChart(trend) {
   const height = 184;
   const top = 28;
   const bottom = 228;
-  const maxAlerts = Math.max(...trend.map((point) => point.WarningCount + point.CriticalCount), 1);
+  const maxAlerts = Math.max(
+    ...trend.map((point) => trendPointValue(point, 'warning_count', 'WarningCount') + trendPointValue(point, 'critical_count', 'CriticalCount')),
+    1,
+  );
   const points = trend.map((point, index) => {
     const x = 52 + (index * width) / Math.max(trend.length - 1, 1);
-    const onlineY = bottom - ((point.OnlinePct || 0) / 100) * (bottom - top);
-    const alerts = point.WarningCount + point.CriticalCount;
+    const onlinePct = trendPointValue(point, 'online_pct', 'OnlinePct');
+    const warningCount = trendPointValue(point, 'warning_count', 'WarningCount');
+    const criticalCount = trendPointValue(point, 'critical_count', 'CriticalCount');
+    const onlineY = bottom - ((onlinePct || 0) / 100) * (bottom - top);
+    const alerts = warningCount + criticalCount;
     const alertY = bottom - ((alerts / maxAlerts) * (bottom - top));
     return {
-      date: point.Date,
-      label: formatTrendLabel(point.Date),
+      date: point.date || point.Date,
+      label: formatTrendLabel(point.date || point.Date),
       x,
       onlineY,
       alertY,
@@ -1408,6 +1414,14 @@ function buildFleetTrendChart(trend) {
     maxAlerts,
     labelStep: Math.max(1, Math.ceil(points.length / 6)),
   };
+}
+
+function trendPointValue(point, snakeKey, camelKey) {
+  const snake = point?.[snakeKey];
+  if (snake !== undefined && snake !== null) return snake;
+  const camel = point?.[camelKey];
+  if (camel !== undefined && camel !== null) return camel;
+  return 0;
 }
 
 function formatTrendLabel(date) {
