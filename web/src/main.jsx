@@ -18,6 +18,7 @@ function App() {
   const [health, setHealth] = useState([]);
   const [audit, setAudit] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
+  const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
   const [overviewWindow, setOverviewWindow] = useState('7d');
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
@@ -118,15 +119,20 @@ function App() {
   }, [active, overviewWindow, refreshTick]);
 
   useEffect(() => {
-    const onPopState = () => setActive(routeFromLocation());
+    const onPopState = () => {
+      setActive(routeFromLocation());
+      const deviceId = deviceIdFromLocation();
+      setSelectedDeviceId(deviceId);
+      setDeviceDrawerOpen(Boolean(deviceId));
+    };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const deviceId = params.get('device');
-    if (deviceId) setSelectedDeviceId(deviceId);
+    const deviceId = deviceIdFromLocation();
+    setSelectedDeviceId(deviceId);
+    setDeviceDrawerOpen(Boolean(deviceId));
   }, [active]);
 
   function navigate(item) {
@@ -141,15 +147,19 @@ function App() {
 
   function selectDevice(deviceId) {
     setSelectedDeviceId(deviceId);
-    const path = '/console/devices';
-    window.history.pushState({}, '', `${path}?device=${encodeURIComponent(deviceId)}`);
+    setDeviceDrawerOpen(true);
+    updateDevicesLocation({ deviceId });
     setActive('devices');
   }
 
   function filterDevicesByHealth(healthState) {
-    const path = '/console/devices';
-    window.history.pushState({}, '', `${path}?health=${encodeURIComponent(healthState)}`);
+    updateDevicesLocation({ health: healthState, deviceId: '' });
     setActive('devices');
+  }
+
+  function closeDeviceDrawer() {
+    setDeviceDrawerOpen(false);
+    updateDevicesLocation({ deviceId: '' });
   }
 
   async function runDeviceAction(deviceId, action) {
@@ -204,8 +214,8 @@ function App() {
   }
 
   const selectedDevice = useMemo(() => {
-    if (!devices.length) return null;
-    return devices.find((device) => device.id === selectedDeviceId) || devices[0];
+    if (!selectedDeviceId) return null;
+    return devices.find((device) => device.id === selectedDeviceId) || null;
   }, [devices, selectedDeviceId]);
 
   return (
@@ -291,7 +301,9 @@ function App() {
             active={active}
             devices={devices}
             selectedDevice={selectedDevice}
+            deviceDrawerOpen={deviceDrawerOpen}
             setSelectedDeviceId={selectDevice}
+            closeDeviceDrawer={closeDeviceDrawer}
             onAction={runDeviceAction}
           />
         ) : null}
@@ -631,11 +643,14 @@ function RecentAlertsPanel({ loading, alerts }) {
   );
 }
 
-function Devices({ active, devices, selectedDevice, setSelectedDeviceId, onAction }) {
+function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelectedDeviceId, closeDeviceDrawer, onAction }) {
   const [readinessFilter, setReadinessFilter] = useState('All');
   const [healthFilter, setHealthFilter] = useState('All');
   const [signalFilter, setSignalFilter] = useState('All');
   const [firmwareFilter, setFirmwareFilter] = useState('All');
+  const [telemetryById, setTelemetryById] = useState({});
+  const [telemetryLoadingId, setTelemetryLoadingId] = useState('');
+  const [telemetryError, setTelemetryError] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -646,6 +661,53 @@ function Devices({ active, devices, selectedDevice, setSelectedDeviceId, onActio
       setHealthFilter('All');
     }
   }, [active]);
+
+  useEffect(() => {
+    if (!deviceDrawerOpen || !selectedDevice?.id) return;
+    if (telemetryById[selectedDevice.id]) {
+      setTelemetryError('');
+      setTelemetryLoadingId('');
+      return;
+    }
+    let alive = true;
+    setTelemetryError('');
+    setTelemetryLoadingId(selectedDevice.id);
+    fetchJSON(`/api/devices/${selectedDevice.id}/telemetry`)
+      .then((payload) => {
+        if (!alive) return;
+        setTelemetryById((current) => ({
+          ...current,
+          [selectedDevice.id]: payload,
+        }));
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setTelemetryError(err.message);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setTelemetryLoadingId('');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [deviceDrawerOpen, selectedDevice?.id, telemetryById]);
+
+  useEffect(() => {
+    if (!deviceDrawerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeDeviceDrawer();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [deviceDrawerOpen, closeDeviceDrawer]);
 
   const processedDevices = useMemo(() => {
     const withDeviceSignals = devices.map((device) => ({
@@ -733,6 +795,9 @@ function Devices({ active, devices, selectedDevice, setSelectedDeviceId, onActio
     },
   ], [onAction]);
 
+  const selectedTelemetry = selectedDevice ? telemetryById[selectedDevice.id] || null : null;
+  const telemetryBusy = deviceDrawerOpen && selectedDevice?.id && telemetryLoadingId === selectedDevice.id && !selectedTelemetry;
+
   return (
     <section className="device-workspace">
       <div className="panel device-table-panel">
@@ -786,11 +851,20 @@ function Devices({ active, devices, selectedDevice, setSelectedDeviceId, onActio
           initialSortKey="name"
           searchPlaceholder="Search devices"
           emptyLabel="No devices match the current filter."
-          rowClassName={(device) => selectedDevice?.id === device.id ? 'selected-row' : ''}
+          rowClassName={(device) => deviceDrawerOpen && selectedDevice?.id === device.id ? 'selected-row' : ''}
           onRowClick={(device) => setSelectedDeviceId(device.id)}
         />
       </div>
-      <DeviceDetail device={selectedDevice} onAction={onAction} />
+      {deviceDrawerOpen ? (
+        <DeviceDrawer
+          device={selectedDevice}
+          telemetry={selectedTelemetry}
+          loading={telemetryBusy}
+          error={telemetryError}
+          onClose={closeDeviceDrawer}
+          onAction={onAction}
+        />
+      ) : null}
     </section>
   );
 }
@@ -842,62 +916,276 @@ function Customers({ customers }) {
   );
 }
 
-function DeviceDetail({ device, onAction }) {
-  if (!device) {
-    return (
-      <aside className="panel detail-panel">
-        <h2>Device detail</h2>
-        <p>No device selected.</p>
+function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) {
+  return (
+    <div className="drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside className="drawer-panel" role="dialog" aria-modal="true" aria-label="Device detail drawer" onClick={(event) => event.stopPropagation()}>
+        <div className="drawer-header">
+          <div>
+            <p className="eyebrow">Device detail</p>
+            <h2>{device?.name || 'Device selected'}</h2>
+            <p>{device ? `${device.organization} · ${device.model}` : 'Select a device row to inspect its telemetry.'}</p>
+          </div>
+          <button type="button" className="drawer-close" onClick={onClose} aria-label="Close device drawer">
+            Close
+          </button>
+        </div>
+
+        {!device ? (
+          <p className="empty-state">No device selected.</p>
+        ) : (
+          <>
+            <section className="drawer-identity">
+              <div>
+                <span>Device</span>
+                <strong>{device.name}</strong>
+              </div>
+              <div>
+                <span>Serial</span>
+                <strong>{device.serial_number || '—'}</strong>
+              </div>
+              <div>
+                <span>Model</span>
+                <strong>{device.model || '—'}</strong>
+              </div>
+              <div>
+                <span>Organization</span>
+                <strong>{device.organization || '—'}</strong>
+              </div>
+            </section>
+
+            {loading ? <p className="empty-state">Loading telemetry for this device.</p> : null}
+            {error ? <p className="drawer-error">{error}</p> : null}
+
+            <section className="drawer-summary">
+              <div className="summary-card">
+                <span>Health</span>
+                <StatusBadge value={normalizeStatusKey(telemetry?.health || device.health || 'unknown')} label={toTitleCase(telemetry?.health || device.health || 'unknown')} />
+                <small>{telemetry ? `Signals: ${telemetry.signals?.length ? telemetry.signals.map(formatTelemetrySignal).join(', ') : 'none reported'}` : 'Telemetry not loaded yet.'}</small>
+              </div>
+              <div className="summary-card">
+                <span>Firmware</span>
+                <strong>{telemetry?.firmware_version || device.firmware_version || '—'}</strong>
+                <small>{telemetry?.recent_events?.[0]?.occurred_at ? `Last updated ${formatRelativeTime(telemetry.recent_events[0].occurred_at)}` : device.last_seen_at ? `Last seen ${formatRelativeTime(device.last_seen_at)}` : 'No update timestamp available.'}</small>
+              </div>
+              <div className="summary-card">
+                <span>Active stream</span>
+                <StatusBadge value={deriveStreamStatus(telemetry).tone} label={deriveStreamStatus(telemetry).label} />
+                <small>{deriveStreamStatus(telemetry).detail}</small>
+              </div>
+            </section>
+
+            <section className="drawer-charts">
+              <TelemetryChart
+                title="RSSI history"
+                subtitle="Daily average dBm and quality bucket"
+                samples={telemetry?.rssi_7d || []}
+                valueKey="avg_dbm"
+                valueFormatter={(value) => `${value} dBm`}
+                tone="brand"
+                ariaLabel="RSSI history sparkline"
+                emptyLabel="No RSSI samples available."
+                sampleLabel={(sample) => `${sample.date}: ${sample.avg_dbm} dBm (${toTitleCase(sample.quality)})`}
+              />
+              <TelemetryChart
+                title="Uptime history"
+                subtitle="Daily online percentage"
+                samples={telemetry?.uptime_7d || []}
+                valueKey="online_pct"
+                valueFormatter={(value) => `${value.toFixed(1)}%`}
+                tone="accent"
+                ariaLabel="Uptime history sparkline"
+                emptyLabel="No uptime samples available."
+                sampleLabel={(sample) => `${sample.date}: ${sample.online_pct.toFixed(1)}% online`}
+              />
+            </section>
+
+            <section className="drawer-events">
+              <div className="panel-head">
+                <div>
+                  <h3>Recent events</h3>
+                  <p>Last 10 telemetry events from this device.</p>
+                </div>
+              </div>
+              {telemetry?.recent_events?.length ? (
+                <div className="event-list">
+                  {telemetry.recent_events.map((event) => (
+                    <article className="event-row" key={`${event.occurred_at}:${event.event_type}`}>
+                      <div>
+                        <strong>{formatTelemetryEventType(event.event_type)}</strong>
+                        <span>{event.summary}</span>
+                      </div>
+                      <time title={event.occurred_at}>{formatRelativeTime(event.occurred_at)}</time>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="empty-state">No recent telemetry events available.</p>
+              )}
+            </section>
+
+            <div className="drawer-actions">
+              <button onClick={() => onAction(device.id, 'provision')}>Provision device</button>
+              <button onClick={() => onAction(device.id, 'deactivate')}>Deactivate device</button>
+            </div>
+          </>
+        )}
       </aside>
-    );
-  }
+    </div>
+  );
+}
+
+function TelemetryChart({ title, subtitle, samples, valueKey, valueFormatter, tone, ariaLabel, emptyLabel, sampleLabel }) {
+  const chart = useMemo(() => buildTelemetryChart(samples, valueKey), [samples, valueKey]);
+  const latestSample = samples.length ? samples[samples.length - 1] : null;
+  const latestValue = latestSample ? latestSample[valueKey] : null;
 
   return (
-    <aside className="panel detail-panel">
-      <div className="detail-heading">
+    <article className={`telemetry-card tone-${tone}`}>
+      <div className="panel-head">
         <div>
-          <p className="eyebrow">Selected device</p>
-          <h2>{device.name}</h2>
+          <h3>{title}</h3>
+          <p>{subtitle}</p>
         </div>
-        <StatusBadge value={device.readiness} />
+        {latestValue !== null && latestValue !== undefined ? <strong>{valueFormatter(latestValue)}</strong> : null}
       </div>
-      <dl>
-        <div><dt>Customer</dt><dd>{device.organization}</dd></div>
-        <div><dt>Model</dt><dd>{device.model}</dd></div>
-        <div><dt>Serial</dt><dd>{device.serial_number}</dd></div>
-        <div><dt>Firmware</dt><dd>{device.firmware_version || '—'}</dd></div>
-        <div><dt>Health</dt><dd>{device.health || 'Unknown'}</dd></div>
-        <div><dt>Signal</dt><dd>{device.signal_quality || '—'}</dd></div>
-        <div><dt>Registry status</dt><dd>{device.status}</dd></div>
-        <div><dt>Last seen</dt><dd>{device.last_seen_at || 'No transport evidence'}</dd></div>
-      </dl>
-      <div className="readiness-steps">
-        {['registered', 'cloud_activation_pending', 'activated', 'online'].map((step) => (
-          <span key={step} className={device.readiness === step ? 'current' : ''}>{formatReadinessLabel(step)}</span>
-        ))}
-      </div>
-      <div className="source-facts">
-        <h3>Source facts</h3>
-        {(device.source_facts || []).length ? (device.source_facts || []).map((fact) => (
-          <article className="source-fact" key={`${fact.layer}-${fact.state}-${fact.operation_id || ''}`}>
-            <div>
-              <strong>{fact.layer}</strong>
-              <span>{fact.detail}</span>
-              {fact.updated_at ? <time>{fact.updated_at}</time> : null}
-              {fact.error_code ? <small>{fact.error_code}</small> : null}
-              {fact.operation_id ? <small>{fact.operation_id}</small> : null}
-              {fact.state === 'failed' ? <small>{fact.retryable ? 'retryable' : 'not retryable'}</small> : null}
-            </div>
-            <StatusBadge value={fact.state || 'missing'} />
-          </article>
-        )) : <p>No source facts available.</p>}
-      </div>
-      <div className="detail-actions">
-        <button onClick={() => onAction(device.id, 'provision')}>Provision device</button>
-        <button onClick={() => onAction(device.id, 'deactivate')}>Deactivate device</button>
-      </div>
-    </aside>
+      {chart.points.length ? (
+        <>
+          <svg viewBox="0 0 420 126" className="sparkline-chart" role="img" aria-label={ariaLabel}>
+            <defs>
+              <linearGradient id={`sparkFill-${tone}`} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="rgba(0, 104, 183, 0.22)" />
+                <stop offset="100%" stopColor="rgba(0, 104, 183, 0.03)" />
+              </linearGradient>
+            </defs>
+            <polyline points={chart.areaPoints} className="sparkline-area" />
+            <polyline points={chart.linePoints} className={`sparkline-line tone-${tone}`} />
+            {chart.points.map((point, index) => (
+              <circle
+                key={`${point.label}-${index}`}
+                cx={point.x}
+                cy={point.y}
+                r="3.5"
+                className={`sparkline-dot tone-${tone}`}
+              >
+                <title>{sampleLabel(samples[index])}</title>
+              </circle>
+            ))}
+          </svg>
+          <div className="sparkline-foot">
+            <span>{chart.minLabel}</span>
+            <span>{chart.maxLabel}</span>
+          </div>
+        </>
+      ) : (
+        <p className="empty-state">{emptyLabel}</p>
+      )}
+    </article>
   );
+}
+
+function buildTelemetryChart(samples, valueKey) {
+  if (!samples.length) {
+    return { points: [], linePoints: '', areaPoints: '', minLabel: '-', maxLabel: '-' };
+  }
+  const values = samples
+    .map((sample) => Number(sample[valueKey]))
+    .filter((value) => Number.isFinite(value));
+  if (!values.length) {
+    return { points: [], linePoints: '', areaPoints: '', minLabel: '-', maxLabel: '-' };
+  }
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max === min ? 1 : max - min;
+  const width = 360;
+  const left = 24;
+  const top = 18;
+  const bottom = 92;
+  const points = samples.map((sample, index) => {
+    const value = Number(sample[valueKey]);
+    const x = left + (index * width) / Math.max(samples.length - 1, 1);
+    const normalized = Number.isFinite(value) ? (value - min) / range : 0.5;
+    const y = bottom - normalized * (bottom - top);
+    return {
+      x,
+      y,
+      label: sample.date || `${index}`,
+      value,
+    };
+  });
+  const linePoints = points.map((point) => `${point.x},${point.y}`).join(' ');
+  const areaPoints = `${points.map((point) => `${point.x},${point.y}`).join(' ')} ${points.at(-1)?.x ?? left},108 ${points[0]?.x ?? left},108`;
+  return {
+    points,
+    linePoints,
+    areaPoints,
+    minLabel: formatTelemetryChartValue(min, valueKey),
+    maxLabel: formatTelemetryChartValue(max, valueKey),
+  };
+}
+
+function formatTelemetryChartValue(value, valueKey) {
+  if (valueKey === 'avg_dbm') return `${value} dBm`;
+  if (valueKey === 'online_pct') return `${value.toFixed(1)}%`;
+  return String(value);
+}
+
+function formatTelemetrySignal(signal) {
+  const map = {
+    low_rssi: 'Low RSSI',
+    recent_reboot: 'Recent reboot',
+    low_memory: 'Low memory',
+    recent_crash: 'Recent crash',
+    offline_risk: 'Offline risk',
+  };
+  return map[signal] || toTitleCase(signal);
+}
+
+function deriveStreamStatus(telemetry) {
+  const events = telemetry?.recent_events || [];
+  const joined = events
+    .map((event) => `${event.event_type} ${event.summary}`.toLowerCase())
+    .join(' ');
+  if (/stream|session/.test(joined)) {
+    if (/(started|opened|active|playing|live)/.test(joined)) {
+      return {
+        tone: 'healthy',
+        label: 'Active',
+        detail: 'Recent telemetry suggests a live stream session is open.',
+      };
+    }
+    if (/(ended|closed|stopped|offline)/.test(joined)) {
+      return {
+        tone: 'inactive',
+        label: 'Inactive',
+        detail: 'Recent telemetry suggests no stream session is open.',
+      };
+    }
+    return {
+      tone: 'warning',
+      label: 'Unknown',
+      detail: 'Telemetry references stream activity but not an explicit open/closed state.',
+    };
+  }
+  return {
+    tone: 'unknown',
+    label: 'Unknown',
+    detail: 'No explicit stream-session event surfaced in recent telemetry.',
+  };
+}
+
+function formatTelemetryEventType(eventType) {
+  const map = {
+    'device.health.summary': 'Health summary',
+    'device.health.rssi_sample': 'RSSI sample',
+    'device.health.memory_sample': 'Memory sample',
+    'device.health.offline_risk': 'Offline risk',
+    'device.reboot.reported': 'Device reboot',
+    'device.crash.reported': 'Device crash',
+    'firmware.version.observed': 'Firmware observed',
+  };
+  if (map[eventType]) return map[eventType];
+  return toTitleCase(String(eventType || '').replaceAll(/[._]/g, ' '));
 }
 
 function Operations({ operations }) {
@@ -1428,6 +1716,32 @@ function formatTrendLabel(date) {
   const parsed = Date.parse(date);
   if (Number.isNaN(parsed)) return date;
   return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(parsed));
+}
+
+function deviceIdFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('device') || '';
+}
+
+function updateDevicesLocation({ deviceId, health } = {}) {
+  const params = new URLSearchParams(window.location.search);
+  if (deviceId !== undefined) {
+    if (deviceId) {
+      params.set('device', deviceId);
+    } else {
+      params.delete('device');
+    }
+  }
+  if (health !== undefined) {
+    if (health) {
+      params.set('health', health);
+    } else {
+      params.delete('health');
+    }
+  }
+  const query = params.toString();
+  const path = query ? `/console/devices?${query}` : '/console/devices';
+  window.history.pushState({}, '', path);
 }
 
 function runRowAction(event, onAction, deviceId, action) {
