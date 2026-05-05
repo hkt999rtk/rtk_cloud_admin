@@ -74,6 +74,15 @@ func TestDisabledClient(t *testing.T) {
 	if _, err := client.GetCameraInfo(t.Context(), "tok", "d1"); err == nil {
 		t.Fatal("expected disabled GetCameraInfo error")
 	}
+	if _, err := client.EnumFirmware(t.Context(), "tok", "cam-a"); err == nil {
+		t.Fatal("expected disabled EnumFirmware error")
+	}
+	if _, err := client.QueryFirmwareRollout(t.Context(), "tok", "cam-a", ""); err == nil {
+		t.Fatal("expected disabled QueryFirmwareRollout error")
+	}
+	if _, err := client.QueryFirmwareCampaigns(t.Context(), "tok", "cam-a", false); err == nil {
+		t.Fatal("expected disabled QueryFirmwareCampaigns error")
+	}
 }
 
 func TestQueryActivation(t *testing.T) {
@@ -266,6 +275,74 @@ func TestDeviceTelemetry(t *testing.T) {
 	}
 	if len(response.RSSIHistory) != 1 || len(response.UptimeHistory) != 1 || len(response.RecentEvents) != 1 {
 		t.Fatalf("unexpected telemetry lengths: rssi=%d uptime=%d events=%d", len(response.RSSIHistory), len(response.UptimeHistory), len(response.RecentEvents))
+	}
+}
+
+func TestEnumFirmwareAndRolloutAndCampaigns(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/enum_firmware":
+			if got := r.Header.Get("Authorization"); got != "Bearer secret" {
+				t.Fatalf("Authorization = %q, want Bearer secret", got)
+			}
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode enum body: %v", err)
+			}
+			if body["model"] != "cam-a" {
+				t.Fatalf("model = %v, want cam-a", body["model"])
+			}
+			_, _ = w.Write([]byte(`{"status":"ok","versions":["v1.2.3","v1.2.4"],"releases":[{"version":"v1.2.3"},{"version":"v1.2.4"}]}`))
+		case "/query_firmware_rollout":
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode rollout body: %v", err)
+			}
+			if body["model"] != "cam-a" {
+				t.Fatalf("model = %v, want cam-a", body["model"])
+			}
+			if body["campaign_id"] != "campaign-2026-04" {
+				t.Fatalf("campaign_id = %v, want campaign-2026-04", body["campaign_id"])
+			}
+			_, _ = w.Write([]byte(`{"status":"ok","model":"cam-a","target":"v1.2.4","rollouts":[{"device_id":"dev-1","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.4","rollout_status":"applied","updated_at":"2026-04-01T00:00:00Z"}]}`))
+		case "/query_firmware_campaign":
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode campaign body: %v", err)
+			}
+			if body["model"] != "cam-a" {
+				t.Fatalf("model = %v, want cam-a", body["model"])
+			}
+			_, _ = w.Write([]byte(`{"status":"ok","campaigns":[{"id":"campaign-2026-04","model":"cam-a","target_version":"v1.2.4","policy":{"name":"normal"},"state":"active","created_at":"2026-04-01T00:00:00Z","updated_at":"2026-04-01T00:00:00Z"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	enumResp, err := client.EnumFirmware(t.Context(), "secret", "cam-a")
+	if err != nil {
+		t.Fatalf("EnumFirmware error: %v", err)
+	}
+	if len(enumResp.Versions) != 2 || enumResp.Versions[1] != "v1.2.4" {
+		t.Fatalf("enum response = %#v", enumResp)
+	}
+	rolloutResp, err := client.QueryFirmwareRollout(t.Context(), "secret", "cam-a", "campaign-2026-04")
+	if err != nil {
+		t.Fatalf("QueryFirmwareRollout error: %v", err)
+	}
+	if rolloutResp.Target != "v1.2.4" || len(rolloutResp.Rollouts) != 1 {
+		t.Fatalf("rollout response = %#v", rolloutResp)
+	}
+	campaigns, err := client.QueryFirmwareCampaigns(t.Context(), "secret", "cam-a", false)
+	if err != nil {
+		t.Fatalf("QueryFirmwareCampaigns error: %v", err)
+	}
+	if len(campaigns) != 1 || campaigns[0].ID != "campaign-2026-04" {
+		t.Fatalf("campaigns = %#v", campaigns)
 	}
 }
 
