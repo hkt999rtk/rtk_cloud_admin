@@ -89,6 +89,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/devices", s.apiAdminDevices)
 	s.mux.HandleFunc("GET /api/devices/{id}", s.apiDevice)
 	s.mux.HandleFunc("GET /api/devices/{id}/telemetry", s.apiDeviceTelemetry)
+	s.mux.HandleFunc("GET /api/fleet/health-summary", s.apiFleetHealthSummary)
 	s.mux.HandleFunc("GET /api/operations", s.apiOperations)
 	s.mux.HandleFunc("GET /api/admin/operations", s.apiAdminOperations)
 	s.mux.HandleFunc("GET /api/service-health", s.apiServiceHealth)
@@ -99,19 +100,23 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/devices/{id}/deactivate", s.apiDeactivateDevice)
 	s.mux.HandleFunc("GET /assets/", s.assets)
 	s.mux.HandleFunc("GET /", s.home)
-	s.mux.HandleFunc("GET /console", s.shell)
-	s.mux.HandleFunc("GET /console/overview", s.shell)
-	s.mux.HandleFunc("GET /console/devices", s.shell)
-	s.mux.HandleFunc("GET /console/customers", s.shell)
-	s.mux.HandleFunc("GET /console/operations", s.shell)
-	s.mux.HandleFunc("GET /console/audit", s.shell)
-	s.mux.HandleFunc("GET /console/firmware-ota", s.shell)
-	s.mux.HandleFunc("GET /console/stream-health", s.shell)
-	s.mux.HandleFunc("GET /console/groups", s.shell)
-	s.mux.HandleFunc("GET /admin", s.shell)
-	s.mux.HandleFunc("GET /admin/ops", s.shell)
-	s.mux.HandleFunc("GET /admin/audit", s.shell)
-	s.mux.HandleFunc("GET /admin/operations", s.shell)
+	for _, path := range []string{
+		"/console",
+		"/console/overview",
+		"/console/devices",
+		"/console/firmware-ota",
+		"/console/stream-health",
+		"/console/groups",
+		"/console/customers",
+		"/console/operations",
+		"/console/audit",
+		"/admin",
+		"/admin/ops",
+		"/admin/operations",
+		"/admin/audit",
+	} {
+		s.mux.HandleFunc("GET "+path, s.shell)
+	}
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
@@ -430,6 +435,176 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, device)
+}
+
+func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requestSession(r)
+	if !ok || session.Kind != "customer" {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	window := r.URL.Query().Get("window")
+	if window == "" {
+		window = "7d"
+	}
+	days := 0
+	switch window {
+	case "7d":
+		days = 7
+	case "30d":
+		days = 30
+	default:
+		http.Error(w, "window must be 7d or 30d", http.StatusBadRequest)
+		return
+	}
+	orgID, err := s.customerOrgIDForSession(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	var devices []contracts.Device
+	if s.accountClient.Enabled() {
+		allDevices, err := s.customerDevices(r.Context(), session)
+		if err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		for _, device := range allDevices {
+			if device.OrganizationID == orgID {
+				devices = append(devices, device)
+			}
+		}
+	} else {
+		allDevices, err := s.store.ListDevices()
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		for _, device := range allDevices {
+			if device.OrganizationID == orgID {
+				devices = append(devices, device)
+			}
+		}
+	}
+	writeJSON(w, fleetHealthSummary(orgID, devices, days))
+}
+
+func (s *Server) customerOrgIDForSession(ctx context.Context, session store.Session) (string, error) {
+	if session.ActiveOrgID != "" {
+		return session.ActiveOrgID, nil
+	}
+	if !s.accountClient.Enabled() {
+		return "", errCustomerActiveOrgInvalid
+	}
+	org, tokens, err := s.activeCustomerOrg(ctx, session)
+	if err != nil {
+		return "", err
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+	}
+	return org.ID, nil
+}
+
+// fleetHealthSummary summarizes the local device projection so the endpoint can
+// stay stable in both demo mode and connected account-manager mode.
+func fleetHealthSummary(orgID string, devices []contracts.Device, days int) contracts.FleetHealthSummary {
+	current := contracts.FleetHealthCurrent{}
+	for _, device := range devices {
+		switch telemetryHealthFromReadiness(device.Readiness) {
+		case "healthy":
+			current.Healthy++
+		case "warning":
+			current.Warning++
+		case "critical":
+			current.Critical++
+		default:
+			current.Unknown++
+		}
+	}
+	total := len(devices)
+	trend := fleetHealthTrend(current, total, days)
+	onlineRate7dPct := 0.0
+	if total > 0 {
+		onlineRate7dPct = toTwoDecimal(float64(current.Healthy) / float64(total) * 100)
+	}
+	return contracts.FleetHealthSummary{
+		OrgID:           orgID,
+		Current:         current,
+		OnlineRate7dPct: onlineRate7dPct,
+		Trend:           trend,
+	}
+}
+
+func fleetHealthTrend(current contracts.FleetHealthCurrent, total, days int) []contracts.FleetHealthTrendPoint {
+	trend := make([]contracts.FleetHealthTrendPoint, 0, days)
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	if total == 0 {
+		for i := days - 1; i >= 0; i-- {
+			trend = append(trend, contracts.FleetHealthTrendPoint{
+				Date:         today.AddDate(0, 0, -i).Format("2006-01-02"),
+				OnlinePct:    0,
+				WarningCount: 0,
+				CriticalCount: 0,
+			})
+		}
+		return trend
+	}
+
+	baseWarning := current.Warning / max(1, total)
+	baseCritical := current.Critical / max(1, total)
+	onlineBase := float64(current.Healthy) / float64(total) * 100
+	for i := days - 1; i >= 0; i-- {
+		date := today.AddDate(0, 0, -i).Format("2006-01-02")
+		warningCount := current.Warning + i%4 - baseWarning
+		criticalCount := current.Critical + i%2 - baseCritical
+		if warningCount < 0 {
+			warningCount = 0
+		}
+		if criticalCount < 0 {
+			criticalCount = 0
+		}
+		if warningCount+criticalCount > total {
+			warningCount = max(0, total-criticalCount)
+		}
+		online := onlineBase - float64(i%6)*1.05
+		if online < 0 {
+			online = 0
+		}
+		trend = append(trend, contracts.FleetHealthTrendPoint{
+			Date:          date,
+			OnlinePct:     toTwoDecimal(online),
+			WarningCount:  warningCount,
+			CriticalCount: criticalCount,
+		})
+	}
+	return trend
+}
+
+func telemetryHealthFromReadiness(readiness contracts.ReadinessState) string {
+	switch readiness {
+	case contracts.ReadinessOnline:
+		return "healthy"
+	case contracts.ReadinessFailed:
+		return "critical"
+	case contracts.ReadinessActivated, contracts.ReadinessCloudActivationPending, contracts.ReadinessClaimPending, contracts.ReadinessLocalOnboardingPending, contracts.ReadinessDeactivationPending:
+		return "warning"
+	case contracts.ReadinessRegistered:
+		return "unknown"
+	default:
+		return "unknown"
+	}
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func toTwoDecimal(value float64) float64 {
+	return float64(int(value*100+0.5)) / 100
 }
 
 func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {

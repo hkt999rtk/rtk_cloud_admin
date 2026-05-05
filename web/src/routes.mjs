@@ -1,7 +1,7 @@
 export const customerNavItems = [
   { id: 'overview', label: 'Overview', path: '/console/overview' },
   { id: 'devices', label: 'Devices', path: '/console/devices' },
-  { id: 'operations', label: 'Provisioning', path: '/console/operations' },
+  { id: 'operations', label: 'Operations', path: '/console/operations' },
   { id: 'firmware-ota', label: 'Firmware & OTA', path: '/console/firmware-ota' },
   { id: 'stream-health', label: 'Stream Health', path: '/console/stream-health' },
   { id: 'groups', label: 'Groups', path: '/console/groups' },
@@ -17,7 +17,7 @@ export function titleFor(active) {
   return {
     overview: 'Customer Overview',
     devices: 'Devices',
-    operations: 'Provisioning',
+    operations: 'Operations',
     'firmware-ota': 'Firmware & OTA',
     'stream-health': 'Stream Health',
     groups: 'Groups',
