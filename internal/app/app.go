@@ -394,7 +394,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
-		writeJSON(w, devices)
+		writeJSON(w, devicesWithFirmwareVersion(devices))
 		return
 	}
 	devices, err := s.store.ListDevices()
@@ -402,7 +402,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, devices)
+	writeJSON(w, devicesWithFirmwareVersion(devices))
 }
 
 func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
@@ -414,7 +414,7 @@ func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, devices)
+	writeJSON(w, devicesWithFirmwareVersion(devices))
 }
 
 func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
@@ -426,7 +426,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
-				writeJSON(w, device)
+				writeJSON(w, deviceWithFirmwareVersion(device))
 				return
 			}
 		}
@@ -442,7 +442,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, device)
+	writeJSON(w, deviceWithFirmwareVersion(device))
 }
 
 func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
@@ -1952,6 +1952,19 @@ func firmwareVersionFromDevice(device contracts.Device) string {
 	return fmt.Sprintf("v1.2.%d", len(device.Model))
 }
 
+func deviceWithFirmwareVersion(device contracts.Device) contracts.Device {
+	device.FirmwareVersion = firmwareVersionFromDevice(device)
+	return device
+}
+
+func devicesWithFirmwareVersion(devices []contracts.Device) []contracts.Device {
+	out := make([]contracts.Device, len(devices))
+	for i, device := range devices {
+		out[i] = deviceWithFirmwareVersion(device)
+	}
+	return out
+}
+
 func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		customers, err := s.customerCustomers(r.Context(), session)
@@ -2700,10 +2713,14 @@ func mapUpstreamDevice(org accountclient.Organization, device accountclient.Devi
 		Model:           fallback(device.Model, metadataString(device.Metadata, "model", "unknown")),
 		SerialNumber:    fallback(device.SerialNumber, metadataString(device.Metadata, "serial_number", "")),
 		VideoCloudDevID: videoID,
-		Status:          status,
-		Readiness:       readiness,
-		LastSeenAt:      fallback(device.LastSeenAt, metadataString(device.Metadata, "last_seen_at", "")),
-		UpdatedAt:       updatedAt,
+		FirmwareVersion: firmwareVersionFromDevice(contracts.Device{
+			ID:    device.ID,
+			Model: fallback(device.Model, metadataString(device.Metadata, "model", "unknown")),
+		}),
+		Status:     status,
+		Readiness:  readiness,
+		LastSeenAt: fallback(device.LastSeenAt, metadataString(device.Metadata, "last_seen_at", "")),
+		UpdatedAt:  updatedAt,
 	}
 	mapped.SourceFacts = readinessfacts.Build(mapped, upstreamOperationFromMetadata(device, updatedAt), vcFacts)
 	return mapped

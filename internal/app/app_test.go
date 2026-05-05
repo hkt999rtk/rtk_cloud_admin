@@ -293,6 +293,16 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 	if !strings.Contains(devices.Body.String(), "source_facts") {
 		t.Fatalf("devices response does not include source_facts: %s", devices.Body.String())
 	}
+	var projectedDevices []contracts.Device
+	if err := json.NewDecoder(devices.Body).Decode(&projectedDevices); err != nil {
+		t.Fatalf("decode devices response: %v", err)
+	}
+	if len(projectedDevices) != 1 {
+		t.Fatalf("devices length = %d, want 1", len(projectedDevices))
+	}
+	if projectedDevices[0].FirmwareVersion != "v1.2.2" {
+		t.Fatalf("projected firmware_version = %q, want v1.2.2", projectedDevices[0].FirmwareVersion)
+	}
 
 	provision := httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/provision", nil)
@@ -417,6 +427,26 @@ func TestCustomerSessionInvalidRefreshClearsStoredSession(t *testing.T) {
 	}
 	if _, err := st.GetSession(session.ID); err != sql.ErrNoRows {
 		t.Fatalf("session should be cleared, got %v", err)
+	}
+}
+
+func TestDevicesEndpointIncludesFirmwareVersion(t *testing.T) {
+	t.Parallel()
+
+	srv, err := NewTestServer(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("NewTestServer returned error: %v", err)
+	}
+
+	devices := requestJSON[[]contracts.Device](t, srv, http.MethodGet, "/api/devices", nil)
+	if len(devices) == 0 {
+		t.Fatal("devices response is empty")
+	}
+	if devices[0].FirmwareVersion == "" {
+		t.Fatalf("device %q firmware_version is empty", devices[0].ID)
+	}
+	if devices[0].FirmwareVersion != "v1.2.1" {
+		t.Fatalf("device %q firmware_version = %q, want v1.2.1", devices[0].ID, devices[0].FirmwareVersion)
 	}
 }
 

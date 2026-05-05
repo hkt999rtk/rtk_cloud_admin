@@ -34,6 +34,7 @@ type Device struct {
 	Model           string         `json:"model"`
 	SerialNumber    string         `json:"serial_number"`
 	VideoCloudDevID string         `json:"video_cloud_devid"`
+	FirmwareVersion string         `json:"firmware_version"`
 	Status          string         `json:"status"`
 	Readiness       ReadinessState `json:"readiness"`
 	SourceFacts     []SourceFact   `json:"source_facts"`
