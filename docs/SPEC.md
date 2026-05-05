@@ -54,6 +54,34 @@ Out of scope for v0.1:
 - Smart-home schedules, scenes, Matter, Alexa, or Google Assistant runtime features.
 - Multi-language UI. Console UI is English-first.
 
+## Self-Service Signup Ownership
+
+`rtk_cloud_admin` is the owner of the self-service signup user interface for
+the public evaluation tier defined in `rtk_cloud_workspace/docs/business-model.md`.
+The marketing site (`rtk_cloud_frontend`) links into this repo for signup; it
+does not implement signup itself.
+
+The signup flow is split between this repo and `rtk_account_manager`:
+
+- This repo (`rtk_cloud_admin`) owns: signup React page, email-verification
+  landing page, "check your email" interstitial, login page wiring for the
+  newly verified account, and any tier/quota indicator on the customer
+  dashboard. Signup goes through new endpoints on `rtk_account_manager` rather
+  than this console's local SQLite.
+- `rtk_account_manager` owns: signup API, password storage, email verification
+  token issuance and consumption, account-level evaluation device quota field
+  (default 5, ceiling 200 — see business-model.md), and the quota-raise
+  request workflow.
+
+This split mirrors the existing customer login flow which already proxies to
+Account Manager when configured. Local SQLite stays authoritative only for
+platform-admin users, sessions, audit, settings, and demo data — it does not
+become authoritative for self-service customer accounts.
+
+Self-service signup is not yet implemented; track the implementation work
+through the issues opened against this repo and `rtk_account_manager` once
+the doc baseline is approved.
+
 ## Architecture
 
 Runtime components:

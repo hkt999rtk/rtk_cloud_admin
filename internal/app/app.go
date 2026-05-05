@@ -100,12 +100,18 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /assets/", s.assets)
 	s.mux.HandleFunc("GET /", s.home)
 	s.mux.HandleFunc("GET /console", s.shell)
+	s.mux.HandleFunc("GET /console/overview", s.shell)
 	s.mux.HandleFunc("GET /console/devices", s.shell)
-	s.mux.HandleFunc("GET /admin", s.shell)
-	s.mux.HandleFunc("GET /admin/operations", s.shell)
 	s.mux.HandleFunc("GET /console/customers", s.shell)
 	s.mux.HandleFunc("GET /console/operations", s.shell)
 	s.mux.HandleFunc("GET /console/audit", s.shell)
+	s.mux.HandleFunc("GET /console/firmware-ota", s.shell)
+	s.mux.HandleFunc("GET /console/stream-health", s.shell)
+	s.mux.HandleFunc("GET /console/groups", s.shell)
+	s.mux.HandleFunc("GET /admin", s.shell)
+	s.mux.HandleFunc("GET /admin/ops", s.shell)
+	s.mux.HandleFunc("GET /admin/audit", s.shell)
+	s.mux.HandleFunc("GET /admin/operations", s.shell)
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
