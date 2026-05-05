@@ -1246,6 +1246,86 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 	}
 }
 
+func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
+		case "/v1/orgs/org-up/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-up-1","name":"cam-up-1","model":"cam-a","serial_number":"SERIAL-1","video_cloud_devid":"device-1","status":"online","readiness":"online","last_seen_at":"2026-05-01T00:00:00Z","updated_at":"2026-05-01T00:00:00Z"},{"id":"dev-up-2","name":"cam-up-2","model":"cam-a","serial_number":"SERIAL-2","video_cloud_devid":"device-2","status":"online","readiness":"online","last_seen_at":"2026-05-01T00:00:00Z","updated_at":"2026-05-01T00:00:00Z"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/enum_firmware":
+			_, _ = w.Write([]byte(`{"status":"ok","versions":["v1.2.3","v1.2.4"],"releases":[{"version":"v1.2.3"},{"version":"v1.2.4"}]}`))
+		case "/query_firmware_campaign":
+			_, _ = w.Write([]byte(`{"status":"ok","campaigns":[{"campaign_id":"campaign-2026-04","model":"cam-a","target_version":"v1.2.4","policy":{"name":"normal"},"state":"active","created_at":"2026-04-01T00:00:00Z","updated_at":"2026-04-01T00:00:00Z"}]}`))
+		case "/query_firmware_rollout":
+			_, _ = w.Write([]byte(`{"status":"ok","model":"cam-a","target":"v1.2.4","rollouts":[{"account_device_id":"device-1","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.4","rollout_status":"applied","updated_at":"2026-04-01T00:00:00Z"},{"device_id":"dev-up-2","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.3","rollout_status":"pending","updated_at":"2026-04-01T00:00:00Z"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL: accountUpstream.URL,
+			VideoCloudBaseURL:     videoUpstream.URL,
+			VideoCloudAdminToken:  "secret-admin",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+	session, err := st.CreateSession("customer", "u1", "user@example.com", "access", "refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/firmware-distribution", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("firmware distribution status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var payload contracts.FirmwareDistribution
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode firmware distribution: %v", err)
+	}
+	if len(payload.Versions) != 2 {
+		t.Fatalf("versions length = %d, want 2", len(payload.Versions))
+	}
+	if payload.Versions[0].Version != "v1.2.4" || !payload.Versions[0].IsLatest {
+		t.Fatalf("first version = %+v, want latest v1.2.4", payload.Versions[0])
+	}
+	if len(payload.Campaigns) != 1 {
+		t.Fatalf("campaigns length = %d, want 1", len(payload.Campaigns))
+	}
+	if payload.Campaigns[0].CampaignID != "campaign-2026-04" {
+		t.Fatalf("campaign id = %q, want campaign-2026-04", payload.Campaigns[0].CampaignID)
+	}
+	if payload.Campaigns[0].Applied != 1 || payload.Campaigns[0].Pending != 1 || payload.Campaigns[0].Total != 2 {
+		t.Fatalf("campaign summary = %+v, want applied=1 pending=1 total=2", payload.Campaigns[0])
+	}
+}
+
 func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
 	t.Parallel()
 

@@ -681,7 +681,7 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 			}
 			matched := false
 			for _, device := range devices {
-				if rollout.DeviceID != device.ID && rollout.DeviceID != strings.TrimSpace(device.VideoCloudDevID) {
+				if !matchesFirmwareRolloutDevice(device, rollout) {
 					continue
 				}
 				for _, key := range []string{firmwareDistributionDeviceKey(device), strings.TrimSpace(device.ID)} {
@@ -707,7 +707,10 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 		}
 		rolloutsByCampaign := make(map[string][]videoclient.FirmwareRolloutRecord)
 		for _, rollout := range rolloutResp.Rollouts {
-			if campaignID := strings.TrimSpace(rollout.CampaignID); campaignID != "" {
+			for _, campaignID := range firmwareCampaignKeys(rollout.CampaignID, "") {
+				if campaignID == "" {
+					continue
+				}
 				rolloutsByCampaign[campaignID] = append(rolloutsByCampaign[campaignID], rollout)
 			}
 		}
@@ -715,7 +718,11 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 			if !isVisibleFirmwareCampaignState(campaign.State) {
 				continue
 			}
-			if campaignSummary := summarizeFirmwareCampaign(campaign, rolloutsByCampaign[campaign.ID]); campaignSummary.CampaignID != "" {
+			rollouts := make([]videoclient.FirmwareRolloutRecord, 0)
+			for _, campaignID := range firmwareCampaignKeys(campaign.ID, campaign.CampaignID) {
+				rollouts = append(rollouts, rolloutsByCampaign[campaignID]...)
+			}
+			if campaignSummary := summarizeFirmwareCampaign(campaign, rollouts); campaignSummary.CampaignID != "" {
 				campaigns = append(campaigns, campaignSummary)
 			}
 		}
@@ -933,6 +940,32 @@ func summarizeFirmwareCampaign(campaign videoclient.FirmwareCampaignRecord, roll
 		summary.StartedAt = time.Now().UTC().Format(time.RFC3339)
 	}
 	return summary
+}
+
+func matchesFirmwareRolloutDevice(device contracts.Device, rollout videoclient.FirmwareRolloutRecord) bool {
+	rolloutID := strings.TrimSpace(rollout.DeviceID)
+	accountID := strings.TrimSpace(rollout.AccountDeviceID)
+	deviceID := strings.TrimSpace(device.ID)
+	videoCloudID := strings.TrimSpace(device.VideoCloudDevID)
+	return rolloutID != "" && (rolloutID == deviceID || rolloutID == videoCloudID) ||
+		accountID != "" && (accountID == deviceID || accountID == videoCloudID)
+}
+
+func firmwareCampaignKeys(values ...string) []string {
+	keys := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		key := strings.TrimSpace(value)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 func isVisibleFirmwareCampaignState(state string) bool {
