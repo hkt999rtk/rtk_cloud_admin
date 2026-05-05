@@ -7,6 +7,7 @@ const DEFAULT_PAGE_SIZE = 8;
 const customerNavItems = [
   { id: 'overview', label: 'Overview', path: '/console/overview' },
   { id: 'devices', label: 'Devices', path: '/console/devices' },
+  { id: 'operations', label: 'Provisioning', path: '/console/operations' },
   { id: 'firmware-ota', label: 'Firmware & OTA', path: '/console/firmware-ota' },
   { id: 'stream-health', label: 'Stream Health', path: '/console/stream-health' },
   { id: 'groups', label: 'Groups', path: '/console/groups' },
@@ -129,8 +130,8 @@ function App() {
       return;
     }
     setRefreshTick((tick) => tick + 1);
-    window.history.pushState({}, '', '/admin/ops');
-    setActive('platform-operations');
+    window.history.pushState({}, '', '/console/operations');
+    setActive('operations');
   }
 
   async function handleLogin(kind, credentials) {
@@ -249,6 +250,7 @@ function App() {
             onAction={runDeviceAction}
           />
         ) : null}
+        {active === 'operations' ? <Operations operations={operations} /> : null}
         {active === 'firmware-ota' ? <FirmwareOTAPage /> : null}
         {active === 'stream-health' ? <StreamHealthPage /> : null}
         {active === 'groups' ? <GroupsPage /> : null}
@@ -992,6 +994,7 @@ function titleFor(active) {
   return {
     overview: 'Customer Overview',
     devices: 'Devices',
+    operations: 'Provisioning',
     'firmware-ota': 'Firmware & OTA',
     'stream-health': 'Stream Health',
     groups: 'Groups',
@@ -1039,10 +1042,11 @@ function routeFromLocation() {
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
+  if (path === '/console/operations' || path.startsWith('/console/operations/')) return 'operations';
   if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';
   if (path === '/console/stream-health' || path.startsWith('/console/stream-health/')) return 'stream-health';
   if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
-  if (path === '/console/customers' || path === '/console/operations' || path === '/console/audit') return 'overview';
+  if (path === '/console/customers' || path === '/console/audit') return 'overview';
   return 'overview';
 }
 
