@@ -337,7 +337,7 @@ function App() {
           <StreamHealthPage
             loading={loading}
             stats={streamStats}
-            window={streamWindow}
+            streamWindow={streamWindow}
             setWindow={setStreamWindow}
           />
         ) : null}
@@ -586,18 +586,38 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
   );
 }
 
-function StreamHealthPage({ loading, stats, window, setWindow }) {
+function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
   const trend = stats?.trend || [];
   const modeTrends = stats?.trend_by_mode || [];
   const devices = stats?.worst_devices || [];
   const byMode = stats?.by_mode || {};
-  const windowLabel = String(window || '7d').toUpperCase();
+  const windowLabel = String(streamWindow || '7d').toUpperCase();
   const chart = useMemo(() => buildStreamHealthChart(trend, modeTrends), [trend, modeTrends]);
   const kpis = [
-    [`Stream Success Rate (${windowLabel})`, formatPercent(stats?.success_rate_pct ?? '-')],
-    ['Avg Stream Duration', stats ? formatDurationMinutes(stats.avg_duration_seconds) : '-'],
-    ['Active Sessions Now', stats?.active_sessions ?? '-'],
-    ['Devices Never Streamed', stats?.never_streamed_count ?? '-'],
+    {
+      key: 'success-rate',
+      label: `Stream Success Rate (${windowLabel})`,
+      value: formatPercent(stats?.success_rate_pct ?? '-'),
+      hint: 'Percent of stream requests that succeeded in the selected window',
+    },
+    {
+      key: 'avg-duration',
+      label: 'Avg Stream Duration',
+      value: stats ? formatDurationMinutes(stats.avg_duration_seconds) : '-',
+      hint: 'Average session length across observed requests',
+    },
+    {
+      key: 'active-sessions',
+      label: 'Active Sessions Now',
+      value: stats?.active_sessions ?? '-',
+      hint: 'Count of currently open stream sessions',
+    },
+    {
+      key: 'never-streamed',
+      label: 'Devices Never Streamed',
+      value: stats?.never_streamed_count ?? '-',
+      hint: 'Online devices that have no stream history',
+    },
   ];
 
   return (
@@ -613,7 +633,7 @@ function StreamHealthPage({ loading, stats, window, setWindow }) {
             <button
               key={value}
               type="button"
-              className={window === value ? 'active' : ''}
+              className={streamWindow === value ? 'active' : ''}
               onClick={() => setWindow(value)}
             >
               {value.toUpperCase()}
@@ -623,20 +643,12 @@ function StreamHealthPage({ loading, stats, window, setWindow }) {
       </div>
 
       <section className="metrics stream-health-metrics">
-        {kpis.map(([label, value]) => (
+        {kpis.map(({ key, label, value, hint }) => (
           <MetricCard
-            key={label}
+            key={key}
             label={label}
             value={value}
-            hint={
-              label === 'Stream Success Rate (7d)'
-                ? 'Percent of stream requests that succeeded in the selected window'
-                : label === 'Avg Stream Duration'
-                  ? 'Average session length across observed requests'
-                  : label === 'Active Sessions Now'
-                    ? 'Count of currently open stream sessions'
-                    : 'Online devices that have no stream history'
-            }
+            hint={hint}
             tone="info"
           />
         ))}
