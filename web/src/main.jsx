@@ -1,23 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { customerNavItems, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
-
-const customerNavItems = [
-  { id: 'overview', label: 'Overview', path: '/console/overview' },
-  { id: 'devices', label: 'Devices', path: '/console/devices' },
-  { id: 'operations', label: 'Provisioning', path: '/console/operations' },
-  { id: 'firmware-ota', label: 'Firmware & OTA', path: '/console/firmware-ota' },
-  { id: 'stream-health', label: 'Stream Health', path: '/console/stream-health' },
-  { id: 'groups', label: 'Groups', path: '/console/groups' },
-];
-
-const platformNavItems = [
-  { id: 'platform-health', label: 'Service Health', path: '/admin' },
-  { id: 'platform-operations', label: 'Operations Log', path: '/admin/ops' },
-  { id: 'platform-audit', label: 'Audit Log', path: '/admin/audit' },
-];
 
 function App() {
   const [active, setActive] = useState(routeFromLocation());
@@ -33,6 +19,7 @@ function App() {
   const [refreshTick, setRefreshTick] = useState(0);
   const isPlatformView = active.startsWith('platform');
   const visibleNavItems = isPlatformView ? platformNavItems : customerNavItems;
+  const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
 
   useEffect(() => {
     let alive = true;
@@ -130,8 +117,8 @@ function App() {
       return;
     }
     setRefreshTick((tick) => tick + 1);
-    window.history.pushState({}, '', '/console/operations');
-    setActive('operations');
+    window.history.pushState({}, '', '/admin/ops');
+    setActive('platform-operations');
   }
 
   async function handleLogin(kind, credentials) {
@@ -241,8 +228,9 @@ function App() {
 
         {error ? <div className="error">{error}</div> : null}
 
-        {active === 'overview' ? <Overview summary={summary} me={me} onLogin={handleLogin} /> : null}
-        {active === 'devices' ? (
+        {needsPlatformAccess ? <PlatformAccessGate active={active} onLogin={handleLogin} /> : null}
+        {!needsPlatformAccess && active === 'overview' ? <Overview summary={summary} me={me} onLogin={handleLogin} /> : null}
+        {!needsPlatformAccess && active === 'devices' ? (
           <Devices
             devices={devices}
             selectedDevice={selectedDevice}
@@ -250,13 +238,13 @@ function App() {
             onAction={runDeviceAction}
           />
         ) : null}
-        {active === 'operations' ? <Operations operations={operations} /> : null}
-        {active === 'firmware-ota' ? <FirmwareOTAPage /> : null}
-        {active === 'stream-health' ? <StreamHealthPage /> : null}
-        {active === 'groups' ? <GroupsPage /> : null}
-        {active === 'platform-health' ? <PlatformHealth summary={summary} health={health} me={me} onLogin={handleLogin} /> : null}
-        {active === 'platform-operations' ? <Operations operations={operations} /> : null}
-        {active === 'platform-audit' ? <AuditLog audit={audit} /> : null}
+        {!needsPlatformAccess && active === 'operations' ? <Operations operations={operations} /> : null}
+        {!needsPlatformAccess && active === 'firmware-ota' ? <FirmwareOTAPage /> : null}
+        {!needsPlatformAccess && active === 'stream-health' ? <StreamHealthPage /> : null}
+        {!needsPlatformAccess && active === 'groups' ? <GroupsPage /> : null}
+        {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
+        {!needsPlatformAccess && active === 'platform-operations' ? <Operations operations={operations} /> : null}
+        {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} /> : null}
       </main>
     </div>
   );
@@ -320,13 +308,26 @@ function GroupsPage() {
   );
 }
 
-function PlatformHealth({ summary, health, me, onLogin }) {
+function PlatformAccessGate({ active, onLogin }) {
+  return (
+    <>
+      <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} />
+      <section className="panel split-panel">
+        <div>
+          <h2>Platform access required</h2>
+          <p>Sign in with a platform admin session to open {titleFor(active)}.</p>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function PlatformHealth({ summary, health }) {
   const customerCount = summary?.customers ?? '-';
   const demoServices = health.filter((item) => item.status === 'demo');
   const hasDemo = demoServices.length > 0;
   return (
     <>
-      {me?.kind !== 'platform_admin' ? <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} /> : null}
       <section className="panel split-panel">
         <div>
           <h2>Platform Operations</h2>
@@ -990,20 +991,6 @@ function toTitleCase(value) {
     .join(' ');
 }
 
-function titleFor(active) {
-  return {
-    overview: 'Customer Overview',
-    devices: 'Devices',
-    operations: 'Provisioning',
-    'firmware-ota': 'Firmware & OTA',
-    'stream-health': 'Stream Health',
-    groups: 'Groups',
-    'platform-health': 'Service Health',
-    'platform-operations': 'Operations',
-    'platform-audit': 'Audit Log',
-  }[active];
-}
-
 function operationSummary(operation) {
   const typeSummary = operationTypeSummary(operation.type);
   const stateSummary = operationStateSummary(operation.state);
@@ -1033,21 +1020,6 @@ function operationStateSummary(state) {
     dead_lettered: 'Failed after retries — needs investigation',
   };
   return map[(state || '').toLowerCase()];
-}
-
-function routeFromLocation() {
-  const path = window.location.pathname;
-  if (path === '/admin' || path === '/admin/') return 'platform-health';
-  if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
-  if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
-  if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
-  if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
-  if (path === '/console/operations' || path.startsWith('/console/operations/')) return 'operations';
-  if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';
-  if (path === '/console/stream-health' || path.startsWith('/console/stream-health/')) return 'stream-health';
-  if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
-  if (path === '/console/customers' || path === '/console/audit') return 'overview';
-  return 'overview';
 }
 
 class AuthError extends Error {
