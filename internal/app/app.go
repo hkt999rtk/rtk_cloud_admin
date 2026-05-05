@@ -91,6 +91,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/devices/{id}/telemetry", s.apiDeviceTelemetry)
 	s.mux.HandleFunc("GET /api/fleet/health-summary", s.apiFleetHealthSummary)
 	s.mux.HandleFunc("GET /api/fleet/stream-stats", s.apiFleetStreamStats)
+	s.mux.HandleFunc("GET /api/fleet/firmware-distribution", s.apiFleetFirmwareDistribution)
 	s.mux.HandleFunc("GET /api/operations", s.apiOperations)
 	s.mux.HandleFunc("GET /api/admin/operations", s.apiAdminOperations)
 	s.mux.HandleFunc("GET /api/service-health", s.apiServiceHealth)
@@ -158,7 +159,7 @@ func (s *Server) shell(w http.ResponseWriter, r *http.Request) {
 <body>
   <div id="root">
     <h1>RTK Cloud Admin</h1>
-    <p>Customer Fleet</p>
+    <p>Fleet Health Overview</p>
     <p>Platform Operations</p>
     <p>cam-a-001</p>
     <p>DeviceProvisionRequested</p>
@@ -393,7 +394,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
-		writeJSON(w, devices)
+		writeJSON(w, devicesWithFirmwareVersion(devices))
 		return
 	}
 	devices, err := s.store.ListDevices()
@@ -401,7 +402,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, devices)
+	writeJSON(w, devicesWithFirmwareVersion(devices))
 }
 
 func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
@@ -413,7 +414,7 @@ func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, devices)
+	writeJSON(w, devicesWithFirmwareVersion(devices))
 }
 
 func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
@@ -425,7 +426,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
-				writeJSON(w, device)
+				writeJSON(w, deviceWithFirmwareVersion(device))
 				return
 			}
 		}
@@ -441,7 +442,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, device)
+	writeJSON(w, deviceWithFirmwareVersion(device))
 }
 
 func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
@@ -526,6 +527,532 @@ func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, fleetStreamStats(orgID, devices, days, window))
 }
 
+func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requestSession(r)
+	if ok && session.Kind == "customer" {
+		orgID, err := s.customerOrgIDForSession(r.Context(), session)
+		if err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		devices, err := s.firmwareDistributionDevices(r.Context(), session, orgID)
+		if err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		if dist, ok, err := s.proxyFirmwareDistribution(r.Context(), devices, orgID); err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		} else if ok {
+			writeJSON(w, dist)
+			return
+		}
+		writeJSON(w, demoFirmwareDistribution(orgID, devices))
+		return
+	}
+
+	devices, err := s.store.ListDevices()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, demoFirmwareDistribution("org-acme", devices))
+}
+
+func (s *Server) firmwareDistributionDevices(ctx context.Context, session store.Session, orgID string) ([]contracts.Device, error) {
+	if s.accountClient.Enabled() {
+		devices, err := s.customerDevices(ctx, session)
+		if err != nil {
+			return nil, err
+		}
+		filtered := make([]contracts.Device, 0, len(devices))
+		for _, device := range devices {
+			if device.OrganizationID == orgID {
+				filtered = append(filtered, device)
+			}
+		}
+		return filtered, nil
+	}
+	devices, err := s.store.ListDevices()
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]contracts.Device, 0, len(devices))
+	for _, device := range devices {
+		if device.OrganizationID == orgID {
+			filtered = append(filtered, device)
+		}
+	}
+	return filtered, nil
+}
+
+func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contracts.Device, orgID string) (contracts.FirmwareDistribution, bool, error) {
+	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+		return contracts.FirmwareDistribution{}, false, nil
+	}
+
+	type deviceVersion struct {
+		version   string
+		updatedAt time.Time
+	}
+
+	deviceVersions := make(map[string]deviceVersion, len(devices))
+	for _, device := range devices {
+		version := firmwareVersionFromDevice(device)
+		deviceVersions[firmwareDistributionDeviceKey(device)] = deviceVersion{version: version}
+		if id := strings.TrimSpace(device.ID); id != "" {
+			deviceVersions[id] = deviceVersion{version: version}
+		}
+	}
+
+	models := make(map[string]struct{}, len(devices))
+	for _, device := range devices {
+		model := strings.TrimSpace(device.Model)
+		if model != "" {
+			models[model] = struct{}{}
+		}
+	}
+
+	latestVersions := map[string]bool{}
+	campaigns := make([]contracts.FirmwareDistributionCampaign, 0)
+	for model := range models {
+		enumResp, err := s.videoClient.EnumFirmware(ctx, s.cfg.VideoCloudAdminToken, model)
+		if err != nil {
+			return contracts.FirmwareDistribution{}, true, err
+		}
+		if latest := latestFirmwareVersion(enumResp); latest != "" {
+			latestVersions[latest] = true
+		}
+
+		rolloutResp, err := s.videoClient.QueryFirmwareRollout(ctx, s.cfg.VideoCloudAdminToken, model, "")
+		if err != nil {
+			return contracts.FirmwareDistribution{}, true, err
+		}
+		for _, rollout := range rolloutResp.Rollouts {
+			version := strings.TrimSpace(rollout.CurrentVersion)
+			if version == "" {
+				version = strings.TrimSpace(rollout.TargetVersion)
+			}
+			if version == "" {
+				continue
+			}
+			updatedAt := parseFirmwareTimestamp(rollout.UpdatedAt)
+			if updatedAt.IsZero() {
+				updatedAt = parseFirmwareTimestamp(rollout.LastUpdated)
+			}
+			matched := false
+			for _, device := range devices {
+				if rollout.DeviceID != device.ID && rollout.DeviceID != strings.TrimSpace(device.VideoCloudDevID) {
+					continue
+				}
+				for _, key := range []string{firmwareDistributionDeviceKey(device), strings.TrimSpace(device.ID)} {
+					if key == "" {
+						continue
+					}
+					if prev, ok := deviceVersions[key]; !ok || updatedAt.After(prev.updatedAt) || prev.version == "" {
+						deviceVersions[key] = deviceVersion{version: version, updatedAt: updatedAt}
+					}
+				}
+				matched = true
+			}
+			if !matched {
+				if prev, ok := deviceVersions[rollout.DeviceID]; !ok || updatedAt.After(prev.updatedAt) || prev.version == "" {
+					deviceVersions[rollout.DeviceID] = deviceVersion{version: version, updatedAt: updatedAt}
+				}
+			}
+		}
+
+		campaignResp, err := s.videoClient.QueryFirmwareCampaigns(ctx, s.cfg.VideoCloudAdminToken, model, false)
+		if err != nil {
+			return contracts.FirmwareDistribution{}, true, err
+		}
+		rolloutsByCampaign := make(map[string][]videoclient.FirmwareRolloutRecord)
+		for _, rollout := range rolloutResp.Rollouts {
+			if campaignID := strings.TrimSpace(rollout.CampaignID); campaignID != "" {
+				rolloutsByCampaign[campaignID] = append(rolloutsByCampaign[campaignID], rollout)
+			}
+		}
+		for _, campaign := range campaignResp {
+			if !isVisibleFirmwareCampaignState(campaign.State) {
+				continue
+			}
+			if campaignSummary := summarizeFirmwareCampaign(campaign, rolloutsByCampaign[campaign.ID]); campaignSummary.CampaignID != "" {
+				campaigns = append(campaigns, campaignSummary)
+			}
+		}
+	}
+
+	facts := make(map[string]string, len(deviceVersions))
+	for deviceID, fact := range deviceVersions {
+		version := strings.TrimSpace(fact.version)
+		if version == "" {
+			version = "unknown"
+		}
+		facts[deviceID] = version
+	}
+	dist := buildFirmwareDistribution(orgID, devices, facts, latestVersions, campaigns)
+	return dist, true, nil
+}
+
+func demoFirmwareDistribution(orgID string, devices []contracts.Device) contracts.FirmwareDistribution {
+	currentVersions := make(map[string]string, len(devices))
+	latestVersions := map[string]bool{}
+	topVersion := ""
+	for _, device := range devices {
+		version := firmwareVersionFromDevice(device)
+		if strings.TrimSpace(version) == "" {
+			version = "unknown"
+		}
+		currentVersions[firmwareDistributionDeviceKey(device)] = version
+		if id := strings.TrimSpace(device.ID); id != "" {
+			currentVersions[id] = version
+		}
+		if version != "unknown" && (topVersion == "" || compareFirmwareVersions(version, topVersion) > 0) {
+			topVersion = version
+		}
+	}
+	if topVersion != "" {
+		latestVersions[topVersion] = true
+	}
+	dist := buildFirmwareDistribution(orgID, devices, currentVersions, latestVersions, nil)
+	if len(dist.Campaigns) == 0 {
+		total := len(devices)
+		if total == 0 {
+			dist.Campaigns = []contracts.FirmwareDistributionCampaign{{
+				CampaignID:    "campaign-demo",
+				TargetVersion: "unknown",
+				Policy:        "normal",
+				State:         "active",
+				StartedAt:     time.Now().UTC().Format(time.RFC3339),
+			}}
+			return dist
+		}
+		if topVersion == "" {
+			topVersion = "unknown"
+		}
+		applied := 0
+		failed := 0
+		skipped := 0
+		rollouts := make([]contracts.FirmwareDistributionRollout, 0, len(devices))
+		for _, device := range devices {
+			version := strings.TrimSpace(currentVersions[device.ID])
+			if version == "" {
+				version = strings.TrimSpace(currentVersions[firmwareDistributionDeviceKey(device)])
+			}
+			status := "pending"
+			failureReason := ""
+			switch device.Readiness {
+			case contracts.ReadinessFailed:
+				status = "failed"
+				failed++
+				failureReason = "device readiness is failed"
+			case contracts.ReadinessDeactivated:
+				status = "skipped"
+				skipped++
+			default:
+				if strings.EqualFold(version, topVersion) {
+					status = "applied"
+					applied++
+				}
+			}
+			if status == "pending" {
+				// Pending devices are those not yet on the latest version.
+			}
+			rollouts = append(rollouts, contracts.FirmwareDistributionRollout{
+				DeviceID:       device.ID,
+				DeviceName:     device.Name,
+				CurrentVersion: version,
+				TargetVersion:  topVersion,
+				RolloutStatus:  status,
+				FailureReason:  failureReason,
+				LastUpdated:    fallback(device.LastSeenAt, time.Now().UTC().Format(time.RFC3339)),
+			})
+		}
+		pending := max(0, total-applied-failed-skipped)
+		dist.Campaigns = []contracts.FirmwareDistributionCampaign{{
+			CampaignID:    "campaign-demo",
+			TargetVersion: topVersion,
+			Policy:        "normal",
+			State:         "active",
+			Applied:       applied,
+			Pending:       pending,
+			Failed:        failed,
+			Skipped:       skipped,
+			Total:         total,
+			StartedAt:     time.Now().UTC().AddDate(0, 0, -7).Format(time.RFC3339),
+			Rollouts:      rollouts,
+		}}
+	}
+	return dist
+}
+
+func buildFirmwareDistribution(orgID string, devices []contracts.Device, currentVersions map[string]string, latestVersions map[string]bool, campaigns []contracts.FirmwareDistributionCampaign) contracts.FirmwareDistribution {
+	counts := make(map[string]int)
+	for _, device := range devices {
+		version := strings.TrimSpace(currentVersions[firmwareDistributionDeviceKey(device)])
+		if version == "" {
+			version = strings.TrimSpace(currentVersions[strings.TrimSpace(device.ID)])
+		}
+		if version == "" {
+			version = "unknown"
+		}
+		counts[version]++
+	}
+
+	versionRows := make([]contracts.FirmwareDistributionVersion, 0, len(counts))
+	for version, count := range counts {
+		versionRows = append(versionRows, contracts.FirmwareDistributionVersion{
+			Version:  version,
+			Count:    count,
+			IsLatest: latestVersions[version],
+		})
+	}
+	sort.Slice(versionRows, func(i, j int) bool {
+		if versionRows[i].IsLatest != versionRows[j].IsLatest {
+			return versionRows[i].IsLatest
+		}
+		if versionRows[i].Count != versionRows[j].Count {
+			return versionRows[i].Count > versionRows[j].Count
+		}
+		return compareFirmwareVersions(versionRows[i].Version, versionRows[j].Version) > 0
+	})
+	assignFirmwareDistributionPercents(versionRows)
+
+	if len(campaigns) > 0 {
+		sort.Slice(campaigns, func(i, j int) bool {
+			if campaigns[i].StartedAt != campaigns[j].StartedAt {
+				return campaigns[i].StartedAt > campaigns[j].StartedAt
+			}
+			return campaigns[i].CampaignID < campaigns[j].CampaignID
+		})
+	}
+
+	return contracts.FirmwareDistribution{
+		OrgID:     orgID,
+		Versions:  versionRows,
+		Campaigns: campaigns,
+	}
+}
+
+func assignFirmwareDistributionPercents(rows []contracts.FirmwareDistributionVersion) {
+	if len(rows) == 0 {
+		return
+	}
+	total := 0
+	for _, row := range rows {
+		total += row.Count
+	}
+	if total == 0 {
+		for i := range rows {
+			rows[i].Pct = 0
+		}
+		return
+	}
+	sum := 0.0
+	for i := range rows {
+		if i == len(rows)-1 {
+			rows[i].Pct = toTwoDecimal(100 - sum)
+			continue
+		}
+		rows[i].Pct = toTwoDecimal(float64(rows[i].Count) / float64(total) * 100)
+		sum += rows[i].Pct
+	}
+}
+
+func latestFirmwareVersion(resp videoclient.FirmwareEnumResponse) string {
+	if len(resp.Versions) > 0 {
+		return strings.TrimSpace(resp.Versions[len(resp.Versions)-1])
+	}
+	latest := ""
+	for _, release := range resp.Releases {
+		version := strings.TrimSpace(release.Version)
+		if version == "" {
+			continue
+		}
+		if latest == "" || compareFirmwareVersions(version, latest) > 0 {
+			latest = version
+		}
+	}
+	return latest
+}
+
+func summarizeFirmwareCampaign(campaign videoclient.FirmwareCampaignRecord, rollouts []videoclient.FirmwareRolloutRecord) contracts.FirmwareDistributionCampaign {
+	summary := contracts.FirmwareDistributionCampaign{
+		CampaignID:    firstNonEmpty(strings.TrimSpace(campaign.ID), strings.TrimSpace(campaign.CampaignID)),
+		TargetVersion: strings.TrimSpace(campaign.TargetVersion),
+		Policy:        strings.TrimSpace(campaign.Policy.Name),
+		State:         strings.TrimSpace(campaign.State),
+		StartedAt:     campaign.CreatedAt,
+	}
+	if summary.Policy == "" {
+		summary.Policy = "normal"
+	}
+	if summary.State == "" {
+		summary.State = "active"
+	}
+	if summary.CampaignID == "" {
+		return contracts.FirmwareDistributionCampaign{}
+	}
+	if summary.StartedAt == "" {
+		summary.StartedAt = campaign.UpdatedAt
+	}
+	summary.Rollouts = make([]contracts.FirmwareDistributionRollout, 0, len(rollouts))
+	for _, rollout := range rollouts {
+		status := rolloutStatus(rollout)
+		summary.Total++
+		switch strings.ToLower(status) {
+		case "applied":
+			summary.Applied++
+		case "failed":
+			summary.Failed++
+		case "skipped":
+			summary.Skipped++
+		case "pending", "eligible", "downloading":
+			summary.Pending++
+		default:
+			summary.Pending++
+		}
+		summary.Rollouts = append(summary.Rollouts, contracts.FirmwareDistributionRollout{
+			DeviceID:       firstNonEmpty(strings.TrimSpace(rollout.DeviceID), strings.TrimSpace(rollout.AccountDeviceID)),
+			DeviceName:     firstNonEmpty(strings.TrimSpace(rollout.DeviceName), strings.TrimSpace(rollout.DeviceID)),
+			CurrentVersion: firstNonEmpty(strings.TrimSpace(rollout.CurrentVersion), strings.TrimSpace(rollout.TargetVersion)),
+			TargetVersion:  strings.TrimSpace(rollout.TargetVersion),
+			RolloutStatus:  firstNonEmpty(status, "pending"),
+			FailureReason:  strings.TrimSpace(rollout.Reason),
+			LastUpdated:    firstNonEmpty(strings.TrimSpace(rollout.UpdatedAt), strings.TrimSpace(rollout.LastUpdated)),
+		})
+	}
+	sort.Slice(summary.Rollouts, func(i, j int) bool {
+		if summary.Rollouts[i].LastUpdated != summary.Rollouts[j].LastUpdated {
+			return summary.Rollouts[i].LastUpdated > summary.Rollouts[j].LastUpdated
+		}
+		return summary.Rollouts[i].DeviceName < summary.Rollouts[j].DeviceName
+	})
+	if summary.StartedAt == "" && len(rollouts) > 0 {
+		summary.StartedAt = oldestFirmwareTimestamp(rollouts).Format(time.RFC3339)
+	}
+	if summary.StartedAt == "" {
+		summary.StartedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	return summary
+}
+
+func isVisibleFirmwareCampaignState(state string) bool {
+	switch strings.ToLower(strings.TrimSpace(state)) {
+	case "active", "scheduled":
+		return true
+	default:
+		return false
+	}
+}
+
+func rolloutStatus(rollout videoclient.FirmwareRolloutRecord) string {
+	if status := strings.TrimSpace(rollout.RolloutStatus); status != "" {
+		return status
+	}
+	return strings.TrimSpace(rollout.Status)
+}
+
+func oldestFirmwareTimestamp(rollouts []videoclient.FirmwareRolloutRecord) time.Time {
+	var oldest time.Time
+	for _, rollout := range rollouts {
+		ts := parseFirmwareTimestamp(firstNonEmpty(rollout.UpdatedAt, rollout.LastUpdated))
+		if ts.IsZero() {
+			continue
+		}
+		if oldest.IsZero() || ts.Before(oldest) {
+			oldest = ts
+		}
+	}
+	return oldest
+}
+
+func parseFirmwareTimestamp(raw string) time.Time {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339} {
+		if parsed, err := time.Parse(layout, raw); err == nil {
+			return parsed.UTC()
+		}
+	}
+	return time.Time{}
+}
+
+func firmwareDistributionDeviceKey(device contracts.Device) string {
+	if key := strings.TrimSpace(device.VideoCloudDevID); key != "" {
+		return key
+	}
+	return strings.TrimSpace(device.ID)
+}
+
+func compareFirmwareVersions(a, b string) int {
+	left, okLeft := parseFirmwareVersionParts(a)
+	right, okRight := parseFirmwareVersionParts(b)
+	if okLeft && okRight {
+		n := len(left)
+		if len(right) > n {
+			n = len(right)
+		}
+		for i := 0; i < n; i++ {
+			li := 0
+			ri := 0
+			if i < len(left) {
+				li = left[i]
+			}
+			if i < len(right) {
+				ri = right[i]
+			}
+			if li < ri {
+				return -1
+			}
+			if li > ri {
+				return 1
+			}
+		}
+		return 0
+	}
+	return strings.Compare(strings.TrimSpace(a), strings.TrimSpace(b))
+}
+
+func parseFirmwareVersionParts(raw string) ([]int, bool) {
+	raw = strings.TrimSpace(strings.TrimPrefix(strings.ToLower(raw), "v"))
+	if raw == "" {
+		return nil, false
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r < '0' || r > '9'
+	})
+	if len(parts) == 0 {
+		return nil, false
+	}
+	out := make([]int, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		value, err := strconv.Atoi(part)
+		if err != nil {
+			return nil, false
+		}
+		out = append(out, value)
+	}
+	if len(out) == 0 {
+		return nil, false
+	}
+	return out, true
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
 func parseFleetWindow(raw string) (string, int, error) {
 	window := raw
 	if window == "" {
@@ -547,18 +1074,29 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		streamModeRelay:  {Requests: 0, SuccessRatePct: 0},
 		streamModeWebRTC: {Requests: 0, SuccessRatePct: 0},
 	}
+	modeTrendRequests := map[string][]int{
+		streamModeRTSP:   make([]int, days),
+		streamModeRelay:  make([]int, days),
+		streamModeWebRTC: make([]int, days),
+	}
+	modeTrendSuccesses := map[string][]int{
+		streamModeRTSP:   make([]int, days),
+		streamModeRelay:  make([]int, days),
+		streamModeWebRTC: make([]int, days),
+	}
 	type modeAccumulator struct {
 		requests  int
 		successes int
 	}
 	type deviceAccumulator struct {
-		deviceID   string
-		deviceName string
-		mode       string
-		readiness  contracts.ReadinessState
-		requests   int
-		successes  int
-		never      bool
+		deviceID     string
+		deviceName   string
+		mode         string
+		readiness    contracts.ReadinessState
+		requests     int
+		successes    int
+		lastStreamAt string
+		never        bool
 	}
 	modeStats := map[string]modeAccumulator{
 		streamModeRTSP:   {},
@@ -594,6 +1132,9 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		}
 		for day := 0; day < days; day++ {
 			requests, successes, duration := streamDevicesForDay(day, len(devices), idx, device, agg.never)
+			if requests > 0 {
+				agg.lastStreamAt = streamDayTimestamp(today, day, days)
+			}
 			dailyRequestsByDay[day] += requests
 			dailySuccessesByDay[day] += successes
 			totalRequests += requests
@@ -604,6 +1145,8 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 			mode.requests += requests
 			mode.successes += successes
 			modeStats[agg.mode] = mode
+			modeTrendRequests[agg.mode][day] += requests
+			modeTrendSuccesses[agg.mode][day] += successes
 			totalDuration += duration
 		}
 	}
@@ -627,6 +1170,20 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 			SuccessRatePct: streamRate(stats.successes, stats.requests),
 		}
 	}
+	modeTrendSeries := make([]contracts.FleetStreamModeTrend, 0, 3)
+	for _, mode := range []string{streamModeRTSP, streamModeRelay, streamModeWebRTC} {
+		series := make([]contracts.FleetStreamTrendPoint, 0, days)
+		for day := 0; day < days; day++ {
+			requests := modeTrendRequests[mode][day]
+			successes := modeTrendSuccesses[mode][day]
+			series = append(series, contracts.FleetStreamTrendPoint{
+				Date:           today.AddDate(0, 0, day-days+1).Format("2006-01-02"),
+				Requests:       requests,
+				SuccessRatePct: streamRate(successes, requests),
+			})
+		}
+		modeTrendSeries = append(modeTrendSeries, contracts.FleetStreamModeTrend{Mode: mode, Points: series})
+	}
 
 	worst := make([]contracts.FleetStreamWorstDevice, 0, len(deviceStats))
 	for _, agg := range deviceStats {
@@ -636,15 +1193,21 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		worst = append(worst, contracts.FleetStreamWorstDevice{
 			DeviceID:       agg.deviceID,
 			DeviceName:     agg.deviceName,
+			ModeUsed:       agg.mode,
+			Readiness:      string(agg.readiness),
 			Requests:       agg.requests,
 			SuccessRatePct: streamRate(agg.successes, agg.requests),
+			LastStreamAt:   agg.lastStreamAt,
 		})
 	}
 	sort.Slice(worst, func(i, j int) bool {
 		if worst[i].SuccessRatePct != worst[j].SuccessRatePct {
 			return worst[i].SuccessRatePct < worst[j].SuccessRatePct
 		}
-		return worst[i].Requests < worst[j].Requests
+		if worst[i].Requests != worst[j].Requests {
+			return worst[i].Requests > worst[j].Requests
+		}
+		return worst[i].DeviceName < worst[j].DeviceName
 	})
 	if len(worst) > 10 {
 		worst = worst[:10]
@@ -659,6 +1222,7 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		NeverStreamedCount: neverStreamedCount,
 		ByMode:             byMode,
 		Trend:              trend,
+		TrendByMode:        modeTrendSeries,
 		WorstDevices:       worst,
 	}
 }
@@ -728,6 +1292,11 @@ func streamDevicesForDay(day, totalDevices, index int, device contracts.Device, 
 	failurePenalty := requests*2 - successes
 	duration := requests*baseDuration + successBoost - failurePenalty
 	return requests, successes, duration
+}
+
+func streamDayTimestamp(today time.Time, day, days int) string {
+	streamDay := today.AddDate(0, 0, day-days+1)
+	return streamDay.Add(15 * time.Hour).Format(time.RFC3339)
 }
 
 func streamRate(successes, requests int) float64 {
@@ -940,17 +1509,22 @@ func (s *Server) proxyTelemetryForDevice(ctx context.Context, session store.Sess
 	if err == nil && strings.TrimSpace(info.FirmwareVersion) != "" {
 		firmwareVersion = strings.TrimSpace(info.FirmwareVersion)
 	}
-	return telemetryFromVideoCloud(device.ID, firmwareVersion, upstream), true, nil
+	return telemetryFromVideoCloud(device, firmwareVersion, upstream), true, nil
 }
 
-func telemetryFromVideoCloud(deviceID, firmwareVersion string, upstream videoclient.DeviceTelemetryResponse) contracts.DeviceTelemetry {
+func telemetryFromVideoCloud(device contracts.Device, firmwareVersion string, upstream videoclient.DeviceTelemetryResponse) contracts.DeviceTelemetry {
 	signals := telemetrySignalsFromUpstream(upstream.LatestHealth, upstream.RecentEvents)
 	health := telemetryHealthFromUpstream(upstream.LatestHealth, signals)
 	if strings.TrimSpace(firmwareVersion) == "" {
 		firmwareVersion = "unknown"
 	}
 	return contracts.DeviceTelemetry{
-		DeviceID:        deviceID,
+		DeviceID:        device.ID,
+		DeviceName:      fallback(strings.TrimSpace(upstream.DeviceName), device.Name),
+		Organization:    device.Organization,
+		SerialNumber:    device.SerialNumber,
+		Model:           device.Model,
+		LastSeenAt:      fallback(device.LastSeenAt, telemetryLastSeenAt(upstream)),
 		Health:          health,
 		Signals:         signals,
 		FirmwareVersion: strings.TrimSpace(firmwareVersion),
@@ -1326,6 +1900,11 @@ func demoTelemetryForDevice(device contracts.Device) contracts.DeviceTelemetry {
 	version := firmwareVersionFromDevice(device)
 	return contracts.DeviceTelemetry{
 		DeviceID:        device.ID,
+		DeviceName:      device.Name,
+		Organization:    device.Organization,
+		SerialNumber:    device.SerialNumber,
+		Model:           device.Model,
+		LastSeenAt:      device.LastSeenAt,
 		Health:          health,
 		Signals:         signals,
 		FirmwareVersion: version,
@@ -1333,6 +1912,26 @@ func demoTelemetryForDevice(device contracts.Device) contracts.DeviceTelemetry {
 		Uptime7D:        uptime,
 		RecentEvents:    recent,
 	}
+}
+
+func telemetryLastSeenAt(upstream videoclient.DeviceTelemetryResponse) string {
+	latest := time.Time{}
+	if upstream.LatestHealth != nil && !upstream.LatestHealth.OccurredAt.IsZero() {
+		latest = upstream.LatestHealth.OccurredAt.UTC()
+	}
+	for _, event := range upstream.RecentEvents {
+		if event.OccurredAt.IsZero() {
+			continue
+		}
+		occurredAt := event.OccurredAt.UTC()
+		if occurredAt.After(latest) {
+			latest = occurredAt
+		}
+	}
+	if latest.IsZero() {
+		return ""
+	}
+	return latest.Format(time.RFC3339)
 }
 
 func telemetryQualityFromDBM(avgDBM int) string {
@@ -1351,6 +1950,19 @@ func firmwareVersionFromDevice(device contracts.Device) string {
 		return fmt.Sprintf("v1.2.%d", parsed)
 	}
 	return fmt.Sprintf("v1.2.%d", len(device.Model))
+}
+
+func deviceWithFirmwareVersion(device contracts.Device) contracts.Device {
+	device.FirmwareVersion = firmwareVersionFromDevice(device)
+	return device
+}
+
+func devicesWithFirmwareVersion(devices []contracts.Device) []contracts.Device {
+	out := make([]contracts.Device, len(devices))
+	for i, device := range devices {
+		out[i] = deviceWithFirmwareVersion(device)
+	}
+	return out
 }
 
 func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {
@@ -2101,10 +2713,14 @@ func mapUpstreamDevice(org accountclient.Organization, device accountclient.Devi
 		Model:           fallback(device.Model, metadataString(device.Metadata, "model", "unknown")),
 		SerialNumber:    fallback(device.SerialNumber, metadataString(device.Metadata, "serial_number", "")),
 		VideoCloudDevID: videoID,
-		Status:          status,
-		Readiness:       readiness,
-		LastSeenAt:      fallback(device.LastSeenAt, metadataString(device.Metadata, "last_seen_at", "")),
-		UpdatedAt:       updatedAt,
+		FirmwareVersion: firmwareVersionFromDevice(contracts.Device{
+			ID:    device.ID,
+			Model: fallback(device.Model, metadataString(device.Metadata, "model", "unknown")),
+		}),
+		Status:     status,
+		Readiness:  readiness,
+		LastSeenAt: fallback(device.LastSeenAt, metadataString(device.Metadata, "last_seen_at", "")),
+		UpdatedAt:  updatedAt,
 	}
 	mapped.SourceFacts = readinessfacts.Build(mapped, upstreamOperationFromMetadata(device, updatedAt), vcFacts)
 	return mapped

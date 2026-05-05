@@ -60,6 +60,65 @@ type DeviceTelemetryEvent struct {
 	Payload    json.RawMessage `json:"payload,omitempty"`
 }
 
+type FirmwareRelease struct {
+	Version string `json:"version"`
+	Model   string `json:"model,omitempty"`
+}
+
+type FirmwareEnumResponse struct {
+	Status   string            `json:"status"`
+	Versions []string          `json:"versions,omitempty"`
+	Releases []FirmwareRelease `json:"releases,omitempty"`
+}
+
+type FirmwareRolloutRecord struct {
+	DeviceID        string `json:"device_id"`
+	AccountDeviceID string `json:"account_device_id,omitempty"`
+	DeviceName      string `json:"device_name,omitempty"`
+	Model           string `json:"model,omitempty"`
+	CampaignID      string `json:"campaign_id,omitempty"`
+	TargetVersion   string `json:"target_version,omitempty"`
+	CurrentVersion  string `json:"current_version,omitempty"`
+	RolloutStatus   string `json:"rollout_status,omitempty"`
+	Status          string `json:"status,omitempty"`
+	Reason          string `json:"reason,omitempty"`
+	UpdatedAt       string `json:"updated_at,omitempty"`
+	LastUpdated     string `json:"last_updated,omitempty"`
+}
+
+type FirmwareRolloutResponse struct {
+	Status   string                  `json:"status"`
+	Model    string                  `json:"model"`
+	Target   string                  `json:"target,omitempty"`
+	Rollouts []FirmwareRolloutRecord `json:"rollouts,omitempty"`
+}
+
+type FirmwareCampaignPolicy struct {
+	Name        string `json:"name"`
+	StartAt     string `json:"start_at,omitempty"`
+	EndAt       string `json:"end_at,omitempty"`
+	TimeZone    string `json:"time_zone,omitempty"`
+	WindowStart string `json:"window_start,omitempty"`
+	WindowEnd   string `json:"window_end,omitempty"`
+}
+
+type FirmwareCampaignRecord struct {
+	ID            string                 `json:"id"`
+	CampaignID    string                 `json:"campaign_id,omitempty"`
+	Model         string                 `json:"model"`
+	TargetVersion string                 `json:"target_version"`
+	Policy        FirmwareCampaignPolicy `json:"policy"`
+	State         string                 `json:"state"`
+	CreatedAt     string                 `json:"created_at"`
+	UpdatedAt     string                 `json:"updated_at"`
+}
+
+type FirmwareCampaignResponse struct {
+	Status    string                   `json:"status"`
+	Campaigns []FirmwareCampaignRecord `json:"campaigns,omitempty"`
+	Campaign  *FirmwareCampaignRecord  `json:"campaign,omitempty"`
+}
+
 func New(baseURL string) *Client {
 	return &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
@@ -240,6 +299,50 @@ func (c *Client) GetDeviceInfo(ctx context.Context, adminToken, devid string) (D
 		info.FirmwareVersion = strings.TrimSpace(value)
 	}
 	return info, nil
+}
+
+func (c *Client) EnumFirmware(ctx context.Context, adminToken, model string) (FirmwareEnumResponse, error) {
+	if !c.Enabled() {
+		return FirmwareEnumResponse{}, fmt.Errorf("video cloud base URL is not configured")
+	}
+	var out FirmwareEnumResponse
+	if err := c.doJSON(ctx, http.MethodPost, "/enum_firmware", adminToken, map[string]string{"model": model}, &out); err != nil {
+		return FirmwareEnumResponse{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) QueryFirmwareRollout(ctx context.Context, adminToken, model, campaignID string) (FirmwareRolloutResponse, error) {
+	if !c.Enabled() {
+		return FirmwareRolloutResponse{}, fmt.Errorf("video cloud base URL is not configured")
+	}
+	req := map[string]string{"model": model}
+	if strings.TrimSpace(campaignID) != "" {
+		req["campaign_id"] = strings.TrimSpace(campaignID)
+	}
+	var out FirmwareRolloutResponse
+	if err := c.doJSON(ctx, http.MethodPost, "/query_firmware_rollout", adminToken, req, &out); err != nil {
+		return FirmwareRolloutResponse{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) QueryFirmwareCampaigns(ctx context.Context, adminToken, model string, includeArchived bool) ([]FirmwareCampaignRecord, error) {
+	if !c.Enabled() {
+		return nil, fmt.Errorf("video cloud base URL is not configured")
+	}
+	req := map[string]any{"model": model}
+	if includeArchived {
+		req["include_archived"] = true
+	}
+	var out FirmwareCampaignResponse
+	if err := c.doJSON(ctx, http.MethodPost, "/query_firmware_campaign", adminToken, req, &out); err != nil {
+		return nil, err
+	}
+	if out.Campaign != nil {
+		return []FirmwareCampaignRecord{*out.Campaign}, nil
+	}
+	return out.Campaigns, nil
 }
 
 func (c *Client) DeviceTelemetry(ctx context.Context, adminToken, devid, orgID string) (DeviceTelemetryResponse, error) {

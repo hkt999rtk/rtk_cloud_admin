@@ -34,6 +34,7 @@ type Device struct {
 	Model           string         `json:"model"`
 	SerialNumber    string         `json:"serial_number"`
 	VideoCloudDevID string         `json:"video_cloud_devid"`
+	FirmwareVersion string         `json:"firmware_version"`
 	Status          string         `json:"status"`
 	Readiness       ReadinessState `json:"readiness"`
 	SourceFacts     []SourceFact   `json:"source_facts"`
@@ -142,6 +143,11 @@ type TelemetryEvent struct {
 
 type DeviceTelemetry struct {
 	DeviceID        string                  `json:"device_id"`
+	DeviceName      string                  `json:"device_name,omitempty"`
+	Organization    string                  `json:"organization,omitempty"`
+	SerialNumber    string                  `json:"serial_number,omitempty"`
+	Model           string                  `json:"model,omitempty"`
+	LastSeenAt      string                  `json:"last_seen_at,omitempty"`
 	Health          string                  `json:"health"`
 	Signals         []string                `json:"signals"`
 	FirmwareVersion string                  `json:"firmware_version"`
@@ -185,8 +191,16 @@ type FleetStreamTrendPoint struct {
 type FleetStreamWorstDevice struct {
 	DeviceID       string  `json:"device_id"`
 	DeviceName     string  `json:"device_name"`
+	ModeUsed       string  `json:"mode_used"`
+	Readiness      string  `json:"readiness"`
 	SuccessRatePct float64 `json:"success_rate_pct"`
 	Requests       int     `json:"requests"`
+	LastStreamAt   string  `json:"last_stream_at,omitempty"`
+}
+
+type FleetStreamModeTrend struct {
+	Mode   string                  `json:"mode"`
+	Points []FleetStreamTrendPoint `json:"points"`
 }
 
 type FleetStreamStats struct {
@@ -198,5 +212,43 @@ type FleetStreamStats struct {
 	NeverStreamedCount int                             `json:"never_streamed_count"`
 	ByMode             map[string]FleetStreamStatsMode `json:"by_mode"`
 	Trend              []FleetStreamTrendPoint         `json:"trend"`
+	TrendByMode        []FleetStreamModeTrend          `json:"trend_by_mode"`
 	WorstDevices       []FleetStreamWorstDevice        `json:"worst_devices"`
+}
+
+type FirmwareDistributionVersion struct {
+	Version  string  `json:"version"`
+	Count    int     `json:"count"`
+	Pct      float64 `json:"pct"`
+	IsLatest bool    `json:"is_latest"`
+}
+
+type FirmwareDistributionRollout struct {
+	DeviceID       string `json:"device_id"`
+	DeviceName     string `json:"device_name"`
+	CurrentVersion string `json:"current_version"`
+	TargetVersion  string `json:"target_version"`
+	RolloutStatus  string `json:"rollout_status"`
+	FailureReason  string `json:"failure_reason,omitempty"`
+	LastUpdated    string `json:"last_updated,omitempty"`
+}
+
+type FirmwareDistributionCampaign struct {
+	CampaignID    string                        `json:"campaign_id"`
+	TargetVersion string                        `json:"target_version"`
+	Policy        string                        `json:"policy"`
+	State         string                        `json:"state"`
+	Applied       int                           `json:"applied"`
+	Pending       int                           `json:"pending"`
+	Failed        int                           `json:"failed"`
+	Skipped       int                           `json:"skipped"`
+	Total         int                           `json:"total"`
+	StartedAt     string                        `json:"started_at"`
+	Rollouts      []FirmwareDistributionRollout `json:"rollouts,omitempty"`
+}
+
+type FirmwareDistribution struct {
+	OrgID     string                         `json:"org_id"`
+	Versions  []FirmwareDistributionVersion  `json:"versions"`
+	Campaigns []FirmwareDistributionCampaign `json:"campaigns"`
 }
