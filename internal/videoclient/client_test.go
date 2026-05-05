@@ -164,6 +164,111 @@ func TestGetCameraInfo(t *testing.T) {
 	}
 }
 
+func TestGetDeviceInfo(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/get_camera_info" {
+			t.Fatalf("path = %q, want /get_camera_info", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer secret" {
+			t.Fatalf("Authorization = %q, want Bearer secret", got)
+		}
+		var body struct {
+			DevID string `json:"devid"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if body.DevID != "cam-1" {
+			t.Fatalf("devid = %q, want cam-1", body.DevID)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status": "ok",
+			"info": map[string]any{
+				"current_transport": "websocket",
+				"firmware_version":  "v1.2.3",
+			},
+		})
+	}))
+	defer upstream.Close()
+
+	info, err := New(upstream.URL).GetDeviceInfo(t.Context(), "secret", "cam-1")
+	if err != nil {
+		t.Fatalf("GetDeviceInfo error: %v", err)
+	}
+	if info.CurrentTransport != "websocket" {
+		t.Fatalf("CurrentTransport = %q, want websocket", info.CurrentTransport)
+	}
+	if info.FirmwareVersion != "v1.2.3" {
+		t.Fatalf("FirmwareVersion = %q, want v1.2.3", info.FirmwareVersion)
+	}
+}
+
+func TestDeviceTelemetry(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/devices/cam-1/telemetry" {
+			t.Fatalf("path = %q, want /api/devices/cam-1/telemetry", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("org_id"); got != "org-1" {
+			t.Fatalf("org_id = %q, want org-1", got)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer secret" {
+			t.Fatalf("Authorization = %q, want Bearer secret", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":            "ok",
+			"org_id":            "org-1",
+			"device_id":         "cam-1",
+			"account_device_id": "acct-1",
+			"device_name":       "Front Door",
+			"latest_health": map[string]any{
+				"state":       "warning",
+				"occurred_at": "2026-05-04T12:00:00Z",
+				"payload": map[string]any{
+					"signals": []string{"low_rssi"},
+				},
+			},
+			"rssi_history": []map[string]any{
+				{"occurred_at": "2026-05-04T11:00:00Z", "rssi_dbm": -67, "quality": "fair"},
+			},
+			"uptime_history": []map[string]any{
+				{"occurred_at": "2026-05-04T11:00:00Z", "uptime_seconds": 3600},
+			},
+			"recent_events": []map[string]any{
+				{
+					"event_id":    "evt-1",
+					"event_type":  "device.health.summary",
+					"occurred_at": "2026-05-04T12:00:00Z",
+					"source":      "video_cloud",
+					"payload": map[string]any{
+						"summary": "Device health summary updated",
+					},
+				},
+			},
+		})
+	}))
+	defer upstream.Close()
+
+	response, err := New(upstream.URL).DeviceTelemetry(t.Context(), "secret", "cam-1", "org-1")
+	if err != nil {
+		t.Fatalf("DeviceTelemetry error: %v", err)
+	}
+	if response.DeviceID != "cam-1" {
+		t.Fatalf("DeviceID = %q, want cam-1", response.DeviceID)
+	}
+	if response.LatestHealth == nil || response.LatestHealth.State != "warning" {
+		t.Fatalf("LatestHealth = %+v, want warning", response.LatestHealth)
+	}
+	if len(response.RSSIHistory) != 1 || len(response.UptimeHistory) != 1 || len(response.RecentEvents) != 1 {
+		t.Fatalf("unexpected telemetry lengths: rssi=%d uptime=%d events=%d", len(response.RSSIHistory), len(response.UptimeHistory), len(response.RecentEvents))
+	}
+}
+
 func TestGetCameraInfoUpstreamError(t *testing.T) {
 	t.Parallel()
 
