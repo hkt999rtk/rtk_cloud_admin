@@ -74,6 +74,15 @@ func TestDisabledClient(t *testing.T) {
 	if _, err := client.GetCameraInfo(t.Context(), "tok", "d1"); err == nil {
 		t.Fatal("expected disabled GetCameraInfo error")
 	}
+	if _, err := client.EnumFirmware(t.Context(), "tok", "cam-a"); err == nil {
+		t.Fatal("expected disabled EnumFirmware error")
+	}
+	if _, err := client.QueryFirmwareRollout(t.Context(), "tok", "cam-a", ""); err == nil {
+		t.Fatal("expected disabled QueryFirmwareRollout error")
+	}
+	if _, err := client.QueryFirmwareCampaigns(t.Context(), "tok", "cam-a", false); err == nil {
+		t.Fatal("expected disabled QueryFirmwareCampaigns error")
+	}
 }
 
 func TestQueryActivation(t *testing.T) {
@@ -203,6 +212,106 @@ func TestGetDeviceInfo(t *testing.T) {
 	}
 	if info.FirmwareVersion != "v1.2.3" {
 		t.Fatalf("FirmwareVersion = %q, want v1.2.3", info.FirmwareVersion)
+	}
+}
+
+func TestFirmwareDistributionQueries(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/enum_firmware":
+			if got := r.Header.Get("Authorization"); got != "Bearer secret" {
+				t.Fatalf("Authorization = %q, want Bearer secret", got)
+			}
+			var body struct {
+				Model string `json:"model"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode enum body: %v", err)
+			}
+			if body.Model != "cam-a" {
+				t.Fatalf("model = %q, want cam-a", body.Model)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":   "ok",
+				"versions": []string{"v1.2.3", "v1.2.4"},
+			})
+		case "/query_firmware_rollout":
+			if got := r.Header.Get("Authorization"); got != "Bearer secret" {
+				t.Fatalf("Authorization = %q, want Bearer secret", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "ok",
+				"model":  "cam-a",
+				"rollouts": []map[string]any{
+					{
+						"device_id":       "device-1",
+						"device_name":     "cam-a-001",
+						"campaign_id":     "campaign-1",
+						"target_version":  "v1.2.4",
+						"current_version": "v1.2.4",
+						"rollout_status":  "applied",
+					},
+				},
+			})
+		case "/query_firmware_campaign":
+			if got := r.Header.Get("Authorization"); got != "Bearer secret" {
+				t.Fatalf("Authorization = %q, want Bearer secret", got)
+			}
+			var body struct {
+				Model           string `json:"model"`
+				IncludeArchived bool   `json:"include_archived"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode campaign body: %v", err)
+			}
+			if body.Model != "cam-a" || body.IncludeArchived {
+				t.Fatalf("campaign body = %+v, want model cam-a include_archived false", body)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "ok",
+				"campaigns": []map[string]any{
+					{
+						"id":             "campaign-1",
+						"model":          "cam-a",
+						"target_version": "v1.2.4",
+						"policy":         map[string]any{"name": "normal"},
+						"state":          "active",
+						"created_at":     "2026-05-01T00:00:00Z",
+						"updated_at":     "2026-05-01T00:00:00Z",
+					},
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	enum, err := client.EnumFirmware(t.Context(), "secret", "cam-a")
+	if err != nil {
+		t.Fatalf("EnumFirmware error: %v", err)
+	}
+	if len(enum.Versions) != 2 || enum.Versions[1] != "v1.2.4" {
+		t.Fatalf("EnumFirmware = %+v, want versions [v1.2.3 v1.2.4]", enum)
+	}
+
+	rollouts, err := client.QueryFirmwareRollout(t.Context(), "secret", "cam-a", "")
+	if err != nil {
+		t.Fatalf("QueryFirmwareRollout error: %v", err)
+	}
+	if len(rollouts.Rollouts) != 1 || rollouts.Rollouts[0].DeviceName != "cam-a-001" {
+		t.Fatalf("QueryFirmwareRollout = %+v, want one rollout", rollouts)
+	}
+
+	campaigns, err := client.QueryFirmwareCampaigns(t.Context(), "secret", "cam-a", false)
+	if err != nil {
+		t.Fatalf("QueryFirmwareCampaigns error: %v", err)
+	}
+	if len(campaigns) != 1 || campaigns[0].ID != "campaign-1" {
+		t.Fatalf("QueryFirmwareCampaigns = %+v, want campaign-1", campaigns)
 	}
 }
 

@@ -17,6 +17,7 @@ function App() {
   const [operations, setOperations] = useState([]);
   const [health, setHealth] = useState([]);
   const [audit, setAudit] = useState([]);
+  const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
   const [overviewWindow, setOverviewWindow] = useState('7d');
@@ -70,6 +71,13 @@ function App() {
         setOperations(nextOperations);
         setHealth(nextHealth);
         setAudit(nextAudit);
+        if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin') {
+          const nextFirmwareDistribution = await fetchJSON('/api/fleet/firmware-distribution');
+          if (!alive) return;
+          setFirmwareDistribution(nextFirmwareDistribution);
+        } else {
+          setFirmwareDistribution(null);
+        }
 
         if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
           const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
@@ -105,6 +113,7 @@ function App() {
           setOperations([]);
           setHealth([]);
           setAudit([]);
+          setFirmwareDistribution(null);
           setFleetHealth(null);
           setStreamStats(null);
           setRecentAlerts([]);
@@ -162,6 +171,13 @@ function App() {
   function closeDeviceDrawer() {
     setDeviceDrawerOpen(false);
     updateDevicesLocation({ deviceId: '' });
+  }
+
+  function openDevicesForFirmware(version) {
+    setSelectedDeviceId('');
+    setDeviceDrawerOpen(false);
+    updateDevicesLocation({ deviceId: '', health: '', firmware: version });
+    setActive('devices');
   }
 
   async function runDeviceAction(deviceId, action) {
@@ -309,6 +325,13 @@ function App() {
             onAction={runDeviceAction}
           />
         ) : null}
+        {!needsPlatformAccess && active === 'firmware-ota' ? (
+          <FirmwareOTAPage
+            loading={loading}
+            distribution={firmwareDistribution}
+            onViewDevices={openDevicesForFirmware}
+          />
+        ) : null}
         {!needsPlatformAccess && active === 'operations' ? <Operations operations={operations} /> : null}
         {!needsPlatformAccess && active === 'stream-health' ? (
           <StreamHealthPage
@@ -384,21 +407,199 @@ function Overview({
   );
 }
 
-function FirmwareOTAPage() {
+function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
+  const [expandedCampaignId, setExpandedCampaignId] = useState('');
+  const versions = distribution?.versions || [];
+  const campaigns = distribution?.campaigns || [];
+  const totalDevices = versions.reduce((sum, version) => sum + (version.count || 0), 0);
+  const activeCampaigns = campaigns.filter((campaign) => ['active', 'scheduled'].includes(String(campaign.state || '').toLowerCase())).length;
+
+  useEffect(() => {
+    if (campaigns.length === 0) {
+      setExpandedCampaignId('');
+      return;
+    }
+    if (!expandedCampaignId || !campaigns.some((campaign) => campaign.campaign_id === expandedCampaignId)) {
+      setExpandedCampaignId(campaigns[0].campaign_id);
+    }
+  }, [campaigns, expandedCampaignId]);
+
+  const latestVersion = versions.find((version) => version.is_latest)?.version || versions[0]?.version || '—';
+
   return (
-    <section className="panel">
+    <section className="panel firmware-ota-page">
       <div className="panel-head">
         <div>
+          <p className="eyebrow">Customer View</p>
           <h2>Firmware &amp; OTA</h2>
-          <p>Firmware policy and rollout staging is in progress and will be added in this section.</p>
+          <p>Track which firmware versions are live across the fleet and how each OTA campaign is progressing.</p>
+        </div>
+        <div className="firmware-page-metrics">
+          <div>
+            <strong>{totalDevices}</strong>
+            <span>Devices</span>
+          </div>
+          <div>
+            <strong>{versions.length}</strong>
+            <span>Versions</span>
+          </div>
+          <div>
+            <strong>{activeCampaigns}</strong>
+            <span>Active campaigns</span>
+          </div>
+          <div>
+            <strong>{latestVersion}</strong>
+            <span>Latest version</span>
+          </div>
         </div>
       </div>
-      <p className="placeholder-subtitle">This section is a temporary placeholder while the OTA workflow is being integrated.</p>
+
+      {loading && !distribution ? <p className="empty-state">Loading firmware distribution.</p> : null}
+
+      {distribution ? (
+        <div className="firmware-layout">
+          <section className="panel firmware-panel">
+            <div className="panel-head">
+              <div>
+                <h3>Firmware distribution</h3>
+                <p>Horizontal share by version. Click a row to open the Devices table with that version prefiltered.</p>
+              </div>
+            </div>
+            {versions.length ? (
+              <div className="firmware-version-list">
+                {versions.map((version) => (
+                  <button
+                    key={version.version}
+                    type="button"
+                    className={`firmware-version-row${version.is_latest ? ' is-latest' : ''}`}
+                    onClick={() => onViewDevices(version.version)}
+                  >
+                    <div className="firmware-version-row__meta">
+                      <div>
+                        <strong>{version.version}</strong>
+                        {version.is_latest ? <span className="version-badge">Latest</span> : null}
+                      </div>
+                      <small>{version.count} devices</small>
+                    </div>
+                    <div className="firmware-version-row__bar" aria-hidden="true">
+                      <span style={{ width: `${Math.max(version.pct || 0, version.count ? 8 : 0)}%` }} />
+                    </div>
+                    <strong className="firmware-version-row__pct">{formatPercent(version.pct || 0)}</strong>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-state">No firmware versions are available yet.</p>
+            )}
+          </section>
+
+          <section className="panel firmware-panel">
+            <div className="panel-head">
+              <div>
+                <h3>OTA campaigns</h3>
+                <p>Click a campaign to inspect its device-level rollout breakdown.</p>
+              </div>
+            </div>
+            {campaigns.length ? (
+              <div className="firmware-campaign-list">
+                {campaigns.map((campaign) => {
+                  const expanded = expandedCampaignId === campaign.campaign_id;
+                  return (
+                    <article key={campaign.campaign_id} className={`firmware-campaign${expanded ? ' is-expanded' : ''}`}>
+                      <button
+                        type="button"
+                        className="firmware-campaign__header"
+                        onClick={() => setExpandedCampaignId(expanded ? '' : campaign.campaign_id)}
+                      >
+                        <div className="firmware-campaign__title">
+                          <strong>{campaign.campaign_id}</strong>
+                          <span>{campaign.target_version}</span>
+                        </div>
+                        <StatusBadge value={normalizeStatusKey(campaign.state)} label={toTitleCase(campaign.state || 'unknown')} />
+                      </button>
+
+                      <div className="firmware-campaign__summary">
+                        <div>
+                          <span>Policy</span>
+                          <strong>{campaign.policy || 'normal'}</strong>
+                        </div>
+                        <div>
+                          <span>Started</span>
+                          <strong>{campaign.started_at ? formatRelativeTime(campaign.started_at) : '—'}</strong>
+                        </div>
+                        <div className="firmware-progress">
+                          <div className="firmware-progress__bar" aria-hidden="true">
+                            <span style={{ width: `${campaign.total ? Math.max((campaign.applied / campaign.total) * 100, campaign.applied ? 8 : 0) : 0}%` }} />
+                          </div>
+                          <small>{campaign.applied} applied of {campaign.total || 0}</small>
+                        </div>
+                      </div>
+
+                      <div className="firmware-campaign__counts">
+                        <span>Applied {campaign.applied}</span>
+                        <span>Pending {campaign.pending}</span>
+                        <span>Failed {campaign.failed}</span>
+                        <span>Skipped {campaign.skipped}</span>
+                      </div>
+
+                      {expanded ? (
+                        <div className="firmware-rollout-table">
+                          {campaign.rollouts?.length ? (
+                            <>
+                              <div className="firmware-rollout-table__head">
+                                <span>Device</span>
+                                <span>Current</span>
+                                <span>Target</span>
+                                <span>Status</span>
+                                <span>Reason</span>
+                                <span>Updated</span>
+                              </div>
+                              {campaign.rollouts.map((rollout) => (
+                                <div className="firmware-rollout-table__row" key={`${campaign.campaign_id}:${rollout.device_id}`}>
+                                  <strong>{rollout.device_name || rollout.device_id}</strong>
+                                  <span>{rollout.current_version || '—'}</span>
+                                  <span>{rollout.target_version || campaign.target_version || '—'}</span>
+                                  <StatusBadge value={normalizeStatusKey(rollout.rollout_status)} label={toTitleCase(rollout.rollout_status || 'pending')} />
+                                  <span>{rollout.failure_reason || '—'}</span>
+                                  <time title={rollout.last_updated}>{rollout.last_updated ? formatRelativeTime(rollout.last_updated) : '—'}</time>
+                                </div>
+                              ))}
+                            </>
+                          ) : (
+                            <p className="empty-state">No rollout rows available for this campaign.</p>
+                          )}
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="empty-state">No campaigns active.</p>
+            )}
+          </section>
+        </div>
+      ) : (
+        <p className="empty-state">No firmware distribution data available yet.</p>
+      )}
     </section>
   );
 }
 
-function StreamHealthPage() {
+function StreamHealthPage({ loading, stats, window, setWindow }) {
+  const trend = stats?.trend || [];
+  const modeTrends = stats?.trend_by_mode || [];
+  const devices = stats?.worst_devices || [];
+  const byMode = stats?.by_mode || {};
+  const windowLabel = String(window || '7d').toUpperCase();
+  const chart = useMemo(() => buildStreamHealthChart(trend, modeTrends), [trend, modeTrends]);
+  const kpis = [
+    [`Stream Success Rate (${windowLabel})`, formatPercent(stats?.success_rate_pct ?? '-')],
+    ['Avg Stream Duration', stats ? formatDurationMinutes(stats.avg_duration_seconds) : '-'],
+    ['Active Sessions Now', stats?.active_sessions ?? '-'],
+    ['Devices Never Streamed', stats?.never_streamed_count ?? '-'],
+  ];
+
   return (
     <section className="panel stream-health-page">
       <div className="panel-head">
@@ -820,6 +1021,12 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
     } else {
       setHealthFilter('All');
     }
+    const firmware = params.get('firmware');
+    if (firmware) {
+      setFirmwareFilter(firmware);
+    } else {
+      setFirmwareFilter('All');
+    }
   }, [active]);
 
   useEffect(() => {
@@ -1000,7 +1207,16 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
               ))}
             </select>
           </label>
-          <button type="button" onClick={() => { setReadinessFilter('All'); setHealthFilter('All'); setSignalFilter('All'); setFirmwareFilter('All'); }}>
+          <button
+            type="button"
+            onClick={() => {
+              setReadinessFilter('All');
+              setHealthFilter('All');
+              setSignalFilter('All');
+              setFirmwareFilter('All');
+              updateDevicesLocation({ deviceId: '', health: '', firmware: '' });
+            }}
+          >
             Clear filters
           </button>
         </div>
@@ -1077,14 +1293,20 @@ function Customers({ customers }) {
 }
 
 function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) {
+  const drawerName = telemetry?.device_name || device?.name || 'Device selected';
+  const drawerOrganization = telemetry?.organization || device?.organization || '—';
+  const drawerModel = telemetry?.model || device?.model || '—';
+  const drawerSerial = telemetry?.serial_number || device?.serial_number || '—';
+  const drawerLastSeen = telemetry?.last_seen_at || device?.last_seen_at || '';
+  const drawerFirmware = telemetry?.firmware_version || device?.firmware_version || '—';
   return (
     <div className="drawer-backdrop" role="presentation" onClick={onClose}>
       <aside className="drawer-panel" role="dialog" aria-modal="true" aria-label="Device detail drawer" onClick={(event) => event.stopPropagation()}>
         <div className="drawer-header">
           <div>
             <p className="eyebrow">Device detail</p>
-            <h2>{device?.name || 'Device selected'}</h2>
-            <p>{device ? `${device.organization} · ${device.model}` : 'Select a device row to inspect its telemetry.'}</p>
+            <h2>{drawerName}</h2>
+            <p>{device ? `${drawerOrganization} · ${drawerModel}` : 'Select a device row to inspect its telemetry.'}</p>
           </div>
           <button type="button" className="drawer-close" onClick={onClose} aria-label="Close device drawer">
             Close
@@ -1098,19 +1320,19 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
             <section className="drawer-identity">
               <div>
                 <span>Device</span>
-                <strong>{device.name}</strong>
+                <strong>{drawerName}</strong>
               </div>
               <div>
                 <span>Serial</span>
-                <strong>{device.serial_number || '—'}</strong>
+                <strong>{drawerSerial}</strong>
               </div>
               <div>
                 <span>Model</span>
-                <strong>{device.model || '—'}</strong>
+                <strong>{drawerModel}</strong>
               </div>
               <div>
                 <span>Organization</span>
-                <strong>{device.organization || '—'}</strong>
+                <strong>{drawerOrganization}</strong>
               </div>
             </section>
 
@@ -1125,8 +1347,8 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
               </div>
               <div className="summary-card">
                 <span>Firmware</span>
-                <strong>{telemetry?.firmware_version || device.firmware_version || '—'}</strong>
-                <small>{telemetry?.recent_events?.[0]?.occurred_at ? `Last updated ${formatRelativeTime(telemetry.recent_events[0].occurred_at)}` : device.last_seen_at ? `Last seen ${formatRelativeTime(device.last_seen_at)}` : 'No update timestamp available.'}</small>
+                <strong>{drawerFirmware}</strong>
+                <small>{telemetry?.recent_events?.[0]?.occurred_at ? `Last updated ${formatRelativeTime(telemetry.recent_events[0].occurred_at)}` : drawerLastSeen ? `Last seen ${formatRelativeTime(drawerLastSeen)}` : 'No update timestamp available.'}</small>
               </div>
               <div className="summary-card">
                 <span>Active stream</span>
@@ -1811,6 +2033,12 @@ function formatPercent(value) {
   return `${value.toFixed(1)}%`;
 }
 
+function formatDurationMinutes(seconds) {
+  if (seconds === null || seconds === undefined || seconds === '-') return '-';
+  if (typeof seconds !== 'number') return seconds;
+  return `${(seconds / 60).toFixed(1)} min`;
+}
+
 function formatRelativeTime(iso) {
   const timestamp = Date.parse(iso);
   if (Number.isNaN(timestamp)) return iso || '-';
@@ -1864,6 +2092,72 @@ function buildFleetTrendChart(trend) {
   };
 }
 
+function buildStreamHealthChart(trend, modeTrends) {
+  if (!trend.length) {
+    return { points: [], requestBars: [], overallPoints: '', modeSeries: [], grid: [], maxRequests: 0, labelStep: 1 };
+  }
+  const width = 624;
+  const top = 28;
+  const bottom = 228;
+  const maxRequests = Math.max(...trend.map((point) => trendPointValue(point, 'requests', 'Requests')), 1);
+  const points = trend.map((point, index) => {
+    const x = 52 + (index * width) / Math.max(trend.length - 1, 1);
+    const requests = trendPointValue(point, 'requests', 'Requests');
+    const successPct = trendPointValue(point, 'success_rate_pct', 'SuccessRatePct');
+    const overallY = bottom - ((successPct || 0) / 100) * (bottom - top);
+    const barHeight = (requests / maxRequests) * (bottom - top);
+    return {
+      date: point.date || point.Date,
+      label: formatTrendLabel(point.date || point.Date),
+      x,
+      overallY,
+      requestBarX: x - 5,
+      requestBarY: bottom - barHeight,
+      requestBarHeight: barHeight,
+    };
+  });
+  const modeOrder = ['rtsp', 'relay', 'webrtc'];
+  const modeSeries = modeOrder.map((mode) => {
+    const series = modeTrends.find((item) => String(item.mode || item.Mode || '').toLowerCase() === mode);
+    const pointsForMode = (series?.points || series?.Points || []).map((point, index) => {
+      const x = 52 + (index * width) / Math.max(trend.length - 1, 1);
+      const successPct = trendPointValue(point, 'success_rate_pct', 'SuccessRatePct');
+      const y = bottom - ((successPct || 0) / 100) * (bottom - top);
+      return `${x},${y}`;
+    });
+    return {
+      mode,
+      className: `chart-line-${mode}`,
+      points: pointsForMode.join(' '),
+    };
+  });
+  return {
+    points,
+    requestBars: points.filter((point) => point.requestBarHeight > 0).map((point) => ({
+      date: point.date,
+      x: point.requestBarX,
+      y: point.requestBarY,
+      width: 10,
+      height: point.requestBarHeight,
+    })),
+    overallPoints: points.map((point) => `${point.x},${point.overallY}`).join(' '),
+    modeSeries,
+    grid: [68, 108, 148, 188],
+    maxRequests,
+    labelStep: Math.max(1, Math.ceil(points.length / 6)),
+  };
+}
+
+function streamModeLabel(mode) {
+  const key = String(mode || '').toLowerCase();
+  const map = {
+    rtsp: 'RTSP',
+    relay: 'Relay',
+    webrtc: 'WebRTC',
+  };
+  return map[key] || toTitleCase(String(mode || '').replaceAll('_', ' '));
+}
+
 function trendPointValue(point, snakeKey, camelKey) {
   const snake = point?.[snakeKey];
   if (snake !== undefined && snake !== null) return snake;
@@ -1897,6 +2191,13 @@ function updateDevicesLocation({ deviceId, health, firmware } = {}) {
       params.set('health', health);
     } else {
       params.delete('health');
+    }
+  }
+  if (firmware !== undefined) {
+    if (firmware) {
+      params.set('firmware', firmware);
+    } else {
+      params.delete('firmware');
     }
   }
   const query = params.toString();
