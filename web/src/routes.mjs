@@ -15,7 +15,7 @@ export const platformNavItems = [
 
 export function titleFor(active) {
   return {
-    overview: 'Customer Overview',
+    overview: 'Fleet Health Overview',
     devices: 'Devices',
     operations: 'Operations',
     'firmware-ota': 'Firmware & OTA',

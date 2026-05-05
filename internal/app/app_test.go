@@ -1859,12 +1859,12 @@ func TestConsoleAndAdminPagesRenderSeedData(t *testing.T) {
 		path string
 		want string
 	}{
-		{path: "/console", want: "Customer Fleet"},
-		{path: "/console/overview", want: "Customer Fleet"},
+		{path: "/console", want: "Fleet Health Overview"},
+		{path: "/console/overview", want: "Fleet Health Overview"},
 		{path: "/console/devices", want: "cam-a-001"},
-		{path: "/console/firmware-ota", want: "Customer Fleet"},
-		{path: "/console/stream-health", want: "Customer Fleet"},
-		{path: "/console/groups", want: "Customer Fleet"},
+		{path: "/console/firmware-ota", want: "Fleet Health Overview"},
+		{path: "/console/stream-health", want: "Fleet Health Overview"},
+		{path: "/console/groups", want: "Fleet Health Overview"},
 		{path: "/admin", want: "Platform Operations"},
 		{path: "/admin/ops", want: "DeviceProvisionRequested"},
 		{path: "/admin/audit", want: "Platform Operations"},

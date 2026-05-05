@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { routeFromPath } from './routes.mjs';
+import { routeFromPath, titleFor } from './routes.mjs';
 
 test('maps platform shell paths to platform routes', () => {
   assert.equal(routeFromPath('/admin'), 'platform-health');
@@ -18,4 +18,8 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/firmware-ota'), 'firmware-ota');
   assert.equal(routeFromPath('/console/stream-health'), 'stream-health');
   assert.equal(routeFromPath('/console/groups'), 'groups');
+});
+
+test('uses fleet health overview title for the customer landing page', () => {
+  assert.equal(titleFor('overview'), 'Fleet Health Overview');
 });

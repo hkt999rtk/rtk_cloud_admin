@@ -158,7 +158,7 @@ func (s *Server) shell(w http.ResponseWriter, r *http.Request) {
 <body>
   <div id="root">
     <h1>RTK Cloud Admin</h1>
-    <p>Customer Fleet</p>
+    <p>Fleet Health Overview</p>
     <p>Platform Operations</p>
     <p>cam-a-001</p>
     <p>DeviceProvisionRequested</p>

@@ -9,14 +9,19 @@ function App() {
   const [active, setActive] = useState(routeFromLocation());
   const [me, setMe] = useState(null);
   const [summary, setSummary] = useState(null);
+  const [fleetHealth, setFleetHealth] = useState(null);
+  const [streamStats, setStreamStats] = useState(null);
+  const [recentAlerts, setRecentAlerts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [devices, setDevices] = useState([]);
   const [operations, setOperations] = useState([]);
   const [health, setHealth] = useState([]);
   const [audit, setAudit] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
+  const [overviewWindow, setOverviewWindow] = useState('7d');
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
+  const [loading, setLoading] = useState(true);
   const isPlatformView = active.startsWith('platform');
   const visibleNavItems = isPlatformView ? platformNavItems : customerNavItems;
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
@@ -25,6 +30,7 @@ function App() {
     let alive = true;
     async function loadData() {
       setError('');
+      setLoading(true);
       try {
         const nextMe = await fetchJSON('/api/me');
         if (!alive) return;
@@ -33,23 +39,28 @@ function App() {
         const useAdminApi = isPlatformView && nextMe.kind === 'platform_admin';
         if (isPlatformView && nextMe.kind !== 'platform_admin') {
           setSummary(null);
+          setFleetHealth(null);
+          setStreamStats(null);
+          setRecentAlerts([]);
           setCustomers([]);
           setDevices([]);
           setOperations([]);
           setHealth([]);
           setAudit([]);
+          setLoading(false);
           return;
         }
 
         const prefix = useAdminApi ? '/api/admin' : '/api';
-        const [nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit] = await Promise.all([
+        const baseRequests = [
           fetchJSON(`${prefix}/summary`),
           fetchJSON(`${prefix}/customers`),
           fetchJSON(`${prefix}/devices`),
           fetchJSON(`${prefix}/operations`),
           fetchJSON(`${prefix}/service-health`),
           fetchJSON(`${prefix}/audit`),
-        ]);
+        ];
+        const [nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit] = await Promise.all(baseRequests);
         if (!alive) return;
         setSummary(nextSummary);
         setCustomers(nextCustomers);
@@ -57,6 +68,27 @@ function App() {
         setOperations(nextOperations);
         setHealth(nextHealth);
         setAudit(nextAudit);
+
+        if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
+          const [nextFleetHealth, nextStreamStats] = await Promise.all([
+            fetchJSON(`/api/fleet/health-summary?window=${overviewWindow}`),
+            fetchJSON(`/api/fleet/stream-stats?window=${overviewWindow}`),
+          ]);
+          if (!alive) return;
+          setFleetHealth(nextFleetHealth);
+          setStreamStats(nextStreamStats);
+          if (active === 'overview') {
+            const nextAlerts = await fetchRecentAlerts(nextDevices);
+            if (!alive) return;
+            setRecentAlerts(nextAlerts);
+          } else {
+            setRecentAlerts([]);
+          }
+        } else {
+          setFleetHealth(null);
+          setStreamStats(null);
+          setRecentAlerts([]);
+        }
       } catch (err) {
         if (!alive) return;
         if (err.isAuthError) {
@@ -70,15 +102,20 @@ function App() {
           setOperations([]);
           setHealth([]);
           setAudit([]);
+          setFleetHealth(null);
+          setStreamStats(null);
+          setRecentAlerts([]);
         }
         if (alive) setError(err.message);
+      } finally {
+        if (alive) setLoading(false);
       }
     }
     loadData();
     return () => {
       alive = false;
     };
-  }, [active, refreshTick]);
+  }, [active, overviewWindow, refreshTick]);
 
   useEffect(() => {
     const onPopState = () => setActive(routeFromLocation());
@@ -106,6 +143,12 @@ function App() {
     setSelectedDeviceId(deviceId);
     const path = '/console/devices';
     window.history.pushState({}, '', `${path}?device=${encodeURIComponent(deviceId)}`);
+    setActive('devices');
+  }
+
+  function filterDevicesByHealth(healthState) {
+    const path = '/console/devices';
+    window.history.pushState({}, '', `${path}?health=${encodeURIComponent(healthState)}`);
     setActive('devices');
   }
 
@@ -229,9 +272,23 @@ function App() {
         {error ? <div className="error">{error}</div> : null}
 
         {needsPlatformAccess ? <PlatformAccessGate active={active} onLogin={handleLogin} /> : null}
-        {!needsPlatformAccess && active === 'overview' ? <Overview summary={summary} me={me} onLogin={handleLogin} /> : null}
+        {!needsPlatformAccess && active === 'overview' ? (
+          <Overview
+            summary={summary}
+            fleetHealth={fleetHealth}
+            streamStats={streamStats}
+            recentAlerts={recentAlerts}
+            overviewWindow={overviewWindow}
+            setOverviewWindow={setOverviewWindow}
+            me={me}
+            loading={loading}
+            onLogin={handleLogin}
+            onHealthFilter={filterDevicesByHealth}
+          />
+        ) : null}
         {!needsPlatformAccess && active === 'devices' ? (
           <Devices
+            active={active}
             devices={devices}
             selectedDevice={selectedDevice}
             setSelectedDeviceId={selectDevice}
@@ -250,19 +307,60 @@ function App() {
   );
 }
 
-function Overview({ summary, me, onLogin }) {
+function Overview({
+  summary,
+  fleetHealth,
+  streamStats,
+  recentAlerts,
+  overviewWindow,
+  setOverviewWindow,
+  me,
+  loading,
+  onLogin,
+  onHealthFilter,
+}) {
+  const current = fleetHealth?.current || {};
+  const onlineCount = summary?.online_devices ?? '-';
+  const onlineRate = fleetHealth?.online_rate_7d_pct ?? '-';
+  const needsAttention = current.warning !== undefined || current.critical !== undefined
+    ? (current.warning || 0) + (current.critical || 0)
+    : '-';
+  const activeStreams = streamStats?.active_sessions ?? '-';
+
   return (
-    <>
-      <MetricGrid summary={summary} />
-      {!me?.authenticated ? <LoginPanel mode="customer" title="Customer Account Manager login" onLogin={onLogin} /> : null}
-      <section className="panel split-panel">
-        <div>
-          <h2>Customer overview</h2>
-          <p>Monitor fleet key metrics and access fleet management pages.</p>
-          <p>Use the Devices page to perform read and lifecycle actions for your own organization.</p>
+    <div className="overview-layout">
+      <section className="panel hero-panel">
+        <div className="hero-copy">
+          <p className="eyebrow">Customer View</p>
+          <h2>Fleet Health Overview</h2>
+          <p>Single-glance fleet health, trend, and alert awareness for Tier 2 operators.</p>
         </div>
+        {!me?.authenticated ? <LoginPanel mode="customer" title="Customer Account Manager login" onLogin={onLogin} /> : null}
       </section>
-    </>
+
+      <section className="metrics overview-metrics">
+        <MetricCard label="Online" value={onlineCount} hint={summary ? `${summary.total_devices ?? 0} total devices` : 'Waiting for summary data'} tone="good" />
+        <MetricCard label="Online Rate (7d)" value={formatPercent(onlineRate)} hint={fleetHealth ? 'Daily online share across the current window' : 'Sign in to load fleet health'} tone="info" />
+        <MetricCard label="Needs Attention" value={needsAttention} hint={fleetHealth ? 'Devices in warning or critical health' : 'No health summary yet'} tone={needsAttention === 0 ? 'good' : 'warn'} />
+        <MetricCard label="Active Streams" value={activeStreams} hint={streamStats ? 'Open sessions right now' : 'Stream stats unavailable'} tone="info" />
+      </section>
+
+      <section className="overview-grid">
+        <FleetHealthTrendPanel
+          loading={loading}
+          trend={fleetHealth?.trend || []}
+          window={overviewWindow}
+          onWindowChange={setOverviewWindow}
+        />
+        <HealthDistributionPanel
+          loading={loading}
+          current={fleetHealth?.current}
+          onFilter={onHealthFilter}
+        />
+      </section>
+
+      <RecentAlertsPanel loading={loading} alerts={recentAlerts} />
+    </div>
   );
 }
 
@@ -366,17 +464,194 @@ function MetricGrid({ summary }) {
   );
 }
 
-function Devices({ devices, selectedDevice, setSelectedDeviceId, onAction }) {
+function MetricCard({ label, value, hint, tone = 'neutral' }) {
+  return (
+    <div className={`metric-card tone-${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{hint}</small>
+    </div>
+  );
+}
+
+function FleetHealthTrendPanel({ loading, trend, window, onWindowChange }) {
+  const chart = useMemo(() => buildFleetTrendChart(trend), [trend]);
+  return (
+    <section className="panel overview-panel trend-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Fleet health trend</h2>
+          <p>Daily online share and warning/critical volume across the current window.</p>
+        </div>
+        <div className="window-toggle" role="tablist" aria-label="Fleet health window">
+          {['7d', '30d'].map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={window === value ? 'active' : ''}
+              onClick={() => onWindowChange(value)}
+            >
+              {value.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+      {loading && !trend.length ? (
+        <p className="empty-state">Loading fleet trend data.</p>
+      ) : chart.points.length ? (
+        <>
+          <div className="chart-legend">
+            <span><i className="legend-line legend-online" /> Online %</span>
+            <span><i className="legend-line legend-alerts" /> Warning + critical</span>
+          </div>
+          <svg viewBox="0 0 720 280" className="trend-chart" role="img" aria-label="Fleet health trend chart">
+            <defs>
+              <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="rgba(0, 104, 183, 0.22)" />
+                <stop offset="100%" stopColor="rgba(0, 104, 183, 0.03)" />
+              </linearGradient>
+            </defs>
+            {chart.grid.map((line, index) => (
+              <line key={`grid-${index}`} x1="52" x2="676" y1={line} y2={line} className="chart-grid-line" />
+            ))}
+            <line x1="52" x2="676" y1="228" y2="228" className="chart-axis-line" />
+            <polyline points={chart.onlinePoints} className="chart-line chart-line-online" />
+            <polyline points={chart.alertPoints} className="chart-line chart-line-alerts" />
+            {chart.points.map((point, index) => (
+              <g key={point.date}>
+                <circle cx={point.x} cy={point.onlineY} r="4" className="chart-dot chart-dot-online" />
+                <circle cx={point.x} cy={point.alertY} r="4" className="chart-dot chart-dot-alerts" />
+                {index % chart.labelStep === 0 ? (
+                  <text x={point.x} y="256" textAnchor="middle" className="chart-label">
+                    {point.label}
+                  </text>
+                ) : null}
+              </g>
+            ))}
+            <text x="14" y="34" className="chart-axis-label">{chart.maxPct}%</text>
+            <text x="14" y="228" className="chart-axis-label">0%</text>
+            <text x="700" y="34" textAnchor="end" className="chart-axis-label">{chart.maxAlerts}</text>
+            <text x="700" y="228" textAnchor="end" className="chart-axis-label">0</text>
+          </svg>
+          <p className="chart-footnote">
+            Alert counts are plotted on the same grid as a normalized line for the selected window.
+          </p>
+        </>
+      ) : (
+        <p className="empty-state">No fleet health trend data available.</p>
+      )}
+    </section>
+  );
+}
+
+function HealthDistributionPanel({ loading, current, onFilter }) {
+  const items = [
+    { key: 'healthy', label: 'Healthy', count: current?.healthy ?? 0, tone: 'good' },
+    { key: 'warning', label: 'Warning', count: current?.warning ?? 0, tone: 'warn' },
+    { key: 'critical', label: 'Critical', count: current?.critical ?? 0, tone: 'danger' },
+    { key: 'unknown', label: 'Unknown', count: current?.unknown ?? 0, tone: 'neutral' },
+  ];
+  const total = items.reduce((sum, item) => sum + item.count, 0);
+
+  return (
+    <section className="panel overview-panel distribution-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Health distribution</h2>
+          <p>Breakdown of the current fleet by telemetry health state.</p>
+        </div>
+      </div>
+      {loading && !current ? (
+        <p className="empty-state">Loading fleet health distribution.</p>
+      ) : total > 0 ? (
+        <div className="distribution-stack">
+          <div className="distribution-bar" aria-label="Fleet health distribution">
+            {items.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`distribution-segment tone-${item.tone}`}
+                style={{ width: `${Math.max(item.count / total * 100, item.count ? 8 : 0)}%` }}
+                onClick={() => onFilter(item.key)}
+              >
+                <span>{item.label}</span>
+                <strong>{item.count}</strong>
+              </button>
+            ))}
+          </div>
+          <div className="distribution-list">
+            {items.map((item) => (
+              <button key={`legend-${item.key}`} type="button" className="distribution-row" onClick={() => onFilter(item.key)}>
+                <span className={`status status-${item.key}`}>{item.label}</span>
+                <strong>{item.count}</strong>
+                <small>{formatPercent(total ? (item.count / total) * 100 : 0)}</small>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="empty-state">No health data available yet.</p>
+      )}
+    </section>
+  );
+}
+
+function RecentAlertsPanel({ loading, alerts }) {
+  return (
+    <section className="panel overview-panel alerts-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Recent alerts</h2>
+          <p>Last 10 telemetry events that resulted in a health change.</p>
+        </div>
+      </div>
+      {loading && !alerts.length ? (
+        <p className="empty-state">Loading recent alerts.</p>
+      ) : alerts.length ? (
+        <div className="alerts-table">
+          <div className="alerts-table-head">
+            <span>Time</span>
+            <span>Device</span>
+            <span>Signal</span>
+            <span>Health</span>
+          </div>
+          {alerts.map((alert) => (
+            <div className="alerts-table-row" key={alert.id}>
+              <time title={alert.occurred_at}>{formatRelativeTime(alert.occurred_at)}</time>
+              <strong>{alert.device_name}</strong>
+              <span>{alert.signal}</span>
+              <StatusBadge value={normalizeStatusKey(alert.health)} label={toTitleCase(alert.health)} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="empty-state">No recent alert events yet.</p>
+      )}
+    </section>
+  );
+}
+
+function Devices({ active, devices, selectedDevice, setSelectedDeviceId, onAction }) {
   const [readinessFilter, setReadinessFilter] = useState('All');
   const [healthFilter, setHealthFilter] = useState('All');
   const [signalFilter, setSignalFilter] = useState('All');
   const [firmwareFilter, setFirmwareFilter] = useState('All');
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const health = params.get('health');
+    if (health) {
+      setHealthFilter(toTitleCase(health));
+    } else {
+      setHealthFilter('All');
+    }
+  }, [active]);
+
   const processedDevices = useMemo(() => {
     const withDeviceSignals = devices.map((device) => ({
       ...device,
       firmware_version_display: device.firmware_version || '—',
-      health_display: device.health || 'Unknown',
+      health_display: formatHealthLabel(device.health),
       signal_display: device.signal_quality || '—',
       readiness_display: formatReadinessLabel(device.readiness),
     }));
@@ -978,6 +1253,11 @@ function formatReadinessLabel(readiness) {
   return map[readiness] || toTitleCase(String(readiness).replaceAll('_', ' '));
 }
 
+function formatHealthLabel(health) {
+  if (health === null || health === undefined || health === '') return 'Unknown';
+  return toTitleCase(String(health).replaceAll('_', ' '));
+}
+
 function normalizeStatusKey(value) {
   if (value === null || value === undefined || value === '') return 'unknown';
   return String(value).toLowerCase().replaceAll(' ', '-');
@@ -1036,6 +1316,104 @@ async function fetchJSON(url) {
   if (response.status === 403) throw new AuthError(403, 'Access denied.');
   if (!response.ok) throw new Error(`${url} failed with ${response.status}`);
   return response.json();
+}
+
+async function fetchRecentAlerts(devices) {
+  if (!devices.length) return [];
+  const settled = await Promise.allSettled(
+    devices.map((device) => fetchJSON(`/api/devices/${device.id}/telemetry`)),
+  );
+  const alerts = [];
+  settled.forEach((result, index) => {
+    if (result.status !== 'fulfilled') return;
+    const device = devices[index];
+    const telemetry = result.value || {};
+    for (const event of telemetry.recent_events || []) {
+      alerts.push({
+        id: `${device.id}:${event.occurred_at}:${event.event_type}`,
+        occurred_at: event.occurred_at,
+        device_name: device.name,
+        signal: alertSignalLabel(event.event_type, event.summary),
+        health: telemetry.health || 'unknown',
+      });
+    }
+  });
+  alerts.sort((left, right) => compareValues(right.occurred_at, left.occurred_at));
+  return alerts.slice(0, 10);
+}
+
+function alertSignalLabel(eventType, summary) {
+  const map = {
+    'device.health.rssi_sample': 'Low RSSI',
+    'device.health.summary': 'Health summary',
+    'device.health.memory_sample': 'Memory sample',
+    'device.health.offline_risk': 'Offline risk',
+    'device.reboot.reported': 'Recent reboot',
+    'device.crash.reported': 'Recent crash',
+    'firmware.version.observed': 'Firmware observed',
+  };
+  if (map[eventType]) return map[eventType];
+  if (summary) return summary;
+  return toTitleCase(String(eventType || '').replaceAll(/[._]/g, ' '));
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined || value === '-') return '-';
+  if (typeof value !== 'number') return value;
+  return `${value.toFixed(1)}%`;
+}
+
+function formatRelativeTime(iso) {
+  const timestamp = Date.parse(iso);
+  if (Number.isNaN(timestamp)) return iso || '-';
+  const deltaSeconds = Math.round((Date.now() - timestamp) / 1000);
+  const abs = Math.abs(deltaSeconds);
+  if (abs < 60) return deltaSeconds >= 0 ? `${abs}s ago` : `in ${abs}s`;
+  const minutes = Math.round(abs / 60);
+  if (minutes < 60) return deltaSeconds >= 0 ? `${minutes}m ago` : `in ${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return deltaSeconds >= 0 ? `${hours}h ago` : `in ${hours}h`;
+  const days = Math.round(hours / 24);
+  return deltaSeconds >= 0 ? `${days}d ago` : `in ${days}d`;
+}
+
+function buildFleetTrendChart(trend) {
+  if (!trend.length) {
+    return { points: [], onlinePoints: '', alertPoints: '', grid: [], maxPct: 100, maxAlerts: 0, labelStep: 1 };
+  }
+  const width = 624;
+  const height = 184;
+  const top = 28;
+  const bottom = 228;
+  const maxAlerts = Math.max(...trend.map((point) => point.WarningCount + point.CriticalCount), 1);
+  const points = trend.map((point, index) => {
+    const x = 52 + (index * width) / Math.max(trend.length - 1, 1);
+    const onlineY = bottom - ((point.OnlinePct || 0) / 100) * (bottom - top);
+    const alerts = point.WarningCount + point.CriticalCount;
+    const alertY = bottom - ((alerts / maxAlerts) * (bottom - top));
+    return {
+      date: point.Date,
+      label: formatTrendLabel(point.Date),
+      x,
+      onlineY,
+      alertY,
+    };
+  });
+  return {
+    points,
+    onlinePoints: points.map((point) => `${point.x},${point.onlineY}`).join(' '),
+    alertPoints: points.map((point) => `${point.x},${point.alertY}`).join(' '),
+    grid: [68, 108, 148, 188],
+    maxPct: 100,
+    maxAlerts,
+    labelStep: Math.max(1, Math.ceil(points.length / 6)),
+  };
+}
+
+function formatTrendLabel(date) {
+  const parsed = Date.parse(date);
+  if (Number.isNaN(parsed)) return date;
+  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(parsed));
 }
 
 function runRowAction(event, onAction, deviceId, action) {

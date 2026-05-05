@@ -214,6 +214,10 @@ p {
   margin-bottom: 18px;
 }
 
+.overview-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .metric,
 .panel {
   background: rgba(255, 255, 255, 0.92);
@@ -249,6 +253,316 @@ p {
   display: block;
   font-size: 28px;
   margin-top: 8px;
+}
+
+.metric-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(238, 248, 251, 0.92) 100%);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow-soft);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  height: 3px;
+  width: 100%;
+}
+
+.metric-card span {
+  color: var(--muted);
+  display: block;
+  font-size: 13px;
+}
+
+.metric-card strong {
+  color: var(--navy);
+  display: block;
+  font-size: 30px;
+  margin-top: 8px;
+}
+
+.metric-card small {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.metric-card.tone-good::before {
+  background: #34a853;
+}
+
+.metric-card.tone-info::before {
+  background: var(--brand-cyan);
+}
+
+.metric-card.tone-warn::before {
+  background: #f79009;
+}
+
+.metric-card.tone-danger::before {
+  background: var(--danger);
+}
+
+.overview-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.hero-panel {
+  align-items: flex-start;
+  background:
+    radial-gradient(circle at top right, rgba(109, 206, 221, 0.14), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(234, 246, 251, 0.94) 100%);
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.hero-copy {
+  max-width: 52ch;
+}
+
+.overview-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
+}
+
+.overview-panel {
+  min-height: 100%;
+}
+
+.window-toggle {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.window-toggle button {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--brand-dark);
+  cursor: pointer;
+  min-height: 34px;
+  padding: 6px 12px;
+}
+
+.window-toggle button.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.trend-chart {
+  display: block;
+  height: auto;
+  margin-top: 14px;
+  width: 100%;
+}
+
+.chart-grid-line,
+.chart-axis-line {
+  stroke: rgba(37, 56, 76, 0.12);
+  stroke-width: 1;
+}
+
+.chart-axis-line {
+  stroke: rgba(37, 56, 76, 0.24);
+}
+
+.chart-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3.5;
+}
+
+.chart-line-online {
+  stroke: var(--brand);
+}
+
+.chart-line-alerts {
+  stroke: #f79009;
+}
+
+.chart-dot {
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.chart-dot-online {
+  fill: var(--brand);
+}
+
+.chart-dot-alerts {
+  fill: #f79009;
+}
+
+.chart-label,
+.chart-axis-label {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.chart-legend span {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.legend-line {
+  border-radius: 999px;
+  display: inline-block;
+  height: 3px;
+  width: 18px;
+}
+
+.legend-online {
+  background: var(--brand);
+}
+
+.legend-alerts {
+  background: #f79009;
+}
+
+.chart-footnote,
+.empty-state {
+  color: var(--muted);
+  margin-top: 12px;
+}
+
+.distribution-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.distribution-bar {
+  align-items: stretch;
+  background: #f8fbfd;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: flex;
+  overflow: hidden;
+}
+
+.distribution-segment {
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 12px;
+  text-align: left;
+}
+
+.distribution-segment span {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.92;
+}
+
+.distribution-segment strong {
+  font-size: 20px;
+}
+
+.distribution-list {
+  display: grid;
+  gap: 8px;
+}
+
+.distribution-row {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto auto 1fr;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.distribution-row strong {
+  color: var(--navy);
+}
+
+.distribution-row small {
+  color: var(--muted);
+  justify-self: end;
+}
+
+.distribution-segment.tone-good {
+  background: linear-gradient(180deg, rgba(52, 168, 83, 0.92) 0%, rgba(40, 145, 71, 0.92) 100%);
+}
+
+.distribution-segment.tone-warn {
+  background: linear-gradient(180deg, rgba(247, 144, 9, 0.92) 0%, rgba(224, 122, 0, 0.92) 100%);
+}
+
+.distribution-segment.tone-danger {
+  background: linear-gradient(180deg, rgba(180, 35, 24, 0.92) 0%, rgba(147, 28, 18, 0.92) 100%);
+}
+
+.distribution-segment.tone-neutral {
+  background: linear-gradient(180deg, rgba(37, 56, 76, 0.88) 0%, rgba(72, 88, 108, 0.88) 100%);
+}
+
+.alerts-table {
+  display: grid;
+  gap: 8px;
+}
+
+.alerts-table-head,
+.alerts-table-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 120px minmax(180px, 1.6fr) minmax(140px, 1fr) minmax(120px, 0.8fr);
+  align-items: center;
+}
+
+.alerts-table-head {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.alerts-table-row {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.alerts-table-row time {
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.alerts-table-row strong {
+  color: var(--navy);
+}
+
+.alerts-table-row .status {
+  justify-self: start;
 }
 
 .panel {
@@ -663,6 +977,7 @@ th {
 }
 
 .status-online,
+.status-healthy,
 .status-ok,
 .status-succeeded,
 .status-present {
@@ -677,6 +992,7 @@ th {
   color: var(--brand);
 }
 
+.status-warning,
 .status-cloud-activation-pending,
 .status-pending,
 .status-retrying,
@@ -686,11 +1002,17 @@ th {
   color: var(--navy);
 }
 
+.status-critical,
 .status-failed,
 .status-dead-lettered,
 .status-down {
   background: #fef3f2;
   color: var(--danger);
+}
+
+.status-unknown {
+  background: rgba(37, 56, 76, 0.08);
+  color: var(--navy);
 }
 
 .error {
