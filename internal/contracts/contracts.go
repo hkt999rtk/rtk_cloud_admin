@@ -122,3 +122,30 @@ type AuditEvent struct {
 	UpstreamOperationID string `json:"upstream_operation_id,omitempty"`
 	CreatedAt           string `json:"created_at"`
 }
+
+type TelemetryRssiSample struct {
+	Date    string `json:"date"`
+	AvgDBM  int    `json:"avg_dbm"`
+	Quality string `json:"quality"`
+}
+
+type TelemetryUptimeSample struct {
+	Date      string  `json:"date"`
+	OnlinePct float64 `json:"online_pct"`
+}
+
+type TelemetryEvent struct {
+	OccurredAt string `json:"occurred_at"`
+	EventType  string `json:"event_type"`
+	Summary    string `json:"summary"`
+}
+
+type DeviceTelemetry struct {
+	DeviceID        string                  `json:"device_id"`
+	Health          string                  `json:"health"`
+	Signals         []string                `json:"signals"`
+	FirmwareVersion string                  `json:"firmware_version"`
+	RSSI7D          []TelemetryRssiSample   `json:"rssi_7d"`
+	Uptime7D        []TelemetryUptimeSample `json:"uptime_7d"`
+	RecentEvents    []TelemetryEvent        `json:"recent_events"`
+}
