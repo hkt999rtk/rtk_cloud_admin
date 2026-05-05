@@ -101,19 +101,23 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/devices/{id}/deactivate", s.apiDeactivateDevice)
 	s.mux.HandleFunc("GET /assets/", s.assets)
 	s.mux.HandleFunc("GET /", s.home)
-	s.mux.HandleFunc("GET /console", s.shell)
-	s.mux.HandleFunc("GET /console/overview", s.shell)
-	s.mux.HandleFunc("GET /console/devices", s.shell)
-	s.mux.HandleFunc("GET /console/customers", s.shell)
-	s.mux.HandleFunc("GET /console/operations", s.shell)
-	s.mux.HandleFunc("GET /console/audit", s.shell)
-	s.mux.HandleFunc("GET /console/firmware-ota", s.shell)
-	s.mux.HandleFunc("GET /console/stream-health", s.shell)
-	s.mux.HandleFunc("GET /console/groups", s.shell)
-	s.mux.HandleFunc("GET /admin", s.shell)
-	s.mux.HandleFunc("GET /admin/ops", s.shell)
-	s.mux.HandleFunc("GET /admin/audit", s.shell)
-	s.mux.HandleFunc("GET /admin/operations", s.shell)
+	for _, path := range []string{
+		"/console",
+		"/console/overview",
+		"/console/devices",
+		"/console/firmware-ota",
+		"/console/stream-health",
+		"/console/groups",
+		"/console/customers",
+		"/console/operations",
+		"/console/audit",
+		"/admin",
+		"/admin/ops",
+		"/admin/operations",
+		"/admin/audit",
+	} {
+		s.mux.HandleFunc("GET "+path, s.shell)
+	}
 }
 
 const (
@@ -612,8 +616,8 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		date := today.AddDate(0, 0, day-days+1).Format("2006-01-02")
 		successRate := streamRate(dailySuccessesByDay[day], dailyRequestsByDay[day])
 		trend = append(trend, contracts.FleetStreamTrendPoint{
-			Date:          date,
-			Requests:      dailyRequestsByDay[day],
+			Date:           date,
+			Requests:       dailyRequestsByDay[day],
 			SuccessRatePct: successRate,
 		})
 	}
@@ -757,6 +761,8 @@ func (s *Server) customerOrgIDForSession(ctx context.Context, session store.Sess
 	return org.ID, nil
 }
 
+// fleetHealthSummary summarizes the local device projection so the endpoint can
+// stay stable in both demo mode and connected account-manager mode.
 func fleetHealthSummary(orgID string, devices []contracts.Device, days int) contracts.FleetHealthSummary {
 	current := contracts.FleetHealthCurrent{}
 	for _, device := range devices {
@@ -772,16 +778,34 @@ func fleetHealthSummary(orgID string, devices []contracts.Device, days int) cont
 		}
 	}
 	total := len(devices)
-	if total == 0 {
-		return contracts.FleetHealthSummary{
-			OrgID:           orgID,
-			Current:         current,
-			OnlineRate7dPct: 0,
-			Trend:           make([]contracts.FleetHealthTrendPoint, 0, days),
-		}
+	trend := fleetHealthTrend(current, total, days)
+	onlineRate7dPct := 0.0
+	if total > 0 {
+		onlineRate7dPct = toTwoDecimal(float64(current.Healthy) / float64(total) * 100)
 	}
+	return contracts.FleetHealthSummary{
+		OrgID:           orgID,
+		Current:         current,
+		OnlineRate7dPct: onlineRate7dPct,
+		Trend:           trend,
+	}
+}
+
+func fleetHealthTrend(current contracts.FleetHealthCurrent, total, days int) []contracts.FleetHealthTrendPoint {
 	trend := make([]contracts.FleetHealthTrendPoint, 0, days)
 	today := time.Now().UTC().Truncate(24 * time.Hour)
+	if total == 0 {
+		for i := days - 1; i >= 0; i-- {
+			trend = append(trend, contracts.FleetHealthTrendPoint{
+				Date:          today.AddDate(0, 0, -i).Format("2006-01-02"),
+				OnlinePct:     0,
+				WarningCount:  0,
+				CriticalCount: 0,
+			})
+		}
+		return trend
+	}
+
 	baseWarning := current.Warning / max(1, total)
 	baseCritical := current.Critical / max(1, total)
 	onlineBase := float64(current.Healthy) / float64(total) * 100
@@ -809,12 +833,7 @@ func fleetHealthSummary(orgID string, devices []contracts.Device, days int) cont
 			CriticalCount: criticalCount,
 		})
 	}
-	return contracts.FleetHealthSummary{
-		OrgID:           orgID,
-		Current:         current,
-		OnlineRate7dPct: toTwoDecimal(onlineBase),
-		Trend:           trend,
-	}
+	return trend
 }
 
 func telemetryHealthFromReadiness(readiness contracts.ReadinessState) string {

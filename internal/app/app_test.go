@@ -42,6 +42,27 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 	if got := home.Header().Get("Location"); got != "/console" {
 		t.Fatalf("home redirect = %q, want /console", got)
 	}
+
+	for _, path := range []string{
+		"/console",
+		"/console/overview",
+		"/console/devices",
+		"/console/firmware-ota",
+		"/console/stream-health",
+		"/console/groups",
+		"/console/operations",
+		"/console/audit",
+		"/admin",
+		"/admin/ops",
+		"/admin/operations",
+		"/admin/audit",
+	} {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d; body=%s", path, rec.Code, http.StatusOK, rec.Body.String())
+		}
+	}
 }
 
 func TestProvisionActionPublishesOperation(t *testing.T) {
@@ -996,6 +1017,60 @@ func TestFleetHealthSummaryWindow30dAndOrgScope(t *testing.T) {
 	}
 	if payload.Current.Healthy+payload.Current.Warning+payload.Current.Critical+payload.Current.Unknown != 2 {
 		t.Fatalf("org-scoped data appears to include other orgs: current=%d", payload.Current.Healthy+payload.Current.Warning+payload.Current.Critical+payload.Current.Unknown)
+	}
+}
+
+func TestFleetHealthSummaryEmptyOrgReturnsFullWindow(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := New(st)
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-empty", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	for _, tt := range []struct {
+		name    string
+		path    string
+		wantLen int
+	}{
+		{name: "default", path: "/api/fleet/health-summary", wantLen: 7},
+		{name: "30d", path: "/api/fleet/health-summary?window=30d", wantLen: 30},
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d; body=%s", tt.name, rec.Code, http.StatusOK, rec.Body.String())
+		}
+		var payload contracts.FleetHealthSummary
+		if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+			t.Fatalf("%s decode fleet health summary: %v", tt.name, err)
+		}
+		if len(payload.Trend) != tt.wantLen {
+			t.Fatalf("%s trend length = %d, want %d", tt.name, len(payload.Trend), tt.wantLen)
+		}
+		if payload.OnlineRate7dPct != 0 {
+			t.Fatalf("%s online_rate_7d_pct = %f, want 0", tt.name, payload.OnlineRate7dPct)
+		}
+		for i, point := range payload.Trend {
+			if point.OnlinePct != 0 || point.WarningCount != 0 || point.CriticalCount != 0 {
+				t.Fatalf("%s trend point %d = %+v, want zeroed point", tt.name, i, point)
+			}
+		}
 	}
 }
 

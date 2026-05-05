@@ -117,8 +117,8 @@ function App() {
       return;
     }
     setRefreshTick((tick) => tick + 1);
-    window.history.pushState({}, '', '/admin/ops');
-    setActive('platform-operations');
+    window.history.pushState({}, '', '/console/operations');
+    setActive('operations');
   }
 
   async function handleLogin(kind, credentials) {

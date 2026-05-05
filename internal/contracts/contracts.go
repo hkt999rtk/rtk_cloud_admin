@@ -177,26 +177,26 @@ type FleetStreamStatsMode struct {
 }
 
 type FleetStreamTrendPoint struct {
-	Date          string  `json:"date"`
-	Requests      int     `json:"requests"`
+	Date           string  `json:"date"`
+	Requests       int     `json:"requests"`
 	SuccessRatePct float64 `json:"success_rate_pct"`
 }
 
 type FleetStreamWorstDevice struct {
-	DeviceID        string  `json:"device_id"`
-	DeviceName      string  `json:"device_name"`
-	SuccessRatePct  float64 `json:"success_rate_pct"`
-	Requests        int     `json:"requests"`
+	DeviceID       string  `json:"device_id"`
+	DeviceName     string  `json:"device_name"`
+	SuccessRatePct float64 `json:"success_rate_pct"`
+	Requests       int     `json:"requests"`
 }
 
 type FleetStreamStats struct {
-	OrgID              string                               `json:"org_id"`
-	Window             string                               `json:"window"`
-	SuccessRatePct     float64                              `json:"success_rate_pct"`
-	AvgDurationSeconds float64                              `json:"avg_duration_seconds"`
-	ActiveSessions     int                                  `json:"active_sessions"`
-	NeverStreamedCount int                                  `json:"never_streamed_count"`
-	ByMode             map[string]FleetStreamStatsMode       `json:"by_mode"`
-	Trend              []FleetStreamTrendPoint               `json:"trend"`
-	WorstDevices       []FleetStreamWorstDevice              `json:"worst_devices"`
+	OrgID              string                          `json:"org_id"`
+	Window             string                          `json:"window"`
+	SuccessRatePct     float64                         `json:"success_rate_pct"`
+	AvgDurationSeconds float64                         `json:"avg_duration_seconds"`
+	ActiveSessions     int                             `json:"active_sessions"`
+	NeverStreamedCount int                             `json:"never_streamed_count"`
+	ByMode             map[string]FleetStreamStatsMode `json:"by_mode"`
+	Trend              []FleetStreamTrendPoint         `json:"trend"`
+	WorstDevices       []FleetStreamWorstDevice        `json:"worst_devices"`
 }
