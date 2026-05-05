@@ -13,6 +13,7 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console'), 'overview');
   assert.equal(routeFromPath('/console/overview'), 'overview');
   assert.equal(routeFromPath('/console/devices'), 'devices');
+  assert.equal(routeFromPath('/console/operations'), 'operations');
   assert.equal(routeFromPath('/console/firmware-ota'), 'firmware-ota');
   assert.equal(routeFromPath('/console/stream-health'), 'stream-health');
   assert.equal(routeFromPath('/console/groups'), 'groups');
