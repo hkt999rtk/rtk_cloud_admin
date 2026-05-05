@@ -75,6 +75,29 @@ input {
   width: 96px;
 }
 
+.view-switcher {
+  margin-bottom: 16px;
+}
+
+.view-switcher small {
+  color: rgba(255, 255, 255, 0.72);
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.view-switcher-buttons {
+  display: grid;
+  gap: 6px;
+}
+
+.view-switcher-buttons button,
+.view-switcher-buttons button:hover,
+.view-switcher-buttons button.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
 .brand small,
 td small {
   display: block;
@@ -418,6 +441,10 @@ dd {
   border-radius: 8px;
   min-height: 38px;
   padding: 8px 10px;
+}
+
+.placeholder-subtitle {
+  color: var(--muted);
 }
 
 .login-panel button {

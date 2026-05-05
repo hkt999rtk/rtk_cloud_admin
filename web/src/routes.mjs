@@ -1,0 +1,44 @@
+export const customerNavItems = [
+  { id: 'overview', label: 'Overview', path: '/console/overview' },
+  { id: 'devices', label: 'Devices', path: '/console/devices' },
+  { id: 'firmware-ota', label: 'Firmware & OTA', path: '/console/firmware-ota' },
+  { id: 'stream-health', label: 'Stream Health', path: '/console/stream-health' },
+  { id: 'groups', label: 'Groups', path: '/console/groups' },
+];
+
+export const platformNavItems = [
+  { id: 'platform-health', label: 'Service Health', path: '/admin' },
+  { id: 'platform-operations', label: 'Operations Log', path: '/admin/ops' },
+  { id: 'platform-audit', label: 'Audit Log', path: '/admin/audit' },
+];
+
+export function titleFor(active) {
+  return {
+    overview: 'Customer Overview',
+    devices: 'Devices',
+    'firmware-ota': 'Firmware & OTA',
+    'stream-health': 'Stream Health',
+    groups: 'Groups',
+    'platform-health': 'Service Health',
+    'platform-operations': 'Operations',
+    'platform-audit': 'Audit Log',
+  }[active];
+}
+
+export function routeFromPath(path) {
+  if (path === '/admin' || path === '/admin/') return 'platform-health';
+  if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
+  if (path === '/admin/operations' || path.startsWith('/admin/operations/')) return 'platform-operations';
+  if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
+  if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
+  if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
+  if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';
+  if (path === '/console/stream-health' || path.startsWith('/console/stream-health/')) return 'stream-health';
+  if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
+  if (path === '/console/customers' || path === '/console/operations' || path === '/console/audit') return 'overview';
+  return 'overview';
+}
+
+export function routeFromLocation() {
+  return routeFromPath(window.location.pathname);
+}
