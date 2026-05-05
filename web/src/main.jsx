@@ -16,6 +16,7 @@ function App() {
   const [audit, setAudit] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const isPlatformView = active.startsWith('platform');
   const visibleNavItems = isPlatformView ? platformNavItems : customerNavItems;
@@ -111,18 +112,23 @@ function App() {
 
   async function runDeviceAction(deviceId, action) {
     setError('');
+    setNotice('');
     const response = await fetch(`/api/devices/${deviceId}/${action}`, { method: 'POST' });
     if (!response.ok) {
       setError(`${action} failed with ${response.status}`);
       return;
     }
     setRefreshTick((tick) => tick + 1);
-    window.history.pushState({}, '', '/admin/ops');
-    setActive('platform-operations');
+    const path = '/console/operations';
+    window.history.pushState({}, '', path);
+    setActive(routeFromPath(path));
+    const actionLabel = action === 'provision' ? 'Provisioning' : action === 'deactivate' ? 'Deactivation' : action;
+    setNotice(`${actionLabel} request submitted for ${deviceId}.`);
   }
 
   async function handleLogin(kind, credentials) {
     setError('');
+    setNotice('');
     const url = kind === 'platform' ? '/api/auth/platform/login' : '/api/auth/customer/login';
     const response = await fetch(url, {
       method: 'POST',
@@ -138,6 +144,7 @@ function App() {
 
   async function handleSwitchOrg(orgId) {
     setError('');
+    setNotice('');
     const response = await fetch('/api/me/active-org', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -152,6 +159,7 @@ function App() {
 
   async function handleLogout() {
     setError('');
+    setNotice('');
     const response = await fetch('/api/auth/logout', { method: 'POST' });
     if (!response.ok) {
       setError(`logout failed with ${response.status}`);
@@ -227,6 +235,7 @@ function App() {
         </header>
 
         {error ? <div className="error">{error}</div> : null}
+        {notice ? <div className="notice">{notice}</div> : null}
 
         {needsPlatformAccess ? <PlatformAccessGate active={active} onLogin={handleLogin} /> : null}
         {!needsPlatformAccess && active === 'overview' ? <Overview summary={summary} me={me} onLogin={handleLogin} /> : null}

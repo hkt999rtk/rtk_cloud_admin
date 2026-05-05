@@ -729,6 +729,15 @@ th {
   padding: 12px;
 }
 
+.notice {
+  background: rgba(17, 122, 79, 0.08);
+  border: 1px solid rgba(17, 122, 79, 0.2);
+  border-radius: 8px;
+  color: #117a4f;
+  margin-bottom: 16px;
+  padding: 12px;
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
