@@ -99,13 +99,23 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/devices/{id}/deactivate", s.apiDeactivateDevice)
 	s.mux.HandleFunc("GET /assets/", s.assets)
 	s.mux.HandleFunc("GET /", s.home)
-	s.mux.HandleFunc("GET /console", s.shell)
-	s.mux.HandleFunc("GET /console/devices", s.shell)
-	s.mux.HandleFunc("GET /admin", s.shell)
-	s.mux.HandleFunc("GET /admin/operations", s.shell)
-	s.mux.HandleFunc("GET /console/customers", s.shell)
-	s.mux.HandleFunc("GET /console/operations", s.shell)
-	s.mux.HandleFunc("GET /console/audit", s.shell)
+	for _, path := range []string{
+		"/console",
+		"/console/overview",
+		"/console/devices",
+		"/console/firmware-ota",
+		"/console/stream-health",
+		"/console/groups",
+		"/console/customers",
+		"/console/operations",
+		"/console/audit",
+		"/admin",
+		"/admin/ops",
+		"/admin/operations",
+		"/admin/audit",
+	} {
+		s.mux.HandleFunc("GET "+path, s.shell)
+	}
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {

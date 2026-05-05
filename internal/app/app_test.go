@@ -41,6 +41,26 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 	if got := home.Header().Get("Location"); got != "/console" {
 		t.Fatalf("home redirect = %q, want /console", got)
 	}
+
+	for _, path := range []string{
+		"/console",
+		"/console/overview",
+		"/console/devices",
+		"/console/firmware-ota",
+		"/console/stream-health",
+		"/console/groups",
+		"/console/operations",
+		"/console/audit",
+		"/admin",
+		"/admin/ops",
+		"/admin/audit",
+	} {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d; body=%s", path, rec.Code, http.StatusOK, rec.Body.String())
+		}
+	}
 }
 
 func TestProvisionActionPublishesOperation(t *testing.T) {
