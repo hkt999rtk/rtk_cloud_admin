@@ -102,12 +102,18 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /assets/", s.assets)
 	s.mux.HandleFunc("GET /", s.home)
 	s.mux.HandleFunc("GET /console", s.shell)
+	s.mux.HandleFunc("GET /console/overview", s.shell)
 	s.mux.HandleFunc("GET /console/devices", s.shell)
-	s.mux.HandleFunc("GET /admin", s.shell)
-	s.mux.HandleFunc("GET /admin/operations", s.shell)
 	s.mux.HandleFunc("GET /console/customers", s.shell)
 	s.mux.HandleFunc("GET /console/operations", s.shell)
 	s.mux.HandleFunc("GET /console/audit", s.shell)
+	s.mux.HandleFunc("GET /console/firmware-ota", s.shell)
+	s.mux.HandleFunc("GET /console/stream-health", s.shell)
+	s.mux.HandleFunc("GET /console/groups", s.shell)
+	s.mux.HandleFunc("GET /admin", s.shell)
+	s.mux.HandleFunc("GET /admin/ops", s.shell)
+	s.mux.HandleFunc("GET /admin/audit", s.shell)
+	s.mux.HandleFunc("GET /admin/operations", s.shell)
 }
 
 const (
@@ -843,14 +849,21 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-	devices, err := s.customerDevices(r.Context(), session)
 	if s.accountClient.Enabled() {
+		devices, err := s.customerDevices(r.Context(), session)
 		if err != nil {
 			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
+				if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), session, device); err != nil {
+					s.writeCustomerErrorForSession(w, session.ID, err)
+					return
+				} else if ok {
+					writeJSON(w, telemetry)
+					return
+				}
 				writeJSON(w, demoTelemetryForDevice(device))
 				return
 			}
@@ -871,7 +884,7 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	writeJSON(w, demoTelemetryForDevice(contracts.Device{
+	telemetryDevice := contracts.Device{
 		ID:              device.ID,
 		OrganizationID:  device.OrganizationID,
 		Organization:    device.Organization,
@@ -884,7 +897,341 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		Readiness:       device.Readiness,
 		LastSeenAt:      device.LastSeenAt,
 		UpdatedAt:       device.UpdatedAt,
-	}))
+	}
+	if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), session, telemetryDevice); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	} else if ok {
+		writeJSON(w, telemetry)
+		return
+	}
+	writeJSON(w, demoTelemetryForDevice(telemetryDevice))
+}
+
+func (s *Server) proxyTelemetryForDevice(ctx context.Context, session store.Session, device contracts.Device) (contracts.DeviceTelemetry, bool, error) {
+	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" || strings.TrimSpace(device.VideoCloudDevID) == "" {
+		return contracts.DeviceTelemetry{}, false, nil
+	}
+	upstream, err := s.videoClient.DeviceTelemetry(ctx, s.cfg.VideoCloudAdminToken, device.VideoCloudDevID, session.ActiveOrgID)
+	if err != nil {
+		return contracts.DeviceTelemetry{}, true, err
+	}
+	info, err := s.videoClient.GetDeviceInfo(ctx, s.cfg.VideoCloudAdminToken, device.VideoCloudDevID)
+	firmwareVersion := firmwareVersionFromDevice(device)
+	if err == nil && strings.TrimSpace(info.FirmwareVersion) != "" {
+		firmwareVersion = strings.TrimSpace(info.FirmwareVersion)
+	}
+	return telemetryFromVideoCloud(device.ID, firmwareVersion, upstream), true, nil
+}
+
+func telemetryFromVideoCloud(deviceID, firmwareVersion string, upstream videoclient.DeviceTelemetryResponse) contracts.DeviceTelemetry {
+	signals := telemetrySignalsFromUpstream(upstream.LatestHealth, upstream.RecentEvents)
+	health := telemetryHealthFromUpstream(upstream.LatestHealth, signals)
+	if strings.TrimSpace(firmwareVersion) == "" {
+		firmwareVersion = "unknown"
+	}
+	return contracts.DeviceTelemetry{
+		DeviceID:        deviceID,
+		Health:          health,
+		Signals:         signals,
+		FirmwareVersion: strings.TrimSpace(firmwareVersion),
+		RSSI7D:          telemetryRSSI7D(upstream.RSSIHistory),
+		Uptime7D:        telemetryUptime7D(upstream.UptimeHistory),
+		RecentEvents:    telemetryRecentEvents(upstream.RecentEvents, 10),
+	}
+}
+
+func telemetryHealthFromUpstream(latest *videoclient.DeviceTelemetryHealth, signals []string) string {
+	if latest != nil {
+		if health := canonicalTelemetryHealthState(latest.State); health != "" {
+			return health
+		}
+	}
+	if len(signals) > 0 {
+		for _, signal := range signals {
+			switch signal {
+			case "recent_crash", "offline_risk", "low_memory":
+				return "critical"
+			case "low_rssi", "recent_reboot":
+				return "warning"
+			}
+		}
+		return "warning"
+	}
+	return "unknown"
+}
+
+func canonicalTelemetryHealthState(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "healthy", "ok", "good", "normal":
+		return "healthy"
+	case "warning", "warn", "degraded", "fair":
+		return "warning"
+	case "critical", "crit", "bad", "error", "offline":
+		return "critical"
+	case "unknown":
+		return "unknown"
+	default:
+		return ""
+	}
+}
+
+func telemetrySignalsFromUpstream(latest *videoclient.DeviceTelemetryHealth, events []videoclient.DeviceTelemetryEvent) []string {
+	signals := make([]string, 0, 5)
+	seen := map[string]bool{}
+	add := func(signal string) {
+		if signal == "" || seen[signal] {
+			return
+		}
+		seen[signal] = true
+		signals = append(signals, signal)
+	}
+	if latest != nil {
+		addValidatedTelemetrySignals(&signals, seen, telemetrySignalsFromPayload(latest.Payload))
+	}
+	for _, event := range events {
+		switch event.EventType {
+		case "device.health.rssi_sample":
+			if quality := telemetryStringPayload(event.Payload, "quality"); quality == "poor" {
+				add("low_rssi")
+			}
+			if rssi := telemetryIntPayload(event.Payload, "rssi_dbm"); rssi != nil && *rssi <= -75 {
+				add("low_rssi")
+			}
+		case "device.reboot.reported":
+			add("recent_reboot")
+		case "device.crash.reported":
+			add("recent_crash")
+		case "device.health.memory_sample":
+			if telemetryBoolPayload(event.Payload, "low_memory") {
+				add("low_memory")
+			}
+		case "device.health.offline_risk":
+			add("offline_risk")
+		}
+	}
+	if len(signals) == 0 && latest != nil {
+		addValidatedTelemetrySignals(&signals, seen, telemetrySignalsFromPayload(latest.Payload))
+	}
+	return signals
+}
+
+func addValidatedTelemetrySignals(out *[]string, seen map[string]bool, signals []string) {
+	for _, signal := range signals {
+		switch signal {
+		case "low_rssi", "recent_reboot", "low_memory", "recent_crash", "offline_risk":
+			if seen[signal] {
+				continue
+			}
+			seen[signal] = true
+			*out = append(*out, signal)
+		}
+	}
+}
+
+func telemetrySignalsFromPayload(payload json.RawMessage) []string {
+	var decoded struct {
+		Signals []string `json:"signals"`
+	}
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(decoded.Signals))
+	for _, signal := range decoded.Signals {
+		signal = strings.TrimSpace(signal)
+		switch signal {
+		case "low_rssi", "recent_reboot", "low_memory", "recent_crash", "offline_risk":
+			out = append(out, signal)
+		}
+	}
+	return out
+}
+
+func telemetryStringPayload(payload json.RawMessage, key string) string {
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return ""
+	}
+	if value, ok := decoded[key].(string); ok {
+		return strings.TrimSpace(value)
+	}
+	return ""
+}
+
+func telemetryBoolPayload(payload json.RawMessage, key string) bool {
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return false
+	}
+	value, ok := decoded[key]
+	if !ok {
+		return false
+	}
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(strings.TrimSpace(v), "true")
+	default:
+		return false
+	}
+}
+
+func telemetryIntPayload(payload json.RawMessage, key string) *int {
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return nil
+	}
+	value, ok := decoded[key]
+	if !ok {
+		return nil
+	}
+	switch v := value.(type) {
+	case float64:
+		if math.Trunc(v) != v {
+			return nil
+		}
+		out := int(v)
+		return &out
+	case string:
+		parsed, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil {
+			return nil
+		}
+		return &parsed
+	default:
+		return nil
+	}
+}
+
+func telemetryRSSI7D(samples []videoclient.DeviceTelemetryRSSI) []contracts.TelemetryRssiSample {
+	dates := telemetryLastSevenDates()
+	buckets := make(map[string][]int, len(dates))
+	for _, sample := range samples {
+		if sample.RSSIDBm == nil {
+			continue
+		}
+		date := sample.OccurredAt.UTC().Format("2006-01-02")
+		buckets[date] = append(buckets[date], *sample.RSSIDBm)
+	}
+	out := make([]contracts.TelemetryRssiSample, 0, len(dates))
+	lastAvg := -70
+	for _, date := range dates {
+		values := buckets[date]
+		if len(values) > 0 {
+			sum := 0
+			for _, value := range values {
+				sum += value
+			}
+			lastAvg = int(math.Round(float64(sum) / float64(len(values))))
+		}
+		out = append(out, contracts.TelemetryRssiSample{
+			Date:    date,
+			AvgDBM:  lastAvg,
+			Quality: telemetryQualityFromDBM(lastAvg),
+		})
+	}
+	return out
+}
+
+func telemetryUptime7D(samples []videoclient.DeviceTelemetryUptime) []contracts.TelemetryUptimeSample {
+	dates := telemetryLastSevenDates()
+	buckets := make(map[string][]float64, len(dates))
+	for _, sample := range samples {
+		date := sample.OccurredAt.UTC().Format("2006-01-02")
+		buckets[date] = append(buckets[date], float64(sample.UptimeSec))
+	}
+	out := make([]contracts.TelemetryUptimeSample, 0, len(dates))
+	lastPct := 96.0
+	for _, date := range dates {
+		values := buckets[date]
+		if len(values) > 0 {
+			sum := 0.0
+			for _, value := range values {
+				sum += value
+			}
+			lastPct = telemetryOnlinePctFromUptimeSec(sum / float64(len(values)))
+		}
+		out = append(out, contracts.TelemetryUptimeSample{
+			Date:      date,
+			OnlinePct: lastPct,
+		})
+	}
+	return out
+}
+
+func telemetryRecentEvents(events []videoclient.DeviceTelemetryEvent, limit int) []contracts.TelemetryEvent {
+	out := make([]contracts.TelemetryEvent, 0, len(events))
+	for _, event := range events {
+		out = append(out, contracts.TelemetryEvent{
+			OccurredAt: event.OccurredAt.UTC().Format(time.RFC3339),
+			EventType:  event.EventType,
+			Summary:    telemetryEventSummary(event),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		left, err := time.Parse(time.RFC3339, out[i].OccurredAt)
+		if err != nil {
+			return false
+		}
+		right, err := time.Parse(time.RFC3339, out[j].OccurredAt)
+		if err != nil {
+			return false
+		}
+		if !left.Equal(right) {
+			return left.After(right)
+		}
+		return out[i].EventType < out[j].EventType
+	})
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out
+}
+
+func telemetryEventSummary(event videoclient.DeviceTelemetryEvent) string {
+	if summary := telemetryStringPayload(event.Payload, "summary"); summary != "" {
+		return summary
+	}
+	switch event.EventType {
+	case "device.health.rssi_sample":
+		rssi := telemetryIntPayload(event.Payload, "rssi_dbm")
+		quality := telemetryStringPayload(event.Payload, "quality")
+		if rssi != nil && quality != "" {
+			return fmt.Sprintf("Signal quality is %s at %d dBm", quality, *rssi)
+		}
+		if rssi != nil {
+			return fmt.Sprintf("Signal quality measured at %d dBm", *rssi)
+		}
+	case "device.reboot.reported":
+		if reason := telemetryStringPayload(event.Payload, "reason"); reason != "" {
+			return fmt.Sprintf("Device reboot reported: %s", reason)
+		}
+		return "Device reboot reported"
+	case "device.crash.reported":
+		if reason := telemetryStringPayload(event.Payload, "reason"); reason != "" {
+			return fmt.Sprintf("Crash reported: %s", reason)
+		}
+		return "Crash reported"
+	case "firmware.version.observed":
+		if version := telemetryStringPayload(event.Payload, "current_version"); version != "" {
+			return fmt.Sprintf("Firmware version observed: %s", version)
+		}
+		if version := telemetryStringPayload(event.Payload, "firmware_version"); version != "" {
+			return fmt.Sprintf("Firmware version observed: %s", version)
+		}
+		return "Firmware version observed"
+	}
+	return strings.ReplaceAll(event.EventType, ".", " ")
+}
+
+func telemetryLastSevenDates() []string {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	out := make([]string, 0, 7)
+	for i := 6; i >= 0; i-- {
+		out = append(out, today.AddDate(0, 0, -i).Format("2006-01-02"))
+	}
+	return out
 }
 
 func demoTelemetryForDevice(device contracts.Device) contracts.DeviceTelemetry {
@@ -916,9 +1263,10 @@ func demoTelemetryForDevice(device contracts.Device) contracts.DeviceTelemetry {
 			AvgDBM:  avg,
 			Quality: telemetryQualityFromDBM(avg),
 		})
+		uptimeSeconds := float64((96.0 + float64(i)/10.0) / 100.0 * telemetrySecondsPerDay)
 		uptime = append(uptime, contracts.TelemetryUptimeSample{
 			Date:      date,
-			OnlinePct: 96.0 + float64(i)/10.0,
+			OnlinePct: telemetryOnlinePctFromUptimeSec(uptimeSeconds),
 		})
 	}
 
@@ -1899,4 +2247,17 @@ func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.De
 		}
 	}
 	return out
+}
+
+const telemetrySecondsPerDay = 24 * 60 * 60
+
+func telemetryOnlinePctFromUptimeSec(uptimeSec float64) float64 {
+	pct := uptimeSec / float64(telemetrySecondsPerDay) * 100
+	if pct < 0 {
+		pct = 0
+	}
+	if pct > 100 {
+		pct = 100
+	}
+	return math.Round(pct*10) / 10
 }

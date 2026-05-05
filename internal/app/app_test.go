@@ -11,6 +11,7 @@ import (
 	"rtk_cloud_admin/internal/config"
 	"rtk_cloud_admin/internal/contracts"
 	"rtk_cloud_admin/internal/store"
+	"rtk_cloud_admin/internal/videoclient"
 	"strings"
 	"testing"
 	"time"
@@ -1163,6 +1164,197 @@ func TestFleetStreamStatsWorstDevicesSortedAsc(t *testing.T) {
 	}
 }
 
+func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/me":
+			if got := r.Header.Get("Authorization"); got != "Bearer access" {
+				t.Fatalf("account Authorization = %q, want Bearer access", got)
+			}
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs/org-acme/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"}]}`))
+		default:
+			t.Fatalf("unexpected account path: %s", r.URL.Path)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/query_camera_activate":
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("query activation Authorization = %q, want Bearer vc-secret", got)
+			}
+			var body struct {
+				Devices []string `json:"devices"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode query activation body: %v", err)
+			}
+			if len(body.Devices) != 1 || body.Devices[0] != "device-2" {
+				t.Fatalf("query activation devices = %+v, want [device-2]", body.Devices)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":  "ok",
+				"devices": []string{"1"},
+			})
+		case "/api/devices/device-2/telemetry":
+			if got := r.URL.Query().Get("org_id"); got != "org-acme" {
+				t.Fatalf("telemetry org_id = %q, want org-acme", got)
+			}
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("telemetry Authorization = %q, want Bearer vc-secret", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":            "ok",
+				"org_id":            "org-acme",
+				"device_id":         "device-2",
+				"account_device_id": "dev-002",
+				"device_name":       "cam-a-002",
+				"latest_health": map[string]any{
+					"state":          "warning",
+					"occurred_at":    "2026-05-04T12:00:00Z",
+					"uptime_seconds": 7200,
+					"payload": map[string]any{
+						"health":  "warning",
+						"signals": []string{"low_rssi", "recent_reboot"},
+					},
+				},
+				"rssi_history": []map[string]any{
+					{"occurred_at": "2026-05-01T10:00:00Z", "rssi_dbm": -68, "quality": "fair"},
+					{"occurred_at": "2026-05-02T10:00:00Z", "rssi_dbm": -72, "quality": "fair"},
+				},
+				"uptime_history": []map[string]any{
+					{"occurred_at": "2026-05-01T10:00:00Z", "uptime_seconds": 3600},
+					{"occurred_at": "2026-05-02T10:00:00Z", "uptime_seconds": 7200},
+				},
+				"recent_events": []map[string]any{
+					{
+						"event_id":    "evt-2",
+						"event_type":  "device.reboot.reported",
+						"occurred_at": "2026-05-04T14:00:00Z",
+						"source":      "device",
+						"payload": map[string]any{
+							"reason":  "watchdog",
+							"summary": "Device reboot reported",
+						},
+					},
+					{
+						"event_id":    "evt-1",
+						"event_type":  "device.health.rssi_sample",
+						"occurred_at": "2026-05-04T13:00:00Z",
+						"source":      "device",
+						"payload": map[string]any{
+							"rssi_dbm": -72,
+							"quality":  "fair",
+							"summary":  "Signal quality dropped to fair",
+						},
+					},
+				},
+			})
+		case "/get_camera_info":
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("camera info Authorization = %q, want Bearer vc-secret", got)
+			}
+			var body struct {
+				DevID string `json:"devid"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode camera info body: %v", err)
+			}
+			if body.DevID != "device-2" {
+				t.Fatalf("camera info devid = %q, want device-2", body.DevID)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "ok",
+				"info": map[string]any{
+					"firmware_version":  "v9.8.7",
+					"current_transport": "websocket",
+				},
+			})
+		default:
+			t.Fatalf("unexpected video path: %s", r.URL.Path)
+		}
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL: accountUpstream.URL,
+			VideoCloudBaseURL:     videoUpstream.URL,
+			VideoCloudAdminToken:  "vc-secret",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/devices/dev-002/telemetry", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("proxy telemetry status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "video_cloud_devid") {
+		t.Fatalf("proxy telemetry response should not expose video_cloud_devid: %s", rec.Body.String())
+	}
+
+	var payload contracts.DeviceTelemetry
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode proxy telemetry payload: %v", err)
+	}
+	if payload.DeviceID != "dev-002" {
+		t.Fatalf("device_id = %q, want dev-002", payload.DeviceID)
+	}
+	if payload.FirmwareVersion != "v9.8.7" {
+		t.Fatalf("firmware_version = %q, want v9.8.7", payload.FirmwareVersion)
+	}
+	if payload.Health != "warning" {
+		t.Fatalf("health = %q, want warning", payload.Health)
+	}
+	if len(payload.Signals) != 2 || payload.Signals[0] != "low_rssi" || payload.Signals[1] != "recent_reboot" {
+		t.Fatalf("signals = %+v, want [low_rssi recent_reboot]", payload.Signals)
+	}
+	if len(payload.RSSI7D) != 7 || len(payload.Uptime7D) != 7 {
+		t.Fatalf("sparkline lengths = rssi:%d uptime:%d, want 7", len(payload.RSSI7D), len(payload.Uptime7D))
+	}
+	uptimeByDate := make(map[string]float64, len(payload.Uptime7D))
+	for _, sample := range payload.Uptime7D {
+		if sample.OnlinePct < 0 || sample.OnlinePct > 100 {
+			t.Fatalf("uptime sample %s has invalid online_pct %.1f", sample.Date, sample.OnlinePct)
+		}
+		uptimeByDate[sample.Date] = sample.OnlinePct
+	}
+	if got := uptimeByDate["2026-05-01"]; got != 4.2 {
+		t.Fatalf("online_pct for 2026-05-01 = %.1f, want 4.2", got)
+	}
+	if got := uptimeByDate["2026-05-02"]; got != 8.3 {
+		t.Fatalf("online_pct for 2026-05-02 = %.1f, want 8.3", got)
+	}
+	if len(payload.RecentEvents) != 2 || payload.RecentEvents[0].EventType != "device.reboot.reported" {
+		t.Fatalf("recent_events = %+v", payload.RecentEvents)
+	}
+}
+
 func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 	t.Parallel()
 
@@ -1592,8 +1784,14 @@ func TestConsoleAndAdminPagesRenderSeedData(t *testing.T) {
 		want string
 	}{
 		{path: "/console", want: "Customer Fleet"},
+		{path: "/console/overview", want: "Customer Fleet"},
 		{path: "/console/devices", want: "cam-a-001"},
+		{path: "/console/firmware-ota", want: "Customer Fleet"},
+		{path: "/console/stream-health", want: "Customer Fleet"},
+		{path: "/console/groups", want: "Customer Fleet"},
 		{path: "/admin", want: "Platform Operations"},
+		{path: "/admin/ops", want: "DeviceProvisionRequested"},
+		{path: "/admin/audit", want: "Platform Operations"},
 		{path: "/admin/operations", want: "DeviceProvisionRequested"},
 	}
 
