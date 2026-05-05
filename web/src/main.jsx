@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { customerNavItems, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
+import { postJSON } from './http.mjs';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -154,68 +155,52 @@ function App() {
 
   async function handleSignup(payload) {
     setError('');
-    const response = await fetch('/api/auth/customer/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      setError(`signup failed with ${response.status}`);
-      return null;
+    try {
+      const result = await postJSON('/api/auth/customer/signup', payload);
+      window.history.pushState({}, '', `/signup/check-email?email=${encodeURIComponent(payload.email)}`);
+      setActive('signup-check-email');
+      setRefreshTick((tick) => tick + 1);
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
     }
-    const result = await response.json();
-    window.history.pushState({}, '', `/signup/check-email?email=${encodeURIComponent(payload.email)}`);
-    setActive('signup-check-email');
-    setRefreshTick((tick) => tick + 1);
-    return result;
   }
 
   async function handleVerify(token) {
     setError('');
-    const response = await fetch('/api/auth/customer/verify-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
-    });
-    if (!response.ok) {
-      setError(`verification failed with ${response.status}`);
-      return null;
+    try {
+      const result = await postJSON('/api/auth/customer/verify-email', { token });
+      if (result.tokens?.access_token) {
+        window.history.pushState({}, '', '/console/overview');
+        setActive('overview');
+        setRefreshTick((tick) => tick + 1);
+      }
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
     }
-    const result = await response.json();
-    if (result.tokens?.access_token) {
-      window.history.pushState({}, '', '/console/overview');
-      setActive('overview');
-      setRefreshTick((tick) => tick + 1);
-    }
-    return result;
   }
 
   async function handleResendVerification(email) {
     setError('');
-    const response = await fetch('/api/auth/customer/resend-verification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-    if (!response.ok) {
-      setError(`verification resend failed with ${response.status}`);
-      return null;
+    try {
+      return await postJSON('/api/auth/customer/resend-verification', { email });
+    } catch (err) {
+      setError(err.message);
+      throw err;
     }
-    return response.json();
   }
 
   async function handleQuotaRaiseRequest(orgId, payload) {
     setError('');
-    const response = await fetch(`/api/orgs/${encodeURIComponent(orgId)}/quota-raise-requests`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      setError(`quota raise request failed with ${response.status}`);
-      return null;
+    try {
+      return await postJSON(`/api/orgs/${encodeURIComponent(orgId)}/quota-raise-requests`, payload);
+    } catch (err) {
+      setError(err.message);
+      throw err;
     }
-    return response.json();
   }
 
   async function handleSwitchOrg(orgId) {
@@ -433,6 +418,8 @@ function SignupForm({ onSignup }) {
         organization_name: organizationName,
         captcha_token: captchaToken,
       });
+    } catch (_) {
+      return;
     } finally {
       setBusy(false);
     }
@@ -480,14 +467,22 @@ function SignupForm({ onSignup }) {
 function CheckEmailInterstitial({ email, onResendVerification }) {
   const [resendEmail, setResendEmail] = useState(email);
   const [status, setStatus] = useState('');
+  const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function resend(event) {
     event.preventDefault();
     setBusy(true);
+    setLocalError('');
     try {
-      await onResendVerification(resendEmail);
+      const result = await onResendVerification(resendEmail);
+      if (!result) {
+        setLocalError('Failed to request a new verification link.');
+        return;
+      }
       setStatus('Verification link requested again.');
+    } catch (_) {
+      setLocalError('Failed to request a new verification link.');
     } finally {
       setBusy(false);
     }
@@ -501,6 +496,7 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
         <button type="submit" disabled={busy}>Resend</button>
       </form>
       {status ? <p className="auth-status">{status}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
     </div>
   );
 }
@@ -508,6 +504,7 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
 function VerifyForm({ token, onVerify }) {
   const [value, setValue] = useState(token);
   const [status, setStatus] = useState('Waiting for verification link.');
+  const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
   const [attempted, setAttempted] = useState(false);
 
@@ -515,28 +512,36 @@ function VerifyForm({ token, onVerify }) {
     if (!value || attempted) return;
     setAttempted(true);
     setBusy(true);
+    setLocalError('');
     onVerify(value)
       .then((result) => {
-        if (result?.tokens?.access_token) {
+        if (!result) {
+          setLocalError('Verification failed. Check the token and try again.');
+        } else if (result.tokens?.access_token) {
           setStatus('Verification completed. Redirecting to the dashboard.');
         } else {
           setStatus('Email verified. Sign in to continue.');
         }
       })
-      .catch(() => setStatus('Verification failed. Check the token and try again.'))
+      .catch(() => setLocalError('Verification failed. Check the token and try again.'))
       .finally(() => setBusy(false));
   }, [attempted, onVerify, value]);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
+    setLocalError('');
     try {
       const result = await onVerify(value);
-      if (result?.tokens?.access_token) {
+      if (!result) {
+        setLocalError('Verification failed. Check the token and try again.');
+      } else if (result.tokens?.access_token) {
         setStatus('Verification completed. Redirecting to the dashboard.');
       } else {
         setStatus('Email verified. Sign in to continue.');
       }
+    } catch (_) {
+      setLocalError('Verification failed. Check the token and try again.');
     } finally {
       setBusy(false);
     }
@@ -550,6 +555,7 @@ function VerifyForm({ token, onVerify }) {
         <button type="submit" disabled={busy}>Verify</button>
       </form>
       <p className="auth-status">{status}</p>
+      {error ? <p className="error">{error}</p> : null}
     </div>
   );
 }
@@ -560,11 +566,13 @@ function QuotaRaiseForm({ organizationId, organizationName, currentQuota, onSubm
   const [contactEmail, setContactEmail] = useState('');
   const [contactName, setContactName] = useState('');
   const [lastStatus, setLastStatus] = useState('');
+  const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
+    setLocalError('');
     try {
       const result = await onSubmit(organizationId, {
         requested_quota: Number(requestedQuota),
@@ -575,7 +583,13 @@ function QuotaRaiseForm({ organizationId, organizationName, currentQuota, onSubm
           organization: organizationName,
         },
       });
+      if (!result) {
+        setLocalError('Quota-raise request failed.');
+        return;
+      }
       setLastStatus(result?.quota_raise_request?.status ? `Latest request: ${result.quota_raise_request.status}` : 'Latest request submitted.');
+    } catch (_) {
+      setLocalError('Quota-raise request failed.');
     } finally {
       setBusy(false);
     }
@@ -602,6 +616,7 @@ function QuotaRaiseForm({ organizationId, organizationName, currentQuota, onSubm
       </label>
       <button type="submit" disabled={busy}>Request quota raise</button>
       {lastStatus ? <p className="auth-status">{lastStatus}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
     </form>
   );
 }
