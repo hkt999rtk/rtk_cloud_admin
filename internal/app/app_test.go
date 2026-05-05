@@ -1143,6 +1143,14 @@ func TestFleetStreamStatsDemoDefaultsTo7d(t *testing.T) {
 			t.Fatalf("by_mode.%s.success_rate_pct = %f, want 0..100", mode, stats.SuccessRatePct)
 		}
 	}
+	if len(payload.TrendByMode) != 3 {
+		t.Fatalf("trend_by_mode length = %d, want %d", len(payload.TrendByMode), 3)
+	}
+	for _, series := range payload.TrendByMode {
+		if len(series.Points) != 7 {
+			t.Fatalf("trend_by_mode[%s] length = %d, want %d", series.Mode, len(series.Points), 7)
+		}
+	}
 	if payload.SuccessRatePct < 0 || payload.SuccessRatePct > 100 {
 		t.Fatalf("success_rate_pct = %f, want 0..100", payload.SuccessRatePct)
 	}
@@ -1151,6 +1159,17 @@ func TestFleetStreamStatsDemoDefaultsTo7d(t *testing.T) {
 	}
 	if len(payload.WorstDevices) > 10 {
 		t.Fatalf("worst_devices length = %d, want <=10", len(payload.WorstDevices))
+	}
+	for _, dev := range payload.WorstDevices {
+		if dev.ModeUsed == "" {
+			t.Fatalf("worst device %q missing mode_used", dev.DeviceID)
+		}
+		if dev.Readiness == "" {
+			t.Fatalf("worst device %q missing readiness", dev.DeviceID)
+		}
+		if dev.Requests > 0 && dev.LastStreamAt == "" {
+			t.Fatalf("worst device %q missing last_stream_at", dev.DeviceID)
+		}
 	}
 }
 
@@ -1191,9 +1210,20 @@ func TestFleetStreamStatsWindow30dAndOrgScope(t *testing.T) {
 	if len(payload.Trend) != 30 {
 		t.Fatalf("trend length = %d, want %d", len(payload.Trend), 30)
 	}
+	if len(payload.TrendByMode) != 3 {
+		t.Fatalf("trend_by_mode length = %d, want %d", len(payload.TrendByMode), 3)
+	}
+	for _, series := range payload.TrendByMode {
+		if len(series.Points) != 30 {
+			t.Fatalf("trend_by_mode[%s] length = %d, want %d", series.Mode, len(series.Points), 30)
+		}
+	}
 	for _, dev := range payload.WorstDevices {
 		if dev.DeviceID == "dev-003" || dev.DeviceID == "dev-004" {
 			t.Fatalf("worst_devices includes out-of-org device %q", dev.DeviceID)
+		}
+		if dev.ModeUsed == "" {
+			t.Fatalf("worst device %q missing mode_used", dev.DeviceID)
 		}
 	}
 }

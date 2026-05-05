@@ -185,8 +185,16 @@ type FleetStreamTrendPoint struct {
 type FleetStreamWorstDevice struct {
 	DeviceID       string  `json:"device_id"`
 	DeviceName     string  `json:"device_name"`
+	ModeUsed       string  `json:"mode_used"`
+	Readiness      string  `json:"readiness"`
 	SuccessRatePct float64 `json:"success_rate_pct"`
 	Requests       int     `json:"requests"`
+	LastStreamAt   string  `json:"last_stream_at,omitempty"`
+}
+
+type FleetStreamModeTrend struct {
+	Mode   string                  `json:"mode"`
+	Points []FleetStreamTrendPoint `json:"points"`
 }
 
 type FleetStreamStats struct {

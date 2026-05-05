@@ -594,6 +594,9 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		}
 		for day := 0; day < days; day++ {
 			requests, successes, duration := streamDevicesForDay(day, len(devices), idx, device, agg.never)
+			if requests > 0 {
+				agg.lastStreamAt = streamDayTimestamp(today, day, days)
+			}
 			dailyRequestsByDay[day] += requests
 			dailySuccessesByDay[day] += successes
 			totalRequests += requests
@@ -604,6 +607,8 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 			mode.requests += requests
 			mode.successes += successes
 			modeStats[agg.mode] = mode
+			modeTrendRequests[agg.mode][day] += requests
+			modeTrendSuccesses[agg.mode][day] += successes
 			totalDuration += duration
 		}
 	}
@@ -627,6 +632,20 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 			SuccessRatePct: streamRate(stats.successes, stats.requests),
 		}
 	}
+	modeTrendSeries := make([]contracts.FleetStreamModeTrend, 0, 3)
+	for _, mode := range []string{streamModeRTSP, streamModeRelay, streamModeWebRTC} {
+		series := make([]contracts.FleetStreamTrendPoint, 0, days)
+		for day := 0; day < days; day++ {
+			requests := modeTrendRequests[mode][day]
+			successes := modeTrendSuccesses[mode][day]
+			series = append(series, contracts.FleetStreamTrendPoint{
+				Date:           today.AddDate(0, 0, day-days+1).Format("2006-01-02"),
+				Requests:       requests,
+				SuccessRatePct: streamRate(successes, requests),
+			})
+		}
+		modeTrendSeries = append(modeTrendSeries, contracts.FleetStreamModeTrend{Mode: mode, Points: series})
+	}
 
 	worst := make([]contracts.FleetStreamWorstDevice, 0, len(deviceStats))
 	for _, agg := range deviceStats {
@@ -636,15 +655,21 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		worst = append(worst, contracts.FleetStreamWorstDevice{
 			DeviceID:       agg.deviceID,
 			DeviceName:     agg.deviceName,
+			ModeUsed:       agg.mode,
+			Readiness:      string(agg.readiness),
 			Requests:       agg.requests,
 			SuccessRatePct: streamRate(agg.successes, agg.requests),
+			LastStreamAt:   agg.lastStreamAt,
 		})
 	}
 	sort.Slice(worst, func(i, j int) bool {
 		if worst[i].SuccessRatePct != worst[j].SuccessRatePct {
 			return worst[i].SuccessRatePct < worst[j].SuccessRatePct
 		}
-		return worst[i].Requests < worst[j].Requests
+		if worst[i].Requests != worst[j].Requests {
+			return worst[i].Requests > worst[j].Requests
+		}
+		return worst[i].DeviceName < worst[j].DeviceName
 	})
 	if len(worst) > 10 {
 		worst = worst[:10]
@@ -659,6 +684,7 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		NeverStreamedCount: neverStreamedCount,
 		ByMode:             byMode,
 		Trend:              trend,
+		TrendByMode:        modeTrendSeries,
 		WorstDevices:       worst,
 	}
 }
@@ -728,6 +754,11 @@ func streamDevicesForDay(day, totalDevices, index int, device contracts.Device, 
 	failurePenalty := requests*2 - successes
 	duration := requests*baseDuration + successBoost - failurePenalty
 	return requests, successes, duration
+}
+
+func streamDayTimestamp(today time.Time, day, days int) string {
+	streamDay := today.AddDate(0, 0, day-days+1)
+	return streamDay.Add(15 * time.Hour).Format(time.RFC3339)
 }
 
 func streamRate(successes, requests int) float64 {

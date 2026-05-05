@@ -20,6 +20,7 @@ function App() {
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
   const [overviewWindow, setOverviewWindow] = useState('7d');
+  const [streamWindow, setStreamWindow] = useState('7d');
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -71,9 +72,10 @@ function App() {
         setAudit(nextAudit);
 
         if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
+          const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
           const [nextFleetHealth, nextStreamStats] = await Promise.all([
             fetchJSON(`/api/fleet/health-summary?window=${overviewWindow}`),
-            fetchJSON(`/api/fleet/stream-stats?window=${overviewWindow}`),
+            fetchJSON(`/api/fleet/stream-stats?window=${streamWindowToUse}`),
           ]);
           if (!alive) return;
           setFleetHealth(nextFleetHealth);
@@ -116,7 +118,7 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, overviewWindow, refreshTick]);
+  }, [active, overviewWindow, refreshTick, streamWindow]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -308,8 +310,14 @@ function App() {
           />
         ) : null}
         {!needsPlatformAccess && active === 'operations' ? <Operations operations={operations} /> : null}
-        {!needsPlatformAccess && active === 'firmware-ota' ? <FirmwareOTAPage /> : null}
-        {!needsPlatformAccess && active === 'stream-health' ? <StreamHealthPage /> : null}
+        {!needsPlatformAccess && active === 'stream-health' ? (
+          <StreamHealthPage
+            loading={loading}
+            stats={streamStats}
+            window={streamWindow}
+            setWindow={setStreamWindow}
+          />
+        ) : null}
         {!needsPlatformAccess && active === 'groups' ? <GroupsPage /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
         {!needsPlatformAccess && active === 'platform-operations' ? <Operations operations={operations} /> : null}
@@ -392,14 +400,166 @@ function FirmwareOTAPage() {
 
 function StreamHealthPage() {
   return (
-    <section className="panel">
+    <section className="panel stream-health-page">
       <div className="panel-head">
         <div>
+          <p className="eyebrow">Customer View</p>
           <h2>Stream Health</h2>
-          <p>Stream diagnostics and quality summaries will be available in the next milestone.</p>
+          <p>Are device streams succeeding for end users, and where are the worst failures concentrated?</p>
+        </div>
+        <div className="window-toggle" role="tablist" aria-label="Stream health window">
+          {['7d', '30d'].map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={window === value ? 'active' : ''}
+              onClick={() => setWindow(value)}
+            >
+              {value.toUpperCase()}
+            </button>
+          ))}
         </div>
       </div>
-      <p className="placeholder-subtitle">Placeholder area for customer-facing stream observability insights.</p>
+
+      <section className="metrics stream-health-metrics">
+        {kpis.map(([label, value]) => (
+          <MetricCard
+            key={label}
+            label={label}
+            value={value}
+            hint={
+              label === 'Stream Success Rate (7d)'
+                ? 'Percent of stream requests that succeeded in the selected window'
+                : label === 'Avg Stream Duration'
+                  ? 'Average session length across observed requests'
+                  : label === 'Active Sessions Now'
+                    ? 'Count of currently open stream sessions'
+                    : 'Online devices that have no stream history'
+            }
+            tone="info"
+          />
+        ))}
+      </section>
+
+      {loading && !stats ? (
+        <p className="empty-state">Loading stream health data.</p>
+      ) : stats ? (
+        <div className="stream-health-layout">
+          <section className="panel stream-trend-panel">
+            <div className="panel-head">
+              <div>
+                <h3>Success trend</h3>
+                <p>Daily request volume with overall and per-mode success-rate lines.</p>
+              </div>
+            </div>
+
+            {chart.points.length ? (
+              <>
+                <div className="stream-chart-legend">
+                  <span><i className="legend-bar legend-requests" /> Requests</span>
+                  <span><i className="legend-line legend-overall" /> Overall</span>
+                  <span><i className="legend-line legend-rtsp" /> RTSP</span>
+                  <span><i className="legend-line legend-relay" /> Relay</span>
+                  <span><i className="legend-line legend-webrtc" /> WebRTC</span>
+                </div>
+                <svg viewBox="0 0 720 300" className="trend-chart stream-trend-chart" role="img" aria-label="Stream success trend chart">
+                  <defs>
+                    <linearGradient id="streamRequestsFill" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="rgba(6, 116, 194, 0.26)" />
+                      <stop offset="100%" stopColor="rgba(6, 116, 194, 0.02)" />
+                    </linearGradient>
+                  </defs>
+                  {chart.grid.map((line, index) => (
+                    <line key={`grid-${index}`} x1="52" x2="676" y1={line} y2={line} className="chart-grid-line" />
+                  ))}
+                  <line x1="52" x2="676" y1="228" y2="228" className="chart-axis-line" />
+                  {chart.requestBars.map((bar) => (
+                    <rect
+                      key={bar.date}
+                      x={bar.x}
+                      y={bar.y}
+                      width={bar.width}
+                      height={bar.height}
+                      rx="4"
+                      className="chart-bar chart-bar-requests"
+                    />
+                  ))}
+                  <polyline points={chart.overallPoints} className="chart-line chart-line-overall" />
+                  {chart.modeSeries.map((series) => (
+                    <polyline key={series.mode} points={series.points} className={`chart-line ${series.className}`} />
+                  ))}
+                  {chart.points.map((point, index) => (
+                    <g key={point.date}>
+                      <circle cx={point.x} cy={point.overallY} r="4" className="chart-dot chart-dot-overall" />
+                      {index % chart.labelStep === 0 ? (
+                        <text x={point.x} y="258" textAnchor="middle" className="chart-label">
+                          {point.label}
+                        </text>
+                      ) : null}
+                    </g>
+                  ))}
+                  <text x="14" y="34" className="chart-axis-label">100%</text>
+                  <text x="14" y="228" className="chart-axis-label">0%</text>
+                  <text x="700" y="34" textAnchor="end" className="chart-axis-label">{chart.maxRequests}</text>
+                  <text x="700" y="228" textAnchor="end" className="chart-axis-label">0</text>
+                </svg>
+                <p className="chart-footnote">Bars show request volume; lines show the overall and mode-level success rate for the selected window.</p>
+              </>
+            ) : (
+              <p className="empty-state">No stream data yet.</p>
+            )}
+
+            <div className="stream-mode-summary">
+              {['rtsp', 'relay', 'webrtc'].map((mode) => {
+                const statsForMode = byMode[mode] || {};
+                return (
+                  <div key={mode} className="stream-mode-summary__item">
+                    <span>{streamModeLabel(mode)}</span>
+                    <strong>{formatPercent(statsForMode.success_rate_pct ?? 0)}</strong>
+                    <small>{statsForMode.requests ?? 0} requests</small>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="panel stream-table-panel">
+            <div className="panel-head">
+              <div>
+                <h3>Worst devices</h3>
+                <p>Devices ordered by failure rate, worst first.</p>
+              </div>
+            </div>
+
+            {devices.length ? (
+              <div className="stream-device-table">
+                <div className="stream-device-table__head">
+                  <span>Device</span>
+                  <span>Mode Used</span>
+                  <span>Success Rate ({windowLabel})</span>
+                  <span>Total Requests ({windowLabel})</span>
+                  <span>Last Stream</span>
+                  <span>Status</span>
+                </div>
+                {devices.map((device) => (
+                  <div key={device.device_id} className="stream-device-table__row">
+                    <strong>{device.device_name || device.device_id}</strong>
+                    <span>{streamModeLabel(device.mode_used)}</span>
+                    <span>{formatPercent(device.success_rate_pct ?? 0)}</span>
+                    <span>{device.requests ?? 0}</span>
+                    <time title={device.last_stream_at || ''}>{device.last_stream_at ? formatRelativeTime(device.last_stream_at) : '—'}</time>
+                    <StatusBadge value={normalizeStatusKey(device.readiness)} label={formatReadinessLabel(device.readiness)} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-state">No stream data yet.</p>
+            )}
+          </section>
+        </div>
+      ) : (
+        <p className="empty-state">No stream data yet.</p>
+      )}
     </section>
   );
 }
@@ -1723,7 +1883,7 @@ function deviceIdFromLocation() {
   return params.get('device') || '';
 }
 
-function updateDevicesLocation({ deviceId, health } = {}) {
+function updateDevicesLocation({ deviceId, health, firmware } = {}) {
   const params = new URLSearchParams(window.location.search);
   if (deviceId !== undefined) {
     if (deviceId) {
