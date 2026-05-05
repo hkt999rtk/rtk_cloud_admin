@@ -739,7 +739,7 @@ func telemetryUptime7D(samples []videoclient.DeviceTelemetryUptime) []contracts.
 			for _, value := range values {
 				sum += value
 			}
-			lastPct = sum / float64(len(values))
+			lastPct = telemetryOnlinePctFromUptimeSec(sum / float64(len(values)))
 		}
 		out = append(out, contracts.TelemetryUptimeSample{
 			Date:      date,
@@ -852,9 +852,10 @@ func demoTelemetryForDevice(device contracts.Device) contracts.DeviceTelemetry {
 			AvgDBM:  avg,
 			Quality: telemetryQualityFromDBM(avg),
 		})
+		uptimeSeconds := float64((96.0 + float64(i)/10.0) / 100.0 * telemetrySecondsPerDay)
 		uptime = append(uptime, contracts.TelemetryUptimeSample{
 			Date:      date,
-			OnlinePct: 96.0 + float64(i)/10.0,
+			OnlinePct: telemetryOnlinePctFromUptimeSec(uptimeSeconds),
 		})
 	}
 
@@ -1835,4 +1836,17 @@ func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.De
 		}
 	}
 	return out
+}
+
+const telemetrySecondsPerDay = 24 * 60 * 60
+
+func telemetryOnlinePctFromUptimeSec(uptimeSec float64) float64 {
+	pct := uptimeSec / float64(telemetrySecondsPerDay) * 100
+	if pct < 0 {
+		pct = 0
+	}
+	if pct > 100 {
+		pct = 100
+	}
+	return math.Round(pct*10) / 10
 }

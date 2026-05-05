@@ -1072,6 +1072,19 @@ func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
 	if len(payload.RSSI7D) != 7 || len(payload.Uptime7D) != 7 {
 		t.Fatalf("sparkline lengths = rssi:%d uptime:%d, want 7", len(payload.RSSI7D), len(payload.Uptime7D))
 	}
+	uptimeByDate := make(map[string]float64, len(payload.Uptime7D))
+	for _, sample := range payload.Uptime7D {
+		if sample.OnlinePct < 0 || sample.OnlinePct > 100 {
+			t.Fatalf("uptime sample %s has invalid online_pct %.1f", sample.Date, sample.OnlinePct)
+		}
+		uptimeByDate[sample.Date] = sample.OnlinePct
+	}
+	if got := uptimeByDate["2026-05-01"]; got != 4.2 {
+		t.Fatalf("online_pct for 2026-05-01 = %.1f, want 4.2", got)
+	}
+	if got := uptimeByDate["2026-05-02"]; got != 8.3 {
+		t.Fatalf("online_pct for 2026-05-02 = %.1f, want 8.3", got)
+	}
 	if len(payload.RecentEvents) != 2 || payload.RecentEvents[0].EventType != "device.reboot.reported" {
 		t.Fatalf("recent_events = %+v", payload.RecentEvents)
 	}
