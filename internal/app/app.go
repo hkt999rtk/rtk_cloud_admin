@@ -629,34 +629,28 @@ func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.requestSession(r)
-	if ok && session.Kind == "customer" {
-		orgID, err := s.customerOrgIDForSession(r.Context(), session)
-		if err != nil {
-			s.writeCustomerErrorForSession(w, session.ID, err)
-			return
-		}
-		devices, err := s.firmwareDistributionDevices(r.Context(), session, orgID)
-		if err != nil {
-			s.writeCustomerErrorForSession(w, session.ID, err)
-			return
-		}
-		if dist, ok, err := s.proxyFirmwareDistribution(r.Context(), devices, orgID); err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		} else if ok {
-			writeJSON(w, dist)
-			return
-		}
-		writeJSON(w, demoFirmwareDistribution(orgID, devices))
+	if !ok || session.Kind != "customer" {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-
-	devices, err := s.store.ListDevices()
+	orgID, err := s.customerOrgIDForSession(r.Context(), session)
 	if err != nil {
-		writeError(w, err)
+		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	writeJSON(w, demoFirmwareDistribution("org-acme", devices))
+	devices, err := s.firmwareDistributionDevices(r.Context(), session, orgID)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if dist, ok, err := s.proxyFirmwareDistribution(r.Context(), devices, orgID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	} else if ok {
+		writeJSON(w, dist)
+		return
+	}
+	writeJSON(w, demoFirmwareDistribution(orgID, devices))
 }
 
 func (s *Server) firmwareDistributionDevices(ctx context.Context, session store.Session, orgID string) ([]contracts.Device, error) {
@@ -742,7 +736,7 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 			}
 			matched := false
 			for _, device := range devices {
-				if rollout.DeviceID != device.ID && rollout.DeviceID != strings.TrimSpace(device.VideoCloudDevID) {
+				if !matchesFirmwareRolloutDevice(device, rollout) {
 					continue
 				}
 				for _, key := range []string{firmwareDistributionDeviceKey(device), strings.TrimSpace(device.ID)} {
@@ -768,7 +762,7 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 		}
 		rolloutsByCampaign := make(map[string][]videoclient.FirmwareRolloutRecord)
 		for _, rollout := range rolloutResp.Rollouts {
-			if campaignID := strings.TrimSpace(rollout.CampaignID); campaignID != "" {
+			for _, campaignID := range firmwareCampaignKeys(rollout.CampaignID) {
 				rolloutsByCampaign[campaignID] = append(rolloutsByCampaign[campaignID], rollout)
 			}
 		}
@@ -776,7 +770,11 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 			if !isVisibleFirmwareCampaignState(campaign.State) {
 				continue
 			}
-			if campaignSummary := summarizeFirmwareCampaign(campaign, rolloutsByCampaign[campaign.ID]); campaignSummary.CampaignID != "" {
+			rollouts := make([]videoclient.FirmwareRolloutRecord, 0)
+			for _, campaignID := range firmwareCampaignKeys(campaign.ID, campaign.CampaignID) {
+				rollouts = append(rollouts, rolloutsByCampaign[campaignID]...)
+			}
+			if campaignSummary := summarizeFirmwareCampaign(campaign, rollouts); campaignSummary.CampaignID != "" {
 				campaigns = append(campaigns, campaignSummary)
 			}
 		}
@@ -1085,6 +1083,32 @@ func firmwareDistributionDeviceKey(device contracts.Device) string {
 		return key
 	}
 	return strings.TrimSpace(device.ID)
+}
+
+func matchesFirmwareRolloutDevice(device contracts.Device, rollout videoclient.FirmwareRolloutRecord) bool {
+	rolloutID := strings.TrimSpace(rollout.DeviceID)
+	accountID := strings.TrimSpace(rollout.AccountDeviceID)
+	deviceID := strings.TrimSpace(device.ID)
+	videoCloudID := strings.TrimSpace(device.VideoCloudDevID)
+	return rolloutID != "" && (rolloutID == deviceID || rolloutID == videoCloudID) ||
+		accountID != "" && (accountID == deviceID || accountID == videoCloudID)
+}
+
+func firmwareCampaignKeys(values ...string) []string {
+	keys := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		key := strings.TrimSpace(value)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 func compareFirmwareVersions(a, b string) int {

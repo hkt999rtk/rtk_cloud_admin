@@ -1423,6 +1423,21 @@ func TestFleetStreamStatsWorstDevicesSortedAsc(t *testing.T) {
 	}
 }
 
+func TestFleetFirmwareDistributionRequiresCustomerSession(t *testing.T) {
+	t.Parallel()
+
+	srv, err := NewTestServer(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("NewTestServer returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/fleet/firmware-distribution", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("firmware distribution status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	}
+}
+
 func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 	t.Parallel()
 
@@ -1631,6 +1646,90 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 	}
 	if !foundPending {
 		t.Fatalf("pending rollout not summarized correctly: %+v", campaign.Rollouts)
+	}
+}
+
+func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs/org-acme/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"},{"id":"dev-001","name":"cam-a-001","model":"RTK-CAM-A","serial_number":"ACME-A-001","readiness":"online","status":"online","video_cloud_devid":"device-1"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/enum_firmware":
+			_, _ = w.Write([]byte(`{"status":"ok","versions":["v1.2.3","v1.2.4"],"releases":[{"version":"v1.2.3"},{"version":"v1.2.4"}]}`))
+		case "/query_firmware_campaign":
+			_, _ = w.Write([]byte(`{"status":"ok","campaigns":[{"campaign_id":"campaign-2026-04","model":"RTK-CAM-A","target_version":"v1.2.4","policy":{"name":"normal"},"state":"active","created_at":"2026-04-01T00:00:00Z","updated_at":"2026-04-01T00:00:00Z"}]}`))
+		case "/query_firmware_rollout":
+			_, _ = w.Write([]byte(`{"status":"ok","model":"RTK-CAM-A","target":"v1.2.4","rollouts":[{"account_device_id":"device-1","device_name":"cam-a-001","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.4","rollout_status":"applied","updated_at":"2026-04-01T00:00:00Z"},{"device_id":"device-2","device_name":"cam-a-002","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.3","rollout_status":"pending","updated_at":"2026-04-01T01:00:00Z"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL: accountUpstream.URL,
+			VideoCloudBaseURL:     videoUpstream.URL,
+			VideoCloudAdminToken:  "vc-secret",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/firmware-distribution", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("firmware distribution status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var payload contracts.FirmwareDistribution
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode firmware distribution payload: %v", err)
+	}
+	if len(payload.Versions) != 2 {
+		t.Fatalf("versions length = %d, want 2", len(payload.Versions))
+	}
+	if payload.Versions[0].Version != "v1.2.4" || !payload.Versions[0].IsLatest {
+		t.Fatalf("first version = %+v, want latest v1.2.4", payload.Versions[0])
+	}
+	if len(payload.Campaigns) != 1 {
+		t.Fatalf("campaigns length = %d, want 1", len(payload.Campaigns))
+	}
+	campaign := payload.Campaigns[0]
+	if campaign.CampaignID != "campaign-2026-04" {
+		t.Fatalf("campaign id = %q, want campaign-2026-04", campaign.CampaignID)
+	}
+	if campaign.Applied != 1 || campaign.Pending != 1 || campaign.Total != 2 {
+		t.Fatalf("campaign summary = %+v, want applied=1 pending=1 total=2", campaign)
 	}
 }
 

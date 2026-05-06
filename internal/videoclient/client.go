@@ -22,53 +22,9 @@ type DeviceInfo struct {
 	CurrentTransport string
 }
 
-type DeviceTelemetryResponse struct {
-	Status          string                  `json:"status"`
-	OrgID           string                  `json:"org_id"`
-	DeviceID        string                  `json:"device_id"`
-	AccountDeviceID string                  `json:"account_device_id"`
-	DeviceName      string                  `json:"device_name"`
-	LatestHealth    *DeviceTelemetryHealth  `json:"latest_health"`
-	RSSIHistory     []DeviceTelemetryRSSI   `json:"rssi_history"`
-	UptimeHistory   []DeviceTelemetryUptime `json:"uptime_history"`
-	RecentEvents    []DeviceTelemetryEvent  `json:"recent_events"`
-}
-
-type DeviceTelemetryHealth struct {
-	State      string          `json:"state"`
-	UptimeSec  *int64          `json:"uptime_seconds,omitempty"`
-	OccurredAt time.Time       `json:"occurred_at"`
-	Payload    json.RawMessage `json:"payload,omitempty"`
-}
-
-type DeviceTelemetryRSSI struct {
-	OccurredAt time.Time `json:"occurred_at"`
-	RSSIDBm    *int      `json:"rssi_dbm,omitempty"`
-	Quality    string    `json:"quality,omitempty"`
-}
-
-type DeviceTelemetryUptime struct {
-	OccurredAt time.Time `json:"occurred_at"`
-	UptimeSec  int64     `json:"uptime_seconds"`
-}
-
-type DeviceTelemetryEvent struct {
-	EventID    string          `json:"event_id"`
-	EventType  string          `json:"event_type"`
-	OccurredAt time.Time       `json:"occurred_at"`
-	Source     string          `json:"source"`
-	Payload    json.RawMessage `json:"payload,omitempty"`
-}
-
 type FirmwareRelease struct {
 	Version string `json:"version"`
 	Model   string `json:"model,omitempty"`
-}
-
-type FirmwareEnumResponse struct {
-	Status   string            `json:"status"`
-	Versions []string          `json:"versions,omitempty"`
-	Releases []FirmwareRelease `json:"releases,omitempty"`
 }
 
 type FirmwareRolloutRecord struct {
@@ -117,6 +73,50 @@ type FirmwareCampaignResponse struct {
 	Status    string                   `json:"status"`
 	Campaigns []FirmwareCampaignRecord `json:"campaigns,omitempty"`
 	Campaign  *FirmwareCampaignRecord  `json:"campaign,omitempty"`
+}
+
+type FirmwareEnumResponse struct {
+	Status   string            `json:"status"`
+	Versions []string          `json:"versions,omitempty"`
+	Releases []FirmwareRelease `json:"releases,omitempty"`
+}
+
+type DeviceTelemetryResponse struct {
+	Status          string                  `json:"status"`
+	OrgID           string                  `json:"org_id"`
+	DeviceID        string                  `json:"device_id"`
+	AccountDeviceID string                  `json:"account_device_id"`
+	DeviceName      string                  `json:"device_name"`
+	LatestHealth    *DeviceTelemetryHealth  `json:"latest_health"`
+	RSSIHistory     []DeviceTelemetryRSSI   `json:"rssi_history"`
+	UptimeHistory   []DeviceTelemetryUptime `json:"uptime_history"`
+	RecentEvents    []DeviceTelemetryEvent  `json:"recent_events"`
+}
+
+type DeviceTelemetryHealth struct {
+	State      string          `json:"state"`
+	UptimeSec  *int64          `json:"uptime_seconds,omitempty"`
+	OccurredAt time.Time       `json:"occurred_at"`
+	Payload    json.RawMessage `json:"payload,omitempty"`
+}
+
+type DeviceTelemetryRSSI struct {
+	OccurredAt time.Time `json:"occurred_at"`
+	RSSIDBm    *int      `json:"rssi_dbm,omitempty"`
+	Quality    string    `json:"quality,omitempty"`
+}
+
+type DeviceTelemetryUptime struct {
+	OccurredAt time.Time `json:"occurred_at"`
+	UptimeSec  int64     `json:"uptime_seconds"`
+}
+
+type DeviceTelemetryEvent struct {
+	EventID    string          `json:"event_id"`
+	EventType  string          `json:"event_type"`
+	OccurredAt time.Time       `json:"occurred_at"`
+	Source     string          `json:"source"`
+	Payload    json.RawMessage `json:"payload,omitempty"`
 }
 
 func New(baseURL string) *Client {
