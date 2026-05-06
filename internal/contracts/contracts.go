@@ -95,9 +95,11 @@ type ServiceHealth struct {
 }
 
 type Membership struct {
-	OrganizationID string `json:"organization_id"`
-	Organization   string `json:"organization"`
-	Role           string `json:"role"`
+	OrganizationID        string `json:"organization_id"`
+	Organization          string `json:"organization"`
+	Role                  string `json:"role"`
+	Tier                  string `json:"tier,omitempty"`
+	EvaluationDeviceQuota int    `json:"evaluation_device_quota,omitempty"`
 }
 
 type Me struct {

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { customerNavItems, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
+import { postJSON } from './http.mjs';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -25,11 +26,15 @@ function App() {
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
+  const isPublicRoute = active === 'signup' || active === 'signup-check-email' || active === 'verify';
   const isPlatformView = active.startsWith('platform');
   const visibleNavItems = isPlatformView ? platformNavItems : customerNavItems;
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
 
   useEffect(() => {
+    if (isPublicRoute) {
+      return;
+    }
     let alive = true;
     async function loadData() {
       setError('');
@@ -127,7 +132,23 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, overviewWindow, refreshTick, streamWindow]);
+  }, [active, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
+
+  useEffect(() => {
+    if (!isPublicRoute) return;
+    setError('');
+    setMe(null);
+    setSummary(null);
+    setCustomers([]);
+    setDevices([]);
+    setOperations([]);
+    setHealth([]);
+    setAudit([]);
+    setFirmwareDistribution(null);
+    setFleetHealth(null);
+    setStreamStats(null);
+    setRecentAlerts([]);
+  }, [isPublicRoute]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -207,6 +228,56 @@ function App() {
     setRefreshTick((tick) => tick + 1);
   }
 
+  async function handleSignup(payload) {
+    setError('');
+    try {
+      const result = await postJSON('/api/auth/customer/signup', payload);
+      window.history.pushState({}, '', `/signup/check-email?email=${encodeURIComponent(payload.email)}`);
+      setActive('signup-check-email');
+      setRefreshTick((tick) => tick + 1);
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }
+
+  async function handleVerify(token) {
+    setError('');
+    try {
+      const result = await postJSON('/api/auth/customer/verify-email', { token });
+      if (result.tokens?.access_token) {
+        window.history.pushState({}, '', '/console/overview');
+        setActive('overview');
+        setRefreshTick((tick) => tick + 1);
+      }
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }
+
+  async function handleResendVerification(email) {
+    setError('');
+    try {
+      return await postJSON('/api/auth/customer/resend-verification', { email });
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }
+
+  async function handleQuotaRaiseRequest(orgId, payload) {
+    setError('');
+    try {
+      return await postJSON(`/api/orgs/${encodeURIComponent(orgId)}/quota-raise-requests`, payload);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }
+
   async function handleSwitchOrg(orgId) {
     setError('');
     const response = await fetch('/api/me/active-org', {
@@ -235,6 +306,18 @@ function App() {
     if (!selectedDeviceId) return null;
     return devices.find((device) => device.id === selectedDeviceId) || null;
   }, [devices, selectedDeviceId]);
+
+  if (isPublicRoute) {
+    return (
+      <PublicAuthPage
+        active={active}
+        error={error}
+        onSignup={handleSignup}
+        onVerify={handleVerify}
+        onResendVerification={handleResendVerification}
+      />
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -312,6 +395,7 @@ function App() {
             loading={loading}
             onLogin={handleLogin}
             onHealthFilter={filterDevicesByHealth}
+            onRequestQuotaRaise={handleQuotaRaiseRequest}
           />
         ) : null}
         {!needsPlatformAccess && active === 'devices' ? (
@@ -350,6 +434,258 @@ function App() {
   );
 }
 
+function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerification }) {
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get('email') || '';
+  const token = params.get('token') || '';
+
+  return (
+    <div className="public-auth-shell">
+      <section className="auth-hero">
+        <p className="eyebrow">Evaluation tier access</p>
+        <h1>{titleFor(active)}</h1>
+        <p>Self-service signup and verification for the public evaluation tier.</p>
+      </section>
+      <section className="panel auth-panel">
+        {active === 'signup' ? (
+          <SignupForm onSignup={onSignup} />
+        ) : active === 'signup-check-email' ? (
+          <CheckEmailInterstitial email={email} onResendVerification={onResendVerification} />
+        ) : (
+          <VerifyForm token={token} onVerify={onVerify} />
+        )}
+        {error ? <div className="error">{error}</div> : null}
+      </section>
+    </div>
+  );
+}
+
+function SignupForm({ onSignup }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [honeypot, setHoneypot] = useState('');
+  const [busy, setBusy] = useState(false);
+  const strength = passwordStrength(password);
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!acceptTerms || honeypot) return;
+    setBusy(true);
+    try {
+      await onSignup({
+        email,
+        password,
+        display_name: displayName,
+        organization_name: organizationName,
+        captcha_token: captchaToken,
+      });
+    } catch (_) {
+      return;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="auth-form" onSubmit={submit}>
+      <label>
+        Email
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
+      </label>
+      <label>
+        Password
+        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
+      </label>
+      <label>
+        Organization name
+        <input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder="Acme Camera Fleet" required />
+      </label>
+      <label>
+        Display name
+        <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Optional contact name" />
+      </label>
+      <label className="auth-honeypot">
+        Leave this field empty
+        <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
+      </label>
+      <label>
+        CAPTCHA token
+        <input value={captchaToken} onChange={(event) => setCaptchaToken(event.target.value)} placeholder="Optional if enabled" />
+      </label>
+      <div className="auth-strength">
+        <span>Password strength</span>
+        <strong>{strength}</strong>
+      </div>
+      <label className="auth-terms">
+        <input type="checkbox" checked={acceptTerms} onChange={(event) => setAcceptTerms(event.target.checked)} />
+        I accept the evaluation-tier terms.
+      </label>
+      <button type="submit" disabled={busy || !acceptTerms || !!honeypot}>Create account</button>
+    </form>
+  );
+}
+
+function CheckEmailInterstitial({ email, onResendVerification }) {
+  const [resendEmail, setResendEmail] = useState(email);
+  const [status, setStatus] = useState('');
+  const [error, setLocalError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function resend(event) {
+    event.preventDefault();
+    setBusy(true);
+    setLocalError('');
+    try {
+      const result = await onResendVerification(resendEmail);
+      if (!result) {
+        setLocalError('Failed to request a new verification link.');
+        return;
+      }
+      setStatus('Verification link requested again.');
+    } catch (_) {
+      setLocalError('Failed to request a new verification link.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="auth-stack">
+      <p>We sent a verification link to {email || 'your email address'}.</p>
+      <form className="auth-inline" onSubmit={resend}>
+        <input type="email" value={resendEmail} onChange={(event) => setResendEmail(event.target.value)} placeholder="Email address" required />
+        <button type="submit" disabled={busy}>Resend</button>
+      </form>
+      {status ? <p className="auth-status">{status}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
+    </div>
+  );
+}
+
+function VerifyForm({ token, onVerify }) {
+  const [value, setValue] = useState(token);
+  const [status, setStatus] = useState('Waiting for verification link.');
+  const [error, setLocalError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [attempted, setAttempted] = useState(false);
+
+  useEffect(() => {
+    if (!value || attempted) return;
+    setAttempted(true);
+    setBusy(true);
+    setLocalError('');
+    onVerify(value)
+      .then((result) => {
+        if (!result) {
+          setLocalError('Verification failed. Check the token and try again.');
+        } else if (result.tokens?.access_token) {
+          setStatus('Verification completed. Redirecting to the dashboard.');
+        } else {
+          setStatus('Email verified. Sign in to continue.');
+        }
+      })
+      .catch(() => setLocalError('Verification failed. Check the token and try again.'))
+      .finally(() => setBusy(false));
+  }, [attempted, onVerify, value]);
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setLocalError('');
+    try {
+      const result = await onVerify(value);
+      if (!result) {
+        setLocalError('Verification failed. Check the token and try again.');
+      } else if (result.tokens?.access_token) {
+        setStatus('Verification completed. Redirecting to the dashboard.');
+      } else {
+        setStatus('Email verified. Sign in to continue.');
+      }
+    } catch (_) {
+      setLocalError('Verification failed. Check the token and try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="auth-stack">
+      <p>Paste the email verification token from your inbox link.</p>
+      <form className="auth-inline" onSubmit={submit}>
+        <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Verification token" required />
+        <button type="submit" disabled={busy}>Verify</button>
+      </form>
+      <p className="auth-status">{status}</p>
+      {error ? <p className="error">{error}</p> : null}
+    </div>
+  );
+}
+
+function QuotaRaiseForm({ organizationId, organizationName, currentQuota, onSubmit }) {
+  const [requestedQuota, setRequestedQuota] = useState(currentQuota);
+  const [useCase, setUseCase] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [lastStatus, setLastStatus] = useState('');
+  const [error, setLocalError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setLocalError('');
+    try {
+      const result = await onSubmit(organizationId, {
+        requested_quota: Number(requestedQuota),
+        use_case: useCase,
+        contact_info: {
+          email: contactEmail,
+          name: contactName,
+          organization: organizationName,
+        },
+      });
+      if (!result) {
+        setLocalError('Quota-raise request failed.');
+        return;
+      }
+      setLastStatus(result?.quota_raise_request?.status ? `Latest request: ${result.quota_raise_request.status}` : 'Latest request submitted.');
+    } catch (_) {
+      setLocalError('Quota-raise request failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="quota-form" onSubmit={submit}>
+      <p className="auth-status">Current evaluation cap: {currentQuota} devices.</p>
+      <label>
+        Requested quota
+        <input type="number" min="1" max="200" value={requestedQuota} onChange={(event) => setRequestedQuota(event.target.value)} />
+      </label>
+      <label>
+        Use case
+        <input value={useCase} onChange={(event) => setUseCase(event.target.value)} placeholder="Why do you need more devices?" required />
+      </label>
+      <label>
+        Contact email
+        <input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} required />
+      </label>
+      <label>
+        Contact name
+        <input value={contactName} onChange={(event) => setContactName(event.target.value)} />
+      </label>
+      <button type="submit" disabled={busy}>Request quota raise</button>
+      {lastStatus ? <p className="auth-status">{lastStatus}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
+    </form>
+  );
+}
+
 function Overview({
   summary,
   fleetHealth,
@@ -361,7 +697,15 @@ function Overview({
   loading,
   onLogin,
   onHealthFilter,
+  onRequestQuotaRaise,
 }) {
+  const activeMembership = getActiveMembership(me);
+  const tierLabel = formatTierLabel(activeMembership?.tier);
+  const quotaLimit = activeMembership?.evaluation_device_quota ?? 5;
+  const activeDevices = summary?.total_devices ?? 0;
+  const quotaRatio = `${activeDevices} / ${quotaLimit} devices`;
+  const isEvaluation = (activeMembership?.tier || '').toLowerCase() === 'evaluation';
+  const nearQuota = isEvaluation && activeDevices >= Math.max(quotaLimit - 1, 1);
   const current = fleetHealth?.current || {};
   const onlineCount = summary?.online_devices ?? '-';
   const onlineRate = fleetHealth?.online_rate_7d_pct ?? '-';
@@ -400,6 +744,23 @@ function Overview({
           current={fleetHealth?.current}
           onFilter={onHealthFilter}
         />
+      </section>
+
+      <section className="panel split-panel">
+        <div>
+          <h2>Tier and quota</h2>
+          <p>{me?.authenticated ? `${tierLabel} account for ${activeMembership?.organization || 'your active organization'}.` : 'Sign in to see the current tier and quota for your organization.'}</p>
+          {me?.authenticated ? <div className="quota-pill">{tierLabel} {isEvaluation ? quotaRatio : 'Contact sales'}</div> : null}
+          {nearQuota ? <p className="auth-status">This fleet is near its evaluation cap. Request a higher limit before the next device is added.</p> : null}
+        </div>
+        {me?.authenticated && isEvaluation ? (
+          <QuotaRaiseForm
+            organizationId={activeMembership?.organization_id}
+            organizationName={activeMembership?.organization}
+            currentQuota={quotaLimit}
+            onSubmit={onRequestQuotaRaise}
+          />
+        ) : null}
       </section>
 
       <RecentAlertsPanel loading={loading} alerts={recentAlerts} />
@@ -1938,6 +2299,31 @@ function formatReadinessLabel(readiness) {
 function formatHealthLabel(health) {
   if (health === null || health === undefined || health === '') return 'Unknown';
   return toTitleCase(String(health).replaceAll('_', ' '));
+}
+
+function getActiveMembership(me) {
+  if (!me?.authenticated) return null;
+  const memberships = me.memberships || [];
+  if (!memberships.length) return null;
+  return memberships.find((membership) => membership.organization_id === me.active_org_id) || memberships[0];
+}
+
+function formatTierLabel(tier) {
+  if (!tier) return 'Unknown';
+  if (tier === 'evaluation') return 'Evaluation';
+  if (tier === 'commercial') return 'Commercial';
+  return toTitleCase(String(tier).replaceAll('_', ' '));
+}
+
+function passwordStrength(password) {
+  if (!password) return 'Empty';
+  let score = 0;
+  if (password.length >= 8) score += 1;
+  if (password.length >= 12) score += 1;
+  if (/[A-Z]/.test(password)) score += 1;
+  if (/[0-9]/.test(password)) score += 1;
+  if (/[^A-Za-z0-9]/.test(password)) score += 1;
+  return ['Weak', 'Fair', 'Good', 'Strong', 'Excellent'][Math.min(score, 4)];
 }
 
 function normalizeStatusKey(value) {

@@ -9,6 +9,12 @@ test('maps platform shell paths to platform routes', () => {
   assert.equal(routeFromPath('/admin/audit'), 'platform-audit');
 });
 
+test('maps public signup paths to auth routes', () => {
+  assert.equal(routeFromPath('/signup'), 'signup');
+  assert.equal(routeFromPath('/signup/check-email'), 'signup-check-email');
+  assert.equal(routeFromPath('/verify'), 'verify');
+});
+
 test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console'), 'overview');
   assert.equal(routeFromPath('/console/overview'), 'overview');

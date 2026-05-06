@@ -80,9 +80,13 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/summary", s.apiAdminSummary)
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
+	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
 	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
+	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
+	s.mux.HandleFunc("POST /api/auth/customer/resend-verification", s.apiCustomerResendVerification)
 	s.mux.HandleFunc("POST /api/auth/platform/login", s.apiPlatformLogin)
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
+	s.mux.HandleFunc("POST /api/orgs/{orgId}/quota-raise-requests", s.apiQuotaRaiseRequest)
 	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
@@ -103,6 +107,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /assets/", s.assets)
 	s.mux.HandleFunc("GET /", s.home)
 	for _, path := range []string{
+		"/signup",
+		"/signup/check-email",
+		"/verify",
 		"/console",
 		"/console/overview",
 		"/console/devices",
@@ -231,8 +238,8 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 			DemoMode:      !s.accountClient.Enabled(),
 			Authenticated: false,
 			Memberships: []contracts.Membership{
-				{OrganizationID: "org-acme", Organization: "Acme Smart Camera", Role: "owner"},
-				{OrganizationID: "org-nova", Organization: "Nova Home Labs", Role: "operator"},
+				{OrganizationID: "org-acme", Organization: "Acme Smart Camera", Role: "owner", Tier: "evaluation", EvaluationDeviceQuota: 5},
+				{OrganizationID: "org-nova", Organization: "Nova Home Labs", Role: "operator", Tier: "commercial"},
 			},
 		})
 		return
@@ -261,7 +268,7 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		me.Email = upstream.User.Email
 		me.Name = fallback(upstream.User.Name, upstream.User.Email)
 		for _, org := range upstream.Organizations {
-			me.Memberships = append(me.Memberships, contracts.Membership{OrganizationID: org.ID, Organization: org.Name, Role: org.Role})
+			me.Memberships = append(me.Memberships, membershipFromOrganization(org))
 		}
 	}
 	writeJSON(w, me)
@@ -309,6 +316,99 @@ func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"active_org_id": body.OrganizationID})
+}
+
+func (s *Server) apiCustomerSignup(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.SignupRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid signup request", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.Signup(r.Context(), body)
+	if err != nil {
+		s.writeCustomerError(w, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusAccepted, result)
+}
+
+func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.AuthTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" {
+		http.Error(w, "token is required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.VerifyEmail(r.Context(), body.Token)
+	if err != nil {
+		s.writeCustomerError(w, err)
+		return
+	}
+	if result.Tokens.AccessToken != "" {
+		session, sessionErr := s.store.CreateSession("customer", result.User.ID, result.User.Email, result.Tokens.AccessToken, result.Tokens.RefreshToken, "", tokenTTL(result.Tokens))
+		if sessionErr != nil {
+			writeError(w, sessionErr)
+			return
+		}
+		setSessionCookie(w, session.ID)
+	}
+	writeJSONStatus(w, http.StatusOK, result)
+}
+
+func (s *Server) apiCustomerResendVerification(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.EmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Email) == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
+		return
+	}
+	if err := s.accountClient.ResendVerification(r.Context(), body.Email); err != nil {
+		s.writeCustomerError(w, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+}
+
+func (s *Server) apiQuotaRaiseRequest(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	orgID, err := s.customerOrgIDForSession(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if orgID != r.PathValue("orgId") {
+		http.Error(w, "quota raise requests must target the active organization", http.StatusForbidden)
+		return
+	}
+	var body accountclient.QuotaRaiseRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid quota raise request", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.CreateQuotaRaiseRequest(r.Context(), session.AccessToken, orgID, body)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusCreated, result)
 }
 
 func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
@@ -2304,6 +2404,14 @@ func writeJSON(w http.ResponseWriter, v any) {
 	}
 }
 
+func writeJSONStatus(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func writeError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
@@ -2761,6 +2869,16 @@ func metadataString(metadata map[string]any, key, fallbackValue string) string {
 		return text
 	}
 	return fallbackValue
+}
+
+func membershipFromOrganization(org accountclient.Organization) contracts.Membership {
+	return contracts.Membership{
+		OrganizationID:        org.ID,
+		Organization:          org.Name,
+		Role:                  org.Role,
+		Tier:                  org.Tier,
+		EvaluationDeviceQuota: org.EvaluationDeviceQuota,
+	}
 }
 
 func fallback(value, fallbackValue string) string {
