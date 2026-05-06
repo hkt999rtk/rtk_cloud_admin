@@ -44,5 +44,9 @@ If the runner gets stuck or disk usage climbs too high:
 6. If smoke checks fail again, reproduce locally:
    - `docker run --rm -p 18080:8080 -e DATABASE_PATH=/tmp/ci.db rtk-cloud-admin:ci`
    - `curl http://127.0.0.1:18080/healthz`
+   - `curl http://127.0.0.1:18080/api/service-health`
+   - `curl -X POST http://127.0.0.1:18080/api/auth/platform/login` after
+     setting `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD`
+   - `curl http://127.0.0.1:18080/api/me` after replaying the login cookie
    - `curl http://127.0.0.1:18080/api/summary`
    - `curl http://127.0.0.1:18080/console`
