@@ -82,6 +82,9 @@ Self-service signup is not yet implemented; track the implementation work
 through the issues opened against this repo and `rtk_account_manager` once
 the doc baseline is approved.
 
+The production deployment profile for the admin dashboard is documented in
+[`docs/private-cloud-deployment.md`](private-cloud-deployment.md).
+
 ## Architecture
 
 Runtime components:
@@ -122,7 +125,7 @@ Public and shared routes:
 - `GET /assets/...`: built frontend assets.
 - `GET /*`: React SPA fallback.
 
-The v0.1 implementation may run without configured upstream services. In that mode, API responses use SQLite seed data and clearly show local demo status in service health. When `ACCOUNT_MANAGER_BASE_URL` is configured and a customer session exists, `/api/customers`, `/api/devices`, and lifecycle actions use Account Manager proxy mode and preserve the frontend DTO shape.
+The v0.1 implementation may run without configured upstream services. In that mode, API responses use SQLite seed data and clearly show local demo status in service health. When `ACCOUNT_MANAGER_BASE_URL` is configured and a customer session exists, `/api/customers`, `/api/devices`, and lifecycle actions use Account Manager proxy mode and preserve the frontend DTO shape. When `VIDEO_CLOUD_BASE_URL` and `VIDEO_CLOUD_ADMIN_TOKEN` are configured, firmware, telemetry, stream, and readiness enrichment paths use Video Cloud proxy mode; failures return gateway errors instead of silently falling back.
 
 ## Authentication And Sessions
 
@@ -206,6 +209,7 @@ Environment variables:
 - `DATABASE_PATH`: SQLite path, default `data/rtk-cloud-admin.db`.
 - `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL.
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL.
+- `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token.
 - `ADMIN_BOOTSTRAP_EMAIL`: optional first local platform admin email.
 - `ADMIN_BOOTSTRAP_PASSWORD`: optional first local platform admin password for development.
 
@@ -217,3 +221,4 @@ Environment variables:
 - App tests for customer login, upstream proxy mode, provision proxy, and platform admin route guards.
 - Frontend build verification with `npm run build`.
 - Backend build verification with `go test ./...` and `go build ./cmd/server`.
+- Container smoke verification for `/healthz`, `/api/service-health`, platform admin login/session, `/api/summary`, and `/console`.

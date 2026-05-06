@@ -7,6 +7,7 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	t.Setenv("DATABASE_PATH", "data/test.db")
 	t.Setenv("ACCOUNT_MANAGER_BASE_URL", "https://account.example")
 	t.Setenv("VIDEO_CLOUD_BASE_URL", "https://video.example")
+	t.Setenv("VIDEO_CLOUD_ADMIN_TOKEN", "video-admin-token")
 	t.Setenv("ADMIN_BOOTSTRAP_EMAIL", "admin@example.com")
 	t.Setenv("ADMIN_BOOTSTRAP_PASSWORD", "secret")
 
@@ -22,6 +23,9 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	}
 	if cfg.VideoCloudBaseURL != "https://video.example" {
 		t.Fatalf("VideoCloudBaseURL = %q", cfg.VideoCloudBaseURL)
+	}
+	if cfg.VideoCloudAdminToken != "video-admin-token" {
+		t.Fatalf("VideoCloudAdminToken = %q", cfg.VideoCloudAdminToken)
 	}
 	if cfg.AdminBootstrapEmail != "admin@example.com" || cfg.AdminBootstrapPassword != "secret" {
 		t.Fatalf("admin bootstrap env not loaded")

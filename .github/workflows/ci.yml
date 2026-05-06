@@ -70,6 +70,8 @@ jobs:
             --name "$container_name" \
             -e PORT=8080 \
             -e DATABASE_PATH=/data/ci.db \
+            -e ADMIN_BOOTSTRAP_EMAIL=admin@example.com \
+            -e ADMIN_BOOTSTRAP_PASSWORD=secret \
             -v "$smoke_dir:/data" \
             "$ci_image_tag")"
 
@@ -92,6 +94,20 @@ jobs:
           fi
 
           docker exec "$container_id" wget -qO- http://127.0.0.1:8080/healthz | grep -qx 'ok'
+          docker exec "$container_id" wget -qO- http://127.0.0.1:8080/api/service-health | grep -q '"status":"demo"'
+
+          printf '%s' '{"email":"admin@example.com","password":"secret"}' > "$smoke_dir/login.json"
+          docker exec "$container_id" sh -lc 'wget -S -O - --post-file=/data/login.json http://127.0.0.1:8080/api/auth/platform/login' > "$smoke_dir/login.body" 2> "$smoke_dir/login.headers"
+          session_id="$(sed -n 's/.*rtk_admin_session=\([^;[:space:]]*\).*/\1/p' "$smoke_dir/login.headers" | head -n1)"
+          if [ -z "$session_id" ]; then
+            echo "platform login did not return an rtk_admin_session cookie" >&2
+            cat "$smoke_dir/login.body" >&2 || true
+            cat "$smoke_dir/login.headers" >&2 || true
+            exit 1
+          fi
+          grep -q '"status":"ok"' "$smoke_dir/login.body"
+          docker exec "$container_id" sh -lc "wget -qO- --header='Cookie: rtk_admin_session=${session_id}' http://127.0.0.1:8080/api/me" | grep -q '"kind":"platform_admin"'
+
           docker exec "$container_id" wget -qO- http://127.0.0.1:8080/api/summary | grep -q '"total_devices"'
           docker exec "$container_id" wget -qO- http://127.0.0.1:8080/console | grep -q 'id="root"'
 

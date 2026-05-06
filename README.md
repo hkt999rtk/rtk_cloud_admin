@@ -131,6 +131,7 @@ Environment variables:
 - `DATABASE_PATH`: SQLite path, default `data/rtk-cloud-admin.db`
 - `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL
+- `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token
 - `ADMIN_BOOTSTRAP_EMAIL`: optional local platform admin email
 - `ADMIN_BOOTSTRAP_PASSWORD`: optional local platform admin password
 
@@ -161,10 +162,16 @@ docker run --rm -p 18081:8080 \
   -v "$PWD/data:/data" \
   -e ACCOUNT_MANAGER_BASE_URL="https://account-manager.example" \
   -e VIDEO_CLOUD_BASE_URL="https://video-cloud.example" \
+  -e VIDEO_CLOUD_ADMIN_TOKEN="replace-me" \
+  -e ADMIN_BOOTSTRAP_EMAIL="admin@example.com" \
+  -e ADMIN_BOOTSTRAP_PASSWORD="change-me" \
   rtk-cloud-admin
 ```
 
 Container health uses `/healthz`.
+
+For a production private-cloud deployment, see
+[`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md).
 
 ## CI
 
