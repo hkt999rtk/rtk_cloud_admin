@@ -66,6 +66,114 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 	}
 }
 
+func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
+	t.Parallel()
+
+	var quotaRaiseBody string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/signup":
+			_, _ = w.Write([]byte(`{"user":{"id":"u-signup","email":"signup@example.com","name":"Signup User"},"organization":{"id":"org-1","name":"Acme Eval","role":"owner","tier":"evaluation","evaluation_device_quota":5}}`))
+		case "/v1/auth/verify-email":
+			_, _ = w.Write([]byte(`{"user":{"id":"u-signup","email":"signup@example.com","name":"Signup User"},"tokens":{"access_token":"access-1","refresh_token":"refresh-1","expires_in":3600}}`))
+		case "/v1/auth/resend-verification":
+			w.WriteHeader(http.StatusAccepted)
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u-signup","email":"signup@example.com","name":"Signup User"},"organizations":[{"id":"org-1","name":"Acme Eval","role":"owner","tier":"evaluation","evaluation_device_quota":5}]}`))
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-1","name":"Acme Eval","role":"owner","tier":"evaluation","evaluation_device_quota":5}]}`))
+		case "/v1/orgs/org-1/quota-raise-requests":
+			if got := r.Header.Get("Authorization"); got != "Bearer access-1" {
+				t.Fatalf("Authorization = %q, want Bearer access-1", got)
+			}
+			body, _ := io.ReadAll(r.Body)
+			quotaRaiseBody = string(body)
+			_, _ = w.Write([]byte(`{"quota_raise_request":{"id":"req-1","organization_id":"org-1","requested_by":"u-signup","requested_quota":25,"use_case":"growth","contact_info":{"email":"owner@example.com"},"status":"pending","created_at":"2026-05-05T00:00:00Z","updated_at":"2026-05-05T00:00:00Z"},"organization":{"id":"org-1","name":"Acme Eval","role":"owner","tier":"evaluation","evaluation_device_quota":5}}`))
+		default:
+			t.Fatalf("unexpected upstream request path: %s", r.URL.Path)
+		}
+	}))
+	defer upstream.Close()
+
+	srv := NewWithOptions(mustOpenStore(t), Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	for _, path := range []string{"/signup", "/signup/check-email", "/verify"} {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, body=%s", path, rec.Code, rec.Body.String())
+		}
+	}
+
+	signupRec := httptest.NewRecorder()
+	srv.ServeHTTP(signupRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/signup", strings.NewReader(`{"email":"signup@example.com","password":"password123","organization_name":"Acme Eval","display_name":"Signup User"}`)))
+	if signupRec.Code != http.StatusAccepted {
+		t.Fatalf("signup status = %d, body=%s", signupRec.Code, signupRec.Body.String())
+	}
+	if !strings.Contains(signupRec.Body.String(), `"tier":"evaluation"`) {
+		t.Fatalf("signup body = %s", signupRec.Body.String())
+	}
+
+	resendRec := httptest.NewRecorder()
+	srv.ServeHTTP(resendRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/resend-verification", strings.NewReader(`{"email":"signup@example.com"}`)))
+	if resendRec.Code != http.StatusAccepted {
+		t.Fatalf("resend status = %d, body=%s", resendRec.Code, resendRec.Body.String())
+	}
+
+	verifyRec := httptest.NewRecorder()
+	srv.ServeHTTP(verifyRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verify-email", strings.NewReader(`{"token":"token-1"}`)))
+	if verifyRec.Code != http.StatusOK {
+		t.Fatalf("verify status = %d, body=%s", verifyRec.Code, verifyRec.Body.String())
+	}
+	if len(verifyRec.Result().Cookies()) != 1 {
+		t.Fatalf("verify did not set a session cookie")
+	}
+	sessionCookie := verifyRec.Result().Cookies()[0]
+
+	meRec := httptest.NewRecorder()
+	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meReq.AddCookie(sessionCookie)
+	srv.ServeHTTP(meRec, meReq)
+	if meRec.Code != http.StatusOK {
+		t.Fatalf("me status = %d, body=%s", meRec.Code, meRec.Body.String())
+	}
+	if !strings.Contains(meRec.Body.String(), `"evaluation_device_quota":5`) {
+		t.Fatalf("me body = %s", meRec.Body.String())
+	}
+
+	quotaRec := httptest.NewRecorder()
+	quotaReq := httptest.NewRequest(http.MethodPost, "/api/orgs/org-1/quota-raise-requests", strings.NewReader(`{"requested_quota":25,"use_case":"growth","contact_info":{"email":"owner@example.com"}}`))
+	quotaReq.AddCookie(sessionCookie)
+	srv.ServeHTTP(quotaRec, quotaReq)
+	if quotaRec.Code != http.StatusCreated {
+		t.Fatalf("quota raise status = %d, body=%s", quotaRec.Code, quotaRec.Body.String())
+	}
+	if !strings.Contains(quotaRaiseBody, `"requested_quota":25`) {
+		t.Fatalf("quota raise body = %s", quotaRaiseBody)
+	}
+}
+
+func mustOpenStore(t *testing.T) *store.Store {
+	t.Helper()
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = st.Close()
+	})
+	return st
+}
+
 func TestProvisionActionPublishesOperation(t *testing.T) {
 	t.Parallel()
 
@@ -293,6 +401,16 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 	if !strings.Contains(devices.Body.String(), "source_facts") {
 		t.Fatalf("devices response does not include source_facts: %s", devices.Body.String())
 	}
+	var projectedDevices []contracts.Device
+	if err := json.NewDecoder(devices.Body).Decode(&projectedDevices); err != nil {
+		t.Fatalf("decode devices response: %v", err)
+	}
+	if len(projectedDevices) != 1 {
+		t.Fatalf("devices length = %d, want 1", len(projectedDevices))
+	}
+	if projectedDevices[0].FirmwareVersion != "v1.2.2" {
+		t.Fatalf("projected firmware_version = %q, want v1.2.2", projectedDevices[0].FirmwareVersion)
+	}
 
 	provision := httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/provision", nil)
@@ -417,6 +535,26 @@ func TestCustomerSessionInvalidRefreshClearsStoredSession(t *testing.T) {
 	}
 	if _, err := st.GetSession(session.ID); err != sql.ErrNoRows {
 		t.Fatalf("session should be cleared, got %v", err)
+	}
+}
+
+func TestDevicesEndpointIncludesFirmwareVersion(t *testing.T) {
+	t.Parallel()
+
+	srv, err := NewTestServer(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("NewTestServer returned error: %v", err)
+	}
+
+	devices := requestJSON[[]contracts.Device](t, srv, http.MethodGet, "/api/devices", nil)
+	if len(devices) == 0 {
+		t.Fatal("devices response is empty")
+	}
+	if devices[0].FirmwareVersion == "" {
+		t.Fatalf("device %q firmware_version is empty", devices[0].ID)
+	}
+	if devices[0].FirmwareVersion != "v1.2.1" {
+		t.Fatalf("device %q firmware_version = %q, want v1.2.1", devices[0].ID, devices[0].FirmwareVersion)
 	}
 }
 
@@ -857,6 +995,21 @@ func TestDeviceTelemetryDemoPayload(t *testing.T) {
 	if payload.DeviceID != "dev-001" {
 		t.Fatalf("device_id = %q, want %q", payload.DeviceID, "dev-001")
 	}
+	if payload.DeviceName != "cam-a-001" {
+		t.Fatalf("device_name = %q, want cam-a-001", payload.DeviceName)
+	}
+	if payload.Organization != "Acme Smart Camera" {
+		t.Fatalf("organization = %q, want Acme Smart Camera", payload.Organization)
+	}
+	if payload.SerialNumber != "ACME-A-001" {
+		t.Fatalf("serial_number = %q, want ACME-A-001", payload.SerialNumber)
+	}
+	if payload.Model != "RTK-CAM-A" {
+		t.Fatalf("model = %q, want RTK-CAM-A", payload.Model)
+	}
+	if payload.LastSeenAt == "" {
+		t.Fatal("last_seen_at is empty")
+	}
 	if payload.Health != "healthy" && payload.Health != "warning" && payload.Health != "critical" {
 		t.Fatalf("health = %q, want healthy|warning|critical", payload.Health)
 	}
@@ -1143,6 +1296,14 @@ func TestFleetStreamStatsDemoDefaultsTo7d(t *testing.T) {
 			t.Fatalf("by_mode.%s.success_rate_pct = %f, want 0..100", mode, stats.SuccessRatePct)
 		}
 	}
+	if len(payload.TrendByMode) != 3 {
+		t.Fatalf("trend_by_mode length = %d, want %d", len(payload.TrendByMode), 3)
+	}
+	for _, series := range payload.TrendByMode {
+		if len(series.Points) != 7 {
+			t.Fatalf("trend_by_mode[%s] length = %d, want %d", series.Mode, len(series.Points), 7)
+		}
+	}
 	if payload.SuccessRatePct < 0 || payload.SuccessRatePct > 100 {
 		t.Fatalf("success_rate_pct = %f, want 0..100", payload.SuccessRatePct)
 	}
@@ -1151,6 +1312,17 @@ func TestFleetStreamStatsDemoDefaultsTo7d(t *testing.T) {
 	}
 	if len(payload.WorstDevices) > 10 {
 		t.Fatalf("worst_devices length = %d, want <=10", len(payload.WorstDevices))
+	}
+	for _, dev := range payload.WorstDevices {
+		if dev.ModeUsed == "" {
+			t.Fatalf("worst device %q missing mode_used", dev.DeviceID)
+		}
+		if dev.Readiness == "" {
+			t.Fatalf("worst device %q missing readiness", dev.DeviceID)
+		}
+		if dev.Requests > 0 && dev.LastStreamAt == "" {
+			t.Fatalf("worst device %q missing last_stream_at", dev.DeviceID)
+		}
 	}
 }
 
@@ -1191,9 +1363,20 @@ func TestFleetStreamStatsWindow30dAndOrgScope(t *testing.T) {
 	if len(payload.Trend) != 30 {
 		t.Fatalf("trend length = %d, want %d", len(payload.Trend), 30)
 	}
+	if len(payload.TrendByMode) != 3 {
+		t.Fatalf("trend_by_mode length = %d, want %d", len(payload.TrendByMode), 3)
+	}
+	for _, series := range payload.TrendByMode {
+		if len(series.Points) != 30 {
+			t.Fatalf("trend_by_mode[%s] length = %d, want %d", series.Mode, len(series.Points), 30)
+		}
+	}
 	for _, dev := range payload.WorstDevices {
 		if dev.DeviceID == "dev-003" || dev.DeviceID == "dev-004" {
 			t.Fatalf("worst_devices includes out-of-org device %q", dev.DeviceID)
+		}
+		if dev.ModeUsed == "" {
+			t.Fatalf("worst device %q missing mode_used", dev.DeviceID)
 		}
 	}
 }
@@ -1286,7 +1469,7 @@ func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 
 	var payload contracts.FirmwareDistribution
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode firmware distribution: %v", err)
+		t.Fatalf("decode firmware distribution payload: %v", err)
 	}
 	if payload.OrgID != "org-acme" {
 		t.Fatalf("org_id = %q, want org-acme", payload.OrgID)
@@ -1295,25 +1478,28 @@ func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 		t.Fatalf("versions length = %d, want 2", len(payload.Versions))
 	}
 	if !payload.Versions[0].IsLatest {
-		t.Fatalf("first version is not latest: %+v", payload.Versions[0])
-	}
-	totalPct := 0.0
-	totalCount := 0
-	for _, version := range payload.Versions {
-		totalPct += version.Pct
-		totalCount += version.Count
-	}
-	if totalCount != 2 {
-		t.Fatalf("version count total = %d, want 2", totalCount)
-	}
-	if totalPct != 100 {
-		t.Fatalf("version pct total = %f, want 100", totalPct)
+		t.Fatalf("first version is not marked latest: %+v", payload.Versions[0])
 	}
 	if len(payload.Campaigns) != 1 {
 		t.Fatalf("campaigns length = %d, want 1", len(payload.Campaigns))
 	}
-	if payload.Campaigns[0].State != "active" || payload.Campaigns[0].Policy != "normal" {
-		t.Fatalf("campaign summary = %+v, want active normal", payload.Campaigns[0])
+	campaign := payload.Campaigns[0]
+	if campaign.CampaignID != "campaign-demo" || campaign.State != "active" {
+		t.Fatalf("campaign summary = %+v, want demo active", campaign)
+	}
+	if len(campaign.Rollouts) != 2 {
+		t.Fatalf("campaign rollouts length = %d, want 2", len(campaign.Rollouts))
+	}
+	for _, rollout := range campaign.Rollouts {
+		if rollout.DeviceID == "" || rollout.DeviceName == "" {
+			t.Fatalf("rollout is missing device identity: %+v", rollout)
+		}
+		if rollout.CurrentVersion == "" || rollout.TargetVersion == "" {
+			t.Fatalf("rollout is missing version details: %+v", rollout)
+		}
+		if rollout.RolloutStatus == "" {
+			t.Fatalf("rollout status missing: %+v", rollout)
+		}
 	}
 }
 
@@ -1323,9 +1509,9 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/me":
-			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
-		case "/v1/orgs/org-up/devices":
-			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-up-1","name":"cam-up-1","model":"cam-a","serial_number":"SERIAL-1","video_cloud_devid":"device-1","status":"online","readiness":"online","last_seen_at":"2026-05-01T00:00:00Z","updated_at":"2026-05-01T00:00:00Z"},{"id":"dev-up-2","name":"cam-up-2","model":"cam-a","serial_number":"SERIAL-2","video_cloud_devid":"device-2","status":"online","readiness":"online","last_seen_at":"2026-05-01T00:00:00Z","updated_at":"2026-05-01T00:00:00Z"}]}`))
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs/org-acme/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"},{"id":"dev-001","name":"cam-a-001","model":"RTK-CAM-A","serial_number":"ACME-A-001","readiness":"online","status":"online","video_cloud_devid":"device-1"}]}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -1334,24 +1520,61 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 
 	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/query_camera_activate":
-			_, _ = w.Write([]byte(`{"status":"ok","devices":["1","1"]}`))
-		case "/get_camera_info":
-			var body struct {
-				DevID string `json:"devid"`
-			}
-			_ = json.NewDecoder(r.Body).Decode(&body)
-			version := "v1.2.4"
-			if body.DevID == "device-2" {
-				version = "v1.2.3"
-			}
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"status":"ok","info":{"current_transport":"websocket","firmware_version":"%s"}}`, version)))
 		case "/enum_firmware":
-			_, _ = w.Write([]byte(`{"status":"ok","versions":["v1.2.3","v1.2.4"],"releases":[{"version":"v1.2.3"},{"version":"v1.2.4"}]}`))
-		case "/query_firmware_campaign":
-			_, _ = w.Write([]byte(`{"status":"ok","campaigns":[{"id":"campaign-2026-04","model":"cam-a","target_version":"v1.2.4","policy":{"name":"normal"},"state":"active","created_at":"2026-04-01T00:00:00Z","updated_at":"2026-04-01T00:00:00Z"}]}`))
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("enum firmware Authorization = %q, want Bearer vc-secret", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":   "ok",
+				"versions": []string{"v1.2.3", "v1.2.4"},
+			})
 		case "/query_firmware_rollout":
-			_, _ = w.Write([]byte(`{"status":"ok","model":"cam-a","target":"v1.2.4","rollouts":[{"device_id":"dev-up-1","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.4","rollout_status":"applied","updated_at":"2026-04-01T00:00:00Z"},{"device_id":"dev-up-2","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.3","rollout_status":"pending","updated_at":"2026-04-01T00:00:00Z"}]}`))
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("query rollout Authorization = %q, want Bearer vc-secret", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "ok",
+				"model":  "RTK-CAM-A",
+				"rollouts": []map[string]any{
+					{
+						"device_id":       "device-2",
+						"device_name":     "cam-a-002",
+						"campaign_id":     "campaign-2026-04",
+						"target_version":  "v1.2.4",
+						"current_version": "v1.2.4",
+						"rollout_status":  "applied",
+						"updated_at":      "2026-04-01T00:00:00Z",
+					},
+					{
+						"device_id":       "device-1",
+						"device_name":     "cam-a-001",
+						"campaign_id":     "campaign-2026-04",
+						"target_version":  "v1.2.4",
+						"current_version": "v1.2.3",
+						"rollout_status":  "pending",
+						"reason":          "waiting for maintenance window",
+						"updated_at":      "2026-04-01T01:00:00Z",
+					},
+				},
+			})
+		case "/query_firmware_campaign":
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("query campaign Authorization = %q, want Bearer vc-secret", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "ok",
+				"campaigns": []map[string]any{
+					{
+						"id":             "campaign-2026-04",
+						"model":          "RTK-CAM-A",
+						"target_version": "v1.2.4",
+						"policy":         map[string]any{"name": "normal"},
+						"state":          "active",
+						"created_at":     "2026-04-01T00:00:00Z",
+						"updated_at":     "2026-04-01T00:00:00Z",
+					},
+				},
+			})
 		default:
 			http.NotFound(w, r)
 		}
@@ -1366,16 +1589,20 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 	if err := st.Migrate(); err != nil {
 		t.Fatalf("Migrate returned error: %v", err)
 	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
 			AccountManagerBaseURL: accountUpstream.URL,
 			VideoCloudBaseURL:     videoUpstream.URL,
-			VideoCloudAdminToken:  "secret-admin",
+			VideoCloudAdminToken:  "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
 	})
-	session, err := st.CreateSession("customer", "u1", "user@example.com", "access", "refresh", "", time.Hour)
+	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
@@ -1390,10 +1617,10 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 
 	var payload contracts.FirmwareDistribution
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode firmware distribution: %v", err)
+		t.Fatalf("decode firmware distribution payload: %v", err)
 	}
-	if payload.OrgID != "org-up" {
-		t.Fatalf("org_id = %q, want org-up", payload.OrgID)
+	if payload.OrgID != "org-acme" {
+		t.Fatalf("org_id = %q, want org-acme", payload.OrgID)
 	}
 	if len(payload.Versions) != 2 {
 		t.Fatalf("versions length = %d, want 2", len(payload.Versions))
@@ -1404,8 +1631,21 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 	if len(payload.Campaigns) != 1 {
 		t.Fatalf("campaigns length = %d, want 1", len(payload.Campaigns))
 	}
-	if payload.Campaigns[0].Applied != 1 || payload.Campaigns[0].Pending != 1 || payload.Campaigns[0].Total != 2 {
-		t.Fatalf("campaign summary = %+v, want applied=1 pending=1 total=2", payload.Campaigns[0])
+	campaign := payload.Campaigns[0]
+	if campaign.Applied != 1 || campaign.Pending != 1 || campaign.Total != 2 {
+		t.Fatalf("campaign summary = %+v, want applied=1 pending=1 total=2", campaign)
+	}
+	if len(campaign.Rollouts) != 2 {
+		t.Fatalf("campaign rollouts length = %d, want 2", len(campaign.Rollouts))
+	}
+	foundPending := false
+	for _, rollout := range campaign.Rollouts {
+		if rollout.DeviceID == "device-1" {
+			foundPending = rollout.RolloutStatus == "pending" && rollout.FailureReason == "waiting for maintenance window"
+		}
+	}
+	if !foundPending {
+		t.Fatalf("pending rollout not summarized correctly: %+v", campaign.Rollouts)
 	}
 }
 
@@ -1415,9 +1655,9 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/me":
-			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"owner"}]}`))
-		case "/v1/orgs/org-up/devices":
-			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-up-1","name":"cam-up-1","model":"cam-a","serial_number":"SERIAL-1","video_cloud_devid":"device-1","status":"online","readiness":"online","last_seen_at":"2026-05-01T00:00:00Z","updated_at":"2026-05-01T00:00:00Z"},{"id":"dev-up-2","name":"cam-up-2","model":"cam-a","serial_number":"SERIAL-2","video_cloud_devid":"device-2","status":"online","readiness":"online","last_seen_at":"2026-05-01T00:00:00Z","updated_at":"2026-05-01T00:00:00Z"}]}`))
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs/org-acme/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"},{"id":"dev-001","name":"cam-a-001","model":"RTK-CAM-A","serial_number":"ACME-A-001","readiness":"online","status":"online","video_cloud_devid":"device-1"}]}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -1429,9 +1669,9 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 		case "/enum_firmware":
 			_, _ = w.Write([]byte(`{"status":"ok","versions":["v1.2.3","v1.2.4"],"releases":[{"version":"v1.2.3"},{"version":"v1.2.4"}]}`))
 		case "/query_firmware_campaign":
-			_, _ = w.Write([]byte(`{"status":"ok","campaigns":[{"campaign_id":"campaign-2026-04","model":"cam-a","target_version":"v1.2.4","policy":{"name":"normal"},"state":"active","created_at":"2026-04-01T00:00:00Z","updated_at":"2026-04-01T00:00:00Z"}]}`))
+			_, _ = w.Write([]byte(`{"status":"ok","campaigns":[{"campaign_id":"campaign-2026-04","model":"RTK-CAM-A","target_version":"v1.2.4","policy":{"name":"normal"},"state":"active","created_at":"2026-04-01T00:00:00Z","updated_at":"2026-04-01T00:00:00Z"}]}`))
 		case "/query_firmware_rollout":
-			_, _ = w.Write([]byte(`{"status":"ok","model":"cam-a","target":"v1.2.4","rollouts":[{"account_device_id":"device-1","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.4","rollout_status":"applied","updated_at":"2026-04-01T00:00:00Z"},{"device_id":"dev-up-2","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.3","rollout_status":"pending","updated_at":"2026-04-01T00:00:00Z"}]}`))
+			_, _ = w.Write([]byte(`{"status":"ok","model":"RTK-CAM-A","target":"v1.2.4","rollouts":[{"account_device_id":"device-1","device_name":"cam-a-001","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.4","rollout_status":"applied","updated_at":"2026-04-01T00:00:00Z"},{"device_id":"device-2","device_name":"cam-a-002","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.3","rollout_status":"pending","updated_at":"2026-04-01T01:00:00Z"}]}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -1446,16 +1686,19 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 	if err := st.Migrate(); err != nil {
 		t.Fatalf("Migrate returned error: %v", err)
 	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
 			AccountManagerBaseURL: accountUpstream.URL,
 			VideoCloudBaseURL:     videoUpstream.URL,
-			VideoCloudAdminToken:  "secret-admin",
+			VideoCloudAdminToken:  "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
 	})
-	session, err := st.CreateSession("customer", "u1", "user@example.com", "access", "refresh", "", time.Hour)
+	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
@@ -1470,7 +1713,7 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 
 	var payload contracts.FirmwareDistribution
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode firmware distribution: %v", err)
+		t.Fatalf("decode firmware distribution payload: %v", err)
 	}
 	if len(payload.Versions) != 2 {
 		t.Fatalf("versions length = %d, want 2", len(payload.Versions))
@@ -1481,11 +1724,12 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 	if len(payload.Campaigns) != 1 {
 		t.Fatalf("campaigns length = %d, want 1", len(payload.Campaigns))
 	}
-	if payload.Campaigns[0].CampaignID != "campaign-2026-04" {
-		t.Fatalf("campaign id = %q, want campaign-2026-04", payload.Campaigns[0].CampaignID)
+	campaign := payload.Campaigns[0]
+	if campaign.CampaignID != "campaign-2026-04" {
+		t.Fatalf("campaign id = %q, want campaign-2026-04", campaign.CampaignID)
 	}
-	if payload.Campaigns[0].Applied != 1 || payload.Campaigns[0].Pending != 1 || payload.Campaigns[0].Total != 2 {
-		t.Fatalf("campaign summary = %+v, want applied=1 pending=1 total=2", payload.Campaigns[0])
+	if campaign.Applied != 1 || campaign.Pending != 1 || campaign.Total != 2 {
+		t.Fatalf("campaign summary = %+v, want applied=1 pending=1 total=2", campaign)
 	}
 }
 
@@ -1649,6 +1893,21 @@ func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
 	}
 	if payload.DeviceID != "dev-002" {
 		t.Fatalf("device_id = %q, want dev-002", payload.DeviceID)
+	}
+	if payload.DeviceName != "cam-a-002" {
+		t.Fatalf("device_name = %q, want cam-a-002", payload.DeviceName)
+	}
+	if payload.Organization != "Acme Smart Camera" {
+		t.Fatalf("organization = %q, want Acme Smart Camera", payload.Organization)
+	}
+	if payload.SerialNumber != "ACME-A-002" {
+		t.Fatalf("serial_number = %q, want ACME-A-002", payload.SerialNumber)
+	}
+	if payload.Model != "RTK-CAM-A" {
+		t.Fatalf("model = %q, want RTK-CAM-A", payload.Model)
+	}
+	if payload.LastSeenAt == "" {
+		t.Fatal("last_seen_at is empty")
 	}
 	if payload.FirmwareVersion != "v9.8.7" {
 		t.Fatalf("firmware_version = %q, want v9.8.7", payload.FirmwareVersion)
@@ -2108,12 +2367,12 @@ func TestConsoleAndAdminPagesRenderSeedData(t *testing.T) {
 		path string
 		want string
 	}{
-		{path: "/console", want: "Customer Fleet"},
-		{path: "/console/overview", want: "Customer Fleet"},
+		{path: "/console", want: "Fleet Health Overview"},
+		{path: "/console/overview", want: "Fleet Health Overview"},
 		{path: "/console/devices", want: "cam-a-001"},
-		{path: "/console/firmware-ota", want: "Customer Fleet"},
-		{path: "/console/stream-health", want: "Customer Fleet"},
-		{path: "/console/groups", want: "Customer Fleet"},
+		{path: "/console/firmware-ota", want: "Fleet Health Overview"},
+		{path: "/console/stream-health", want: "Fleet Health Overview"},
+		{path: "/console/groups", want: "Fleet Health Overview"},
 		{path: "/admin", want: "Platform Operations"},
 		{path: "/admin/ops", want: "DeviceProvisionRequested"},
 		{path: "/admin/audit", want: "Platform Operations"},
