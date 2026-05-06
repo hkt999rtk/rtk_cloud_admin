@@ -18,7 +18,7 @@ export function titleFor(active) {
     signup: 'Sign up',
     'signup-check-email': 'Check your email',
     verify: 'Verify email',
-    overview: 'Customer Overview',
+    overview: 'Fleet Health Overview',
     devices: 'Devices',
     operations: 'Operations',
     'firmware-ota': 'Firmware & OTA',
