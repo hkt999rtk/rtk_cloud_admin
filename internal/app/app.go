@@ -80,9 +80,13 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/summary", s.apiAdminSummary)
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
+	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
 	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
+	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
+	s.mux.HandleFunc("POST /api/auth/customer/resend-verification", s.apiCustomerResendVerification)
 	s.mux.HandleFunc("POST /api/auth/platform/login", s.apiPlatformLogin)
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
+	s.mux.HandleFunc("POST /api/orgs/{orgId}/quota-raise-requests", s.apiQuotaRaiseRequest)
 	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
@@ -103,6 +107,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /assets/", s.assets)
 	s.mux.HandleFunc("GET /", s.home)
 	for _, path := range []string{
+		"/signup",
+		"/signup/check-email",
+		"/verify",
 		"/console",
 		"/console/overview",
 		"/console/devices",
@@ -159,7 +166,7 @@ func (s *Server) shell(w http.ResponseWriter, r *http.Request) {
 <body>
   <div id="root">
     <h1>RTK Cloud Admin</h1>
-    <p>Customer Fleet</p>
+    <p>Fleet Health Overview</p>
     <p>Platform Operations</p>
     <p>cam-a-001</p>
     <p>DeviceProvisionRequested</p>
@@ -231,8 +238,8 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 			DemoMode:      !s.accountClient.Enabled(),
 			Authenticated: false,
 			Memberships: []contracts.Membership{
-				{OrganizationID: "org-acme", Organization: "Acme Smart Camera", Role: "owner"},
-				{OrganizationID: "org-nova", Organization: "Nova Home Labs", Role: "operator"},
+				{OrganizationID: "org-acme", Organization: "Acme Smart Camera", Role: "owner", Tier: "evaluation", EvaluationDeviceQuota: 5},
+				{OrganizationID: "org-nova", Organization: "Nova Home Labs", Role: "operator", Tier: "commercial"},
 			},
 		})
 		return
@@ -261,7 +268,7 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		me.Email = upstream.User.Email
 		me.Name = fallback(upstream.User.Name, upstream.User.Email)
 		for _, org := range upstream.Organizations {
-			me.Memberships = append(me.Memberships, contracts.Membership{OrganizationID: org.ID, Organization: org.Name, Role: org.Role})
+			me.Memberships = append(me.Memberships, membershipFromOrganization(org))
 		}
 	}
 	writeJSON(w, me)
@@ -309,6 +316,99 @@ func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"active_org_id": body.OrganizationID})
+}
+
+func (s *Server) apiCustomerSignup(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.SignupRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid signup request", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.Signup(r.Context(), body)
+	if err != nil {
+		s.writeCustomerError(w, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusAccepted, result)
+}
+
+func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.AuthTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" {
+		http.Error(w, "token is required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.VerifyEmail(r.Context(), body.Token)
+	if err != nil {
+		s.writeCustomerError(w, err)
+		return
+	}
+	if result.Tokens.AccessToken != "" {
+		session, sessionErr := s.store.CreateSession("customer", result.User.ID, result.User.Email, result.Tokens.AccessToken, result.Tokens.RefreshToken, "", tokenTTL(result.Tokens))
+		if sessionErr != nil {
+			writeError(w, sessionErr)
+			return
+		}
+		setSessionCookie(w, session.ID)
+	}
+	writeJSONStatus(w, http.StatusOK, result)
+}
+
+func (s *Server) apiCustomerResendVerification(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.EmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Email) == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
+		return
+	}
+	if err := s.accountClient.ResendVerification(r.Context(), body.Email); err != nil {
+		s.writeCustomerError(w, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+}
+
+func (s *Server) apiQuotaRaiseRequest(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	orgID, err := s.customerOrgIDForSession(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if orgID != r.PathValue("orgId") {
+		http.Error(w, "quota raise requests must target the active organization", http.StatusForbidden)
+		return
+	}
+	var body accountclient.QuotaRaiseRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid quota raise request", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.CreateQuotaRaiseRequest(r.Context(), session.AccessToken, orgID, body)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusCreated, result)
 }
 
 func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
@@ -394,7 +494,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
-		writeJSON(w, devices)
+		writeJSON(w, devicesWithFirmwareVersion(devices))
 		return
 	}
 	devices, err := s.store.ListDevices()
@@ -402,7 +502,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, devices)
+	writeJSON(w, devicesWithFirmwareVersion(devices))
 }
 
 func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
@@ -414,7 +514,7 @@ func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, devices)
+	writeJSON(w, devicesWithFirmwareVersion(devices))
 }
 
 func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
@@ -426,7 +526,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
-				writeJSON(w, device)
+				writeJSON(w, deviceWithFirmwareVersion(device))
 				return
 			}
 		}
@@ -442,7 +542,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, device)
+	writeJSON(w, deviceWithFirmwareVersion(device))
 }
 
 func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
@@ -574,18 +674,29 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		streamModeRelay:  {Requests: 0, SuccessRatePct: 0},
 		streamModeWebRTC: {Requests: 0, SuccessRatePct: 0},
 	}
+	modeTrendRequests := map[string][]int{
+		streamModeRTSP:   make([]int, days),
+		streamModeRelay:  make([]int, days),
+		streamModeWebRTC: make([]int, days),
+	}
+	modeTrendSuccesses := map[string][]int{
+		streamModeRTSP:   make([]int, days),
+		streamModeRelay:  make([]int, days),
+		streamModeWebRTC: make([]int, days),
+	}
 	type modeAccumulator struct {
 		requests  int
 		successes int
 	}
 	type deviceAccumulator struct {
-		deviceID   string
-		deviceName string
-		mode       string
-		readiness  contracts.ReadinessState
-		requests   int
-		successes  int
-		never      bool
+		deviceID     string
+		deviceName   string
+		mode         string
+		readiness    contracts.ReadinessState
+		requests     int
+		successes    int
+		lastStreamAt string
+		never        bool
 	}
 	modeStats := map[string]modeAccumulator{
 		streamModeRTSP:   {},
@@ -621,6 +732,9 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		}
 		for day := 0; day < days; day++ {
 			requests, successes, duration := streamDevicesForDay(day, len(devices), idx, device, agg.never)
+			if requests > 0 {
+				agg.lastStreamAt = streamDayTimestamp(today, day, days)
+			}
 			dailyRequestsByDay[day] += requests
 			dailySuccessesByDay[day] += successes
 			totalRequests += requests
@@ -631,6 +745,8 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 			mode.requests += requests
 			mode.successes += successes
 			modeStats[agg.mode] = mode
+			modeTrendRequests[agg.mode][day] += requests
+			modeTrendSuccesses[agg.mode][day] += successes
 			totalDuration += duration
 		}
 	}
@@ -654,6 +770,20 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 			SuccessRatePct: streamRate(stats.successes, stats.requests),
 		}
 	}
+	modeTrendSeries := make([]contracts.FleetStreamModeTrend, 0, 3)
+	for _, mode := range []string{streamModeRTSP, streamModeRelay, streamModeWebRTC} {
+		series := make([]contracts.FleetStreamTrendPoint, 0, days)
+		for day := 0; day < days; day++ {
+			requests := modeTrendRequests[mode][day]
+			successes := modeTrendSuccesses[mode][day]
+			series = append(series, contracts.FleetStreamTrendPoint{
+				Date:           today.AddDate(0, 0, day-days+1).Format("2006-01-02"),
+				Requests:       requests,
+				SuccessRatePct: streamRate(successes, requests),
+			})
+		}
+		modeTrendSeries = append(modeTrendSeries, contracts.FleetStreamModeTrend{Mode: mode, Points: series})
+	}
 
 	worst := make([]contracts.FleetStreamWorstDevice, 0, len(deviceStats))
 	for _, agg := range deviceStats {
@@ -663,15 +793,21 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		worst = append(worst, contracts.FleetStreamWorstDevice{
 			DeviceID:       agg.deviceID,
 			DeviceName:     agg.deviceName,
+			ModeUsed:       agg.mode,
+			Readiness:      string(agg.readiness),
 			Requests:       agg.requests,
 			SuccessRatePct: streamRate(agg.successes, agg.requests),
+			LastStreamAt:   agg.lastStreamAt,
 		})
 	}
 	sort.Slice(worst, func(i, j int) bool {
 		if worst[i].SuccessRatePct != worst[j].SuccessRatePct {
 			return worst[i].SuccessRatePct < worst[j].SuccessRatePct
 		}
-		return worst[i].Requests < worst[j].Requests
+		if worst[i].Requests != worst[j].Requests {
+			return worst[i].Requests > worst[j].Requests
+		}
+		return worst[i].DeviceName < worst[j].DeviceName
 	})
 	if len(worst) > 10 {
 		worst = worst[:10]
@@ -686,6 +822,7 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		NeverStreamedCount: neverStreamedCount,
 		ByMode:             byMode,
 		Trend:              trend,
+		TrendByMode:        modeTrendSeries,
 		WorstDevices:       worst,
 	}
 }
@@ -755,6 +892,11 @@ func streamDevicesForDay(day, totalDevices, index int, device contracts.Device, 
 	failurePenalty := requests*2 - successes
 	duration := requests*baseDuration + successBoost - failurePenalty
 	return requests, successes, duration
+}
+
+func streamDayTimestamp(today time.Time, day, days int) string {
+	streamDay := today.AddDate(0, 0, day-days+1)
+	return streamDay.Add(15 * time.Hour).Format(time.RFC3339)
 }
 
 func streamRate(successes, requests int) float64 {
@@ -1034,16 +1176,38 @@ func demoFirmwareDistribution(orgID string, devices []contracts.Device) contract
 		applied := 0
 		failed := 0
 		skipped := 0
+		rollouts := make([]contracts.FirmwareDistributionRollout, 0, len(devices))
 		for _, device := range devices {
+			version := strings.TrimSpace(currentVersions[device.ID])
+			if version == "" {
+				version = strings.TrimSpace(currentVersions[firmwareDistributionDeviceKey(device)])
+			}
 			if strings.EqualFold(strings.TrimSpace(currentVersions[device.ID]), topVersion) {
 				applied++
 			}
+			status := "pending"
+			failureReason := ""
 			if device.Readiness == contracts.ReadinessFailed {
+				status = "failed"
 				failed++
+				failureReason = "device readiness is failed"
 			}
 			if device.Readiness == contracts.ReadinessDeactivated {
+				status = "skipped"
 				skipped++
 			}
+			if strings.EqualFold(version, topVersion) && status == "pending" {
+				status = "applied"
+			}
+			rollouts = append(rollouts, contracts.FirmwareDistributionRollout{
+				DeviceID:       device.ID,
+				DeviceName:     device.Name,
+				CurrentVersion: version,
+				TargetVersion:  topVersion,
+				RolloutStatus:  status,
+				FailureReason:  failureReason,
+				LastUpdated:    fallback(device.LastSeenAt, time.Now().UTC().Format(time.RFC3339)),
+			})
 		}
 		pending := max(0, total-applied-failed-skipped)
 		dist.Campaigns = []contracts.FirmwareDistributionCampaign{{
@@ -1057,6 +1221,7 @@ func demoFirmwareDistribution(orgID string, devices []contracts.Device) contract
 			Skipped:       skipped,
 			Total:         total,
 			StartedAt:     time.Now().UTC().AddDate(0, 0, -7).Format(time.RFC3339),
+			Rollouts:      rollouts,
 		}}
 	}
 	return dist
@@ -1172,6 +1337,7 @@ func summarizeFirmwareCampaign(campaign videoclient.FirmwareCampaignRecord, roll
 	if summary.StartedAt == "" {
 		summary.StartedAt = campaign.UpdatedAt
 	}
+	summary.Rollouts = make([]contracts.FirmwareDistributionRollout, 0, len(rollouts))
 	for _, rollout := range rollouts {
 		status := rolloutStatus(rollout)
 		summary.Total++
@@ -1187,7 +1353,22 @@ func summarizeFirmwareCampaign(campaign videoclient.FirmwareCampaignRecord, roll
 		default:
 			summary.Pending++
 		}
+		summary.Rollouts = append(summary.Rollouts, contracts.FirmwareDistributionRollout{
+			DeviceID:       firstNonEmpty(strings.TrimSpace(rollout.DeviceID), strings.TrimSpace(rollout.AccountDeviceID)),
+			DeviceName:     firstNonEmpty(strings.TrimSpace(rollout.DeviceName), strings.TrimSpace(rollout.DeviceID)),
+			CurrentVersion: firstNonEmpty(strings.TrimSpace(rollout.CurrentVersion), strings.TrimSpace(rollout.TargetVersion)),
+			TargetVersion:  strings.TrimSpace(rollout.TargetVersion),
+			RolloutStatus:  firstNonEmpty(status, "pending"),
+			FailureReason:  strings.TrimSpace(rollout.Reason),
+			LastUpdated:    firstNonEmpty(strings.TrimSpace(rollout.UpdatedAt), strings.TrimSpace(rollout.LastUpdated)),
+		})
 	}
+	sort.Slice(summary.Rollouts, func(i, j int) bool {
+		if summary.Rollouts[i].LastUpdated != summary.Rollouts[j].LastUpdated {
+			return summary.Rollouts[i].LastUpdated > summary.Rollouts[j].LastUpdated
+		}
+		return summary.Rollouts[i].DeviceName < summary.Rollouts[j].DeviceName
+	})
 	if summary.StartedAt == "" && len(rollouts) > 0 {
 		summary.StartedAt = oldestFirmwareTimestamp(rollouts).Format(time.RFC3339)
 	}
@@ -1379,7 +1560,7 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
-				if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), session, device); err != nil {
+				if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), device.OrganizationID, device); err != nil {
 					s.writeCustomerErrorForSession(w, session.ID, err)
 					return
 				} else if ok {
@@ -1420,7 +1601,7 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		LastSeenAt:      device.LastSeenAt,
 		UpdatedAt:       device.UpdatedAt,
 	}
-	if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), session, telemetryDevice); err != nil {
+	if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), telemetryDevice.OrganizationID, telemetryDevice); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	} else if ok {
@@ -1430,11 +1611,11 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, demoTelemetryForDevice(telemetryDevice))
 }
 
-func (s *Server) proxyTelemetryForDevice(ctx context.Context, session store.Session, device contracts.Device) (contracts.DeviceTelemetry, bool, error) {
+func (s *Server) proxyTelemetryForDevice(ctx context.Context, orgID string, device contracts.Device) (contracts.DeviceTelemetry, bool, error) {
 	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" || strings.TrimSpace(device.VideoCloudDevID) == "" {
 		return contracts.DeviceTelemetry{}, false, nil
 	}
-	upstream, err := s.videoClient.DeviceTelemetry(ctx, s.cfg.VideoCloudAdminToken, device.VideoCloudDevID, session.ActiveOrgID)
+	upstream, err := s.videoClient.DeviceTelemetry(ctx, s.cfg.VideoCloudAdminToken, device.VideoCloudDevID, orgID)
 	if err != nil {
 		return contracts.DeviceTelemetry{}, true, err
 	}
@@ -1443,17 +1624,22 @@ func (s *Server) proxyTelemetryForDevice(ctx context.Context, session store.Sess
 	if err == nil && strings.TrimSpace(info.FirmwareVersion) != "" {
 		firmwareVersion = strings.TrimSpace(info.FirmwareVersion)
 	}
-	return telemetryFromVideoCloud(device.ID, firmwareVersion, upstream), true, nil
+	return telemetryFromVideoCloud(device, firmwareVersion, upstream), true, nil
 }
 
-func telemetryFromVideoCloud(deviceID, firmwareVersion string, upstream videoclient.DeviceTelemetryResponse) contracts.DeviceTelemetry {
+func telemetryFromVideoCloud(device contracts.Device, firmwareVersion string, upstream videoclient.DeviceTelemetryResponse) contracts.DeviceTelemetry {
 	signals := telemetrySignalsFromUpstream(upstream.LatestHealth, upstream.RecentEvents)
 	health := telemetryHealthFromUpstream(upstream.LatestHealth, signals)
 	if strings.TrimSpace(firmwareVersion) == "" {
 		firmwareVersion = "unknown"
 	}
 	return contracts.DeviceTelemetry{
-		DeviceID:        deviceID,
+		DeviceID:        device.ID,
+		DeviceName:      fallback(strings.TrimSpace(upstream.DeviceName), device.Name),
+		Organization:    device.Organization,
+		SerialNumber:    device.SerialNumber,
+		Model:           device.Model,
+		LastSeenAt:      fallback(device.LastSeenAt, telemetryLastSeenAt(upstream)),
 		Health:          health,
 		Signals:         signals,
 		FirmwareVersion: strings.TrimSpace(firmwareVersion),
@@ -1829,6 +2015,11 @@ func demoTelemetryForDevice(device contracts.Device) contracts.DeviceTelemetry {
 	version := firmwareVersionFromDevice(device)
 	return contracts.DeviceTelemetry{
 		DeviceID:        device.ID,
+		DeviceName:      device.Name,
+		Organization:    device.Organization,
+		SerialNumber:    device.SerialNumber,
+		Model:           device.Model,
+		LastSeenAt:      device.LastSeenAt,
 		Health:          health,
 		Signals:         signals,
 		FirmwareVersion: version,
@@ -1836,6 +2027,26 @@ func demoTelemetryForDevice(device contracts.Device) contracts.DeviceTelemetry {
 		Uptime7D:        uptime,
 		RecentEvents:    recent,
 	}
+}
+
+func telemetryLastSeenAt(upstream videoclient.DeviceTelemetryResponse) string {
+	latest := time.Time{}
+	if upstream.LatestHealth != nil && !upstream.LatestHealth.OccurredAt.IsZero() {
+		latest = upstream.LatestHealth.OccurredAt.UTC()
+	}
+	for _, event := range upstream.RecentEvents {
+		if event.OccurredAt.IsZero() {
+			continue
+		}
+		occurredAt := event.OccurredAt.UTC()
+		if occurredAt.After(latest) {
+			latest = occurredAt
+		}
+	}
+	if latest.IsZero() {
+		return ""
+	}
+	return latest.Format(time.RFC3339)
 }
 
 func telemetryQualityFromDBM(avgDBM int) string {
@@ -1854,6 +2065,19 @@ func firmwareVersionFromDevice(device contracts.Device) string {
 		return fmt.Sprintf("v1.2.%d", parsed)
 	}
 	return fmt.Sprintf("v1.2.%d", len(device.Model))
+}
+
+func deviceWithFirmwareVersion(device contracts.Device) contracts.Device {
+	device.FirmwareVersion = firmwareVersionFromDevice(device)
+	return device
+}
+
+func devicesWithFirmwareVersion(devices []contracts.Device) []contracts.Device {
+	out := make([]contracts.Device, len(devices))
+	for i, device := range devices {
+		out[i] = deviceWithFirmwareVersion(device)
+	}
+	return out
 }
 
 func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {
@@ -2008,7 +2232,10 @@ func (s *Server) customerDevices(ctx context.Context, session store.Session) ([]
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
-	vcFacts := s.videoCloudFacts(ctx, devices)
+	vcFacts, err := s.videoCloudFacts(ctx, devices)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]contracts.Device, 0, len(devices))
 	for _, device := range devices {
 		vid := fallback(device.VideoCloudDevID, metadataString(device.Metadata, "video_cloud_devid", ""))
@@ -2195,6 +2422,14 @@ func writeJSON(w http.ResponseWriter, v any) {
 	}
 }
 
+func writeJSONStatus(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func writeError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
@@ -2322,6 +2557,10 @@ func (s *Server) writeCustomerError(w http.ResponseWriter, err error) {
 	}
 	if errors.Is(err, errCustomerActiveOrgInvalid) {
 		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+	if errors.Is(err, errVideoCloudRequestFailed) {
+		http.Error(w, "Video Cloud request failed", http.StatusBadGateway)
 		return
 	}
 	if status, ok := customerUpstreamStatus(err); ok {
@@ -2458,7 +2697,15 @@ func (s *Server) upstreamDevices(w http.ResponseWriter, r *http.Request) ([]cont
 		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
-		vcFacts := s.videoCloudFacts(r.Context(), devices)
+		vcFacts, err := s.videoCloudFacts(r.Context(), devices)
+		if err != nil {
+			if errors.Is(err, errVideoCloudRequestFailed) {
+				s.writeCustomerError(w, err)
+				return nil, true
+			}
+			s.writeCustomerError(w, err)
+			return nil, true
+		}
 		for _, device := range devices {
 			vid := fallback(device.VideoCloudDevID, metadataString(device.Metadata, "video_cloud_devid", ""))
 			out = append(out, mapUpstreamDevice(org, device, vcFacts[vid]))
@@ -2604,10 +2851,14 @@ func mapUpstreamDevice(org accountclient.Organization, device accountclient.Devi
 		Model:           fallback(device.Model, metadataString(device.Metadata, "model", "unknown")),
 		SerialNumber:    fallback(device.SerialNumber, metadataString(device.Metadata, "serial_number", "")),
 		VideoCloudDevID: videoID,
-		Status:          status,
-		Readiness:       readiness,
-		LastSeenAt:      fallback(device.LastSeenAt, metadataString(device.Metadata, "last_seen_at", "")),
-		UpdatedAt:       updatedAt,
+		FirmwareVersion: firmwareVersionFromDevice(contracts.Device{
+			ID:    device.ID,
+			Model: fallback(device.Model, metadataString(device.Metadata, "model", "unknown")),
+		}),
+		Status:     status,
+		Readiness:  readiness,
+		LastSeenAt: fallback(device.LastSeenAt, metadataString(device.Metadata, "last_seen_at", "")),
+		UpdatedAt:  updatedAt,
 	}
 	mapped.SourceFacts = readinessfacts.Build(mapped, upstreamOperationFromMetadata(device, updatedAt), vcFacts)
 	return mapped
@@ -2648,6 +2899,16 @@ func metadataString(metadata map[string]any, key, fallbackValue string) string {
 		return text
 	}
 	return fallbackValue
+}
+
+func membershipFromOrganization(org accountclient.Organization) contracts.Membership {
+	return contracts.Membership{
+		OrganizationID:        org.ID,
+		Organization:          org.Name,
+		Role:                  org.Role,
+		Tier:                  org.Tier,
+		EvaluationDeviceQuota: org.EvaluationDeviceQuota,
+	}
 }
 
 func fallback(value, fallbackValue string) string {
@@ -2695,13 +2956,16 @@ func (s *Server) upstreamHealth(ctx context.Context, name, baseURL string, check
 	return contracts.ServiceHealth{Name: name, Status: status, Detail: detail, LatencyMillis: time.Since(start).Milliseconds(), LastCheckedAt: time.Now().UTC().Format(time.RFC3339)}
 }
 
+var errVideoCloudRequestFailed = errors.New("Video Cloud request failed")
+
 // videoCloudFacts queries Video Cloud for activation and transport facts for a
 // batch of Account Manager devices. Returns a map keyed by VideoCloudDevID.
 // Non-nil facts are only present for devices that have a VideoCloudDevID.
-// Errors are logged and silently ignored — Video Cloud is best-effort.
-func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.Device) map[string]*readinessfacts.VideoCloudFacts {
+// If activation lookup fails, the error is surfaced so production mode does not
+// silently fall back to local inference when upstream truth is configured.
+func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.Device) (map[string]*readinessfacts.VideoCloudFacts, error) {
 	if !s.videoClient.Enabled() || s.cfg.VideoCloudAdminToken == "" {
-		return nil
+		return nil, nil
 	}
 
 	// Collect device IDs that have a VideoCloudDevID.
@@ -2715,7 +2979,7 @@ func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.De
 		}
 	}
 	if len(vcIDs) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	qCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -2723,7 +2987,7 @@ func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.De
 
 	activated, err := s.videoClient.QueryActivation(qCtx, s.cfg.VideoCloudAdminToken, vcIDs)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("%w: %v", errVideoCloudRequestFailed, err)
 	}
 
 	updatedAt := time.Now().UTC().Format(time.RFC3339)
@@ -2768,7 +3032,7 @@ func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.De
 			UpdatedAt: updatedAt,
 		}
 	}
-	return out
+	return out, nil
 }
 
 const telemetrySecondsPerDay = 24 * 60 * 60

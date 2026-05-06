@@ -15,7 +15,10 @@ export const platformNavItems = [
 
 export function titleFor(active) {
   return {
-    overview: 'Customer Overview',
+    signup: 'Sign up',
+    'signup-check-email': 'Check your email',
+    verify: 'Verify email',
+    overview: 'Fleet Health Overview',
     devices: 'Devices',
     operations: 'Operations',
     'firmware-ota': 'Firmware & OTA',
@@ -28,6 +31,9 @@ export function titleFor(active) {
 }
 
 export function routeFromPath(path) {
+  if (path === '/signup' || path === '/signup/') return 'signup';
+  if (path === '/signup/check-email' || path.startsWith('/signup/check-email/')) return 'signup-check-email';
+  if (path === '/verify' || path.startsWith('/verify/')) return 'verify';
   if (path === '/admin' || path === '/admin/') return 'platform-health';
   if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
   if (path === '/admin/operations' || path.startsWith('/admin/operations/')) return 'platform-operations';
