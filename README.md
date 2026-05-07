@@ -85,6 +85,13 @@ Backend tests:
 go test ./...
 ```
 
+Backend coverage:
+
+```sh
+go test ./... -coverprofile=coverage.out
+go tool cover -func=coverage.out
+```
+
 Backend build:
 
 ```sh
@@ -95,8 +102,17 @@ Frontend build:
 
 ```sh
 cd web
+npm test
 npm run build
 ```
+
+Testing policy:
+
+- API handler behavior changes need focused Go tests with `httptest`.
+- Account Manager and Video Cloud integrations must be tested with local
+  `httptest` upstreams, never real services.
+- Frontend route or API helper changes need Node test coverage in
+  `web/src/*.test.mjs`.
 
 Run a persistent local server through tmux:
 

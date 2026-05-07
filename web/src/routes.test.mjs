@@ -12,7 +12,9 @@ test('maps platform shell paths to platform routes', () => {
 test('maps public signup paths to auth routes', () => {
   assert.equal(routeFromPath('/signup'), 'signup');
   assert.equal(routeFromPath('/signup/check-email'), 'signup-check-email');
+  assert.equal(routeFromPath('/signup/check-email/inbox'), 'signup-check-email');
   assert.equal(routeFromPath('/verify'), 'verify');
+  assert.equal(routeFromPath('/verify/token-1'), 'verify');
 });
 
 test('maps customer shell paths to customer routes', () => {
@@ -28,4 +30,30 @@ test('maps customer shell paths to customer routes', () => {
 
 test('uses fleet health overview title for the customer landing page', () => {
   assert.equal(titleFor('overview'), 'Fleet Health Overview');
+});
+
+test('falls back unknown paths to the customer overview route', () => {
+  assert.equal(routeFromPath('/'), 'overview');
+  assert.equal(routeFromPath('/console/unknown'), 'overview');
+  assert.equal(routeFromPath('/admin/unknown'), 'overview');
+});
+
+test('provides titles for all public shell routes', () => {
+  for (const route of [
+    'signup',
+    'signup-check-email',
+    'verify',
+    'overview',
+    'devices',
+    'operations',
+    'firmware-ota',
+    'stream-health',
+    'groups',
+    'platform-health',
+    'platform-operations',
+    'platform-audit',
+  ]) {
+    assert.equal(typeof titleFor(route), 'string', route);
+    assert.notEqual(titleFor(route), '');
+  }
 });

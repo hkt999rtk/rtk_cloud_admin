@@ -1,8 +1,10 @@
 package accountclient
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -127,5 +129,132 @@ func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 	}
 	if raise.QuotaRaiseRequest.Status != "pending" {
 		t.Fatalf("quota raise status = %q", raise.QuotaRaiseRequest.Status)
+	}
+}
+
+func TestClientOrganizationsAndDevices(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer access" {
+			t.Fatalf("Authorization = %q, want Bearer access", got)
+		}
+		switch r.URL.Path {
+		case "/v1/orgs":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"organizations": []map[string]any{
+					{"id": "org-1", "name": "Acme", "role": "owner", "tier": "evaluation", "evaluation_device_quota": 5},
+				},
+			})
+		case "/v1/orgs/org-1/devices":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"devices": []map[string]any{
+					{
+						"id":                "dev-1",
+						"organization_id":   "org-1",
+						"organization":      "Acme",
+						"name":              "Front Door",
+						"model":             "RTK-CAM-A",
+						"serial_number":     "ACME-001",
+						"video_cloud_devid": "vc-1",
+						"status":            "online",
+						"readiness":         "activated",
+						"metadata":          map[string]any{"video_cloud_devid": "vc-1"},
+					},
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	orgs, err := client.Organizations(t.Context(), "access")
+	if err != nil {
+		t.Fatalf("Organizations returned error: %v", err)
+	}
+	if len(orgs) != 1 || orgs[0].ID != "org-1" || orgs[0].EvaluationDeviceQuota != 5 {
+		t.Fatalf("organizations = %#v", orgs)
+	}
+
+	devices, err := client.Devices(t.Context(), "access", "org-1")
+	if err != nil {
+		t.Fatalf("Devices returned error: %v", err)
+	}
+	if len(devices) != 1 || devices[0].ID != "dev-1" || devices[0].VideoCloudDevID != "vc-1" {
+		t.Fatalf("devices = %#v", devices)
+	}
+}
+
+func TestClientLifecycleOperationsAcceptNestedAndFlatResponses(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer access" {
+			t.Fatalf("Authorization = %q, want Bearer access", got)
+		}
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		switch r.URL.Path {
+		case "/v1/orgs/org-1/devices/dev-1/provision":
+			_, _ = w.Write([]byte(`{"operation":{"id":"op-provision","state":"published","message":"accepted","updated_at":"2026-05-07T00:00:00Z"}}`))
+		case "/v1/orgs/org-1/devices/dev-1/deactivate":
+			_, _ = w.Write([]byte(`{"id":"op-deactivate","state":"completed","message":"disabled","updated_at":"2026-05-07T00:01:00Z"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	provision, err := client.Provision(t.Context(), "access", "org-1", "dev-1")
+	if err != nil {
+		t.Fatalf("Provision returned error: %v", err)
+	}
+	if provision.ID != "op-provision" || provision.State != "published" {
+		t.Fatalf("provision operation = %#v", provision)
+	}
+
+	deactivate, err := client.Deactivate(t.Context(), "access", "org-1", "dev-1")
+	if err != nil {
+		t.Fatalf("Deactivate returned error: %v", err)
+	}
+	if deactivate.ID != "op-deactivate" || deactivate.State != "completed" {
+		t.Fatalf("deactivate operation = %#v", deactivate)
+	}
+}
+
+func TestClientHealthAndHTTPErrorBody(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/healthz":
+			_, _ = w.Write([]byte("ok"))
+		case "/v1/orgs/org-1/devices":
+			http.Error(w, "forbidden org", http.StatusForbidden)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL + "/")
+	if err := client.Health(t.Context()); err != nil {
+		t.Fatalf("Health returned error: %v", err)
+	}
+
+	_, err := client.Devices(t.Context(), "access", "org-1")
+	if err == nil {
+		t.Fatal("expected Devices error")
+	}
+	httpErr, ok := err.(*HTTPError)
+	if !ok {
+		t.Fatalf("error type = %T, want *HTTPError", err)
+	}
+	if httpErr.StatusCode != http.StatusForbidden || !strings.Contains(httpErr.Body, "forbidden org") {
+		t.Fatalf("HTTPError = %#v", httpErr)
 	}
 }

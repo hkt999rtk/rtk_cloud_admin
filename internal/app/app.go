@@ -1626,7 +1626,7 @@ func (s *Server) proxyTelemetryForDevice(ctx context.Context, orgID string, devi
 	}
 	upstream, err := s.videoClient.DeviceTelemetry(ctx, s.cfg.VideoCloudAdminToken, device.VideoCloudDevID, orgID)
 	if err != nil {
-		return contracts.DeviceTelemetry{}, true, err
+		return contracts.DeviceTelemetry{}, true, fmt.Errorf("%w: %v", errVideoCloudRequestFailed, err)
 	}
 	info, err := s.videoClient.GetDeviceInfo(ctx, s.cfg.VideoCloudAdminToken, device.VideoCloudDevID)
 	firmwareVersion := firmwareVersionFromDevice(device)
