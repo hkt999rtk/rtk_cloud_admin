@@ -432,6 +432,75 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 	}
 }
 
+func TestCustomerDevicesReportVideoCloudActivationFailures(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/login":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"tokens":{"access_token":"access","refresh_token":"refresh","expires_in":3600}}`))
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs/org-acme/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"}]}`))
+		default:
+			t.Fatalf("unexpected account path: %s", r.URL.Path)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/query_camera_activate" {
+			http.Error(w, "activation gateway down", http.StatusInternalServerError)
+			return
+		}
+		t.Fatalf("unexpected video path: %s", r.URL.Path)
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL: accountUpstream.URL,
+			VideoCloudBaseURL:     videoUpstream.URL,
+			VideoCloudAdminToken:  "vc-secret",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+
+	login := httptest.NewRecorder()
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"customer@example.com","password":"secret"}`)))
+	if login.Code != http.StatusOK {
+		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
+	}
+	cookie := login.Result().Cookies()[0]
+
+	devices := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	req.AddCookie(cookie)
+	srv.ServeHTTP(devices, req)
+	if devices.Code != http.StatusBadGateway {
+		t.Fatalf("devices status = %d, body=%s", devices.Code, devices.Body.String())
+	}
+	if !strings.Contains(devices.Body.String(), "Video Cloud request failed") {
+		t.Fatalf("devices body = %s", devices.Body.String())
+	}
+}
+
 func TestCustomerLoginSurvivesProfileRetryFailure(t *testing.T) {
 	t.Parallel()
 
@@ -1520,6 +1589,35 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 
 	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/query_camera_activate":
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("query activation Authorization = %q, want Bearer vc-secret", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":  "ok",
+				"devices": []string{"1", "1"},
+			})
+		case "/get_camera_info":
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("camera info Authorization = %q, want Bearer vc-secret", got)
+			}
+			var body struct {
+				DevID string `json:"devid"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode camera info body: %v", err)
+			}
+			version := "v1.2.4"
+			if body.DevID == "device-1" {
+				version = "v1.2.3"
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "ok",
+				"info": map[string]any{
+					"firmware_version":  version,
+					"current_transport": "websocket",
+				},
+			})
 		case "/enum_firmware":
 			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
 				t.Fatalf("enum firmware Authorization = %q, want Bearer vc-secret", got)
@@ -1602,7 +1700,7 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
 	})
-	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "", time.Hour)
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
@@ -1666,6 +1764,29 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 
 	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/query_camera_activate":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":  "ok",
+				"devices": []string{"1", "1"},
+			})
+		case "/get_camera_info":
+			var body struct {
+				DevID string `json:"devid"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode camera info body: %v", err)
+			}
+			version := "v1.2.4"
+			if body.DevID == "device-2" {
+				version = "v1.2.3"
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "ok",
+				"info": map[string]any{
+					"firmware_version":  version,
+					"current_transport": "websocket",
+				},
+			})
 		case "/enum_firmware":
 			_, _ = w.Write([]byte(`{"status":"ok","versions":["v1.2.3","v1.2.4"],"releases":[{"version":"v1.2.3"},{"version":"v1.2.4"}]}`))
 		case "/query_firmware_campaign":
@@ -1871,7 +1992,7 @@ func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
 	})
-	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "", time.Hour)
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}

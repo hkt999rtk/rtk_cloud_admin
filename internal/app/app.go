@@ -1569,7 +1569,7 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
-				if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), session, device); err != nil {
+				if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), device.OrganizationID, device); err != nil {
 					s.writeCustomerErrorForSession(w, session.ID, err)
 					return
 				} else if ok {
@@ -1610,7 +1610,7 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		LastSeenAt:      device.LastSeenAt,
 		UpdatedAt:       device.UpdatedAt,
 	}
-	if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), session, telemetryDevice); err != nil {
+	if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), telemetryDevice.OrganizationID, telemetryDevice); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	} else if ok {
@@ -1620,11 +1620,11 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, demoTelemetryForDevice(telemetryDevice))
 }
 
-func (s *Server) proxyTelemetryForDevice(ctx context.Context, session store.Session, device contracts.Device) (contracts.DeviceTelemetry, bool, error) {
+func (s *Server) proxyTelemetryForDevice(ctx context.Context, orgID string, device contracts.Device) (contracts.DeviceTelemetry, bool, error) {
 	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" || strings.TrimSpace(device.VideoCloudDevID) == "" {
 		return contracts.DeviceTelemetry{}, false, nil
 	}
-	upstream, err := s.videoClient.DeviceTelemetry(ctx, s.cfg.VideoCloudAdminToken, device.VideoCloudDevID, session.ActiveOrgID)
+	upstream, err := s.videoClient.DeviceTelemetry(ctx, s.cfg.VideoCloudAdminToken, device.VideoCloudDevID, orgID)
 	if err != nil {
 		return contracts.DeviceTelemetry{}, true, err
 	}
@@ -2241,7 +2241,10 @@ func (s *Server) customerDevices(ctx context.Context, session store.Session) ([]
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
-	vcFacts := s.videoCloudFacts(ctx, devices)
+	vcFacts, err := s.videoCloudFacts(ctx, devices)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]contracts.Device, 0, len(devices))
 	for _, device := range devices {
 		vid := fallback(device.VideoCloudDevID, metadataString(device.Metadata, "video_cloud_devid", ""))
@@ -2565,6 +2568,10 @@ func (s *Server) writeCustomerError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
+	if errors.Is(err, errVideoCloudRequestFailed) {
+		http.Error(w, "Video Cloud request failed", http.StatusBadGateway)
+		return
+	}
 	if status, ok := customerUpstreamStatus(err); ok {
 		switch status {
 		case http.StatusUnauthorized:
@@ -2699,7 +2706,15 @@ func (s *Server) upstreamDevices(w http.ResponseWriter, r *http.Request) ([]cont
 		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
-		vcFacts := s.videoCloudFacts(r.Context(), devices)
+		vcFacts, err := s.videoCloudFacts(r.Context(), devices)
+		if err != nil {
+			if errors.Is(err, errVideoCloudRequestFailed) {
+				s.writeCustomerError(w, err)
+				return nil, true
+			}
+			writeError(w, err)
+			return nil, true
+		}
 		for _, device := range devices {
 			vid := fallback(device.VideoCloudDevID, metadataString(device.Metadata, "video_cloud_devid", ""))
 			out = append(out, mapUpstreamDevice(org, device, vcFacts[vid]))
@@ -2950,13 +2965,16 @@ func (s *Server) upstreamHealth(ctx context.Context, name, baseURL string, check
 	return contracts.ServiceHealth{Name: name, Status: status, Detail: detail, LatencyMillis: time.Since(start).Milliseconds(), LastCheckedAt: time.Now().UTC().Format(time.RFC3339)}
 }
 
+var errVideoCloudRequestFailed = errors.New("Video Cloud request failed")
+
 // videoCloudFacts queries Video Cloud for activation and transport facts for a
 // batch of Account Manager devices. Returns a map keyed by VideoCloudDevID.
 // Non-nil facts are only present for devices that have a VideoCloudDevID.
-// Errors are logged and silently ignored — Video Cloud is best-effort.
-func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.Device) map[string]*readinessfacts.VideoCloudFacts {
+// If activation lookup fails, the error is surfaced so production mode does not
+// silently fall back to local inference when upstream truth is configured.
+func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.Device) (map[string]*readinessfacts.VideoCloudFacts, error) {
 	if !s.videoClient.Enabled() || s.cfg.VideoCloudAdminToken == "" {
-		return nil
+		return nil, nil
 	}
 
 	// Collect device IDs that have a VideoCloudDevID.
@@ -2970,7 +2988,7 @@ func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.De
 		}
 	}
 	if len(vcIDs) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	qCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -2978,7 +2996,7 @@ func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.De
 
 	activated, err := s.videoClient.QueryActivation(qCtx, s.cfg.VideoCloudAdminToken, vcIDs)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("%w: %v", errVideoCloudRequestFailed, err)
 	}
 
 	updatedAt := time.Now().UTC().Format(time.RFC3339)
@@ -3023,7 +3041,7 @@ func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.De
 			UpdatedAt: updatedAt,
 		}
 	}
-	return out
+	return out, nil
 }
 
 const telemetrySecondsPerDay = 24 * 60 * 60
