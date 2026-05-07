@@ -2060,6 +2060,82 @@ func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
 	}
 }
 
+func TestDeviceTelemetryProxyModeMapsVideoCloudFailure(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs/org-acme/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"}]}`))
+		default:
+			t.Fatalf("unexpected account path: %s", r.URL.Path)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/query_camera_activate":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":  "ok",
+				"devices": []string{"1"},
+			})
+		case "/api/devices/device-2/telemetry":
+			http.Error(w, "telemetry unavailable", http.StatusServiceUnavailable)
+		case "/get_camera_info":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "ok",
+				"info": map[string]any{
+					"firmware_version":  "v1.2.3",
+					"current_transport": "websocket",
+				},
+			})
+		default:
+			t.Fatalf("unexpected video path: %s", r.URL.Path)
+		}
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL: accountUpstream.URL,
+			VideoCloudBaseURL:     videoUpstream.URL,
+			VideoCloudAdminToken:  "vc-secret",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/devices/dev-002/telemetry", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("proxy telemetry status = %d, want %d; body=%s", rec.Code, http.StatusBadGateway, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Video Cloud request failed") {
+		t.Fatalf("proxy telemetry body = %s", rec.Body.String())
+	}
+}
+
 func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 	t.Parallel()
 

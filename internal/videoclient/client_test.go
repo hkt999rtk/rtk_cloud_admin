@@ -83,6 +83,9 @@ func TestDisabledClient(t *testing.T) {
 	if _, err := client.QueryFirmwareCampaigns(t.Context(), "tok", "cam-a", false); err == nil {
 		t.Fatal("expected disabled QueryFirmwareCampaigns error")
 	}
+	if _, err := client.DeviceTelemetry(t.Context(), "tok", "d1", "org-1"); err == nil {
+		t.Fatal("expected disabled DeviceTelemetry error")
+	}
 }
 
 func TestQueryActivation(t *testing.T) {
@@ -212,6 +215,26 @@ func TestGetDeviceInfo(t *testing.T) {
 	}
 	if info.FirmwareVersion != "v1.2.3" {
 		t.Fatalf("FirmwareVersion = %q, want v1.2.3", info.FirmwareVersion)
+	}
+}
+
+func TestGetDeviceInfoMissingInfoReturnsEmptyValues(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/get_camera_info" {
+			t.Fatalf("path = %q, want /get_camera_info", r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok"})
+	}))
+	defer upstream.Close()
+
+	info, err := New(upstream.URL).GetDeviceInfo(t.Context(), "secret", "cam-1")
+	if err != nil {
+		t.Fatalf("GetDeviceInfo error: %v", err)
+	}
+	if info.CurrentTransport != "" || info.FirmwareVersion != "" {
+		t.Fatalf("info = %+v, want empty values", info)
 	}
 }
 
@@ -375,6 +398,36 @@ func TestDeviceTelemetry(t *testing.T) {
 	}
 	if len(response.RSSIHistory) != 1 || len(response.UptimeHistory) != 1 || len(response.RecentEvents) != 1 {
 		t.Fatalf("unexpected telemetry lengths: rssi=%d uptime=%d events=%d", len(response.RSSIHistory), len(response.UptimeHistory), len(response.RecentEvents))
+	}
+}
+
+func TestDeviceTelemetryOmitsEmptyOrgQuery(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/devices/cam-1/telemetry" {
+			t.Fatalf("path = %q, want /api/devices/cam-1/telemetry", r.URL.Path)
+		}
+		if got := r.URL.RawQuery; got != "" {
+			t.Fatalf("raw query = %q, want empty", got)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer secret" {
+			t.Fatalf("Authorization = %q, want Bearer secret", got)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":      "ok",
+			"device_id":   "cam-1",
+			"device_name": "Front Door",
+		})
+	}))
+	defer upstream.Close()
+
+	response, err := New(upstream.URL).DeviceTelemetry(t.Context(), "secret", "cam-1", "")
+	if err != nil {
+		t.Fatalf("DeviceTelemetry error: %v", err)
+	}
+	if response.DeviceID != "cam-1" {
+		t.Fatalf("DeviceID = %q, want cam-1", response.DeviceID)
 	}
 }
 

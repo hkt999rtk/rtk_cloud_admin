@@ -24,15 +24,32 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - name: Go tests
-        run: go test ./...
+      - name: Go tests with coverage
+        run: go test ./... -coverprofile=coverage.out
 
       - name: Go build
         run: go build ./cmd/server
 
+      - name: Go coverage gate
+        run: |
+          set -euo pipefail
+          go tool cover -func=coverage.out
+          total="$(go tool cover -func=coverage.out | awk '/^total:/ { gsub("%", "", $3); print $3 }')"
+          awk -v total="$total" -v min="65.0" 'BEGIN {
+            if (total < min) {
+              printf("Go total coverage %.1f%% is below %.1f%%\n", total, min)
+              exit 1
+            }
+            printf("Go total coverage %.1f%% meets %.1f%% baseline\n", total, min)
+          }'
+
       - name: Frontend install
         working-directory: web
         run: npm ci
+
+      - name: Frontend tests
+        working-directory: web
+        run: npm test
 
       - name: Frontend build
         working-directory: web
