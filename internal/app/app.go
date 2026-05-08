@@ -129,8 +129,6 @@ func (s *Server) routes() {
 }
 
 const (
-	streamModeRTSP   = "rtsp"
-	streamModeRelay  = "relay"
 	streamModeWebRTC = "webrtc"
 )
 
@@ -1194,18 +1192,12 @@ func parseFleetWindow(raw string) (string, int, error) {
 
 func fleetStreamStats(orgID string, devices []contracts.Device, days int, window string) contracts.FleetStreamStats {
 	byMode := map[string]contracts.FleetStreamStatsMode{
-		streamModeRTSP:   {Requests: 0, SuccessRatePct: 0},
-		streamModeRelay:  {Requests: 0, SuccessRatePct: 0},
 		streamModeWebRTC: {Requests: 0, SuccessRatePct: 0},
 	}
 	modeTrendRequests := map[string][]int{
-		streamModeRTSP:   make([]int, days),
-		streamModeRelay:  make([]int, days),
 		streamModeWebRTC: make([]int, days),
 	}
 	modeTrendSuccesses := map[string][]int{
-		streamModeRTSP:   make([]int, days),
-		streamModeRelay:  make([]int, days),
 		streamModeWebRTC: make([]int, days),
 	}
 	type modeAccumulator struct {
@@ -1223,8 +1215,6 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		never        bool
 	}
 	modeStats := map[string]modeAccumulator{
-		streamModeRTSP:   {},
-		streamModeRelay:  {},
 		streamModeWebRTC: {},
 	}
 	deviceStats := make(map[string]*deviceAccumulator, len(devices))
@@ -1294,8 +1284,8 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 			SuccessRatePct: streamRate(stats.successes, stats.requests),
 		}
 	}
-	modeTrendSeries := make([]contracts.FleetStreamModeTrend, 0, 3)
-	for _, mode := range []string{streamModeRTSP, streamModeRelay, streamModeWebRTC} {
+	modeTrendSeries := make([]contracts.FleetStreamModeTrend, 0, 1)
+	for _, mode := range []string{streamModeWebRTC} {
 		series := make([]contracts.FleetStreamTrendPoint, 0, days)
 		for day := 0; day < days; day++ {
 			requests := modeTrendRequests[mode][day]
@@ -1382,14 +1372,7 @@ func streamProfile(index int, device contracts.Device) streamProfileData {
 		baseRequests = 2
 		baseSuccess = 55
 	}
-	switch index % 3 {
-	case 0:
-		return streamProfileData{mode: streamModeRTSP, baseRequest: baseRequests, successRate: baseSuccess, never: never}
-	case 1:
-		return streamProfileData{mode: streamModeRelay, baseRequest: baseRequests - 1, successRate: math.Min(baseSuccess+4, 100), never: never}
-	default:
-		return streamProfileData{mode: streamModeWebRTC, baseRequest: baseRequests - 2, successRate: math.Max(baseSuccess-8, 0), never: never}
-	}
+	return streamProfileData{mode: streamModeWebRTC, baseRequest: baseRequests, successRate: baseSuccess, never: never}
 }
 
 func streamDevicesForDay(day, totalDevices, index int, device contracts.Device, _ bool) (int, int, int) {

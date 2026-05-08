@@ -1353,22 +1353,26 @@ func TestFleetStreamStatsDemoDefaultsTo7d(t *testing.T) {
 	if len(payload.Trend) != 7 {
 		t.Fatalf("trend length = %d, want %d", len(payload.Trend), 7)
 	}
-	for _, mode := range []string{"rtsp", "relay", "webrtc"} {
-		stats, ok := payload.ByMode[mode]
-		if !ok {
-			t.Fatalf("by_mode is missing key %q", mode)
-		}
-		if stats.Requests < 0 {
-			t.Fatalf("by_mode.%s.requests = %d, want >=0", mode, stats.Requests)
-		}
-		if stats.SuccessRatePct < 0 || stats.SuccessRatePct > 100 {
-			t.Fatalf("by_mode.%s.success_rate_pct = %f, want 0..100", mode, stats.SuccessRatePct)
-		}
+	if len(payload.ByMode) != 1 {
+		t.Fatalf("by_mode length = %d, want only webrtc: %+v", len(payload.ByMode), payload.ByMode)
 	}
-	if len(payload.TrendByMode) != 3 {
-		t.Fatalf("trend_by_mode length = %d, want %d", len(payload.TrendByMode), 3)
+	stats, ok := payload.ByMode["webrtc"]
+	if !ok {
+		t.Fatalf("by_mode is missing webrtc: %+v", payload.ByMode)
+	}
+	if stats.Requests < 0 {
+		t.Fatalf("by_mode.webrtc.requests = %d, want >=0", stats.Requests)
+	}
+	if stats.SuccessRatePct < 0 || stats.SuccessRatePct > 100 {
+		t.Fatalf("by_mode.webrtc.success_rate_pct = %f, want 0..100", stats.SuccessRatePct)
+	}
+	if len(payload.TrendByMode) != 1 {
+		t.Fatalf("trend_by_mode length = %d, want only webrtc", len(payload.TrendByMode))
 	}
 	for _, series := range payload.TrendByMode {
+		if series.Mode != "webrtc" {
+			t.Fatalf("trend_by_mode mode = %q, want webrtc", series.Mode)
+		}
 		if len(series.Points) != 7 {
 			t.Fatalf("trend_by_mode[%s] length = %d, want %d", series.Mode, len(series.Points), 7)
 		}
@@ -1432,10 +1436,13 @@ func TestFleetStreamStatsWindow30dAndOrgScope(t *testing.T) {
 	if len(payload.Trend) != 30 {
 		t.Fatalf("trend length = %d, want %d", len(payload.Trend), 30)
 	}
-	if len(payload.TrendByMode) != 3 {
-		t.Fatalf("trend_by_mode length = %d, want %d", len(payload.TrendByMode), 3)
+	if len(payload.TrendByMode) != 1 {
+		t.Fatalf("trend_by_mode length = %d, want only webrtc", len(payload.TrendByMode))
 	}
 	for _, series := range payload.TrendByMode {
+		if series.Mode != "webrtc" {
+			t.Fatalf("trend_by_mode mode = %q, want webrtc", series.Mode)
+		}
 		if len(series.Points) != 30 {
 			t.Fatalf("trend_by_mode[%s] length = %d, want %d", series.Mode, len(series.Points), 30)
 		}
@@ -1444,8 +1451,8 @@ func TestFleetStreamStatsWindow30dAndOrgScope(t *testing.T) {
 		if dev.DeviceID == "dev-003" || dev.DeviceID == "dev-004" {
 			t.Fatalf("worst_devices includes out-of-org device %q", dev.DeviceID)
 		}
-		if dev.ModeUsed == "" {
-			t.Fatalf("worst device %q missing mode_used", dev.DeviceID)
+		if dev.ModeUsed != "webrtc" {
+			t.Fatalf("worst device %q mode_used = %q, want webrtc", dev.DeviceID, dev.ModeUsed)
 		}
 	}
 }
@@ -1488,6 +1495,11 @@ func TestFleetStreamStatsWorstDevicesSortedAsc(t *testing.T) {
 	for i := 1; i < len(payload.WorstDevices); i++ {
 		if payload.WorstDevices[i-1].SuccessRatePct > payload.WorstDevices[i].SuccessRatePct {
 			t.Fatalf("worst_devices not sorted asc at index %d: %f > %f", i, payload.WorstDevices[i-1].SuccessRatePct, payload.WorstDevices[i].SuccessRatePct)
+		}
+	}
+	for _, dev := range payload.WorstDevices {
+		if dev.ModeUsed != "webrtc" {
+			t.Fatalf("worst device %q mode_used = %q, want webrtc", dev.DeviceID, dev.ModeUsed)
 		}
 	}
 }
@@ -1857,6 +1869,12 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
 	t.Parallel()
 
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	uptimeSampleDay1 := today.AddDate(0, 0, -2)
+	uptimeSampleDay2 := today.AddDate(0, 0, -1)
+	uptimeSampleDate1 := uptimeSampleDay1.Format("2006-01-02")
+	uptimeSampleDate2 := uptimeSampleDay2.Format("2006-01-02")
+
 	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/me":
@@ -1914,12 +1932,12 @@ func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
 					},
 				},
 				"rssi_history": []map[string]any{
-					{"occurred_at": "2026-05-01T10:00:00Z", "rssi_dbm": -68, "quality": "fair"},
-					{"occurred_at": "2026-05-02T10:00:00Z", "rssi_dbm": -72, "quality": "fair"},
+					{"occurred_at": uptimeSampleDay1.Add(10 * time.Hour).Format(time.RFC3339), "rssi_dbm": -68, "quality": "fair"},
+					{"occurred_at": uptimeSampleDay2.Add(10 * time.Hour).Format(time.RFC3339), "rssi_dbm": -72, "quality": "fair"},
 				},
 				"uptime_history": []map[string]any{
-					{"occurred_at": "2026-05-01T10:00:00Z", "uptime_seconds": 3600},
-					{"occurred_at": "2026-05-02T10:00:00Z", "uptime_seconds": 7200},
+					{"occurred_at": uptimeSampleDay1.Add(10 * time.Hour).Format(time.RFC3339), "uptime_seconds": 3600},
+					{"occurred_at": uptimeSampleDay2.Add(10 * time.Hour).Format(time.RFC3339), "uptime_seconds": 7200},
 				},
 				"recent_events": []map[string]any{
 					{
@@ -2049,11 +2067,11 @@ func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
 		}
 		uptimeByDate[sample.Date] = sample.OnlinePct
 	}
-	if got := uptimeByDate["2026-05-01"]; got != 4.2 {
-		t.Fatalf("online_pct for 2026-05-01 = %.1f, want 4.2", got)
+	if got := uptimeByDate[uptimeSampleDate1]; got != 4.2 {
+		t.Fatalf("online_pct for %s = %.1f, want 4.2", uptimeSampleDate1, got)
 	}
-	if got := uptimeByDate["2026-05-02"]; got != 8.3 {
-		t.Fatalf("online_pct for 2026-05-02 = %.1f, want 8.3", got)
+	if got := uptimeByDate[uptimeSampleDate2]; got != 8.3 {
+		t.Fatalf("online_pct for %s = %.1f, want 8.3", uptimeSampleDate2, got)
 	}
 	if len(payload.RecentEvents) != 2 || payload.RecentEvents[0].EventType != "device.reboot.reported" {
 		t.Fatalf("recent_events = %+v", payload.RecentEvents)
