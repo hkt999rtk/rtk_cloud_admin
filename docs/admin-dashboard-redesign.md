@@ -307,9 +307,7 @@ Answer: "Are my devices' video streams actually working for end users?"
 
 ### Stream Success Rate Trend
 
-7d / 30d line chart: daily stream request count vs. success rate (%).
-
-Break down by mode: RTSP / Relay / WebRTC on the same chart using three lines.
+7d / 30d line chart: daily WebRTC stream request count vs. success rate (%).
 
 ### Per-Device Stream Table
 
@@ -318,7 +316,7 @@ Devices sorted by stream failure rate descending (worst first):
 | Column | Content |
 |---|---|
 | Device | name |
-| Mode Used | most common stream mode |
+| Mode Used | WebRTC |
 | Success Rate (7d) | % |
 | Total Requests (7d) | count |
 | Last Stream | timestamp |
@@ -472,9 +470,7 @@ Response:
   "active_sessions": 3,
   "never_streamed_count": 2,
   "by_mode": {
-    "rtsp":   { "requests": 120, "success_rate_pct": 96.7 },
-    "relay":  { "requests": 45,  "success_rate_pct": 91.1 },
-    "webrtc": { "requests": 18,  "success_rate_pct": 88.9 }
+    "webrtc": { "requests": 183, "success_rate_pct": 94.1 }
   },
   "trend": [
     {
@@ -494,10 +490,10 @@ Response:
 }
 ```
 
-Data source: new stream session event log in rtk_video_cloud, recording each
-`/request_stream` and `/api/request_webrtc` call outcome (success/failure,
-mode, duration). rtk_video_cloud must expose a query API or push aggregated
-facts to rtk_cloud_admin.
+Data source: new WebRTC session event log in rtk_video_cloud, recording each
+`/api/request_webrtc` call outcome (success/failure and duration).
+rtk_video_cloud must expose a query API or push aggregated facts to
+rtk_cloud_admin.
 
 ### `GET /api/devices/{id}/telemetry`
 

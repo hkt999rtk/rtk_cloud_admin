@@ -1023,7 +1023,7 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
             <div className="panel-head">
               <div>
                 <h3>Success trend</h3>
-                <p>Daily request volume with overall and per-mode success-rate lines.</p>
+                <p>Daily WebRTC request volume and success-rate lines.</p>
               </div>
             </div>
 
@@ -1032,8 +1032,6 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
                 <div className="stream-chart-legend">
                   <span><i className="legend-bar legend-requests" /> Requests</span>
                   <span><i className="legend-line legend-overall" /> Overall</span>
-                  <span><i className="legend-line legend-rtsp" /> RTSP</span>
-                  <span><i className="legend-line legend-relay" /> Relay</span>
                   <span><i className="legend-line legend-webrtc" /> WebRTC</span>
                 </div>
                 <svg viewBox="0 0 720 300" className="trend-chart stream-trend-chart" role="img" aria-label="Stream success trend chart">
@@ -1077,14 +1075,14 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
                   <text x="700" y="34" textAnchor="end" className="chart-axis-label">{chart.maxRequests}</text>
                   <text x="700" y="228" textAnchor="end" className="chart-axis-label">0</text>
                 </svg>
-                <p className="chart-footnote">Bars show request volume; lines show the overall and mode-level success rate for the selected window.</p>
+                <p className="chart-footnote">Bars show WebRTC request volume; lines show the overall and WebRTC success rate for the selected window.</p>
               </>
             ) : (
               <p className="empty-state">No stream data yet.</p>
             )}
 
             <div className="stream-mode-summary">
-              {['rtsp', 'relay', 'webrtc'].map((mode) => {
+              {['webrtc'].map((mode) => {
                 const statsForMode = byMode[mode] || {};
                 return (
                   <div key={mode} className="stream-mode-summary__item">
@@ -2514,7 +2512,7 @@ function buildStreamHealthChart(trend, modeTrends) {
       requestBarHeight: barHeight,
     };
   });
-  const modeOrder = ['rtsp', 'relay', 'webrtc'];
+  const modeOrder = ['webrtc'];
   const modeSeries = modeOrder.map((mode) => {
     const series = modeTrends.find((item) => String(item.mode || item.Mode || '').toLowerCase() === mode);
     const pointsForMode = (series?.points || series?.Points || []).map((point, index) => {
@@ -2549,8 +2547,6 @@ function buildStreamHealthChart(trend, modeTrends) {
 function streamModeLabel(mode) {
   const key = String(mode || '').toLowerCase();
   const map = {
-    rtsp: 'RTSP',
-    relay: 'Relay',
     webrtc: 'WebRTC',
   };
   return map[key] || toTitleCase(String(mode || '').replaceAll('_', ' '));
