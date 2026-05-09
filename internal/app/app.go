@@ -243,10 +243,26 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if session.Kind == "platform_admin" {
-		writeJSON(w, contracts.Me{UserID: session.Subject, Email: session.Email, Name: session.Email, Kind: session.Kind, Authenticated: true})
+		writeJSON(w, contracts.Me{
+			UserID:        session.Subject,
+			Email:         session.Email,
+			Name:          session.Email,
+			Kind:          session.Kind,
+			Memberships:   []contracts.Membership{},
+			Authenticated: true,
+		})
 		return
 	}
-	me := contracts.Me{UserID: session.Subject, Email: session.Email, Name: session.Email, Kind: session.Kind, ActiveOrgID: session.ActiveOrgID, Authenticated: true}
+	me := contracts.Me{
+		UserID:        session.Subject,
+		Email:         session.Email,
+		Name:          session.Email,
+		Kind:          session.Kind,
+		Memberships:   []contracts.Membership{},
+		ActiveOrgID:   session.ActiveOrgID,
+		DemoMode:      !s.accountClient.Enabled(),
+		Authenticated: true,
+	}
 	if s.accountClient.Enabled() {
 		upstream, tokens, err := s.resolveCustomerProfile(r.Context(), accountclient.Tokens{
 			AccessToken:  session.AccessToken,
@@ -267,6 +283,16 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		me.Name = fallback(upstream.User.Name, upstream.User.Email)
 		for _, org := range upstream.Organizations {
 			me.Memberships = append(me.Memberships, membershipFromOrganization(org))
+		}
+	} else {
+		memberships, err := s.demoMemberships()
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		me.Memberships = memberships
+		if me.ActiveOrgID == "" && len(memberships) > 0 {
+			me.ActiveOrgID = memberships[0].OrganizationID
 		}
 	}
 	writeJSON(w, me)
@@ -305,6 +331,16 @@ func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
 			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
 		if !organizationAllowed(orgs, body.OrganizationID) {
+			http.Error(w, "organization is not part of the current customer memberships", http.StatusForbidden)
+			return
+		}
+	} else if !s.accountClient.Enabled() {
+		allowed, err := s.demoOrganizationAllowed(body.OrganizationID)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		if !allowed {
 			http.Error(w, "organization is not part of the current customer memberships", http.StatusForbidden)
 			return
 		}
@@ -2061,6 +2097,8 @@ func firmwareVersionFromDevice(device contracts.Device) string {
 
 func deviceWithFirmwareVersion(device contracts.Device) contracts.Device {
 	device.FirmwareVersion = firmwareVersionFromDevice(device)
+	device.Health = deviceHealthFromFacts(device)
+	device.SignalQuality = deviceSignalQuality(device)
 	return device
 }
 
@@ -2070,6 +2108,35 @@ func devicesWithFirmwareVersion(devices []contracts.Device) []contracts.Device {
 		out[i] = deviceWithFirmwareVersion(device)
 	}
 	return out
+}
+
+func deviceHealthFromFacts(device contracts.Device) string {
+	hasWarning := false
+	for _, fact := range device.SourceFacts {
+		switch strings.ToLower(strings.TrimSpace(fact.State)) {
+		case "failed":
+			return "critical"
+		case "missing", "pending", "stale":
+			hasWarning = true
+		}
+	}
+	if hasWarning {
+		return "warning"
+	}
+	return telemetryHealthFromReadiness(device.Readiness)
+}
+
+func deviceSignalQuality(device contracts.Device) string {
+	switch deviceHealthFromFacts(device) {
+	case "healthy":
+		return "Good"
+	case "warning":
+		return "Fair"
+	case "critical":
+		return "Poor"
+	default:
+		return "Unknown"
+	}
 }
 
 func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {
@@ -2188,7 +2255,7 @@ func (s *Server) requirePlatformAdmin(w http.ResponseWriter, r *http.Request) (s
 
 func (s *Server) customerSession(r *http.Request) (store.Session, bool) {
 	session, ok := s.requestSession(r)
-	if !ok || session.Kind != "customer" || !s.accountClient.Enabled() {
+	if !ok || session.Kind != "customer" {
 		return store.Session{}, false
 	}
 	return session, true
@@ -2208,6 +2275,23 @@ func (s *Server) serviceHealth(ctx context.Context) []contracts.ServiceHealth {
 }
 
 func (s *Server) customerDevices(ctx context.Context, session store.Session) ([]contracts.Device, error) {
+	if !s.accountClient.Enabled() {
+		orgID, err := s.demoActiveCustomerOrgID(session)
+		if err != nil {
+			return nil, err
+		}
+		devices, err := s.store.ListDevices()
+		if err != nil {
+			return nil, err
+		}
+		out := make([]contracts.Device, 0, len(devices))
+		for _, device := range devices {
+			if device.OrganizationID == orgID {
+				out = append(out, device)
+			}
+		}
+		return out, nil
+	}
 	org, tokens, err := s.activeCustomerOrg(ctx, session)
 	if err != nil {
 		return nil, err
@@ -2346,6 +2430,37 @@ func (s *Server) activeCustomerOrg(ctx context.Context, session store.Session) (
 	tokens := accountclient.Tokens{
 		AccessToken:  session.AccessToken,
 		RefreshToken: session.RefreshToken,
+	}
+	if !s.accountClient.Enabled() {
+		memberships, err := s.demoMemberships()
+		if err != nil {
+			return accountclient.Organization{}, tokens, err
+		}
+		if session.ActiveOrgID != "" {
+			for _, membership := range memberships {
+				if membership.OrganizationID == session.ActiveOrgID {
+					return accountclient.Organization{
+						ID:                    membership.OrganizationID,
+						Name:                  membership.Organization,
+						Role:                  membership.Role,
+						Tier:                  membership.Tier,
+						EvaluationDeviceQuota: membership.EvaluationDeviceQuota,
+					}, tokens, nil
+				}
+			}
+			return accountclient.Organization{}, tokens, errCustomerActiveOrgInvalid
+		}
+		if len(memberships) > 0 {
+			membership := memberships[0]
+			return accountclient.Organization{
+				ID:                    membership.OrganizationID,
+				Name:                  membership.Organization,
+				Role:                  membership.Role,
+				Tier:                  membership.Tier,
+				EvaluationDeviceQuota: membership.EvaluationDeviceQuota,
+			}, tokens, nil
+		}
+		return accountclient.Organization{}, tokens, fmt.Errorf("no accessible organizations available")
 	}
 	var me accountclient.MeResult
 	nextTokens, err := s.customerCall(ctx, tokens, func(token string) error {
@@ -2578,6 +2693,63 @@ func organizationAllowed(orgs []accountclient.Organization, orgID string) bool {
 		}
 	}
 	return false
+}
+
+func (s *Server) demoMemberships() ([]contracts.Membership, error) {
+	customers, err := s.store.ListCustomers()
+	if err != nil {
+		return nil, err
+	}
+	memberships := make([]contracts.Membership, 0, len(customers))
+	for _, customer := range customers {
+		membership := contracts.Membership{
+			OrganizationID: customer.OrganizationID,
+			Organization:   customer.Organization,
+			Role:           "operator",
+			Tier:           "commercial",
+		}
+		if customer.OrganizationID == "org-acme" {
+			membership.Role = "owner"
+			membership.Tier = "evaluation"
+			membership.EvaluationDeviceQuota = 5
+		}
+		memberships = append(memberships, membership)
+	}
+	return memberships, nil
+}
+
+func (s *Server) demoOrganizationAllowed(orgID string) (bool, error) {
+	memberships, err := s.demoMemberships()
+	if err != nil {
+		return false, err
+	}
+	for _, membership := range memberships {
+		if membership.OrganizationID == orgID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *Server) demoActiveCustomerOrgID(session store.Session) (string, error) {
+	if session.ActiveOrgID != "" {
+		allowed, err := s.demoOrganizationAllowed(session.ActiveOrgID)
+		if err != nil {
+			return "", err
+		}
+		if !allowed {
+			return "", errCustomerActiveOrgInvalid
+		}
+		return session.ActiveOrgID, nil
+	}
+	memberships, err := s.demoMemberships()
+	if err != nil {
+		return "", err
+	}
+	if len(memberships) == 0 {
+		return "", fmt.Errorf("no accessible organizations available")
+	}
+	return memberships[0].OrganizationID, nil
 }
 
 func (s *Server) upstreamCustomers(w http.ResponseWriter, r *http.Request) ([]contracts.CustomerSummary, bool) {
