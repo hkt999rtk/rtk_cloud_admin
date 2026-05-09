@@ -1,0 +1,86 @@
+name: import-test-report
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number whose branch should receive the report
+        required: true
+      run_id:
+        description: GitHub Actions run ID that produced the candidate artifact
+        required: true
+      artifact_name:
+        description: Candidate artifact name
+        required: true
+        default: test-report-candidate
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve PR branch
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          branch="$(gh pr view "$PR_NUMBER" --json headRefName --jq .headRefName)"
+          owner="$(gh pr view "$PR_NUMBER" --json headRepositoryOwner --jq .headRepositoryOwner.login)"
+          repo_owner="${GITHUB_REPOSITORY_OWNER}"
+          if [ "$owner" != "$repo_owner" ]; then
+            echo "only same-repository PR branches are supported; got owner $owner" >&2
+            exit 1
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          git fetch origin "$branch"
+          git checkout "$branch"
+
+      - name: Download candidate artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        run: |
+          set -euo pipefail
+          rm -rf .artifacts/imported
+          mkdir -p .artifacts/imported
+          gh run download "$RUN_ID" --name "$ARTIFACT_NAME" --dir .artifacts/imported
+          test -s .artifacts/imported/docs/TEST_REPORT.md
+
+      - name: Import and validate report
+        run: |
+          set -euo pipefail
+          cp .artifacts/imported/docs/TEST_REPORT.md docs/TEST_REPORT.md
+          scripts/validate_test_report.sh docs/TEST_REPORT.md
+          changed="$(git status --short -- docs/TEST_REPORT.md)"
+          extra="$(git status --short --untracked-files=no | awk '$2 != "docs/TEST_REPORT.md" { print }')"
+          if [ -n "$extra" ]; then
+            echo "import workflow would modify files other than docs/TEST_REPORT.md:" >&2
+            echo "$extra" >&2
+            exit 1
+          fi
+          if [ -z "$changed" ]; then
+            echo "docs/TEST_REPORT.md already matches candidate"
+          fi
+
+      - name: Commit and push report
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/TEST_REPORT.md; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/TEST_REPORT.md
+          git commit -m "Import CI test report candidate"
+          git push origin "HEAD:${{ steps.pr.outputs.branch }}"
