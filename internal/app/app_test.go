@@ -625,6 +625,12 @@ func TestDevicesEndpointIncludesFirmwareVersion(t *testing.T) {
 	if devices[0].FirmwareVersion != "v1.2.1" {
 		t.Fatalf("device %q firmware_version = %q, want v1.2.1", devices[0].ID, devices[0].FirmwareVersion)
 	}
+	if devices[0].Health == "" {
+		t.Fatalf("device %q health is empty", devices[0].ID)
+	}
+	if devices[0].SignalQuality == "" {
+		t.Fatalf("device %q signal_quality is empty", devices[0].ID)
+	}
 }
 
 func TestCustomerDevicesInvalidSessionRefreshClearsStoredSession(t *testing.T) {
@@ -977,6 +983,57 @@ func TestDeviceAPIIncludesSourceFacts(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "\"failed\"") {
 		t.Fatalf("device body does not include failed source fact: %s", rec.Body.String())
+	}
+
+	var device contracts.Device
+	if err := json.NewDecoder(rec.Body).Decode(&device); err != nil {
+		t.Fatalf("decode device: %v", err)
+	}
+	if device.ID == "" || device.Name == "" || device.SerialNumber == "" || device.Model == "" || device.OrganizationID == "" || device.Organization == "" {
+		t.Fatalf("device identity is incomplete: %#v", device)
+	}
+	if device.Readiness == "" || device.FirmwareVersion == "" || device.LastSeenAt == "" || device.UpdatedAt == "" {
+		t.Fatalf("device runtime fields are incomplete: %#v", device)
+	}
+	if device.Health == "" || device.SignalQuality == "" {
+		t.Fatalf("device health/signal fields are incomplete: %#v", device)
+	}
+	if len(device.SourceFacts) == 0 {
+		t.Fatalf("device source_facts is empty: %#v", device)
+	}
+	for _, fact := range device.SourceFacts {
+		if fact.Layer == "" || fact.State == "" || fact.Detail == "" || fact.UpdatedAt == "" {
+			t.Fatalf("source fact is incomplete: %#v", fact)
+		}
+	}
+}
+
+func TestCustomerDeviceDetailRejectsOutOfOrgDevice(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u1", "user@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := New(st)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/devices/dev-003", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("out-of-org device status = %d, want %d; body=%s", rec.Code, http.StatusNotFound, rec.Body.String())
 	}
 }
 
@@ -2233,6 +2290,215 @@ func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 	srv.ServeHTTP(audit, req)
 	if !strings.Contains(audit.Body.String(), "DeviceProvisionRequested") {
 		t.Fatalf("admin audit body does not contain demo audit events: %s", audit.Body.String())
+	}
+}
+
+func TestPlatformAdminReadModelsIncludeDashboardFields(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession platform_admin returned error: %v", err)
+	}
+	srv := New(st)
+
+	adminRequest := func(path string) *httptest.ResponseRecorder {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d; body=%s", path, rec.Code, http.StatusOK, rec.Body.String())
+		}
+		return rec
+	}
+
+	var summary contracts.Summary
+	if err := json.NewDecoder(adminRequest("/api/admin/summary").Body).Decode(&summary); err != nil {
+		t.Fatalf("decode summary: %v", err)
+	}
+	if summary.Customers == 0 || summary.TotalDevices == 0 {
+		t.Fatalf("admin summary missing customer/device counts: %#v", summary)
+	}
+
+	var customers []contracts.CustomerSummary
+	if err := json.NewDecoder(adminRequest("/api/admin/customers").Body).Decode(&customers); err != nil {
+		t.Fatalf("decode customers: %v", err)
+	}
+	if len(customers) == 0 {
+		t.Fatal("admin customers response is empty")
+	}
+	if customers[0].OrganizationID == "" || customers[0].Organization == "" || customers[0].TotalDevices == 0 || customers[0].LastSeenAt == "" {
+		t.Fatalf("admin customer summary is incomplete: %#v", customers[0])
+	}
+
+	var devices []contracts.Device
+	if err := json.NewDecoder(adminRequest("/api/admin/devices").Body).Decode(&devices); err != nil {
+		t.Fatalf("decode devices: %v", err)
+	}
+	if len(devices) == 0 {
+		t.Fatal("admin devices response is empty")
+	}
+	if devices[0].OrganizationID == "" || devices[0].Organization == "" || devices[0].Readiness == "" || devices[0].FirmwareVersion == "" {
+		t.Fatalf("admin device read model is incomplete: %#v", devices[0])
+	}
+	if devices[0].Health == "" || devices[0].SignalQuality == "" || len(devices[0].SourceFacts) == 0 {
+		t.Fatalf("admin device runtime facts are incomplete: %#v", devices[0])
+	}
+}
+
+func TestMeContractStabilizesMembershipShape(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	customerSession, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession customer returned error: %v", err)
+	}
+	adminSession, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession platform_admin returned error: %v", err)
+	}
+	srv := New(st)
+
+	checkMe := func(cookie *http.Cookie, wantAuthenticated bool) contracts.Me {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+		if cookie != nil {
+			req.AddCookie(cookie)
+		}
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("/api/me status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+			t.Fatalf("decode raw /api/me: %v", err)
+		}
+		if _, ok := raw["memberships"]; !ok {
+			t.Fatalf("/api/me missing memberships: %s", rec.Body.String())
+		}
+		if len(raw["memberships"]) == 0 || raw["memberships"][0] != '[' {
+			t.Fatalf("/api/me memberships must be an array: %s", rec.Body.String())
+		}
+		var me contracts.Me
+		if err := json.Unmarshal(rec.Body.Bytes(), &me); err != nil {
+			t.Fatalf("decode /api/me: %v", err)
+		}
+		if me.Authenticated != wantAuthenticated {
+			t.Fatalf("authenticated = %v, want %v in %#v", me.Authenticated, wantAuthenticated, me)
+		}
+		return me
+	}
+
+	demo := checkMe(nil, false)
+	if demo.UserID == "" || demo.Email == "" || demo.Name == "" || demo.Kind == "" || demo.ActiveOrgID == "" || len(demo.Memberships) == 0 {
+		t.Fatalf("unauthenticated demo me is incomplete: %#v", demo)
+	}
+	if demo.Memberships[0].OrganizationID == "" || demo.Memberships[0].Organization == "" || demo.Memberships[0].Role == "" || demo.Memberships[0].Tier == "" || demo.Memberships[0].EvaluationDeviceQuota == 0 {
+		t.Fatalf("demo membership is incomplete: %#v", demo.Memberships[0])
+	}
+
+	customer := checkMe(&http.Cookie{Name: "rtk_admin_session", Value: customerSession.ID}, true)
+	if customer.ActiveOrgID != "org-acme" || len(customer.Memberships) == 0 {
+		t.Fatalf("customer me contract is incomplete: %#v", customer)
+	}
+
+	admin := checkMe(&http.Cookie{Name: "rtk_admin_session", Value: adminSession.ID}, true)
+	if admin.Kind != "platform_admin" || admin.Memberships == nil {
+		t.Fatalf("platform admin me contract is incomplete: %#v", admin)
+	}
+}
+
+func TestActiveOrgAndQuotaContractsRejectInvalidOrganizations(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession customer returned error: %v", err)
+	}
+	srv := New(st)
+
+	switchRec := httptest.NewRecorder()
+	switchReq := httptest.NewRequest(http.MethodPost, "/api/me/active-org", strings.NewReader(`{"organization_id":"org-nova"}`))
+	switchReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(switchRec, switchReq)
+	if switchRec.Code != http.StatusOK {
+		t.Fatalf("active-org valid switch status = %d, want %d; body=%s", switchRec.Code, http.StatusOK, switchRec.Body.String())
+	}
+
+	blockedSwitch := httptest.NewRecorder()
+	blockedReq := httptest.NewRequest(http.MethodPost, "/api/me/active-org", strings.NewReader(`{"organization_id":"org-missing"}`))
+	blockedReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(blockedSwitch, blockedReq)
+	if blockedSwitch.Code != http.StatusForbidden {
+		t.Fatalf("active-org invalid switch status = %d, want %d; body=%s", blockedSwitch.Code, http.StatusForbidden, blockedSwitch.Body.String())
+	}
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/orgs/org-nova/quota-raise-requests" {
+			http.Error(w, "upstream unavailable", http.StatusInternalServerError)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer upstream.Close()
+	proxySrv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	wrongOrg := httptest.NewRecorder()
+	wrongOrgReq := httptest.NewRequest(http.MethodPost, "/api/orgs/org-acme/quota-raise-requests", strings.NewReader(`{"requested_quota":10}`))
+	wrongOrgReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	proxySrv.ServeHTTP(wrongOrg, wrongOrgReq)
+	if wrongOrg.Code != http.StatusForbidden {
+		t.Fatalf("quota wrong org status = %d, want %d; body=%s", wrongOrg.Code, http.StatusForbidden, wrongOrg.Body.String())
+	}
+
+	upstreamFailure := httptest.NewRecorder()
+	upstreamReq := httptest.NewRequest(http.MethodPost, "/api/orgs/org-nova/quota-raise-requests", strings.NewReader(`{"requested_quota":10}`))
+	upstreamReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	proxySrv.ServeHTTP(upstreamFailure, upstreamReq)
+	if upstreamFailure.Code != http.StatusBadGateway {
+		t.Fatalf("quota upstream failure status = %d, want %d; body=%s", upstreamFailure.Code, http.StatusBadGateway, upstreamFailure.Body.String())
+	}
+	if !strings.Contains(upstreamFailure.Body.String(), "Account Manager request failed") {
+		t.Fatalf("quota upstream failure body = %s", upstreamFailure.Body.String())
 	}
 }
 
