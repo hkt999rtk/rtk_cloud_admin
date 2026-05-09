@@ -92,6 +92,8 @@ go test ./... -coverprofile=coverage.out
 go tool cover -func=coverage.out
 ```
 
+CI enforces Go total coverage >= 80%.
+
 Backend build:
 
 ```sh

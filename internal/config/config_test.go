@@ -31,3 +31,13 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 		t.Fatalf("admin bootstrap env not loaded")
 	}
 }
+
+func TestFromEnvDefaults(t *testing.T) {
+	cfg := FromEnv()
+	if cfg.Port != "8080" {
+		t.Fatalf("Port default = %q, want 8080", cfg.Port)
+	}
+	if cfg.DatabasePath != "data/rtk-cloud-admin.db" {
+		t.Fatalf("DatabasePath default = %q", cfg.DatabasePath)
+	}
+}

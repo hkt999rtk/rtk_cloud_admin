@@ -511,3 +511,89 @@ func TestGetCameraInfoUpstreamError(t *testing.T) {
 		t.Fatal("expected error on 4xx response")
 	}
 }
+
+func TestJSONHelpersHandleEmptyInvalidAndErrorResponses(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/enum_firmware":
+			w.WriteHeader(http.StatusNoContent)
+		case "/query_firmware_rollout":
+			_, _ = w.Write([]byte(`{`))
+		case "/query_firmware_campaign":
+			http.Error(w, "forbidden", http.StatusForbidden)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	enum, err := client.EnumFirmware(t.Context(), "tok", "cam-a")
+	if err != nil {
+		t.Fatalf("EnumFirmware empty response returned error: %v", err)
+	}
+	if enum.Status != "" || len(enum.Versions) != 0 {
+		t.Fatalf("enum = %#v, want zero response", enum)
+	}
+	if _, err := client.QueryFirmwareRollout(t.Context(), "tok", "cam-a", "campaign-1"); err == nil {
+		t.Fatal("expected invalid JSON error")
+	}
+	if _, err := client.QueryFirmwareCampaigns(t.Context(), "tok", "cam-a", true); err == nil {
+		t.Fatal("expected status error")
+	}
+}
+
+func TestQueryFirmwareCampaignsAcceptsSingleCampaignAndIncludeArchived(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/query_firmware_campaign" {
+			http.NotFound(w, r)
+			return
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if body["include_archived"] != true {
+			t.Fatalf("include_archived = %#v, want true", body["include_archived"])
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status": "ok",
+			"campaign": map[string]any{
+				"id":             "campaign-1",
+				"model":          "cam-a",
+				"target_version": "v1.2.4",
+				"state":          "scheduled",
+			},
+		})
+	}))
+	defer upstream.Close()
+
+	campaigns, err := New(upstream.URL).QueryFirmwareCampaigns(t.Context(), "tok", "cam-a", true)
+	if err != nil {
+		t.Fatalf("QueryFirmwareCampaigns returned error: %v", err)
+	}
+	if len(campaigns) != 1 || campaigns[0].ID != "campaign-1" || campaigns[0].State != "scheduled" {
+		t.Fatalf("campaigns = %#v", campaigns)
+	}
+}
+
+func TestDeviceTelemetryRejectsInvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/devices/dev-1/telemetry" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{`))
+	}))
+	defer upstream.Close()
+
+	if _, err := New(upstream.URL).DeviceTelemetry(t.Context(), "tok", "dev-1", ""); err == nil {
+		t.Fatal("expected invalid JSON telemetry error")
+	}
+}

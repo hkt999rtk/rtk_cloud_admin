@@ -321,6 +321,92 @@ func TestCreateAuditEventWithMetadata(t *testing.T) {
 	}
 }
 
+func TestSummarySessionsFailedOperationsAndAuditWrapper(t *testing.T) {
+	t.Parallel()
+
+	st, err := Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	summary, err := st.Summary()
+	if err != nil {
+		t.Fatalf("Summary returned error: %v", err)
+	}
+	if summary.TotalDevices != 4 || summary.Customers != 2 || summary.OnlineDevices != 1 || summary.ActivatedDevices != 2 || summary.PendingDevices != 1 || summary.FailedDevices != 1 || summary.OpenOperations != 2 {
+		t.Fatalf("summary = %#v", summary)
+	}
+
+	session, err := st.CreateSession("customer", "u1", "user@example.com", "access-1", "refresh-1", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	if err := st.UpdateSessionActiveOrg(session.ID, "org-nova"); err != nil {
+		t.Fatalf("UpdateSessionActiveOrg returned error: %v", err)
+	}
+	if err := st.UpdateSessionActiveOrg("missing-session", "org-acme"); err != nil {
+		t.Fatalf("UpdateSessionActiveOrg missing session returned error: %v", err)
+	}
+	if err := st.UpdateSessionTokens(session.ID, "access-2", "refresh-2", 2*time.Hour); err != nil {
+		t.Fatalf("UpdateSessionTokens returned error: %v", err)
+	}
+	if err := st.UpdateSessionTokens("missing-session", "access-x", "refresh-x", time.Hour); err != nil {
+		t.Fatalf("UpdateSessionTokens missing session returned error: %v", err)
+	}
+	updated, err := st.GetSession(session.ID)
+	if err != nil {
+		t.Fatalf("GetSession returned error: %v", err)
+	}
+	if updated.ActiveOrgID != "org-nova" || updated.AccessToken != "access-2" || updated.RefreshToken != "refresh-2" {
+		t.Fatalf("updated session = %#v", updated)
+	}
+
+	failed, err := st.CreateFailedUpstreamLifecycleOperation("dev-002", "DeviceProvisionRequested", "user@example.com", "upstream rejected device")
+	if err != nil {
+		t.Fatalf("CreateFailedUpstreamLifecycleOperation returned error: %v", err)
+	}
+	if failed.State != contracts.OperationFailed || failed.UpstreamState != string(contracts.OperationFailed) || failed.UpstreamOperationID != "" {
+		t.Fatalf("failed operation = %#v", failed)
+	}
+	if _, found, err := st.GetOpenLifecycleOperation("dev-002", "DeviceDeactivateRequested"); err != nil || found {
+		t.Fatalf("GetOpenLifecycleOperation empty result found=%v err=%v", found, err)
+	}
+	device, err := st.GetDevice("dev-002")
+	if err != nil {
+		t.Fatalf("GetDevice returned error: %v", err)
+	}
+	if device.Readiness != contracts.ReadinessActivated {
+		t.Fatalf("failed operation changed readiness to %q", device.Readiness)
+	}
+
+	if err := st.CreateAuditEvent("operator@example.com", "ManualReview", "dev-002"); err != nil {
+		t.Fatalf("CreateAuditEvent returned error: %v", err)
+	}
+	events, err := st.ListAuditEvents()
+	if err != nil {
+		t.Fatalf("ListAuditEvents returned error: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Actor == "operator@example.com" && event.Action == "ManualReview" && event.Target == "dev-002" {
+			found = true
+			if event.ActorKind != "operator" || event.Result != "accepted" {
+				t.Fatalf("audit wrapper defaults = %#v", event)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("manual audit event not found in %#v", events)
+	}
+}
+
 func applyMigrationFixture(t *testing.T, st *Store, migration migration) {
 	t.Helper()
 
