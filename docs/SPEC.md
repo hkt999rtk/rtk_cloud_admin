@@ -16,6 +16,12 @@ The console follows the contracts in `rtk_cloud_contracts_doc`:
 - Frontend color, typography, status labels, and layout tone follow `rtk_cloud_contracts_doc/FRONTEND_STYLE.md`.
 - This repository provides a frontend/BFF surface. It must not redefine the source-of-truth ownership from the contracts.
 
+In short, `rtk_account_manager` is the authoritative backend control plane for
+identity, tenant context, authorization, entitlement, device registry, and
+provisioning intent. `rtk_cloud_admin` is the enterprise/admin dashboard and
+BFF; it may proxy or aggregate upstream facts but must not become the canonical
+account, organization, device, quota, or provisioning store.
+
 ## MVP Scope
 
 Included in v0.1:
