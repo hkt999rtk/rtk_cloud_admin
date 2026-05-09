@@ -1,11 +1,13 @@
 package accountclient
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestClientLoginAndMe(t *testing.T) {
@@ -256,5 +258,73 @@ func TestClientHealthAndHTTPErrorBody(t *testing.T) {
 	}
 	if httpErr.StatusCode != http.StatusForbidden || !strings.Contains(httpErr.Body, "forbidden org") {
 		t.Fatalf("HTTPError = %#v", httpErr)
+	}
+}
+
+func TestClientDisabledHealthAndDecodeErrors(t *testing.T) {
+	t.Parallel()
+
+	disabled := New("")
+	if disabled.Enabled() {
+		t.Fatal("disabled client should report Enabled false")
+	}
+	if _, err := disabled.Login(t.Context(), "user@example.com", "secret"); err == nil {
+		t.Fatal("expected disabled Login error")
+	}
+	if err := disabled.Health(t.Context()); err == nil {
+		t.Fatal("expected disabled Health error")
+	}
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/login":
+			_, _ = w.Write([]byte(`{`))
+		case "/healthz":
+			http.Error(w, "down", http.StatusBadGateway)
+		case "/v1/me":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := NewWithHTTPClient(upstream.URL+"/", nil)
+	if _, err := client.Login(t.Context(), "user@example.com", "secret"); err == nil {
+		t.Fatal("expected invalid JSON error")
+	}
+	if err := client.Health(t.Context()); err == nil {
+		t.Fatal("expected health status error")
+	}
+	if _, err := client.Me(t.Context(), "access"); err == nil {
+		t.Fatal("expected empty JSON response decode error")
+	}
+}
+
+func TestClientPropagatesTimeoutAndStatusMatrix(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/orgs":
+			http.Error(w, "forbidden", http.StatusForbidden)
+		case "/v1/auth/refresh":
+			time.Sleep(50 * time.Millisecond)
+			_, _ = w.Write([]byte(`{"tokens":{"access_token":"late"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := NewWithHTTPClient(upstream.URL, upstream.Client())
+	if _, err := client.Organizations(t.Context(), "access"); err == nil {
+		t.Fatal("expected Organizations status error")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Millisecond)
+	defer cancel()
+	if _, err := client.Refresh(ctx, "refresh"); err == nil {
+		t.Fatal("expected Refresh timeout error")
 	}
 }
