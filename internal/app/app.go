@@ -229,7 +229,7 @@ func (s *Server) apiAdminSummary(w http.ResponseWriter, r *http.Request) {
 func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.requestSession(r)
 	if !ok {
-		writeJSON(w, contracts.Me{
+		me := s.meAuthSettings(contracts.Me{
 			UserID:        "demo-user",
 			Email:         "demo@example.local",
 			Name:          "Demo User",
@@ -242,20 +242,21 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 				{OrganizationID: "org-nova", Organization: "Nova Home Labs", Role: "operator", Tier: "commercial"},
 			},
 		})
+		writeJSON(w, me)
 		return
 	}
 	if session.Kind == "platform_admin" {
-		writeJSON(w, contracts.Me{
+		writeJSON(w, s.meAuthSettings(contracts.Me{
 			UserID:        session.Subject,
 			Email:         session.Email,
 			Name:          session.Email,
 			Kind:          session.Kind,
 			Memberships:   []contracts.Membership{},
 			Authenticated: true,
-		})
+		}))
 		return
 	}
-	me := contracts.Me{
+	me := s.meAuthSettings(contracts.Me{
 		UserID:        session.Subject,
 		Email:         session.Email,
 		Name:          session.Email,
@@ -264,7 +265,7 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		ActiveOrgID:   session.ActiveOrgID,
 		DemoMode:      !s.accountClient.Enabled(),
 		Authenticated: true,
-	}
+	})
 	if s.accountClient.Enabled() {
 		upstream, tokens, err := s.resolveCustomerProfile(r.Context(), accountclient.Tokens{
 			AccessToken:  session.AccessToken,
@@ -298,6 +299,12 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, me)
+}
+
+func (s *Server) meAuthSettings(me contracts.Me) contracts.Me {
+	me.BreakGlassEnabled = s.cfg.AdminBreakGlassEnabled
+	me.LegacyCustomerPasswordLoginEnabled = s.cfg.LegacyCustomerPasswordLoginEnabled
+	return me
 }
 
 func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { customerNavItems, devicesPathWithFilters, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
-import { postJSON } from './http.mjs';
+import { postJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -214,16 +214,31 @@ function App() {
     setRefreshTick((tick) => tick + 1);
   }
 
-  async function handleLogin(kind, credentials) {
+  async function handleSSOStart(email) {
     setError('');
-    const url = kind === 'platform' ? '/api/auth/platform/login' : '/api/auth/customer/login';
-    const response = await fetch(url, {
+    try {
+      const result = await startSSOLogin(email, window.location.href);
+      if (!result?.redirect_url) {
+        setError('SSO start did not return a redirect URL');
+        return;
+      }
+      window.location.assign(result.redirect_url);
+    } catch (err) {
+      setError(userFacingSSOError(err));
+      throw err;
+    }
+  }
+
+  async function handleBreakGlassLogin(credentials) {
+    setError('');
+    const response = await fetch('/api/auth/platform/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),
     });
     if (!response.ok) {
-      setError(`${kind} login failed with ${response.status}`);
+      const details = await response.text().catch(() => '');
+      setError(details || `break-glass login failed with ${response.status}`);
       return;
     }
     setRefreshTick((tick) => tick + 1);
@@ -387,7 +402,14 @@ function App() {
 
         {error ? <div className="error">{error}</div> : null}
 
-        {needsPlatformAccess ? <PlatformAccessGate active={active} onLogin={handleLogin} /> : null}
+        {needsPlatformAccess ? (
+          <PlatformAccessGate
+            active={active}
+            me={me}
+            onSSOStart={handleSSOStart}
+            onBreakGlassLogin={handleBreakGlassLogin}
+          />
+        ) : null}
         {!needsPlatformAccess && active === 'overview' ? (
           <Overview
             summary={summary}
@@ -399,7 +421,7 @@ function App() {
             me={me}
             loading={loading}
             devices={devices}
-            onLogin={handleLogin}
+            onSSOStart={handleSSOStart}
             onHealthFilter={filterDevicesByHealth}
             onRequestQuotaRaise={handleQuotaRaiseRequest}
           />
@@ -703,7 +725,7 @@ function Overview({
   me,
   loading,
   devices,
-  onLogin,
+  onSSOStart,
   onHealthFilter,
   onRequestQuotaRaise,
 }) {
@@ -725,7 +747,7 @@ function Overview({
 
   return (
     <div className="overview-layout">
-      {!me?.authenticated ? <LoginPanel mode="customer" title="Customer Account Manager login" onLogin={onLogin} /> : null}
+      {!me?.authenticated ? <SSOLoginPanel title="Sign in with SSO" onSSOStart={onSSOStart} /> : null}
 
       <section className="metrics overview-metrics">
         <MetricCard icon="ON" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
@@ -1182,10 +1204,13 @@ function GroupsPage() {
   );
 }
 
-function PlatformAccessGate({ active, onLogin }) {
+function PlatformAccessGate({ active, me, onSSOStart, onBreakGlassLogin }) {
   return (
     <>
-      <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} />
+      <SSOLoginPanel title="Platform SSO sign in" onSSOStart={onSSOStart} />
+      {me?.break_glass_enabled ? (
+        <BreakGlassLoginPanel title="Break-glass platform access" onLogin={onBreakGlassLogin} />
+      ) : null}
       <section className="panel split-panel">
         <div>
           <h2>Platform access required</h2>
@@ -2160,11 +2185,18 @@ function OperationList({ operations, detailed = false }) {
   );
 }
 
-function PlatformAdmin({ summary, health, devices, customers, operations, audit, me, onLogin }) {
+function PlatformAdmin({ summary, health, devices, customers, operations, audit, me, onSSOStart, onBreakGlassLogin }) {
   const customerCount = summary?.customers ?? '-';
   return (
     <>
-      {me?.kind !== 'platform_admin' ? <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} /> : null}
+      {me?.kind !== 'platform_admin' ? (
+        <>
+          <SSOLoginPanel title="Platform SSO sign in" onSSOStart={onSSOStart} />
+          {me?.break_glass_enabled ? (
+            <BreakGlassLoginPanel title="Break-glass platform access" onLogin={onBreakGlassLogin} />
+          ) : null}
+        </>
+      ) : null}
       <section className="panel split-panel">
         <div>
           <h2>Platform Operations</h2>
@@ -2392,22 +2424,48 @@ function ServiceHealth({ health, compact = false }) {
   );
 }
 
-function LoginPanel({ mode, title, onLogin }) {
+function SSOLoginPanel({ title, onSSOStart }) {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await onSSOStart(email);
+    } catch (_) {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel login-panel">
+      <div>
+        <h2>{title}</h2>
+        <p>Use your organization email to continue through Account Manager SSO.</p>
+      </div>
+      <form onSubmit={submit}>
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
+        <button type="submit" disabled={busy}>{busy ? 'Redirecting' : 'Continue with SSO'}</button>
+      </form>
+    </section>
+  );
+}
+
+function BreakGlassLoginPanel({ title, onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   return (
     <section className="panel login-panel">
       <div>
         <h2>{title}</h2>
-        <p>{mode === 'platform' ? 'Local SQLite platform admin session.' : 'Uses Account Manager when configured.'}</p>
+        <p>Emergency local admin access for SSO or Account Manager outage recovery.</p>
       </div>
       <form onSubmit={(event) => {
         event.preventDefault();
-        onLogin(mode, { email, password });
+        onLogin({ email, password });
       }}>
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" />
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Break-glass email" />
         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" />
-        <button type="submit">Login</button>
+        <button type="submit">Use break-glass</button>
       </form>
     </section>
   );
