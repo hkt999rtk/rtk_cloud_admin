@@ -1,6 +1,14 @@
 export async function postJSON(url, body) {
+  return sendJSON('POST', url, body);
+}
+
+export async function putJSON(url, body) {
+  return sendJSON('PUT', url, body);
+}
+
+async function sendJSON(method, url, body) {
   const response = await fetch(url, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });

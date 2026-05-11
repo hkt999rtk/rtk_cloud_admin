@@ -2103,6 +2103,104 @@ th {
   color: var(--muted);
 }
 
+.sso-note {
+  align-self: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  max-width: 360px;
+}
+
+.sso-note span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sso-provider-list {
+  display: grid;
+  gap: 14px;
+}
+
+.sso-provider-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.sso-provider-head,
+.sso-provider-foot {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.sso-provider-head small {
+  color: var(--muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.sso-provider-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sso-provider-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.sso-provider-grid span,
+.toggle-row span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.toggle-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.sso-provider-foot .muted {
+  color: var(--muted);
+  flex: 1;
+  font-size: 13px;
+}
+
+.status-pill {
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.status-pill.ok {
+  background: #e7f6f7;
+  color: var(--brand-dark);
+}
+
+.status-pill.warn {
+  background: rgba(109, 206, 221, 0.16);
+  color: var(--navy);
+}
+
+.status-pill.neutral {
+  background: rgba(37, 56, 76, 0.08);
+  color: var(--muted);
+}
+
 .status-online,
 .status-healthy,
 .status-ok,
@@ -2227,8 +2325,15 @@ th {
 
   .stream-health-layout,
   .stream-health-metrics,
-  .stream-mode-summary {
+  .stream-mode-summary,
+  .sso-provider-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sso-provider-head,
+  .sso-provider-foot {
+    align-items: stretch;
+    display: grid;
   }
 
   .firmware-version-row,

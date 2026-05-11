@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { customerNavItems, devicesPathWithFilters, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
-import { postJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
+import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -18,6 +18,7 @@ function App() {
   const [operations, setOperations] = useState([]);
   const [health, setHealth] = useState([]);
   const [audit, setAudit] = useState([]);
+  const [ssoProviders, setSSOProviders] = useState([]);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
@@ -58,6 +59,7 @@ function App() {
           setOperations([]);
           setHealth([]);
           setAudit([]);
+          setSSOProviders([]);
           setLoading(false);
           return;
         }
@@ -79,6 +81,13 @@ function App() {
         setOperations(nextOperations);
         setHealth(nextHealth);
         setAudit(nextAudit);
+        if (useAdminApi && active === 'platform-sso') {
+          const nextSSOProviders = await fetchJSON('/api/admin/sso/providers');
+          if (!alive) return;
+          setSSOProviders(nextSSOProviders.providers || []);
+        } else {
+          setSSOProviders([]);
+        }
         if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin') {
           const nextFirmwareDistribution = await fetchJSON('/api/fleet/firmware-distribution');
           if (!alive) return;
@@ -121,6 +130,7 @@ function App() {
           setOperations([]);
           setHealth([]);
           setAudit([]);
+          setSSOProviders([]);
           setFirmwareDistribution(null);
           setFleetHealth(null);
           setStreamStats(null);
@@ -147,6 +157,7 @@ function App() {
     setOperations([]);
     setHealth([]);
     setAudit([]);
+    setSSOProviders([]);
     setFirmwareDistribution(null);
     setFleetHealth(null);
     setStreamStats(null);
@@ -212,6 +223,17 @@ function App() {
       return;
     }
     setRefreshTick((tick) => tick + 1);
+  }
+
+  async function handleSSOProviderSave(orgID, config) {
+    setError('');
+    try {
+      const result = await putJSON(`/api/admin/orgs/${encodeURIComponent(orgID)}/sso-provider`, config);
+      setSSOProviders((providers) => upsertProvider(providers, result.provider));
+    } catch (err) {
+      setError(userFacingSSOError(err));
+      throw err;
+    }
   }
 
   async function handleSSOStart(email) {
@@ -456,6 +478,9 @@ function App() {
         ) : null}
         {!needsPlatformAccess && active === 'groups' ? <GroupsPage /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
+        {!needsPlatformAccess && active === 'platform-sso' ? (
+          <PlatformSSOProviders providers={ssoProviders} customers={customers} onSave={handleSSOProviderSave} />
+        ) : null}
         {!needsPlatformAccess && active === 'platform-operations' ? <Operations operations={operations} /> : null}
         {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} /> : null}
       </main>
@@ -1240,6 +1265,135 @@ function PlatformHealth({ summary, health }) {
       </section>
       {hasDemo ? <section className="panel demo-banner"><p>{`Demo services active: ${demoServices.map((service) => service.name).join(', ')}`}</p></section> : null}
     </>
+  );
+}
+
+function PlatformSSOProviders({ providers, customers, onSave }) {
+  const providerByOrg = useMemo(() => {
+    const byOrg = new Map();
+    for (const provider of providers || []) {
+      byOrg.set(provider.organization_id, provider);
+    }
+    return byOrg;
+  }, [providers]);
+  const rows = (customers || []).map((customer) => providerByOrg.get(customer.organization_id) || {
+    organization_id: customer.organization_id,
+    organization: customer.organization,
+    enabled: false,
+    configured: false,
+    status: 'not_configured',
+    verified_domains: [],
+  });
+
+  return (
+    <>
+      <section className="panel split-panel">
+        <div>
+          <h2>SSO Providers</h2>
+          <p>Platform Admin-managed customer organization identity provider settings.</p>
+          <div className="admin-kpis">
+            <div><strong>{rows.filter((provider) => provider.configured).length}</strong><span>Configured</span></div>
+            <div><strong>{rows.filter((provider) => provider.enabled).length}</strong><span>Enabled</span></div>
+          </div>
+        </div>
+        <div className="sso-note">
+          <strong>Secret handling</strong>
+          <span>Client secrets are sent only to Account Manager and are never returned by this console.</span>
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Organization SSO status</h2>
+            <p>Review setup state, verified domains, issuer, and client identifier by customer organization.</p>
+          </div>
+        </div>
+        <div className="sso-provider-list">
+          {rows.map((provider) => (
+            <SSOProviderCard
+              key={provider.organization_id}
+              provider={provider}
+              onSave={onSave}
+            />
+          ))}
+          {!rows.length ? <p className="empty-state">No customer organizations are available.</p> : null}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function SSOProviderCard({ provider, onSave }) {
+  const [issuer, setIssuer] = useState(provider.issuer || '');
+  const [clientID, setClientID] = useState(provider.client_id || '');
+  const [clientSecret, setClientSecret] = useState('');
+  const [domains, setDomains] = useState((provider.verified_domains || []).join(', '));
+  const [enabled, setEnabled] = useState(Boolean(provider.enabled));
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setIssuer(provider.issuer || '');
+    setClientID(provider.client_id || '');
+    setDomains((provider.verified_domains || []).join(', '));
+    setEnabled(Boolean(provider.enabled));
+    setClientSecret('');
+  }, [provider]);
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await onSave(provider.organization_id, {
+        issuer,
+        client_id: clientID,
+        client_secret: clientSecret,
+        verified_domains: domains.split(',').map((domain) => domain.trim()).filter(Boolean),
+        enabled,
+      });
+      setClientSecret('');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="sso-provider-card" onSubmit={submit}>
+      <div className="sso-provider-head">
+        <div>
+          <strong>{provider.organization || provider.organization_id}</strong>
+          <small>{provider.organization_id}</small>
+        </div>
+        <span className={`status-pill ${provider.enabled ? 'ok' : provider.configured ? 'warn' : 'neutral'}`}>
+          {provider.enabled ? 'Enabled' : provider.configured ? 'Configured' : 'Not configured'}
+        </span>
+      </div>
+      <div className="sso-provider-grid">
+        <label>
+          <span>Issuer</span>
+          <input value={issuer} onChange={(event) => setIssuer(event.target.value)} placeholder="https://idp.example.com" />
+        </label>
+        <label>
+          <span>Client ID</span>
+          <input value={clientID} onChange={(event) => setClientID(event.target.value)} placeholder="oidc-client-id" />
+        </label>
+        <label>
+          <span>Verified domains</span>
+          <input value={domains} onChange={(event) => setDomains(event.target.value)} placeholder="example.com, example.co.jp" />
+        </label>
+        <label>
+          <span>Client secret</span>
+          <input type="password" value={clientSecret} onChange={(event) => setClientSecret(event.target.value)} placeholder="Only sent to Account Manager" autoComplete="new-password" />
+        </label>
+      </div>
+      <div className="sso-provider-foot">
+        <label className="toggle-row">
+          <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
+          <span>Enable provider</span>
+        </label>
+        <span className="muted">{provider.status || 'not_configured'}{provider.last_validated_at ? ` · validated ${formatRelativeTime(provider.last_validated_at)}` : ''}</span>
+        <button type="submit" disabled={busy}>{busy ? 'Saving' : 'Save provider'}</button>
+      </div>
+    </form>
   );
 }
 
@@ -2498,6 +2652,18 @@ function getActiveMembership(me) {
   const memberships = me.memberships || [];
   if (!memberships.length) return null;
   return memberships.find((membership) => membership.organization_id === me.active_org_id) || memberships[0];
+}
+
+function upsertProvider(providers, provider) {
+  if (!provider?.organization_id) return providers;
+  const next = [...providers];
+  const index = next.findIndex((item) => item.organization_id === provider.organization_id);
+  if (index >= 0) {
+    next[index] = provider;
+  } else {
+    next.push(provider);
+  }
+  return next;
 }
 
 function initialsForEmail(email) {
