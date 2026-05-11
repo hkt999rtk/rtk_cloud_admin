@@ -56,11 +56,13 @@ The remainder of this document covers only Tier 1 and Tier 2 roles.
 
 ## Tier 1 — Realtek Internal Roles
 
-These roles belong to Realtek employees operating the platform. Tier 1
-authenticates via the `/admin` login endpoint (bootstrapped by
-`ADMIN_BOOTSTRAP_EMAIL` / `ADMIN_BOOTSTRAP_PASSWORD` on first run; subsequent
-admins are managed via SQLite). The session cookie is `rtk_admin_session` with
-session kind `platform_admin`. Passwords are stored as bcrypt hashes.
+These roles belong to Realtek employees operating the platform. The long-term
+daily authentication path is Account Manager-backed SSO, where Account Manager
+authorizes the user as `platform_admin` and Admin Console creates the local
+`rtk_admin_session` cookie. The legacy `/admin` password login is retained only
+as controlled break-glass access when explicitly enabled by deployment
+configuration. Break-glass admins are bootstrapped by `ADMIN_BOOTSTRAP_EMAIL` /
+`ADMIN_BOOTSTRAP_PASSWORD`, stored in SQLite, and protected with bcrypt hashes.
 
 ### Platform Admin
 
@@ -97,11 +99,13 @@ These roles belong to the licensed tenant operating their own branded IoT
 product. Tier 2 sessions are org-scoped — users can only see and act on devices
 within their own organization.
 
-Tier 2 authenticates via the customer login endpoint (backed by Account Manager
-when `ACCOUNT_MANAGER_BASE_URL` is set, or local SQLite seed data in demo mode).
-The session cookie is `rtk_admin_session`; the session row carries the upstream
-Bearer / refresh token pair when in proxy mode. Plaintext credentials are never
-persisted.
+Tier 2 daily authentication should use Account Manager-backed SSO. Account
+Manager is responsible for external identity provider discovery, OIDC token
+exchange, user mapping, organization membership, and role authorization. Admin
+Console keeps the existing `rtk_admin_session` cookie; the session row carries
+the upstream Bearer / refresh token pair when in proxy mode. The legacy customer
+password login endpoint is a compatibility path, not the long-term production
+login direction. Plaintext credentials are never persisted.
 
 ### Fleet Manager
 
