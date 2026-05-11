@@ -147,8 +147,8 @@ Manager completes SSO. The design is documented in
 
 Customer sessions:
 
-- customer password login is legacy; daily production login should use Account
-  Manager-backed SSO
+- customer password login is legacy and disabled by default; daily production
+  login should use Account Manager-backed SSO
 - while legacy login is enabled, customer credentials are posted only to Account Manager login
 - the BFF stores session metadata plus upstream access/refresh tokens
 - plaintext passwords are never stored
@@ -160,6 +160,7 @@ Platform admin sessions:
 
 - Platform Admin daily login should use Account Manager-backed SSO
 - local platform admin users are stored in SQLite only for controlled break-glass access
+- break-glass login is disabled by default and must be explicitly enabled by deployment configuration
 - `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` create the first break-glass admin on startup
 - passwords are bcrypt hashed
 - platform-only API routes require a `platform_admin` session
@@ -229,8 +230,10 @@ Environment variables:
 - `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL.
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL.
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token.
-- `ADMIN_BOOTSTRAP_EMAIL`: optional first local platform admin email.
-- `ADMIN_BOOTSTRAP_PASSWORD`: optional first local platform admin password for development.
+- `ADMIN_BOOTSTRAP_EMAIL`: optional first local platform admin break-glass email.
+- `ADMIN_BOOTSTRAP_PASSWORD`: optional first local platform admin break-glass password for development.
+- `ADMIN_BREAK_GLASS_ENABLED`: enables local Platform Admin break-glass login when set to `true`; default `false`.
+- `LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED`: enables legacy customer password login when set to `true`; default `false`.
 
 ## Test Plan
 

@@ -93,11 +93,11 @@ checks after startup:
 
 - `GET /healthz` returns `ok`
 - `GET /api/service-health` returns the upstream status summary
-- `POST /api/auth/platform/login` accepts the bootstrap admin credentials
+- `POST /api/auth/platform/login` accepts the bootstrap admin credentials only
+  when `ADMIN_BREAK_GLASS_ENABLED=true`
 - `GET /api/me` succeeds when the login cookie is replayed
 - `GET /api/summary` returns the dashboard summary payload
 - `GET /console` renders the dashboard shell
 
 The CI workflow in this repository mirrors that profile and should be kept in
 sync with any future runtime or auth changes.
-

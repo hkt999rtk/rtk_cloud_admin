@@ -110,6 +110,7 @@ jobs:
             -e DATABASE_PATH=/data/ci.db \
             -e ADMIN_BOOTSTRAP_EMAIL=admin@example.com \
             -e ADMIN_BOOTSTRAP_PASSWORD=secret \
+            -e ADMIN_BREAK_GLASS_ENABLED=true \
             -v "$smoke_dir:/data" \
             "$ci_image_tag")"
 

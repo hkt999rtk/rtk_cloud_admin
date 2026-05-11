@@ -160,11 +160,16 @@ Environment variables:
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token
 - `ADMIN_BOOTSTRAP_EMAIL`: optional local platform admin break-glass email
 - `ADMIN_BOOTSTRAP_PASSWORD`: optional local platform admin break-glass password
+- `ADMIN_BREAK_GLASS_ENABLED`: set to `true` to enable local Platform Admin break-glass login; default `false`
+- `LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED`: set to `true` to enable legacy customer password login; default `false`
 
 If both admin bootstrap variables are set, startup creates the first local
 platform admin break-glass account if it does not already exist. Passwords are
 stored as bcrypt hashes. Session rows store metadata and upstream
 bearer/refresh tokens, never plaintext credentials.
+Break-glass login is rejected unless `ADMIN_BREAK_GLASS_ENABLED=true`, and
+customer password login is rejected unless
+`LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED=true`.
 
 SQLite schema changes are applied through versioned migrations. Existing local
 databases are upgraded in place and applied versions are stored in
@@ -191,6 +196,7 @@ docker run --rm -p 18081:8080 \
   -e VIDEO_CLOUD_ADMIN_TOKEN="replace-me" \
   -e ADMIN_BOOTSTRAP_EMAIL="admin@example.com" \
   -e ADMIN_BOOTSTRAP_PASSWORD="change-me" \
+  -e ADMIN_BREAK_GLASS_ENABLED="true" \
   rtk-cloud-admin
 ```
 
