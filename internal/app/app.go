@@ -93,6 +93,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
 	s.mux.HandleFunc("GET /api/admin/devices", s.apiAdminDevices)
+	s.mux.HandleFunc("GET /api/admin/sso/providers", s.apiAdminSSOProviders)
+	s.mux.HandleFunc("GET /api/admin/orgs/{orgId}/sso-provider", s.apiAdminSSOProvider)
+	s.mux.HandleFunc("PUT /api/admin/orgs/{orgId}/sso-provider", s.apiAdminSSOProvider)
 	s.mux.HandleFunc("GET /api/devices/{id}", s.apiDevice)
 	s.mux.HandleFunc("GET /api/devices/{id}/telemetry", s.apiDeviceTelemetry)
 	s.mux.HandleFunc("GET /api/fleet/health-summary", s.apiFleetHealthSummary)
@@ -125,6 +128,7 @@ func (s *Server) routes() {
 		"/admin/ops",
 		"/admin/operations",
 		"/admin/audit",
+		"/admin/sso",
 	} {
 		s.mux.HandleFunc("GET "+path, s.shell)
 	}
@@ -2258,6 +2262,64 @@ func (s *Server) apiAdminCustomers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, customers)
 }
 
+func (s *Server) apiAdminSSOProviders(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requirePlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	if !s.accountClient.Enabled() {
+		http.Error(w, "Account Manager is not configured for SSO provider settings", http.StatusServiceUnavailable)
+		return
+	}
+	providers, err := s.accountClient.SSOProviderStatuses(r.Context(), session.AccessToken)
+	if err != nil {
+		writeSSOError(w, err)
+		return
+	}
+	writeJSON(w, map[string][]accountclient.SSOProviderStatus{"providers": providers})
+}
+
+func (s *Server) apiAdminSSOProvider(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requirePlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	if !s.accountClient.Enabled() {
+		http.Error(w, "Account Manager is not configured for SSO provider settings", http.StatusServiceUnavailable)
+		return
+	}
+	orgID := strings.TrimSpace(r.PathValue("orgId"))
+	if orgID == "" {
+		http.Error(w, "organization id is required", http.StatusBadRequest)
+		return
+	}
+	if r.Method == http.MethodGet {
+		provider, err := s.accountClient.SSOProviderStatus(r.Context(), session.AccessToken, orgID)
+		if err != nil {
+			writeSSOError(w, err)
+			return
+		}
+		writeJSON(w, map[string]accountclient.SSOProviderStatus{"provider": provider})
+		return
+	}
+
+	var body accountclient.SSOProviderConfigRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid SSO provider configuration", http.StatusBadRequest)
+		return
+	}
+	body.Issuer = strings.TrimSpace(body.Issuer)
+	body.ClientID = strings.TrimSpace(body.ClientID)
+	body.ClientSecret = strings.TrimSpace(body.ClientSecret)
+	body.VerifiedDomains = normalizeDomains(body.VerifiedDomains)
+	provider, err := s.accountClient.UpsertSSOProvider(r.Context(), session.AccessToken, orgID, body)
+	if err != nil {
+		writeSSOError(w, err)
+		return
+	}
+	writeJSON(w, map[string]accountclient.SSOProviderStatus{"provider": provider})
+}
+
 func (s *Server) apiOperations(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
 		ops, err := s.customerOperations(r.Context(), session)
@@ -2805,6 +2867,20 @@ func writeSSOError(w http.ResponseWriter, err error) {
 		return
 	}
 	writeError(w, err)
+}
+
+func normalizeDomains(domains []string) []string {
+	seen := map[string]bool{}
+	normalized := make([]string, 0, len(domains))
+	for _, domain := range domains {
+		domain = strings.ToLower(strings.TrimSpace(domain))
+		if domain == "" || seen[domain] {
+			continue
+		}
+		seen[domain] = true
+		normalized = append(normalized, domain)
+	}
+	return normalized
 }
 
 func organizationAllowed(orgs []accountclient.Organization, orgID string) bool {

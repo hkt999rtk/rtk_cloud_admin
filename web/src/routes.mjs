@@ -8,6 +8,7 @@ export const customerNavItems = [
 
 export const platformNavItems = [
   { id: 'platform-health', label: 'Service Health', path: '/admin' },
+  { id: 'platform-sso', label: 'SSO Providers', path: '/admin/sso' },
   { id: 'platform-operations', label: 'Operations Log', path: '/admin/ops' },
   { id: 'platform-audit', label: 'Audit Log', path: '/admin/audit' },
 ];
@@ -23,6 +24,7 @@ export function titleFor(active) {
     'stream-health': 'Stream Health',
     groups: 'Groups',
     'platform-health': 'Service Health',
+    'platform-sso': 'SSO Providers',
     'platform-operations': 'Operations',
     'platform-audit': 'Audit Log',
   }[active];
@@ -33,6 +35,7 @@ export function routeFromPath(path) {
   if (path === '/signup/check-email' || path.startsWith('/signup/check-email/')) return 'signup-check-email';
   if (path === '/verify' || path.startsWith('/verify/')) return 'verify';
   if (path === '/admin' || path === '/admin/') return 'platform-health';
+  if (path === '/admin/sso' || path.startsWith('/admin/sso/')) return 'platform-sso';
   if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
   if (path === '/admin/operations' || path.startsWith('/admin/operations/')) return 'platform-operations';
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';

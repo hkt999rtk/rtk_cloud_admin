@@ -4,6 +4,7 @@ import { customerNavItems, devicesPathWithFilters, routeFromPath, titleFor } fro
 
 test('maps platform shell paths to platform routes', () => {
   assert.equal(routeFromPath('/admin'), 'platform-health');
+  assert.equal(routeFromPath('/admin/sso'), 'platform-sso');
   assert.equal(routeFromPath('/admin/ops'), 'platform-operations');
   assert.equal(routeFromPath('/admin/operations'), 'platform-operations');
   assert.equal(routeFromPath('/admin/audit'), 'platform-audit');
@@ -65,6 +66,7 @@ test('provides titles for all public shell routes', () => {
     'stream-health',
     'groups',
     'platform-health',
+    'platform-sso',
     'platform-operations',
     'platform-audit',
   ]) {

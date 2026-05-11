@@ -57,6 +57,7 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 		"/admin/ops",
 		"/admin/operations",
 		"/admin/audit",
+		"/admin/sso",
 	} {
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
@@ -366,6 +367,176 @@ func TestLegacyCustomerPasswordLoginDisabledByDefault(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "customer password login is disabled") {
 		t.Fatalf("customer login body = %s", rec.Body.String())
+	}
+}
+
+func TestAdminSSOProviderRoutesProxyAndRedactSecrets(t *testing.T) {
+	t.Parallel()
+
+	var receivedConfig accountclient.SSOProviderConfigRequest
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+			t.Fatalf("%s Authorization = %q", r.URL.Path, got)
+		}
+		switch r.URL.Path {
+		case "/v1/admin/sso/providers/status":
+			if r.Method != http.MethodGet {
+				t.Fatalf("providers method = %s", r.Method)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"providers": []map[string]any{{
+					"organization_id":   "org-acme",
+					"organization":      "Acme Smart Camera",
+					"provider_id":       "provider-1",
+					"issuer":            "https://idp.example.com",
+					"client_id":         "client-1",
+					"verified_domains":  []string{"example.com"},
+					"enabled":           true,
+					"configured":        true,
+					"status":            "ready",
+					"last_validated_at": "2026-05-11T00:00:00Z",
+				}},
+			})
+		case "/v1/admin/orgs/org-acme/sso-provider":
+			switch r.Method {
+			case http.MethodGet:
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"provider": map[string]any{
+						"organization_id":  "org-acme",
+						"organization":     "Acme Smart Camera",
+						"provider_id":      "provider-1",
+						"issuer":           "https://idp.example.com",
+						"client_id":        "client-1",
+						"verified_domains": []string{"example.com"},
+						"enabled":          true,
+						"configured":       true,
+						"status":           "ready",
+					},
+				})
+			case http.MethodPut:
+				if err := json.NewDecoder(r.Body).Decode(&receivedConfig); err != nil {
+					t.Fatalf("decode provider config: %v", err)
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"provider": map[string]any{
+						"organization_id":  "org-acme",
+						"organization":     "Acme Smart Camera",
+						"provider_id":      "provider-1",
+						"issuer":           receivedConfig.Issuer,
+						"client_id":        receivedConfig.ClientID,
+						"verified_domains": receivedConfig.VerifiedDomains,
+						"enabled":          receivedConfig.Enabled,
+						"configured":       true,
+						"status":           "ready",
+					},
+				})
+			default:
+				http.NotFound(w, r)
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st := mustOpenStore(t)
+	adminSession, err := st.CreateSession("platform_admin", "admin-1", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession admin returned error: %v", err)
+	}
+	customerSession, err := st.CreateSession("customer", "u1", "owner@example.com", "customer-access", "customer-refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession customer returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	unauth := httptest.NewRecorder()
+	srv.ServeHTTP(unauth, httptest.NewRequest(http.MethodGet, "/api/admin/sso/providers", nil))
+	if unauth.Code != http.StatusUnauthorized {
+		t.Fatalf("unauth providers status = %d", unauth.Code)
+	}
+
+	blocked := httptest.NewRecorder()
+	blockedReq := httptest.NewRequest(http.MethodGet, "/api/admin/sso/providers", nil)
+	blockedReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: customerSession.ID})
+	srv.ServeHTTP(blocked, blockedReq)
+	if blocked.Code != http.StatusForbidden {
+		t.Fatalf("customer providers status = %d", blocked.Code)
+	}
+
+	adminCookie := &http.Cookie{Name: "rtk_admin_session", Value: adminSession.ID}
+	providers := httptest.NewRecorder()
+	providersReq := httptest.NewRequest(http.MethodGet, "/api/admin/sso/providers", nil)
+	providersReq.AddCookie(adminCookie)
+	srv.ServeHTTP(providers, providersReq)
+	if providers.Code != http.StatusOK {
+		t.Fatalf("providers status = %d, body=%s", providers.Code, providers.Body.String())
+	}
+	if strings.Contains(providers.Body.String(), "client_secret") {
+		t.Fatalf("provider list leaked client_secret: %s", providers.Body.String())
+	}
+
+	provider := httptest.NewRecorder()
+	providerReq := httptest.NewRequest(http.MethodGet, "/api/admin/orgs/org-acme/sso-provider", nil)
+	providerReq.AddCookie(adminCookie)
+	srv.ServeHTTP(provider, providerReq)
+	if provider.Code != http.StatusOK {
+		t.Fatalf("provider status = %d, body=%s", provider.Code, provider.Body.String())
+	}
+	if strings.Contains(provider.Body.String(), "client_secret") {
+		t.Fatalf("provider detail leaked client_secret: %s", provider.Body.String())
+	}
+
+	badPayload := httptest.NewRecorder()
+	badPayloadReq := httptest.NewRequest(http.MethodPut, "/api/admin/orgs/org-acme/sso-provider", strings.NewReader(`{`))
+	badPayloadReq.AddCookie(adminCookie)
+	srv.ServeHTTP(badPayload, badPayloadReq)
+	if badPayload.Code != http.StatusBadRequest {
+		t.Fatalf("bad payload status = %d, body=%s", badPayload.Code, badPayload.Body.String())
+	}
+
+	updateBody := `{"issuer":" https://idp.example.com ","client_id":"client-1","client_secret":"secret-1","verified_domains":[" Example.COM ","example.com",""],"enabled":true}`
+	update := httptest.NewRecorder()
+	updateReq := httptest.NewRequest(http.MethodPut, "/api/admin/orgs/org-acme/sso-provider", strings.NewReader(updateBody))
+	updateReq.AddCookie(adminCookie)
+	srv.ServeHTTP(update, updateReq)
+	if update.Code != http.StatusOK {
+		t.Fatalf("update status = %d, body=%s", update.Code, update.Body.String())
+	}
+	if receivedConfig.ClientSecret != "secret-1" {
+		t.Fatalf("upstream did not receive client secret: %#v", receivedConfig)
+	}
+	if receivedConfig.Issuer != "https://idp.example.com" || len(receivedConfig.VerifiedDomains) != 1 || receivedConfig.VerifiedDomains[0] != "example.com" {
+		t.Fatalf("normalized config = %#v", receivedConfig)
+	}
+	if strings.Contains(update.Body.String(), "secret-1") || strings.Contains(update.Body.String(), "client_secret") {
+		t.Fatalf("update response leaked secret: %s", update.Body.String())
+	}
+
+	auditEvents, err := st.ListAuditEvents()
+	if err != nil {
+		t.Fatalf("ListAuditEvents returned error: %v", err)
+	}
+	for _, event := range auditEvents {
+		eventJSON, err := json.Marshal(event)
+		if err != nil {
+			t.Fatalf("marshal audit event: %v", err)
+		}
+		if strings.Contains(string(eventJSON), "secret-1") || strings.Contains(string(eventJSON), "client_secret") {
+			t.Fatalf("audit leaked secret: %#v", event)
+		}
+	}
+
+	disabledServer := NewWithOptions(st, Options{})
+	disabled := httptest.NewRecorder()
+	disabledReq := httptest.NewRequest(http.MethodGet, "/api/admin/sso/providers", nil)
+	disabledReq.AddCookie(adminCookie)
+	disabledServer.ServeHTTP(disabled, disabledReq)
+	if disabled.Code != http.StatusServiceUnavailable {
+		t.Fatalf("disabled providers status = %d, body=%s", disabled.Code, disabled.Body.String())
 	}
 }
 
