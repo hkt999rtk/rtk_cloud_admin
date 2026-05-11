@@ -513,6 +513,10 @@ func (s *Server) apiQuotaRaiseRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
+	if !s.cfg.LegacyCustomerPasswordLoginEnabled {
+		http.Error(w, "customer password login is disabled; use SSO", http.StatusForbidden)
+		return
+	}
 	if !s.accountClient.Enabled() {
 		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
 		return
@@ -566,13 +570,24 @@ func (s *Server) apiPlatformLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid login request", http.StatusBadRequest)
 		return
 	}
+	body.Email = strings.TrimSpace(body.Email)
+	if !s.cfg.AdminBreakGlassEnabled {
+		_ = s.auditPlatformBreakGlassLogin(body.Email, "disabled")
+		http.Error(w, "platform break-glass login is disabled; use SSO", http.StatusForbidden)
+		return
+	}
 	admin, err := s.store.VerifyPlatformAdmin(body.Email, body.Password)
 	if err != nil {
+		_ = s.auditPlatformBreakGlassLogin(body.Email, "failed")
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 	session, err := s.store.CreateSession("platform_admin", admin.ID, admin.Email, "", "", "", 12*time.Hour)
 	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if err := s.auditPlatformBreakGlassLogin(admin.Email, "accepted"); err != nil {
 		writeError(w, err)
 		return
 	}
@@ -2751,6 +2766,16 @@ func (s *Server) writeCustomerError(w http.ResponseWriter, err error) {
 		return
 	}
 	writeError(w, err)
+}
+
+func (s *Server) auditPlatformBreakGlassLogin(email, result string) error {
+	return s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:     fallback(email, "unknown-platform-admin"),
+		ActorKind: "platform_admin",
+		Action:    "PlatformBreakGlassLogin",
+		Target:    "platform_admin",
+		Result:    result,
+	})
 }
 
 func writeSSOError(w http.ResponseWriter, err error) {
