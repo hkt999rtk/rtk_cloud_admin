@@ -252,8 +252,15 @@ func TestSSOStartAndCallbackCreateSessions(t *testing.T) {
 	meReq.AddCookie(customerCallback.Result().Cookies()[0])
 	meRec := httptest.NewRecorder()
 	srv.ServeHTTP(meRec, meReq)
-	if meRec.Code != http.StatusOK || !strings.Contains(meRec.Body.String(), `"kind":"customer"`) || !strings.Contains(meRec.Body.String(), `"active_org_id":"org-1"`) {
+	if meRec.Code != http.StatusOK {
 		t.Fatalf("me status = %d, body=%s", meRec.Code, meRec.Body.String())
+	}
+	var customerMe contracts.Me
+	if err := json.NewDecoder(meRec.Body).Decode(&customerMe); err != nil {
+		t.Fatalf("decode customer me: %v", err)
+	}
+	if customerMe.Kind != "customer" || customerMe.ActiveOrgID != "org-1" || !customerMe.Authenticated || customerMe.DemoMode || len(customerMe.Memberships) != 1 {
+		t.Fatalf("customer me = %#v", customerMe)
 	}
 
 	adminCallback := httptest.NewRecorder()
@@ -271,6 +278,36 @@ func TestSSOStartAndCallbackCreateSessions(t *testing.T) {
 	if adminSession.Kind != "platform_admin" || adminSession.Subject != "admin-1" || adminSession.AccessToken != "admin-access" {
 		t.Fatalf("admin session = %#v", adminSession)
 	}
+
+	adminMeReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	adminMeReq.AddCookie(adminCallback.Result().Cookies()[0])
+	adminMeRec := httptest.NewRecorder()
+	srv.ServeHTTP(adminMeRec, adminMeReq)
+	if adminMeRec.Code != http.StatusOK {
+		t.Fatalf("admin me status = %d, body=%s", adminMeRec.Code, adminMeRec.Body.String())
+	}
+	var adminMe contracts.Me
+	if err := json.NewDecoder(adminMeRec.Body).Decode(&adminMe); err != nil {
+		t.Fatalf("decode admin me: %v", err)
+	}
+	if adminMe.Kind != "platform_admin" || !adminMe.Authenticated || adminMe.DemoMode || adminMe.Memberships == nil || len(adminMe.Memberships) != 0 {
+		t.Fatalf("admin me = %#v", adminMe)
+	}
+
+	logout := httptest.NewRecorder()
+	logoutReq := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	logoutReq.AddCookie(customerCallback.Result().Cookies()[0])
+	srv.ServeHTTP(logout, logoutReq)
+	if logout.Code != http.StatusOK {
+		t.Fatalf("logout status = %d, body=%s", logout.Code, logout.Body.String())
+	}
+	events, err := st.ListAuditEvents()
+	if err != nil {
+		t.Fatalf("ListAuditEvents returned error: %v", err)
+	}
+	assertAuditEvent(t, events, "SSOLogin", "owner@example.com", "customer", "accepted")
+	assertAuditEvent(t, events, "SSOLogin", "admin@example.com", "platform_admin", "accepted")
+	assertAuditEvent(t, events, "SessionLogout", "owner@example.com", "customer", "accepted")
 }
 
 func TestSSOEndpointsMapStableErrors(t *testing.T) {
@@ -345,6 +382,24 @@ func TestSSOEndpointsMapStableErrors(t *testing.T) {
 	if missing.Code != http.StatusBadRequest {
 		t.Fatalf("missing callback status = %d, body=%s", missing.Code, missing.Body.String())
 	}
+
+	disabled := httptest.NewRecorder()
+	NewWithOptions(mustOpenStore(t), Options{}).ServeHTTP(disabled, httptest.NewRequest(http.MethodPost, "/api/auth/sso/start", strings.NewReader(`{"email":"owner@example.com"}`)))
+	if disabled.Code != http.StatusServiceUnavailable {
+		t.Fatalf("disabled sso start status = %d, body=%s", disabled.Code, disabled.Body.String())
+	}
+
+	invalidStart := httptest.NewRecorder()
+	srv.ServeHTTP(invalidStart, httptest.NewRequest(http.MethodPost, "/api/auth/sso/start", strings.NewReader(`{`)))
+	if invalidStart.Code != http.StatusBadRequest {
+		t.Fatalf("invalid sso start status = %d, body=%s", invalidStart.Code, invalidStart.Body.String())
+	}
+
+	missingEmail := httptest.NewRecorder()
+	srv.ServeHTTP(missingEmail, httptest.NewRequest(http.MethodPost, "/api/auth/sso/start", strings.NewReader(`{"email":" "}`)))
+	if missingEmail.Code != http.StatusBadRequest {
+		t.Fatalf("missing email status = %d, body=%s", missingEmail.Code, missingEmail.Body.String())
+	}
 }
 
 func TestLegacyCustomerPasswordLoginDisabledByDefault(t *testing.T) {
@@ -367,6 +422,65 @@ func TestLegacyCustomerPasswordLoginDisabledByDefault(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "customer password login is disabled") {
 		t.Fatalf("customer login body = %s", rec.Body.String())
+	}
+}
+
+func TestSSOCustomerMeAllowsMissingMemberships(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/sso/callback":
+			_ = json.NewEncoder(w).Encode(accountclient.SSOCallbackResult{
+				User:   accountclient.User{ID: "u-empty", Email: "empty@example.com", Name: "Empty"},
+				Kind:   "customer",
+				Tokens: accountclient.Tokens{AccessToken: "empty-access", RefreshToken: "empty-refresh", ExpiresIn: 3600},
+			})
+		case "/v1/me":
+			if got := r.Header.Get("Authorization"); got != "Bearer empty-access" {
+				t.Fatalf("me Authorization = %q", got)
+			}
+			_ = json.NewEncoder(w).Encode(accountclient.MeResult{
+				User:          accountclient.User{ID: "u-empty", Email: "empty@example.com", Name: "Empty"},
+				Organizations: []accountclient.Organization{},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+	callback := httptest.NewRecorder()
+	srv.ServeHTTP(callback, httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?code=no-org-code&state=state-1", nil))
+	if callback.Code != http.StatusFound {
+		t.Fatalf("callback status = %d, body=%s", callback.Code, callback.Body.String())
+	}
+	session, err := st.GetSession(callback.Result().Cookies()[0].Value)
+	if err != nil {
+		t.Fatalf("GetSession returned error: %v", err)
+	}
+	if session.ActiveOrgID != "" {
+		t.Fatalf("active org = %q, want empty", session.ActiveOrgID)
+	}
+
+	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meReq.AddCookie(callback.Result().Cookies()[0])
+	meRec := httptest.NewRecorder()
+	srv.ServeHTTP(meRec, meReq)
+	if meRec.Code != http.StatusOK {
+		t.Fatalf("me status = %d, body=%s", meRec.Code, meRec.Body.String())
+	}
+	var me contracts.Me
+	if err := json.NewDecoder(meRec.Body).Decode(&me); err != nil {
+		t.Fatalf("decode me: %v", err)
+	}
+	if me.Kind != "customer" || me.ActiveOrgID != "" || me.Memberships == nil || len(me.Memberships) != 0 {
+		t.Fatalf("me missing memberships contract = %#v", me)
 	}
 }
 
@@ -618,6 +732,16 @@ func legacyCustomerLoginConfig(baseURL string) config.Config {
 		AccountManagerBaseURL:              baseURL,
 		LegacyCustomerPasswordLoginEnabled: true,
 	}
+}
+
+func assertAuditEvent(t *testing.T, events []contracts.AuditEvent, action, actor, actorKind, result string) {
+	t.Helper()
+	for _, event := range events {
+		if event.Action == action && event.Actor == actor && event.ActorKind == actorKind && event.Result == result {
+			return
+		}
+	}
+	t.Fatalf("missing audit event action=%q actor=%q actorKind=%q result=%q in %#v", action, actor, actorKind, result, events)
 }
 
 func TestProvisionActionPublishesOperation(t *testing.T) {

@@ -483,6 +483,10 @@ func (s *Server) apiSSOCallback(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	if err := s.auditSSOSession(result.User.Email, result.Kind, activeOrgID, "accepted"); err != nil {
+		writeError(w, err)
+		return
+	}
 	setSessionCookie(w, session.ID)
 	if result.Kind == "platform_admin" {
 		http.Redirect(w, r, "/admin", http.StatusFound)
@@ -608,7 +612,11 @@ func (s *Server) apiPlatformLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) apiLogout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie("rtk_admin_session"); err == nil {
+		session, sessionErr := s.store.GetSession(cookie.Value)
 		_ = s.store.DeleteSession(cookie.Value)
+		if sessionErr == nil {
+			_ = s.auditSessionLogout(session)
+		}
 	}
 	http.SetCookie(w, &http.Cookie{Name: "rtk_admin_session", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 	writeJSON(w, map[string]string{"status": "ok"})
@@ -2844,6 +2852,28 @@ func (s *Server) auditPlatformBreakGlassLogin(email, result string) error {
 		Action:    "PlatformBreakGlassLogin",
 		Target:    "platform_admin",
 		Result:    result,
+	})
+}
+
+func (s *Server) auditSSOSession(email, kind, orgID, result string) error {
+	return s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:          fallback(email, "unknown-sso-user"),
+		ActorKind:      fallback(kind, "sso"),
+		Action:         "SSOLogin",
+		Target:         fallback(kind, "sso_session"),
+		OrganizationID: orgID,
+		Result:         result,
+	})
+}
+
+func (s *Server) auditSessionLogout(session store.Session) error {
+	return s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:          fallback(session.Email, session.Subject),
+		ActorKind:      fallback(session.Kind, "session"),
+		Action:         "SessionLogout",
+		Target:         fallback(session.Kind, "session"),
+		OrganizationID: session.ActiveOrgID,
+		Result:         "accepted",
 	})
 }
 

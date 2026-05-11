@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { customerNavItems, devicesPathWithFilters, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
 import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
+import { shouldShowBreakGlass } from './auth-state.mjs';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -1233,7 +1234,7 @@ function PlatformAccessGate({ active, me, onSSOStart, onBreakGlassLogin }) {
   return (
     <>
       <SSOLoginPanel title="Platform SSO sign in" onSSOStart={onSSOStart} />
-      {me?.break_glass_enabled ? (
+      {shouldShowBreakGlass(me) ? (
         <BreakGlassLoginPanel title="Break-glass platform access" onLogin={onBreakGlassLogin} />
       ) : null}
       <section className="panel split-panel">
@@ -2346,7 +2347,7 @@ function PlatformAdmin({ summary, health, devices, customers, operations, audit,
       {me?.kind !== 'platform_admin' ? (
         <>
           <SSOLoginPanel title="Platform SSO sign in" onSSOStart={onSSOStart} />
-          {me?.break_glass_enabled ? (
+          {shouldShowBreakGlass(me) ? (
             <BreakGlassLoginPanel title="Break-glass platform access" onLogin={onBreakGlassLogin} />
           ) : null}
         </>
