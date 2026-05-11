@@ -84,6 +84,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
 	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
 	s.mux.HandleFunc("POST /api/auth/customer/resend-verification", s.apiCustomerResendVerification)
+	s.mux.HandleFunc("POST /api/auth/sso/start", s.apiSSOStart)
+	s.mux.HandleFunc("GET /api/auth/sso/callback", s.apiSSOCallback)
 	s.mux.HandleFunc("POST /api/auth/platform/login", s.apiPlatformLogin)
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
 	s.mux.HandleFunc("POST /api/orgs/{orgId}/quota-raise-requests", s.apiQuotaRaiseRequest)
@@ -411,6 +413,71 @@ func (s *Server) apiCustomerResendVerification(w http.ResponseWriter, r *http.Re
 		return
 	}
 	writeJSONStatus(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+}
+
+func (s *Server) apiSSOStart(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.SSOStartRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid SSO start request", http.StatusBadRequest)
+		return
+	}
+	body.Email = strings.TrimSpace(body.Email)
+	if body.Email == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.StartSSO(r.Context(), body)
+	if err != nil {
+		writeSSOError(w, err)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) apiSSOCallback(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	query := r.URL.Query()
+	code := strings.TrimSpace(query.Get("code"))
+	state := strings.TrimSpace(query.Get("state"))
+	if code == "" || state == "" {
+		http.Error(w, "code and state are required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.CompleteSSO(r.Context(), accountclient.SSOCallbackRequest{
+		Code:        code,
+		State:       state,
+		RedirectURI: strings.TrimSpace(query.Get("redirect_uri")),
+	})
+	if err != nil {
+		writeSSOError(w, err)
+		return
+	}
+	if result.Kind != "customer" && result.Kind != "platform_admin" {
+		http.Error(w, "unsupported SSO session kind", http.StatusBadGateway)
+		return
+	}
+	activeOrgID := result.ActiveOrgID
+	if result.Kind == "customer" && activeOrgID == "" && len(result.Organizations) > 0 {
+		activeOrgID = result.Organizations[0].ID
+	}
+	session, err := s.store.CreateSession(result.Kind, result.User.ID, result.User.Email, result.Tokens.AccessToken, result.Tokens.RefreshToken, activeOrgID, tokenTTL(result.Tokens))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	setSessionCookie(w, session.ID)
+	if result.Kind == "platform_admin" {
+		http.Redirect(w, r, "/admin", http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/console", http.StatusFound)
 }
 
 func (s *Server) apiQuotaRaiseRequest(w http.ResponseWriter, r *http.Request) {
@@ -2680,6 +2747,28 @@ func (s *Server) writeCustomerError(w http.ResponseWriter, err error) {
 			http.Error(w, "Account Manager request timed out", http.StatusGatewayTimeout)
 		default:
 			http.Error(w, "Account Manager request failed", http.StatusBadGateway)
+		}
+		return
+	}
+	writeError(w, err)
+}
+
+func writeSSOError(w http.ResponseWriter, err error) {
+	if status, ok := customerUpstreamStatus(err); ok {
+		switch status {
+		case http.StatusUnauthorized:
+			http.Error(w, "SSO callback was rejected by Account Manager", http.StatusUnauthorized)
+		case http.StatusForbidden:
+			http.Error(w, "SSO provider is disabled or access is denied", http.StatusForbidden)
+		case http.StatusGatewayTimeout:
+			http.Error(w, "Account Manager SSO request timed out", http.StatusGatewayTimeout)
+		default:
+			var httpErr *accountclient.HTTPError
+			if errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusNotFound {
+				http.Error(w, "SSO provider was not found for the email domain", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "Account Manager SSO request failed", http.StatusBadGateway)
 		}
 		return
 	}

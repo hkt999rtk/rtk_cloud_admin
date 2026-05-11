@@ -156,6 +156,196 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 	}
 }
 
+func TestSSOStartAndCallbackCreateSessions(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/sso/start":
+			var body accountclient.SSOStartRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode sso start: %v", err)
+			}
+			if body.Email != "owner@example.com" {
+				t.Fatalf("sso start email = %q", body.Email)
+			}
+			_ = json.NewEncoder(w).Encode(accountclient.SSOStartResult{
+				RedirectURL:    "https://idp.example.com/authorize?state=state-1",
+				State:          "state-1",
+				ProviderID:     "provider-1",
+				OrganizationID: "org-1",
+				Organization:   "Acme",
+			})
+		case "/v1/auth/sso/callback":
+			var body accountclient.SSOCallbackRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode sso callback: %v", err)
+			}
+			switch body.Code {
+			case "customer-code":
+				_ = json.NewEncoder(w).Encode(accountclient.SSOCallbackResult{
+					User:          accountclient.User{ID: "u-customer", Email: "owner@example.com", Name: "Owner"},
+					Kind:          "customer",
+					ActiveOrgID:   "org-1",
+					Organizations: []accountclient.Organization{{ID: "org-1", Name: "Acme", Role: "owner", Tier: "evaluation", EvaluationDeviceQuota: 5}},
+					Tokens:        accountclient.Tokens{AccessToken: "customer-access", RefreshToken: "customer-refresh", ExpiresIn: 3600},
+				})
+			case "admin-code":
+				_ = json.NewEncoder(w).Encode(accountclient.SSOCallbackResult{
+					User:   accountclient.User{ID: "admin-1", Email: "admin@example.com", Name: "Admin"},
+					Kind:   "platform_admin",
+					Tokens: accountclient.Tokens{AccessToken: "admin-access", RefreshToken: "admin-refresh", ExpiresIn: 3600},
+				})
+			default:
+				http.Error(w, "invalid callback", http.StatusUnauthorized)
+			}
+		case "/v1/me":
+			if r.Header.Get("Authorization") != "Bearer customer-access" {
+				t.Fatalf("me Authorization = %q", r.Header.Get("Authorization"))
+			}
+			_ = json.NewEncoder(w).Encode(accountclient.MeResult{
+				User:          accountclient.User{ID: "u-customer", Email: "owner@example.com", Name: "Owner"},
+				Organizations: []accountclient.Organization{{ID: "org-1", Name: "Acme", Role: "owner", Tier: "evaluation", EvaluationDeviceQuota: 5}},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	start := httptest.NewRecorder()
+	srv.ServeHTTP(start, httptest.NewRequest(http.MethodPost, "/api/auth/sso/start", strings.NewReader(`{"email":"owner@example.com","return_url":"https://admin.example.com/console"}`)))
+	if start.Code != http.StatusOK {
+		t.Fatalf("sso start status = %d, body=%s", start.Code, start.Body.String())
+	}
+	if !strings.Contains(start.Body.String(), `"redirect_url":"https://idp.example.com/authorize?state=state-1"`) {
+		t.Fatalf("sso start body = %s", start.Body.String())
+	}
+
+	customerCallback := httptest.NewRecorder()
+	srv.ServeHTTP(customerCallback, httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?code=customer-code&state=state-1&redirect_uri=https%3A%2F%2Fadmin.example.com%2Fapi%2Fauth%2Fsso%2Fcallback", nil))
+	if customerCallback.Code != http.StatusFound {
+		t.Fatalf("customer callback status = %d, body=%s", customerCallback.Code, customerCallback.Body.String())
+	}
+	if got := customerCallback.Header().Get("Location"); got != "/console" {
+		t.Fatalf("customer callback location = %q", got)
+	}
+	if len(customerCallback.Result().Cookies()) != 1 {
+		t.Fatalf("customer callback did not set session cookie")
+	}
+	customerSession, err := st.GetSession(customerCallback.Result().Cookies()[0].Value)
+	if err != nil {
+		t.Fatalf("GetSession customer returned error: %v", err)
+	}
+	if customerSession.Kind != "customer" || customerSession.Subject != "u-customer" || customerSession.ActiveOrgID != "org-1" || customerSession.AccessToken != "customer-access" {
+		t.Fatalf("customer session = %#v", customerSession)
+	}
+
+	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meReq.AddCookie(customerCallback.Result().Cookies()[0])
+	meRec := httptest.NewRecorder()
+	srv.ServeHTTP(meRec, meReq)
+	if meRec.Code != http.StatusOK || !strings.Contains(meRec.Body.String(), `"kind":"customer"`) || !strings.Contains(meRec.Body.String(), `"active_org_id":"org-1"`) {
+		t.Fatalf("me status = %d, body=%s", meRec.Code, meRec.Body.String())
+	}
+
+	adminCallback := httptest.NewRecorder()
+	srv.ServeHTTP(adminCallback, httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?code=admin-code&state=state-2", nil))
+	if adminCallback.Code != http.StatusFound {
+		t.Fatalf("admin callback status = %d, body=%s", adminCallback.Code, adminCallback.Body.String())
+	}
+	if got := adminCallback.Header().Get("Location"); got != "/admin" {
+		t.Fatalf("admin callback location = %q", got)
+	}
+	adminSession, err := st.GetSession(adminCallback.Result().Cookies()[0].Value)
+	if err != nil {
+		t.Fatalf("GetSession admin returned error: %v", err)
+	}
+	if adminSession.Kind != "platform_admin" || adminSession.Subject != "admin-1" || adminSession.AccessToken != "admin-access" {
+		t.Fatalf("admin session = %#v", adminSession)
+	}
+}
+
+func TestSSOEndpointsMapStableErrors(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/sso/start":
+			var body accountclient.SSOStartRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode sso start: %v", err)
+			}
+			switch body.Email {
+			case "unknown@example.com":
+				http.Error(w, "unknown domain", http.StatusNotFound)
+			case "disabled@example.com":
+				http.Error(w, "provider disabled", http.StatusForbidden)
+			default:
+				http.Error(w, "upstream down", http.StatusInternalServerError)
+			}
+		case "/v1/auth/sso/callback":
+			switch r.URL.Query().Get("case") {
+			default:
+				_ = json.NewEncoder(w).Encode(accountclient.SSOCallbackResult{
+					User:   accountclient.User{ID: "u1", Email: "bad@example.com"},
+					Kind:   "super_admin",
+					Tokens: accountclient.Tokens{AccessToken: "access", RefreshToken: "refresh", ExpiresIn: 3600},
+				})
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	srv := NewWithOptions(mustOpenStore(t), Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	for _, tc := range []struct {
+		name   string
+		email  string
+		status int
+		want   string
+	}{
+		{"unknown domain", "unknown@example.com", http.StatusNotFound, "SSO provider was not found"},
+		{"disabled provider", "disabled@example.com", http.StatusForbidden, "SSO provider is disabled"},
+		{"upstream failure", "owner@example.com", http.StatusBadGateway, "Account Manager SSO request failed"},
+	} {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/sso/start", strings.NewReader(fmt.Sprintf(`{"email":%q}`, tc.email))))
+		if rec.Code != tc.status {
+			t.Fatalf("%s status = %d, want %d; body=%s", tc.name, rec.Code, tc.status, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), tc.want) {
+			t.Fatalf("%s body = %s", tc.name, rec.Body.String())
+		}
+	}
+
+	invalid := httptest.NewRecorder()
+	srv.ServeHTTP(invalid, httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?code=bad&state=state", nil))
+	if invalid.Code != http.StatusBadGateway {
+		t.Fatalf("invalid kind status = %d, body=%s", invalid.Code, invalid.Body.String())
+	}
+	if !strings.Contains(invalid.Body.String(), "unsupported SSO session kind") {
+		t.Fatalf("invalid kind body = %s", invalid.Body.String())
+	}
+
+	missing := httptest.NewRecorder()
+	srv.ServeHTTP(missing, httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?state=state", nil))
+	if missing.Code != http.StatusBadRequest {
+		t.Fatalf("missing callback status = %d, body=%s", missing.Code, missing.Body.String())
+	}
+}
+
 func mustOpenStore(t *testing.T) *store.Store {
 	t.Helper()
 	st, err := store.Open(t.TempDir() + "/admin.db")
