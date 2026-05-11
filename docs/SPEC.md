@@ -107,6 +107,9 @@ Data ownership:
 - SQLite is authoritative only for console-local data: platform admins, sessions, audit, settings, preferences, and demo projections.
 - SQLite cache tables for upstream organizations, devices, operations, and readiness facts are non-authoritative mirrors that can be refreshed from Account Manager and Video Cloud.
 - Account Manager remains authoritative for customer users, organizations, membership, and registry devices.
+- Account Manager is also the planned identity broker and authorization source
+  for standards-based SSO; see
+  [`docs/sso-oidc-design.md`](sso-oidc-design.md).
 - Video Cloud remains authoritative for activation, transport, streaming, media, firmware, and device runtime facts.
 
 ## HTTP Interface
@@ -114,8 +117,8 @@ Data ownership:
 Public and shared routes:
 
 - `GET /healthz`: plain health check.
-- `POST /api/auth/customer/login`: customer login through Account Manager when configured.
-- `POST /api/auth/platform/login`: local SQLite platform admin login.
+- `POST /api/auth/customer/login`: legacy customer password login through Account Manager when configured.
+- `POST /api/auth/platform/login`: legacy local SQLite platform admin login for controlled break-glass access.
 - `POST /api/auth/logout`: deletes local session metadata.
 - `GET /api/me`: current user, memberships, active organization, and demo/auth state.
 - `POST /api/me/active-org`: switches active organization for the current session.
@@ -135,9 +138,18 @@ The v0.1 implementation may run without configured upstream services. In that mo
 
 ## Authentication And Sessions
 
+Long-term production authentication is SSO-first. The planned SSO architecture
+uses Account Manager as the OIDC identity broker and role authorization source
+for both Customer users and Platform Admins. Admin Console remains the BFF and
+session owner, creating the existing `rtk_admin_session` cookie after Account
+Manager completes SSO. The design is documented in
+[`docs/sso-oidc-design.md`](sso-oidc-design.md).
+
 Customer sessions:
 
-- customer credentials are posted only to Account Manager login
+- customer password login is legacy; daily production login should use Account
+  Manager-backed SSO
+- while legacy login is enabled, customer credentials are posted only to Account Manager login
 - the BFF stores session metadata plus upstream access/refresh tokens
 - plaintext passwords are never stored
 - `/api/me` returns user, memberships, active organization, and auth state
@@ -146,8 +158,9 @@ Customer sessions:
 
 Platform admin sessions:
 
-- local platform admin users are stored in SQLite
-- `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` create the first admin on startup
+- Platform Admin daily login should use Account Manager-backed SSO
+- local platform admin users are stored in SQLite only for controlled break-glass access
+- `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` create the first break-glass admin on startup
 - passwords are bcrypt hashed
 - platform-only API routes require a `platform_admin` session
 
