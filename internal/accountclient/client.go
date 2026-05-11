@@ -75,6 +75,55 @@ type MeResult struct {
 	Organizations []Organization `json:"organizations"`
 }
 
+type SSOStartRequest struct {
+	Email     string `json:"email"`
+	ReturnURL string `json:"return_url,omitempty"`
+}
+
+type SSOStartResult struct {
+	RedirectURL    string `json:"redirect_url"`
+	State          string `json:"state,omitempty"`
+	ProviderID     string `json:"provider_id,omitempty"`
+	OrganizationID string `json:"organization_id,omitempty"`
+	Organization   string `json:"organization,omitempty"`
+}
+
+type SSOCallbackRequest struct {
+	Code        string `json:"code"`
+	State       string `json:"state"`
+	RedirectURI string `json:"redirect_uri,omitempty"`
+}
+
+type SSOCallbackResult struct {
+	User          User           `json:"user"`
+	Kind          string         `json:"kind"`
+	Organizations []Organization `json:"organizations"`
+	ActiveOrgID   string         `json:"active_org_id,omitempty"`
+	Tokens        Tokens         `json:"tokens"`
+}
+
+type SSOProviderStatus struct {
+	OrganizationID  string   `json:"organization_id"`
+	Organization    string   `json:"organization,omitempty"`
+	ProviderID      string   `json:"provider_id,omitempty"`
+	Issuer          string   `json:"issuer,omitempty"`
+	ClientID        string   `json:"client_id,omitempty"`
+	VerifiedDomains []string `json:"verified_domains,omitempty"`
+	Enabled         bool     `json:"enabled"`
+	Configured      bool     `json:"configured"`
+	Status          string   `json:"status,omitempty"`
+	Error           string   `json:"error,omitempty"`
+	LastValidatedAt string   `json:"last_validated_at,omitempty"`
+}
+
+type SSOProviderConfigRequest struct {
+	Issuer          string   `json:"issuer"`
+	ClientID        string   `json:"client_id"`
+	ClientSecret    string   `json:"client_secret,omitempty"`
+	VerifiedDomains []string `json:"verified_domains"`
+	Enabled         bool     `json:"enabled"`
+}
+
 type SignupRequest struct {
 	Email            string `json:"email"`
 	Password         string `json:"password"`
@@ -196,6 +245,50 @@ func (c *Client) Me(ctx context.Context, accessToken string) (MeResult, error) {
 	var out MeResult
 	err := c.doJSON(ctx, http.MethodGet, "/v1/me", accessToken, nil, &out)
 	return out, err
+}
+
+func (c *Client) StartSSO(ctx context.Context, req SSOStartRequest) (SSOStartResult, error) {
+	var out SSOStartResult
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/sso/start", "", req, &out)
+	return out, err
+}
+
+func (c *Client) CompleteSSO(ctx context.Context, req SSOCallbackRequest) (SSOCallbackResult, error) {
+	var out SSOCallbackResult
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/sso/callback", "", req, &out)
+	return out, err
+}
+
+func (c *Client) SSOProviderStatuses(ctx context.Context, accessToken string) ([]SSOProviderStatus, error) {
+	var body struct {
+		Providers []SSOProviderStatus `json:"providers"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, "/v1/admin/sso/providers/status", accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Providers, nil
+}
+
+func (c *Client) SSOProviderStatus(ctx context.Context, accessToken, orgID string) (SSOProviderStatus, error) {
+	var body struct {
+		Provider SSOProviderStatus `json:"provider"`
+	}
+	path := "/v1/admin/orgs/" + url.PathEscape(orgID) + "/sso-provider"
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return SSOProviderStatus{}, err
+	}
+	return body.Provider, nil
+}
+
+func (c *Client) UpsertSSOProvider(ctx context.Context, accessToken, orgID string, req SSOProviderConfigRequest) (SSOProviderStatus, error) {
+	var body struct {
+		Provider SSOProviderStatus `json:"provider"`
+	}
+	path := "/v1/admin/orgs/" + url.PathEscape(orgID) + "/sso-provider"
+	if err := c.doJSON(ctx, http.MethodPut, path, accessToken, req, &body); err != nil {
+		return SSOProviderStatus{}, err
+	}
+	return body.Provider, nil
 }
 
 func (c *Client) Organizations(ctx context.Context, accessToken string) ([]Organization, error) {

@@ -134,6 +134,223 @@ func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 	}
 }
 
+func TestClientSSOStartCallbackAndProviderConfig(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/sso/start":
+			if r.Method != http.MethodPost {
+				t.Fatalf("sso start method = %s", r.Method)
+			}
+			var body SSOStartRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode sso start request: %v", err)
+			}
+			if body.Email != "owner@example.com" || body.ReturnURL != "https://admin.example.com/console" {
+				t.Fatalf("sso start request = %#v", body)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"redirect_url":    "https://idp.example.com/authorize?state=state-1",
+				"state":           "state-1",
+				"provider_id":     "provider-1",
+				"organization_id": "org-1",
+				"organization":    "Acme",
+			})
+		case "/v1/auth/sso/callback":
+			if r.Method != http.MethodPost {
+				t.Fatalf("sso callback method = %s", r.Method)
+			}
+			var body SSOCallbackRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode sso callback request: %v", err)
+			}
+			if body.Code != "code-1" || body.State != "state-1" || body.RedirectURI != "https://admin.example.com/api/auth/sso/callback" {
+				t.Fatalf("sso callback request = %#v", body)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"user":          map[string]any{"id": "u1", "email": "owner@example.com", "name": "Owner"},
+				"kind":          "customer",
+				"active_org_id": "org-1",
+				"organizations": []map[string]any{{"id": "org-1", "name": "Acme", "role": "owner", "tier": "evaluation", "evaluation_device_quota": 5}},
+				"tokens":        map[string]any{"access_token": "access", "refresh_token": "refresh", "expires_in": 3600},
+			})
+		case "/v1/admin/sso/providers/status":
+			if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+				t.Fatalf("status Authorization = %q", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"providers": []map[string]any{
+					{"organization_id": "org-1", "organization": "Acme", "provider_id": "provider-1", "issuer": "https://idp.example.com", "client_id": "client-1", "verified_domains": []string{"example.com"}, "enabled": true, "configured": true, "status": "ready"},
+				},
+			})
+		case "/v1/admin/orgs/org-1/sso-provider":
+			if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+				t.Fatalf("config Authorization = %q", got)
+			}
+			switch r.Method {
+			case http.MethodGet:
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"provider": map[string]any{"organization_id": "org-1", "organization": "Acme", "provider_id": "provider-1", "issuer": "https://idp.example.com", "client_id": "client-1", "verified_domains": []string{"example.com"}, "enabled": true, "configured": true, "status": "ready"},
+				})
+			case http.MethodPut:
+				var body SSOProviderConfigRequest
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Fatalf("decode sso provider config request: %v", err)
+				}
+				if body.ClientSecret != "secret-1" || body.Issuer != "https://idp.example.com" || len(body.VerifiedDomains) != 1 {
+					t.Fatalf("sso provider config request = %#v", body)
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"provider": map[string]any{"organization_id": "org-1", "organization": "Acme", "provider_id": "provider-1", "issuer": "https://idp.example.com", "client_id": "client-1", "verified_domains": []string{"example.com"}, "enabled": true, "configured": true, "status": "ready"},
+				})
+			default:
+				http.NotFound(w, r)
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	start, err := client.StartSSO(t.Context(), SSOStartRequest{
+		Email:     "owner@example.com",
+		ReturnURL: "https://admin.example.com/console",
+	})
+	if err != nil {
+		t.Fatalf("StartSSO returned error: %v", err)
+	}
+	if start.RedirectURL == "" || start.OrganizationID != "org-1" || start.ProviderID != "provider-1" {
+		t.Fatalf("start = %#v", start)
+	}
+
+	callback, err := client.CompleteSSO(t.Context(), SSOCallbackRequest{
+		Code:        "code-1",
+		State:       "state-1",
+		RedirectURI: "https://admin.example.com/api/auth/sso/callback",
+	})
+	if err != nil {
+		t.Fatalf("CompleteSSO returned error: %v", err)
+	}
+	if callback.Kind != "customer" || callback.ActiveOrgID != "org-1" || callback.Tokens.AccessToken != "access" || len(callback.Organizations) != 1 {
+		t.Fatalf("callback = %#v", callback)
+	}
+
+	statuses, err := client.SSOProviderStatuses(t.Context(), "admin-access")
+	if err != nil {
+		t.Fatalf("SSOProviderStatuses returned error: %v", err)
+	}
+	if len(statuses) != 1 || statuses[0].OrganizationID != "org-1" || !statuses[0].Configured {
+		t.Fatalf("statuses = %#v", statuses)
+	}
+
+	status, err := client.SSOProviderStatus(t.Context(), "admin-access", "org-1")
+	if err != nil {
+		t.Fatalf("SSOProviderStatus returned error: %v", err)
+	}
+	if status.Issuer != "https://idp.example.com" || status.ClientID != "client-1" {
+		t.Fatalf("status = %#v", status)
+	}
+
+	updated, err := client.UpsertSSOProvider(t.Context(), "admin-access", "org-1", SSOProviderConfigRequest{
+		Issuer:          "https://idp.example.com",
+		ClientID:        "client-1",
+		ClientSecret:    "secret-1",
+		VerifiedDomains: []string{"example.com"},
+		Enabled:         true,
+	})
+	if err != nil {
+		t.Fatalf("UpsertSSOProvider returned error: %v", err)
+	}
+	if !updated.Enabled || !updated.Configured {
+		t.Fatalf("updated = %#v", updated)
+	}
+}
+
+func TestClientSSOErrorMatrix(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/sso/start":
+			var body SSOStartRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode sso start matrix request: %v", err)
+			}
+			switch body.Email {
+			case "invalid-json":
+				_, _ = w.Write([]byte(`{`))
+			case "timeout":
+				time.Sleep(50 * time.Millisecond)
+				_, _ = w.Write([]byte(`{"redirect_url":"late"}`))
+			case "forbidden":
+				http.Error(w, "forbidden", http.StatusForbidden)
+			case "not-found":
+				http.Error(w, "unknown domain", http.StatusNotFound)
+			default:
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+			}
+		case "/v1/auth/sso/callback":
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+		case "/v1/admin/sso/providers/status":
+			http.Error(w, "upstream unavailable", http.StatusServiceUnavailable)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	assertHTTPStatus := func(name string, err error, status int) {
+		t.Helper()
+		if err == nil {
+			t.Fatalf("%s expected error", name)
+		}
+		httpErr, ok := err.(*HTTPError)
+		if !ok {
+			t.Fatalf("%s error type = %T, want *HTTPError", name, err)
+		}
+		if httpErr.StatusCode != status {
+			t.Fatalf("%s status = %d, want %d", name, httpErr.StatusCode, status)
+		}
+	}
+
+	_, err := client.StartSSO(t.Context(), SSOStartRequest{Email: "owner@example.com"})
+	assertHTTPStatus("start unauthorized", err, http.StatusUnauthorized)
+
+	for name, tc := range map[string]struct {
+		email  string
+		status int
+	}{
+		"start forbidden": {"forbidden", http.StatusForbidden},
+		"start not found": {"not-found", http.StatusNotFound},
+	} {
+		_, err := client.StartSSO(t.Context(), SSOStartRequest{Email: tc.email})
+		assertHTTPStatus(name, err, tc.status)
+	}
+
+	if _, err := client.StartSSO(t.Context(), SSOStartRequest{Email: "invalid-json"}); err == nil {
+		t.Fatal("expected invalid JSON error")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Millisecond)
+	defer cancel()
+	if _, err := client.StartSSO(ctx, SSOStartRequest{Email: "timeout"}); err == nil {
+		t.Fatal("expected timeout error")
+	}
+
+	_, err = client.CompleteSSO(t.Context(), SSOCallbackRequest{Code: "code", State: "state"})
+	assertHTTPStatus("callback 5xx", err, http.StatusBadGateway)
+
+	_, err = client.SSOProviderStatuses(t.Context(), "admin-access")
+	assertHTTPStatus("provider status 5xx", err, http.StatusServiceUnavailable)
+
+	if _, err := New("").StartSSO(t.Context(), SSOStartRequest{Email: "owner@example.com"}); err == nil {
+		t.Fatal("expected disabled StartSSO error")
+	}
+}
+
 func TestClientOrganizationsAndDevices(t *testing.T) {
 	t.Parallel()
 
