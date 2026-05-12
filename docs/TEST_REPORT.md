@@ -4,7 +4,7 @@
 
 | Item | Result |
 |---|---|
-| Go total coverage | 80.3% |
+| Go total coverage | 80.7% |
 | Go coverage gate | >= 80.0% |
 | Raw logs | GitHub Actions artifact only |
 | Coverage profile | GitHub Actions artifact only |
@@ -27,12 +27,12 @@
 | Package | Coverage |
 |---|---:|
 | `rtk_cloud_admin/cmd/server` | 0.0% |
-| `rtk_cloud_admin/internal/accountclient` | 91.2% |
-| `rtk_cloud_admin/internal/app` | 80.1% |
+| `rtk_cloud_admin/internal/accountclient` | 89.5% |
+| `rtk_cloud_admin/internal/app` | 80.5% |
 | `rtk_cloud_admin/internal/config` | 100.0% |
 | `rtk_cloud_admin/internal/readinessfacts` | 85.4% |
 | `rtk_cloud_admin/internal/store` | 80.1% |
-| `rtk_cloud_admin/internal/videoclient` | 86.8% |
+| `rtk_cloud_admin/internal/videoclient` | 87.4% |
 
 ## Artifact Policy
 

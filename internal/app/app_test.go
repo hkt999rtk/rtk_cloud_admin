@@ -2085,6 +2085,206 @@ func TestFleetStreamStatsWindow30dAndOrgScope(t *testing.T) {
 	}
 }
 
+func TestFleetStreamStatsProxyModeUsesVideoCloudAndActiveOrg(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if got := r.Header.Get("Authorization"); got != "Bearer access" {
+			t.Fatalf("%s Authorization = %q, want Bearer access", r.URL.Path, got)
+		}
+		switch r.URL.Path {
+		case "/v1/me":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"user": map[string]any{"id": "u1", "email": "customer@example.com", "name": "Customer"},
+				"organizations": []map[string]any{
+					{"id": "org-acme", "name": "Acme", "role": "owner"},
+					{"id": "org-nova", "name": "Nova", "role": "viewer"},
+				},
+			})
+		case "/v1/orgs/org-acme/devices":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"devices": []map[string]any{
+					{"id": "dev-acme", "organization_id": "org-acme", "organization": "Acme", "name": "Acme Cam", "category": "ip_camera", "model": "RTK-CAM-A", "serial_number": "ACME-001", "video_cloud_devid": "vc-acme", "status": "online", "readiness": "online", "last_seen_at": "2026-05-11T00:00:00Z", "updated_at": "2026-05-11T00:00:00Z"},
+				},
+			})
+		case "/v1/orgs/org-nova/devices":
+			t.Fatalf("inactive organization devices endpoint should not be called")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	var streamStatsCalls int
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+			t.Fatalf("%s Authorization = %q, want Bearer vc-secret", r.URL.Path, got)
+		}
+		switch r.URL.Path {
+		case "/api/fleet/stream-stats":
+			streamStatsCalls++
+			q := r.URL.Query()
+			if q.Get("org_id") != "org-acme" || q.Get("window") != "30d" || q.Get("devices") != "vc-acme" {
+				t.Fatalf("stream stats query = %s, want org_id=org-acme window=30d devices=vc-acme", r.URL.RawQuery)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"org_id":               "org-acme",
+				"window":               "30d",
+				"success_rate_pct":     88.5,
+				"avg_duration_seconds": 14.5,
+				"active_sessions":      7,
+				"never_streamed_count": 2,
+				"by_mode": map[string]any{
+					"webrtc": map[string]any{"requests": 16, "success_rate_pct": 88.5},
+				},
+				"trend": []map[string]any{
+					{"date": "2026-05-11", "requests": 16, "success_rate_pct": 88.5},
+				},
+				"trend_by_mode": []map[string]any{
+					{"mode": "webrtc", "points": []map[string]any{{"date": "2026-05-11", "requests": 16, "success_rate_pct": 88.5}}},
+				},
+				"worst_devices": []map[string]any{
+					{"device_id": "dev-acme", "device_name": "Acme Cam", "mode_used": "webrtc", "readiness": "online", "success_rate_pct": 88.5, "requests": 16, "last_stream_at": "2026-05-11T00:00:00Z"},
+				},
+			})
+		default:
+			t.Fatalf("stream stats proxy should not call unrelated Video Cloud path: %s", r.URL.Path)
+		}
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL: accountUpstream.URL,
+			VideoCloudBaseURL:     videoUpstream.URL,
+			VideoCloudAdminToken:  "vc-secret",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats?window=30d", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var payload contracts.FleetStreamStats
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode stream stats payload: %v", err)
+	}
+	if payload.SuccessRatePct != 88.5 || payload.ActiveSessions != 7 || payload.ByMode["webrtc"].Requests != 16 {
+		t.Fatalf("payload = %#v", payload)
+	}
+	if streamStatsCalls != 1 {
+		t.Fatalf("stream stats calls = %d, want 1", streamStatsCalls)
+	}
+}
+
+func TestFleetStreamStatsProxyFailureDoesNotFallback(t *testing.T) {
+	t.Parallel()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/fleet/stream-stats" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Error(w, "stream backend unavailable", http.StatusInternalServerError)
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:      config.Config{VideoCloudBaseURL: videoUpstream.URL, VideoCloudAdminToken: "vc-secret"},
+		VideoClient: videoclient.New(videoUpstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusBadGateway, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Video Cloud request failed") {
+		t.Fatalf("stream stats body = %s", rec.Body.String())
+	}
+}
+
+func TestFleetStreamStatsProxyTimeoutReturnsGatewayTimeout(t *testing.T) {
+	t.Parallel()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/fleet/stream-stats" {
+			http.NotFound(w, r)
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+		_ = json.NewEncoder(w).Encode(map[string]any{"org_id": "org-acme", "window": "7d"})
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:      config.Config{VideoCloudBaseURL: videoUpstream.URL, VideoCloudAdminToken: "vc-secret"},
+		VideoClient: videoclient.NewWithHTTPClient(videoUpstream.URL, &http.Client{Timeout: 5 * time.Millisecond}),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusGatewayTimeout {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusGatewayTimeout, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Video Cloud request timed out") {
+		t.Fatalf("stream stats body = %s", rec.Body.String())
+	}
+}
+
 func TestFleetStreamStatsWorstDevicesSortedAsc(t *testing.T) {
 	t.Parallel()
 
@@ -2931,6 +3131,153 @@ func TestPlatformAdminReadModelsIncludeDashboardFields(t *testing.T) {
 	}
 	if devices[0].Health == "" || devices[0].SignalQuality == "" || len(devices[0].SourceFacts) == 0 {
 		t.Fatalf("admin device runtime facts are incomplete: %#v", devices[0])
+	}
+}
+
+func TestPlatformAdminReadModelsUseAccountManagerAdminInventory(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+			t.Fatalf("%s Authorization = %q, want Bearer admin-access", r.URL.Path, got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/admin/orgs":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"organizations": []map[string]any{
+					{"id": "org-admin", "name": "Admin Org", "role": "owner", "tier": "commercial"},
+				},
+			})
+		case "/v1/admin/devices":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"devices": []map[string]any{
+					{"id": "dev-admin", "organization_id": "org-admin", "organization": "Admin Org", "name": "Admin Camera", "category": "ip_camera", "model": "RTK-CAM-A", "serial_number": "ADMIN-001", "status": "online", "readiness": "online", "last_seen_at": "2026-05-11T00:00:00Z", "updated_at": "2026-05-11T00:00:00Z"},
+				},
+			})
+		case "/v1/admin/operations":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"operations": []map[string]any{
+					{"id": "op-admin", "device_id": "dev-admin", "device_name": "Admin Camera", "organization_id": "org-admin", "organization": "Admin Org", "type": "DeviceProvisionRequested", "state": "published", "message": "queued", "updated_at": "2026-05-11T00:00:00Z"},
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession platform_admin returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: accountUpstream.URL},
+		AccountClient: accountclient.New(accountUpstream.URL),
+	})
+
+	adminGet := func(path string) *httptest.ResponseRecorder {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d; body=%s", path, rec.Code, http.StatusOK, rec.Body.String())
+		}
+		return rec
+	}
+
+	var summary contracts.Summary
+	if err := json.NewDecoder(adminGet("/api/admin/summary").Body).Decode(&summary); err != nil {
+		t.Fatalf("decode summary: %v", err)
+	}
+	if summary.TotalDevices != 1 || summary.Customers != 1 || summary.OpenOperations != 1 {
+		t.Fatalf("summary = %#v", summary)
+	}
+
+	var customers []contracts.CustomerSummary
+	if err := json.NewDecoder(adminGet("/api/admin/customers").Body).Decode(&customers); err != nil {
+		t.Fatalf("decode customers: %v", err)
+	}
+	if len(customers) != 1 || customers[0].OrganizationID != "org-admin" || customers[0].Organization != "Admin Org" || customers[0].TotalDevices != 1 {
+		t.Fatalf("customers = %#v", customers)
+	}
+
+	var devices []contracts.Device
+	if err := json.NewDecoder(adminGet("/api/admin/devices").Body).Decode(&devices); err != nil {
+		t.Fatalf("decode devices: %v", err)
+	}
+	if len(devices) != 1 || devices[0].ID != "dev-admin" || devices[0].OrganizationID != "org-admin" || devices[0].Name != "Admin Camera" {
+		t.Fatalf("devices = %#v", devices)
+	}
+
+	var ops []contracts.Operation
+	if err := json.NewDecoder(adminGet("/api/admin/operations").Body).Decode(&ops); err != nil {
+		t.Fatalf("decode operations: %v", err)
+	}
+	if len(ops) != 1 || ops[0].ID != "op-admin" || ops[0].DeviceID != "dev-admin" || ops[0].Organization != "Admin Org" {
+		t.Fatalf("operations = %#v", ops)
+	}
+}
+
+func TestPlatformAdminReadModelsSurfaceUpstreamFailure(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+			t.Fatalf("%s Authorization = %q, want Bearer admin-access", r.URL.Path, got)
+		}
+		switch r.URL.Path {
+		case "/v1/admin/orgs":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"organizations": []map[string]any{{"id": "org-admin", "name": "Admin Org"}},
+			})
+		case "/v1/admin/devices":
+			http.Error(w, "inventory unavailable", http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession platform_admin returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: accountUpstream.URL},
+		AccountClient: accountclient.New(accountUpstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/devices", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("admin devices status = %d, want %d; body=%s", rec.Code, http.StatusBadGateway, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Account Manager request failed") {
+		t.Fatalf("admin devices body = %s", rec.Body.String())
 	}
 }
 

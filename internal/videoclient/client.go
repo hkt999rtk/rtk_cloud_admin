@@ -119,12 +119,56 @@ type DeviceTelemetryEvent struct {
 	Payload    json.RawMessage `json:"payload,omitempty"`
 }
 
+type FleetStreamStatsMode struct {
+	Requests       int     `json:"requests"`
+	SuccessRatePct float64 `json:"success_rate_pct"`
+}
+
+type FleetStreamTrendPoint struct {
+	Date           string  `json:"date"`
+	Requests       int     `json:"requests"`
+	SuccessRatePct float64 `json:"success_rate_pct"`
+}
+
+type FleetStreamWorstDevice struct {
+	DeviceID       string  `json:"device_id"`
+	DeviceName     string  `json:"device_name"`
+	ModeUsed       string  `json:"mode_used"`
+	Readiness      string  `json:"readiness"`
+	SuccessRatePct float64 `json:"success_rate_pct"`
+	Requests       int     `json:"requests"`
+	LastStreamAt   string  `json:"last_stream_at,omitempty"`
+}
+
+type FleetStreamModeTrend struct {
+	Mode   string                  `json:"mode"`
+	Points []FleetStreamTrendPoint `json:"points"`
+}
+
+type FleetStreamStats struct {
+	OrgID              string                          `json:"org_id"`
+	Window             string                          `json:"window"`
+	SuccessRatePct     float64                         `json:"success_rate_pct"`
+	AvgDurationSeconds float64                         `json:"avg_duration_seconds"`
+	ActiveSessions     int                             `json:"active_sessions"`
+	NeverStreamedCount int                             `json:"never_streamed_count"`
+	ByMode             map[string]FleetStreamStatsMode `json:"by_mode"`
+	Trend              []FleetStreamTrendPoint         `json:"trend"`
+	TrendByMode        []FleetStreamModeTrend          `json:"trend_by_mode"`
+	WorstDevices       []FleetStreamWorstDevice        `json:"worst_devices"`
+}
+
 func New(baseURL string) *Client {
+	return NewWithHTTPClient(baseURL, &http.Client{Timeout: 6 * time.Second})
+}
+
+func NewWithHTTPClient(baseURL string, httpClient *http.Client) *Client {
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 6 * time.Second}
+	}
 	return &Client{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		httpClient: &http.Client{
-			Timeout: 6 * time.Second,
-		},
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		httpClient: httpClient,
 	}
 }
 
@@ -356,6 +400,37 @@ func (c *Client) DeviceTelemetry(ctx context.Context, adminToken, devid, orgID s
 	var out DeviceTelemetryResponse
 	if err := c.doJSON(ctx, http.MethodGet, path, adminToken, nil, &out); err != nil {
 		return DeviceTelemetryResponse{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) FleetStreamStats(ctx context.Context, adminToken, orgID, window string, devices []string) (FleetStreamStats, error) {
+	if !c.Enabled() {
+		return FleetStreamStats{}, fmt.Errorf("video cloud base URL is not configured")
+	}
+	q := url.Values{}
+	if strings.TrimSpace(orgID) != "" {
+		q.Set("org_id", strings.TrimSpace(orgID))
+	}
+	if strings.TrimSpace(window) != "" {
+		q.Set("window", strings.TrimSpace(window))
+	}
+	cleanDevices := make([]string, 0, len(devices))
+	for _, device := range devices {
+		if trimmed := strings.TrimSpace(device); trimmed != "" {
+			cleanDevices = append(cleanDevices, trimmed)
+		}
+	}
+	if len(cleanDevices) > 0 {
+		q.Set("devices", strings.Join(cleanDevices, ","))
+	}
+	path := "/api/fleet/stream-stats"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	var out FleetStreamStats
+	if err := c.doJSON(ctx, http.MethodGet, path, adminToken, nil, &out); err != nil {
+		return FleetStreamStats{}, err
 	}
 	return out, nil
 }

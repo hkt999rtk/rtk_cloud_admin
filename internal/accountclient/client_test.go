@@ -73,6 +73,63 @@ func TestClientRefresh(t *testing.T) {
 	}
 }
 
+func TestClientAdminInventory(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+			t.Fatalf("%s Authorization = %q, want Bearer admin-access", r.URL.Path, got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/admin/orgs":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"organizations": []map[string]any{
+					{"id": "org-admin", "name": "Admin Org", "role": "owner", "tier": "commercial"},
+				},
+			})
+		case "/v1/admin/devices":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"devices": []map[string]any{
+					{"id": "dev-admin", "organization_id": "org-admin", "organization": "Admin Org", "name": "Admin Camera", "category": "ip_camera", "model": "RTK-CAM-A", "serial_number": "ADMIN-001", "video_cloud_devid": "vc-admin", "status": "online", "readiness": "online", "last_seen_at": "2026-05-11T00:00:00Z", "updated_at": "2026-05-11T00:00:00Z"},
+				},
+			})
+		case "/v1/admin/operations":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"operations": []map[string]any{
+					{"id": "op-admin", "device_id": "dev-admin", "device_name": "Admin Camera", "organization_id": "org-admin", "organization": "Admin Org", "type": "DeviceProvisionRequested", "state": "published", "message": "queued", "updated_at": "2026-05-11T00:00:00Z"},
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	orgs, err := client.AdminOrganizations(t.Context(), "admin-access")
+	if err != nil {
+		t.Fatalf("AdminOrganizations returned error: %v", err)
+	}
+	if len(orgs) != 1 || orgs[0].ID != "org-admin" || orgs[0].Tier != "commercial" {
+		t.Fatalf("orgs = %#v", orgs)
+	}
+	devices, err := client.AdminDevices(t.Context(), "admin-access")
+	if err != nil {
+		t.Fatalf("AdminDevices returned error: %v", err)
+	}
+	if len(devices) != 1 || devices[0].ID != "dev-admin" || devices[0].OrganizationID != "org-admin" {
+		t.Fatalf("devices = %#v", devices)
+	}
+	ops, err := client.AdminOperations(t.Context(), "admin-access")
+	if err != nil {
+		t.Fatalf("AdminOperations returned error: %v", err)
+	}
+	if len(ops) != 1 || ops[0].ID != "op-admin" || ops[0].DeviceID != "dev-admin" || ops[0].Type != "DeviceProvisionRequested" {
+		t.Fatalf("operations = %#v", ops)
+	}
+}
+
 func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
