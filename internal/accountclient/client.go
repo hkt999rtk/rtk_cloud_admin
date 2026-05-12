@@ -48,10 +48,17 @@ type Device struct {
 }
 
 type Operation struct {
-	ID        string `json:"id"`
-	State     string `json:"state"`
-	Message   string `json:"message"`
-	UpdatedAt string `json:"updated_at"`
+	ID                  string `json:"id"`
+	DeviceID            string `json:"device_id,omitempty"`
+	DeviceName          string `json:"device_name,omitempty"`
+	OrganizationID      string `json:"organization_id,omitempty"`
+	Organization        string `json:"organization,omitempty"`
+	Type                string `json:"type,omitempty"`
+	State               string `json:"state"`
+	UpstreamOperationID string `json:"upstream_operation_id,omitempty"`
+	UpstreamState       string `json:"upstream_state,omitempty"`
+	Message             string `json:"message"`
+	UpdatedAt           string `json:"updated_at"`
 }
 
 type Tokens struct {
@@ -301,6 +308,16 @@ func (c *Client) Organizations(ctx context.Context, accessToken string) ([]Organ
 	return body.Organizations, nil
 }
 
+func (c *Client) AdminOrganizations(ctx context.Context, accessToken string) ([]Organization, error) {
+	var body struct {
+		Organizations []Organization `json:"organizations"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, "/v1/admin/orgs", accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Organizations, nil
+}
+
 func (c *Client) Devices(ctx context.Context, accessToken, orgID string) ([]Device, error) {
 	var body struct {
 		Devices []Device `json:"devices"`
@@ -309,6 +326,26 @@ func (c *Client) Devices(ctx context.Context, accessToken, orgID string) ([]Devi
 		return nil, err
 	}
 	return body.Devices, nil
+}
+
+func (c *Client) AdminDevices(ctx context.Context, accessToken string) ([]Device, error) {
+	var body struct {
+		Devices []Device `json:"devices"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, "/v1/admin/devices", accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Devices, nil
+}
+
+func (c *Client) AdminOperations(ctx context.Context, accessToken string) ([]Operation, error) {
+	var body struct {
+		Operations []Operation `json:"operations"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, "/v1/admin/operations", accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Operations, nil
 }
 
 func (c *Client) CreateQuotaRaiseRequest(ctx context.Context, accessToken, orgID string, req QuotaRaiseRequest) (QuotaRaiseRequestResult, error) {
