@@ -6,6 +6,7 @@ import { shouldShowBreakGlass } from './auth-state.mjs';
 import { deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
 import { sourceAvailable, sourceMessage } from './source-state.mjs';
+import { streamWorstDeviceRows } from './stream.mjs';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -1131,7 +1132,7 @@ function FirmwareRiskQueue({ campaigns, onViewDevices }) {
 function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, onOpenDevice }) {
   const trend = stats?.trend || [];
   const modeTrends = stats?.trend_by_mode || [];
-  const worstDevices = stats?.worst_devices || [];
+  const worstDevices = streamWorstDeviceRows(stats?.worst_devices || []);
   const byMode = stats?.by_mode || {};
   const available = sourceAvailable(stats);
   const unavailableText = sourceMessage(stats, 'WebRTC session event source is not configured.');
@@ -1286,14 +1287,14 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
                   <span>Status</span>
                 </div>
                 {worstDevices.map((device) => (
-                  <div key={device.device_id} className="stream-device-table__row">
+                  <button key={device.device_id} type="button" className="stream-device-table__row" onClick={() => onOpenDevice(device.device_id)}>
                     <strong>{device.device_name || device.device_id}</strong>
                     <span>{streamModeLabel(device.mode_used)}</span>
                     <span>{formatPercent(device.success_rate_pct ?? 0)}</span>
                     <span>{device.requests ?? 0}</span>
                     <time title={device.last_stream_at || ''}>{device.last_stream_at ? formatRelativeTime(device.last_stream_at) : '—'}</time>
                     <StatusBadge value={normalizeStatusKey(device.readiness)} label={formatReadinessLabel(device.readiness)} />
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (
