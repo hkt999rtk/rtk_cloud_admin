@@ -34,22 +34,22 @@ Included in v0.1:
 - Local Realtek logo asset under `web/public/assets/realtek-logo.png`, sourced
   from the Realtek Connect+ marketing site and served locally by the app.
 - Customer console pages:
-  - dashboard overview
-  - customer overview
-  - device list
-  - device detail
-  - provisioning/deactivation actions
-  - readiness status display
-  - member/support placeholders
+  - Fleet Health Overview
+  - Devices with detail drawer
+  - Firmware & OTA
+  - Stream Health
+  - provisioning/deactivation actions in the device drawer
+  - readiness, health, firmware, telemetry, and stream status displays
 - Platform admin pages:
-  - customer overview
-  - all devices
-  - lifecycle operations
   - service health
+  - SSO provider status and settings
+  - lifecycle operations log
   - audit log
 - Audit events are recorded when demo lifecycle actions are created from the
   console.
-- Local demo mode backed by SQLite seed data so the console is useful before real service endpoints are configured.
+- Local demo mode backed by SQLite seed data so the console is useful before
+  real service endpoints are configured. Demo mode is for local development
+  only and is not acceptable for production or server validation.
 
 Out of scope for v0.1:
 
@@ -57,6 +57,7 @@ Out of scope for v0.1:
 - Full OTA campaign engine.
 - Telemetry ingestion pipeline.
 - WebRTC player, clip library, or media download manager.
+- Device Groups in the first Customer View batch.
 - Smart-home schedules, scenes, Matter, Alexa, or Google Assistant runtime features.
 - Multi-language UI. Console UI is English-first.
 

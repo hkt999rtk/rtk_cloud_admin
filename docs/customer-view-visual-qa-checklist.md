@@ -7,8 +7,9 @@ against the approved design assets in `docs/assets/webui-design/`.
 
 - Sidebar uses the Realtek Ops Console navy background and primary blue active
   nav state.
-- Customer View navigation contains Overview, Devices, Firmware & OTA, Stream
-  Health, and Groups only.
+- Customer View navigation contains Overview, Devices, Firmware & OTA, and
+  Stream Health only. Groups are deferred and must not appear in the first
+  batch sidebar or as a placeholder page.
 - Platform View switcher is visually separated from Customer View navigation.
 - Header contains page title, active organization, relevant window control,
   last updated text, and refresh action.
