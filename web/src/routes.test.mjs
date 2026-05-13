@@ -26,13 +26,13 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/operations'), 'overview');
   assert.equal(routeFromPath('/console/firmware-ota'), 'firmware-ota');
   assert.equal(routeFromPath('/console/stream-health'), 'stream-health');
-  assert.equal(routeFromPath('/console/groups'), 'groups');
+  assert.equal(routeFromPath('/console/groups'), 'overview');
 });
 
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['Overview', 'Devices', 'Firmware & OTA', 'Stream Health', 'Groups'],
+    ['Overview', 'Devices', 'Firmware & OTA', 'Stream Health'],
   );
 });
 
@@ -64,7 +64,6 @@ test('provides titles for all public shell routes', () => {
     'devices',
     'firmware-ota',
     'stream-health',
-    'groups',
     'platform-health',
     'platform-sso',
     'platform-operations',

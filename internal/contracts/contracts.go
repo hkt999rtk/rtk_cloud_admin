@@ -44,6 +44,24 @@ type Device struct {
 	UpdatedAt       string         `json:"updated_at"`
 }
 
+type CustomerDevice struct {
+	ID              string               `json:"id"`
+	OrganizationID  string               `json:"organization_id"`
+	Organization    string               `json:"organization"`
+	Name            string               `json:"name"`
+	Category        string               `json:"category"`
+	Model           string               `json:"model"`
+	SerialNumber    string               `json:"serial_number"`
+	FirmwareVersion string               `json:"firmware_version"`
+	Health          string               `json:"health,omitempty"`
+	SignalQuality   string               `json:"signal_quality,omitempty"`
+	Status          string               `json:"status"`
+	Readiness       ReadinessState       `json:"readiness"`
+	SourceFacts     []CustomerSourceFact `json:"source_facts"`
+	LastSeenAt      string               `json:"last_seen_at"`
+	UpdatedAt       string               `json:"updated_at"`
+}
+
 type SourceFact struct {
 	Layer       string `json:"layer"`
 	State       string `json:"state"`
@@ -52,6 +70,15 @@ type SourceFact struct {
 	ErrorCode   string `json:"error_code,omitempty"`
 	OperationID string `json:"operation_id,omitempty"`
 	UpdatedAt   string `json:"updated_at,omitempty"`
+}
+
+type CustomerSourceFact struct {
+	Layer     string `json:"layer"`
+	State     string `json:"state"`
+	Detail    string `json:"detail"`
+	Retryable bool   `json:"retryable"`
+	ErrorCode string `json:"error_code,omitempty"`
+	UpdatedAt string `json:"updated_at,omitempty"`
 }
 
 type Operation struct {
@@ -148,18 +175,21 @@ type TelemetryEvent struct {
 }
 
 type DeviceTelemetry struct {
-	DeviceID        string                  `json:"device_id"`
-	DeviceName      string                  `json:"device_name,omitempty"`
-	Organization    string                  `json:"organization,omitempty"`
-	SerialNumber    string                  `json:"serial_number,omitempty"`
-	Model           string                  `json:"model,omitempty"`
-	LastSeenAt      string                  `json:"last_seen_at,omitempty"`
-	Health          string                  `json:"health"`
-	Signals         []string                `json:"signals"`
-	FirmwareVersion string                  `json:"firmware_version"`
-	RSSI7D          []TelemetryRssiSample   `json:"rssi_7d"`
-	Uptime7D        []TelemetryUptimeSample `json:"uptime_7d"`
-	RecentEvents    []TelemetryEvent        `json:"recent_events"`
+	DeviceID           string                  `json:"device_id"`
+	DeviceName         string                  `json:"device_name,omitempty"`
+	Organization       string                  `json:"organization,omitempty"`
+	SerialNumber       string                  `json:"serial_number,omitempty"`
+	Model              string                  `json:"model,omitempty"`
+	LastSeenAt         string                  `json:"last_seen_at,omitempty"`
+	Health             string                  `json:"health"`
+	Signals            []string                `json:"signals"`
+	FirmwareVersion    string                  `json:"firmware_version"`
+	TelemetryStatus    string                  `json:"telemetry_status"`
+	ActiveStreamStatus string                  `json:"active_stream_status"`
+	UnavailableReason  string                  `json:"unavailable_reason,omitempty"`
+	RSSI7D             []TelemetryRssiSample   `json:"rssi_7d"`
+	Uptime7D           []TelemetryUptimeSample `json:"uptime_7d"`
+	RecentEvents       []TelemetryEvent        `json:"recent_events"`
 }
 
 type FleetHealthCurrent struct {
@@ -178,6 +208,8 @@ type FleetHealthTrendPoint struct {
 
 type FleetHealthSummary struct {
 	OrgID           string                  `json:"org_id"`
+	SourceStatus    string                  `json:"source_status"`
+	SourceMessage   string                  `json:"source_message,omitempty"`
 	Current         FleetHealthCurrent      `json:"current"`
 	OnlineRate7dPct float64                 `json:"online_rate_7d_pct"`
 	Trend           []FleetHealthTrendPoint `json:"trend"`
@@ -212,6 +244,8 @@ type FleetStreamModeTrend struct {
 type FleetStreamStats struct {
 	OrgID              string                          `json:"org_id"`
 	Window             string                          `json:"window"`
+	SourceStatus       string                          `json:"source_status"`
+	SourceMessage      string                          `json:"source_message,omitempty"`
 	SuccessRatePct     float64                         `json:"success_rate_pct"`
 	AvgDurationSeconds float64                         `json:"avg_duration_seconds"`
 	ActiveSessions     int                             `json:"active_sessions"`
@@ -254,7 +288,9 @@ type FirmwareDistributionCampaign struct {
 }
 
 type FirmwareDistribution struct {
-	OrgID     string                         `json:"org_id"`
-	Versions  []FirmwareDistributionVersion  `json:"versions"`
-	Campaigns []FirmwareDistributionCampaign `json:"campaigns"`
+	OrgID         string                         `json:"org_id"`
+	SourceStatus  string                         `json:"source_status"`
+	SourceMessage string                         `json:"source_message,omitempty"`
+	Versions      []FirmwareDistributionVersion  `json:"versions"`
+	Campaigns     []FirmwareDistributionCampaign `json:"campaigns"`
 }

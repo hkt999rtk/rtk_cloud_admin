@@ -105,7 +105,8 @@ exchange, user mapping, organization membership, and role authorization. Admin
 Console keeps the existing `rtk_admin_session` cookie; the session row carries
 the upstream Bearer / refresh token pair when in proxy mode. The legacy customer
 password login endpoint is a compatibility path, not the long-term production
-login direction. Plaintext credentials are never persisted.
+login direction. Local SQLite seed data is for development/demo mode only and is
+not a production validation source. Plaintext credentials are never persisted.
 
 ### Fleet Manager
 
@@ -137,9 +138,9 @@ staff within a tenant org.
 
 **Cannot execute:** No provision, deactivate, or any write actions.
 
-**Current implementation:** Read-only Observer is not yet a distinct session
-type — all Tier 2 users currently share the same customer session and have
-Fleet Manager privileges. A read-only role is deferred.
+**Current implementation:** Backend write handlers reject read-only customer
+roles for provision and deactivate. Any future tenant write action must use the
+same backend guard; frontend button hiding is only a usability affordance.
 
 ---
 
@@ -186,6 +187,5 @@ the distinction is write actions only, not field visibility.
 
 The following role-related features are intentionally deferred:
 
-- Read-only Observer as a distinct Tier 2 session type
 - Tenant impersonation for Tier 1 Platform Admin
 - Role assignment UI

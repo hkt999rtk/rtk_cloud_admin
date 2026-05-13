@@ -78,8 +78,10 @@ Overview         →  fleet health summary (new)
 Devices          →  improved device table
 Firmware & OTA   →  new section
 Stream Health    →  new section
-Groups           →  new section (depends on device-group feature)
 ```
+
+Device Groups are deferred and must not appear in the first-batch Customer View
+sidebar.
 
 **Platform View** — Tier 1 Platform Admin only:
 
@@ -326,11 +328,12 @@ Data source: new backend aggregation endpoint. See Section 7.
 
 ---
 
-## Section 5: Device Groups (new)
+## Section 5: Device Groups (deferred)
 
 Blocked on the device group feature described in the device-group-firmware-campaign
-issue set. This section is a placeholder; it will be detailed in a follow-up
-spec once the group CRUD API is implemented.
+issue set. This section is outside the first Customer View batch and must not be
+shown as a sidebar item or placeholder page until the group CRUD API is designed
+and implemented.
 
 When available, the Groups section provides:
 
@@ -417,8 +420,9 @@ Response:
 ```
 
 Data source: derived from `device.health.summary` events (TELEMETRY_INSIGHTS)
-aggregated per org per day. First implementation may use rtk_video_cloud's
-`/get_statistics` as a seed source until full telemetry ingestion exists.
+aggregated per org per day. Production validation must use this normalized
+telemetry read model or an equivalent authoritative upstream source; demo,
+sample, or readiness-derived trend data is not acceptable.
 
 ### `GET /api/fleet/firmware-distribution`
 
@@ -451,7 +455,9 @@ Response:
 ```
 
 Data source: `firmware.version.observed` and `firmware.rollout.status_changed`
-events; existing `/query_firmware_rollout` route from HTTP_API.md.
+events; existing `/query_firmware_rollout` route from HTTP_API.md. Production
+validation must use observed firmware and rollout facts, not generated fallback
+versions.
 
 ### `GET /api/fleet/stream-stats`
 
@@ -493,7 +499,8 @@ Response:
 Data source: new WebRTC session event log in rtk_video_cloud, recording each
 `/api/request_webrtc` call outcome (success/failure and duration).
 rtk_video_cloud must expose a query API or push aggregated facts to
-rtk_cloud_admin.
+rtk_cloud_admin. Production validation must use these WebRTC session facts, not
+local estimates.
 
 ### `GET /api/devices/{id}/telemetry`
 
@@ -528,6 +535,9 @@ Data source: `device.health.rssi_sample`, `device.health.summary`,
 TELEMETRY_INSIGHTS. rtk_video_cloud must make these available via a per-device
 query API.
 
+The device-detail read model should include explicit active stream status so the
+drawer does not infer stream activity from free-form telemetry summaries.
+
 ---
 
 ## Section 8: Out Of Scope For This Spec
@@ -538,7 +548,6 @@ The following are intentionally deferred:
 - Alert notification rules and email/webhook delivery
 - Multi-org / platform-level fleet aggregation (single-org only for now)
 - Stream viewer / live preview
-- Read-only Observer as a distinct Tier 2 session type
 - Tenant impersonation for Tier 1 Platform Admin
 - Role assignment UI
 - Audit log export
@@ -553,9 +562,6 @@ The following are intentionally deferred:
 
 [rtk_video_cloud] — telemetry event ingestion (rssi, health, firmware)
     └── [rtk_cloud_admin] — Fleet Health Overview, Device detail, Firmware Distribution
-
-[rtk_account_manager] — device group CRUD API  (separate feature)
-    └── [rtk_cloud_admin] — Groups section (blocked, deferred)
 
 [rtk_cloud_admin] — all frontend sections above
     ├── Fleet Health Overview (new)
@@ -582,8 +588,13 @@ For each new frontend section, the implementation must verify:
   and FIRMWARE_CAMPAIGN.md
 - Health signals use vocabulary from TELEMETRY_INSIGHTS.md
 - Charts display a loading state when data is unavailable
-- Empty states are defined (e.g., "No campaigns active", "No stream data yet")
+- Empty states are defined (e.g., "No campaigns active", "No stream requests in selected window")
 - Tables show the most actionable items first (worst-performing devices at top)
 - Color usage follows FRONTEND_STYLE.md tokens
 - Platform View content does not appear in any Customer View route, and no Customer View navigation links to a Platform View route
-- The backend route handler for each section returns 403 for any session whose role is not listed in that section's "Primary users" annotation (once role enforcement is implemented; until then, the annotation is descriptive — see ROLES.md current implementation notes)
+- Customer View payloads omit customer-hidden fields at the backend boundary,
+  not only in React rendering.
+- The backend route handler for each section returns 403 for any session whose
+  role is not listed in that section's "Primary users" annotation. Read-only
+  Observer sessions must be rejected by provision, deactivate, and future tenant
+  write handlers.

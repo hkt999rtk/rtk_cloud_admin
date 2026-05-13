@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,6 +39,8 @@ type Options struct {
 	AccountClient *accountclient.Client
 	VideoClient   *videoclient.Client
 }
+
+var operationIDPattern = regexp.MustCompile(`(?i)\b(op|operation|upstream)[-_]?[a-z0-9][a-z0-9._:-]*\b`)
 
 func NewTestServer(dbPath string) (*Server, error) {
 	st, err := store.Open(dbPath)
@@ -640,7 +643,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
-		writeJSON(w, devicesWithFirmwareVersion(devices))
+		writeJSON(w, customerSafeDevices(devicesWithFirmwareVersion(devices)))
 		return
 	}
 	devices, err := s.store.ListDevices()
@@ -682,7 +685,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
-				writeJSON(w, deviceWithFirmwareVersion(device))
+				writeJSON(w, customerSafeDevice(deviceWithFirmwareVersion(device)))
 				return
 			}
 		}
@@ -717,31 +720,8 @@ func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	var devices []contracts.Device
-	if s.accountClient.Enabled() {
-		allDevices, err := s.customerDevices(r.Context(), session)
-		if err != nil {
-			s.writeCustomerErrorForSession(w, session.ID, err)
-			return
-		}
-		for _, device := range allDevices {
-			if device.OrganizationID == orgID {
-				devices = append(devices, device)
-			}
-		}
-	} else {
-		allDevices, err := s.store.ListDevices()
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		for _, device := range allDevices {
-			if device.OrganizationID == orgID {
-				devices = append(devices, device)
-			}
-		}
-	}
-	writeJSON(w, fleetHealthSummary(orgID, devices, days))
+	status, message := s.customerFleetSourceStatus()
+	writeJSON(w, unavailableFleetHealthSummary(orgID, days, status, message))
 }
 
 func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
@@ -775,7 +755,9 @@ func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, mapVideoCloudFleetStreamStats(stats, orgID, window))
 		return
 	}
-	writeJSON(w, fleetStreamStats(orgID, devices, days, window))
+	_ = days
+	status, message := s.customerStreamSourceStatus()
+	writeJSON(w, unavailableFleetStreamStats(orgID, window, status, message))
 }
 
 func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Request) {
@@ -798,10 +780,13 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	} else if ok {
+		dist.SourceStatus = "available"
+		dist.SourceMessage = "Firmware source loaded from Video Cloud."
 		writeJSON(w, dist)
 		return
 	}
-	writeJSON(w, demoFirmwareDistribution(orgID, devices))
+	status, message := s.customerFirmwareSourceStatus(devices)
+	writeJSON(w, unavailableFirmwareDistribution(orgID, status, message))
 }
 
 func (s *Server) firmwareDistributionDevices(ctx context.Context, session store.Session, orgID string) ([]contracts.Device, error) {
@@ -941,98 +926,6 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 	}
 	dist := buildFirmwareDistribution(orgID, devices, facts, latestVersions, campaigns)
 	return dist, true, nil
-}
-
-func demoFirmwareDistribution(orgID string, devices []contracts.Device) contracts.FirmwareDistribution {
-	currentVersions := make(map[string]string, len(devices))
-	latestVersions := map[string]bool{}
-	topVersion := ""
-	for _, device := range devices {
-		version := firmwareVersionFromDevice(device)
-		if strings.TrimSpace(version) == "" {
-			version = "unknown"
-		}
-		currentVersions[firmwareDistributionDeviceKey(device)] = version
-		if id := strings.TrimSpace(device.ID); id != "" {
-			currentVersions[id] = version
-		}
-		if version != "unknown" && (topVersion == "" || compareFirmwareVersions(version, topVersion) > 0) {
-			topVersion = version
-		}
-	}
-	if topVersion != "" {
-		latestVersions[topVersion] = true
-	}
-	dist := buildFirmwareDistribution(orgID, devices, currentVersions, latestVersions, nil)
-	if len(dist.Campaigns) == 0 {
-		total := len(devices)
-		if total == 0 {
-			dist.Campaigns = []contracts.FirmwareDistributionCampaign{{
-				CampaignID:    "campaign-demo",
-				TargetVersion: "unknown",
-				Policy:        "normal",
-				State:         "active",
-				StartedAt:     time.Now().UTC().Format(time.RFC3339),
-			}}
-			return dist
-		}
-		if topVersion == "" {
-			topVersion = "unknown"
-		}
-		applied := 0
-		failed := 0
-		skipped := 0
-		rollouts := make([]contracts.FirmwareDistributionRollout, 0, len(devices))
-		for _, device := range devices {
-			version := strings.TrimSpace(currentVersions[device.ID])
-			if version == "" {
-				version = strings.TrimSpace(currentVersions[firmwareDistributionDeviceKey(device)])
-			}
-			status := "pending"
-			failureReason := ""
-			switch device.Readiness {
-			case contracts.ReadinessFailed:
-				status = "failed"
-				failed++
-				failureReason = "device readiness is failed"
-			case contracts.ReadinessDeactivated:
-				status = "skipped"
-				skipped++
-			default:
-				if strings.EqualFold(version, topVersion) {
-					status = "applied"
-					applied++
-				}
-			}
-			if status == "pending" {
-				// Pending devices are those not yet on the latest version.
-			}
-			rollouts = append(rollouts, contracts.FirmwareDistributionRollout{
-				DeviceID:       device.ID,
-				DeviceName:     device.Name,
-				CurrentVersion: version,
-				TargetVersion:  topVersion,
-				RolloutStatus:  status,
-				FailureReason:  failureReason,
-				LastUpdated:    fallback(device.LastSeenAt, time.Now().UTC().Format(time.RFC3339)),
-			})
-		}
-		pending := max(0, total-applied-failed-skipped)
-		dist.Campaigns = []contracts.FirmwareDistributionCampaign{{
-			CampaignID:    "campaign-demo",
-			TargetVersion: topVersion,
-			Policy:        "normal",
-			State:         "active",
-			Applied:       applied,
-			Pending:       pending,
-			Failed:        failed,
-			Skipped:       skipped,
-			Total:         total,
-			StartedAt:     time.Now().UTC().AddDate(0, 0, -7).Format(time.RFC3339),
-			Rollouts:      rollouts,
-		}}
-	}
-	return dist
 }
 
 func buildFirmwareDistribution(orgID string, devices []contracts.Device, currentVersions map[string]string, latestVersions map[string]bool, campaigns []contracts.FirmwareDistributionCampaign) contracts.FirmwareDistribution {
@@ -1343,154 +1236,61 @@ func parseFleetWindow(raw string) (string, int, error) {
 	}
 }
 
-func fleetStreamStats(orgID string, devices []contracts.Device, days int, window string) contracts.FleetStreamStats {
-	byMode := map[string]contracts.FleetStreamStatsMode{
-		streamModeWebRTC: {Requests: 0, SuccessRatePct: 0},
+func (s *Server) customerFleetSourceStatus() (string, string) {
+	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+		return "not_configured", "Telemetry source is not configured."
 	}
-	modeTrendRequests := map[string][]int{
-		streamModeWebRTC: make([]int, days),
-	}
-	modeTrendSuccesses := map[string][]int{
-		streamModeWebRTC: make([]int, days),
-	}
-	type modeAccumulator struct {
-		requests  int
-		successes int
-	}
-	type deviceAccumulator struct {
-		deviceID     string
-		deviceName   string
-		mode         string
-		readiness    contracts.ReadinessState
-		requests     int
-		successes    int
-		lastStreamAt string
-		never        bool
-	}
-	modeStats := map[string]modeAccumulator{
-		streamModeWebRTC: {},
-	}
-	deviceStats := make(map[string]*deviceAccumulator, len(devices))
-	for idx, device := range devices {
-		profile := streamProfile(idx, device)
-		deviceStats[device.ID] = &deviceAccumulator{
-			deviceID:   device.ID,
-			deviceName: device.Name,
-			mode:       profile.mode,
-			readiness:  device.Readiness,
-			never:      profile.never,
-		}
-	}
+	return "no_data", "Fleet telemetry summary is not available from the configured source."
+}
 
-	today := time.Now().UTC().Truncate(24 * time.Hour)
-	trend := make([]contracts.FleetStreamTrendPoint, 0, days)
-	dailyRequestsByDay := make([]int, days)
-	dailySuccessesByDay := make([]int, days)
-	var totalRequests, totalSuccesses, totalDuration int
-	activeSessions := 0
-	neverStreamedCount := 0
-	for idx, device := range devices {
-		if device.Readiness == contracts.ReadinessOnline {
-			activeSessions++
-		}
-		agg := deviceStats[device.ID]
-		if agg == nil {
-			continue
-		}
-		for day := 0; day < days; day++ {
-			requests, successes, duration := streamDevicesForDay(day, len(devices), idx, device, agg.never)
-			if requests > 0 {
-				agg.lastStreamAt = streamDayTimestamp(today, day, days)
-			}
-			dailyRequestsByDay[day] += requests
-			dailySuccessesByDay[day] += successes
-			totalRequests += requests
-			totalSuccesses += successes
-			agg.requests += requests
-			agg.successes += successes
-			mode := modeStats[agg.mode]
-			mode.requests += requests
-			mode.successes += successes
-			modeStats[agg.mode] = mode
-			modeTrendRequests[agg.mode][day] += requests
-			modeTrendSuccesses[agg.mode][day] += successes
-			totalDuration += duration
-		}
+func (s *Server) customerStreamSourceStatus() (string, string) {
+	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+		return "not_configured", "WebRTC session event source is not configured."
 	}
-	for _, agg := range deviceStats {
-		if agg.readiness == contracts.ReadinessOnline && agg.requests == 0 && agg.never {
-			neverStreamedCount++
-		}
-	}
-	for day := 0; day < days; day++ {
-		date := today.AddDate(0, 0, day-days+1).Format("2006-01-02")
-		successRate := streamRate(dailySuccessesByDay[day], dailyRequestsByDay[day])
-		trend = append(trend, contracts.FleetStreamTrendPoint{
-			Date:           date,
-			Requests:       dailyRequestsByDay[day],
-			SuccessRatePct: successRate,
-		})
-	}
-	for mode, stats := range modeStats {
-		byMode[mode] = contracts.FleetStreamStatsMode{
-			Requests:       stats.requests,
-			SuccessRatePct: streamRate(stats.successes, stats.requests),
-		}
-	}
-	modeTrendSeries := make([]contracts.FleetStreamModeTrend, 0, 1)
-	for _, mode := range []string{streamModeWebRTC} {
-		series := make([]contracts.FleetStreamTrendPoint, 0, days)
-		for day := 0; day < days; day++ {
-			requests := modeTrendRequests[mode][day]
-			successes := modeTrendSuccesses[mode][day]
-			series = append(series, contracts.FleetStreamTrendPoint{
-				Date:           today.AddDate(0, 0, day-days+1).Format("2006-01-02"),
-				Requests:       requests,
-				SuccessRatePct: streamRate(successes, requests),
-			})
-		}
-		modeTrendSeries = append(modeTrendSeries, contracts.FleetStreamModeTrend{Mode: mode, Points: series})
-	}
+	return "no_data", "No stream session read model is available for the selected window."
+}
 
-	worst := make([]contracts.FleetStreamWorstDevice, 0, len(deviceStats))
-	for _, agg := range deviceStats {
-		if agg.requests == 0 {
-			continue
-		}
-		worst = append(worst, contracts.FleetStreamWorstDevice{
-			DeviceID:       agg.deviceID,
-			DeviceName:     agg.deviceName,
-			ModeUsed:       agg.mode,
-			Readiness:      string(agg.readiness),
-			Requests:       agg.requests,
-			SuccessRatePct: streamRate(agg.successes, agg.requests),
-			LastStreamAt:   agg.lastStreamAt,
-		})
+func (s *Server) customerFirmwareSourceStatus(devices []contracts.Device) (string, string) {
+	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+		return "not_configured", "Firmware observation source is not configured."
 	}
-	sort.Slice(worst, func(i, j int) bool {
-		if worst[i].SuccessRatePct != worst[j].SuccessRatePct {
-			return worst[i].SuccessRatePct < worst[j].SuccessRatePct
-		}
-		if worst[i].Requests != worst[j].Requests {
-			return worst[i].Requests > worst[j].Requests
-		}
-		return worst[i].DeviceName < worst[j].DeviceName
-	})
-	if len(worst) > 10 {
-		worst = worst[:10]
+	if len(devices) == 0 {
+		return "no_data", "No devices are available for firmware observation."
 	}
+	return "no_data", "No observed firmware or active campaigns are available."
+}
 
+func unavailableFleetHealthSummary(orgID string, days int, status string, message string) contracts.FleetHealthSummary {
+	return contracts.FleetHealthSummary{
+		OrgID:         orgID,
+		SourceStatus:  status,
+		SourceMessage: message,
+		Current:       contracts.FleetHealthCurrent{},
+		Trend:         []contracts.FleetHealthTrendPoint{},
+	}
+}
+
+func unavailableFleetStreamStats(orgID string, window string, status string, message string) contracts.FleetStreamStats {
 	return contracts.FleetStreamStats{
-		OrgID:              orgID,
-		Window:             window,
-		SuccessRatePct:     streamRate(totalSuccesses, totalRequests),
-		AvgDurationSeconds: averageDuration(totalDuration, totalRequests),
-		ActiveSessions:     activeSessions,
-		NeverStreamedCount: neverStreamedCount,
-		ByMode:             byMode,
-		Trend:              trend,
-		TrendByMode:        modeTrendSeries,
-		WorstDevices:       worst,
+		OrgID:          orgID,
+		Window:         window,
+		SourceStatus:   status,
+		SourceMessage:  message,
+		ByMode:         map[string]contracts.FleetStreamStatsMode{streamModeWebRTC: {Requests: 0, SuccessRatePct: 0}},
+		Trend:          []contracts.FleetStreamTrendPoint{},
+		TrendByMode:    []contracts.FleetStreamModeTrend{},
+		WorstDevices:   []contracts.FleetStreamWorstDevice{},
+		ActiveSessions: 0,
+	}
+}
+
+func unavailableFirmwareDistribution(orgID string, status string, message string) contracts.FirmwareDistribution {
+	return contracts.FirmwareDistribution{
+		OrgID:         orgID,
+		SourceStatus:  status,
+		SourceMessage: message,
+		Versions:      []contracts.FirmwareDistributionVersion{},
+		Campaigns:     []contracts.FirmwareDistributionCampaign{},
 	}
 }
 
@@ -1518,6 +1318,8 @@ func mapVideoCloudFleetStreamStats(stats videoclient.FleetStreamStats, orgID, wi
 	out := contracts.FleetStreamStats{
 		OrgID:              fallback(stats.OrgID, orgID),
 		Window:             fallback(stats.Window, window),
+		SourceStatus:       "available",
+		SourceMessage:      "Stream source loaded from Video Cloud.",
 		SuccessRatePct:     stats.SuccessRatePct,
 		AvgDurationSeconds: stats.AvgDurationSeconds,
 		ActiveSessions:     stats.ActiveSessions,
@@ -1568,85 +1370,6 @@ func mapVideoCloudFleetStreamStats(stats videoclient.FleetStreamStats, orgID, wi
 	return out
 }
 
-type streamProfileData struct {
-	mode        string
-	baseRequest int
-	successRate float64
-	never       bool
-}
-
-func streamProfile(index int, device contracts.Device) streamProfileData {
-	baseRequests := 4
-	baseSuccess := 84.0
-	never := false
-	switch device.Readiness {
-	case contracts.ReadinessOnline:
-		baseRequests = 6
-		baseSuccess = 94
-		if strings.HasSuffix(device.VideoCloudDevID, "-1") || strings.HasSuffix(device.ID, "-1") || strings.HasSuffix(device.ID, "1") {
-			never = true
-		}
-	case contracts.ReadinessActivated, contracts.ReadinessCloudActivationPending:
-		baseRequests = 4
-		baseSuccess = 78
-	case contracts.ReadinessClaimPending, contracts.ReadinessLocalOnboardingPending, contracts.ReadinessDeactivationPending:
-		baseRequests = 3
-		baseSuccess = 68
-	case contracts.ReadinessFailed:
-		baseRequests = 1
-		baseSuccess = 40
-	default:
-		baseRequests = 2
-		baseSuccess = 55
-	}
-	return streamProfileData{mode: streamModeWebRTC, baseRequest: baseRequests, successRate: baseSuccess, never: never}
-}
-
-func streamDevicesForDay(day, totalDevices, index int, device contracts.Device, _ bool) (int, int, int) {
-	profile := streamProfile(index, device)
-	if profile.never {
-		return 0, 0, 0
-	}
-	requests := profile.baseRequest + ((day * 3) % 5) + (totalDevices % 4)
-	if requests < 0 {
-		return 0, 0, 0
-	}
-	variable := float64((day % 7) * 2)
-	successRate := profile.successRate + (float64(day%3) - variable/6)
-	successRate = math.Min(100, math.Max(0, successRate))
-	successes := int(math.Round(float64(requests) * (successRate / 100)))
-	if successes < 0 {
-		successes = 0
-	}
-	if successes > requests {
-		successes = requests
-	}
-	baseDuration := 80 + int(profile.successRate)/2 + (len(device.ID) % 4) + (day % 3)
-	successBoost := successes * 3
-	failurePenalty := requests*2 - successes
-	duration := requests*baseDuration + successBoost - failurePenalty
-	return requests, successes, duration
-}
-
-func streamDayTimestamp(today time.Time, day, days int) string {
-	streamDay := today.AddDate(0, 0, day-days+1)
-	return streamDay.Add(15 * time.Hour).Format(time.RFC3339)
-}
-
-func streamRate(successes, requests int) float64 {
-	if requests <= 0 {
-		return 0
-	}
-	return toTwoDecimal(float64(successes) * 100 / float64(requests))
-}
-
-func averageDuration(totalDuration, totalRequests int) float64 {
-	if totalRequests <= 0 {
-		return 0
-	}
-	return toTwoDecimal(float64(totalDuration) / float64(totalRequests))
-}
-
 func (s *Server) customerOrgIDForSession(ctx context.Context, session store.Session) (string, error) {
 	if session.ActiveOrgID != "" {
 		return session.ActiveOrgID, nil
@@ -1664,81 +1387,6 @@ func (s *Server) customerOrgIDForSession(ctx context.Context, session store.Sess
 	return org.ID, nil
 }
 
-// fleetHealthSummary summarizes the local device projection so the endpoint can
-// stay stable in both demo mode and connected account-manager mode.
-func fleetHealthSummary(orgID string, devices []contracts.Device, days int) contracts.FleetHealthSummary {
-	current := contracts.FleetHealthCurrent{}
-	for _, device := range devices {
-		switch telemetryHealthFromReadiness(device.Readiness) {
-		case "healthy":
-			current.Healthy++
-		case "warning":
-			current.Warning++
-		case "critical":
-			current.Critical++
-		default:
-			current.Unknown++
-		}
-	}
-	total := len(devices)
-	trend := fleetHealthTrend(current, total, days)
-	onlineRate7dPct := 0.0
-	if total > 0 {
-		onlineRate7dPct = toTwoDecimal(float64(current.Healthy) / float64(total) * 100)
-	}
-	return contracts.FleetHealthSummary{
-		OrgID:           orgID,
-		Current:         current,
-		OnlineRate7dPct: onlineRate7dPct,
-		Trend:           trend,
-	}
-}
-
-func fleetHealthTrend(current contracts.FleetHealthCurrent, total, days int) []contracts.FleetHealthTrendPoint {
-	trend := make([]contracts.FleetHealthTrendPoint, 0, days)
-	today := time.Now().UTC().Truncate(24 * time.Hour)
-	if total == 0 {
-		for i := days - 1; i >= 0; i-- {
-			trend = append(trend, contracts.FleetHealthTrendPoint{
-				Date:          today.AddDate(0, 0, -i).Format("2006-01-02"),
-				OnlinePct:     0,
-				WarningCount:  0,
-				CriticalCount: 0,
-			})
-		}
-		return trend
-	}
-
-	baseWarning := current.Warning / max(1, total)
-	baseCritical := current.Critical / max(1, total)
-	onlineBase := float64(current.Healthy) / float64(total) * 100
-	for i := days - 1; i >= 0; i-- {
-		date := today.AddDate(0, 0, -i).Format("2006-01-02")
-		warningCount := current.Warning + i%4 - baseWarning
-		criticalCount := current.Critical + i%2 - baseCritical
-		if warningCount < 0 {
-			warningCount = 0
-		}
-		if criticalCount < 0 {
-			criticalCount = 0
-		}
-		if warningCount+criticalCount > total {
-			warningCount = max(0, total-criticalCount)
-		}
-		online := onlineBase - float64(i%6)*1.05
-		if online < 0 {
-			online = 0
-		}
-		trend = append(trend, contracts.FleetHealthTrendPoint{
-			Date:          date,
-			OnlinePct:     toTwoDecimal(online),
-			WarningCount:  warningCount,
-			CriticalCount: criticalCount,
-		})
-	}
-	return trend
-}
-
 func telemetryHealthFromReadiness(readiness contracts.ReadinessState) string {
 	switch readiness {
 	case contracts.ReadinessOnline:
@@ -1752,13 +1400,6 @@ func telemetryHealthFromReadiness(readiness contracts.ReadinessState) string {
 	default:
 		return "unknown"
 	}
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func toTwoDecimal(value float64) float64 {
@@ -1780,13 +1421,13 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
 				if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), device.OrganizationID, device); err != nil {
-					s.writeCustomerErrorForSession(w, session.ID, err)
+					writeJSON(w, unavailableTelemetryForDevice(device, "unavailable", "Video Cloud telemetry is unavailable."))
 					return
 				} else if ok {
 					writeJSON(w, telemetry)
 					return
 				}
-				writeJSON(w, demoTelemetryForDevice(device))
+				writeJSON(w, unavailableTelemetryForDevice(device, "not_configured", "Video Cloud telemetry source is not configured."))
 				return
 			}
 		}
@@ -1821,13 +1462,13 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:       device.UpdatedAt,
 	}
 	if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), telemetryDevice.OrganizationID, telemetryDevice); err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		writeJSON(w, unavailableTelemetryForDevice(telemetryDevice, "unavailable", "Video Cloud telemetry is unavailable."))
 		return
 	} else if ok {
 		writeJSON(w, telemetry)
 		return
 	}
-	writeJSON(w, demoTelemetryForDevice(telemetryDevice))
+	writeJSON(w, unavailableTelemetryForDevice(telemetryDevice, "not_configured", "Video Cloud telemetry source is not configured."))
 }
 
 func (s *Server) proxyTelemetryForDevice(ctx context.Context, orgID string, device contracts.Device) (contracts.DeviceTelemetry, bool, error) {
@@ -1853,18 +1494,40 @@ func telemetryFromVideoCloud(device contracts.Device, firmwareVersion string, up
 		firmwareVersion = "unknown"
 	}
 	return contracts.DeviceTelemetry{
-		DeviceID:        device.ID,
-		DeviceName:      fallback(strings.TrimSpace(upstream.DeviceName), device.Name),
-		Organization:    device.Organization,
-		SerialNumber:    device.SerialNumber,
-		Model:           device.Model,
-		LastSeenAt:      fallback(device.LastSeenAt, telemetryLastSeenAt(upstream)),
-		Health:          health,
-		Signals:         signals,
-		FirmwareVersion: strings.TrimSpace(firmwareVersion),
-		RSSI7D:          telemetryRSSI7D(upstream.RSSIHistory),
-		Uptime7D:        telemetryUptime7D(upstream.UptimeHistory),
-		RecentEvents:    telemetryRecentEvents(upstream.RecentEvents, 10),
+		DeviceID:           device.ID,
+		DeviceName:         fallback(strings.TrimSpace(upstream.DeviceName), device.Name),
+		Organization:       device.Organization,
+		SerialNumber:       device.SerialNumber,
+		Model:              device.Model,
+		LastSeenAt:         fallback(device.LastSeenAt, telemetryLastSeenAt(upstream)),
+		Health:             health,
+		Signals:            signals,
+		FirmwareVersion:    strings.TrimSpace(firmwareVersion),
+		TelemetryStatus:    "available",
+		ActiveStreamStatus: "unknown",
+		RSSI7D:             telemetryRSSI7D(upstream.RSSIHistory),
+		Uptime7D:           telemetryUptime7D(upstream.UptimeHistory),
+		RecentEvents:       telemetryRecentEvents(upstream.RecentEvents, 10),
+	}
+}
+
+func unavailableTelemetryForDevice(device contracts.Device, status string, reason string) contracts.DeviceTelemetry {
+	return contracts.DeviceTelemetry{
+		DeviceID:           device.ID,
+		DeviceName:         device.Name,
+		Organization:       device.Organization,
+		SerialNumber:       device.SerialNumber,
+		Model:              device.Model,
+		LastSeenAt:         device.LastSeenAt,
+		Health:             firstNonEmpty(device.Health, deviceHealthFromFacts(device), "unknown"),
+		Signals:            []string{},
+		FirmwareVersion:    firmwareVersionFromDevice(device),
+		TelemetryStatus:    status,
+		ActiveStreamStatus: "unavailable",
+		UnavailableReason:  reason,
+		RSSI7D:             []contracts.TelemetryRssiSample{},
+		Uptime7D:           []contracts.TelemetryUptimeSample{},
+		RecentEvents:       []contracts.TelemetryEvent{},
 	}
 }
 
@@ -2161,93 +1824,6 @@ func telemetryLastSevenDates() []string {
 	return out
 }
 
-func demoTelemetryForDevice(device contracts.Device) contracts.DeviceTelemetry {
-	health := "healthy"
-	signals := []string{}
-	switch device.Readiness {
-	case contracts.ReadinessFailed, contracts.ReadinessCloudActivationPending:
-		health = "critical"
-		signals = append(signals, "low_rssi", "offline_risk", "low_memory")
-	case contracts.ReadinessActivated:
-		health = "warning"
-		signals = append(signals, "low_rssi")
-	case contracts.ReadinessLocalOnboardingPending, contracts.ReadinessClaimPending, contracts.ReadinessDeactivationPending:
-		health = "warning"
-		signals = append(signals, "recent_reboot")
-	default:
-		health = "healthy"
-	}
-
-	rssi := make([]contracts.TelemetryRssiSample, 0, 7)
-	uptime := make([]contracts.TelemetryUptimeSample, 0, 7)
-	today := time.Now().UTC().Truncate(24 * time.Hour)
-	baseDBM := -64
-	for i := 6; i >= 0; i-- {
-		date := today.AddDate(0, 0, -i).Format("2006-01-02")
-		avg := baseDBM - (6-i)*2
-		rssi = append(rssi, contracts.TelemetryRssiSample{
-			Date:    date,
-			AvgDBM:  avg,
-			Quality: telemetryQualityFromDBM(avg),
-		})
-		uptimeSeconds := float64((96.0 + float64(i)/10.0) / 100.0 * telemetrySecondsPerDay)
-		uptime = append(uptime, contracts.TelemetryUptimeSample{
-			Date:      date,
-			OnlinePct: telemetryOnlinePctFromUptimeSec(uptimeSeconds),
-		})
-	}
-
-	recent := []contracts.TelemetryEvent{
-		{
-			OccurredAt: time.Now().UTC().Add(-1 * time.Hour).Format(time.RFC3339),
-			EventType:  "device.health.summary",
-			Summary:    "Health summary indicates elevated wifi variance",
-		},
-		{
-			OccurredAt: time.Now().UTC().Add(-3 * time.Hour).Format(time.RFC3339),
-			EventType:  "device.health.rssi_sample",
-			Summary:    "Signal quality dropped to fair due interference",
-		},
-		{
-			OccurredAt: time.Now().UTC().Add(-6 * time.Hour).Format(time.RFC3339),
-			EventType:  "device.reboot.reported",
-			Summary:    "Device reboot reported by endpoint",
-		},
-		{
-			OccurredAt: time.Now().UTC().Add(-10 * time.Hour).Format(time.RFC3339),
-			EventType:  "device.crash.reported",
-			Summary:    "Crash event recovered automatically",
-		},
-	}
-	sort.Slice(recent, func(i, j int) bool {
-		left, err := time.Parse(time.RFC3339, recent[i].OccurredAt)
-		if err != nil {
-			return false
-		}
-		right, err := time.Parse(time.RFC3339, recent[j].OccurredAt)
-		if err != nil {
-			return false
-		}
-		return left.After(right)
-	})
-
-	version := firmwareVersionFromDevice(device)
-	return contracts.DeviceTelemetry{
-		DeviceID:        device.ID,
-		DeviceName:      device.Name,
-		Organization:    device.Organization,
-		SerialNumber:    device.SerialNumber,
-		Model:           device.Model,
-		LastSeenAt:      device.LastSeenAt,
-		Health:          health,
-		Signals:         signals,
-		FirmwareVersion: version,
-		RSSI7D:          rssi,
-		Uptime7D:        uptime,
-		RecentEvents:    recent,
-	}
-}
-
 func telemetryLastSeenAt(upstream videoclient.DeviceTelemetryResponse) string {
 	latest := time.Time{}
 	if upstream.LatestHealth != nil && !upstream.LatestHealth.OccurredAt.IsZero() {
@@ -2299,6 +1875,83 @@ func devicesWithFirmwareVersion(devices []contracts.Device) []contracts.Device {
 		out[i] = deviceWithFirmwareVersion(device)
 	}
 	return out
+}
+
+func customerSafeDevice(device contracts.Device) contracts.CustomerDevice {
+	facts := make([]contracts.CustomerSourceFact, 0, len(device.SourceFacts))
+	for _, fact := range device.SourceFacts {
+		facts = append(facts, contracts.CustomerSourceFact{
+			Layer:     customerSafeFactLayer(fact.Layer),
+			State:     customerSafeFactState(fact.State),
+			Detail:    customerSafeFactDetail(fact.Detail),
+			Retryable: fact.Retryable,
+			ErrorCode: fact.ErrorCode,
+			UpdatedAt: fact.UpdatedAt,
+		})
+	}
+	return contracts.CustomerDevice{
+		ID:              device.ID,
+		OrganizationID:  device.OrganizationID,
+		Organization:    device.Organization,
+		Name:            device.Name,
+		Category:        device.Category,
+		Model:           device.Model,
+		SerialNumber:    device.SerialNumber,
+		FirmwareVersion: device.FirmwareVersion,
+		Health:          device.Health,
+		SignalQuality:   device.SignalQuality,
+		Status:          device.Status,
+		Readiness:       device.Readiness,
+		SourceFacts:     facts,
+		LastSeenAt:      device.LastSeenAt,
+		UpdatedAt:       device.UpdatedAt,
+	}
+}
+
+func customerSafeDevices(devices []contracts.Device) []contracts.CustomerDevice {
+	out := make([]contracts.CustomerDevice, len(devices))
+	for i, device := range devices {
+		out[i] = customerSafeDevice(device)
+	}
+	return out
+}
+
+func customerSafeFactLayer(layer string) string {
+	switch strings.ToLower(strings.TrimSpace(layer)) {
+	case "account_manager", "account":
+		return "Registry"
+	case "video_cloud", "video":
+		return "Streaming"
+	case "operation", "operations":
+		return "Lifecycle"
+	default:
+		return customerSafeTitle(strings.ReplaceAll(strings.TrimSpace(layer), "_", " "))
+	}
+}
+
+func customerSafeFactState(state string) string {
+	if strings.EqualFold(strings.TrimSpace(state), string(contracts.OperationDeadLettered)) {
+		return "failed"
+	}
+	return strings.TrimSpace(state)
+}
+
+func customerSafeFactDetail(detail string) string {
+	text := strings.TrimSpace(detail)
+	text = operationIDPattern.ReplaceAllString(text, "operation")
+	text = strings.ReplaceAll(text, "dead_lettered", "failed")
+	return text
+}
+
+func customerSafeTitle(value string) string {
+	words := strings.Fields(strings.TrimSpace(value))
+	for i, word := range words {
+		if word == "" {
+			continue
+		}
+		words[i] = strings.ToUpper(word[:1]) + strings.ToLower(word[1:])
+	}
+	return strings.Join(words, " ")
 }
 
 func deviceHealthFromFacts(device contracts.Device) string {
@@ -3243,6 +2896,25 @@ func organizationAllowed(orgs []accountclient.Organization, orgID string) bool {
 	return false
 }
 
+func organizationRole(orgs []accountclient.Organization, orgID string) (string, bool) {
+	for _, org := range orgs {
+		if org.ID == orgID {
+			return org.Role, true
+		}
+	}
+	return "", false
+}
+
+func isReadOnlyCustomerRole(role string) bool {
+	normalized := strings.NewReplacer("-", "_", " ", "_").Replace(strings.ToLower(strings.TrimSpace(role)))
+	switch normalized {
+	case "observer", "viewer", "read_only", "readonly", "read_only_observer":
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Server) demoMemberships() ([]contracts.Membership, error) {
 	customers, err := s.store.ListCustomers()
 	if err != nil {
@@ -3448,6 +3120,10 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	}
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+	}
+	if role, ok := organizationRole(orgs, session.ActiveOrgID); ok && isReadOnlyCustomerRole(role) {
+		http.Error(w, "read-only customer role cannot perform lifecycle actions", http.StatusForbidden)
+		return true
 	}
 	if !organizationAllowed(orgs, session.ActiveOrgID) {
 		http.Error(w, "active organization is not part of the current customer memberships", http.StatusForbidden)
