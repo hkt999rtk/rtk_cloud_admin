@@ -749,7 +749,7 @@ func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
 	if s.videoClient.Enabled() && strings.TrimSpace(s.cfg.VideoCloudAdminToken) != "" {
 		stats, err := s.videoClient.FleetStreamStats(r.Context(), s.cfg.VideoCloudAdminToken, orgID, window, videoCloudDeviceIDs(devices))
 		if err != nil {
-			s.writeVideoCloudGatewayError(w, fmt.Errorf("%w: %w", errVideoCloudRequestFailed, err))
+			writeJSON(w, unavailableFleetStreamStats(orgID, window, "unavailable", "Stream source is unavailable."))
 			return
 		}
 		writeJSON(w, mapVideoCloudFleetStreamStats(stats, orgID, window))
@@ -777,7 +777,7 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if dist, ok, err := s.proxyFirmwareDistribution(r.Context(), devices, orgID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		writeJSON(w, unavailableFirmwareDistribution(orgID, "unavailable", "Firmware source is unavailable."))
 		return
 	} else if ok {
 		dist.SourceStatus = "available"
