@@ -52,7 +52,11 @@ test('uses fleet health overview title for the customer landing page', () => {
 test('falls back unknown paths to the customer overview route', () => {
   assert.equal(routeFromPath('/'), 'overview');
   assert.equal(routeFromPath('/console/unknown'), 'overview');
-  assert.equal(routeFromPath('/admin/unknown'), 'overview');
+});
+
+test('falls back unknown platform paths inside Platform View', () => {
+  assert.equal(routeFromPath('/admin/unknown'), 'platform-health');
+  assert.equal(routeFromPath('/admin/unknown/deep'), 'platform-health');
 });
 
 test('provides titles for all public shell routes', () => {

@@ -37,6 +37,7 @@ export function routeFromPath(path) {
   if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
   if (path === '/admin/operations' || path.startsWith('/admin/operations/')) return 'platform-operations';
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
+  if (path.startsWith('/admin/')) return 'platform-health';
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
   if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';

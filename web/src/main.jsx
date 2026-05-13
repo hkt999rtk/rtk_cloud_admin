@@ -517,7 +517,7 @@ function App() {
           <PlatformSSOProviders providers={ssoProviders} customers={customers} onSave={handleSSOProviderSave} />
         ) : null}
         {!needsPlatformAccess && active === 'platform-operations' ? <Operations operations={operations} /> : null}
-        {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} /> : null}
+        {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} loading={loading} /> : null}
       </main>
     </div>
   );
@@ -2551,7 +2551,7 @@ function PlatformAdmin({ summary, health, devices, customers, operations, audit,
   );
 }
 
-function AuditLog({ audit, compact = false }) {
+function AuditLog({ audit, compact = false, loading = false }) {
   const columns = useMemo(() => [
     { key: 'action', label: 'Action', value: (event) => event.action },
     { key: 'actor', label: 'Actor', value: (event) => event.actor },
@@ -2567,7 +2567,9 @@ function AuditLog({ audit, compact = false }) {
           <p>Local operator actions captured by the Go BFF.</p>
         </div>
       </div>
-      {compact && audit.length ? (
+      {loading && !audit.length ? (
+        <p className="empty-state">Loading audit events.</p>
+      ) : compact && audit.length ? (
         <div className="audit-list">
           {audit.map((event) => (
             <article className="audit-event" key={event.id}>
@@ -2580,8 +2582,10 @@ function AuditLog({ audit, compact = false }) {
             </article>
           ))}
         </div>
+      ) : !audit.length ? (
+        <p className="empty-state">No audit events recorded.</p>
       ) : compact ? (
-        <p>No audit events yet.</p>
+        <p className="empty-state">No audit events recorded.</p>
       ) : (
         <DataTable
           columns={columns}
