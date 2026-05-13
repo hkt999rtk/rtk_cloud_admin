@@ -1,10 +1,8 @@
 export const customerNavItems = [
   { id: 'overview', label: 'Overview', path: '/console/overview' },
   { id: 'devices', label: 'Devices', path: '/console/devices' },
-  { id: 'operations', label: 'Operations', path: '/console/operations' },
   { id: 'firmware-ota', label: 'Firmware & OTA', path: '/console/firmware-ota' },
   { id: 'stream-health', label: 'Stream Health', path: '/console/stream-health' },
-  { id: 'groups', label: 'Groups', path: '/console/groups' },
 ];
 
 export const platformNavItems = [
@@ -20,10 +18,8 @@ export function titleFor(active) {
     verify: 'Verify email',
     overview: 'Fleet Health Overview',
     devices: 'Devices',
-    operations: 'Operations',
     'firmware-ota': 'Firmware & OTA',
     'stream-health': 'Stream Health',
-    groups: 'Groups',
     'platform-health': 'Service Health',
     'platform-operations': 'Operations',
     'platform-audit': 'Audit Log',
@@ -40,11 +36,16 @@ export function routeFromPath(path) {
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
-  if (path === '/console/operations' || path.startsWith('/console/operations/')) return 'operations';
   if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';
   if (path === '/console/stream-health' || path.startsWith('/console/stream-health/')) return 'stream-health';
-  if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
-  if (path === '/console/customers' || path === '/console/audit') return 'overview';
+  if (
+    path === '/console/customers' ||
+    path === '/console/audit' ||
+    path === '/console/groups' ||
+    path.startsWith('/console/groups/') ||
+    path === '/console/operations' ||
+    path.startsWith('/console/operations/')
+  ) return 'overview';
   return 'overview';
 }
 

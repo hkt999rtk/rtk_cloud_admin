@@ -22,10 +22,10 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/overview'), 'overview');
   assert.equal(routeFromPath('/console/devices'), 'devices');
   assert.equal(routeFromPath('/console/customers'), 'overview');
-  assert.equal(routeFromPath('/console/operations'), 'operations');
+  assert.equal(routeFromPath('/console/operations'), 'overview');
   assert.equal(routeFromPath('/console/firmware-ota'), 'firmware-ota');
   assert.equal(routeFromPath('/console/stream-health'), 'stream-health');
-  assert.equal(routeFromPath('/console/groups'), 'groups');
+  assert.equal(routeFromPath('/console/groups'), 'overview');
 });
 
 test('uses fleet health overview title for the customer landing page', () => {
@@ -45,10 +45,8 @@ test('provides titles for all public shell routes', () => {
     'verify',
     'overview',
     'devices',
-    'operations',
     'firmware-ota',
     'stream-health',
-    'groups',
     'platform-health',
     'platform-operations',
     'platform-audit',

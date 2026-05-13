@@ -30,7 +30,8 @@ The first design batch covers:
 - Firmware & OTA
 - Stream Health
 
-Platform View redesign and Groups are not part of this batch.
+Platform View redesign and Groups are not part of this batch. Groups must not
+appear in the first-batch Customer View sidebar.
 
 ## Approved Concepts
 
@@ -107,7 +108,7 @@ Sidebar:
 
 - Brand label: `Connect+ Ops`.
 - Customer View nav items: `Overview`, `Devices`, `Firmware & OTA`,
-  `Stream Health`, `Groups`.
+  `Stream Health`.
 - Active nav item uses primary blue fill.
 - Platform View switcher is visually separated from Customer View navigation.
 - Platform View content must not appear inside Customer View pages.
@@ -121,10 +122,12 @@ Main header:
 
 Customer-safe field policy:
 
-- Do not show `video_cloud_devid`.
-- Do not show raw upstream payloads.
-- Do not show operation IDs or internal upstream operation IDs.
-- Do not show `dead_lettered` or platform-only lifecycle vocabulary.
+- Customer View API payloads must not include `video_cloud_devid`.
+- Customer View API payloads must not include raw upstream payloads.
+- Customer View API payloads must not include operation IDs or internal
+  upstream operation IDs.
+- Customer View API payloads must not include `dead_lettered` or platform-only
+  lifecycle vocabulary.
 - Use customer-readable labels and contract-backed display names.
 
 ## Fleet Health Overview
@@ -145,6 +148,8 @@ Required layout:
 Behavior notes:
 
 - `7d` is the default time window; `30d` is available.
+- Production data must come from authoritative telemetry/read-model APIs. Do
+  not ship demo-derived or readiness-derived trend data for server validation.
 - Health distribution segments and alert rows should navigate to a filtered
   Devices view when the backend/frontend path supports it.
 - Service health, open platform operations, and platform audit content stay out
@@ -189,8 +194,11 @@ Detail drawer content:
 Behavior notes:
 
 - Customer users must not see out-of-org devices.
-- Platform admin data must not leak through the Customer View device drawer.
+- Platform admin data must not leak through the Customer View device drawer or
+  customer API payloads.
 - Filters must preserve table scan speed and avoid card-wall layouts.
+- Read-only Observer sessions must be enforced by the backend before any
+  provision or deactivate action is accepted.
 
 ## Firmware & OTA
 
@@ -215,6 +223,9 @@ Behavior notes:
 - Campaign creation, tenant-wide write actions, and policy editing are not part
   of this Customer View design batch.
 - Unknown firmware should be visible and sortable as an operational risk.
+- Production firmware distribution must use observed firmware and rollout facts
+  from Video Cloud or the normalized telemetry read model, not generated sample
+  versions.
 
 ## Stream Health
 
@@ -245,17 +256,19 @@ Behavior notes:
   never streamed, offline risk, or intermittent signal.
 - The design should support opening the selected device in the Devices detail
   drawer once route/state wiring is implemented.
+- Production stream metrics must use WebRTC session event data from Video Cloud
+  or an equivalent normalized read model, not local demo-derived estimates.
 
 ## Implementation Notes
 
 - Keep the implementation inside the existing React/Vite app.
 - Reuse current API contracts and the backend fields already documented in
   `backend-api-gap-audit.md`.
-- Do not change backend API scope as part of implementing this design.
+- Backend API scope must be tightened where needed to return customer-safe DTOs
+  for Customer View routes.
 - Do not add a new UI component framework.
 - Preserve URL-backed routes for directly linkable console views.
-- Keep Groups as a placeholder until the device group API is designed and
-  implemented.
+- Do not include Groups in the first-batch sidebar or page set.
 - Treat the four approved images in this document as the visual source of truth
   for Customer View implementation.
 
@@ -265,6 +278,8 @@ Behavior notes:
 - All pages keep the left sidebar + main work area structure.
 - Customer View does not contain Platform View content.
 - Customer-safe field policy is followed.
+- Customer View network payloads are customer-safe, not just visually hidden in
+  the React components.
 - The four designed pages map to existing or planned Customer View API
   contracts.
 - No WebUI implementation is included in this design-spec change.

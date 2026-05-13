@@ -1139,64 +1139,89 @@ func TestDeviceTelemetryDemoPayload(t *testing.T) {
 	if payload.Health != "healthy" && payload.Health != "warning" && payload.Health != "critical" {
 		t.Fatalf("health = %q, want healthy|warning|critical", payload.Health)
 	}
-	if len(payload.RSSI7D) != 7 {
-		t.Fatalf("rssi_7d length = %d, want 7", len(payload.RSSI7D))
+	if payload.TelemetryStatus != "not_configured" {
+		t.Fatalf("telemetry_status = %q, want not_configured", payload.TelemetryStatus)
 	}
-	if len(payload.Uptime7D) != 7 {
-		t.Fatalf("uptime_7d length = %d, want 7", len(payload.Uptime7D))
+	if payload.ActiveStreamStatus != "unavailable" {
+		t.Fatalf("active_stream_status = %q, want unavailable", payload.ActiveStreamStatus)
 	}
-	validQuality := map[string]bool{"good": true, "fair": true, "poor": true}
-	for _, sample := range payload.RSSI7D {
-		if !validQuality[sample.Quality] {
-			t.Fatalf("invalid RSSI quality %q", sample.Quality)
-		}
+	if payload.UnavailableReason == "" {
+		t.Fatalf("unavailable_reason is empty")
 	}
-	if len(payload.RecentEvents) == 0 || len(payload.RecentEvents) > 10 {
-		t.Fatalf("recent_events length = %d, want 1..10", len(payload.RecentEvents))
-	}
-	prev, err := time.Parse(time.RFC3339, payload.RecentEvents[0].OccurredAt)
-	if err != nil {
-		t.Fatalf("parse first occurred_at %q: %v", payload.RecentEvents[0].OccurredAt, err)
-	}
-	for i := 1; i < len(payload.RecentEvents); i++ {
-		cur, err := time.Parse(time.RFC3339, payload.RecentEvents[i].OccurredAt)
-		if err != nil {
-			t.Fatalf("parse occurred_at %q: %v", payload.RecentEvents[i].OccurredAt, err)
-		}
-		if prev.Before(cur) {
-			t.Fatalf("recent_events not sorted desc: index=%d", i)
-		}
-		prev = cur
-	}
-	validSignals := map[string]bool{
-		"low_rssi":      true,
-		"recent_reboot": true,
-		"low_memory":    true,
-		"recent_crash":  true,
-		"offline_risk":  true,
-	}
-	for _, signal := range payload.Signals {
-		if !validSignals[signal] {
-			t.Fatalf("invalid signal %q", signal)
-		}
-	}
-	validEventTypes := map[string]bool{
-		"device.health.summary":     true,
-		"device.health.rssi_sample": true,
-		"device.reboot.reported":    true,
-		"device.crash.reported":     true,
-		"firmware.version.observed": true,
-	}
-	for _, event := range payload.RecentEvents {
-		if !validEventTypes[event.EventType] {
-			t.Fatalf("invalid event type %q", event.EventType)
-		}
-		if strings.TrimSpace(event.Summary) == "" {
-			t.Fatalf("event summary is empty for %q", event.EventType)
-		}
+	if len(payload.RSSI7D) != 0 || len(payload.Uptime7D) != 0 || len(payload.RecentEvents) != 0 {
+		t.Fatalf("unconfigured telemetry should not include demo samples: %+v", payload)
 	}
 	if payload.FirmwareVersion == "" {
 		t.Fatalf("firmware_version is empty")
+	}
+}
+
+func TestCustomerDevicePayloadHidesPlatformFields(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	srv := New(st)
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	for _, path := range []string{"/api/devices", "/api/devices/dev-001"} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d; body=%s", path, rec.Code, http.StatusOK, rec.Body.String())
+		}
+		body := rec.Body.String()
+		for _, hidden := range []string{"video_cloud_devid", "operation_id", "upstream_operation_id", "dead_lettered"} {
+			if strings.Contains(body, hidden) {
+				t.Fatalf("%s customer response leaked %q: %s", path, hidden, body)
+			}
+		}
+	}
+}
+
+func TestPlatformAdminDevicePayloadKeepsPlatformFields(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	srv := New(st)
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/devices", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("admin devices status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "video_cloud_devid") {
+		t.Fatalf("admin devices response should keep platform fields: %s", rec.Body.String())
 	}
 }
 
@@ -1250,14 +1275,17 @@ func TestFleetHealthSummaryDemoDefaultsTo7d(t *testing.T) {
 	if payload.OrgID != "org-acme" {
 		t.Fatalf("org_id = %q, want %q", payload.OrgID, "org-acme")
 	}
-	if payload.Current.Healthy+payload.Current.Warning+payload.Current.Critical+payload.Current.Unknown != 2 {
-		t.Fatalf("current count sum = %d, want %d", payload.Current.Healthy+payload.Current.Warning+payload.Current.Critical+payload.Current.Unknown, 2)
+	if payload.SourceStatus != "not_configured" {
+		t.Fatalf("source_status = %q, want not_configured", payload.SourceStatus)
 	}
-	if len(payload.Trend) != 7 {
-		t.Fatalf("trend length = %d, want %d", len(payload.Trend), 7)
+	if payload.SourceMessage == "" {
+		t.Fatalf("source_message is empty")
 	}
-	if payload.OnlineRate7dPct < 0 || payload.OnlineRate7dPct > 100 {
-		t.Fatalf("online_rate_7d_pct = %f, want 0..100", payload.OnlineRate7dPct)
+	if payload.Current.Healthy+payload.Current.Warning+payload.Current.Critical+payload.Current.Unknown != 0 {
+		t.Fatalf("current count sum = %d, want 0", payload.Current.Healthy+payload.Current.Warning+payload.Current.Critical+payload.Current.Unknown)
+	}
+	if len(payload.Trend) != 0 {
+		t.Fatalf("trend length = %d, want 0", len(payload.Trend))
 	}
 }
 
@@ -1292,11 +1320,11 @@ func TestFleetHealthSummaryWindow30dAndOrgScope(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
 		t.Fatalf("decode fleet health summary: %v", err)
 	}
-	if len(payload.Trend) != 30 {
-		t.Fatalf("trend length = %d, want %d", len(payload.Trend), 30)
+	if payload.SourceStatus != "not_configured" {
+		t.Fatalf("source_status = %q, want not_configured", payload.SourceStatus)
 	}
-	if payload.Current.Healthy+payload.Current.Warning+payload.Current.Critical+payload.Current.Unknown != 2 {
-		t.Fatalf("org-scoped data appears to include other orgs: current=%d", payload.Current.Healthy+payload.Current.Warning+payload.Current.Critical+payload.Current.Unknown)
+	if len(payload.Trend) != 0 {
+		t.Fatalf("trend length = %d, want 0", len(payload.Trend))
 	}
 }
 
@@ -1340,8 +1368,11 @@ func TestFleetHealthSummaryEmptyOrgReturnsFullWindow(t *testing.T) {
 		if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
 			t.Fatalf("%s decode fleet health summary: %v", tt.name, err)
 		}
-		if len(payload.Trend) != tt.wantLen {
-			t.Fatalf("%s trend length = %d, want %d", tt.name, len(payload.Trend), tt.wantLen)
+		if payload.SourceStatus != "not_configured" {
+			t.Fatalf("%s source_status = %q, want not_configured", tt.name, payload.SourceStatus)
+		}
+		if len(payload.Trend) != 0 {
+			t.Fatalf("%s trend length = %d, want 0", tt.name, len(payload.Trend))
 		}
 		if payload.OnlineRate7dPct != 0 {
 			t.Fatalf("%s online_rate_7d_pct = %f, want 0", tt.name, payload.OnlineRate7dPct)
@@ -1407,8 +1438,14 @@ func TestFleetStreamStatsDemoDefaultsTo7d(t *testing.T) {
 	if payload.Window != "7d" {
 		t.Fatalf("window = %q, want %q", payload.Window, "7d")
 	}
-	if len(payload.Trend) != 7 {
-		t.Fatalf("trend length = %d, want %d", len(payload.Trend), 7)
+	if payload.SourceStatus != "not_configured" {
+		t.Fatalf("source_status = %q, want not_configured", payload.SourceStatus)
+	}
+	if payload.SourceMessage == "" {
+		t.Fatalf("source_message is empty")
+	}
+	if len(payload.Trend) != 0 {
+		t.Fatalf("trend length = %d, want 0", len(payload.Trend))
 	}
 	if len(payload.ByMode) != 1 {
 		t.Fatalf("by_mode length = %d, want only webrtc: %+v", len(payload.ByMode), payload.ByMode)
@@ -1423,16 +1460,8 @@ func TestFleetStreamStatsDemoDefaultsTo7d(t *testing.T) {
 	if stats.SuccessRatePct < 0 || stats.SuccessRatePct > 100 {
 		t.Fatalf("by_mode.webrtc.success_rate_pct = %f, want 0..100", stats.SuccessRatePct)
 	}
-	if len(payload.TrendByMode) != 1 {
-		t.Fatalf("trend_by_mode length = %d, want only webrtc", len(payload.TrendByMode))
-	}
-	for _, series := range payload.TrendByMode {
-		if series.Mode != "webrtc" {
-			t.Fatalf("trend_by_mode mode = %q, want webrtc", series.Mode)
-		}
-		if len(series.Points) != 7 {
-			t.Fatalf("trend_by_mode[%s] length = %d, want %d", series.Mode, len(series.Points), 7)
-		}
+	if len(payload.TrendByMode) != 0 {
+		t.Fatalf("trend_by_mode length = %d, want 0", len(payload.TrendByMode))
 	}
 	if payload.SuccessRatePct < 0 || payload.SuccessRatePct > 100 {
 		t.Fatalf("success_rate_pct = %f, want 0..100", payload.SuccessRatePct)
@@ -1490,19 +1519,14 @@ func TestFleetStreamStatsWindow30dAndOrgScope(t *testing.T) {
 	if payload.Window != "30d" {
 		t.Fatalf("window = %q, want %q", payload.Window, "30d")
 	}
-	if len(payload.Trend) != 30 {
-		t.Fatalf("trend length = %d, want %d", len(payload.Trend), 30)
+	if payload.SourceStatus != "not_configured" {
+		t.Fatalf("source_status = %q, want not_configured", payload.SourceStatus)
 	}
-	if len(payload.TrendByMode) != 1 {
-		t.Fatalf("trend_by_mode length = %d, want only webrtc", len(payload.TrendByMode))
+	if len(payload.Trend) != 0 {
+		t.Fatalf("trend length = %d, want 0", len(payload.Trend))
 	}
-	for _, series := range payload.TrendByMode {
-		if series.Mode != "webrtc" {
-			t.Fatalf("trend_by_mode mode = %q, want webrtc", series.Mode)
-		}
-		if len(series.Points) != 30 {
-			t.Fatalf("trend_by_mode[%s] length = %d, want %d", series.Mode, len(series.Points), 30)
-		}
+	if len(payload.TrendByMode) != 0 {
+		t.Fatalf("trend_by_mode length = %d, want 0", len(payload.TrendByMode))
 	}
 	for _, dev := range payload.WorstDevices {
 		if dev.DeviceID == "dev-003" || dev.DeviceID == "dev-004" {
@@ -1612,32 +1636,14 @@ func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 	if payload.OrgID != "org-acme" {
 		t.Fatalf("org_id = %q, want org-acme", payload.OrgID)
 	}
-	if len(payload.Versions) != 2 {
-		t.Fatalf("versions length = %d, want 2", len(payload.Versions))
+	if payload.SourceStatus != "not_configured" {
+		t.Fatalf("source_status = %q, want not_configured", payload.SourceStatus)
 	}
-	if !payload.Versions[0].IsLatest {
-		t.Fatalf("first version is not marked latest: %+v", payload.Versions[0])
+	if payload.SourceMessage == "" {
+		t.Fatalf("source_message is empty")
 	}
-	if len(payload.Campaigns) != 1 {
-		t.Fatalf("campaigns length = %d, want 1", len(payload.Campaigns))
-	}
-	campaign := payload.Campaigns[0]
-	if campaign.CampaignID != "campaign-demo" || campaign.State != "active" {
-		t.Fatalf("campaign summary = %+v, want demo active", campaign)
-	}
-	if len(campaign.Rollouts) != 2 {
-		t.Fatalf("campaign rollouts length = %d, want 2", len(campaign.Rollouts))
-	}
-	for _, rollout := range campaign.Rollouts {
-		if rollout.DeviceID == "" || rollout.DeviceName == "" {
-			t.Fatalf("rollout is missing device identity: %+v", rollout)
-		}
-		if rollout.CurrentVersion == "" || rollout.TargetVersion == "" {
-			t.Fatalf("rollout is missing version details: %+v", rollout)
-		}
-		if rollout.RolloutStatus == "" {
-			t.Fatalf("rollout status missing: %+v", rollout)
-		}
+	if len(payload.Versions) != 0 || len(payload.Campaigns) != 0 {
+		t.Fatalf("unconfigured firmware source should not include demo data: %+v", payload)
 	}
 }
 
@@ -2203,11 +2209,21 @@ func TestDeviceTelemetryProxyModeMapsVideoCloudFailure(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/devices/dev-002/telemetry", nil)
 	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	srv.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadGateway {
-		t.Fatalf("proxy telemetry status = %d, want %d; body=%s", rec.Code, http.StatusBadGateway, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("proxy telemetry status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "Video Cloud request failed") {
-		t.Fatalf("proxy telemetry body = %s", rec.Body.String())
+	var payload contracts.DeviceTelemetry
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode telemetry payload: %v", err)
+	}
+	if payload.TelemetryStatus != "unavailable" {
+		t.Fatalf("telemetry_status = %q, want unavailable", payload.TelemetryStatus)
+	}
+	if payload.ActiveStreamStatus != "unavailable" {
+		t.Fatalf("active_stream_status = %q, want unavailable", payload.ActiveStreamStatus)
+	}
+	if payload.UnavailableReason == "" {
+		t.Fatalf("unavailable_reason is empty")
 	}
 }
 
@@ -2636,6 +2652,59 @@ func TestCustomerUpstreamLifecycleIsIdempotentAndDurable(t *testing.T) {
 	}
 	if len(list) == 0 {
 		t.Fatalf("operations list should not be empty")
+	}
+}
+
+func TestCustomerReadOnlyObserverLifecycleReturns403(t *testing.T) {
+	t.Parallel()
+
+	upstreamProvisionCalls := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"observer@example.com","name":"Observer"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"observer"}]}`))
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-up","name":"Upstream Org","role":"observer"}]}`))
+		case "/v1/orgs/org-up/devices/dev-002/provision", "/v1/orgs/org-up/devices/dev-002/deactivate":
+			upstreamProvisionCalls++
+			_, _ = w.Write([]byte(`{"operation":{"id":"op-up","state":"published","message":"accepted"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+	session, err := st.CreateSession("customer", "u1", "observer@example.com", "access", "refresh", "org-up", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	for _, path := range []string{"/api/devices/dev-002/provision", "/api/devices/dev-002/deactivate"} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, path, nil)
+		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("%s status = %d, want %d; body=%s", path, rec.Code, http.StatusForbidden, rec.Body.String())
+		}
+	}
+	if upstreamProvisionCalls != 0 {
+		t.Fatalf("read-only lifecycle should not call upstream, got %d calls", upstreamProvisionCalls)
 	}
 }
 

@@ -97,8 +97,9 @@ These roles belong to the licensed tenant operating their own branded IoT
 product. Tier 2 sessions are org-scoped — users can only see and act on devices
 within their own organization.
 
-Tier 2 authenticates via the customer login endpoint (backed by Account Manager
-when `ACCOUNT_MANAGER_BASE_URL` is set, or local SQLite seed data in demo mode).
+Tier 2 authenticates via the customer login endpoint backed by Account Manager.
+Local SQLite seed data is for development/demo mode only and is not a production
+validation source.
 The session cookie is `rtk_admin_session`; the session row carries the upstream
 Bearer / refresh token pair when in proxy mode. Plaintext credentials are never
 persisted.
@@ -133,9 +134,9 @@ staff within a tenant org.
 
 **Cannot execute:** No provision, deactivate, or any write actions.
 
-**Current implementation:** Read-only Observer is not yet a distinct session
-type — all Tier 2 users currently share the same customer session and have
-Fleet Manager privileges. A read-only role is deferred.
+**Current implementation:** Backend write handlers reject read-only customer
+roles for provision and deactivate. Any future tenant write action must use the
+same backend guard; frontend button hiding is only a usability affordance.
 
 ---
 
@@ -182,6 +183,5 @@ the distinction is write actions only, not field visibility.
 
 The following role-related features are intentionally deferred:
 
-- Read-only Observer as a distinct Tier 2 session type
 - Tenant impersonation for Tier 1 Platform Admin
 - Role assignment UI

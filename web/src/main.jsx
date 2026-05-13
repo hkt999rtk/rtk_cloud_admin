@@ -30,6 +30,8 @@ function App() {
   const isPlatformView = active.startsWith('platform');
   const visibleNavItems = isPlatformView ? platformNavItems : customerNavItems;
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
+  const customerViewPending = !isPlatformView && !isPublicRoute && me === null;
+  const customerViewBlocked = !isPlatformView && !isPublicRoute && me !== null && (me.authenticated === false || me.kind === 'platform_admin');
 
   useEffect(() => {
     if (isPublicRoute) {
@@ -45,6 +47,20 @@ function App() {
         setMe(nextMe);
 
         const useAdminApi = isPlatformView && nextMe.kind === 'platform_admin';
+        if (!isPlatformView && (!nextMe.authenticated || nextMe.kind === 'platform_admin')) {
+          setSummary(null);
+          setFleetHealth(null);
+          setStreamStats(null);
+          setRecentAlerts([]);
+          setCustomers([]);
+          setDevices([]);
+          setOperations([]);
+          setHealth([]);
+          setAudit([]);
+          setFirmwareDistribution(null);
+          setLoading(false);
+          return;
+        }
         if (isPlatformView && nextMe.kind !== 'platform_admin') {
           setSummary(null);
           setFleetHealth(null);
@@ -60,14 +76,23 @@ function App() {
         }
 
         const prefix = useAdminApi ? '/api/admin' : '/api';
-        const baseRequests = [
-          fetchJSON(`${prefix}/summary`),
-          fetchJSON(`${prefix}/customers`),
-          fetchJSON(`${prefix}/devices`),
-          fetchJSON(`${prefix}/operations`),
-          fetchJSON(`${prefix}/service-health`),
-          fetchJSON(`${prefix}/audit`),
-        ];
+        const baseRequests = useAdminApi
+          ? [
+              fetchJSON(`${prefix}/summary`),
+              fetchJSON(`${prefix}/customers`),
+              fetchJSON(`${prefix}/devices`),
+              fetchJSON(`${prefix}/operations`),
+              fetchJSON(`${prefix}/service-health`),
+              fetchJSON(`${prefix}/audit`),
+            ]
+          : [
+              fetchJSON(`${prefix}/summary`),
+              fetchJSON(`${prefix}/customers`),
+              fetchJSON(`${prefix}/devices`),
+              Promise.resolve([]),
+              Promise.resolve([]),
+              Promise.resolve([]),
+            ];
         const [nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit] = await Promise.all(baseRequests);
         if (!alive) return;
         setSummary(nextSummary);
@@ -209,8 +234,8 @@ function App() {
       return;
     }
     setRefreshTick((tick) => tick + 1);
-    window.history.pushState({}, '', '/console/operations');
-    setActive('operations');
+    updateDevicesLocation({ deviceId });
+    setActive('devices');
   }
 
   async function handleLogin(kind, credentials) {
@@ -335,9 +360,11 @@ function App() {
           <small>Workspace</small>
           <div className="view-switcher-buttons">
             <button className={!isPlatformView ? 'active' : ''} onClick={() => switchView('customer')}>
+              <span className="view-switcher-dot" aria-hidden="true" />
               Customer View
             </button>
             <button className={isPlatformView ? 'active' : ''} onClick={() => switchView('platform')}>
+              <span className="view-switcher-dot" aria-hidden="true" />
               Platform View
             </button>
           </div>
@@ -362,7 +389,7 @@ function App() {
             <h1>{titleFor(active)}</h1>
           </div>
           <div className="session-strip">
-            <span>{me?.authenticated ? `${me.email} / ${me.kind}` : 'Demo mode'}</span>
+            <span>{sessionLabel(me, isPlatformView)}</span>
             {me?.kind === 'customer' && (me?.memberships?.length ?? 0) > 1 ? (
               <select
                 className="org-switcher"
@@ -383,7 +410,9 @@ function App() {
         {error ? <div className="error">{error}</div> : null}
 
         {needsPlatformAccess ? <PlatformAccessGate active={active} onLogin={handleLogin} /> : null}
-        {!needsPlatformAccess && active === 'overview' ? (
+        {!needsPlatformAccess && customerViewPending ? <section className="panel split-panel"><div><h2>Loading session</h2><p>Checking customer access before loading dashboard data.</p></div></section> : null}
+        {!needsPlatformAccess && !customerViewPending && customerViewBlocked ? <CustomerAccessGate me={me} onLogin={handleLogin} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'overview' ? (
           <Overview
             summary={summary}
             fleetHealth={fleetHealth}
@@ -398,7 +427,7 @@ function App() {
             onRequestQuotaRaise={handleQuotaRaiseRequest}
           />
         ) : null}
-        {!needsPlatformAccess && active === 'devices' ? (
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'devices' ? (
           <Devices
             active={active}
             devices={devices}
@@ -409,15 +438,14 @@ function App() {
             onAction={runDeviceAction}
           />
         ) : null}
-        {!needsPlatformAccess && active === 'firmware-ota' ? (
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'firmware-ota' ? (
           <FirmwareOTAPage
             loading={loading}
             distribution={firmwareDistribution}
             onViewDevices={openDevicesForFirmware}
           />
         ) : null}
-        {!needsPlatformAccess && active === 'operations' ? <Operations operations={operations} /> : null}
-        {!needsPlatformAccess && active === 'stream-health' ? (
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'stream-health' ? (
           <StreamHealthPage
             loading={loading}
             stats={streamStats}
@@ -425,7 +453,6 @@ function App() {
             setWindow={setStreamWindow}
           />
         ) : null}
-        {!needsPlatformAccess && active === 'groups' ? <GroupsPage /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
         {!needsPlatformAccess && active === 'platform-operations' ? <Operations operations={operations} /> : null}
         {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} /> : null}
@@ -708,11 +735,15 @@ function Overview({
   const nearQuota = isEvaluation && activeDevices >= Math.max(quotaLimit - 1, 1);
   const current = fleetHealth?.current || {};
   const onlineCount = summary?.online_devices ?? '-';
-  const onlineRate = fleetHealth?.online_rate_7d_pct ?? '-';
-  const needsAttention = current.warning !== undefined || current.critical !== undefined
+  const telemetryAvailable = sourceAvailable(fleetHealth);
+  const streamAvailable = sourceAvailable(streamStats);
+  const onlineRate = telemetryAvailable ? fleetHealth?.online_rate_7d_pct : null;
+  const needsAttention = telemetryAvailable && (current.warning !== undefined || current.critical !== undefined)
     ? (current.warning || 0) + (current.critical || 0)
-    : '-';
-  const activeStreams = streamStats?.active_sessions ?? '-';
+    : 'Unavailable';
+  const activeStreams = streamAvailable ? (streamStats?.active_sessions ?? 0) : 'Unavailable';
+  const telemetryReason = sourceMessage(fleetHealth, 'No telemetry source configured.');
+  const streamReason = sourceMessage(streamStats, 'No stream source configured.');
 
   return (
     <div className="overview-layout">
@@ -727,10 +758,12 @@ function Overview({
 
       <section className="metrics overview-metrics">
         <MetricCard label="Online" value={onlineCount} hint={summary ? `${summary.total_devices ?? 0} total devices` : 'Waiting for summary data'} tone="good" />
-        <MetricCard label="Online Rate (7d)" value={formatPercent(onlineRate)} hint={fleetHealth ? 'Daily online share across the current window' : 'Sign in to load fleet health'} tone="info" />
-        <MetricCard label="Needs Attention" value={needsAttention} hint={fleetHealth ? 'Devices in warning or critical health' : 'No health summary yet'} tone={needsAttention === 0 ? 'good' : 'warn'} />
-        <MetricCard label="Active Streams" value={activeStreams} hint={streamStats ? 'Open sessions right now' : 'Stream stats unavailable'} tone="info" />
+        <MetricCard label="Online Rate (7d)" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'Daily online share across the current window' : telemetryReason} tone="info" />
+        <MetricCard label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? 'Devices in warning or critical health' : telemetryReason} tone={needsAttention === 0 ? 'good' : 'warn'} />
+        <MetricCard label="Active Streams" value={activeStreams} hint={streamAvailable ? 'Open sessions right now' : streamReason} tone="info" />
       </section>
+
+      {!telemetryAvailable ? <SourceBlockedState title="Telemetry source unavailable" message={telemetryReason} /> : null}
 
       <section className="overview-grid">
         <FleetHealthTrendPanel
@@ -738,11 +771,13 @@ function Overview({
           trend={fleetHealth?.trend || []}
           window={overviewWindow}
           onWindowChange={setOverviewWindow}
+          source={fleetHealth}
         />
         <HealthDistributionPanel
           loading={loading}
           current={fleetHealth?.current}
           onFilter={onHealthFilter}
+          source={fleetHealth}
         />
       </section>
 
@@ -763,7 +798,7 @@ function Overview({
         ) : null}
       </section>
 
-      <RecentAlertsPanel loading={loading} alerts={recentAlerts} />
+      <RecentAlertsPanel loading={loading} alerts={recentAlerts} source={fleetHealth} />
     </div>
   );
 }
@@ -772,6 +807,8 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
   const [expandedCampaignId, setExpandedCampaignId] = useState('');
   const versions = distribution?.versions || [];
   const campaigns = distribution?.campaigns || [];
+  const available = sourceAvailable(distribution);
+  const unavailableText = sourceMessage(distribution, 'Firmware observation source is not configured.');
   const totalDevices = versions.reduce((sum, version) => sum + (version.count || 0), 0);
   const activeCampaigns = campaigns.filter((campaign) => ['active', 'scheduled'].includes(String(campaign.state || '').toLowerCase())).length;
 
@@ -797,19 +834,19 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
         </div>
         <div className="firmware-page-metrics">
           <div>
-            <strong>{totalDevices}</strong>
+            <strong>{available ? totalDevices : 'Unavailable'}</strong>
             <span>Devices</span>
           </div>
           <div>
-            <strong>{versions.length}</strong>
+            <strong>{available ? versions.length : 'Unavailable'}</strong>
             <span>Versions</span>
           </div>
           <div>
-            <strong>{activeCampaigns}</strong>
+            <strong>{available ? activeCampaigns : 'Unavailable'}</strong>
             <span>Active campaigns</span>
           </div>
           <div>
-            <strong>{latestVersion}</strong>
+            <strong>{available ? latestVersion : 'Unavailable'}</strong>
             <span>Latest version</span>
           </div>
         </div>
@@ -817,7 +854,9 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
 
       {loading && !distribution ? <p className="empty-state">Loading firmware distribution.</p> : null}
 
-      {distribution ? (
+      {distribution && !available ? <SourceBlockedState title="Firmware source unavailable" message={unavailableText} /> : null}
+
+      {distribution && available ? (
         <div className="firmware-layout">
           <section className="panel firmware-panel">
             <div className="panel-head">
@@ -940,8 +979,10 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
             )}
           </section>
         </div>
+      ) : !distribution ? (
+        <p className="empty-state">No firmware distribution data available.</p>
       ) : (
-        <p className="empty-state">No firmware distribution data available yet.</p>
+        <p className="empty-state">{unavailableText}</p>
       )}
     </section>
   );
@@ -952,32 +993,34 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
   const modeTrends = stats?.trend_by_mode || [];
   const devices = stats?.worst_devices || [];
   const byMode = stats?.by_mode || {};
+  const available = sourceAvailable(stats);
+  const unavailableText = sourceMessage(stats, 'WebRTC session event source is not configured.');
   const windowLabel = String(streamWindow || '7d').toUpperCase();
   const chart = useMemo(() => buildStreamHealthChart(trend, modeTrends), [trend, modeTrends]);
   const kpis = [
     {
       key: 'success-rate',
       label: `Stream Success Rate (${windowLabel})`,
-      value: formatPercent(stats?.success_rate_pct ?? '-'),
-      hint: 'Percent of stream requests that succeeded in the selected window',
+      value: available ? formatPercent(stats?.success_rate_pct ?? 0) : 'Unavailable',
+      hint: available ? 'Percent of stream requests that succeeded in the selected window' : unavailableText,
     },
     {
       key: 'avg-duration',
       label: 'Avg Stream Duration',
-      value: stats ? formatDurationMinutes(stats.avg_duration_seconds) : '-',
-      hint: 'Average session length across observed requests',
+      value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'Unavailable',
+      hint: available ? 'Average session length across observed requests' : unavailableText,
     },
     {
       key: 'active-sessions',
       label: 'Active Sessions Now',
-      value: stats?.active_sessions ?? '-',
-      hint: 'Count of currently open stream sessions',
+      value: available ? (stats?.active_sessions ?? 0) : 'Unavailable',
+      hint: available ? 'Count of currently open stream sessions' : unavailableText,
     },
     {
       key: 'never-streamed',
       label: 'Devices Never Streamed',
-      value: stats?.never_streamed_count ?? '-',
-      hint: 'Online devices that have no stream history',
+      value: available ? (stats?.never_streamed_count ?? 0) : 'Unavailable',
+      hint: available ? 'Online devices that have no stream history' : unavailableText,
     },
   ];
 
@@ -995,6 +1038,7 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
               key={value}
               type="button"
               className={streamWindow === value ? 'active' : ''}
+              disabled={!available}
               onClick={() => setWindow(value)}
             >
               {value.toUpperCase()}
@@ -1015,9 +1059,11 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
         ))}
       </section>
 
+      {!available && stats ? <SourceBlockedState title="Stream source unavailable" message={unavailableText} /> : null}
+
       {loading && !stats ? (
         <p className="empty-state">Loading stream health data.</p>
-      ) : stats ? (
+      ) : stats && available ? (
         <div className="stream-health-layout">
           <section className="panel stream-trend-panel">
             <div className="panel-head">
@@ -1078,7 +1124,7 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
                 <p className="chart-footnote">Bars show WebRTC request volume; lines show the overall and WebRTC success rate for the selected window.</p>
               </>
             ) : (
-              <p className="empty-state">No stream data yet.</p>
+              <p className="empty-state">No stream requests in selected window.</p>
             )}
 
             <div className="stream-mode-summary">
@@ -1125,27 +1171,13 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
                 ))}
               </div>
             ) : (
-              <p className="empty-state">No stream data yet.</p>
+              <p className="empty-state">No stream requests in selected window.</p>
             )}
           </section>
         </div>
       ) : (
-        <p className="empty-state">No stream data yet.</p>
+        <p className="empty-state">{unavailableText}</p>
       )}
-    </section>
-  );
-}
-
-function GroupsPage() {
-  return (
-    <section className="panel">
-      <div className="panel-head">
-        <div>
-          <h2>Groups</h2>
-          <p>Customer group management and membership assignment will be added here.</p>
-        </div>
-      </div>
-      <p className="placeholder-subtitle">Placeholder area for customer group workspace.</p>
     </section>
   );
 }
@@ -1158,6 +1190,30 @@ function PlatformAccessGate({ active, onLogin }) {
         <div>
           <h2>Platform access required</h2>
           <p>Sign in with a platform admin session to open {titleFor(active)}.</p>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function CustomerAccessGate({ me, onLogin }) {
+  if (me?.kind === 'platform_admin') {
+    return (
+      <section className="panel split-panel">
+        <div>
+          <h2>Platform admin cannot use Customer View</h2>
+          <p>Switch to Platform View to inspect service health, operations, and audit data across tenants.</p>
+        </div>
+      </section>
+    );
+  }
+  return (
+    <>
+      <LoginPanel mode="customer" title="Customer Account Manager login" onLogin={onLogin} />
+      <section className="panel split-panel">
+        <div>
+          <h2>Customer access required</h2>
+          <p>Sign in with a customer account to open the operations console.</p>
         </div>
       </section>
     </>
@@ -1218,8 +1274,20 @@ function MetricCard({ label, value, hint, tone = 'neutral' }) {
   );
 }
 
-function FleetHealthTrendPanel({ loading, trend, window, onWindowChange }) {
+function SourceBlockedState({ title, message }) {
+  return (
+    <section className="panel source-blocked">
+      <div>
+        <h2>{title}</h2>
+        <p>{message}</p>
+      </div>
+    </section>
+  );
+}
+
+function FleetHealthTrendPanel({ loading, trend, window, onWindowChange, source }) {
   const chart = useMemo(() => buildFleetTrendChart(trend), [trend]);
+  const available = sourceAvailable(source);
   return (
     <section className="panel overview-panel trend-panel">
       <div className="panel-head">
@@ -1233,6 +1301,7 @@ function FleetHealthTrendPanel({ loading, trend, window, onWindowChange }) {
               key={value}
               type="button"
               className={window === value ? 'active' : ''}
+              disabled={!available}
               onClick={() => onWindowChange(value)}
             >
               {value.toUpperCase()}
@@ -1240,7 +1309,9 @@ function FleetHealthTrendPanel({ loading, trend, window, onWindowChange }) {
           ))}
         </div>
       </div>
-      {loading && !trend.length ? (
+      {!available ? (
+        <p className="empty-state">{sourceMessage(source, 'No telemetry source configured.')}</p>
+      ) : loading && !trend.length ? (
         <p className="empty-state">Loading fleet trend data.</p>
       ) : chart.points.length ? (
         <>
@@ -1288,7 +1359,8 @@ function FleetHealthTrendPanel({ loading, trend, window, onWindowChange }) {
   );
 }
 
-function HealthDistributionPanel({ loading, current, onFilter }) {
+function HealthDistributionPanel({ loading, current, onFilter, source }) {
+  const available = sourceAvailable(source);
   const items = [
     { key: 'healthy', label: 'Healthy', count: current?.healthy ?? 0, tone: 'good' },
     { key: 'warning', label: 'Warning', count: current?.warning ?? 0, tone: 'warn' },
@@ -1305,7 +1377,9 @@ function HealthDistributionPanel({ loading, current, onFilter }) {
           <p>Breakdown of the current fleet by telemetry health state.</p>
         </div>
       </div>
-      {loading && !current ? (
+      {!available ? (
+        <p className="empty-state">{sourceMessage(source, 'No telemetry source configured.')}</p>
+      ) : loading && !current ? (
         <p className="empty-state">Loading fleet health distribution.</p>
       ) : total > 0 ? (
         <div className="distribution-stack">
@@ -1340,7 +1414,8 @@ function HealthDistributionPanel({ loading, current, onFilter }) {
   );
 }
 
-function RecentAlertsPanel({ loading, alerts }) {
+function RecentAlertsPanel({ loading, alerts, source }) {
+  const available = sourceAvailable(source);
   return (
     <section className="panel overview-panel alerts-panel">
       <div className="panel-head">
@@ -1349,7 +1424,9 @@ function RecentAlertsPanel({ loading, alerts }) {
           <p>Last 10 telemetry events that resulted in a health change.</p>
         </div>
       </div>
-      {loading && !alerts.length ? (
+      {!available ? (
+        <p className="empty-state">{sourceMessage(source, 'No telemetry source configured.')}</p>
+      ) : loading && !alerts.length ? (
         <p className="empty-state">Loading recent alerts.</p>
       ) : alerts.length ? (
         <div className="alerts-table">
@@ -1369,7 +1446,7 @@ function RecentAlertsPanel({ loading, alerts }) {
           ))}
         </div>
       ) : (
-        <p className="empty-state">No recent alert events yet.</p>
+        <p className="empty-state">No alerts in selected window.</p>
       )}
     </section>
   );
@@ -1517,21 +1594,9 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
       key: 'last_seen_at',
       label: 'Last seen',
       value: (device) => device.last_seen_at,
-      render: (device) => device.last_seen_at || 'No transport evidence',
+      render: (device) => device.last_seen_at ? <time title={device.last_seen_at}>{formatRelativeTime(device.last_seen_at)}</time> : 'No transport evidence',
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      sortable: false,
-      value: () => '',
-      render: (device) => (
-        <div className="row-actions">
-          <button onClick={(event) => runRowAction(event, onAction, device.id, 'provision')}>Provision</button>
-          <button onClick={(event) => runRowAction(event, onAction, device.id, 'deactivate')}>Deactivate</button>
-        </div>
-      ),
-    },
-  ], [onAction]);
+  ], []);
 
   const selectedTelemetry = selectedDevice ? telemetryById[selectedDevice.id] || null : null;
   const telemetryBusy = deviceDrawerOpen && selectedDevice?.id && telemetryLoadingId === selectedDevice.id && !selectedTelemetry;
@@ -1545,34 +1610,34 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
             <p>Registry, video identity, readiness, and last known status.</p>
           </div>
         </div>
-        <div className="device-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
-          <label>
-            Health
-            <select value={healthFilter} onChange={(event) => setHealthFilter(event.target.value)} style={{ marginLeft: '0.5rem' }}>
+        <div className="device-filters">
+          <label className="device-filter">
+            <span>Health</span>
+            <select value={healthFilter} onChange={(event) => setHealthFilter(event.target.value)}>
               {processedDevices.healthValues.map((value) => (
                 <option key={`health-${value}`} value={value}>{value}</option>
               ))}
             </select>
           </label>
-          <label>
-            Readiness
-            <select value={readinessFilter} onChange={(event) => setReadinessFilter(event.target.value)} style={{ marginLeft: '0.5rem' }}>
+          <label className="device-filter">
+            <span>Readiness</span>
+            <select value={readinessFilter} onChange={(event) => setReadinessFilter(event.target.value)}>
               {processedDevices.readinessValues.map((value) => (
                 <option key={`readiness-${value}`} value={value}>{value}</option>
               ))}
             </select>
           </label>
-          <label>
-            Signal
-            <select value={signalFilter} onChange={(event) => setSignalFilter(event.target.value)} style={{ marginLeft: '0.5rem' }}>
+          <label className="device-filter">
+            <span>Signal</span>
+            <select value={signalFilter} onChange={(event) => setSignalFilter(event.target.value)}>
               {processedDevices.signalValues.map((value) => (
                 <option key={`signal-${value}`} value={value}>{value}</option>
               ))}
             </select>
           </label>
-          <label>
-            Firmware
-            <select value={firmwareFilter} onChange={(event) => setFirmwareFilter(event.target.value)} style={{ marginLeft: '0.5rem' }}>
+          <label className="device-filter">
+            <span>Firmware</span>
+            <select value={firmwareFilter} onChange={(event) => setFirmwareFilter(event.target.value)}>
               {processedDevices.firmwareValues.map((value) => (
                 <option key={`firmware-${value}`} value={value}>{value}</option>
               ))}
@@ -1580,6 +1645,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
           </label>
           <button
             type="button"
+            className="filter-clear-button"
             onClick={() => {
               setReadinessFilter('All');
               setHealthFilter('All');
@@ -1601,6 +1667,21 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
           rowClassName={(device) => deviceDrawerOpen && selectedDevice?.id === device.id ? 'selected-row' : ''}
           onRowClick={(device) => setSelectedDeviceId(device.id)}
         />
+        <div className="mobile-device-list" aria-label="Compact device list">
+          {tableRows.length ? tableRows.map((device) => (
+            <button key={device.id} type="button" className="mobile-device-row" onClick={() => setSelectedDeviceId(device.id)}>
+              <span>
+                <strong>{device.name}</strong>
+                <small>{device.serial_number}</small>
+              </span>
+              <span>
+                <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />
+                <StatusBadge value={normalizeStatusKey(device.readiness)} label={device.readiness_display} />
+              </span>
+              <time title={device.last_seen_at || ''}>{device.last_seen_at ? formatRelativeTime(device.last_seen_at) : 'No transport evidence'}</time>
+            </button>
+          )) : <p className="empty-state">No devices match the current filter.</p>}
+        </div>
       </div>
       {deviceDrawerOpen ? (
         <DeviceDrawer
@@ -1670,6 +1751,16 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
   const drawerSerial = telemetry?.serial_number || device?.serial_number || '—';
   const drawerLastSeen = telemetry?.last_seen_at || device?.last_seen_at || '';
   const drawerFirmware = telemetry?.firmware_version || device?.firmware_version || '—';
+  const telemetryAvailable = telemetry?.telemetry_status === 'available';
+  const telemetryUnavailableText = telemetry?.unavailable_reason || error || 'Telemetry source is unavailable for this device.';
+  const streamStatus = deriveStreamStatus(telemetry);
+  const provisionState = device ? deviceActionState(device, 'provision') : { enabled: false, reason: 'No device selected.' };
+  const deactivateState = device ? deviceActionState(device, 'deactivate') : { enabled: false, reason: 'No device selected.' };
+  function runDrawerAction(action) {
+    const label = action === 'deactivate' ? 'deactivate this device' : 'provision this device';
+    if (!window.confirm(`Confirm you want to ${label}.`)) return;
+    onAction(device.id, action);
+  }
   return (
     <div className="drawer-backdrop" role="presentation" onClick={onClose}>
       <aside className="drawer-panel" role="dialog" aria-modal="true" aria-label="Device detail drawer" onClick={(event) => event.stopPropagation()}>
@@ -1708,13 +1799,18 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
             </section>
 
             {loading ? <p className="empty-state">Loading telemetry for this device.</p> : null}
-            {error ? <p className="drawer-error">{error}</p> : null}
+            {!loading && (error || (telemetry && !telemetryAvailable)) ? (
+              <section className="drawer-unavailable">
+                <strong>Telemetry unavailable</strong>
+                <p>{telemetryUnavailableText}</p>
+              </section>
+            ) : null}
 
             <section className="drawer-summary">
               <div className="summary-card">
                 <span>Health</span>
                 <StatusBadge value={normalizeStatusKey(telemetry?.health || device.health || 'unknown')} label={toTitleCase(telemetry?.health || device.health || 'unknown')} />
-                <small>{telemetry ? `Signals: ${telemetry.signals?.length ? telemetry.signals.map(formatTelemetrySignal).join(', ') : 'none reported'}` : 'Telemetry not loaded yet.'}</small>
+                <small>{telemetryAvailable ? `Signals: ${telemetry.signals?.length ? telemetry.signals.map(formatTelemetrySignal).join(', ') : 'none reported'}` : telemetryUnavailableText}</small>
               </div>
               <div className="summary-card">
                 <span>Firmware</span>
@@ -1723,12 +1819,12 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
               </div>
               <div className="summary-card">
                 <span>Active stream</span>
-                <StatusBadge value={deriveStreamStatus(telemetry).tone} label={deriveStreamStatus(telemetry).label} />
-                <small>{deriveStreamStatus(telemetry).detail}</small>
+                <StatusBadge value={streamStatus.tone} label={streamStatus.label} />
+                <small>{streamStatus.detail}</small>
               </div>
             </section>
 
-            <section className="drawer-charts">
+            {telemetryAvailable ? <section className="drawer-charts">
               <TelemetryChart
                 title="RSSI history"
                 subtitle="Daily average dBm and quality bucket"
@@ -1751,7 +1847,7 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
                 emptyLabel="No uptime samples available."
                 sampleLabel={(sample) => `${sample.date}: ${sample.online_pct.toFixed(1)}% online`}
               />
-            </section>
+            </section> : null}
 
             <section className="drawer-events">
               <div className="panel-head">
@@ -1760,7 +1856,7 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
                   <p>Last 10 telemetry events from this device.</p>
                 </div>
               </div>
-              {telemetry?.recent_events?.length ? (
+              {telemetryAvailable && telemetry?.recent_events?.length ? (
                 <div className="event-list">
                   {telemetry.recent_events.map((event) => (
                     <article className="event-row" key={`${event.occurred_at}:${event.event_type}`}>
@@ -1773,13 +1869,14 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
                   ))}
                 </div>
               ) : (
-                <p className="empty-state">No recent telemetry events available.</p>
+                <p className="empty-state">{telemetryAvailable ? 'No recent telemetry events available.' : telemetryUnavailableText}</p>
               )}
             </section>
 
             <div className="drawer-actions">
-              <button onClick={() => onAction(device.id, 'provision')}>Provision device</button>
-              <button onClick={() => onAction(device.id, 'deactivate')}>Deactivate device</button>
+              <button disabled={!provisionState.enabled} title={provisionState.reason} onClick={() => runDrawerAction('provision')}>Provision device</button>
+              <button className="destructive" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}>Deactivate device</button>
+              <small>{!provisionState.enabled ? provisionState.reason : !deactivateState.enabled ? deactivateState.reason : 'Actions are queued through lifecycle orchestration.'}</small>
             </div>
           </>
         )}
@@ -1895,36 +1992,33 @@ function formatTelemetrySignal(signal) {
 }
 
 function deriveStreamStatus(telemetry) {
-  const events = telemetry?.recent_events || [];
-  const joined = events
-    .map((event) => `${event.event_type} ${event.summary}`.toLowerCase())
-    .join(' ');
-  if (/stream|session/.test(joined)) {
-    if (/(started|opened|active|playing|live)/.test(joined)) {
-      return {
-        tone: 'healthy',
-        label: 'Active',
-        detail: 'Recent telemetry suggests a live stream session is open.',
-      };
-    }
-    if (/(ended|closed|stopped|offline)/.test(joined)) {
-      return {
-        tone: 'inactive',
-        label: 'Inactive',
-        detail: 'Recent telemetry suggests no stream session is open.',
-      };
-    }
-    return {
-      tone: 'warning',
-      label: 'Unknown',
-      detail: 'Telemetry references stream activity but not an explicit open/closed state.',
-    };
+  switch (telemetry?.active_stream_status) {
+    case 'active':
+      return { tone: 'healthy', label: 'Active', detail: 'Stream source reports an active session.' };
+    case 'inactive':
+      return { tone: 'inactive', label: 'Inactive', detail: 'Stream source reports no active session.' };
+    case 'unavailable':
+      return { tone: 'unknown', label: 'Unavailable', detail: telemetry?.unavailable_reason || 'Active stream status is unavailable.' };
+    case 'unknown':
+    default:
+      return { tone: 'unknown', label: 'Unknown', detail: 'Active stream status is not provided by the source.' };
   }
-  return {
-    tone: 'unknown',
-    label: 'Unknown',
-    detail: 'No explicit stream-session event surfaced in recent telemetry.',
-  };
+}
+
+function deviceActionState(device, action) {
+  const readiness = String(device?.readiness || '').toLowerCase();
+  if (action === 'deactivate') {
+    if (readiness === 'deactivated') return { enabled: false, reason: 'Device is already deactivated.' };
+    if (readiness === 'deactivation_pending') return { enabled: false, reason: 'Deactivation is already pending.' };
+    return { enabled: true, reason: '' };
+  }
+  if (readiness === 'online' || readiness === 'activated') {
+    return { enabled: false, reason: 'Device is already activated.' };
+  }
+  if (readiness === 'deactivation_pending') {
+    return { enabled: false, reason: 'Device is waiting for deactivation.' };
+  }
+  return { enabled: true, reason: '' };
 }
 
 function formatTelemetryEventType(eventType) {
@@ -2304,6 +2398,39 @@ function getActiveMembership(me) {
   const memberships = me.memberships || [];
   if (!memberships.length) return null;
   return memberships.find((membership) => membership.organization_id === me.active_org_id) || memberships[0];
+}
+
+function sessionLabel(me, isPlatformView) {
+  if (!me?.authenticated) return 'Not signed in';
+  if (me.kind === 'platform_admin') return 'Platform Admin · All tenants';
+  const membership = getActiveMembership(me);
+  return `${roleLabel(membership?.role)} · ${membership?.organization || me.active_org_id || 'Active organization'}`;
+}
+
+function sourceAvailable(source) {
+  return source?.source_status === 'available';
+}
+
+function sourceMessage(source, fallback) {
+  if (!source) return fallback;
+  if (source.source_status === 'not_configured') return source.source_message || fallback;
+  if (source.source_status === 'no_data') return source.source_message || 'No data in selected window.';
+  return source.source_message || fallback;
+}
+
+function roleLabel(role) {
+  const normalized = String(role || '').toLowerCase().replaceAll('-', '_');
+  const labels = {
+    owner: 'Fleet Owner',
+    admin: 'Fleet Admin',
+    manager: 'Fleet Manager',
+    operator: 'Fleet Operator',
+    viewer: 'Read-only Observer',
+    observer: 'Read-only Observer',
+    read_only: 'Read-only Observer',
+    readonly: 'Read-only Observer',
+  };
+  return labels[normalized] || toTitleCase(role || 'Customer User');
 }
 
 function formatTierLabel(tier) {

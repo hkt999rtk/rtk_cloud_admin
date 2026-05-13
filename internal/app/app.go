@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,6 +38,8 @@ type Options struct {
 	AccountClient *accountclient.Client
 	VideoClient   *videoclient.Client
 }
+
+var operationIDPattern = regexp.MustCompile(`(?i)\b(op|operation|upstream)[-_]?[a-z0-9][a-z0-9._:-]*\b`)
 
 func NewTestServer(dbPath string) (*Server, error) {
 	st, err := store.Open(dbPath)
@@ -528,7 +531,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
-		writeJSON(w, devicesWithFirmwareVersion(devices))
+		writeJSON(w, customerSafeDevices(devicesWithFirmwareVersion(devices)))
 		return
 	}
 	devices, err := s.store.ListDevices()
@@ -560,7 +563,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
-				writeJSON(w, deviceWithFirmwareVersion(device))
+				writeJSON(w, customerSafeDevice(deviceWithFirmwareVersion(device)))
 				return
 			}
 		}
@@ -595,31 +598,8 @@ func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	var devices []contracts.Device
-	if s.accountClient.Enabled() {
-		allDevices, err := s.customerDevices(r.Context(), session)
-		if err != nil {
-			s.writeCustomerErrorForSession(w, session.ID, err)
-			return
-		}
-		for _, device := range allDevices {
-			if device.OrganizationID == orgID {
-				devices = append(devices, device)
-			}
-		}
-	} else {
-		allDevices, err := s.store.ListDevices()
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		for _, device := range allDevices {
-			if device.OrganizationID == orgID {
-				devices = append(devices, device)
-			}
-		}
-	}
-	writeJSON(w, fleetHealthSummary(orgID, devices, days))
+	status, message := s.customerFleetSourceStatus()
+	writeJSON(w, unavailableFleetHealthSummary(orgID, days, status, message))
 }
 
 func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
@@ -638,27 +618,9 @@ func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	var devices []contracts.Device
-	if s.accountClient.Enabled() {
-		allDevices, err := s.customerDevices(r.Context(), session)
-		if err != nil {
-			s.writeCustomerErrorForSession(w, session.ID, err)
-			return
-		}
-		devices = append(devices, allDevices...)
-	} else {
-		allDevices, err := s.store.ListDevices()
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		for _, device := range allDevices {
-			if device.OrganizationID == orgID {
-				devices = append(devices, device)
-			}
-		}
-	}
-	writeJSON(w, fleetStreamStats(orgID, devices, days, window))
+	_ = days
+	status, message := s.customerStreamSourceStatus()
+	writeJSON(w, unavailableFleetStreamStats(orgID, window, status, message))
 }
 
 func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Request) {
@@ -681,10 +643,13 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	} else if ok {
+		dist.SourceStatus = "available"
+		dist.SourceMessage = "Firmware source loaded from Video Cloud."
 		writeJSON(w, dist)
 		return
 	}
-	writeJSON(w, demoFirmwareDistribution(orgID, devices))
+	status, message := s.customerFirmwareSourceStatus(devices)
+	writeJSON(w, unavailableFirmwareDistribution(orgID, status, message))
 }
 
 func (s *Server) firmwareDistributionDevices(ctx context.Context, session store.Session, orgID string) ([]contracts.Device, error) {
@@ -1226,6 +1191,64 @@ func parseFleetWindow(raw string) (string, int, error) {
 	}
 }
 
+func (s *Server) customerFleetSourceStatus() (string, string) {
+	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+		return "not_configured", "Telemetry source is not configured."
+	}
+	return "no_data", "Fleet telemetry summary is not available from the configured source."
+}
+
+func (s *Server) customerStreamSourceStatus() (string, string) {
+	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+		return "not_configured", "WebRTC session event source is not configured."
+	}
+	return "no_data", "No stream session read model is available for the selected window."
+}
+
+func (s *Server) customerFirmwareSourceStatus(devices []contracts.Device) (string, string) {
+	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+		return "not_configured", "Firmware observation source is not configured."
+	}
+	if len(devices) == 0 {
+		return "no_data", "No devices are available for firmware observation."
+	}
+	return "no_data", "No observed firmware or active campaigns are available."
+}
+
+func unavailableFleetHealthSummary(orgID string, days int, status string, message string) contracts.FleetHealthSummary {
+	return contracts.FleetHealthSummary{
+		OrgID:         orgID,
+		SourceStatus:  status,
+		SourceMessage: message,
+		Current:       contracts.FleetHealthCurrent{},
+		Trend:         []contracts.FleetHealthTrendPoint{},
+	}
+}
+
+func unavailableFleetStreamStats(orgID string, window string, status string, message string) contracts.FleetStreamStats {
+	return contracts.FleetStreamStats{
+		OrgID:          orgID,
+		Window:         window,
+		SourceStatus:   status,
+		SourceMessage:  message,
+		ByMode:         map[string]contracts.FleetStreamStatsMode{streamModeWebRTC: {Requests: 0, SuccessRatePct: 0}},
+		Trend:          []contracts.FleetStreamTrendPoint{},
+		TrendByMode:    []contracts.FleetStreamModeTrend{},
+		WorstDevices:   []contracts.FleetStreamWorstDevice{},
+		ActiveSessions: 0,
+	}
+}
+
+func unavailableFirmwareDistribution(orgID string, status string, message string) contracts.FirmwareDistribution {
+	return contracts.FirmwareDistribution{
+		OrgID:         orgID,
+		SourceStatus:  status,
+		SourceMessage: message,
+		Versions:      []contracts.FirmwareDistributionVersion{},
+		Campaigns:     []contracts.FirmwareDistributionCampaign{},
+	}
+}
+
 func fleetStreamStats(orgID string, devices []contracts.Device, days int, window string) contracts.FleetStreamStats {
 	byMode := map[string]contracts.FleetStreamStatsMode{
 		streamModeWebRTC: {Requests: 0, SuccessRatePct: 0},
@@ -1589,13 +1612,13 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
 				if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), device.OrganizationID, device); err != nil {
-					s.writeCustomerErrorForSession(w, session.ID, err)
+					writeJSON(w, unavailableTelemetryForDevice(device, "unavailable", "Video Cloud telemetry is unavailable."))
 					return
 				} else if ok {
 					writeJSON(w, telemetry)
 					return
 				}
-				writeJSON(w, demoTelemetryForDevice(device))
+				writeJSON(w, unavailableTelemetryForDevice(device, "not_configured", "Video Cloud telemetry source is not configured."))
 				return
 			}
 		}
@@ -1630,13 +1653,13 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:       device.UpdatedAt,
 	}
 	if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), telemetryDevice.OrganizationID, telemetryDevice); err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		writeJSON(w, unavailableTelemetryForDevice(telemetryDevice, "unavailable", "Video Cloud telemetry is unavailable."))
 		return
 	} else if ok {
 		writeJSON(w, telemetry)
 		return
 	}
-	writeJSON(w, demoTelemetryForDevice(telemetryDevice))
+	writeJSON(w, unavailableTelemetryForDevice(telemetryDevice, "not_configured", "Video Cloud telemetry source is not configured."))
 }
 
 func (s *Server) proxyTelemetryForDevice(ctx context.Context, orgID string, device contracts.Device) (contracts.DeviceTelemetry, bool, error) {
@@ -1662,18 +1685,40 @@ func telemetryFromVideoCloud(device contracts.Device, firmwareVersion string, up
 		firmwareVersion = "unknown"
 	}
 	return contracts.DeviceTelemetry{
-		DeviceID:        device.ID,
-		DeviceName:      fallback(strings.TrimSpace(upstream.DeviceName), device.Name),
-		Organization:    device.Organization,
-		SerialNumber:    device.SerialNumber,
-		Model:           device.Model,
-		LastSeenAt:      fallback(device.LastSeenAt, telemetryLastSeenAt(upstream)),
-		Health:          health,
-		Signals:         signals,
-		FirmwareVersion: strings.TrimSpace(firmwareVersion),
-		RSSI7D:          telemetryRSSI7D(upstream.RSSIHistory),
-		Uptime7D:        telemetryUptime7D(upstream.UptimeHistory),
-		RecentEvents:    telemetryRecentEvents(upstream.RecentEvents, 10),
+		DeviceID:           device.ID,
+		DeviceName:         fallback(strings.TrimSpace(upstream.DeviceName), device.Name),
+		Organization:       device.Organization,
+		SerialNumber:       device.SerialNumber,
+		Model:              device.Model,
+		LastSeenAt:         fallback(device.LastSeenAt, telemetryLastSeenAt(upstream)),
+		Health:             health,
+		Signals:            signals,
+		FirmwareVersion:    strings.TrimSpace(firmwareVersion),
+		TelemetryStatus:    "available",
+		ActiveStreamStatus: "unknown",
+		RSSI7D:             telemetryRSSI7D(upstream.RSSIHistory),
+		Uptime7D:           telemetryUptime7D(upstream.UptimeHistory),
+		RecentEvents:       telemetryRecentEvents(upstream.RecentEvents, 10),
+	}
+}
+
+func unavailableTelemetryForDevice(device contracts.Device, status string, reason string) contracts.DeviceTelemetry {
+	return contracts.DeviceTelemetry{
+		DeviceID:           device.ID,
+		DeviceName:         device.Name,
+		Organization:       device.Organization,
+		SerialNumber:       device.SerialNumber,
+		Model:              device.Model,
+		LastSeenAt:         device.LastSeenAt,
+		Health:             firstNonEmpty(device.Health, deviceHealthFromFacts(device), "unknown"),
+		Signals:            []string{},
+		FirmwareVersion:    firmwareVersionFromDevice(device),
+		TelemetryStatus:    status,
+		ActiveStreamStatus: "unavailable",
+		UnavailableReason:  reason,
+		RSSI7D:             []contracts.TelemetryRssiSample{},
+		Uptime7D:           []contracts.TelemetryUptimeSample{},
+		RecentEvents:       []contracts.TelemetryEvent{},
 	}
 }
 
@@ -2108,6 +2153,83 @@ func devicesWithFirmwareVersion(devices []contracts.Device) []contracts.Device {
 		out[i] = deviceWithFirmwareVersion(device)
 	}
 	return out
+}
+
+func customerSafeDevice(device contracts.Device) contracts.CustomerDevice {
+	facts := make([]contracts.CustomerSourceFact, 0, len(device.SourceFacts))
+	for _, fact := range device.SourceFacts {
+		facts = append(facts, contracts.CustomerSourceFact{
+			Layer:     customerSafeFactLayer(fact.Layer),
+			State:     customerSafeFactState(fact.State),
+			Detail:    customerSafeFactDetail(fact.Detail),
+			Retryable: fact.Retryable,
+			ErrorCode: fact.ErrorCode,
+			UpdatedAt: fact.UpdatedAt,
+		})
+	}
+	return contracts.CustomerDevice{
+		ID:              device.ID,
+		OrganizationID:  device.OrganizationID,
+		Organization:    device.Organization,
+		Name:            device.Name,
+		Category:        device.Category,
+		Model:           device.Model,
+		SerialNumber:    device.SerialNumber,
+		FirmwareVersion: device.FirmwareVersion,
+		Health:          device.Health,
+		SignalQuality:   device.SignalQuality,
+		Status:          device.Status,
+		Readiness:       device.Readiness,
+		SourceFacts:     facts,
+		LastSeenAt:      device.LastSeenAt,
+		UpdatedAt:       device.UpdatedAt,
+	}
+}
+
+func customerSafeDevices(devices []contracts.Device) []contracts.CustomerDevice {
+	out := make([]contracts.CustomerDevice, len(devices))
+	for i, device := range devices {
+		out[i] = customerSafeDevice(device)
+	}
+	return out
+}
+
+func customerSafeFactLayer(layer string) string {
+	switch strings.ToLower(strings.TrimSpace(layer)) {
+	case "account_manager", "account":
+		return "Registry"
+	case "video_cloud", "video":
+		return "Streaming"
+	case "operation", "operations":
+		return "Lifecycle"
+	default:
+		return customerSafeTitle(strings.ReplaceAll(strings.TrimSpace(layer), "_", " "))
+	}
+}
+
+func customerSafeFactState(state string) string {
+	if strings.EqualFold(strings.TrimSpace(state), string(contracts.OperationDeadLettered)) {
+		return "failed"
+	}
+	return strings.TrimSpace(state)
+}
+
+func customerSafeFactDetail(detail string) string {
+	text := strings.TrimSpace(detail)
+	text = operationIDPattern.ReplaceAllString(text, "operation")
+	text = strings.ReplaceAll(text, "dead_lettered", "failed")
+	return text
+}
+
+func customerSafeTitle(value string) string {
+	words := strings.Fields(strings.TrimSpace(value))
+	for i, word := range words {
+		if word == "" {
+			continue
+		}
+		words[i] = strings.ToUpper(word[:1]) + strings.ToLower(word[1:])
+	}
+	return strings.Join(words, " ")
 }
 
 func deviceHealthFromFacts(device contracts.Device) string {
@@ -2695,6 +2817,25 @@ func organizationAllowed(orgs []accountclient.Organization, orgID string) bool {
 	return false
 }
 
+func organizationRole(orgs []accountclient.Organization, orgID string) (string, bool) {
+	for _, org := range orgs {
+		if org.ID == orgID {
+			return org.Role, true
+		}
+	}
+	return "", false
+}
+
+func isReadOnlyCustomerRole(role string) bool {
+	normalized := strings.NewReplacer("-", "_", " ", "_").Replace(strings.ToLower(strings.TrimSpace(role)))
+	switch normalized {
+	case "observer", "viewer", "read_only", "readonly", "read_only_observer":
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Server) demoMemberships() ([]contracts.Membership, error) {
 	customers, err := s.store.ListCustomers()
 	if err != nil {
@@ -2900,6 +3041,10 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	}
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+	}
+	if role, ok := organizationRole(orgs, session.ActiveOrgID); ok && isReadOnlyCustomerRole(role) {
+		http.Error(w, "read-only customer role cannot perform lifecycle actions", http.StatusForbidden)
+		return true
 	}
 	if !organizationAllowed(orgs, session.ActiveOrgID) {
 		http.Error(w, "active organization is not part of the current customer memberships", http.StatusForbidden)

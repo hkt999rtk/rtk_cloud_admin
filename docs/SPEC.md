@@ -125,7 +125,16 @@ Public and shared routes:
 - `GET /assets/...`: built frontend assets.
 - `GET /*`: React SPA fallback.
 
-The v0.1 implementation may run without configured upstream services. In that mode, API responses use SQLite seed data and clearly show local demo status in service health. When `ACCOUNT_MANAGER_BASE_URL` is configured and a customer session exists, `/api/customers`, `/api/devices`, and lifecycle actions use Account Manager proxy mode and preserve the frontend DTO shape. When `VIDEO_CLOUD_BASE_URL` and `VIDEO_CLOUD_ADMIN_TOKEN` are configured, firmware, telemetry, stream, and readiness enrichment paths use Video Cloud proxy mode; failures return gateway errors instead of silently falling back.
+The v0.1 implementation may run without configured upstream services for local
+development only. Production/server validation must use configured upstream
+services and authenticated customer sessions; SQLite seed data, generated
+sample values, and demo-derived trends are not acceptable validation sources.
+When `ACCOUNT_MANAGER_BASE_URL` is configured and a customer session exists,
+`/api/customers`, `/api/devices`, and lifecycle actions use Account Manager
+proxy mode and preserve the frontend DTO shape. When `VIDEO_CLOUD_BASE_URL` and
+`VIDEO_CLOUD_ADMIN_TOKEN` are configured, firmware, telemetry, stream, and
+readiness enrichment paths use Video Cloud proxy mode; failures return gateway
+errors instead of silently falling back.
 
 ## Authentication And Sessions
 
@@ -136,7 +145,8 @@ Customer sessions:
 - plaintext passwords are never stored
 - `/api/me` returns user, memberships, active organization, and auth state
 - active organization can be switched with `/api/me/active-org`
-- demo mode remains available when Account Manager is not configured
+- demo mode remains available only for local development when Account Manager is
+  not configured
 
 Platform admin sessions:
 
@@ -158,7 +168,8 @@ Account Manager proxy mode:
 
 Service health:
 
-- unset URLs report `demo`
+- unset URLs report `demo` for local development; production/server validation
+  should configure upstream URLs
 - configured URLs are checked with a timeout
 - responses include status, latency, and last checked timestamp
 
