@@ -4,6 +4,7 @@ import { customerNavItems, devicesPathWithFilters, platformNavItems, routeFromLo
 import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
 import { shouldShowBreakGlass } from './auth-state.mjs';
 import { deviceActionState, isReadOnlyRole } from './device-actions.mjs';
+import { firmwareCampaignDetailRows, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
 import { sourceAvailable, sourceMessage } from './source-state.mjs';
 import './styles.css';
 
@@ -240,7 +241,7 @@ function App() {
   function openDevicesForFirmware(version) {
     setSelectedDeviceId('');
     setDeviceDrawerOpen(false);
-    updateDevicesLocation({ deviceId: '', health: '', firmware: version });
+    updateDevicesLocation({ deviceId: '', health: '', firmware: firmwareVersionFilterValue(version) });
     setActive('devices');
   }
 
@@ -862,6 +863,7 @@ function Overview({
 function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
   const versions = distribution?.versions || [];
   const campaigns = distribution?.campaigns || [];
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const available = sourceAvailable(distribution);
   const unavailableText = sourceMessage(distribution, 'Firmware observation source is not configured.');
   const totalDevices = versions.reduce((sum, version) => sum + (version.count || 0), 0);
@@ -870,6 +872,7 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
   const latestVersion = latestVersionRow?.version || '—';
   const currentDevices = latestVersionRow?.count || 0;
   const primaryCampaign = campaigns[0] || null;
+  const selectedCampaign = campaigns.find((campaign) => campaign.campaign_id === selectedCampaignId) || null;
   const pendingUpdate = primaryCampaign?.pending ?? Math.max(totalDevices - currentDevices, 0);
   const failedRollout = primaryCampaign?.failed ?? 0;
 
@@ -955,7 +958,12 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
                 </div>
                 {campaigns.map((campaign) => {
                   return (
-                    <div key={campaign.campaign_id} className="campaign-table-row">
+                    <button
+                      key={campaign.campaign_id}
+                      type="button"
+                      className={`campaign-table-row${selectedCampaign?.campaign_id === campaign.campaign_id ? ' is-selected' : ''}`}
+                      onClick={() => setSelectedCampaignId(campaign.campaign_id)}
+                    >
                       <strong>{campaign.campaign_id}</strong>
                       <span>{campaign.target_version}</span>
                       <span>{campaign.policy || 'normal'}</span>
@@ -964,7 +972,7 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
                       <span>{campaign.pending} ({formatPercent(campaign.total ? campaign.pending / campaign.total * 100 : 0)})</span>
                       <span>{campaign.failed} ({formatPercent(campaign.total ? campaign.failed / campaign.total * 100 : 0)})</span>
                       <time>{campaign.started_at ? formatRelativeTime(campaign.started_at) : '—'}</time>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -973,6 +981,7 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
             )}
           </section>
 
+          <FirmwareCampaignDetail campaign={selectedCampaign} />
           <FirmwareRiskQueue campaigns={campaigns} onViewDevices={onViewDevices} />
         </div>
         </>
@@ -980,6 +989,44 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
         <p className="empty-state">No firmware distribution data available.</p>
       ) : (
         <p className="empty-state">{unavailableText}</p>
+      )}
+    </section>
+  );
+}
+
+function FirmwareCampaignDetail({ campaign }) {
+  const rows = firmwareCampaignDetailRows(campaign || {});
+  return (
+    <section className="panel firmware-panel firmware-campaign-detail">
+      <div className="panel-head">
+        <div>
+          <h3>Campaign Detail</h3>
+          <p>{campaign ? `${campaign.campaign_id} device rollout status` : 'Select a rollout campaign to inspect device-level status.'}</p>
+        </div>
+      </div>
+      {campaign && rows.length ? (
+        <div className="firmware-rollout-table">
+          <div className="firmware-rollout-table__head">
+            <span>Device</span>
+            <span>Current Version</span>
+            <span>Target Version</span>
+            <span>Rollout Status</span>
+            <span>Reason</span>
+            <span>Last Updated</span>
+          </div>
+          {rows.map((rollout) => (
+            <div className="firmware-rollout-table__row" key={`${campaign.campaign_id}:${rollout.device_id}`}>
+              <strong>{rollout.device_name || rollout.device_id}</strong>
+              <span>{rollout.current_version}</span>
+              <span>{rollout.target_version || campaign.target_version || '—'}</span>
+              <StatusBadge value={normalizeStatusKey(rollout.rollout_status)} label={toTitleCase(rollout.rollout_status || 'pending')} />
+              <span>{rollout.reason || '—'}</span>
+              <time>{rollout.last_updated ? formatRelativeTime(rollout.last_updated) : '—'}</time>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="empty-state">{campaign ? 'No device rollout rows are available for this campaign.' : 'No campaign selected.'}</p>
       )}
     </section>
   );
@@ -1042,10 +1089,7 @@ function FirmwareCampaignSummary({ campaign }) {
 }
 
 function FirmwareRiskQueue({ campaigns, onViewDevices }) {
-  const rows = campaigns
-    .flatMap((campaign) => (campaign.rollouts || []).map((rollout) => ({ ...rollout, campaign })))
-    .filter((rollout) => !['applied', 'skipped'].includes(String(rollout.rollout_status || '').toLowerCase()))
-    .slice(0, 6);
+  const rows = firmwareRiskRows(campaigns, 6);
   return (
     <section className="panel firmware-panel firmware-risk-queue">
       <div className="panel-head">
@@ -1068,10 +1112,10 @@ function FirmwareRiskQueue({ campaigns, onViewDevices }) {
               type="button"
               className="risk-table-row"
               key={`${rollout.campaign.campaign_id}:${rollout.device_id}`}
-              onClick={() => onViewDevices(rollout.current_version)}
+              onClick={() => onViewDevices(firmwareVersionFilterValue(rollout.current_version))}
             >
               <strong>{rollout.device_name || rollout.device_id}</strong>
-              <span>{rollout.current_version || 'Unknown'}</span>
+              <span>{rollout.current_version}</span>
               <StatusBadge value={normalizeStatusKey(rollout.rollout_status)} label={toTitleCase(rollout.rollout_status || 'pending')} />
               <time>{rollout.last_updated ? formatRelativeTime(rollout.last_updated) : '—'}</time>
             </button>
@@ -1850,7 +1894,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
   const processedDevices = useMemo(() => {
     const withDeviceSignals = devices.map((device) => ({
       ...device,
-      firmware_version_display: device.firmware_version || '—',
+      firmware_version_display: firmwareVersionFilterValue(device.firmware_version),
       health_display: formatHealthLabel(device.health),
       signal_display: device.signal_quality || '—',
       readiness_display: formatReadinessLabel(device.readiness),

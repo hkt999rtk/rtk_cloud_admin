@@ -1008,6 +1008,18 @@ p {
   padding: 10px;
 }
 
+.campaign-table-row {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.campaign-table-row:hover,
+.campaign-table-row.is-selected {
+  border-color: rgba(0, 104, 183, 0.32);
+  box-shadow: 0 16px 30px rgba(3, 83, 144, 0.08);
+}
+
 .campaign-table-row strong,
 .risk-table-row strong {
   color: var(--brand);
