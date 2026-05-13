@@ -1,8 +1,11 @@
 .DS_Store
 .superpowers/
+.claude/
 .artifacts/
 bin/
 data/
+keys/
+server
 web/dist/
 web/node_modules/
 *.db
