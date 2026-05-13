@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { customerNavItems, devicesPathWithFilters, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
 import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
 import { shouldShowBreakGlass } from './auth-state.mjs';
+import { sourceAvailable, sourceMessage } from './source-state.mjs';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -2795,17 +2796,6 @@ function sessionLabel(me) {
   if (me.kind === 'platform_admin') return 'Platform Admin · All tenants';
   const membership = getActiveMembership(me);
   return `${roleLabel(membership?.role)} · ${membership?.organization || me.active_org_id || 'Active organization'}`;
-}
-
-function sourceAvailable(source) {
-  return source?.source_status === 'available';
-}
-
-function sourceMessage(source, fallback) {
-  if (!source) return fallback;
-  if (source.source_status === 'not_configured') return source.source_message || fallback;
-  if (source.source_status === 'no_data') return source.source_message || 'No data in selected window.';
-  return source.source_message || fallback;
 }
 
 function roleLabel(role) {

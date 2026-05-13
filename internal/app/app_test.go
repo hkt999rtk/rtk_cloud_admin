@@ -2256,11 +2256,21 @@ func TestFleetStreamStatsProxyFailureDoesNotFallback(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats", nil)
 	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	srv.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadGateway {
-		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusBadGateway, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "Video Cloud request failed") {
-		t.Fatalf("stream stats body = %s", rec.Body.String())
+	var payload contracts.FleetStreamStats
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode stream stats payload: %v", err)
+	}
+	if payload.SourceStatus != "unavailable" {
+		t.Fatalf("source_status = %q, want unavailable", payload.SourceStatus)
+	}
+	if payload.SourceMessage == "" {
+		t.Fatalf("source_message is empty")
+	}
+	if len(payload.Trend) != 0 || len(payload.WorstDevices) != 0 {
+		t.Fatalf("unavailable stream source should not include partial data: %+v", payload)
 	}
 }
 
@@ -2301,11 +2311,18 @@ func TestFleetStreamStatsProxyTimeoutReturnsGatewayTimeout(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats", nil)
 	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	srv.ServeHTTP(rec, req)
-	if rec.Code != http.StatusGatewayTimeout {
-		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusGatewayTimeout, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "Video Cloud request timed out") {
-		t.Fatalf("stream stats body = %s", rec.Body.String())
+	var payload contracts.FleetStreamStats
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode stream stats payload: %v", err)
+	}
+	if payload.SourceStatus != "unavailable" {
+		t.Fatalf("source_status = %q, want unavailable", payload.SourceStatus)
+	}
+	if payload.SourceMessage == "" {
+		t.Fatalf("source_message is empty")
 	}
 }
 
@@ -2699,6 +2716,61 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 	}
 	if campaign.Applied != 1 || campaign.Pending != 1 || campaign.Total != 2 {
 		t.Fatalf("campaign summary = %+v, want applied=1 pending=1 total=2", campaign)
+	}
+}
+
+func TestFleetFirmwareDistributionProxyFailureReturnsSourceStatus(t *testing.T) {
+	t.Parallel()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/get_camera_info":
+			http.Error(w, "firmware backend unavailable", http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:      config.Config{VideoCloudBaseURL: videoUpstream.URL, VideoCloudAdminToken: "vc-secret"},
+		VideoClient: videoclient.New(videoUpstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/firmware-distribution", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("firmware distribution status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var payload contracts.FirmwareDistribution
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode firmware distribution payload: %v", err)
+	}
+	if payload.SourceStatus != "unavailable" {
+		t.Fatalf("source_status = %q, want unavailable", payload.SourceStatus)
+	}
+	if payload.SourceMessage == "" {
+		t.Fatalf("source_message is empty")
+	}
+	if len(payload.Versions) != 0 || len(payload.Campaigns) != 0 {
+		t.Fatalf("unavailable firmware source should not include partial data: %+v", payload)
 	}
 }
 
