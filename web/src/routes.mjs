@@ -56,10 +56,12 @@ export function routeFromLocation() {
   return routeFromPath(window.location.pathname);
 }
 
-export function devicesPathWithFilters({ deviceId = '', health = '', firmware = '' } = {}) {
+export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '' } = {}) {
   const params = new URLSearchParams();
   if (deviceId) params.set('device', deviceId);
   if (health) params.set('health', health);
+  if (status) params.set('status', status);
+  if (signal) params.set('signal', signal);
   if (firmware) params.set('firmware', firmware);
   const query = params.toString();
   return query ? `/console/devices?${query}` : '/console/devices';
