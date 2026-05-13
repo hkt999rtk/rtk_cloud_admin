@@ -29,7 +29,8 @@ Implemented in this first version:
 - audit log for local lifecycle actions
 - service health summary
 - customer login/session endpoint backed by Account Manager when configured
-- local platform admin login/session endpoint backed by SQLite
+- legacy local platform admin login/session endpoint backed by SQLite for controlled break-glass access
+- SSO/OIDC architecture documented for the next authentication milestone
 - Account Manager proxy mode for organizations, devices, provision, and deactivate
 - explicit SQLite schema migrations tracked in `schema_migrations`
 - URL routes for `/console`, `/console/customers`, `/console/devices`,
@@ -41,6 +42,13 @@ Implemented in this first version:
 When `ACCOUNT_MANAGER_BASE_URL` is unset, the app runs from SQLite demo/cache
 data. When it is set and a customer signs in, customer, device, and lifecycle
 actions proxy through Account Manager while preserving the current frontend DTOs.
+
+The planned production authentication direction is SSO-only daily login for both
+Customer users and Platform Admins, with Account Manager acting as the OIDC
+identity broker and authorization source. See
+[`docs/sso-oidc-design.md`](docs/sso-oidc-design.md). Existing password login
+paths are legacy compatibility or controlled break-glass surfaces, not the
+long-term production target.
 
 ## Requirements
 
@@ -91,6 +99,8 @@ Backend coverage:
 go test ./... -coverprofile=coverage.out
 go tool cover -func=coverage.out
 ```
+
+CI enforces Go total coverage >= 80%.
 
 Backend build:
 
@@ -148,13 +158,18 @@ Environment variables:
 - `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token
-- `ADMIN_BOOTSTRAP_EMAIL`: optional local platform admin email
-- `ADMIN_BOOTSTRAP_PASSWORD`: optional local platform admin password
+- `ADMIN_BOOTSTRAP_EMAIL`: optional local platform admin break-glass email
+- `ADMIN_BOOTSTRAP_PASSWORD`: optional local platform admin break-glass password
+- `ADMIN_BREAK_GLASS_ENABLED`: set to `true` to enable local Platform Admin break-glass login; default `false`
+- `LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED`: set to `true` to enable legacy customer password login; default `false`
 
 If both admin bootstrap variables are set, startup creates the first local
-platform admin if it does not already exist. Passwords are stored as bcrypt
-hashes. Session rows store metadata and upstream bearer/refresh tokens, never
-plaintext credentials.
+platform admin break-glass account if it does not already exist. Passwords are
+stored as bcrypt hashes. Session rows store metadata and upstream
+bearer/refresh tokens, never plaintext credentials.
+Break-glass login is rejected unless `ADMIN_BREAK_GLASS_ENABLED=true`, and
+customer password login is rejected unless
+`LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED=true`.
 
 SQLite schema changes are applied through versioned migrations. Existing local
 databases are upgraded in place and applied versions are stored in
@@ -181,6 +196,7 @@ docker run --rm -p 18081:8080 \
   -e VIDEO_CLOUD_ADMIN_TOKEN="replace-me" \
   -e ADMIN_BOOTSTRAP_EMAIL="admin@example.com" \
   -e ADMIN_BOOTSTRAP_PASSWORD="change-me" \
+  -e ADMIN_BREAK_GLASS_ENABLED="true" \
   rtk-cloud-admin
 ```
 

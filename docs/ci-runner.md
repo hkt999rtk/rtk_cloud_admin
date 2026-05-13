@@ -46,7 +46,8 @@ If the runner gets stuck or disk usage climbs too high:
    - `curl http://127.0.0.1:18080/healthz`
    - `curl http://127.0.0.1:18080/api/service-health`
    - `curl -X POST http://127.0.0.1:18080/api/auth/platform/login` after
-     setting `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD`
+     setting `ADMIN_BOOTSTRAP_EMAIL`, `ADMIN_BOOTSTRAP_PASSWORD`, and
+     `ADMIN_BREAK_GLASS_ENABLED=true`
    - `curl http://127.0.0.1:18080/api/me` after replaying the login cookie
    - `curl http://127.0.0.1:18080/api/summary`
    - `curl http://127.0.0.1:18080/console`

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { routeFromPath, titleFor } from './routes.mjs';
+import { customerNavItems, devicesPathWithFilters, routeFromPath, titleFor } from './routes.mjs';
 
 test('maps platform shell paths to platform routes', () => {
   assert.equal(routeFromPath('/admin'), 'platform-health');
+  assert.equal(routeFromPath('/admin/sso'), 'platform-sso');
   assert.equal(routeFromPath('/admin/ops'), 'platform-operations');
   assert.equal(routeFromPath('/admin/operations'), 'platform-operations');
   assert.equal(routeFromPath('/admin/audit'), 'platform-audit');
@@ -28,6 +29,22 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/groups'), 'overview');
 });
 
+test('customer nav follows the approved Customer View design order', () => {
+  assert.deepEqual(
+    customerNavItems.map((item) => item.label),
+    ['Overview', 'Devices', 'Firmware & OTA', 'Stream Health'],
+  );
+});
+
+test('builds devices URLs with supported filters only', () => {
+  assert.equal(devicesPathWithFilters(), '/console/devices');
+  assert.equal(devicesPathWithFilters({ deviceId: 'dev-001' }), '/console/devices?device=dev-001');
+  assert.equal(
+    devicesPathWithFilters({ health: 'warning', firmware: 'v1.2.4', ignored: 'x' }),
+    '/console/devices?health=warning&firmware=v1.2.4',
+  );
+});
+
 test('uses fleet health overview title for the customer landing page', () => {
   assert.equal(titleFor('overview'), 'Fleet Health Overview');
 });
@@ -48,6 +65,7 @@ test('provides titles for all public shell routes', () => {
     'firmware-ota',
     'stream-health',
     'platform-health',
+    'platform-sso',
     'platform-operations',
     'platform-audit',
   ]) {

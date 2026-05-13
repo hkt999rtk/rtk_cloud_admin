@@ -86,6 +86,65 @@ func TestDisabledClient(t *testing.T) {
 	if _, err := client.DeviceTelemetry(t.Context(), "tok", "d1", "org-1"); err == nil {
 		t.Fatal("expected disabled DeviceTelemetry error")
 	}
+	if _, err := client.FleetStreamStats(t.Context(), "tok", "org-1", "7d", []string{"d1"}); err == nil {
+		t.Fatal("expected disabled FleetStreamStats error")
+	}
+}
+
+func TestFleetStreamStats(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/fleet/stream-stats" {
+			t.Fatalf("path = %q, want /api/fleet/stream-stats", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer secret" {
+			t.Fatalf("Authorization = %q, want Bearer secret", got)
+		}
+		q := r.URL.Query()
+		if got := q.Get("org_id"); got != "org-1" {
+			t.Fatalf("org_id query = %q, want org-1", got)
+		}
+		if got := q.Get("window"); got != "30d" {
+			t.Fatalf("window query = %q, want 30d", got)
+		}
+		if got := q.Get("devices"); got != "dev-a,dev-b" {
+			t.Fatalf("devices query = %q, want dev-a,dev-b", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"org_id":               "org-1",
+			"window":               "30d",
+			"success_rate_pct":     91.5,
+			"avg_duration_seconds": 42.25,
+			"active_sessions":      3,
+			"never_streamed_count": 1,
+			"by_mode": map[string]any{
+				"webrtc": map[string]any{"requests": 12, "success_rate_pct": 91.5},
+			},
+			"trend": []map[string]any{
+				{"date": "2026-05-11", "requests": 12, "success_rate_pct": 91.5},
+			},
+			"trend_by_mode": []map[string]any{
+				{"mode": "webrtc", "points": []map[string]any{{"date": "2026-05-11", "requests": 12, "success_rate_pct": 91.5}}},
+			},
+			"worst_devices": []map[string]any{
+				{"device_id": "dev-a", "device_name": "Lobby", "mode_used": "webrtc", "readiness": "online", "success_rate_pct": 80, "requests": 5, "last_stream_at": "2026-05-11T00:00:00Z"},
+			},
+		})
+	}))
+	defer upstream.Close()
+
+	stats, err := New(upstream.URL).FleetStreamStats(t.Context(), "secret", "org-1", "30d", []string{"dev-a", "dev-b"})
+	if err != nil {
+		t.Fatalf("FleetStreamStats returned error: %v", err)
+	}
+	if stats.OrgID != "org-1" || stats.Window != "30d" || stats.SuccessRatePct != 91.5 || stats.ActiveSessions != 3 {
+		t.Fatalf("stats = %#v", stats)
+	}
+	if stats.ByMode["webrtc"].Requests != 12 {
+		t.Fatalf("by_mode = %#v", stats.ByMode)
+	}
 }
 
 func TestQueryActivation(t *testing.T) {
@@ -509,5 +568,91 @@ func TestGetCameraInfoUpstreamError(t *testing.T) {
 
 	if _, err := New(upstream.URL).GetCameraInfo(t.Context(), "tok", "cam-1"); err == nil {
 		t.Fatal("expected error on 4xx response")
+	}
+}
+
+func TestJSONHelpersHandleEmptyInvalidAndErrorResponses(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/enum_firmware":
+			w.WriteHeader(http.StatusNoContent)
+		case "/query_firmware_rollout":
+			_, _ = w.Write([]byte(`{`))
+		case "/query_firmware_campaign":
+			http.Error(w, "forbidden", http.StatusForbidden)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	enum, err := client.EnumFirmware(t.Context(), "tok", "cam-a")
+	if err != nil {
+		t.Fatalf("EnumFirmware empty response returned error: %v", err)
+	}
+	if enum.Status != "" || len(enum.Versions) != 0 {
+		t.Fatalf("enum = %#v, want zero response", enum)
+	}
+	if _, err := client.QueryFirmwareRollout(t.Context(), "tok", "cam-a", "campaign-1"); err == nil {
+		t.Fatal("expected invalid JSON error")
+	}
+	if _, err := client.QueryFirmwareCampaigns(t.Context(), "tok", "cam-a", true); err == nil {
+		t.Fatal("expected status error")
+	}
+}
+
+func TestQueryFirmwareCampaignsAcceptsSingleCampaignAndIncludeArchived(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/query_firmware_campaign" {
+			http.NotFound(w, r)
+			return
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if body["include_archived"] != true {
+			t.Fatalf("include_archived = %#v, want true", body["include_archived"])
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status": "ok",
+			"campaign": map[string]any{
+				"id":             "campaign-1",
+				"model":          "cam-a",
+				"target_version": "v1.2.4",
+				"state":          "scheduled",
+			},
+		})
+	}))
+	defer upstream.Close()
+
+	campaigns, err := New(upstream.URL).QueryFirmwareCampaigns(t.Context(), "tok", "cam-a", true)
+	if err != nil {
+		t.Fatalf("QueryFirmwareCampaigns returned error: %v", err)
+	}
+	if len(campaigns) != 1 || campaigns[0].ID != "campaign-1" || campaigns[0].State != "scheduled" {
+		t.Fatalf("campaigns = %#v", campaigns)
+	}
+}
+
+func TestDeviceTelemetryRejectsInvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/devices/dev-1/telemetry" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{`))
+	}))
+	defer upstream.Close()
+
+	if _, err := New(upstream.URL).DeviceTelemetry(t.Context(), "tok", "dev-1", ""); err == nil {
+		t.Fatal("expected invalid JSON telemetry error")
 	}
 }

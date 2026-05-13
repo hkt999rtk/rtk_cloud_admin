@@ -16,6 +16,12 @@ The console follows the contracts in `rtk_cloud_contracts_doc`:
 - Frontend color, typography, status labels, and layout tone follow `rtk_cloud_contracts_doc/FRONTEND_STYLE.md`.
 - This repository provides a frontend/BFF surface. It must not redefine the source-of-truth ownership from the contracts.
 
+In short, `rtk_account_manager` is the authoritative backend control plane for
+identity, tenant context, authorization, entitlement, device registry, and
+provisioning intent. `rtk_cloud_admin` is the enterprise/admin dashboard and
+BFF; it may proxy or aggregate upstream facts but must not become the canonical
+account, organization, device, quota, or provisioning store.
+
 ## MVP Scope
 
 Included in v0.1:
@@ -101,6 +107,9 @@ Data ownership:
 - SQLite is authoritative only for console-local data: platform admins, sessions, audit, settings, preferences, and demo projections.
 - SQLite cache tables for upstream organizations, devices, operations, and readiness facts are non-authoritative mirrors that can be refreshed from Account Manager and Video Cloud.
 - Account Manager remains authoritative for customer users, organizations, membership, and registry devices.
+- Account Manager is also the planned identity broker and authorization source
+  for standards-based SSO; see
+  [`docs/sso-oidc-design.md`](sso-oidc-design.md).
 - Video Cloud remains authoritative for activation, transport, streaming, media, firmware, and device runtime facts.
 
 ## HTTP Interface
@@ -108,8 +117,8 @@ Data ownership:
 Public and shared routes:
 
 - `GET /healthz`: plain health check.
-- `POST /api/auth/customer/login`: customer login through Account Manager when configured.
-- `POST /api/auth/platform/login`: local SQLite platform admin login.
+- `POST /api/auth/customer/login`: legacy customer password login through Account Manager when configured.
+- `POST /api/auth/platform/login`: legacy local SQLite platform admin login for controlled break-glass access.
 - `POST /api/auth/logout`: deletes local session metadata.
 - `GET /api/me`: current user, memberships, active organization, and demo/auth state.
 - `POST /api/me/active-org`: switches active organization for the current session.
@@ -138,9 +147,18 @@ errors instead of silently falling back.
 
 ## Authentication And Sessions
 
+Long-term production authentication is SSO-first. The planned SSO architecture
+uses Account Manager as the OIDC identity broker and role authorization source
+for both Customer users and Platform Admins. Admin Console remains the BFF and
+session owner, creating the existing `rtk_admin_session` cookie after Account
+Manager completes SSO. The design is documented in
+[`docs/sso-oidc-design.md`](sso-oidc-design.md).
+
 Customer sessions:
 
-- customer credentials are posted only to Account Manager login
+- customer password login is legacy and disabled by default; daily production
+  login should use Account Manager-backed SSO
+- while legacy login is enabled, customer credentials are posted only to Account Manager login
 - the BFF stores session metadata plus upstream access/refresh tokens
 - plaintext passwords are never stored
 - `/api/me` returns user, memberships, active organization, and auth state
@@ -150,8 +168,10 @@ Customer sessions:
 
 Platform admin sessions:
 
-- local platform admin users are stored in SQLite
-- `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` create the first admin on startup
+- Platform Admin daily login should use Account Manager-backed SSO
+- local platform admin users are stored in SQLite only for controlled break-glass access
+- break-glass login is disabled by default and must be explicitly enabled by deployment configuration
+- `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` create the first break-glass admin on startup
 - passwords are bcrypt hashed
 - platform-only API routes require a `platform_admin` session
 
@@ -221,8 +241,10 @@ Environment variables:
 - `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL.
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL.
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token.
-- `ADMIN_BOOTSTRAP_EMAIL`: optional first local platform admin email.
-- `ADMIN_BOOTSTRAP_PASSWORD`: optional first local platform admin password for development.
+- `ADMIN_BOOTSTRAP_EMAIL`: optional first local platform admin break-glass email.
+- `ADMIN_BOOTSTRAP_PASSWORD`: optional first local platform admin break-glass password for development.
+- `ADMIN_BREAK_GLASS_ENABLED`: enables local Platform Admin break-glass login when set to `true`; default `false`.
+- `LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED`: enables legacy customer password login when set to `true`; default `false`.
 
 ## Test Plan
 

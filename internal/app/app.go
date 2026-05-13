@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -87,6 +88,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
 	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
 	s.mux.HandleFunc("POST /api/auth/customer/resend-verification", s.apiCustomerResendVerification)
+	s.mux.HandleFunc("POST /api/auth/sso/start", s.apiSSOStart)
+	s.mux.HandleFunc("GET /api/auth/sso/callback", s.apiSSOCallback)
 	s.mux.HandleFunc("POST /api/auth/platform/login", s.apiPlatformLogin)
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
 	s.mux.HandleFunc("POST /api/orgs/{orgId}/quota-raise-requests", s.apiQuotaRaiseRequest)
@@ -94,6 +97,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
 	s.mux.HandleFunc("GET /api/admin/devices", s.apiAdminDevices)
+	s.mux.HandleFunc("GET /api/admin/sso/providers", s.apiAdminSSOProviders)
+	s.mux.HandleFunc("GET /api/admin/orgs/{orgId}/sso-provider", s.apiAdminSSOProvider)
+	s.mux.HandleFunc("PUT /api/admin/orgs/{orgId}/sso-provider", s.apiAdminSSOProvider)
 	s.mux.HandleFunc("GET /api/devices/{id}", s.apiDevice)
 	s.mux.HandleFunc("GET /api/devices/{id}/telemetry", s.apiDeviceTelemetry)
 	s.mux.HandleFunc("GET /api/fleet/health-summary", s.apiFleetHealthSummary)
@@ -126,6 +132,7 @@ func (s *Server) routes() {
 		"/admin/ops",
 		"/admin/operations",
 		"/admin/audit",
+		"/admin/sso",
 	} {
 		s.mux.HandleFunc("GET "+path, s.shell)
 	}
@@ -216,7 +223,17 @@ func (s *Server) apiSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiAdminSummary(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+	session, ok := s.requirePlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	if s.usePlatformAdminUpstream(session) {
+		summary, err := s.platformAdminSummary(r.Context(), session)
+		if err != nil {
+			s.writeUpstreamReadError(w, err)
+			return
+		}
+		writeJSON(w, summary)
 		return
 	}
 	summary, err := s.store.Summary()
@@ -230,7 +247,7 @@ func (s *Server) apiAdminSummary(w http.ResponseWriter, r *http.Request) {
 func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.requestSession(r)
 	if !ok {
-		writeJSON(w, contracts.Me{
+		me := s.meAuthSettings(contracts.Me{
 			UserID:        "demo-user",
 			Email:         "demo@example.local",
 			Name:          "Demo User",
@@ -243,20 +260,21 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 				{OrganizationID: "org-nova", Organization: "Nova Home Labs", Role: "operator", Tier: "commercial"},
 			},
 		})
+		writeJSON(w, me)
 		return
 	}
 	if session.Kind == "platform_admin" {
-		writeJSON(w, contracts.Me{
+		writeJSON(w, s.meAuthSettings(contracts.Me{
 			UserID:        session.Subject,
 			Email:         session.Email,
 			Name:          session.Email,
 			Kind:          session.Kind,
 			Memberships:   []contracts.Membership{},
 			Authenticated: true,
-		})
+		}))
 		return
 	}
-	me := contracts.Me{
+	me := s.meAuthSettings(contracts.Me{
 		UserID:        session.Subject,
 		Email:         session.Email,
 		Name:          session.Email,
@@ -265,7 +283,7 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		ActiveOrgID:   session.ActiveOrgID,
 		DemoMode:      !s.accountClient.Enabled(),
 		Authenticated: true,
-	}
+	})
 	if s.accountClient.Enabled() {
 		upstream, tokens, err := s.resolveCustomerProfile(r.Context(), accountclient.Tokens{
 			AccessToken:  session.AccessToken,
@@ -299,6 +317,12 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, me)
+}
+
+func (s *Server) meAuthSettings(me contracts.Me) contracts.Me {
+	me.BreakGlassEnabled = s.cfg.AdminBreakGlassEnabled
+	me.LegacyCustomerPasswordLoginEnabled = s.cfg.LegacyCustomerPasswordLoginEnabled
+	return me
 }
 
 func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
@@ -416,6 +440,75 @@ func (s *Server) apiCustomerResendVerification(w http.ResponseWriter, r *http.Re
 	writeJSONStatus(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
+func (s *Server) apiSSOStart(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.SSOStartRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid SSO start request", http.StatusBadRequest)
+		return
+	}
+	body.Email = strings.TrimSpace(body.Email)
+	if body.Email == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.StartSSO(r.Context(), body)
+	if err != nil {
+		writeSSOError(w, err)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) apiSSOCallback(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	query := r.URL.Query()
+	code := strings.TrimSpace(query.Get("code"))
+	state := strings.TrimSpace(query.Get("state"))
+	if code == "" || state == "" {
+		http.Error(w, "code and state are required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.CompleteSSO(r.Context(), accountclient.SSOCallbackRequest{
+		Code:        code,
+		State:       state,
+		RedirectURI: strings.TrimSpace(query.Get("redirect_uri")),
+	})
+	if err != nil {
+		writeSSOError(w, err)
+		return
+	}
+	if result.Kind != "customer" && result.Kind != "platform_admin" {
+		http.Error(w, "unsupported SSO session kind", http.StatusBadGateway)
+		return
+	}
+	activeOrgID := result.ActiveOrgID
+	if result.Kind == "customer" && activeOrgID == "" && len(result.Organizations) > 0 {
+		activeOrgID = result.Organizations[0].ID
+	}
+	session, err := s.store.CreateSession(result.Kind, result.User.ID, result.User.Email, result.Tokens.AccessToken, result.Tokens.RefreshToken, activeOrgID, tokenTTL(result.Tokens))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if err := s.auditSSOSession(result.User.Email, result.Kind, activeOrgID, "accepted"); err != nil {
+		writeError(w, err)
+		return
+	}
+	setSessionCookie(w, session.ID)
+	if result.Kind == "platform_admin" {
+		http.Redirect(w, r, "/admin", http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/console", http.StatusFound)
+}
+
 func (s *Server) apiQuotaRaiseRequest(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.customerSession(r)
 	if !ok {
@@ -449,6 +542,10 @@ func (s *Server) apiQuotaRaiseRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
+	if !s.cfg.LegacyCustomerPasswordLoginEnabled {
+		http.Error(w, "customer password login is disabled; use SSO", http.StatusForbidden)
+		return
+	}
 	if !s.accountClient.Enabled() {
 		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
 		return
@@ -502,13 +599,24 @@ func (s *Server) apiPlatformLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid login request", http.StatusBadRequest)
 		return
 	}
+	body.Email = strings.TrimSpace(body.Email)
+	if !s.cfg.AdminBreakGlassEnabled {
+		_ = s.auditPlatformBreakGlassLogin(body.Email, "disabled")
+		http.Error(w, "platform break-glass login is disabled; use SSO", http.StatusForbidden)
+		return
+	}
 	admin, err := s.store.VerifyPlatformAdmin(body.Email, body.Password)
 	if err != nil {
+		_ = s.auditPlatformBreakGlassLogin(body.Email, "failed")
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 	session, err := s.store.CreateSession("platform_admin", admin.ID, admin.Email, "", "", "", 12*time.Hour)
 	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if err := s.auditPlatformBreakGlassLogin(admin.Email, "accepted"); err != nil {
 		writeError(w, err)
 		return
 	}
@@ -518,7 +626,11 @@ func (s *Server) apiPlatformLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) apiLogout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie("rtk_admin_session"); err == nil {
+		session, sessionErr := s.store.GetSession(cookie.Value)
 		_ = s.store.DeleteSession(cookie.Value)
+		if sessionErr == nil {
+			_ = s.auditSessionLogout(session)
+		}
 	}
 	http.SetCookie(w, &http.Cookie{Name: "rtk_admin_session", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 	writeJSON(w, map[string]string{"status": "ok"})
@@ -543,7 +655,17 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+	session, ok := s.requirePlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	if s.usePlatformAdminUpstream(session) {
+		devices, err := s.platformAdminDevices(r.Context(), session)
+		if err != nil {
+			s.writeUpstreamReadError(w, err)
+			return
+		}
+		writeJSON(w, devicesWithFirmwareVersion(devices))
 		return
 	}
 	devices, err := s.store.ListDevices()
@@ -616,6 +738,21 @@ func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
 	orgID, err := s.customerOrgIDForSession(r.Context(), session)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	devices, err := s.customerStreamDevices(r.Context(), session, orgID)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	devices = filterDevicesByOrg(devices, orgID)
+	if s.videoClient.Enabled() && strings.TrimSpace(s.cfg.VideoCloudAdminToken) != "" {
+		stats, err := s.videoClient.FleetStreamStats(r.Context(), s.cfg.VideoCloudAdminToken, orgID, window, videoCloudDeviceIDs(devices))
+		if err != nil {
+			s.writeVideoCloudGatewayError(w, fmt.Errorf("%w: %w", errVideoCloudRequestFailed, err))
+			return
+		}
+		writeJSON(w, mapVideoCloudFleetStreamStats(stats, orgID, window))
 		return
 	}
 	_ = days
@@ -1398,6 +1535,82 @@ func fleetStreamStats(orgID string, devices []contracts.Device, days int, window
 		TrendByMode:        modeTrendSeries,
 		WorstDevices:       worst,
 	}
+}
+
+func filterDevicesByOrg(devices []contracts.Device, orgID string) []contracts.Device {
+	filtered := make([]contracts.Device, 0, len(devices))
+	for _, device := range devices {
+		if device.OrganizationID == orgID {
+			filtered = append(filtered, device)
+		}
+	}
+	return filtered
+}
+
+func videoCloudDeviceIDs(devices []contracts.Device) []string {
+	ids := make([]string, 0, len(devices))
+	for _, device := range devices {
+		if id := strings.TrimSpace(device.VideoCloudDevID); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func mapVideoCloudFleetStreamStats(stats videoclient.FleetStreamStats, orgID, window string) contracts.FleetStreamStats {
+	out := contracts.FleetStreamStats{
+		OrgID:              fallback(stats.OrgID, orgID),
+		Window:             fallback(stats.Window, window),
+		SourceStatus:       "available",
+		SourceMessage:      "Stream source loaded from Video Cloud.",
+		SuccessRatePct:     stats.SuccessRatePct,
+		AvgDurationSeconds: stats.AvgDurationSeconds,
+		ActiveSessions:     stats.ActiveSessions,
+		NeverStreamedCount: stats.NeverStreamedCount,
+		ByMode:             make(map[string]contracts.FleetStreamStatsMode, len(stats.ByMode)),
+		Trend:              make([]contracts.FleetStreamTrendPoint, 0, len(stats.Trend)),
+		TrendByMode:        make([]contracts.FleetStreamModeTrend, 0, len(stats.TrendByMode)),
+		WorstDevices:       make([]contracts.FleetStreamWorstDevice, 0, len(stats.WorstDevices)),
+	}
+	for mode, modeStats := range stats.ByMode {
+		out.ByMode[mode] = contracts.FleetStreamStatsMode{
+			Requests:       modeStats.Requests,
+			SuccessRatePct: modeStats.SuccessRatePct,
+		}
+	}
+	for _, point := range stats.Trend {
+		out.Trend = append(out.Trend, contracts.FleetStreamTrendPoint{
+			Date:           point.Date,
+			Requests:       point.Requests,
+			SuccessRatePct: point.SuccessRatePct,
+		})
+	}
+	for _, series := range stats.TrendByMode {
+		mapped := contracts.FleetStreamModeTrend{
+			Mode:   series.Mode,
+			Points: make([]contracts.FleetStreamTrendPoint, 0, len(series.Points)),
+		}
+		for _, point := range series.Points {
+			mapped.Points = append(mapped.Points, contracts.FleetStreamTrendPoint{
+				Date:           point.Date,
+				Requests:       point.Requests,
+				SuccessRatePct: point.SuccessRatePct,
+			})
+		}
+		out.TrendByMode = append(out.TrendByMode, mapped)
+	}
+	for _, device := range stats.WorstDevices {
+		out.WorstDevices = append(out.WorstDevices, contracts.FleetStreamWorstDevice{
+			DeviceID:       device.DeviceID,
+			DeviceName:     device.DeviceName,
+			ModeUsed:       device.ModeUsed,
+			Readiness:      device.Readiness,
+			SuccessRatePct: device.SuccessRatePct,
+			Requests:       device.Requests,
+			LastStreamAt:   device.LastStreamAt,
+		})
+	}
+	return out
 }
 
 type streamProfileData struct {
@@ -2280,7 +2493,17 @@ func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiAdminCustomers(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+	session, ok := s.requirePlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	if s.usePlatformAdminUpstream(session) {
+		customers, err := s.platformAdminCustomers(r.Context(), session)
+		if err != nil {
+			s.writeUpstreamReadError(w, err)
+			return
+		}
+		writeJSON(w, customers)
 		return
 	}
 	customers, err := s.store.ListCustomers()
@@ -2289,6 +2512,64 @@ func (s *Server) apiAdminCustomers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, customers)
+}
+
+func (s *Server) apiAdminSSOProviders(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requirePlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	if !s.accountClient.Enabled() {
+		http.Error(w, "Account Manager is not configured for SSO provider settings", http.StatusServiceUnavailable)
+		return
+	}
+	providers, err := s.accountClient.SSOProviderStatuses(r.Context(), session.AccessToken)
+	if err != nil {
+		writeSSOError(w, err)
+		return
+	}
+	writeJSON(w, map[string][]accountclient.SSOProviderStatus{"providers": providers})
+}
+
+func (s *Server) apiAdminSSOProvider(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requirePlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	if !s.accountClient.Enabled() {
+		http.Error(w, "Account Manager is not configured for SSO provider settings", http.StatusServiceUnavailable)
+		return
+	}
+	orgID := strings.TrimSpace(r.PathValue("orgId"))
+	if orgID == "" {
+		http.Error(w, "organization id is required", http.StatusBadRequest)
+		return
+	}
+	if r.Method == http.MethodGet {
+		provider, err := s.accountClient.SSOProviderStatus(r.Context(), session.AccessToken, orgID)
+		if err != nil {
+			writeSSOError(w, err)
+			return
+		}
+		writeJSON(w, map[string]accountclient.SSOProviderStatus{"provider": provider})
+		return
+	}
+
+	var body accountclient.SSOProviderConfigRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid SSO provider configuration", http.StatusBadRequest)
+		return
+	}
+	body.Issuer = strings.TrimSpace(body.Issuer)
+	body.ClientID = strings.TrimSpace(body.ClientID)
+	body.ClientSecret = strings.TrimSpace(body.ClientSecret)
+	body.VerifiedDomains = normalizeDomains(body.VerifiedDomains)
+	provider, err := s.accountClient.UpsertSSOProvider(r.Context(), session.AccessToken, orgID, body)
+	if err != nil {
+		writeSSOError(w, err)
+		return
+	}
+	writeJSON(w, map[string]accountclient.SSOProviderStatus{"provider": provider})
 }
 
 func (s *Server) apiOperations(w http.ResponseWriter, r *http.Request) {
@@ -2310,7 +2591,17 @@ func (s *Server) apiOperations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiAdminOperations(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+	session, ok := s.requirePlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	if s.usePlatformAdminUpstream(session) {
+		ops, err := s.platformAdminOperations(r.Context(), session)
+		if err != nil {
+			s.writeUpstreamReadError(w, err)
+			return
+		}
+		writeJSON(w, ops)
 		return
 	}
 	ops, err := s.store.ListOperations()
@@ -2521,6 +2812,176 @@ func (s *Server) customerOperations(ctx context.Context, session store.Session) 
 		}
 	}
 	return filtered, nil
+}
+
+func (s *Server) customerStreamDevices(ctx context.Context, session store.Session, orgID string) ([]contracts.Device, error) {
+	if !s.accountClient.Enabled() {
+		allDevices, err := s.store.ListDevices()
+		if err != nil {
+			return nil, err
+		}
+		return filterDevicesByOrg(allDevices, orgID), nil
+	}
+	org, tokens, err := s.activeCustomerOrg(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+	var upstreamDevices []accountclient.Device
+	tokens, err = s.customerCall(ctx, tokens, func(token string) error {
+		var callErr error
+		upstreamDevices, callErr = s.accountClient.Devices(ctx, token, org.ID)
+		return callErr
+	})
+	if err != nil {
+		return nil, err
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+	}
+	devices := make([]contracts.Device, 0, len(upstreamDevices))
+	for _, device := range upstreamDevices {
+		devices = append(devices, mapUpstreamDevice(org, device, nil))
+	}
+	return devices, nil
+}
+
+func (s *Server) usePlatformAdminUpstream(session store.Session) bool {
+	return s.accountClient.Enabled() && strings.TrimSpace(session.AccessToken) != ""
+}
+
+func (s *Server) platformAdminSummary(ctx context.Context, session store.Session) (contracts.Summary, error) {
+	devices, err := s.platformAdminDevices(ctx, session)
+	if err != nil {
+		return contracts.Summary{}, err
+	}
+	ops, err := s.platformAdminOperations(ctx, session)
+	if err != nil {
+		return contracts.Summary{}, err
+	}
+	return summaryFromReadModels(devices, ops), nil
+}
+
+func (s *Server) platformAdminCustomers(ctx context.Context, session store.Session) ([]contracts.CustomerSummary, error) {
+	devices, err := s.platformAdminDevices(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+	return customerSummariesFromDevices(devices), nil
+}
+
+func (s *Server) platformAdminDevices(ctx context.Context, session store.Session) ([]contracts.Device, error) {
+	orgs, err := s.accountClient.AdminOrganizations(ctx, session.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	upstreamDevices, err := s.accountClient.AdminDevices(ctx, session.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	vcFacts, err := s.videoCloudFacts(ctx, upstreamDevices)
+	if err != nil {
+		return nil, err
+	}
+	orgByID := make(map[string]accountclient.Organization, len(orgs))
+	for _, org := range orgs {
+		orgByID[org.ID] = org
+	}
+	devices := make([]contracts.Device, 0, len(upstreamDevices))
+	for _, device := range upstreamDevices {
+		org := orgByID[device.OrganizationID]
+		if org.ID == "" {
+			org = accountclient.Organization{ID: device.OrganizationID, Name: device.Organization}
+		}
+		vid := fallback(device.VideoCloudDevID, metadataString(device.Metadata, "video_cloud_devid", ""))
+		devices = append(devices, mapUpstreamDevice(org, device, vcFacts[vid]))
+	}
+	return devices, nil
+}
+
+func (s *Server) platformAdminOperations(ctx context.Context, session store.Session) ([]contracts.Operation, error) {
+	upstreamOps, err := s.accountClient.AdminOperations(ctx, session.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	ops := make([]contracts.Operation, 0, len(upstreamOps))
+	for _, op := range upstreamOps {
+		state := mapOperationState(op.State)
+		ops = append(ops, contracts.Operation{
+			ID:                  op.ID,
+			DeviceID:            op.DeviceID,
+			DeviceName:          op.DeviceName,
+			Organization:        fallback(op.Organization, op.OrganizationID),
+			Type:                fallback(op.Type, "DeviceProvisionRequested"),
+			State:               state,
+			UpstreamOperationID: fallback(op.UpstreamOperationID, op.ID),
+			UpstreamState:       fallback(op.UpstreamState, op.State),
+			Message:             op.Message,
+			UpdatedAt:           op.UpdatedAt,
+		})
+	}
+	return ops, nil
+}
+
+func summaryFromReadModels(devices []contracts.Device, ops []contracts.Operation) contracts.Summary {
+	seenOrgs := map[string]bool{}
+	summary := contracts.Summary{TotalDevices: len(devices)}
+	for _, device := range devices {
+		seenOrgs[device.OrganizationID] = true
+		switch device.Readiness {
+		case contracts.ReadinessOnline:
+			summary.OnlineDevices++
+			summary.ActivatedDevices++
+		case contracts.ReadinessActivated:
+			summary.ActivatedDevices++
+		case contracts.ReadinessCloudActivationPending, contracts.ReadinessClaimPending, contracts.ReadinessLocalOnboardingPending, contracts.ReadinessDeactivationPending:
+			summary.PendingDevices++
+		case contracts.ReadinessFailed:
+			summary.FailedDevices++
+		}
+	}
+	for _, op := range ops {
+		if op.State != contracts.OperationSucceeded {
+			summary.OpenOperations++
+		}
+	}
+	summary.Customers = len(seenOrgs)
+	return summary
+}
+
+func customerSummariesFromDevices(devices []contracts.Device) []contracts.CustomerSummary {
+	byOrg := map[string]*contracts.CustomerSummary{}
+	order := []string{}
+	for _, device := range devices {
+		customer, ok := byOrg[device.OrganizationID]
+		if !ok {
+			customer = &contracts.CustomerSummary{
+				OrganizationID: device.OrganizationID,
+				Organization:   device.Organization,
+			}
+			byOrg[device.OrganizationID] = customer
+			order = append(order, device.OrganizationID)
+		}
+		customer.TotalDevices++
+		switch device.Readiness {
+		case contracts.ReadinessOnline:
+			customer.OnlineDevices++
+			customer.ActivatedDevices++
+		case contracts.ReadinessActivated:
+			customer.ActivatedDevices++
+		case contracts.ReadinessCloudActivationPending, contracts.ReadinessClaimPending, contracts.ReadinessLocalOnboardingPending, contracts.ReadinessDeactivationPending:
+			customer.PendingDevices++
+		case contracts.ReadinessFailed:
+			customer.FailedDevices++
+		}
+		if device.LastSeenAt > customer.LastSeenAt {
+			customer.LastSeenAt = device.LastSeenAt
+		}
+	}
+	customers := make([]contracts.CustomerSummary, 0, len(order))
+	for _, orgID := range order {
+		customers = append(customers, *byOrg[orgID])
+	}
+	return customers
 }
 
 func (s *Server) customerAudit(ctx context.Context, session store.Session) ([]contracts.AuditEvent, error) {
@@ -2806,6 +3267,115 @@ func (s *Server) writeCustomerError(w http.ResponseWriter, err error) {
 		return
 	}
 	writeError(w, err)
+}
+
+func (s *Server) writeUpstreamReadError(w http.ResponseWriter, err error) {
+	if errors.Is(err, errVideoCloudRequestFailed) {
+		s.writeVideoCloudGatewayError(w, err)
+		return
+	}
+	if status, ok := customerUpstreamStatus(err); ok {
+		switch status {
+		case http.StatusUnauthorized:
+			http.Error(w, "platform admin upstream session expired; please sign in again", http.StatusUnauthorized)
+		case http.StatusForbidden:
+			http.Error(w, "Account Manager denied access to the requested resource", http.StatusForbidden)
+		case http.StatusGatewayTimeout:
+			http.Error(w, "Account Manager request timed out", http.StatusGatewayTimeout)
+		default:
+			http.Error(w, "Account Manager request failed", http.StatusBadGateway)
+		}
+		return
+	}
+	writeError(w, err)
+}
+
+func (s *Server) writeVideoCloudGatewayError(w http.ResponseWriter, err error) {
+	if isTimeoutError(err) {
+		http.Error(w, "Video Cloud request timed out", http.StatusGatewayTimeout)
+		return
+	}
+	if errors.Is(err, errVideoCloudRequestFailed) {
+		http.Error(w, "Video Cloud request failed", http.StatusBadGateway)
+		return
+	}
+	writeError(w, err)
+}
+
+func isTimeoutError(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
+}
+
+func (s *Server) auditPlatformBreakGlassLogin(email, result string) error {
+	return s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:     fallback(email, "unknown-platform-admin"),
+		ActorKind: "platform_admin",
+		Action:    "PlatformBreakGlassLogin",
+		Target:    "platform_admin",
+		Result:    result,
+	})
+}
+
+func (s *Server) auditSSOSession(email, kind, orgID, result string) error {
+	return s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:          fallback(email, "unknown-sso-user"),
+		ActorKind:      fallback(kind, "sso"),
+		Action:         "SSOLogin",
+		Target:         fallback(kind, "sso_session"),
+		OrganizationID: orgID,
+		Result:         result,
+	})
+}
+
+func (s *Server) auditSessionLogout(session store.Session) error {
+	return s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:          fallback(session.Email, session.Subject),
+		ActorKind:      fallback(session.Kind, "session"),
+		Action:         "SessionLogout",
+		Target:         fallback(session.Kind, "session"),
+		OrganizationID: session.ActiveOrgID,
+		Result:         "accepted",
+	})
+}
+
+func writeSSOError(w http.ResponseWriter, err error) {
+	if status, ok := customerUpstreamStatus(err); ok {
+		switch status {
+		case http.StatusUnauthorized:
+			http.Error(w, "SSO callback was rejected by Account Manager", http.StatusUnauthorized)
+		case http.StatusForbidden:
+			http.Error(w, "SSO provider is disabled or access is denied", http.StatusForbidden)
+		case http.StatusGatewayTimeout:
+			http.Error(w, "Account Manager SSO request timed out", http.StatusGatewayTimeout)
+		default:
+			var httpErr *accountclient.HTTPError
+			if errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusNotFound {
+				http.Error(w, "SSO provider was not found for the email domain", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "Account Manager SSO request failed", http.StatusBadGateway)
+		}
+		return
+	}
+	writeError(w, err)
+}
+
+func normalizeDomains(domains []string) []string {
+	seen := map[string]bool{}
+	normalized := make([]string, 0, len(domains))
+	for _, domain := range domains {
+		domain = strings.ToLower(strings.TrimSpace(domain))
+		if domain == "" || seen[domain] {
+			continue
+		}
+		seen[domain] = true
+		normalized = append(normalized, domain)
+	}
+	return normalized
 }
 
 func organizationAllowed(orgs []accountclient.Organization, orgID string) bool {

@@ -24,47 +24,68 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      - name: Prepare CI artifacts
+        run: mkdir -p .artifacts/logs .artifacts/report-candidates/docs
+
       - name: Go tests with coverage
-        run: go test ./... -coverprofile=coverage.out
+        run: |
+          set -euo pipefail
+          go test ./... -coverprofile=coverage.out 2>&1 | tee .artifacts/logs/go-test.log
+          echo PASS > .artifacts/logs/go-test.status
 
       - name: Go build
-        run: go build ./cmd/server
+        run: |
+          set -euo pipefail
+          go build ./cmd/server 2>&1 | tee .artifacts/logs/go-build.log
+          echo PASS > .artifacts/logs/go-build.status
 
       - name: Go coverage gate
         run: |
           set -euo pipefail
-          go tool cover -func=coverage.out
+          go tool cover -func=coverage.out 2>&1 | tee .artifacts/logs/go-coverage-gate.log
           total="$(go tool cover -func=coverage.out | awk '/^total:/ { gsub("%", "", $3); print $3 }')"
-          awk -v total="$total" -v min="65.0" 'BEGIN {
+          awk -v total="$total" -v min="80.0" 'BEGIN {
             if (total < min) {
               printf("Go total coverage %.1f%% is below %.1f%%\n", total, min)
               exit 1
             }
             printf("Go total coverage %.1f%% meets %.1f%% baseline\n", total, min)
-          }'
+          }' | tee -a .artifacts/logs/go-coverage-gate.log
+          echo PASS > .artifacts/logs/go-coverage-gate.status
 
       - name: Frontend install
         working-directory: web
-        run: npm ci
+        run: |
+          set -euo pipefail
+          npm ci 2>&1 | tee ../.artifacts/logs/frontend-install.log
+          echo PASS > ../.artifacts/logs/frontend-install.status
 
       - name: Frontend tests
         working-directory: web
-        run: npm test
+        run: |
+          set -euo pipefail
+          npm test 2>&1 | tee ../.artifacts/logs/frontend-test.log
+          echo PASS > ../.artifacts/logs/frontend-test.status
 
       - name: Frontend build
         working-directory: web
-        run: npm run build
+        run: |
+          set -euo pipefail
+          npm run build 2>&1 | tee ../.artifacts/logs/frontend-build.log
+          echo PASS > ../.artifacts/logs/frontend-build.status
 
       - name: Docker build
         id: docker_build
         run: |
           image_tag="rtk-cloud-admin:${GITHUB_SHA}"
-          docker build -t "${image_tag}" -t rtk-cloud-admin:ci .
+          docker build -t "${image_tag}" -t rtk-cloud-admin:ci . 2>&1 | tee .artifacts/logs/docker-build.log
           echo "ci_image_tag=${image_tag}" >> "$GITHUB_OUTPUT"
+          echo PASS > .artifacts/logs/docker-build.status
 
       - name: Container smoke
         run: |
           set -euo pipefail
+          exec > >(tee .artifacts/logs/container-smoke.log) 2>&1
 
           ci_image_tag="${{ steps.docker_build.outputs.ci_image_tag }}"
           if [ -z "${ci_image_tag}" ]; then
@@ -89,6 +110,7 @@ jobs:
             -e DATABASE_PATH=/data/ci.db \
             -e ADMIN_BOOTSTRAP_EMAIL=admin@example.com \
             -e ADMIN_BOOTSTRAP_PASSWORD=secret \
+            -e ADMIN_BREAK_GLASS_ENABLED=true \
             -v "$smoke_dir:/data" \
             "$ci_image_tag")"
 
@@ -127,6 +149,39 @@ jobs:
 
           docker exec "$container_id" wget -qO- http://127.0.0.1:8080/api/summary | grep -q '"total_devices"'
           docker exec "$container_id" wget -qO- http://127.0.0.1:8080/console | grep -q 'id="root"'
+          echo PASS > .artifacts/logs/container-smoke.status
+
+      - name: Generate test report candidate
+        if: always()
+        run: |
+          set -euo pipefail
+          scripts/generate_test_report.sh coverage.out .artifacts/logs .artifacts/report-candidates/docs/TEST_REPORT.md
+          scripts/validate_test_report.sh .artifacts/report-candidates/docs/TEST_REPORT.md
+
+      - name: Upload test report candidate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-candidate
+          path: .artifacts/report-candidates/
+
+      - name: Upload CI diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-diagnostics
+          path: |
+            .artifacts/logs/
+            coverage.out
+
+      - name: Check tracked test report drift
+        run: |
+          set -euo pipefail
+          cmp -s docs/TEST_REPORT.md .artifacts/report-candidates/docs/TEST_REPORT.md || {
+            echo "docs/TEST_REPORT.md is stale. Import the test-report-candidate artifact or update the tracked report." >&2
+            diff -u docs/TEST_REPORT.md .artifacts/report-candidates/docs/TEST_REPORT.md >&2 || true
+            exit 1
+          }
 
       - name: Docker cleanup
         if: always()

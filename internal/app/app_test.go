@@ -57,6 +57,7 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 		"/admin/ops",
 		"/admin/operations",
 		"/admin/audit",
+		"/admin/sso",
 	} {
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
@@ -156,6 +157,558 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 	}
 }
 
+func TestSSOStartAndCallbackCreateSessions(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/sso/start":
+			var body accountclient.SSOStartRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode sso start: %v", err)
+			}
+			if body.Email != "owner@example.com" {
+				t.Fatalf("sso start email = %q", body.Email)
+			}
+			_ = json.NewEncoder(w).Encode(accountclient.SSOStartResult{
+				RedirectURL:    "https://idp.example.com/authorize?state=state-1",
+				State:          "state-1",
+				ProviderID:     "provider-1",
+				OrganizationID: "org-1",
+				Organization:   "Acme",
+			})
+		case "/v1/auth/sso/callback":
+			var body accountclient.SSOCallbackRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode sso callback: %v", err)
+			}
+			switch body.Code {
+			case "customer-code":
+				_ = json.NewEncoder(w).Encode(accountclient.SSOCallbackResult{
+					User:          accountclient.User{ID: "u-customer", Email: "owner@example.com", Name: "Owner"},
+					Kind:          "customer",
+					ActiveOrgID:   "org-1",
+					Organizations: []accountclient.Organization{{ID: "org-1", Name: "Acme", Role: "owner", Tier: "evaluation", EvaluationDeviceQuota: 5}},
+					Tokens:        accountclient.Tokens{AccessToken: "customer-access", RefreshToken: "customer-refresh", ExpiresIn: 3600},
+				})
+			case "admin-code":
+				_ = json.NewEncoder(w).Encode(accountclient.SSOCallbackResult{
+					User:   accountclient.User{ID: "admin-1", Email: "admin@example.com", Name: "Admin"},
+					Kind:   "platform_admin",
+					Tokens: accountclient.Tokens{AccessToken: "admin-access", RefreshToken: "admin-refresh", ExpiresIn: 3600},
+				})
+			default:
+				http.Error(w, "invalid callback", http.StatusUnauthorized)
+			}
+		case "/v1/me":
+			if r.Header.Get("Authorization") != "Bearer customer-access" {
+				t.Fatalf("me Authorization = %q", r.Header.Get("Authorization"))
+			}
+			_ = json.NewEncoder(w).Encode(accountclient.MeResult{
+				User:          accountclient.User{ID: "u-customer", Email: "owner@example.com", Name: "Owner"},
+				Organizations: []accountclient.Organization{{ID: "org-1", Name: "Acme", Role: "owner", Tier: "evaluation", EvaluationDeviceQuota: 5}},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{
+		Config:        legacyCustomerLoginConfig(upstream.URL),
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	start := httptest.NewRecorder()
+	srv.ServeHTTP(start, httptest.NewRequest(http.MethodPost, "/api/auth/sso/start", strings.NewReader(`{"email":"owner@example.com","return_url":"https://admin.example.com/console"}`)))
+	if start.Code != http.StatusOK {
+		t.Fatalf("sso start status = %d, body=%s", start.Code, start.Body.String())
+	}
+	if !strings.Contains(start.Body.String(), `"redirect_url":"https://idp.example.com/authorize?state=state-1"`) {
+		t.Fatalf("sso start body = %s", start.Body.String())
+	}
+
+	customerCallback := httptest.NewRecorder()
+	srv.ServeHTTP(customerCallback, httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?code=customer-code&state=state-1&redirect_uri=https%3A%2F%2Fadmin.example.com%2Fapi%2Fauth%2Fsso%2Fcallback", nil))
+	if customerCallback.Code != http.StatusFound {
+		t.Fatalf("customer callback status = %d, body=%s", customerCallback.Code, customerCallback.Body.String())
+	}
+	if got := customerCallback.Header().Get("Location"); got != "/console" {
+		t.Fatalf("customer callback location = %q", got)
+	}
+	if len(customerCallback.Result().Cookies()) != 1 {
+		t.Fatalf("customer callback did not set session cookie")
+	}
+	customerSession, err := st.GetSession(customerCallback.Result().Cookies()[0].Value)
+	if err != nil {
+		t.Fatalf("GetSession customer returned error: %v", err)
+	}
+	if customerSession.Kind != "customer" || customerSession.Subject != "u-customer" || customerSession.ActiveOrgID != "org-1" || customerSession.AccessToken != "customer-access" {
+		t.Fatalf("customer session = %#v", customerSession)
+	}
+
+	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meReq.AddCookie(customerCallback.Result().Cookies()[0])
+	meRec := httptest.NewRecorder()
+	srv.ServeHTTP(meRec, meReq)
+	if meRec.Code != http.StatusOK {
+		t.Fatalf("me status = %d, body=%s", meRec.Code, meRec.Body.String())
+	}
+	var customerMe contracts.Me
+	if err := json.NewDecoder(meRec.Body).Decode(&customerMe); err != nil {
+		t.Fatalf("decode customer me: %v", err)
+	}
+	if customerMe.Kind != "customer" || customerMe.ActiveOrgID != "org-1" || !customerMe.Authenticated || customerMe.DemoMode || len(customerMe.Memberships) != 1 {
+		t.Fatalf("customer me = %#v", customerMe)
+	}
+
+	adminCallback := httptest.NewRecorder()
+	srv.ServeHTTP(adminCallback, httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?code=admin-code&state=state-2", nil))
+	if adminCallback.Code != http.StatusFound {
+		t.Fatalf("admin callback status = %d, body=%s", adminCallback.Code, adminCallback.Body.String())
+	}
+	if got := adminCallback.Header().Get("Location"); got != "/admin" {
+		t.Fatalf("admin callback location = %q", got)
+	}
+	adminSession, err := st.GetSession(adminCallback.Result().Cookies()[0].Value)
+	if err != nil {
+		t.Fatalf("GetSession admin returned error: %v", err)
+	}
+	if adminSession.Kind != "platform_admin" || adminSession.Subject != "admin-1" || adminSession.AccessToken != "admin-access" {
+		t.Fatalf("admin session = %#v", adminSession)
+	}
+
+	adminMeReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	adminMeReq.AddCookie(adminCallback.Result().Cookies()[0])
+	adminMeRec := httptest.NewRecorder()
+	srv.ServeHTTP(adminMeRec, adminMeReq)
+	if adminMeRec.Code != http.StatusOK {
+		t.Fatalf("admin me status = %d, body=%s", adminMeRec.Code, adminMeRec.Body.String())
+	}
+	var adminMe contracts.Me
+	if err := json.NewDecoder(adminMeRec.Body).Decode(&adminMe); err != nil {
+		t.Fatalf("decode admin me: %v", err)
+	}
+	if adminMe.Kind != "platform_admin" || !adminMe.Authenticated || adminMe.DemoMode || adminMe.Memberships == nil || len(adminMe.Memberships) != 0 {
+		t.Fatalf("admin me = %#v", adminMe)
+	}
+
+	logout := httptest.NewRecorder()
+	logoutReq := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	logoutReq.AddCookie(customerCallback.Result().Cookies()[0])
+	srv.ServeHTTP(logout, logoutReq)
+	if logout.Code != http.StatusOK {
+		t.Fatalf("logout status = %d, body=%s", logout.Code, logout.Body.String())
+	}
+	events, err := st.ListAuditEvents()
+	if err != nil {
+		t.Fatalf("ListAuditEvents returned error: %v", err)
+	}
+	assertAuditEvent(t, events, "SSOLogin", "owner@example.com", "customer", "accepted")
+	assertAuditEvent(t, events, "SSOLogin", "admin@example.com", "platform_admin", "accepted")
+	assertAuditEvent(t, events, "SessionLogout", "owner@example.com", "customer", "accepted")
+}
+
+func TestSSOEndpointsMapStableErrors(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/sso/start":
+			var body accountclient.SSOStartRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode sso start: %v", err)
+			}
+			switch body.Email {
+			case "unknown@example.com":
+				http.Error(w, "unknown domain", http.StatusNotFound)
+			case "disabled@example.com":
+				http.Error(w, "provider disabled", http.StatusForbidden)
+			default:
+				http.Error(w, "upstream down", http.StatusInternalServerError)
+			}
+		case "/v1/auth/sso/callback":
+			switch r.URL.Query().Get("case") {
+			default:
+				_ = json.NewEncoder(w).Encode(accountclient.SSOCallbackResult{
+					User:   accountclient.User{ID: "u1", Email: "bad@example.com"},
+					Kind:   "super_admin",
+					Tokens: accountclient.Tokens{AccessToken: "access", RefreshToken: "refresh", ExpiresIn: 3600},
+				})
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	srv := NewWithOptions(mustOpenStore(t), Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	for _, tc := range []struct {
+		name   string
+		email  string
+		status int
+		want   string
+	}{
+		{"unknown domain", "unknown@example.com", http.StatusNotFound, "SSO provider was not found"},
+		{"disabled provider", "disabled@example.com", http.StatusForbidden, "SSO provider is disabled"},
+		{"upstream failure", "owner@example.com", http.StatusBadGateway, "Account Manager SSO request failed"},
+	} {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/sso/start", strings.NewReader(fmt.Sprintf(`{"email":%q}`, tc.email))))
+		if rec.Code != tc.status {
+			t.Fatalf("%s status = %d, want %d; body=%s", tc.name, rec.Code, tc.status, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), tc.want) {
+			t.Fatalf("%s body = %s", tc.name, rec.Body.String())
+		}
+	}
+
+	invalid := httptest.NewRecorder()
+	srv.ServeHTTP(invalid, httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?code=bad&state=state", nil))
+	if invalid.Code != http.StatusBadGateway {
+		t.Fatalf("invalid kind status = %d, body=%s", invalid.Code, invalid.Body.String())
+	}
+	if !strings.Contains(invalid.Body.String(), "unsupported SSO session kind") {
+		t.Fatalf("invalid kind body = %s", invalid.Body.String())
+	}
+
+	missing := httptest.NewRecorder()
+	srv.ServeHTTP(missing, httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?state=state", nil))
+	if missing.Code != http.StatusBadRequest {
+		t.Fatalf("missing callback status = %d, body=%s", missing.Code, missing.Body.String())
+	}
+
+	disabled := httptest.NewRecorder()
+	NewWithOptions(mustOpenStore(t), Options{}).ServeHTTP(disabled, httptest.NewRequest(http.MethodPost, "/api/auth/sso/start", strings.NewReader(`{"email":"owner@example.com"}`)))
+	if disabled.Code != http.StatusServiceUnavailable {
+		t.Fatalf("disabled sso start status = %d, body=%s", disabled.Code, disabled.Body.String())
+	}
+
+	invalidStart := httptest.NewRecorder()
+	srv.ServeHTTP(invalidStart, httptest.NewRequest(http.MethodPost, "/api/auth/sso/start", strings.NewReader(`{`)))
+	if invalidStart.Code != http.StatusBadRequest {
+		t.Fatalf("invalid sso start status = %d, body=%s", invalidStart.Code, invalidStart.Body.String())
+	}
+
+	missingEmail := httptest.NewRecorder()
+	srv.ServeHTTP(missingEmail, httptest.NewRequest(http.MethodPost, "/api/auth/sso/start", strings.NewReader(`{"email":" "}`)))
+	if missingEmail.Code != http.StatusBadRequest {
+		t.Fatalf("missing email status = %d, body=%s", missingEmail.Code, missingEmail.Body.String())
+	}
+}
+
+func TestLegacyCustomerPasswordLoginDisabledByDefault(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("legacy customer login should not call upstream when disabled: %s", r.URL.Path)
+	}))
+	defer upstream.Close()
+
+	srv := NewWithOptions(mustOpenStore(t), Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("customer login status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "customer password login is disabled") {
+		t.Fatalf("customer login body = %s", rec.Body.String())
+	}
+}
+
+func TestSSOCustomerMeAllowsMissingMemberships(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/sso/callback":
+			_ = json.NewEncoder(w).Encode(accountclient.SSOCallbackResult{
+				User:   accountclient.User{ID: "u-empty", Email: "empty@example.com", Name: "Empty"},
+				Kind:   "customer",
+				Tokens: accountclient.Tokens{AccessToken: "empty-access", RefreshToken: "empty-refresh", ExpiresIn: 3600},
+			})
+		case "/v1/me":
+			if got := r.Header.Get("Authorization"); got != "Bearer empty-access" {
+				t.Fatalf("me Authorization = %q", got)
+			}
+			_ = json.NewEncoder(w).Encode(accountclient.MeResult{
+				User:          accountclient.User{ID: "u-empty", Email: "empty@example.com", Name: "Empty"},
+				Organizations: []accountclient.Organization{},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+	callback := httptest.NewRecorder()
+	srv.ServeHTTP(callback, httptest.NewRequest(http.MethodGet, "/api/auth/sso/callback?code=no-org-code&state=state-1", nil))
+	if callback.Code != http.StatusFound {
+		t.Fatalf("callback status = %d, body=%s", callback.Code, callback.Body.String())
+	}
+	session, err := st.GetSession(callback.Result().Cookies()[0].Value)
+	if err != nil {
+		t.Fatalf("GetSession returned error: %v", err)
+	}
+	if session.ActiveOrgID != "" {
+		t.Fatalf("active org = %q, want empty", session.ActiveOrgID)
+	}
+
+	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meReq.AddCookie(callback.Result().Cookies()[0])
+	meRec := httptest.NewRecorder()
+	srv.ServeHTTP(meRec, meReq)
+	if meRec.Code != http.StatusOK {
+		t.Fatalf("me status = %d, body=%s", meRec.Code, meRec.Body.String())
+	}
+	var me contracts.Me
+	if err := json.NewDecoder(meRec.Body).Decode(&me); err != nil {
+		t.Fatalf("decode me: %v", err)
+	}
+	if me.Kind != "customer" || me.ActiveOrgID != "" || me.Memberships == nil || len(me.Memberships) != 0 {
+		t.Fatalf("me missing memberships contract = %#v", me)
+	}
+}
+
+func TestAdminSSOProviderRoutesProxyAndRedactSecrets(t *testing.T) {
+	t.Parallel()
+
+	var receivedConfig accountclient.SSOProviderConfigRequest
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+			t.Fatalf("%s Authorization = %q", r.URL.Path, got)
+		}
+		switch r.URL.Path {
+		case "/v1/admin/sso/providers/status":
+			if r.Method != http.MethodGet {
+				t.Fatalf("providers method = %s", r.Method)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"providers": []map[string]any{{
+					"organization_id":   "org-acme",
+					"organization":      "Acme Smart Camera",
+					"provider_id":       "provider-1",
+					"issuer":            "https://idp.example.com",
+					"client_id":         "client-1",
+					"verified_domains":  []string{"example.com"},
+					"enabled":           true,
+					"configured":        true,
+					"status":            "ready",
+					"last_validated_at": "2026-05-11T00:00:00Z",
+				}},
+			})
+		case "/v1/admin/orgs/org-acme/sso-provider":
+			switch r.Method {
+			case http.MethodGet:
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"provider": map[string]any{
+						"organization_id":  "org-acme",
+						"organization":     "Acme Smart Camera",
+						"provider_id":      "provider-1",
+						"issuer":           "https://idp.example.com",
+						"client_id":        "client-1",
+						"verified_domains": []string{"example.com"},
+						"enabled":          true,
+						"configured":       true,
+						"status":           "ready",
+					},
+				})
+			case http.MethodPut:
+				if err := json.NewDecoder(r.Body).Decode(&receivedConfig); err != nil {
+					t.Fatalf("decode provider config: %v", err)
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"provider": map[string]any{
+						"organization_id":  "org-acme",
+						"organization":     "Acme Smart Camera",
+						"provider_id":      "provider-1",
+						"issuer":           receivedConfig.Issuer,
+						"client_id":        receivedConfig.ClientID,
+						"verified_domains": receivedConfig.VerifiedDomains,
+						"enabled":          receivedConfig.Enabled,
+						"configured":       true,
+						"status":           "ready",
+					},
+				})
+			default:
+				http.NotFound(w, r)
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st := mustOpenStore(t)
+	adminSession, err := st.CreateSession("platform_admin", "admin-1", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession admin returned error: %v", err)
+	}
+	customerSession, err := st.CreateSession("customer", "u1", "owner@example.com", "customer-access", "customer-refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession customer returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	unauth := httptest.NewRecorder()
+	srv.ServeHTTP(unauth, httptest.NewRequest(http.MethodGet, "/api/admin/sso/providers", nil))
+	if unauth.Code != http.StatusUnauthorized {
+		t.Fatalf("unauth providers status = %d", unauth.Code)
+	}
+
+	blocked := httptest.NewRecorder()
+	blockedReq := httptest.NewRequest(http.MethodGet, "/api/admin/sso/providers", nil)
+	blockedReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: customerSession.ID})
+	srv.ServeHTTP(blocked, blockedReq)
+	if blocked.Code != http.StatusForbidden {
+		t.Fatalf("customer providers status = %d", blocked.Code)
+	}
+
+	adminCookie := &http.Cookie{Name: "rtk_admin_session", Value: adminSession.ID}
+	providers := httptest.NewRecorder()
+	providersReq := httptest.NewRequest(http.MethodGet, "/api/admin/sso/providers", nil)
+	providersReq.AddCookie(adminCookie)
+	srv.ServeHTTP(providers, providersReq)
+	if providers.Code != http.StatusOK {
+		t.Fatalf("providers status = %d, body=%s", providers.Code, providers.Body.String())
+	}
+	if strings.Contains(providers.Body.String(), "client_secret") {
+		t.Fatalf("provider list leaked client_secret: %s", providers.Body.String())
+	}
+
+	provider := httptest.NewRecorder()
+	providerReq := httptest.NewRequest(http.MethodGet, "/api/admin/orgs/org-acme/sso-provider", nil)
+	providerReq.AddCookie(adminCookie)
+	srv.ServeHTTP(provider, providerReq)
+	if provider.Code != http.StatusOK {
+		t.Fatalf("provider status = %d, body=%s", provider.Code, provider.Body.String())
+	}
+	if strings.Contains(provider.Body.String(), "client_secret") {
+		t.Fatalf("provider detail leaked client_secret: %s", provider.Body.String())
+	}
+
+	badPayload := httptest.NewRecorder()
+	badPayloadReq := httptest.NewRequest(http.MethodPut, "/api/admin/orgs/org-acme/sso-provider", strings.NewReader(`{`))
+	badPayloadReq.AddCookie(adminCookie)
+	srv.ServeHTTP(badPayload, badPayloadReq)
+	if badPayload.Code != http.StatusBadRequest {
+		t.Fatalf("bad payload status = %d, body=%s", badPayload.Code, badPayload.Body.String())
+	}
+
+	updateBody := `{"issuer":" https://idp.example.com ","client_id":"client-1","client_secret":"secret-1","verified_domains":[" Example.COM ","example.com",""],"enabled":true}`
+	update := httptest.NewRecorder()
+	updateReq := httptest.NewRequest(http.MethodPut, "/api/admin/orgs/org-acme/sso-provider", strings.NewReader(updateBody))
+	updateReq.AddCookie(adminCookie)
+	srv.ServeHTTP(update, updateReq)
+	if update.Code != http.StatusOK {
+		t.Fatalf("update status = %d, body=%s", update.Code, update.Body.String())
+	}
+	if receivedConfig.ClientSecret != "secret-1" {
+		t.Fatalf("upstream did not receive client secret: %#v", receivedConfig)
+	}
+	if receivedConfig.Issuer != "https://idp.example.com" || len(receivedConfig.VerifiedDomains) != 1 || receivedConfig.VerifiedDomains[0] != "example.com" {
+		t.Fatalf("normalized config = %#v", receivedConfig)
+	}
+	if strings.Contains(update.Body.String(), "secret-1") || strings.Contains(update.Body.String(), "client_secret") {
+		t.Fatalf("update response leaked secret: %s", update.Body.String())
+	}
+
+	auditEvents, err := st.ListAuditEvents()
+	if err != nil {
+		t.Fatalf("ListAuditEvents returned error: %v", err)
+	}
+	for _, event := range auditEvents {
+		eventJSON, err := json.Marshal(event)
+		if err != nil {
+			t.Fatalf("marshal audit event: %v", err)
+		}
+		if strings.Contains(string(eventJSON), "secret-1") || strings.Contains(string(eventJSON), "client_secret") {
+			t.Fatalf("audit leaked secret: %#v", event)
+		}
+	}
+
+	disabledServer := NewWithOptions(st, Options{})
+	disabled := httptest.NewRecorder()
+	disabledReq := httptest.NewRequest(http.MethodGet, "/api/admin/sso/providers", nil)
+	disabledReq.AddCookie(adminCookie)
+	disabledServer.ServeHTTP(disabled, disabledReq)
+	if disabled.Code != http.StatusServiceUnavailable {
+		t.Fatalf("disabled providers status = %d, body=%s", disabled.Code, disabled.Body.String())
+	}
+}
+
+func TestPlatformBreakGlassLoginPolicyAndAudit(t *testing.T) {
+	t.Parallel()
+
+	st := mustOpenStore(t)
+	if err := st.BootstrapPlatformAdmin("admin@example.com", "secret"); err != nil {
+		t.Fatalf("BootstrapPlatformAdmin returned error: %v", err)
+	}
+
+	disabledSrv := NewWithOptions(st, Options{Config: config.Config{}})
+	disabled := httptest.NewRecorder()
+	disabledSrv.ServeHTTP(disabled, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
+	if disabled.Code != http.StatusForbidden {
+		t.Fatalf("disabled break-glass status = %d, body=%s", disabled.Code, disabled.Body.String())
+	}
+
+	failed := httptest.NewRecorder()
+	enabledSrv := NewWithOptions(st, Options{Config: config.Config{AdminBreakGlassEnabled: true}})
+	enabledSrv.ServeHTTP(failed, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"wrong"}`)))
+	if failed.Code != http.StatusUnauthorized {
+		t.Fatalf("failed break-glass status = %d, body=%s", failed.Code, failed.Body.String())
+	}
+
+	success := httptest.NewRecorder()
+	enabledSrv.ServeHTTP(success, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
+	if success.Code != http.StatusOK {
+		t.Fatalf("break-glass success status = %d, body=%s", success.Code, success.Body.String())
+	}
+	if len(success.Result().Cookies()) == 0 {
+		t.Fatalf("break-glass success did not set session cookie")
+	}
+	session, err := st.GetSession(success.Result().Cookies()[0].Value)
+	if err != nil {
+		t.Fatalf("GetSession returned error: %v", err)
+	}
+	if session.Kind != "platform_admin" {
+		t.Fatalf("session kind = %q, want platform_admin", session.Kind)
+	}
+
+	events, err := st.ListAuditEvents()
+	if err != nil {
+		t.Fatalf("ListAuditEvents returned error: %v", err)
+	}
+	results := map[string]bool{}
+	for _, event := range events {
+		if event.Action == "PlatformBreakGlassLogin" && event.Actor == "admin@example.com" && event.ActorKind == "platform_admin" {
+			results[event.Result] = true
+		}
+	}
+	for _, want := range []string{"disabled", "failed", "accepted"} {
+		if !results[want] {
+			t.Fatalf("missing break-glass audit result %q in %#v", want, events)
+		}
+	}
+}
+
 func mustOpenStore(t *testing.T) *store.Store {
 	t.Helper()
 	st, err := store.Open(t.TempDir() + "/admin.db")
@@ -172,6 +725,23 @@ func mustOpenStore(t *testing.T) *store.Store {
 		_ = st.Close()
 	})
 	return st
+}
+
+func legacyCustomerLoginConfig(baseURL string) config.Config {
+	return config.Config{
+		AccountManagerBaseURL:              baseURL,
+		LegacyCustomerPasswordLoginEnabled: true,
+	}
+}
+
+func assertAuditEvent(t *testing.T, events []contracts.AuditEvent, action, actor, actorKind, result string) {
+	t.Helper()
+	for _, event := range events {
+		if event.Action == action && event.Actor == actor && event.ActorKind == actorKind && event.Result == result {
+			return
+		}
+	}
+	t.Fatalf("missing audit event action=%q actor=%q actorKind=%q result=%q in %#v", action, actor, actorKind, result, events)
 }
 
 func TestProvisionActionPublishesOperation(t *testing.T) {
@@ -336,7 +906,7 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -474,9 +1044,10 @@ func TestCustomerDevicesReportVideoCloudActivationFailures(t *testing.T) {
 
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL: accountUpstream.URL,
-			VideoCloudBaseURL:     videoUpstream.URL,
-			VideoCloudAdminToken:  "vc-secret",
+			AccountManagerBaseURL:              accountUpstream.URL,
+			LegacyCustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:                  videoUpstream.URL,
+			VideoCloudAdminToken:               "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -534,7 +1105,7 @@ func TestCustomerLoginSurvivesProfileRetryFailure(t *testing.T) {
 		t.Fatalf("Migrate returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -591,7 +1162,7 @@ func TestCustomerSessionInvalidRefreshClearsStoredSession(t *testing.T) {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -665,7 +1236,7 @@ func TestCustomerDevicesInvalidSessionRefreshClearsStoredSession(t *testing.T) {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -717,7 +1288,7 @@ func TestCustomerMePersistsRotatedTokensOnRetryFailure(t *testing.T) {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -758,7 +1329,7 @@ func TestCustomerLoginMapsUpstreamFailures(t *testing.T) {
 			t.Fatalf("Migrate returned error: %v", err)
 		}
 		srv := NewWithOptions(st, Options{
-			Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+			Config:        legacyCustomerLoginConfig(upstream.URL),
 			AccountClient: accountclient.New(upstream.URL),
 		})
 
@@ -787,7 +1358,7 @@ func TestCustomerLoginMapsUpstreamFailures(t *testing.T) {
 			t.Fatalf("Migrate returned error: %v", err)
 		}
 		srv := NewWithOptions(st, Options{
-			Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+			Config:        legacyCustomerLoginConfig(upstream.URL),
 			AccountClient: accountclient.New(upstream.URL),
 		})
 
@@ -820,7 +1391,7 @@ func TestCustomerLoginMapsUpstreamFailures(t *testing.T) {
 			t.Fatalf("Migrate returned error: %v", err)
 		}
 		srv := NewWithOptions(st, Options{
-			Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+			Config:        legacyCustomerLoginConfig(upstream.URL),
 			AccountClient: accountclient.NewWithHTTPClient(upstream.URL, &http.Client{Timeout: 40 * time.Millisecond}),
 		})
 
@@ -866,7 +1437,7 @@ func TestCustomerDevicesRefreshesExpiredAccessAndRejectsInvalidActiveOrg(t *test
 		t.Fatalf("Migrate returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 	session, err := st.CreateSession("customer", "u1", "user@example.com", "access", "refresh", "org-up", time.Hour)
@@ -937,7 +1508,7 @@ func TestCustomerUpstreamErrorsMapDeterministically(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.NewWithHTTPClient(upstream.URL, &http.Client{Timeout: 50 * time.Millisecond}),
 	})
 
@@ -1538,6 +2109,206 @@ func TestFleetStreamStatsWindow30dAndOrgScope(t *testing.T) {
 	}
 }
 
+func TestFleetStreamStatsProxyModeUsesVideoCloudAndActiveOrg(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if got := r.Header.Get("Authorization"); got != "Bearer access" {
+			t.Fatalf("%s Authorization = %q, want Bearer access", r.URL.Path, got)
+		}
+		switch r.URL.Path {
+		case "/v1/me":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"user": map[string]any{"id": "u1", "email": "customer@example.com", "name": "Customer"},
+				"organizations": []map[string]any{
+					{"id": "org-acme", "name": "Acme", "role": "owner"},
+					{"id": "org-nova", "name": "Nova", "role": "viewer"},
+				},
+			})
+		case "/v1/orgs/org-acme/devices":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"devices": []map[string]any{
+					{"id": "dev-acme", "organization_id": "org-acme", "organization": "Acme", "name": "Acme Cam", "category": "ip_camera", "model": "RTK-CAM-A", "serial_number": "ACME-001", "video_cloud_devid": "vc-acme", "status": "online", "readiness": "online", "last_seen_at": "2026-05-11T00:00:00Z", "updated_at": "2026-05-11T00:00:00Z"},
+				},
+			})
+		case "/v1/orgs/org-nova/devices":
+			t.Fatalf("inactive organization devices endpoint should not be called")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	var streamStatsCalls int
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+			t.Fatalf("%s Authorization = %q, want Bearer vc-secret", r.URL.Path, got)
+		}
+		switch r.URL.Path {
+		case "/api/fleet/stream-stats":
+			streamStatsCalls++
+			q := r.URL.Query()
+			if q.Get("org_id") != "org-acme" || q.Get("window") != "30d" || q.Get("devices") != "vc-acme" {
+				t.Fatalf("stream stats query = %s, want org_id=org-acme window=30d devices=vc-acme", r.URL.RawQuery)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"org_id":               "org-acme",
+				"window":               "30d",
+				"success_rate_pct":     88.5,
+				"avg_duration_seconds": 14.5,
+				"active_sessions":      7,
+				"never_streamed_count": 2,
+				"by_mode": map[string]any{
+					"webrtc": map[string]any{"requests": 16, "success_rate_pct": 88.5},
+				},
+				"trend": []map[string]any{
+					{"date": "2026-05-11", "requests": 16, "success_rate_pct": 88.5},
+				},
+				"trend_by_mode": []map[string]any{
+					{"mode": "webrtc", "points": []map[string]any{{"date": "2026-05-11", "requests": 16, "success_rate_pct": 88.5}}},
+				},
+				"worst_devices": []map[string]any{
+					{"device_id": "dev-acme", "device_name": "Acme Cam", "mode_used": "webrtc", "readiness": "online", "success_rate_pct": 88.5, "requests": 16, "last_stream_at": "2026-05-11T00:00:00Z"},
+				},
+			})
+		default:
+			t.Fatalf("stream stats proxy should not call unrelated Video Cloud path: %s", r.URL.Path)
+		}
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL: accountUpstream.URL,
+			VideoCloudBaseURL:     videoUpstream.URL,
+			VideoCloudAdminToken:  "vc-secret",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats?window=30d", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var payload contracts.FleetStreamStats
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode stream stats payload: %v", err)
+	}
+	if payload.SuccessRatePct != 88.5 || payload.ActiveSessions != 7 || payload.ByMode["webrtc"].Requests != 16 {
+		t.Fatalf("payload = %#v", payload)
+	}
+	if streamStatsCalls != 1 {
+		t.Fatalf("stream stats calls = %d, want 1", streamStatsCalls)
+	}
+}
+
+func TestFleetStreamStatsProxyFailureDoesNotFallback(t *testing.T) {
+	t.Parallel()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/fleet/stream-stats" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Error(w, "stream backend unavailable", http.StatusInternalServerError)
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:      config.Config{VideoCloudBaseURL: videoUpstream.URL, VideoCloudAdminToken: "vc-secret"},
+		VideoClient: videoclient.New(videoUpstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusBadGateway, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Video Cloud request failed") {
+		t.Fatalf("stream stats body = %s", rec.Body.String())
+	}
+}
+
+func TestFleetStreamStatsProxyTimeoutReturnsGatewayTimeout(t *testing.T) {
+	t.Parallel()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/fleet/stream-stats" {
+			http.NotFound(w, r)
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+		_ = json.NewEncoder(w).Encode(map[string]any{"org_id": "org-acme", "window": "7d"})
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:      config.Config{VideoCloudBaseURL: videoUpstream.URL, VideoCloudAdminToken: "vc-secret"},
+		VideoClient: videoclient.NewWithHTTPClient(videoUpstream.URL, &http.Client{Timeout: 5 * time.Millisecond}),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/stream-stats", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusGatewayTimeout {
+		t.Fatalf("stream stats status = %d, want %d; body=%s", rec.Code, http.StatusGatewayTimeout, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Video Cloud request timed out") {
+		t.Fatalf("stream stats body = %s", rec.Body.String())
+	}
+}
+
 func TestFleetStreamStatsWorstDevicesSortedAsc(t *testing.T) {
 	t.Parallel()
 
@@ -1768,9 +2539,10 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL: accountUpstream.URL,
-			VideoCloudBaseURL:     videoUpstream.URL,
-			VideoCloudAdminToken:  "vc-secret",
+			AccountManagerBaseURL:              accountUpstream.URL,
+			LegacyCustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:                  videoUpstream.URL,
+			VideoCloudAdminToken:               "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -1887,9 +2659,10 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 	}
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL: accountUpstream.URL,
-			VideoCloudBaseURL:     videoUpstream.URL,
-			VideoCloudAdminToken:  "vc-secret",
+			AccountManagerBaseURL:              accountUpstream.URL,
+			LegacyCustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:                  videoUpstream.URL,
+			VideoCloudAdminToken:               "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -2066,9 +2839,10 @@ func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
 
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL: accountUpstream.URL,
-			VideoCloudBaseURL:     videoUpstream.URL,
-			VideoCloudAdminToken:  "vc-secret",
+			AccountManagerBaseURL:              accountUpstream.URL,
+			LegacyCustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:                  videoUpstream.URL,
+			VideoCloudAdminToken:               "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -2193,9 +2967,10 @@ func TestDeviceTelemetryProxyModeMapsVideoCloudFailure(t *testing.T) {
 
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL: accountUpstream.URL,
-			VideoCloudBaseURL:     videoUpstream.URL,
-			VideoCloudAdminToken:  "vc-secret",
+			AccountManagerBaseURL:              accountUpstream.URL,
+			LegacyCustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:                  videoUpstream.URL,
+			VideoCloudAdminToken:               "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -2247,7 +3022,7 @@ func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 	if err := st.BootstrapPlatformAdmin("admin@example.com", "secret"); err != nil {
 		t.Fatalf("BootstrapPlatformAdmin returned error: %v", err)
 	}
-	srv := New(st)
+	srv := NewWithOptions(st, Options{Config: config.Config{AdminBreakGlassEnabled: true}})
 
 	adminPaths := []string{
 		"/api/admin/summary",
@@ -2375,6 +3150,153 @@ func TestPlatformAdminReadModelsIncludeDashboardFields(t *testing.T) {
 	}
 }
 
+func TestPlatformAdminReadModelsUseAccountManagerAdminInventory(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+			t.Fatalf("%s Authorization = %q, want Bearer admin-access", r.URL.Path, got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/admin/orgs":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"organizations": []map[string]any{
+					{"id": "org-admin", "name": "Admin Org", "role": "owner", "tier": "commercial"},
+				},
+			})
+		case "/v1/admin/devices":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"devices": []map[string]any{
+					{"id": "dev-admin", "organization_id": "org-admin", "organization": "Admin Org", "name": "Admin Camera", "category": "ip_camera", "model": "RTK-CAM-A", "serial_number": "ADMIN-001", "status": "online", "readiness": "online", "last_seen_at": "2026-05-11T00:00:00Z", "updated_at": "2026-05-11T00:00:00Z"},
+				},
+			})
+		case "/v1/admin/operations":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"operations": []map[string]any{
+					{"id": "op-admin", "device_id": "dev-admin", "device_name": "Admin Camera", "organization_id": "org-admin", "organization": "Admin Org", "type": "DeviceProvisionRequested", "state": "published", "message": "queued", "updated_at": "2026-05-11T00:00:00Z"},
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession platform_admin returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: accountUpstream.URL},
+		AccountClient: accountclient.New(accountUpstream.URL),
+	})
+
+	adminGet := func(path string) *httptest.ResponseRecorder {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d; body=%s", path, rec.Code, http.StatusOK, rec.Body.String())
+		}
+		return rec
+	}
+
+	var summary contracts.Summary
+	if err := json.NewDecoder(adminGet("/api/admin/summary").Body).Decode(&summary); err != nil {
+		t.Fatalf("decode summary: %v", err)
+	}
+	if summary.TotalDevices != 1 || summary.Customers != 1 || summary.OpenOperations != 1 {
+		t.Fatalf("summary = %#v", summary)
+	}
+
+	var customers []contracts.CustomerSummary
+	if err := json.NewDecoder(adminGet("/api/admin/customers").Body).Decode(&customers); err != nil {
+		t.Fatalf("decode customers: %v", err)
+	}
+	if len(customers) != 1 || customers[0].OrganizationID != "org-admin" || customers[0].Organization != "Admin Org" || customers[0].TotalDevices != 1 {
+		t.Fatalf("customers = %#v", customers)
+	}
+
+	var devices []contracts.Device
+	if err := json.NewDecoder(adminGet("/api/admin/devices").Body).Decode(&devices); err != nil {
+		t.Fatalf("decode devices: %v", err)
+	}
+	if len(devices) != 1 || devices[0].ID != "dev-admin" || devices[0].OrganizationID != "org-admin" || devices[0].Name != "Admin Camera" {
+		t.Fatalf("devices = %#v", devices)
+	}
+
+	var ops []contracts.Operation
+	if err := json.NewDecoder(adminGet("/api/admin/operations").Body).Decode(&ops); err != nil {
+		t.Fatalf("decode operations: %v", err)
+	}
+	if len(ops) != 1 || ops[0].ID != "op-admin" || ops[0].DeviceID != "dev-admin" || ops[0].Organization != "Admin Org" {
+		t.Fatalf("operations = %#v", ops)
+	}
+}
+
+func TestPlatformAdminReadModelsSurfaceUpstreamFailure(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+			t.Fatalf("%s Authorization = %q, want Bearer admin-access", r.URL.Path, got)
+		}
+		switch r.URL.Path {
+		case "/v1/admin/orgs":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"organizations": []map[string]any{{"id": "org-admin", "name": "Admin Org"}},
+			})
+		case "/v1/admin/devices":
+			http.Error(w, "inventory unavailable", http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession platform_admin returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: accountUpstream.URL},
+		AccountClient: accountclient.New(accountUpstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/devices", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("admin devices status = %d, want %d; body=%s", rec.Code, http.StatusBadGateway, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Account Manager request failed") {
+		t.Fatalf("admin devices body = %s", rec.Body.String())
+	}
+}
+
 func TestMeContractStabilizesMembershipShape(t *testing.T) {
 	t.Parallel()
 
@@ -2494,7 +3416,7 @@ func TestActiveOrgAndQuotaContractsRejectInvalidOrganizations(t *testing.T) {
 	}))
 	defer upstream.Close()
 	proxySrv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -2599,7 +3521,7 @@ func TestCustomerUpstreamLifecycleIsIdempotentAndDurable(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -2743,7 +3665,7 @@ func TestDeactivateDoesNotReturnOpenProvisionOperation(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -2815,7 +3737,7 @@ func TestCustomerUpstreamLifecycleFailurePersistsFailedOperation(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        legacyCustomerLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -2882,7 +3804,7 @@ func TestPlatformAdminLogin(t *testing.T) {
 	if err := st.BootstrapPlatformAdmin("admin@example.com", "secret"); err != nil {
 		t.Fatalf("BootstrapPlatformAdmin returned error: %v", err)
 	}
-	srv := New(st)
+	srv := NewWithOptions(st, Options{Config: config.Config{AdminBreakGlassEnabled: true}})
 	blocked := httptest.NewRecorder()
 	srv.ServeHTTP(blocked, httptest.NewRequest(http.MethodGet, "/api/admin/audit", nil))
 	if blocked.Code != http.StatusUnauthorized {

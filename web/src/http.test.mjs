@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { postJSON } from './http.mjs';
+import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
 
 test('postJSON throws on failed verification responses', async () => {
   const originalFetch = globalThis.fetch;
@@ -86,4 +86,65 @@ test('postJSON propagates network failures', async () => {
   );
 
   globalThis.fetch = originalFetch;
+});
+
+test('startSSOLogin posts email and return URL to SSO start endpoint', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    assert.equal(url, '/api/auth/sso/start');
+    assert.equal(init.method, 'POST');
+    assert.equal(init.headers['Content-Type'], 'application/json');
+    assert.equal(init.body, JSON.stringify({
+      email: 'owner@example.com',
+      return_url: 'https://admin.example.com/console',
+    }));
+    return {
+      ok: true,
+      status: 200,
+      text: async () => '{"redirect_url":"https://idp.example.com/authorize","state":"state-1"}',
+    };
+  };
+
+  assert.deepEqual(await startSSOLogin('owner@example.com', 'https://admin.example.com/console'), {
+    redirect_url: 'https://idp.example.com/authorize',
+    state: 'state-1',
+  });
+
+  globalThis.fetch = originalFetch;
+});
+
+test('putJSON sends JSON using PUT', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    assert.equal(url, '/api/admin/orgs/org-1/sso-provider');
+    assert.equal(init.method, 'PUT');
+    assert.equal(init.headers['Content-Type'], 'application/json');
+    assert.equal(init.body, JSON.stringify({ enabled: true }));
+    return {
+      ok: true,
+      status: 200,
+      text: async () => '{"provider":{"organization_id":"org-1","enabled":true}}',
+    };
+  };
+
+  assert.deepEqual(await putJSON('/api/admin/orgs/org-1/sso-provider', { enabled: true }), {
+    provider: { organization_id: 'org-1', enabled: true },
+  });
+
+  globalThis.fetch = originalFetch;
+});
+
+test('userFacingSSOError hides internal SSO configuration details', () => {
+  assert.equal(
+    userFacingSSOError(new Error('ACCOUNT_MANAGER_BASE_URL is not configured')),
+    'SSO is not configured for this environment.',
+  );
+  assert.equal(
+    userFacingSSOError(new Error('invalid JSON response from Account Manager')),
+    'SSO is temporarily unavailable. Please try again later.',
+  );
+  assert.equal(
+    userFacingSSOError(new Error('SSO provider is disabled for this organization')),
+    'SSO provider is disabled for this organization',
+  );
 });

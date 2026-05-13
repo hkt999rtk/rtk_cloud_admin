@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { customerNavItems, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
-import { postJSON } from './http.mjs';
+import { customerNavItems, devicesPathWithFilters, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
+import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
+import { shouldShowBreakGlass } from './auth-state.mjs';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -18,6 +19,7 @@ function App() {
   const [operations, setOperations] = useState([]);
   const [health, setHealth] = useState([]);
   const [audit, setAudit] = useState([]);
+  const [ssoProviders, setSSOProviders] = useState([]);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
@@ -32,6 +34,9 @@ function App() {
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
   const customerViewPending = !isPlatformView && !isPublicRoute && me === null;
   const customerViewBlocked = !isPlatformView && !isPublicRoute && me !== null && (me.authenticated === false || me.kind === 'platform_admin');
+  const activeMembership = getActiveMembership(me);
+  const activeOrgLabel = activeMembership?.organization || me?.active_org_id || 'Acme Smart Camera';
+  const lastUpdatedAt = latestCustomerUpdate(devices, recentAlerts);
 
   useEffect(() => {
     if (isPublicRoute) {
@@ -57,6 +62,7 @@ function App() {
           setOperations([]);
           setHealth([]);
           setAudit([]);
+          setSSOProviders([]);
           setFirmwareDistribution(null);
           setLoading(false);
           return;
@@ -71,6 +77,7 @@ function App() {
           setOperations([]);
           setHealth([]);
           setAudit([]);
+          setSSOProviders([]);
           setLoading(false);
           return;
         }
@@ -101,6 +108,13 @@ function App() {
         setOperations(nextOperations);
         setHealth(nextHealth);
         setAudit(nextAudit);
+        if (useAdminApi && active === 'platform-sso') {
+          const nextSSOProviders = await fetchJSON('/api/admin/sso/providers');
+          if (!alive) return;
+          setSSOProviders(nextSSOProviders.providers || []);
+        } else {
+          setSSOProviders([]);
+        }
         if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin') {
           const nextFirmwareDistribution = await fetchJSON('/api/fleet/firmware-distribution');
           if (!alive) return;
@@ -143,6 +157,7 @@ function App() {
           setOperations([]);
           setHealth([]);
           setAudit([]);
+          setSSOProviders([]);
           setFirmwareDistribution(null);
           setFleetHealth(null);
           setStreamStats(null);
@@ -169,6 +184,7 @@ function App() {
     setOperations([]);
     setHealth([]);
     setAudit([]);
+    setSSOProviders([]);
     setFirmwareDistribution(null);
     setFleetHealth(null);
     setStreamStats(null);
@@ -238,16 +254,42 @@ function App() {
     setActive('devices');
   }
 
-  async function handleLogin(kind, credentials) {
+  async function handleSSOProviderSave(orgID, config) {
     setError('');
-    const url = kind === 'platform' ? '/api/auth/platform/login' : '/api/auth/customer/login';
-    const response = await fetch(url, {
+    try {
+      const result = await putJSON(`/api/admin/orgs/${encodeURIComponent(orgID)}/sso-provider`, config);
+      setSSOProviders((providers) => upsertProvider(providers, result.provider));
+    } catch (err) {
+      setError(userFacingSSOError(err));
+      throw err;
+    }
+  }
+
+  async function handleSSOStart(email) {
+    setError('');
+    try {
+      const result = await startSSOLogin(email, window.location.href);
+      if (!result?.redirect_url) {
+        setError('SSO start did not return a redirect URL');
+        return;
+      }
+      window.location.assign(result.redirect_url);
+    } catch (err) {
+      setError(userFacingSSOError(err));
+      throw err;
+    }
+  }
+
+  async function handleBreakGlassLogin(credentials) {
+    setError('');
+    const response = await fetch('/api/auth/platform/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),
     });
     if (!response.ok) {
-      setError(`${kind} login failed with ${response.status}`);
+      const details = await response.text().catch(() => '');
+      setError(details || `break-glass login failed with ${response.status}`);
       return;
     }
     setRefreshTick((tick) => tick + 1);
@@ -348,30 +390,14 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-logo-shell">
-            <img src="/assets/realtek-logo.png" alt="Realtek" />
-          </span>
-          <div>
-            <strong>Connect+</strong>
-            <small>Admin Console</small>
-          </div>
+          <span className="brand-mark" aria-hidden="true">C+</span>
+          <strong>Connect+ Ops</strong>
         </div>
-        <div className="view-switcher">
-          <small>Workspace</small>
-          <div className="view-switcher-buttons">
-            <button className={!isPlatformView ? 'active' : ''} onClick={() => switchView('customer')}>
-              <span className="view-switcher-dot" aria-hidden="true" />
-              Customer View
-            </button>
-            <button className={isPlatformView ? 'active' : ''} onClick={() => switchView('platform')}>
-              <span className="view-switcher-dot" aria-hidden="true" />
-              Platform View
-            </button>
-          </div>
-        </div>
+        <p className="sidebar-section-label">{isPlatformView ? 'Platform View' : 'Customer View'}</p>
         <nav>
           {visibleNavItems.map((item) => (
             <button
+              type="button"
               key={item.id}
               className={active === item.id ? 'active' : ''}
               onClick={() => navigate(item)}
@@ -380,38 +406,63 @@ function App() {
             </button>
           ))}
         </nav>
+        <div className="sidebar-platform-switch">
+          <p className="sidebar-section-label">Platform View</p>
+          <button type="button" onClick={() => switchView(isPlatformView ? 'customer' : 'platform')}>
+            {isPlatformView ? 'Switch to Customer View' : 'Switch to Platform View'}
+            <span aria-hidden="true">&gt;</span>
+          </button>
+        </div>
+        <div className="sidebar-account">
+          <span className="avatar">{me?.email ? initialsForEmail(me.email) : 'DM'}</span>
+          <div>
+            <strong>{sessionLabel(me)}</strong>
+            <small>{me?.authenticated ? me.email : activeOrgLabel}</small>
+          </div>
+        </div>
       </aside>
 
       <main>
         <header className="topbar">
-          <div>
-            <p className="eyebrow">Tenant-first B2B operations</p>
+          <div className="topbar-title">
             <h1>{titleFor(active)}</h1>
           </div>
-          <div className="session-strip">
-            <span>{sessionLabel(me, isPlatformView)}</span>
+          <div className="topbar-controls">
             {me?.kind === 'customer' && (me?.memberships?.length ?? 0) > 1 ? (
               <select
                 className="org-switcher"
                 value={me.active_org_id || ''}
                 onChange={(e) => handleSwitchOrg(e.target.value)}
+                aria-label="Active organization"
               >
                 {(me.memberships || []).map((m) => (
                   <option key={m.organization_id} value={m.organization_id}>{m.organization}</option>
                 ))}
               </select>
             ) : (
-              <span>{me?.active_org_id || 'all orgs'}</span>
+              <span className="org-chip">{activeOrgLabel}</span>
             )}
-            {me?.authenticated ? <button onClick={handleLogout}>Logout</button> : null}
+            {active === 'overview' ? <WindowToggle value={overviewWindow} onChange={setOverviewWindow} label="Fleet health window" disabled={!sourceAvailable(fleetHealth)} /> : null}
+            {active === 'stream-health' ? <WindowToggle value={streamWindow} onChange={setStreamWindow} label="Stream health window" disabled={!sourceAvailable(streamStats)} /> : null}
+            {active === 'firmware-ota' ? <StaticWindowToggle /> : null}
+            <span className="last-updated">Last updated: {lastUpdatedAt ? formatRelativeTime(lastUpdatedAt) : 'just now'}</span>
+            <button type="button" className="icon-button" onClick={() => setRefreshTick((tick) => tick + 1)} aria-label="Refresh dashboard">R</button>
+            {me?.authenticated ? <button type="button" className="ghost-button" onClick={handleLogout}>Logout</button> : null}
           </div>
         </header>
 
         {error ? <div className="error">{error}</div> : null}
 
-        {needsPlatformAccess ? <PlatformAccessGate active={active} onLogin={handleLogin} /> : null}
+        {needsPlatformAccess ? (
+          <PlatformAccessGate
+            active={active}
+            me={me}
+            onSSOStart={handleSSOStart}
+            onBreakGlassLogin={handleBreakGlassLogin}
+          />
+        ) : null}
         {!needsPlatformAccess && customerViewPending ? <section className="panel split-panel"><div><h2>Loading session</h2><p>Checking customer access before loading dashboard data.</p></div></section> : null}
-        {!needsPlatformAccess && !customerViewPending && customerViewBlocked ? <CustomerAccessGate me={me} onLogin={handleLogin} /> : null}
+        {!needsPlatformAccess && !customerViewPending && customerViewBlocked ? <CustomerAccessGate me={me} onSSOStart={handleSSOStart} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'overview' ? (
           <Overview
             summary={summary}
@@ -422,7 +473,8 @@ function App() {
             setOverviewWindow={setOverviewWindow}
             me={me}
             loading={loading}
-            onLogin={handleLogin}
+            devices={devices}
+            onSSOStart={handleSSOStart}
             onHealthFilter={filterDevicesByHealth}
             onRequestQuotaRaise={handleQuotaRaiseRequest}
           />
@@ -447,13 +499,18 @@ function App() {
         ) : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'stream-health' ? (
           <StreamHealthPage
+            devices={devices}
             loading={loading}
             stats={streamStats}
             streamWindow={streamWindow}
             setWindow={setStreamWindow}
+            onOpenDevice={selectDevice}
           />
         ) : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
+        {!needsPlatformAccess && active === 'platform-sso' ? (
+          <PlatformSSOProviders providers={ssoProviders} customers={customers} onSave={handleSSOProviderSave} />
+        ) : null}
         {!needsPlatformAccess && active === 'platform-operations' ? <Operations operations={operations} /> : null}
         {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} /> : null}
       </main>
@@ -722,7 +779,8 @@ function Overview({
   setOverviewWindow,
   me,
   loading,
-  onLogin,
+  devices,
+  onSSOStart,
   onHealthFilter,
   onRequestQuotaRaise,
 }) {
@@ -744,23 +802,17 @@ function Overview({
   const activeStreams = streamAvailable ? (streamStats?.active_sessions ?? 0) : 'Unavailable';
   const telemetryReason = sourceMessage(fleetHealth, 'No telemetry source configured.');
   const streamReason = sourceMessage(streamStats, 'No stream source configured.');
+  const attentionDevices = buildAttentionQueue(devices, recentAlerts);
 
   return (
     <div className="overview-layout">
-      <section className="panel hero-panel">
-        <div className="hero-copy">
-          <p className="eyebrow">Customer View</p>
-          <h2>Fleet Health Overview</h2>
-          <p>Single-glance fleet health, trend, and alert awareness for Tier 2 operators.</p>
-        </div>
-        {!me?.authenticated ? <LoginPanel mode="customer" title="Customer Account Manager login" onLogin={onLogin} /> : null}
-      </section>
+      {!me?.authenticated ? <SSOLoginPanel title="Sign in with SSO" onSSOStart={onSSOStart} /> : null}
 
       <section className="metrics overview-metrics">
-        <MetricCard label="Online" value={onlineCount} hint={summary ? `${summary.total_devices ?? 0} total devices` : 'Waiting for summary data'} tone="good" />
-        <MetricCard label="Online Rate (7d)" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'Daily online share across the current window' : telemetryReason} tone="info" />
-        <MetricCard label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? 'Devices in warning or critical health' : telemetryReason} tone={needsAttention === 0 ? 'good' : 'warn'} />
-        <MetricCard label="Active Streams" value={activeStreams} hint={streamAvailable ? 'Open sessions right now' : streamReason} tone="info" />
+        <MetricCard icon="ON" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
+        <MetricCard icon="%" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
+        <MetricCard icon="!" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : telemetryReason} tone={needsAttention === 0 ? 'good' : 'warn'} />
+        <MetricCard icon="ST" label="Active Streams" value={activeStreams} hint={streamAvailable ? `of ${summary?.total_devices ?? 0} devices` : streamReason} tone="info" />
       </section>
 
       {!telemetryAvailable ? <SourceBlockedState title="Telemetry source unavailable" message={telemetryReason} /> : null}
@@ -781,82 +833,64 @@ function Overview({
         />
       </section>
 
-      <section className="panel split-panel">
-        <div>
-          <h2>Tier and quota</h2>
-          <p>{me?.authenticated ? `${tierLabel} account for ${activeMembership?.organization || 'your active organization'}.` : 'Sign in to see the current tier and quota for your organization.'}</p>
-          {me?.authenticated ? <div className="quota-pill">{tierLabel} {isEvaluation ? quotaRatio : 'Contact sales'}</div> : null}
-          {nearQuota ? <p className="auth-status">This fleet is near its evaluation cap. Request a higher limit before the next device is added.</p> : null}
-        </div>
-        {me?.authenticated && isEvaluation ? (
+      <section className="overview-lower-grid">
+        <RecentAlertsPanel loading={loading} alerts={recentAlerts} source={fleetHealth} />
+        <AttentionQueuePanel loading={loading} items={attentionDevices} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
+      </section>
+
+      {me?.authenticated && isEvaluation && nearQuota ? (
+        <section className="panel quota-callout">
+          <div>
+            <h2>Evaluation quota</h2>
+            <p>{tierLabel} account for {activeMembership?.organization || 'your active organization'} is near its {quotaRatio} cap.</p>
+          </div>
           <QuotaRaiseForm
             organizationId={activeMembership?.organization_id}
             organizationName={activeMembership?.organization}
             currentQuota={quotaLimit}
             onSubmit={onRequestQuotaRaise}
           />
-        ) : null}
-      </section>
-
-      <RecentAlertsPanel loading={loading} alerts={recentAlerts} source={fleetHealth} />
+        </section>
+      ) : null}
     </div>
   );
 }
 
 function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
-  const [expandedCampaignId, setExpandedCampaignId] = useState('');
   const versions = distribution?.versions || [];
   const campaigns = distribution?.campaigns || [];
   const available = sourceAvailable(distribution);
   const unavailableText = sourceMessage(distribution, 'Firmware observation source is not configured.');
   const totalDevices = versions.reduce((sum, version) => sum + (version.count || 0), 0);
   const activeCampaigns = campaigns.filter((campaign) => ['active', 'scheduled'].includes(String(campaign.state || '').toLowerCase())).length;
-
-  useEffect(() => {
-    if (campaigns.length === 0) {
-      setExpandedCampaignId('');
-      return;
-    }
-    if (!expandedCampaignId || !campaigns.some((campaign) => campaign.campaign_id === expandedCampaignId)) {
-      setExpandedCampaignId(campaigns[0].campaign_id);
-    }
-  }, [campaigns, expandedCampaignId]);
-
-  const latestVersion = versions.find((version) => version.is_latest)?.version || versions[0]?.version || '—';
+  const latestVersionRow = versions.find((version) => version.is_latest) || versions[0] || null;
+  const latestVersion = latestVersionRow?.version || '—';
+  const currentDevices = latestVersionRow?.count || 0;
+  const primaryCampaign = campaigns[0] || null;
+  const pendingUpdate = primaryCampaign?.pending ?? Math.max(totalDevices - currentDevices, 0);
+  const failedRollout = primaryCampaign?.failed ?? 0;
 
   return (
     <section className="panel firmware-ota-page">
       <div className="panel-head">
         <div>
-          <p className="eyebrow">Customer View</p>
           <h2>Firmware &amp; OTA</h2>
           <p>Track which firmware versions are live across the fleet and how each OTA campaign is progressing.</p>
         </div>
-        <div className="firmware-page-metrics">
-          <div>
-            <strong>{available ? totalDevices : 'Unavailable'}</strong>
-            <span>Devices</span>
-          </div>
-          <div>
-            <strong>{available ? versions.length : 'Unavailable'}</strong>
-            <span>Versions</span>
-          </div>
-          <div>
-            <strong>{available ? activeCampaigns : 'Unavailable'}</strong>
-            <span>Active campaigns</span>
-          </div>
-          <div>
-            <strong>{available ? latestVersion : 'Unavailable'}</strong>
-            <span>Latest version</span>
-          </div>
-        </div>
       </div>
 
-      {loading && !distribution ? <p className="empty-state">Loading firmware distribution.</p> : null}
+      <section className="metrics firmware-page-metrics">
+        <MetricCard icon="FW" label="Latest Version" value={available ? latestVersion : 'Unavailable'} hint={available ? 'Current target release' : unavailableText} tone="info" />
+        <MetricCard icon="OK" label="Devices Current" value={available ? currentDevices : 'Unavailable'} hint={available ? `${formatPercent(latestVersionRow?.pct || 0)} of fleet` : unavailableText} tone="good" />
+        <MetricCard icon="UP" label="Pending Update" value={available ? pendingUpdate : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? pendingUpdate / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone="info" />
+        <MetricCard icon="!" label="Failed Rollout" value={available ? failedRollout : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone={failedRollout ? 'danger' : 'good'} />
+      </section>
 
+      {loading && !distribution ? <p className="empty-state">Loading firmware distribution.</p> : null}
       {distribution && !available ? <SourceBlockedState title="Firmware source unavailable" message={unavailableText} /> : null}
 
       {distribution && available ? (
+        <>
         <div className="firmware-layout">
           <section className="panel firmware-panel">
             <div className="panel-head">
@@ -893,84 +927,41 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
             )}
           </section>
 
+          <FirmwareCampaignSummary campaign={primaryCampaign} />
+        </div>
+
+        <div className="firmware-lower-grid">
           <section className="panel firmware-panel">
             <div className="panel-head">
               <div>
-                <h3>OTA campaigns</h3>
-                <p>Click a campaign to inspect its device-level rollout breakdown.</p>
+                <h3>Rollout Campaigns <span>(Read-only)</span></h3>
+                <p>Campaign status is displayed for visibility only; create/edit flows are out of scope.</p>
               </div>
             </div>
             {campaigns.length ? (
-              <div className="firmware-campaign-list">
+              <div className="campaign-table">
+                <div className="campaign-table-head">
+                  <span>Campaign</span>
+                  <span>Target</span>
+                  <span>Policy</span>
+                  <span>State</span>
+                  <span>Applied</span>
+                  <span>Pending</span>
+                  <span>Failed</span>
+                  <span>Started</span>
+                </div>
                 {campaigns.map((campaign) => {
-                  const expanded = expandedCampaignId === campaign.campaign_id;
                   return (
-                    <article key={campaign.campaign_id} className={`firmware-campaign${expanded ? ' is-expanded' : ''}`}>
-                      <button
-                        type="button"
-                        className="firmware-campaign__header"
-                        onClick={() => setExpandedCampaignId(expanded ? '' : campaign.campaign_id)}
-                      >
-                        <div className="firmware-campaign__title">
-                          <strong>{campaign.campaign_id}</strong>
-                          <span>{campaign.target_version}</span>
-                        </div>
-                        <StatusBadge value={normalizeStatusKey(campaign.state)} label={toTitleCase(campaign.state || 'unknown')} />
-                      </button>
-
-                      <div className="firmware-campaign__summary">
-                        <div>
-                          <span>Policy</span>
-                          <strong>{campaign.policy || 'normal'}</strong>
-                        </div>
-                        <div>
-                          <span>Started</span>
-                          <strong>{campaign.started_at ? formatRelativeTime(campaign.started_at) : '—'}</strong>
-                        </div>
-                        <div className="firmware-progress">
-                          <div className="firmware-progress__bar" aria-hidden="true">
-                            <span style={{ width: `${campaign.total ? Math.max((campaign.applied / campaign.total) * 100, campaign.applied ? 8 : 0) : 0}%` }} />
-                          </div>
-                          <small>{campaign.applied} applied of {campaign.total || 0}</small>
-                        </div>
-                      </div>
-
-                      <div className="firmware-campaign__counts">
-                        <span>Applied {campaign.applied}</span>
-                        <span>Pending {campaign.pending}</span>
-                        <span>Failed {campaign.failed}</span>
-                        <span>Skipped {campaign.skipped}</span>
-                      </div>
-
-                      {expanded ? (
-                        <div className="firmware-rollout-table">
-                          {campaign.rollouts?.length ? (
-                            <>
-                              <div className="firmware-rollout-table__head">
-                                <span>Device</span>
-                                <span>Current</span>
-                                <span>Target</span>
-                                <span>Status</span>
-                                <span>Reason</span>
-                                <span>Updated</span>
-                              </div>
-                              {campaign.rollouts.map((rollout) => (
-                                <div className="firmware-rollout-table__row" key={`${campaign.campaign_id}:${rollout.device_id}`}>
-                                  <strong>{rollout.device_name || rollout.device_id}</strong>
-                                  <span>{rollout.current_version || '—'}</span>
-                                  <span>{rollout.target_version || campaign.target_version || '—'}</span>
-                                  <StatusBadge value={normalizeStatusKey(rollout.rollout_status)} label={toTitleCase(rollout.rollout_status || 'pending')} />
-                                  <span>{rollout.failure_reason || '—'}</span>
-                                  <time title={rollout.last_updated}>{rollout.last_updated ? formatRelativeTime(rollout.last_updated) : '—'}</time>
-                                </div>
-                              ))}
-                            </>
-                          ) : (
-                            <p className="empty-state">No rollout rows available for this campaign.</p>
-                          )}
-                        </div>
-                      ) : null}
-                    </article>
+                    <div key={campaign.campaign_id} className="campaign-table-row">
+                      <strong>{campaign.campaign_id}</strong>
+                      <span>{campaign.target_version}</span>
+                      <span>{campaign.policy || 'normal'}</span>
+                      <StatusBadge value={normalizeStatusKey(campaign.state)} label={toTitleCase(campaign.state || 'unknown')} />
+                      <span>{campaign.applied} ({formatPercent(campaign.total ? campaign.applied / campaign.total * 100 : 0)})</span>
+                      <span>{campaign.pending} ({formatPercent(campaign.total ? campaign.pending / campaign.total * 100 : 0)})</span>
+                      <span>{campaign.failed} ({formatPercent(campaign.total ? campaign.failed / campaign.total * 100 : 0)})</span>
+                      <time>{campaign.started_at ? formatRelativeTime(campaign.started_at) : '—'}</time>
+                    </div>
                   );
                 })}
               </div>
@@ -978,7 +969,10 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
               <p className="empty-state">No campaigns active.</p>
             )}
           </section>
+
+          <FirmwareRiskQueue campaigns={campaigns} onViewDevices={onViewDevices} />
         </div>
+        </>
       ) : !distribution ? (
         <p className="empty-state">No firmware distribution data available.</p>
       ) : (
@@ -988,10 +982,109 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
   );
 }
 
-function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
+function FirmwareCampaignSummary({ campaign }) {
+  if (!campaign) {
+    return (
+      <section className="panel firmware-panel rollout-summary">
+        <div className="panel-head">
+          <div>
+            <h3>Rollout Campaign Summary</h3>
+            <p>No active campaign is available.</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+  const total = campaign.total || 0;
+  const segments = [
+    { key: 'applied', label: 'Applied', count: campaign.applied, tone: 'good' },
+    { key: 'pending', label: 'Pending', count: campaign.pending, tone: 'info' },
+    { key: 'failed', label: 'Failed', count: campaign.failed, tone: 'danger' },
+    { key: 'skipped', label: 'Skipped', count: campaign.skipped, tone: 'neutral' },
+  ];
+  return (
+    <section className="panel firmware-panel rollout-summary">
+      <div className="panel-head">
+        <div>
+          <h3>Rollout Campaign Summary</h3>
+          <p>Target {campaign.target_version} / {campaign.policy || 'normal'} / {campaign.started_at ? formatRelativeTime(campaign.started_at) : 'not started'}</p>
+        </div>
+        <StatusBadge value={normalizeStatusKey(campaign.state)} label={toTitleCase(campaign.state || 'unknown')} />
+      </div>
+      <div className="rollout-summary-grid">
+        {segments.map((segment) => (
+          <div key={segment.key}>
+            <span>{segment.label}</span>
+            <strong>{segment.count}</strong>
+            <small>{formatPercent(total ? segment.count / total * 100 : 0)}</small>
+          </div>
+        ))}
+        <div>
+          <span>Total</span>
+          <strong>{total}</strong>
+          <small>100%</small>
+        </div>
+      </div>
+      <div className="rollout-progress" aria-label="Rollout progress">
+        {segments.map((segment) => (
+          <span
+            key={segment.key}
+            className={`tone-${segment.tone}`}
+            style={{ width: `${total ? Math.max(segment.count / total * 100, segment.count ? 6 : 0) : 0}%` }}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FirmwareRiskQueue({ campaigns, onViewDevices }) {
+  const rows = campaigns
+    .flatMap((campaign) => (campaign.rollouts || []).map((rollout) => ({ ...rollout, campaign })))
+    .filter((rollout) => !['applied', 'skipped'].includes(String(rollout.rollout_status || '').toLowerCase()))
+    .slice(0, 6);
+  return (
+    <section className="panel firmware-panel firmware-risk-queue">
+      <div className="panel-head">
+        <div>
+          <h3>Firmware Risk Queue</h3>
+          <p>Devices behind latest, failed, pending, or reporting unknown firmware.</p>
+        </div>
+        <span>{rows.length} devices</span>
+      </div>
+      {rows.length ? (
+        <div className="risk-table">
+          <div className="risk-table-head">
+            <span>Device</span>
+            <span>Current Version</span>
+            <span>Status</span>
+            <span>Last Seen</span>
+          </div>
+          {rows.map((rollout) => (
+            <button
+              type="button"
+              className="risk-table-row"
+              key={`${rollout.campaign.campaign_id}:${rollout.device_id}`}
+              onClick={() => onViewDevices(rollout.current_version)}
+            >
+              <strong>{rollout.device_name || rollout.device_id}</strong>
+              <span>{rollout.current_version || 'Unknown'}</span>
+              <StatusBadge value={normalizeStatusKey(rollout.rollout_status)} label={toTitleCase(rollout.rollout_status || 'pending')} />
+              <time>{rollout.last_updated ? formatRelativeTime(rollout.last_updated) : '—'}</time>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="empty-state">No firmware risk items.</p>
+      )}
+    </section>
+  );
+}
+
+function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, onOpenDevice }) {
   const trend = stats?.trend || [];
   const modeTrends = stats?.trend_by_mode || [];
-  const devices = stats?.worst_devices || [];
+  const worstDevices = stats?.worst_devices || [];
   const byMode = stats?.by_mode || {};
   const available = sourceAvailable(stats);
   const unavailableText = sourceMessage(stats, 'WebRTC session event source is not configured.');
@@ -1028,22 +1121,8 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
     <section className="panel stream-health-page">
       <div className="panel-head">
         <div>
-          <p className="eyebrow">Customer View</p>
           <h2>Stream Health</h2>
           <p>Are device streams succeeding for end users, and where are the worst failures concentrated?</p>
-        </div>
-        <div className="window-toggle" role="tablist" aria-label="Stream health window">
-          {['7d', '30d'].map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={streamWindow === value ? 'active' : ''}
-              disabled={!available}
-              onClick={() => setWindow(value)}
-            >
-              {value.toUpperCase()}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -1149,7 +1228,7 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
               </div>
             </div>
 
-            {devices.length ? (
+            {worstDevices.length ? (
               <div className="stream-device-table">
                 <div className="stream-device-table__head">
                   <span>Device</span>
@@ -1159,7 +1238,7 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
                   <span>Last Stream</span>
                   <span>Status</span>
                 </div>
-                {devices.map((device) => (
+                {worstDevices.map((device) => (
                   <div key={device.device_id} className="stream-device-table__row">
                     <strong>{device.device_name || device.device_id}</strong>
                     <span>{streamModeLabel(device.mode_used)}</span>
@@ -1174,6 +1253,7 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
               <p className="empty-state">No stream requests in selected window.</p>
             )}
           </section>
+          <StreamAttentionPanel devices={devices} onOpenDevice={onOpenDevice} />
         </div>
       ) : (
         <p className="empty-state">{unavailableText}</p>
@@ -1182,38 +1262,55 @@ function StreamHealthPage({ loading, stats, streamWindow, setWindow }) {
   );
 }
 
-function PlatformAccessGate({ active, onLogin }) {
+function GroupsPage() {
   return (
-    <>
-      <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} />
-      <section className="panel split-panel">
+    <section className="panel">
+      <div className="panel-head">
         <div>
-          <h2>Platform access required</h2>
-          <p>Sign in with a platform admin session to open {titleFor(active)}.</p>
+          <h2>Groups</h2>
+          <p>Customer group management and membership assignment will be added here.</p>
         </div>
-      </section>
-    </>
+      </div>
+      <p className="placeholder-subtitle">Placeholder area for customer group workspace.</p>
+    </section>
   );
 }
 
-function CustomerAccessGate({ me, onLogin }) {
+function CustomerAccessGate({ me, onSSOStart }) {
   if (me?.kind === 'platform_admin') {
     return (
       <section className="panel split-panel">
         <div>
           <h2>Platform admin cannot use Customer View</h2>
-          <p>Switch to Platform View to inspect service health, operations, and audit data across tenants.</p>
+          <p>Switch to Platform View to inspect service health, SSO providers, operations, and audit data across tenants.</p>
         </div>
       </section>
     );
   }
   return (
     <>
-      <LoginPanel mode="customer" title="Customer Account Manager login" onLogin={onLogin} />
+      <SSOLoginPanel title="Sign in with SSO" onSSOStart={onSSOStart} />
       <section className="panel split-panel">
         <div>
           <h2>Customer access required</h2>
           <p>Sign in with a customer account to open the operations console.</p>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function PlatformAccessGate({ active, me, onSSOStart, onBreakGlassLogin }) {
+  return (
+    <>
+      <SSOLoginPanel title="Platform SSO sign in" onSSOStart={onSSOStart} />
+      {shouldShowBreakGlass(me) ? (
+        <BreakGlassLoginPanel title="Break-glass platform access" onLogin={onBreakGlassLogin} />
+      ) : null}
+      <section className="panel split-panel">
+        <div>
+          <h2>Platform access required</h2>
+          <p>Sign in with a platform admin session to open {titleFor(active)}.</p>
         </div>
       </section>
     </>
@@ -1242,6 +1339,135 @@ function PlatformHealth({ summary, health }) {
   );
 }
 
+function PlatformSSOProviders({ providers, customers, onSave }) {
+  const providerByOrg = useMemo(() => {
+    const byOrg = new Map();
+    for (const provider of providers || []) {
+      byOrg.set(provider.organization_id, provider);
+    }
+    return byOrg;
+  }, [providers]);
+  const rows = (customers || []).map((customer) => providerByOrg.get(customer.organization_id) || {
+    organization_id: customer.organization_id,
+    organization: customer.organization,
+    enabled: false,
+    configured: false,
+    status: 'not_configured',
+    verified_domains: [],
+  });
+
+  return (
+    <>
+      <section className="panel split-panel">
+        <div>
+          <h2>SSO Providers</h2>
+          <p>Platform Admin-managed customer organization identity provider settings.</p>
+          <div className="admin-kpis">
+            <div><strong>{rows.filter((provider) => provider.configured).length}</strong><span>Configured</span></div>
+            <div><strong>{rows.filter((provider) => provider.enabled).length}</strong><span>Enabled</span></div>
+          </div>
+        </div>
+        <div className="sso-note">
+          <strong>Secret handling</strong>
+          <span>Client secrets are sent only to Account Manager and are never returned by this console.</span>
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Organization SSO status</h2>
+            <p>Review setup state, verified domains, issuer, and client identifier by customer organization.</p>
+          </div>
+        </div>
+        <div className="sso-provider-list">
+          {rows.map((provider) => (
+            <SSOProviderCard
+              key={provider.organization_id}
+              provider={provider}
+              onSave={onSave}
+            />
+          ))}
+          {!rows.length ? <p className="empty-state">No customer organizations are available.</p> : null}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function SSOProviderCard({ provider, onSave }) {
+  const [issuer, setIssuer] = useState(provider.issuer || '');
+  const [clientID, setClientID] = useState(provider.client_id || '');
+  const [clientSecret, setClientSecret] = useState('');
+  const [domains, setDomains] = useState((provider.verified_domains || []).join(', '));
+  const [enabled, setEnabled] = useState(Boolean(provider.enabled));
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setIssuer(provider.issuer || '');
+    setClientID(provider.client_id || '');
+    setDomains((provider.verified_domains || []).join(', '));
+    setEnabled(Boolean(provider.enabled));
+    setClientSecret('');
+  }, [provider]);
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await onSave(provider.organization_id, {
+        issuer,
+        client_id: clientID,
+        client_secret: clientSecret,
+        verified_domains: domains.split(',').map((domain) => domain.trim()).filter(Boolean),
+        enabled,
+      });
+      setClientSecret('');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="sso-provider-card" onSubmit={submit}>
+      <div className="sso-provider-head">
+        <div>
+          <strong>{provider.organization || provider.organization_id}</strong>
+          <small>{provider.organization_id}</small>
+        </div>
+        <span className={`status-pill ${provider.enabled ? 'ok' : provider.configured ? 'warn' : 'neutral'}`}>
+          {provider.enabled ? 'Enabled' : provider.configured ? 'Configured' : 'Not configured'}
+        </span>
+      </div>
+      <div className="sso-provider-grid">
+        <label>
+          <span>Issuer</span>
+          <input value={issuer} onChange={(event) => setIssuer(event.target.value)} placeholder="https://idp.example.com" />
+        </label>
+        <label>
+          <span>Client ID</span>
+          <input value={clientID} onChange={(event) => setClientID(event.target.value)} placeholder="oidc-client-id" />
+        </label>
+        <label>
+          <span>Verified domains</span>
+          <input value={domains} onChange={(event) => setDomains(event.target.value)} placeholder="example.com, example.co.jp" />
+        </label>
+        <label>
+          <span>Client secret</span>
+          <input type="password" value={clientSecret} onChange={(event) => setClientSecret(event.target.value)} placeholder="Only sent to Account Manager" autoComplete="new-password" />
+        </label>
+      </div>
+      <div className="sso-provider-foot">
+        <label className="toggle-row">
+          <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
+          <span>Enable provider</span>
+        </label>
+        <span className="muted">{provider.status || 'not_configured'}{provider.last_validated_at ? ` · validated ${formatRelativeTime(provider.last_validated_at)}` : ''}</span>
+        <button type="submit" disabled={busy}>{busy ? 'Saving' : 'Save provider'}</button>
+      </div>
+    </form>
+  );
+}
+
 function MetricGrid({ summary }) {
   const data = summary || {};
   const metrics = [
@@ -1264,12 +1490,42 @@ function MetricGrid({ summary }) {
   );
 }
 
-function MetricCard({ label, value, hint, tone = 'neutral' }) {
+function MetricCard({ icon, label, value, hint, tone = 'neutral' }) {
   return (
     <div className={`metric-card tone-${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{hint}</small>
+      {icon ? <span className="metric-icon" aria-hidden="true">{icon}</span> : null}
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{hint}</small>
+      </div>
+    </div>
+  );
+}
+
+function WindowToggle({ value, onChange, label, disabled = false }) {
+  return (
+    <div className="window-toggle" role="tablist" aria-label={label}>
+      {['7d', '30d'].map((option) => (
+        <button
+          key={option}
+          type="button"
+          className={value === option ? 'active' : ''}
+          disabled={disabled}
+          onClick={() => onChange(option)}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StaticWindowToggle() {
+  return (
+    <div className="window-toggle" aria-label="Firmware data window">
+      <button type="button" className="active">7d</button>
+      <button type="button">30d</button>
     </div>
   );
 }
@@ -1285,7 +1541,7 @@ function SourceBlockedState({ title, message }) {
   );
 }
 
-function FleetHealthTrendPanel({ loading, trend, window, onWindowChange, source }) {
+function FleetHealthTrendPanel({ loading, trend, source }) {
   const chart = useMemo(() => buildFleetTrendChart(trend), [trend]);
   const available = sourceAvailable(source);
   return (
@@ -1294,19 +1550,6 @@ function FleetHealthTrendPanel({ loading, trend, window, onWindowChange, source 
         <div>
           <h2>Fleet health trend</h2>
           <p>Daily online share and warning/critical volume across the current window.</p>
-        </div>
-        <div className="window-toggle" role="tablist" aria-label="Fleet health window">
-          {['7d', '30d'].map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={window === value ? 'active' : ''}
-              disabled={!available}
-              onClick={() => onWindowChange(value)}
-            >
-              {value.toUpperCase()}
-            </button>
-          ))}
         </div>
       </div>
       {!available ? (
@@ -1452,6 +1695,71 @@ function RecentAlertsPanel({ loading, alerts, source }) {
   );
 }
 
+function AttentionQueuePanel({ loading, items, onOpenDevice }) {
+  return (
+    <section className="panel overview-panel attention-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Attention Queue ({items.length})</h2>
+          <p>Devices sorted by current health, signal, and alert impact.</p>
+        </div>
+      </div>
+      {loading && !items.length ? (
+        <p className="empty-state">Loading attention queue.</p>
+      ) : items.length ? (
+        <div className="attention-list">
+          <div className="attention-list-head">
+            <span>Device</span>
+            <span>Issue</span>
+            <span>Since</span>
+            <span>Action</span>
+          </div>
+          {items.slice(0, 7).map((item) => (
+            <div className="attention-row" key={item.device_id}>
+              <strong>{item.device_name}</strong>
+              <span className={`attention-issue tone-${item.tone}`}>{item.issue}</span>
+              <time>{item.since}</time>
+              <button type="button" onClick={() => onOpenDevice(item.device_id)}>Investigate</button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="empty-state">No devices require attention.</p>
+      )}
+    </section>
+  );
+}
+
+function StreamAttentionPanel({ devices, onOpenDevice }) {
+  const items = buildStreamAttentionItems(devices);
+  return (
+    <section className="panel stream-attention-panel">
+      <div className="panel-head">
+        <div>
+          <h3>Devices needing stream attention</h3>
+          <p>Customer-readable stream reliability risks.</p>
+        </div>
+      </div>
+      {items.length ? (
+        <div className="stream-attention-list">
+          {items.map((item) => (
+            <div className="stream-attention-row" key={item.device_id}>
+              <div>
+                <strong>{item.device_name}</strong>
+                <small>{item.issue}</small>
+              </div>
+              <StatusBadge value={normalizeStatusKey(item.health)} label={formatHealthLabel(item.health)} />
+              <button type="button" onClick={() => onOpenDevice(item.device_id)}>View device</button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="empty-state">No stream attention items.</p>
+      )}
+    </section>
+  );
+}
+
 function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelectedDeviceId, closeDeviceDrawer, onAction }) {
   const [readinessFilter, setReadinessFilter] = useState('All');
   const [healthFilter, setHealthFilter] = useState('All');
@@ -1564,7 +1872,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
         </>
       ),
     },
-    { key: 'organization', label: 'Customer', value: (device) => device.organization },
+    { key: 'organization', label: 'Organization', value: (device) => device.organization },
     { key: 'model', label: 'Model', value: (device) => device.model },
     {
       key: 'firmware',
@@ -1586,7 +1894,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
     },
     {
       key: 'readiness',
-      label: 'Readiness',
+      label: 'Status',
       value: (device) => device.readiness_display,
       render: (device) => <StatusBadge value={normalizeStatusKey(device.readiness)} label={device.readiness_display} />,
     },
@@ -1606,8 +1914,8 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
       <div className="panel device-table-panel">
         <div className="panel-head">
           <div>
-            <h2>Device fleet</h2>
-            <p>Registry, video identity, readiness, and last known status.</p>
+            <h2>Devices</h2>
+            <p>Search, filter, and inspect fleet devices without exposing internal platform identifiers.</p>
           </div>
         </div>
         <div className="device-filters">
@@ -1824,6 +2132,8 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
               </div>
             </section>
 
+            <SourceFactsTimeline facts={device.source_facts || []} />
+
             {telemetryAvailable ? <section className="drawer-charts">
               <TelemetryChart
                 title="RSSI history"
@@ -1874,14 +2184,34 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
             </section>
 
             <div className="drawer-actions">
-              <button disabled={!provisionState.enabled} title={provisionState.reason} onClick={() => runDrawerAction('provision')}>Provision device</button>
-              <button className="destructive" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}>Deactivate device</button>
+              <button type="button" disabled={!provisionState.enabled} title={provisionState.reason} onClick={() => runDrawerAction('provision')}>Provision device</button>
+              <button type="button" className="destructive" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}>Deactivate device</button>
               <small>{!provisionState.enabled ? provisionState.reason : !deactivateState.enabled ? deactivateState.reason : 'Actions are queued through lifecycle orchestration.'}</small>
             </div>
           </>
         )}
       </aside>
     </div>
+  );
+}
+
+function SourceFactsTimeline({ facts }) {
+  return (
+    <section className="source-facts">
+      <h3>Readiness / Source Facts</h3>
+      {facts.length ? facts.map((fact) => (
+        <article className="source-fact" key={`${fact.layer}:${fact.operation_id || fact.updated_at || fact.state}`}>
+          <div>
+            <strong>{sourceFactLayerLabel(fact.layer)}</strong>
+            <span>{sourceFactStateLabel(fact.state)}</span>
+            <small>{fact.detail}</small>
+          </div>
+          <time>{fact.updated_at ? formatRelativeTime(fact.updated_at) : '—'}</time>
+        </article>
+      )) : (
+        <p className="empty-state">No source facts available.</p>
+      )}
+    </section>
   );
 }
 
@@ -2118,11 +2448,18 @@ function OperationList({ operations, detailed = false }) {
   );
 }
 
-function PlatformAdmin({ summary, health, devices, customers, operations, audit, me, onLogin }) {
+function PlatformAdmin({ summary, health, devices, customers, operations, audit, me, onSSOStart, onBreakGlassLogin }) {
   const customerCount = summary?.customers ?? '-';
   return (
     <>
-      {me?.kind !== 'platform_admin' ? <LoginPanel mode="platform" title="Platform admin login" onLogin={onLogin} /> : null}
+      {me?.kind !== 'platform_admin' ? (
+        <>
+          <SSOLoginPanel title="Platform SSO sign in" onSSOStart={onSSOStart} />
+          {shouldShowBreakGlass(me) ? (
+            <BreakGlassLoginPanel title="Break-glass platform access" onLogin={onBreakGlassLogin} />
+          ) : null}
+        </>
+      ) : null}
       <section className="panel split-panel">
         <div>
           <h2>Platform Operations</h2>
@@ -2350,22 +2687,48 @@ function ServiceHealth({ health, compact = false }) {
   );
 }
 
-function LoginPanel({ mode, title, onLogin }) {
+function SSOLoginPanel({ title, onSSOStart }) {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await onSSOStart(email);
+    } catch (_) {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel login-panel">
+      <div>
+        <h2>{title}</h2>
+        <p>Use your organization email to continue through Account Manager SSO.</p>
+      </div>
+      <form onSubmit={submit}>
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
+        <button type="submit" disabled={busy}>{busy ? 'Redirecting' : 'Continue with SSO'}</button>
+      </form>
+    </section>
+  );
+}
+
+function BreakGlassLoginPanel({ title, onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   return (
     <section className="panel login-panel">
       <div>
         <h2>{title}</h2>
-        <p>{mode === 'platform' ? 'Local SQLite platform admin session.' : 'Uses Account Manager when configured.'}</p>
+        <p>Emergency local admin access for SSO or Account Manager outage recovery.</p>
       </div>
       <form onSubmit={(event) => {
         event.preventDefault();
-        onLogin(mode, { email, password });
+        onLogin({ email, password });
       }}>
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" />
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Break-glass email" />
         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" />
-        <button type="submit">Login</button>
+        <button type="submit">Use break-glass</button>
       </form>
     </section>
   );
@@ -2400,7 +2763,34 @@ function getActiveMembership(me) {
   return memberships.find((membership) => membership.organization_id === me.active_org_id) || memberships[0];
 }
 
-function sessionLabel(me, isPlatformView) {
+function upsertProvider(providers, provider) {
+  if (!provider?.organization_id) return providers;
+  const next = [...providers];
+  const index = next.findIndex((item) => item.organization_id === provider.organization_id);
+  if (index >= 0) {
+    next[index] = provider;
+  } else {
+    next.push(provider);
+  }
+  return next;
+}
+
+function initialsForEmail(email) {
+  if (!email) return 'FM';
+  const name = String(email).split('@')[0].replace(/[._-]+/g, ' ').trim();
+  const parts = name.split(/\s+/).filter(Boolean);
+  return (parts[0]?.[0] || 'F').toUpperCase() + (parts[1]?.[0] || parts[0]?.[1] || 'M').toUpperCase();
+}
+
+function latestCustomerUpdate(devices, alerts) {
+  const values = [
+    ...devices.map((device) => device.updated_at || device.last_seen_at).filter(Boolean),
+    ...alerts.map((alert) => alert.occurred_at).filter(Boolean),
+  ];
+  return values.sort().at(-1) || '';
+}
+
+function sessionLabel(me) {
   if (!me?.authenticated) return 'Not signed in';
   if (me.kind === 'platform_admin') return 'Platform Admin · All tenants';
   const membership = getActiveMembership(me);
@@ -2431,6 +2821,85 @@ function roleLabel(role) {
     readonly: 'Read-only Observer',
   };
   return labels[normalized] || toTitleCase(role || 'Customer User');
+}
+
+function sourceFactLayerLabel(layer) {
+  const map = {
+    account_registry: 'Account Registry',
+    cloud_activation: 'Cloud Activation',
+    transport_online: 'Transport Online',
+    device_facts: 'Device Facts',
+  };
+  return map[layer] || toTitleCase(String(layer || 'unknown').replaceAll('_', ' '));
+}
+
+function sourceFactStateLabel(state) {
+  const map = {
+    present: 'Registered',
+    activated: 'Activated',
+    online: 'Online',
+    failed: 'Failed',
+    missing: 'Missing',
+    pending: 'Pending',
+    stale: 'Stale',
+  };
+  return map[state] || toTitleCase(String(state || 'unknown').replaceAll('_', ' '));
+}
+
+function buildAttentionQueue(devices, alerts) {
+  const alertByDevice = new Map();
+  for (const alert of alerts) {
+    if (!alertByDevice.has(alert.device_id)) {
+      alertByDevice.set(alert.device_id, alert);
+    }
+  }
+  return devices
+    .map((device) => {
+      const health = String(device.health || '').toLowerCase();
+      const signal = String(device.signal_quality || '').toLowerCase();
+      const readiness = String(device.readiness || '').toLowerCase();
+      const alert = alertByDevice.get(device.id);
+      let issue = alert?.signal ? formatTelemetrySignal(alert.signal) : 'Health needs review';
+      let tone = 'warn';
+      let score = 0;
+      if (health === 'critical' || readiness === 'failed') {
+        issue = alert?.signal ? formatTelemetrySignal(alert.signal) : 'Device offline';
+        tone = 'danger';
+        score += 100;
+      } else if (health === 'warning' || signal === 'poor') {
+        issue = signal === 'poor' ? 'Poor signal quality' : issue;
+        score += 50;
+      } else if (readiness.includes('pending') || signal === 'fair') {
+        issue = signal === 'fair' ? 'Signal needs review' : 'Readiness pending';
+        score += 20;
+      }
+      if (!score) return null;
+      return {
+        device_id: device.id,
+        device_name: device.name,
+        issue,
+        tone,
+        since: alert?.occurred_at ? formatRelativeTime(alert.occurred_at) : device.last_seen_at ? formatRelativeTime(device.last_seen_at) : '—',
+        score,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => right.score - left.score || left.device_name.localeCompare(right.device_name));
+}
+
+function buildStreamAttentionItems(devices) {
+  return devices
+    .map((device) => {
+      const health = String(device.health || 'unknown').toLowerCase();
+      const signal = String(device.signal_quality || '').toLowerCase();
+      const readiness = String(device.readiness || '').toLowerCase();
+      if (health === 'critical') return { device_id: device.id, device_name: device.name, health, issue: 'Low success rate or offline risk' };
+      if (signal === 'poor') return { device_id: device.id, device_name: device.name, health, issue: 'Intermittent stream signal' };
+      if (readiness !== 'online' && readiness !== 'activated') return { device_id: device.id, device_name: device.name, health, issue: 'Never streamed or not ready' };
+      return null;
+    })
+    .filter(Boolean)
+    .slice(0, 5);
 }
 
 function formatTierLabel(tier) {
@@ -2699,36 +3168,9 @@ function deviceIdFromLocation() {
 }
 
 function updateDevicesLocation({ deviceId, health, firmware } = {}) {
-  const params = new URLSearchParams(window.location.search);
-  if (deviceId !== undefined) {
-    if (deviceId) {
-      params.set('device', deviceId);
-    } else {
-      params.delete('device');
-    }
-  }
-  if (health !== undefined) {
-    if (health) {
-      params.set('health', health);
-    } else {
-      params.delete('health');
-    }
-  }
-  if (firmware !== undefined) {
-    if (firmware) {
-      params.set('firmware', firmware);
-    } else {
-      params.delete('firmware');
-    }
-  }
-  const query = params.toString();
-  const path = query ? `/console/devices?${query}` : '/console/devices';
+  const path = devicesPathWithFilters({ deviceId, health, firmware });
   window.history.pushState({}, '', path);
-}
-
-function runRowAction(event, onAction, deviceId, action) {
-  event.stopPropagation();
-  onAction(deviceId, action);
+  window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
 createRoot(document.getElementById('root')).render(<App />);
