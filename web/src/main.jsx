@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { customerNavItems, devicesPathWithFilters, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
 import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
 import { shouldShowBreakGlass } from './auth-state.mjs';
+import { deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { sourceAvailable, sourceMessage } from './source-state.mjs';
 import './styles.css';
 
@@ -486,6 +487,7 @@ function App() {
             devices={devices}
             selectedDevice={selectedDevice}
             deviceDrawerOpen={deviceDrawerOpen}
+            me={me}
             setSelectedDeviceId={selectDevice}
             closeDeviceDrawer={closeDeviceDrawer}
             onAction={runDeviceAction}
@@ -1761,7 +1763,7 @@ function StreamAttentionPanel({ devices, onOpenDevice }) {
   );
 }
 
-function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelectedDeviceId, closeDeviceDrawer, onAction }) {
+function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSelectedDeviceId, closeDeviceDrawer, onAction }) {
   const [readinessFilter, setReadinessFilter] = useState('All');
   const [healthFilter, setHealthFilter] = useState('All');
   const [signalFilter, setSignalFilter] = useState('All');
@@ -1774,9 +1776,21 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
     const params = new URLSearchParams(window.location.search);
     const health = params.get('health');
     if (health) {
-      setHealthFilter(toTitleCase(health));
+      setHealthFilter(filterLabelFromQuery(health));
     } else {
       setHealthFilter('All');
+    }
+    const status = params.get('status');
+    if (status) {
+      setReadinessFilter(filterLabelFromQuery(status));
+    } else {
+      setReadinessFilter('All');
+    }
+    const signal = params.get('signal');
+    if (signal) {
+      setSignalFilter(filterLabelFromQuery(signal));
+    } else {
+      setSignalFilter('All');
     }
     const firmware = params.get('firmware');
     if (firmware) {
@@ -1909,6 +1923,25 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
 
   const selectedTelemetry = selectedDevice ? telemetryById[selectedDevice.id] || null : null;
   const telemetryBusy = deviceDrawerOpen && selectedDevice?.id && telemetryLoadingId === selectedDevice.id && !selectedTelemetry;
+  const readOnly = isReadOnlyRole(getActiveMembership(me)?.role);
+
+  function updateFilter(next = {}) {
+    const nextReadiness = next.readiness ?? readinessFilter;
+    const nextHealth = next.health ?? healthFilter;
+    const nextSignal = next.signal ?? signalFilter;
+    const nextFirmware = next.firmware ?? firmwareFilter;
+    if (next.readiness !== undefined) setReadinessFilter(nextReadiness);
+    if (next.health !== undefined) setHealthFilter(nextHealth);
+    if (next.signal !== undefined) setSignalFilter(nextSignal);
+    if (next.firmware !== undefined) setFirmwareFilter(nextFirmware);
+    updateDevicesLocation({
+      deviceId: '',
+      health: filterQueryValue(nextHealth),
+      status: filterQueryValue(nextReadiness),
+      signal: filterQueryValue(nextSignal),
+      firmware: nextFirmware === 'All' ? '' : nextFirmware,
+    });
+  }
 
   return (
     <section className="device-workspace">
@@ -1922,7 +1955,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
         <div className="device-filters">
           <label className="device-filter">
             <span>Health</span>
-            <select value={healthFilter} onChange={(event) => setHealthFilter(event.target.value)}>
+            <select value={healthFilter} onChange={(event) => updateFilter({ health: event.target.value })}>
               {processedDevices.healthValues.map((value) => (
                 <option key={`health-${value}`} value={value}>{value}</option>
               ))}
@@ -1930,7 +1963,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
           </label>
           <label className="device-filter">
             <span>Readiness</span>
-            <select value={readinessFilter} onChange={(event) => setReadinessFilter(event.target.value)}>
+            <select value={readinessFilter} onChange={(event) => updateFilter({ readiness: event.target.value })}>
               {processedDevices.readinessValues.map((value) => (
                 <option key={`readiness-${value}`} value={value}>{value}</option>
               ))}
@@ -1938,7 +1971,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
           </label>
           <label className="device-filter">
             <span>Signal</span>
-            <select value={signalFilter} onChange={(event) => setSignalFilter(event.target.value)}>
+            <select value={signalFilter} onChange={(event) => updateFilter({ signal: event.target.value })}>
               {processedDevices.signalValues.map((value) => (
                 <option key={`signal-${value}`} value={value}>{value}</option>
               ))}
@@ -1946,7 +1979,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
           </label>
           <label className="device-filter">
             <span>Firmware</span>
-            <select value={firmwareFilter} onChange={(event) => setFirmwareFilter(event.target.value)}>
+            <select value={firmwareFilter} onChange={(event) => updateFilter({ firmware: event.target.value })}>
               {processedDevices.firmwareValues.map((value) => (
                 <option key={`firmware-${value}`} value={value}>{value}</option>
               ))}
@@ -1960,7 +1993,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
               setHealthFilter('All');
               setSignalFilter('All');
               setFirmwareFilter('All');
-              updateDevicesLocation({ deviceId: '', health: '', firmware: '' });
+              updateDevicesLocation({ deviceId: '', health: '', status: '', signal: '', firmware: '' });
             }}
           >
             Clear filters
@@ -1998,6 +2031,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, setSelecte
           telemetry={selectedTelemetry}
           loading={telemetryBusy}
           error={telemetryError}
+          readOnly={readOnly}
           onClose={closeDeviceDrawer}
           onAction={onAction}
         />
@@ -2053,7 +2087,7 @@ function Customers({ customers }) {
   );
 }
 
-function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) {
+function DeviceDrawer({ device, telemetry, loading, error, readOnly, onClose, onAction }) {
   const drawerName = telemetry?.device_name || device?.name || 'Device selected';
   const drawerOrganization = telemetry?.organization || device?.organization || '—';
   const drawerModel = telemetry?.model || device?.model || '—';
@@ -2063,8 +2097,9 @@ function DeviceDrawer({ device, telemetry, loading, error, onClose, onAction }) 
   const telemetryAvailable = telemetry?.telemetry_status === 'available';
   const telemetryUnavailableText = telemetry?.unavailable_reason || error || 'Telemetry source is unavailable for this device.';
   const streamStatus = deriveStreamStatus(telemetry);
-  const provisionState = device ? deviceActionState(device, 'provision') : { enabled: false, reason: 'No device selected.' };
-  const deactivateState = device ? deviceActionState(device, 'deactivate') : { enabled: false, reason: 'No device selected.' };
+  const actionContext = { readOnly, telemetryStatus: telemetry?.telemetry_status };
+  const provisionState = deviceActionState(device, 'provision', actionContext);
+  const deactivateState = deviceActionState(device, 'deactivate', actionContext);
   function runDrawerAction(action) {
     const label = action === 'deactivate' ? 'deactivate this device' : 'provision this device';
     if (!window.confirm(`Confirm you want to ${label}.`)) return;
@@ -2334,22 +2369,6 @@ function deriveStreamStatus(telemetry) {
     default:
       return { tone: 'unknown', label: 'Unknown', detail: 'Active stream status is not provided by the source.' };
   }
-}
-
-function deviceActionState(device, action) {
-  const readiness = String(device?.readiness || '').toLowerCase();
-  if (action === 'deactivate') {
-    if (readiness === 'deactivated') return { enabled: false, reason: 'Device is already deactivated.' };
-    if (readiness === 'deactivation_pending') return { enabled: false, reason: 'Deactivation is already pending.' };
-    return { enabled: true, reason: '' };
-  }
-  if (readiness === 'online' || readiness === 'activated') {
-    return { enabled: false, reason: 'Device is already activated.' };
-  }
-  if (readiness === 'deactivation_pending') {
-    return { enabled: false, reason: 'Device is waiting for deactivation.' };
-  }
-  return { enabled: true, reason: '' };
 }
 
 function formatTelemetryEventType(eventType) {
@@ -3157,8 +3176,24 @@ function deviceIdFromLocation() {
   return params.get('device') || '';
 }
 
-function updateDevicesLocation({ deviceId, health, firmware } = {}) {
-  const path = devicesPathWithFilters({ deviceId, health, firmware });
+function filterLabelFromQuery(value) {
+  return toTitleCase(String(value || '').replaceAll(/[_-]/g, ' '));
+}
+
+function filterQueryValue(value) {
+  if (!value || value === 'All') return '';
+  return String(value).toLowerCase().replaceAll(/\s+/g, '_');
+}
+
+function updateDevicesLocation({ deviceId, health, status, signal, firmware } = {}) {
+  const current = new URLSearchParams(window.location.search);
+  const path = devicesPathWithFilters({
+    deviceId: deviceId === undefined ? current.get('device') || '' : deviceId,
+    health: health === undefined ? current.get('health') || '' : health,
+    status: status === undefined ? current.get('status') || '' : status,
+    signal: signal === undefined ? current.get('signal') || '' : signal,
+    firmware: firmware === undefined ? current.get('firmware') || '' : firmware,
+  });
   window.history.pushState({}, '', path);
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
