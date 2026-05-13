@@ -748,7 +748,15 @@ p {
   background: rgba(246, 250, 253, 0.92);
   border: 1px solid rgba(0, 104, 183, 0.08);
   border-radius: 12px;
+  cursor: pointer;
   padding: 10px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.stream-device-table__row:hover {
+  border-color: rgba(0, 104, 183, 0.32);
+  box-shadow: 0 16px 30px rgba(3, 83, 144, 0.08);
 }
 
 .stream-device-table__row strong {
