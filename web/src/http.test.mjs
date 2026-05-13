@@ -148,3 +148,24 @@ test('userFacingSSOError hides internal SSO configuration details', () => {
     'SSO provider is disabled for this organization',
   );
 });
+
+test('userFacingSSOError maps auth and malformed redirect failures to operator-safe copy', () => {
+  const expired = new Error('customer authentication required');
+  expired.status = 401;
+  assert.equal(
+    userFacingSSOError(expired),
+    'Session expired. Sign in again to continue.',
+  );
+
+  const forbidden = new Error('forbidden');
+  forbidden.status = 403;
+  assert.equal(
+    userFacingSSOError(forbidden),
+    'You do not have access to this console view.',
+  );
+
+  assert.equal(
+    userFacingSSOError(new Error('SSO start did not return a redirect URL')),
+    'SSO could not start because the identity provider did not return a redirect URL.',
+  );
+});

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { customerNavItems, devicesPathWithFilters, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
 import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
-import { shouldShowBreakGlass } from './auth-state.mjs';
+import { quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
 import { sourceAvailable, sourceMessage } from './source-state.mjs';
@@ -714,7 +714,7 @@ function VerifyForm({ token, onVerify }) {
   );
 }
 
-function QuotaRaiseForm({ organizationId, organizationName, currentQuota, onSubmit }) {
+function QuotaRaiseForm({ organizationId, organizationName, currentUsage, currentQuota, onSubmit }) {
   const [requestedQuota, setRequestedQuota] = useState(currentQuota);
   const [useCase, setUseCase] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -751,7 +751,7 @@ function QuotaRaiseForm({ organizationId, organizationName, currentQuota, onSubm
 
   return (
     <form className="quota-form" onSubmit={submit}>
-      <p className="auth-status">Current evaluation cap: {currentQuota} devices.</p>
+      <p className="auth-status">{quotaUsageLabel(currentUsage, currentQuota)}</p>
       <label>
         Requested quota
         <input type="number" min="1" max="200" value={requestedQuota} onChange={(event) => setRequestedQuota(event.target.value)} />
@@ -852,6 +852,7 @@ function Overview({
           <QuotaRaiseForm
             organizationId={activeMembership?.organization_id}
             organizationName={activeMembership?.organization}
+            currentUsage={activeDevices}
             currentQuota={quotaLimit}
             onSubmit={onRequestQuotaRaise}
           />
@@ -2759,12 +2760,16 @@ function ServiceHealth({ health, compact = false }) {
 function SSOLoginPanel({ title, onSSOStart }) {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState('');
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
+    setLocalError('');
     try {
       await onSSOStart(email);
-    } catch (_) {
+    } catch (err) {
+      setLocalError(userFacingSSOError(err));
+    } finally {
       setBusy(false);
     }
   }
@@ -2772,12 +2777,13 @@ function SSOLoginPanel({ title, onSSOStart }) {
     <section className="panel login-panel">
       <div>
         <h2>{title}</h2>
-        <p>Use your organization email to continue through Account Manager SSO.</p>
+        <p>Use your organization email to continue through Account Manager SSO. SSO is the primary production sign-in path.</p>
       </div>
       <form onSubmit={submit}>
         <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
         <button type="submit" disabled={busy}>{busy ? 'Redirecting' : 'Continue with SSO'}</button>
       </form>
+      {localError ? <p className="error">{localError}</p> : null}
     </section>
   );
 }
