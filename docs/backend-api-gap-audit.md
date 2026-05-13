@@ -12,6 +12,10 @@ Scope: backend API contracts needed by customer dashboard, platform dashboard,
 membership, quota, and device detail flows. WebUI-only entry points and visual
 design are called out separately.
 
+This document distinguishes Admin Console work from upstream blockers. Items
+listed as implemented in `rtk_cloud_admin` can still depend on production data
+from Account Manager or Video Cloud before server validation is complete.
+
 ## Status Legend
 
 - `implemented`: API exists and has the fields/guards required for v0.1.
@@ -138,6 +142,26 @@ pages can be treated as complete:
 Local demo, deterministic sample generation, or readiness-derived trends may
 remain useful for development, but they are not acceptable evidence for server
 validation.
+
+### Admin Repo Follow-Up Work
+
+Status: open WebUI issues.
+
+These items can be implemented in `rtk_cloud_admin` without making this repo the
+source of truth for upstream facts:
+
+- Harden source-aware UI states for Customer View pages and device telemetry.
+- Complete Devices filter, drill-down, and drawer action workflows.
+- Add read-only Firmware & OTA campaign drill-downs.
+- Add Stream Health worst-device and attention drill-downs.
+- Polish Platform View guards, Operations Log, and Audit Log states.
+- Complete SSO, signup, and quota UX states around the existing BFF routes.
+- Add repeatable browser QA coverage for desktop and mobile console workflows.
+
+Production telemetry, firmware rollout, and stream-session facts remain
+upstream blockers. Admin Console must show blocked/unavailable states when
+those sources are absent; it must not replace those sources with demo-derived
+production data.
 
 ### Read-only Observer Enforcement
 
