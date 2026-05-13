@@ -30,12 +30,21 @@ export async function startSSOLogin(email, returnUrl) {
 }
 
 export function userFacingSSOError(error) {
+  if (error?.status === 401) {
+    return 'Session expired. Sign in again to continue.';
+  }
+  if (error?.status === 403) {
+    return 'You do not have access to this console view.';
+  }
   const message = error?.message || 'SSO sign-in could not be started.';
   if (message.includes('ACCOUNT_MANAGER_BASE_URL') || message.includes('not configured')) {
     return 'SSO is not configured for this environment.';
   }
   if (message.includes('invalid JSON')) {
     return 'SSO is temporarily unavailable. Please try again later.';
+  }
+  if (message.includes('SSO start did not return a redirect URL')) {
+    return 'SSO could not start because the identity provider did not return a redirect URL.';
   }
   return message;
 }
