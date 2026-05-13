@@ -1,5 +1,6 @@
 .DS_Store
 .superpowers/
+.artifacts/
 bin/
 data/
 web/dist/
