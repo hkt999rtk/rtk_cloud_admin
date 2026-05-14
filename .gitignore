@@ -4,7 +4,8 @@
 .artifacts/
 bin/
 data/
-keys/
+keys/*
+!keys/README.md
 server
 web/dist/
 web/node_modules/
