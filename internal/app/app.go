@@ -1421,7 +1421,8 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		for _, device := range devices {
 			if device.ID == r.PathValue("id") {
 				if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), device.OrganizationID, device); err != nil {
-					writeJSON(w, unavailableTelemetryForDevice(device, "unavailable", "Video Cloud telemetry is unavailable."))
+					status, reason := telemetryUnavailableFromVideoCloudError(err)
+					writeJSON(w, unavailableTelemetryForDevice(device, status, reason))
 					return
 				} else if ok {
 					writeJSON(w, telemetry)
@@ -1462,7 +1463,8 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:       device.UpdatedAt,
 	}
 	if telemetry, ok, err := s.proxyTelemetryForDevice(r.Context(), telemetryDevice.OrganizationID, telemetryDevice); err != nil {
-		writeJSON(w, unavailableTelemetryForDevice(telemetryDevice, "unavailable", "Video Cloud telemetry is unavailable."))
+		status, reason := telemetryUnavailableFromVideoCloudError(err)
+		writeJSON(w, unavailableTelemetryForDevice(telemetryDevice, status, reason))
 		return
 	} else if ok {
 		writeJSON(w, telemetry)
@@ -1477,7 +1479,10 @@ func (s *Server) proxyTelemetryForDevice(ctx context.Context, orgID string, devi
 	}
 	upstream, err := s.videoClient.DeviceTelemetry(ctx, s.cfg.VideoCloudAdminToken, device.VideoCloudDevID, orgID)
 	if err != nil {
-		return contracts.DeviceTelemetry{}, true, fmt.Errorf("%w: %v", errVideoCloudRequestFailed, err)
+		return contracts.DeviceTelemetry{}, true, fmt.Errorf("%w: %w", errVideoCloudRequestFailed, err)
+	}
+	if !videoCloudTelemetryHasSamples(upstream) {
+		return unavailableTelemetryForDevice(device, "unavailable", "No telemetry samples are available for this device."), true, nil
 	}
 	info, err := s.videoClient.GetDeviceInfo(ctx, s.cfg.VideoCloudAdminToken, device.VideoCloudDevID)
 	firmwareVersion := firmwareVersionFromDevice(device)
@@ -1485,6 +1490,33 @@ func (s *Server) proxyTelemetryForDevice(ctx context.Context, orgID string, devi
 		firmwareVersion = strings.TrimSpace(info.FirmwareVersion)
 	}
 	return telemetryFromVideoCloud(device, firmwareVersion, upstream), true, nil
+}
+
+func telemetryUnavailableFromVideoCloudError(err error) (string, string) {
+	var statusErr videoclient.HTTPStatusError
+	if errors.As(err, &statusErr) {
+		switch statusErr.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return "unauthorized", "Video Cloud telemetry is not authorized for this customer."
+		case http.StatusNotFound:
+			return "unavailable", "Video Cloud telemetry source was not found for this device."
+		default:
+			return "unavailable", "Video Cloud telemetry is unavailable."
+		}
+	}
+	var syntaxErr *json.SyntaxError
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(err, &syntaxErr) || errors.As(err, &typeErr) {
+		return "unavailable", "Video Cloud telemetry returned an unexpected schema."
+	}
+	return "unavailable", "Video Cloud telemetry is unavailable."
+}
+
+func videoCloudTelemetryHasSamples(upstream videoclient.DeviceTelemetryResponse) bool {
+	return upstream.LatestHealth != nil ||
+		len(upstream.RSSIHistory) > 0 ||
+		len(upstream.UptimeHistory) > 0 ||
+		len(upstream.RecentEvents) > 0
 }
 
 func telemetryFromVideoCloud(device contracts.Device, firmwareVersion string, upstream videoclient.DeviceTelemetryResponse) contracts.DeviceTelemetry {

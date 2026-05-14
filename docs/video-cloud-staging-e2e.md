@@ -36,6 +36,8 @@ E2E_ACCOUNT_DEVICE_1=dev-001
 E2E_VIDEO_DEVICE_1=device-1
 E2E_ACCOUNT_DEVICE_2=dev-002
 E2E_VIDEO_DEVICE_2=device-2
+E2E_DIAGNOSTICS=1
+E2E_FIRMWARE_MODEL=RTK-CAM-A
 E2E_PORT=19082
 E2E_KEEP_TMP=1
 ```
@@ -61,6 +63,50 @@ E2E_KEEP_TMP=1
     Health, and Platform Operations
 
 Screenshots are written under `.artifacts/live-video-cloud-e2e/`.
+The script also writes a redacted summary report to
+`.artifacts/live-video-cloud-e2e/report.json`. The report records the fixture
+ids, pass/fail matrix, source status/source message, upstream diagnostic
+summaries when enabled, and browser screenshot directory. It must not contain
+bearer tokens, private keys, certificate bodies, or raw sensitive upstream
+payloads.
+
+## Upstream Diagnostics
+
+Set `E2E_DIAGNOSTICS=1` to add direct Video Cloud probes before the BFF live
+source assertions. Diagnostics use the runtime admin bearer token but only
+write redacted summaries:
+
+- `GET /api/devices/{devid}/telemetry?org_id=...`
+- `GET /api/fleet/stream-stats?org_id=...&window=7d|30d&devices=...`
+- `POST /enum_firmware`
+- `POST /query_firmware_rollout`
+- `POST /query_firmware_campaign`
+
+Diagnostic status values distinguish `auth_failed`, `not_found`,
+`source_unavailable`, `empty_data`, `unexpected_schema`, and successful `ok`
+responses. Use these entries to decide whether the failure is in Admin BFF
+mapping or Video Cloud staging data/API readiness.
+
+## Current Validation Coverage
+
+Validated before a known-good fixture exists:
+
+- admin client certificate can bootstrap a `scope=admin` bearer token
+- local Admin BFF starts with the runtime token
+- `/healthz` and `/api/service-health` reach Video Cloud
+- platform break-glass login and local customer session work
+- `/api/devices` returns customer-safe fields and omits platform-only ids
+
+Blocked until a known-good provisioned/activated Video Cloud staging device
+exists:
+
+- device telemetry available path
+- RSSI / uptime / recent telemetry event mapping
+- active stream status from source data
+- firmware distribution / rollout / campaign mapping
+- stream stats for `7d` and `30d`
+- live browser Overview, Devices drawer, Firmware & OTA, and Stream Health
+  checks against non-demo source data
 
 ## Failure Triage
 
@@ -75,3 +121,28 @@ Screenshots are written under `.artifacts/live-video-cloud-e2e/`.
 
 The script hard-fails unavailable telemetry, firmware, and stream sources so
 staging gaps are visible before Linode deployment.
+
+## Known-Good Fixture Contract
+
+Admin WebUI E2E needs a fixed, production-like Video Cloud staging fixture. It
+does not need a full production onboarding run or a physical camera unless the
+test scope expands to transport/WebRTC pipeline validation.
+
+Required fixture facts:
+
+- fixed org id, default `org-acme`
+- fixed account-device to Video Cloud device mapping, default
+  `dev-001 -> device-1` and `dev-002 -> device-2`
+- provisioned/activated Video Cloud device records for the mapped device ids
+- telemetry samples sufficient for health, RSSI, uptime, and recent events
+- firmware version, rollout, and campaign facts for the configured model
+- stream stats for both `7d` and `30d`
+
+Fixture creation should live in `rtk_video_cloud` as a staging seed or
+maintenance flow because Video Cloud owns the telemetry, firmware, activation,
+and stream data models. `rtk_cloud_admin` only consumes the resulting fixture
+through the documented admin/customer-safe APIs.
+
+As of the first local run, the default `dev-001 -> device-1` mapping reaches
+the Admin BFF telemetry assertion but returns `telemetry_status=unavailable`;
+that is the current staging fixture blocker.

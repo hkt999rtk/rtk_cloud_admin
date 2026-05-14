@@ -17,6 +17,18 @@ type Client struct {
 	httpClient *http.Client
 }
 
+type HTTPStatusError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e HTTPStatusError) Error() string {
+	if strings.TrimSpace(e.Body) != "" {
+		return fmt.Sprintf("status %d: %s", e.StatusCode, strings.TrimSpace(e.Body))
+	}
+	return fmt.Sprintf("status %d", e.StatusCode)
+}
+
 type DeviceInfo struct {
 	FirmwareVersion  string
 	CurrentTransport string
@@ -206,10 +218,7 @@ func (c *Client) doJSON(ctx context.Context, method, path, adminToken string, in
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
-		if len(data) > 0 {
-			return fmt.Errorf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(data)))
-		}
-		return fmt.Errorf("status %d", resp.StatusCode)
+		return HTTPStatusError{StatusCode: resp.StatusCode, Body: strings.TrimSpace(string(data))}
 	}
 	if out == nil {
 		return nil

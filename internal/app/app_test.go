@@ -3074,6 +3074,116 @@ func TestDeviceTelemetryProxyModeMapsVideoCloudFailure(t *testing.T) {
 	}
 }
 
+func TestDeviceTelemetryProxyModeMapsVideoCloudFailureModes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name               string
+		status             int
+		body               string
+		wantTelemetryState string
+		wantReasonContains string
+	}{
+		{name: "unauthorized", status: http.StatusUnauthorized, body: `{"error":"expired"}`, wantTelemetryState: "unauthorized", wantReasonContains: "authorized"},
+		{name: "forbidden", status: http.StatusForbidden, body: `{"error":"denied"}`, wantTelemetryState: "unauthorized", wantReasonContains: "authorized"},
+		{name: "not found", status: http.StatusNotFound, body: `{"error":"missing"}`, wantTelemetryState: "unavailable", wantReasonContains: "not found"},
+		{name: "gateway failure", status: http.StatusServiceUnavailable, body: `{"error":"down"}`, wantTelemetryState: "unavailable", wantReasonContains: "unavailable"},
+		{name: "invalid json", status: http.StatusOK, body: `{`, wantTelemetryState: "unavailable", wantReasonContains: "unexpected"},
+		{name: "empty source", status: http.StatusOK, body: `{"status":"ok","device_id":"device-2"}`, wantTelemetryState: "unavailable", wantReasonContains: "No telemetry samples"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/v1/me":
+					_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+				case "/v1/orgs/org-acme/devices":
+					_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"}]}`))
+				default:
+					t.Fatalf("unexpected account path: %s", r.URL.Path)
+				}
+			}))
+			defer accountUpstream.Close()
+
+			videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/query_camera_activate":
+					_ = json.NewEncoder(w).Encode(map[string]any{
+						"status":  "ok",
+						"devices": []string{"1"},
+					})
+				case "/api/devices/device-2/telemetry":
+					w.WriteHeader(tt.status)
+					_, _ = w.Write([]byte(tt.body))
+				case "/get_camera_info":
+					_ = json.NewEncoder(w).Encode(map[string]any{
+						"status": "ok",
+						"info": map[string]any{
+							"firmware_version":  "v1.2.3",
+							"current_transport": "websocket",
+						},
+					})
+				default:
+					t.Fatalf("unexpected video path: %s", r.URL.Path)
+				}
+			}))
+			defer videoUpstream.Close()
+
+			st, err := store.Open(t.TempDir() + "/admin.db")
+			if err != nil {
+				t.Fatalf("Open returned error: %v", err)
+			}
+			defer st.Close()
+			if err := st.Migrate(); err != nil {
+				t.Fatalf("Migrate returned error: %v", err)
+			}
+			if err := st.SeedDemoData(); err != nil {
+				t.Fatalf("SeedDemoData returned error: %v", err)
+			}
+
+			srv := NewWithOptions(st, Options{
+				Config: config.Config{
+					AccountManagerBaseURL:              accountUpstream.URL,
+					LegacyCustomerPasswordLoginEnabled: true,
+					VideoCloudBaseURL:                  videoUpstream.URL,
+					VideoCloudAdminToken:               "vc-secret",
+				},
+				AccountClient: accountclient.New(accountUpstream.URL),
+				VideoClient:   videoclient.New(videoUpstream.URL),
+			})
+			session, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "", time.Hour)
+			if err != nil {
+				t.Fatalf("CreateSession returned error: %v", err)
+			}
+
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/api/devices/dev-002/telemetry", nil)
+			req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+			srv.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("proxy telemetry status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+			}
+			if strings.Contains(rec.Body.String(), "video_cloud_devid") || strings.Contains(rec.Body.String(), "vc-secret") || strings.Contains(rec.Body.String(), "operation_id") {
+				t.Fatalf("proxy telemetry response exposed sensitive/platform-only data: %s", rec.Body.String())
+			}
+			var payload contracts.DeviceTelemetry
+			if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode telemetry payload: %v", err)
+			}
+			if payload.TelemetryStatus != tt.wantTelemetryState {
+				t.Fatalf("telemetry_status = %q, want %q; body=%s", payload.TelemetryStatus, tt.wantTelemetryState, rec.Body.String())
+			}
+			if !strings.Contains(payload.UnavailableReason, tt.wantReasonContains) {
+				t.Fatalf("unavailable_reason = %q, want containing %q", payload.UnavailableReason, tt.wantReasonContains)
+			}
+		})
+	}
+}
+
 func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 	t.Parallel()
 
