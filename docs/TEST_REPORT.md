@@ -32,7 +32,7 @@
 | `rtk_cloud_admin/internal/config` | 100.0% |
 | `rtk_cloud_admin/internal/readinessfacts` | 85.4% |
 | `rtk_cloud_admin/internal/store` | 80.1% |
-| `rtk_cloud_admin/internal/videoclient` | 87.4% |
+| `rtk_cloud_admin/internal/videoclient` | 86.3% |
 
 ## Artifact Policy
 
