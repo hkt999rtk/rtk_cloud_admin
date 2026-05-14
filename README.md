@@ -203,7 +203,8 @@ docker run --rm -p 18081:8080 \
 Container health uses `/healthz`.
 
 For a production private-cloud deployment, see
-[`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md).
+[`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md). For the
+Linode staging scripts, see [`deploy/linode/`](deploy/linode/).
 
 ## CI
 

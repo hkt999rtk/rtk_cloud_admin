@@ -21,6 +21,37 @@ The app is not a stateless frontend. Local SQLite holds sessions, platform
 admins, audit metadata, settings, and upstream cache projections. Treat the
 database file as production state and back it up accordingly.
 
+## Linode Staging Profile
+
+The supported Linode staging shape is a dedicated public-only Admin VM, not a
+node inside the Video Cloud VPC. This keeps the dashboard deployment boundary
+separate from `rtk_video_cloud` and avoids relying on the Video Cloud edge VM as
+a shared gateway.
+
+Recommended staging traffic:
+
+```text
+internet
+  -> admin.video-cloud-staging.realtekconnect.com:443
+  -> nginx on the Admin VM
+  -> rtk_cloud_admin container on 127.0.0.1:8080
+
+rtk_cloud_admin
+  -> ACCOUNT_MANAGER_BASE_URL over public HTTPS
+  -> VIDEO_CLOUD_BASE_URL over public HTTPS
+```
+
+The operator-local scripts live under [`deploy/linode/`](../deploy/linode/):
+
+- `provision-admin-vm.sh` creates the public-only Linode VM and firewall.
+- `deploy-admin.sh` builds and uploads the Docker image, installs nginx, writes
+  the systemd unit, and starts the service.
+- `verify-admin.sh` checks the deployed HTTP surface.
+- `backup-admin-db.sh` pulls a timestamped SQLite backup.
+
+The copied `deploy/linode/*.env` and generated state files are local operator
+artifacts and must not be committed.
+
 ## Runtime Configuration
 
 Required or recommended environment variables:
