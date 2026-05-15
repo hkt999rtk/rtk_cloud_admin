@@ -382,7 +382,10 @@ func (c *Client) lifecycle(ctx context.Context, accessToken, orgID, deviceID, ac
 }
 
 func (c *Client) Health(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/healthz", nil)
+	if !c.Enabled() {
+		return fmt.Errorf("account manager base URL is not configured")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/v1/health", nil)
 	if err != nil {
 		return err
 	}
