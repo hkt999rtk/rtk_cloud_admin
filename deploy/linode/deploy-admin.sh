@@ -106,7 +106,25 @@ http_only="$8"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y docker.io nginx certbot python3-certbot-nginx curl systemd ca-certificates
+apt-get install -y docker.io curl systemd ca-certificates gnupg2 lsb-release ubuntu-keyring
+curl -fsS https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg.tmp
+mv /usr/share/keyrings/nginx-archive-keyring.gpg.tmp /usr/share/keyrings/nginx-archive-keyring.gpg
+printf 'deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/ubuntu %s nginx\n' "$(lsb_release -cs)" > /etc/apt/sources.list.d/nginx-org.list
+cat > /etc/apt/preferences.d/99nginx <<'PREF'
+Package: *
+Pin: origin nginx.org
+Pin-Priority: 900
+PREF
+apt-get update -y
+nginx_candidate="$(apt-cache policy nginx | awk '/Candidate:/ {print $2}')"
+dpkg --compare-versions "$nginx_candidate" ge 1.30.0
+apt-get install -y -o Dpkg::Options::=--force-confold nginx certbot python3-certbot-nginx
+if ! grep -q 'server_names_hash_bucket_size' /etc/nginx/nginx.conf; then
+  sed -i '/http {/a\    server_names_hash_bucket_size 128;' /etc/nginx/nginx.conf
+fi
+if [ -d /etc/nginx/sites-enabled ] && ! grep -q 'sites-enabled' /etc/nginx/nginx.conf && [ ! -f /etc/nginx/conf.d/rtk-sites-enabled.conf ]; then
+  printf 'include /etc/nginx/sites-enabled/*;\n' > /etc/nginx/conf.d/rtk-sites-enabled.conf
+fi
 systemctl enable --now docker
 
 mkdir -p /etc/rtk_cloud_admin "$data_dir" /etc/nginx/sites-available /etc/nginx/sites-enabled
