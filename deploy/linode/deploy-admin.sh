@@ -61,7 +61,7 @@ done
 mkdir -p "$artifact_dir"
 
 printf '[admin-deploy] building Docker image %s\n' "$image_tag" >&2
-docker build -t "$image_tag" "$root_dir"
+docker build --platform linux/amd64 -t "$image_tag" "$root_dir"
 
 printf '[admin-deploy] saving image archive %s\n' "$image_archive" >&2
 docker save "$image_tag" | gzip -c > "$image_archive"
