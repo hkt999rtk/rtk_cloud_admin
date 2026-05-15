@@ -44,7 +44,7 @@ create_json="$(linode-cli linodes create \
   --image "$image" \
   --authorized_keys "$ssh_key" \
   --root_pass "$root_pass" \
-  --tags rtk-cloud-admin-staging,managed-by:rtk-cloud-admin-deploy)"
+  --tags rtk-cloud-admin-staging,admin-deploy)"
 
 linode_id="$(printf '%s' "$create_json" | jq -r '.[0].id')"
 public_ipv4="$(printf '%s' "$create_json" | jq -r '.[0].ipv4[0]')"
