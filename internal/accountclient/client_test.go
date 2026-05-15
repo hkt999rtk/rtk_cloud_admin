@@ -507,7 +507,7 @@ func TestClientHealthAndHTTPErrorBody(t *testing.T) {
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/healthz":
+		case "/v1/health":
 			_, _ = w.Write([]byte("ok"))
 		case "/v1/orgs/org-1/devices":
 			http.Error(w, "forbidden org", http.StatusForbidden)
@@ -553,7 +553,7 @@ func TestClientDisabledHealthAndDecodeErrors(t *testing.T) {
 		switch r.URL.Path {
 		case "/v1/auth/login":
 			_, _ = w.Write([]byte(`{`))
-		case "/healthz":
+		case "/v1/health":
 			http.Error(w, "down", http.StatusBadGateway)
 		case "/v1/me":
 			w.WriteHeader(http.StatusNoContent)

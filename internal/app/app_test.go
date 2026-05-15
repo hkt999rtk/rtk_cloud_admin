@@ -826,6 +826,32 @@ func TestServiceHealthReportsVideoCloudOK(t *testing.T) {
 	}
 }
 
+func TestServiceHealthReportsAccountManagerOK(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/health" {
+			t.Fatalf("path = %q, want /v1/health", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "" {
+			t.Fatalf("Authorization = %q, want empty", got)
+		}
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	}))
+	defer accountUpstream.Close()
+
+	srv := newSeededTestServer(t, config.Config{AccountManagerBaseURL: accountUpstream.URL})
+	health := requestJSON[[]contracts.ServiceHealth](t, srv, http.MethodGet, "/api/service-health", nil)
+
+	account := findServiceHealth(t, health, "Account Manager")
+	if account.Status != "ok" {
+		t.Fatalf("Account Manager status = %q, want ok; detail=%s", account.Status, account.Detail)
+	}
+	if account.LastCheckedAt == "" {
+		t.Fatal("Account Manager last_checked_at is empty")
+	}
+}
+
 func TestServiceHealthReportsVideoCloudDown(t *testing.T) {
 	t.Parallel()
 
