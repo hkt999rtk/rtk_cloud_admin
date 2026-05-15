@@ -35,15 +35,16 @@ need() {
   command -v "$1" >/dev/null 2>&1 || die "$1 is required"
 }
 
-quote_env() {
+write_env() {
   local key="$1"
   local value="${!key:-}"
   if printf '%s' "$value" | grep -q '[[:cntrl:]]'; then
     die "$key contains control characters"
   fi
-  value="${value//\\/\\\\}"
-  value="${value//"/\\"}"
-  printf '%s="%s"\n' "$key" "$value"
+  if printf '%s' "$value" | grep -q '[[:space:]]'; then
+    die "$key contains whitespace, which is not supported in Docker env files"
+  fi
+  printf '%s=%s\n' "$key" "$value"
 }
 
 need docker
@@ -75,11 +76,11 @@ trap cleanup EXIT
 {
   printf 'PORT=8080\n'
   printf 'DATABASE_PATH=/data/rtk-cloud-admin.db\n'
-  quote_env ACCOUNT_MANAGER_BASE_URL
-  quote_env VIDEO_CLOUD_BASE_URL
-  quote_env VIDEO_CLOUD_ADMIN_TOKEN
-  quote_env ADMIN_BOOTSTRAP_EMAIL
-  quote_env ADMIN_BOOTSTRAP_PASSWORD
+  write_env ACCOUNT_MANAGER_BASE_URL
+  write_env VIDEO_CLOUD_BASE_URL
+  write_env VIDEO_CLOUD_ADMIN_TOKEN
+  write_env ADMIN_BOOTSTRAP_EMAIL
+  write_env ADMIN_BOOTSTRAP_PASSWORD
   printf 'ADMIN_BREAK_GLASS_ENABLED=%s\n' "${ADMIN_BREAK_GLASS_ENABLED:-true}"
   printf 'LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED=%s\n' "${LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED:-false}"
 } > "$tmp_env"

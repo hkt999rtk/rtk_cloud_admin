@@ -31,7 +31,8 @@ record "PASS console shell"
 
 if [ -n "${ADMIN_BOOTSTRAP_EMAIL:-}" ] && [ -n "${ADMIN_BOOTSTRAP_PASSWORD:-}" ]; then
   cookie_jar="$artifacts_dir/cookies.txt"
-  login_body="$artifacts_dir/login.json"
+  login_body="$(mktemp)"
+  trap 'rm -f "$login_body"' EXIT
   printf '{"email":"%s","password":"%s"}' "$ADMIN_BOOTSTRAP_EMAIL" "$ADMIN_BOOTSTRAP_PASSWORD" > "$login_body"
   curl -fsS -c "$cookie_jar" -H 'content-type: application/json' --data-binary "@$login_body" "$base_url/api/auth/platform/login" > "$artifacts_dir/login-response.json"
   rm -f "$login_body"
