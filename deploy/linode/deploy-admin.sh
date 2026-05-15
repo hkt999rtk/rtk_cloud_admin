@@ -110,6 +110,10 @@ systemctl enable --now docker
 
 mkdir -p /etc/rtk_cloud_admin "$data_dir" /etc/nginx/sites-available /etc/nginx/sites-enabled
 chmod 0750 /etc/rtk_cloud_admin
+# Dockerfile creates the runtime app user/group as the first system uid/gid.
+# The host bind mount must be writable by that non-root container user.
+chown 100:100 "$data_dir"
+chmod 0750 "$data_dir"
 mv /tmp/rtk-cloud-admin-deploy/admin.env "$env_path"
 chmod 0600 "$env_path"
 
