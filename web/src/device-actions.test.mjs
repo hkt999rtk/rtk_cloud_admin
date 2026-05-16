@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deviceActionState, isReadOnlyRole } from './device-actions.mjs';
+import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 
 test('isReadOnlyRole recognizes observer-style customer roles', () => {
   assert.equal(isReadOnlyRole('viewer'), true);
@@ -13,6 +13,18 @@ test('deviceActionState disables writes for read-only observers', () => {
   const state = deviceActionState({ readiness: 'registered' }, 'provision', { readOnly: true });
   assert.equal(state.enabled, false);
   assert.match(state.reason, /Read-only Observer/);
+});
+
+test('deviceActionState uses explicit capabilities for lifecycle writes', () => {
+  assert.equal(canUseCapability({ capabilities: ['customer.devices.provision'] }, 'customer.devices.provision'), true);
+  assert.equal(canUseCapability({ memberships: [{ capabilities: ['customer.devices.deactivate'] }] }, 'customer.devices.deactivate'), true);
+
+  const blocked = deviceActionState({ readiness: 'registered' }, 'provision', { capabilities: ['customer.devices.read'] });
+  assert.equal(blocked.enabled, false);
+  assert.match(blocked.reason, /permission/);
+
+  const allowed = deviceActionState({ readiness: 'registered' }, 'provision', { capabilities: ['customer.devices.provision'] });
+  assert.equal(allowed.enabled, true);
 });
 
 test('deviceActionState disables actions when telemetry source is unavailable', () => {

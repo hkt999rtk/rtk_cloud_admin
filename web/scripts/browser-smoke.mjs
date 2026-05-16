@@ -15,12 +15,14 @@ const customerMe = {
   kind: 'customer',
   email: 'fleet.manager@example.com',
   active_org_id: 'org-acme',
+  capabilities: ['customer.devices.read', 'customer.devices.provision', 'customer.devices.deactivate', 'customer.firmware.read', 'customer.stream.read'],
   memberships: [{
     organization_id: 'org-acme',
     organization: 'Acme Smart Camera',
     role: 'fleet_manager',
     tier: 'evaluation',
     evaluation_device_quota: 5,
+    capabilities: ['customer.devices.read', 'customer.devices.provision', 'customer.devices.deactivate', 'customer.firmware.read', 'customer.stream.read'],
   }],
 };
 
@@ -28,6 +30,7 @@ const platformMe = {
   authenticated: true,
   kind: 'platform_admin',
   email: 'platform.admin@example.com',
+  capabilities: ['platform.audit.read', 'platform.sso.manage'],
   break_glass_enabled: true,
 };
 
