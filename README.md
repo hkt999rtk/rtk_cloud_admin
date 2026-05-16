@@ -206,11 +206,29 @@ For a production private-cloud deployment, see
 [`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md). For the
 Linode staging scripts, see [`deploy/linode/`](deploy/linode/).
 
+## Release Artifacts
+
+Release artifacts are Docker image archives produced by
+`deploy/package-release.sh` and verified by `deploy/check-release.sh`:
+
+```sh
+VERSION=v1.2.3 deploy/package-release.sh
+deploy/check-release.sh dist/rtk_cloud_admin-v1.2.3.tar.gz
+```
+
+The release workflow uploads the bundle, checksum, and manifest to Linode Object
+Storage under `releases/<version>/`. Object Storage credentials belong in
+GitHub repository secrets and variables, not local `.env` files.
+
 ## CI
 
 `.github/workflows/ci.yml` checks out submodules and runs `go test ./...`,
 `go build ./cmd/server`, `npm ci`, `npm run build`, a container smoke test, and
 Docker cache cleanup on the self-hosted `rtk-cloud-admin-ci` runner.
+
+`.github/workflows/release.yml` runs only for `v*` tags or manual dispatch. It
+builds a release bundle and publishes it to Linode Object Storage; normal PR and
+main CI do not upload release artifacts.
 
 Runner health and recovery notes live in [`docs/ci-runner.md`](docs/ci-runner.md).
 
