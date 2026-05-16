@@ -67,12 +67,12 @@ missing = [field for field in required if not manifest.get(field)]
 if missing:
     raise SystemExit(f"manifest missing fields: {', '.join(missing)}")
 
-bundle = f"rtk_cloud_admin-{version}.tar.gz"
+bundle = f"{version}.tar.gz"
 if manifest["version"] != version:
     raise SystemExit("manifest version mismatch")
 if manifest["bundle"] != bundle:
     raise SystemExit("manifest bundle mismatch")
-if manifest["artifact_path"] != f"releases/{version}/{bundle}":
+if manifest["artifact_path"] != f"releases/rtk_cloud_admin-{version}/{bundle}":
     raise SystemExit("manifest artifact_path mismatch")
 if manifest["sha256"] != expected_sha:
     raise SystemExit("manifest sha256 mismatch")

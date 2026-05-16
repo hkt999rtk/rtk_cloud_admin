@@ -89,8 +89,8 @@ manifest_path, version = sys.argv[1], sys.argv[2]
 with open(manifest_path, "r", encoding="utf-8") as handle:
     manifest = json.load(handle)
 assert manifest["version"] == version
-assert manifest["bundle"] == f"rtk_cloud_admin-{version}.tar.gz"
-assert manifest["artifact_path"] == f"releases/{version}/rtk_cloud_admin-{version}.tar.gz"
+assert manifest["bundle"] == f"{version}.tar.gz"
+assert manifest["artifact_path"] == f"releases/rtk_cloud_admin-{version}/{version}.tar.gz"
 assert manifest["sha256"]
 assert manifest["created_at"].endswith("Z")
 PY
