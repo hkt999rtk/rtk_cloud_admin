@@ -56,16 +56,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 version = os.environ["VERSION"]
-bundle = f"rtk_cloud_admin-{version}.tar.gz"
-checksum = Path(f"{os.environ.get('OUTPUT_DIR', 'dist')}/{bundle}.sha256")
+local_bundle = f"rtk_cloud_admin-{version}.tar.gz"
+object_bundle = f"{version}.tar.gz"
+checksum = Path(f"{os.environ.get('OUTPUT_DIR', 'dist')}/{local_bundle}.sha256")
 if not checksum.exists():
     checksum = Path(os.environ["BUNDLE_SHA256_PATH"])
 sha256 = checksum.read_text(encoding="utf-8").strip()
 print(json.dumps({
     "version": version,
     "source_commit": os.environ["SOURCE_COMMIT"],
-    "bundle": bundle,
-    "artifact_path": f"releases/{version}/{bundle}",
+    "bundle": object_bundle,
+    "artifact_path": f"releases/rtk_cloud_admin-{version}/{object_bundle}",
     "sha256": sha256,
     "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
 }, indent=2, sort_keys=True))

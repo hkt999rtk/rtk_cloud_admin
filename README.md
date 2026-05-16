@@ -217,8 +217,10 @@ deploy/check-release.sh dist/rtk_cloud_admin-v1.2.3.tar.gz
 ```
 
 The release workflow uploads the bundle, checksum, and manifest to Linode Object
-Storage under `releases/<version>/`. Object Storage credentials belong in
-GitHub repository secrets and variables, not local `.env` files.
+Storage under `releases/rtk_cloud_admin-<version>/`. The object filenames use
+the version directly, for example `ci-20260516-111747-abcdef123456.tar.gz` for
+manual CI smoke bundles. Object Storage credentials belong in GitHub repository
+secrets and variables, not local `.env` files.
 
 ## CI
 

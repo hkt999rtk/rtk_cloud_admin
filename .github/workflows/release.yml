@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version. Defaults to tag name or release-smoke-<timestamp>-<shortsha>."
+        description: "Release version. Defaults to tag name or ci-<timestamp>-<shortsha>."
         required: false
         type: string
 
@@ -34,7 +34,7 @@ jobs:
           elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
             version="$GITHUB_REF_NAME"
           else
-            version="release-smoke-$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::12}"
+            version="ci-$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::12}"
           fi
           case "$version" in
             *[!A-Za-z0-9._-]* | "" | .* | *..*)
@@ -74,10 +74,10 @@ jobs:
           bundle="dist/rtk_cloud_admin-$VERSION.tar.gz"
           checksum="$bundle.sha256"
           manifest="dist/rtk_cloud_admin-$VERSION.object-manifest.json"
-          prefix="s3://$LINODE_OBJ_BUCKET/releases/$VERSION"
+          prefix="s3://$LINODE_OBJ_BUCKET/releases/rtk_cloud_admin-$VERSION"
 
-          aws s3 cp "$bundle" "$prefix/rtk_cloud_admin-$VERSION.tar.gz" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
-          aws s3 cp "$checksum" "$prefix/rtk_cloud_admin-$VERSION.tar.gz.sha256" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
+          aws s3 cp "$bundle" "$prefix/$VERSION.tar.gz" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
+          aws s3 cp "$checksum" "$prefix/$VERSION.tar.gz.sha256" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
           aws s3 cp "$manifest" "$prefix/manifest.json" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
 
       - name: Upload workflow artifact
