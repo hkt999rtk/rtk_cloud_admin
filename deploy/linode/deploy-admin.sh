@@ -3,7 +3,33 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 label="${ADMIN_LINODE_LABEL:-rtk-cloud-admin-staging}"
-release="${ADMIN_LINODE_RELEASE:-$(git -C "$root_dir" rev-parse --short HEAD)}"
+release_bundle="${ADMIN_LINODE_RELEASE_BUNDLE:-}"
+bundle_release=""
+if [ -n "$release_bundle" ]; then
+  release_name="$(basename "$release_bundle")"
+  case "$release_name" in
+    rtk_cloud_admin-*.tar.gz)
+      bundle_release="${release_name#rtk_cloud_admin-}"
+      bundle_release="${bundle_release%.tar.gz}"
+      ;;
+    *)
+      printf 'error: ADMIN_LINODE_RELEASE_BUNDLE must be named rtk_cloud_admin-<version>.tar.gz\n' >&2
+      exit 1
+      ;;
+  esac
+fi
+
+if [ -n "${ADMIN_LINODE_RELEASE:-}" ]; then
+  release="$ADMIN_LINODE_RELEASE"
+elif [ -n "$release_bundle" ]; then
+  release="$bundle_release"
+else
+  release="$(git -C "$root_dir" rev-parse --short HEAD)"
+fi
+if [ -n "$bundle_release" ] && [ "$release" != "$bundle_release" ]; then
+  printf 'error: ADMIN_LINODE_RELEASE (%s) must match bundle version (%s)\n' "$release" "$bundle_release" >&2
+  exit 1
+fi
 domain="${ADMIN_LINODE_DOMAIN:-}"
 certbot_email="${ADMIN_LINODE_CERTBOT_EMAIL:-}"
 ssh_user="${ADMIN_LINODE_SSH_USER:-root}"
@@ -47,7 +73,9 @@ write_env() {
   printf '%s=%s\n' "$key" "$value"
 }
 
-need docker
+if [ -z "$release_bundle" ]; then
+  need docker
+fi
 need ssh
 need scp
 
@@ -61,11 +89,17 @@ done
 
 mkdir -p "$artifact_dir"
 
-printf '[admin-deploy] building Docker image %s\n' "$image_tag" >&2
-docker build --platform linux/amd64 -t "$image_tag" "$root_dir"
+if [ -n "$release_bundle" ]; then
+  [ -s "$release_bundle" ] || die "ADMIN_LINODE_RELEASE_BUNDLE not found or empty: $release_bundle"
+  image_archive="$release_bundle"
+  printf '[admin-deploy] using release bundle %s\n' "$image_archive" >&2
+else
+  printf '[admin-deploy] building Docker image %s\n' "$image_tag" >&2
+  docker build --platform linux/amd64 -t "$image_tag" "$root_dir"
 
-printf '[admin-deploy] saving image archive %s\n' "$image_archive" >&2
-docker save "$image_tag" | gzip -c > "$image_archive"
+  printf '[admin-deploy] saving image archive %s\n' "$image_archive" >&2
+  docker save "$image_tag" | gzip -c > "$image_archive"
+fi
 
 ssh_opts=(-i "$ssh_key" -o BatchMode=yes -o StrictHostKeyChecking=accept-new)
 remote="$ssh_user@$admin_host"
