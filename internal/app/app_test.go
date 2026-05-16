@@ -3579,6 +3579,106 @@ func TestMeContractStabilizesMembershipShape(t *testing.T) {
 	}
 }
 
+func TestCustomerMeProjectsAccountManagerCapabilities(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/me" {
+			http.NotFound(w, r)
+			return
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer access" {
+			t.Fatalf("Authorization = %q, want Bearer access", got)
+		}
+		_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"manager@example.com","name":"Manager"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"fleet_manager","tier":"commercial","capabilities":["customer.devices.read","customer.devices.provision"],"permissions":["customer.devices.deactivate"]}]}`))
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u1", "manager@example.com", "access", "refresh", "org-up", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("/api/me status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Capabilities []string `json:"capabilities"`
+		Memberships  []struct {
+			OrganizationID string   `json:"organization_id"`
+			Capabilities   []string `json:"capabilities"`
+		} `json:"memberships"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode /api/me: %v", err)
+	}
+	if strings.Join(body.Capabilities, ",") != "customer.devices.deactivate,customer.devices.provision,customer.devices.read" {
+		t.Fatalf("top-level capabilities = %#v", body.Capabilities)
+	}
+	if len(body.Memberships) != 1 || body.Memberships[0].OrganizationID != "org-up" {
+		t.Fatalf("memberships = %#v", body.Memberships)
+	}
+	if strings.Join(body.Memberships[0].Capabilities, ",") != "customer.devices.deactivate,customer.devices.provision,customer.devices.read" {
+		t.Fatalf("membership capabilities = %#v", body.Memberships[0].Capabilities)
+	}
+}
+
+func TestPlatformAdminMeProjectsBreakGlassCompatibilityCapabilities(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{Config: config.Config{AdminBreakGlassEnabled: true}})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("/api/me status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Kind              string   `json:"kind"`
+		Capabilities      []string `json:"capabilities"`
+		BreakGlassEnabled bool     `json:"break_glass_enabled"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode /api/me: %v", err)
+	}
+	if body.Kind != "platform_admin" || !body.BreakGlassEnabled {
+		t.Fatalf("platform me = %#v", body)
+	}
+	if !containsString(body.Capabilities, "platform.audit.read") || !containsString(body.Capabilities, "platform.sso.manage") {
+		t.Fatalf("platform capabilities = %#v", body.Capabilities)
+	}
+}
+
 func TestActiveOrgAndQuotaContractsRejectInvalidOrganizations(t *testing.T) {
 	t.Parallel()
 
@@ -3835,6 +3935,58 @@ func TestCustomerReadOnlyObserverLifecycleReturns403(t *testing.T) {
 	}
 	if upstreamProvisionCalls != 0 {
 		t.Fatalf("read-only lifecycle should not call upstream, got %d calls", upstreamProvisionCalls)
+	}
+}
+
+func TestCustomerLifecycleRequiresAccountManagerCapability(t *testing.T) {
+	t.Parallel()
+
+	upstreamProvisionCalls := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-up","name":"Upstream Org","role":"fleet_manager","capabilities":["customer.devices.read"]}]}`))
+		case "/v1/orgs/org-up/devices/dev-002/provision":
+			upstreamProvisionCalls++
+			_, _ = w.Write([]byte(`{"operation":{"id":"op-up","state":"published","message":"accepted"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+	session, err := st.CreateSession("customer", "u1", "manager@example.com", "access", "refresh", "org-up", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/provision", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("provision status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "customer.devices.provision") {
+		t.Fatalf("forbidden body should name missing capability: %s", rec.Body.String())
+	}
+	if upstreamProvisionCalls != 0 {
+		t.Fatalf("blocked lifecycle should not call upstream, got %d calls", upstreamProvisionCalls)
 	}
 }
 

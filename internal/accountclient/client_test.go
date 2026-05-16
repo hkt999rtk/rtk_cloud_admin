@@ -21,7 +21,7 @@ func TestClientLoginAndMe(t *testing.T) {
 				t.Fatalf("Authorization = %q", got)
 			}
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-1","name":"Acme","role":"owner","tier":"evaluation","evaluation_device_quota":5}]}`))
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-1","name":"Acme","role":"fleet_manager","tier":"evaluation","evaluation_device_quota":5,"capabilities":["customer.devices.read","customer.devices.provision"],"permissions":["customer.devices.deactivate"]}]}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -45,6 +45,12 @@ func TestClientLoginAndMe(t *testing.T) {
 	}
 	if me.Organizations[0].Tier != "evaluation" || me.Organizations[0].EvaluationDeviceQuota != 5 {
 		t.Fatalf("organization metadata = %#v", me.Organizations[0])
+	}
+	if got := strings.Join(me.Organizations[0].Capabilities, ","); got != "customer.devices.read,customer.devices.provision" {
+		t.Fatalf("organization capabilities = %q", got)
+	}
+	if got := strings.Join(me.Organizations[0].Permissions, ","); got != "customer.devices.deactivate" {
+		t.Fatalf("organization permissions = %q", got)
 	}
 }
 

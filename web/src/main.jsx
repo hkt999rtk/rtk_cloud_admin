@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { customerNavItems, devicesPathWithFilters, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
 import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
 import { quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
-import { deviceActionState, isReadOnlyRole } from './device-actions.mjs';
+import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
 import { sourceAvailable, sourceMessage } from './source-state.mjs';
 import { streamWorstDeviceRows } from './stream.mjs';
@@ -1969,7 +1969,9 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
 
   const selectedTelemetry = selectedDevice ? telemetryById[selectedDevice.id] || null : null;
   const telemetryBusy = deviceDrawerOpen && selectedDevice?.id && telemetryLoadingId === selectedDevice.id && !selectedTelemetry;
-  const readOnly = isReadOnlyRole(getActiveMembership(me)?.role);
+  const activeMembership = getActiveMembership(me);
+  const capabilitySubject = { capabilities: me?.capabilities || activeMembership?.capabilities || [] };
+  const readOnly = !canUseCapability(capabilitySubject, 'customer.devices.provision') && !canUseCapability(capabilitySubject, 'customer.devices.deactivate') && isReadOnlyRole(activeMembership?.role);
 
   function updateFilter(next = {}) {
     const nextReadiness = next.readiness ?? readinessFilter;
@@ -2078,6 +2080,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
           loading={telemetryBusy}
           error={telemetryError}
           readOnly={readOnly}
+          capabilities={capabilitySubject.capabilities}
           onClose={closeDeviceDrawer}
           onAction={onAction}
         />
@@ -2133,7 +2136,7 @@ function Customers({ customers }) {
   );
 }
 
-function DeviceDrawer({ device, telemetry, loading, error, readOnly, onClose, onAction }) {
+function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilities, onClose, onAction }) {
   const drawerName = telemetry?.device_name || device?.name || 'Device selected';
   const drawerOrganization = telemetry?.organization || device?.organization || '—';
   const drawerModel = telemetry?.model || device?.model || '—';
@@ -2143,7 +2146,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, onClose, on
   const telemetryAvailable = telemetry?.telemetry_status === 'available';
   const telemetryUnavailableText = telemetry?.unavailable_reason || error || 'Telemetry source is unavailable for this device.';
   const streamStatus = deriveStreamStatus(telemetry);
-  const actionContext = { readOnly, telemetryStatus: telemetry?.telemetry_status };
+  const actionContext = { readOnly, capabilities, telemetryStatus: telemetry?.telemetry_status };
   const provisionState = deviceActionState(device, 'provision', actionContext);
   const deactivateState = deviceActionState(device, 'deactivate', actionContext);
   function runDrawerAction(action) {

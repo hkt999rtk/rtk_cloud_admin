@@ -124,11 +124,12 @@ type ServiceHealth struct {
 }
 
 type Membership struct {
-	OrganizationID        string `json:"organization_id"`
-	Organization          string `json:"organization"`
-	Role                  string `json:"role"`
-	Tier                  string `json:"tier,omitempty"`
-	EvaluationDeviceQuota int    `json:"evaluation_device_quota,omitempty"`
+	OrganizationID        string   `json:"organization_id"`
+	Organization          string   `json:"organization"`
+	Role                  string   `json:"role"`
+	Tier                  string   `json:"tier,omitempty"`
+	EvaluationDeviceQuota int      `json:"evaluation_device_quota,omitempty"`
+	Capabilities          []string `json:"capabilities,omitempty"`
 }
 
 type Me struct {
@@ -140,6 +141,7 @@ type Me struct {
 	ActiveOrgID                        string       `json:"active_org_id"`
 	DemoMode                           bool         `json:"demo_mode"`
 	Authenticated                      bool         `json:"authenticated"`
+	Capabilities                       []string     `json:"capabilities,omitempty"`
 	BreakGlassEnabled                  bool         `json:"break_glass_enabled"`
 	LegacyCustomerPasswordLoginEnabled bool         `json:"legacy_customer_password_login_enabled"`
 }

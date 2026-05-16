@@ -24,11 +24,13 @@ type User struct {
 }
 
 type Organization struct {
-	ID                    string `json:"id"`
-	Name                  string `json:"name"`
-	Role                  string `json:"role"`
-	Tier                  string `json:"tier,omitempty"`
-	EvaluationDeviceQuota int    `json:"evaluation_device_quota,omitempty"`
+	ID                    string   `json:"id"`
+	Name                  string   `json:"name"`
+	Role                  string   `json:"role"`
+	Tier                  string   `json:"tier,omitempty"`
+	EvaluationDeviceQuota int      `json:"evaluation_device_quota,omitempty"`
+	Capabilities          []string `json:"capabilities,omitempty"`
+	Permissions           []string `json:"permissions,omitempty"`
 }
 
 type Device struct {
