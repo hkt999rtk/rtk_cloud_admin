@@ -24,11 +24,34 @@ type User struct {
 }
 
 type Organization struct {
-	ID                    string `json:"id"`
-	Name                  string `json:"name"`
-	Role                  string `json:"role"`
-	Tier                  string `json:"tier,omitempty"`
-	EvaluationDeviceQuota int    `json:"evaluation_device_quota,omitempty"`
+	ID                    string         `json:"id"`
+	Name                  string         `json:"name"`
+	Role                  string         `json:"role"`
+	OrganizationKind      string         `json:"organization_kind,omitempty"`
+	Status                string         `json:"status,omitempty"`
+	Tier                  string         `json:"tier,omitempty"`
+	EvaluationDeviceQuota int            `json:"evaluation_device_quota,omitempty"`
+	Metadata              map[string]any `json:"metadata,omitempty"`
+}
+
+type BrandCloud = Organization
+
+type BrandCloudRequest struct {
+	Name     string         `json:"name,omitempty"`
+	Status   string         `json:"status,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+type BrandCloudMemberRequest struct {
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
+}
+
+type Member struct {
+	OrganizationID string `json:"organization_id"`
+	UserID         string `json:"user_id"`
+	Email          string `json:"email,omitempty"`
+	Role           string `json:"role"`
 }
 
 type Device struct {
@@ -316,6 +339,51 @@ func (c *Client) AdminOrganizations(ctx context.Context, accessToken string) ([]
 		return nil, err
 	}
 	return body.Organizations, nil
+}
+
+func (c *Client) CreateBrandCloud(ctx context.Context, accessToken string, req BrandCloudRequest) (BrandCloud, error) {
+	var body struct {
+		BrandCloud BrandCloud `json:"brand_cloud"`
+	}
+	err := c.doJSON(ctx, http.MethodPost, "/v1/admin/brand-clouds", accessToken, req, &body)
+	return body.BrandCloud, err
+}
+
+func (c *Client) BrandClouds(ctx context.Context, accessToken string) ([]BrandCloud, error) {
+	var body struct {
+		BrandClouds []BrandCloud `json:"brand_clouds"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, "/v1/admin/brand-clouds", accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.BrandClouds, nil
+}
+
+func (c *Client) BrandCloud(ctx context.Context, accessToken, brandCloudID string) (BrandCloud, error) {
+	var body struct {
+		BrandCloud BrandCloud `json:"brand_cloud"`
+	}
+	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID)
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body.BrandCloud, err
+}
+
+func (c *Client) UpdateBrandCloud(ctx context.Context, accessToken, brandCloudID string, req BrandCloudRequest) (BrandCloud, error) {
+	var body struct {
+		BrandCloud BrandCloud `json:"brand_cloud"`
+	}
+	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID)
+	err := c.doJSON(ctx, http.MethodPatch, path, accessToken, req, &body)
+	return body.BrandCloud, err
+}
+
+func (c *Client) AssignBrandCloudMember(ctx context.Context, accessToken, brandCloudID string, req BrandCloudMemberRequest) (Member, error) {
+	var body struct {
+		Member Member `json:"member"`
+	}
+	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID) + "/members"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, req, &body)
+	return body.Member, err
 }
 
 func (c *Client) Devices(ctx context.Context, accessToken, orgID string) ([]Device, error) {

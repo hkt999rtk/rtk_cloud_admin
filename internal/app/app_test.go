@@ -3453,6 +3453,72 @@ func TestPlatformAdminReadModelsUseAccountManagerAdminInventory(t *testing.T) {
 	}
 }
 
+func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+			t.Fatalf("%s Authorization = %q, want Bearer admin-access", r.URL.Path, got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds":
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_clouds": []map[string]any{{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	upstreamSession, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession platform_admin returned error: %v", err)
+	}
+	breakGlassSession, err := st.CreateSession("platform_admin", "break-glass", "break@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession break-glass returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: accountUpstream.URL},
+		AccountClient: accountclient.New(accountUpstream.URL),
+	})
+
+	create := httptest.NewRecorder()
+	createReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds", strings.NewReader(`{"name":"Realtek Connect+"}`))
+	createReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(create, createReq)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("brand cloud create status = %d, want 201; body=%s", create.Code, create.Body.String())
+	}
+
+	list := httptest.NewRecorder()
+	listReq := httptest.NewRequest(http.MethodGet, "/api/admin/brand-clouds", nil)
+	listReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(list, listReq)
+	if list.Code != http.StatusOK {
+		t.Fatalf("brand cloud list status = %d, want 200; body=%s", list.Code, list.Body.String())
+	}
+
+	blocked := httptest.NewRecorder()
+	blockedReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds", strings.NewReader(`{"name":"Blocked"}`))
+	blockedReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: breakGlassSession.ID})
+	srv.ServeHTTP(blocked, blockedReq)
+	if blocked.Code != http.StatusForbidden {
+		t.Fatalf("break-glass brand cloud create status = %d, want 403; body=%s", blocked.Code, blocked.Body.String())
+	}
+}
+
 func TestPlatformAdminReadModelsSurfaceUpstreamFailure(t *testing.T) {
 	t.Parallel()
 

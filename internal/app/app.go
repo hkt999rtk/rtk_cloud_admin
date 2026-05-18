@@ -97,6 +97,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
 	s.mux.HandleFunc("GET /api/admin/devices", s.apiAdminDevices)
+	s.mux.HandleFunc("GET /api/admin/brand-clouds", s.apiAdminBrandClouds)
+	s.mux.HandleFunc("POST /api/admin/brand-clouds", s.apiAdminBrandClouds)
+	s.mux.HandleFunc("GET /api/admin/brand-clouds/{brandCloudId}", s.apiAdminBrandCloud)
+	s.mux.HandleFunc("PATCH /api/admin/brand-clouds/{brandCloudId}", s.apiAdminBrandCloud)
+	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/members", s.apiAdminBrandCloudMember)
 	s.mux.HandleFunc("GET /api/admin/sso/providers", s.apiAdminSSOProviders)
 	s.mux.HandleFunc("GET /api/admin/orgs/{orgId}/sso-provider", s.apiAdminSSOProvider)
 	s.mux.HandleFunc("PUT /api/admin/orgs/{orgId}/sso-provider", s.apiAdminSSOProvider)
@@ -2072,6 +2077,95 @@ func (s *Server) apiAdminSSOProviders(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string][]accountclient.SSOProviderStatus{"providers": providers})
 }
 
+func (s *Server) apiAdminBrandClouds(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requireUpstreamPlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	if r.Method == http.MethodGet {
+		brandClouds, err := s.accountClient.BrandClouds(r.Context(), session.AccessToken)
+		if err != nil {
+			s.writeUpstreamReadError(w, err)
+			return
+		}
+		writeJSON(w, map[string][]accountclient.BrandCloud{"brand_clouds": brandClouds})
+		return
+	}
+
+	var body accountclient.BrandCloudRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid brand cloud request", http.StatusBadRequest)
+		return
+	}
+	body.Name = strings.TrimSpace(body.Name)
+	brandCloud, err := s.accountClient.CreateBrandCloud(r.Context(), session.AccessToken, body)
+	if err != nil {
+		s.writeUpstreamReadError(w, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusCreated, map[string]accountclient.BrandCloud{"brand_cloud": brandCloud})
+}
+
+func (s *Server) apiAdminBrandCloud(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requireUpstreamPlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	brandCloudID := strings.TrimSpace(r.PathValue("brandCloudId"))
+	if brandCloudID == "" {
+		http.Error(w, "brand cloud id is required", http.StatusBadRequest)
+		return
+	}
+	if r.Method == http.MethodGet {
+		brandCloud, err := s.accountClient.BrandCloud(r.Context(), session.AccessToken, brandCloudID)
+		if err != nil {
+			s.writeUpstreamReadError(w, err)
+			return
+		}
+		writeJSON(w, map[string]accountclient.BrandCloud{"brand_cloud": brandCloud})
+		return
+	}
+
+	var body accountclient.BrandCloudRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid brand cloud request", http.StatusBadRequest)
+		return
+	}
+	body.Name = strings.TrimSpace(body.Name)
+	body.Status = strings.TrimSpace(body.Status)
+	brandCloud, err := s.accountClient.UpdateBrandCloud(r.Context(), session.AccessToken, brandCloudID, body)
+	if err != nil {
+		s.writeUpstreamReadError(w, err)
+		return
+	}
+	writeJSON(w, map[string]accountclient.BrandCloud{"brand_cloud": brandCloud})
+}
+
+func (s *Server) apiAdminBrandCloudMember(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requireUpstreamPlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	brandCloudID := strings.TrimSpace(r.PathValue("brandCloudId"))
+	if brandCloudID == "" {
+		http.Error(w, "brand cloud id is required", http.StatusBadRequest)
+		return
+	}
+	var body accountclient.BrandCloudMemberRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid brand cloud member request", http.StatusBadRequest)
+		return
+	}
+	body.UserID = strings.TrimSpace(body.UserID)
+	body.Role = strings.TrimSpace(body.Role)
+	member, err := s.accountClient.AssignBrandCloudMember(r.Context(), session.AccessToken, brandCloudID, body)
+	if err != nil {
+		s.writeUpstreamReadError(w, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusCreated, map[string]accountclient.Member{"member": member})
+}
+
 func (s *Server) apiAdminSSOProvider(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.requirePlatformAdmin(w, r)
 	if !ok {
@@ -2202,6 +2296,22 @@ func (s *Server) requirePlatformAdmin(w http.ResponseWriter, r *http.Request) (s
 	}
 	if session.Kind != "platform_admin" {
 		http.Error(w, "platform admin authentication required", http.StatusForbidden)
+		return store.Session{}, false
+	}
+	return session, true
+}
+
+func (s *Server) requireUpstreamPlatformAdmin(w http.ResponseWriter, r *http.Request) (store.Session, bool) {
+	session, ok := s.requirePlatformAdmin(w, r)
+	if !ok {
+		return store.Session{}, false
+	}
+	if !s.accountClient.Enabled() {
+		http.Error(w, "Account Manager is not configured for platform administration", http.StatusServiceUnavailable)
+		return store.Session{}, false
+	}
+	if strings.TrimSpace(session.AccessToken) == "" {
+		http.Error(w, "Account Manager-backed platform admin session required", http.StatusForbidden)
 		return store.Session{}, false
 	}
 	return session, true

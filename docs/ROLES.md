@@ -63,6 +63,9 @@ authorizes the user as `platform_admin` and Admin Console creates the local
 as controlled break-glass access when explicitly enabled by deployment
 configuration. Break-glass admins are bootstrapped by `ADMIN_BOOTSTRAP_EMAIL` /
 `ADMIN_BOOTSTRAP_PASSWORD`, stored in SQLite, and protected with bcrypt hashes.
+Break-glass admins are not Account Manager root users. Brand-cloud management
+requires an Account Manager-backed `platform_admin` session with an upstream
+Bearer token.
 
 ### Platform Admin
 
@@ -79,6 +82,9 @@ Tier 2 customers.
 
 **Can execute:**
 - Platform-side admin actions: customer session refresh and invalidation (existing in `internal/app/app.go`).
+- Brand-cloud backend actions when authenticated through Account Manager as
+  `platform_admin`: create/list/read/update brand clouds and assign existing
+  Account Manager users to a brand cloud.
 - Tenant lifecycle actions (provisioning, deactivation, firmware campaign control on behalf of a tenant): not supported. Tenant-side write actions remain with Tier 2 Fleet Managers.
 
 **Known gap:** There is no cross-tenant device-detail surface today. Operations
@@ -88,8 +94,8 @@ firmware version). A Platform Admin investigating "what is the current state of
 this customer's devices?" cannot answer it from the console today and must
 either read SQLite directly or contact the tenant.
 
-**Future capabilities (deferred):** Read-only impersonation of any tenant's
-Customer View will close this gap.
+**Future capabilities (deferred):** WebUI screens for brand-cloud management
+and read-only impersonation of any tenant's Customer View will close this gap.
 
 ---
 
