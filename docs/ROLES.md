@@ -1,6 +1,6 @@
 # RTK Cloud Admin — Role Definitions
 
-Status: draft.
+Status: implementation-aligned draft.
 
 Author: Kevin Huang
 
@@ -28,7 +28,10 @@ Tier 1 — Realtek (platform owner / landlord)
 ```
 
 Each tier has distinct roles with different visibility and permission scopes
-within the admin console.
+within the admin console. Product authorization decisions are made from Account
+Manager-projected capabilities. Human-readable role names explain the operator
+persona, but route guards and enabled UI actions must use explicit
+capabilities.
 
 ### Tier Relationships
 
@@ -58,11 +61,12 @@ The remainder of this document covers only Tier 1 and Tier 2 roles.
 
 These roles belong to Realtek employees operating the platform. The long-term
 daily authentication path is Account Manager-backed SSO, where Account Manager
-authorizes the user as `platform_admin` and Admin Console creates the local
+authorizes platform capabilities and Admin Console creates the local
 `rtk_admin_session` cookie. The legacy `/admin` password login is retained only
 as controlled break-glass access when explicitly enabled by deployment
 configuration. Break-glass admins are bootstrapped by `ADMIN_BOOTSTRAP_EMAIL` /
-`ADMIN_BOOTSTRAP_PASSWORD`, stored in SQLite, and protected with bcrypt hashes.
+`ADMIN_BOOTSTRAP_PASSWORD`, stored in SQLite, protected with bcrypt hashes, and
+projected only to local emergency compatibility capabilities.
 Break-glass admins are not Account Manager root users. Brand-cloud management
 requires an Account Manager-backed `platform_admin` session with an upstream
 Bearer token.
@@ -86,6 +90,13 @@ Tier 2 customers.
   `platform_admin`: create/list/read/update brand clouds and assign existing
   Account Manager users to a brand cloud.
 - Tenant lifecycle actions (provisioning, deactivation, firmware campaign control on behalf of a tenant): not supported. Tenant-side write actions remain with Tier 2 Fleet Managers.
+
+**Current Admin Console capabilities:**
+- `platform.customers.read`
+- `platform.devices.read`
+- `platform.operations.read`
+- `platform.audit.read`
+- `platform.sso.manage`
 
 **Known gap:** There is no cross-tenant device-detail surface today. Operations
 Log shows lifecycle operation history and Audit Log shows actor/action/target
@@ -128,6 +139,13 @@ deactivation, health monitoring, OTA tracking, stream health.
 
 **Can execute:** Provision, Deactivate.
 
+**Current Admin Console capabilities:**
+- `customer.devices.read`
+- `customer.devices.provision`
+- `customer.devices.deactivate`
+- `customer.firmware.read`
+- `customer.stream.read`
+
 ---
 
 ### Read-only Observer
@@ -144,9 +162,15 @@ staff within a tenant org.
 
 **Cannot execute:** No provision, deactivate, or any write actions.
 
-**Current implementation:** Backend write handlers reject read-only customer
-roles for provision and deactivate. Any future tenant write action must use the
-same backend guard; frontend button hiding is only a usability affordance.
+**Current Admin Console capabilities:**
+- `customer.devices.read`
+- `customer.firmware.read`
+- `customer.stream.read`
+
+**Current implementation:** Backend write handlers require the relevant Account
+Manager-projected capability for provision and deactivate. Any future tenant
+write action must use the same backend guard; frontend button hiding is only a
+usability affordance.
 
 ---
 
@@ -157,6 +181,26 @@ same backend guard; frontend button hiding is only a usability affordance.
 | Platform Admin (T1) | — (impersonation deferred) | Full | Platform-side only (session control); no tenant lifecycle actions |
 | Fleet Manager (T2) | Full (own org) | — | Yes (provision, deactivate) |
 | Read-only Observer (T2) | Full read-only (own org) | — | No |
+
+---
+
+## Capability Projection Contract
+
+Admin Console accepts Account Manager organization projections with either
+`capabilities` or `permissions` arrays and normalizes both into the `/api/me`
+`capabilities` response. Each membership also carries its org-scoped
+`capabilities`. The top-level `/api/me.capabilities` list represents the active
+organization for customer sessions and platform compatibility capabilities for
+platform sessions.
+
+Capability checks are enforced in both layers:
+
+- BFF route guards reject missing write capabilities before calling upstream
+  lifecycle APIs.
+- UI actions use `/api/me.capabilities` or active membership capabilities to
+  enable or disable controls.
+- Local break-glass `platform_admin` remains an emergency deployment path; it
+  is not the product ACL source of truth.
 
 ---
 

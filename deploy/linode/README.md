@@ -34,7 +34,7 @@ mutation and host deployment with local secrets.
 | --- | --- |
 | `admin-staging.env.example` | Local operator env template. Copy it before editing. |
 | `provision-admin-vm.sh` | Creates the public-only Linode VM and firewall with `linode-cli`. |
-| `deploy-admin.sh` | Builds the Docker image locally, uploads it, installs nginx/systemd, and starts the service. |
+| `deploy-admin.sh` | Builds the Docker image locally or uses `ADMIN_LINODE_RELEASE_BUNDLE`, uploads it, installs nginx/systemd, and starts the service. |
 | `verify-admin.sh` | Runs external HTTP checks against the deployed dashboard. |
 | `backup-admin-db.sh` | Pulls a sanitized SQLite backup archive from the Admin VM. |
 
@@ -96,13 +96,24 @@ deploy/linode/deploy-admin.sh
 
 The deploy script:
 
-1. builds `rtk-cloud-admin:<release>` locally
+1. builds `rtk-cloud-admin:<release>` locally, unless `ADMIN_LINODE_RELEASE_BUNDLE` points at a prebuilt release archive
 2. uploads a Docker image archive to the VM
 3. installs Docker, nginx, certbot, and systemd units
 4. writes `/etc/rtk_cloud_admin/admin.env`
 5. stores SQLite data under `/var/lib/rtk_cloud_admin`
 6. starts `rtk-cloud-admin.service`
 7. optionally obtains a Let's Encrypt certificate and redirects HTTP to HTTPS
+
+To deploy a CI-built release artifact instead of building locally:
+
+```sh
+ADMIN_LINODE_RELEASE=v1.2.3 \
+ADMIN_LINODE_RELEASE_BUNDLE="$PWD/dist/rtk_cloud_admin-v1.2.3.tar.gz" \
+deploy/linode/deploy-admin.sh
+```
+
+The release bundle must be named `rtk_cloud_admin-<version>.tar.gz` and contain
+the Docker image tag `rtk-cloud-admin:<version>`.
 
 ## 4. Verify
 

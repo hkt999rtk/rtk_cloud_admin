@@ -147,6 +147,16 @@ const (
 	streamModeWebRTC = "webrtc"
 )
 
+const (
+	capabilityCustomerDevicesRead       = "customer.devices.read"
+	capabilityCustomerDevicesProvision  = "customer.devices.provision"
+	capabilityCustomerDevicesDeactivate = "customer.devices.deactivate"
+	capabilityCustomerFirmwareRead      = "customer.firmware.read"
+	capabilityCustomerStreamRead        = "customer.stream.read"
+	capabilityPlatformAuditRead         = "platform.audit.read"
+	capabilityPlatformSSOManage         = "platform.sso.manage"
+)
+
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	_, _ = w.Write([]byte("ok\n"))
@@ -261,10 +271,11 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 			DemoMode:      !s.accountClient.Enabled(),
 			Authenticated: false,
 			Memberships: []contracts.Membership{
-				{OrganizationID: "org-acme", Organization: "Acme Smart Camera", Role: "owner", Tier: "evaluation", EvaluationDeviceQuota: 5},
-				{OrganizationID: "org-nova", Organization: "Nova Home Labs", Role: "operator", Tier: "commercial"},
+				{OrganizationID: "org-acme", Organization: "Acme Smart Camera", Role: "owner", Tier: "evaluation", EvaluationDeviceQuota: 5, Capabilities: fleetManagerCapabilities()},
+				{OrganizationID: "org-nova", Organization: "Nova Home Labs", Role: "operator", Tier: "commercial", Capabilities: fleetManagerCapabilities()},
 			},
 		})
+		me.Capabilities = aggregateMembershipCapabilities(me.Memberships, me.ActiveOrgID)
 		writeJSON(w, me)
 		return
 	}
@@ -276,6 +287,7 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 			Kind:          session.Kind,
 			Memberships:   []contracts.Membership{},
 			Authenticated: true,
+			Capabilities:  platformAdminCompatibilityCapabilities(),
 		}))
 		return
 	}
@@ -310,6 +322,7 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		for _, org := range upstream.Organizations {
 			me.Memberships = append(me.Memberships, membershipFromOrganization(org))
 		}
+		me.Capabilities = aggregateMembershipCapabilities(me.Memberships, me.ActiveOrgID)
 	} else {
 		memberships, err := s.demoMemberships()
 		if err != nil {
@@ -320,6 +333,7 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		if me.ActiveOrgID == "" && len(memberships) > 0 {
 			me.ActiveOrgID = memberships[0].OrganizationID
 		}
+		me.Capabilities = aggregateMembershipCapabilities(me.Memberships, me.ActiveOrgID)
 	}
 	writeJSON(w, me)
 }
@@ -3047,6 +3061,15 @@ func organizationRole(orgs []accountclient.Organization, orgID string) (string, 
 	return "", false
 }
 
+func organizationByID(orgs []accountclient.Organization, orgID string) (accountclient.Organization, bool) {
+	for _, org := range orgs {
+		if org.ID == orgID {
+			return org, true
+		}
+	}
+	return accountclient.Organization{}, false
+}
+
 func isReadOnlyCustomerRole(role string) bool {
 	normalized := strings.NewReplacer("-", "_", " ", "_").Replace(strings.ToLower(strings.TrimSpace(role)))
 	switch normalized {
@@ -3055,6 +3078,81 @@ func isReadOnlyCustomerRole(role string) bool {
 	default:
 		return false
 	}
+}
+
+func fleetManagerCapabilities() []string {
+	return []string{
+		capabilityCustomerDevicesRead,
+		capabilityCustomerDevicesProvision,
+		capabilityCustomerDevicesDeactivate,
+		capabilityCustomerFirmwareRead,
+		capabilityCustomerStreamRead,
+	}
+}
+
+func platformAdminCompatibilityCapabilities() []string {
+	return []string{
+		"platform.customers.read",
+		"platform.devices.read",
+		"platform.operations.read",
+		capabilityPlatformAuditRead,
+		capabilityPlatformSSOManage,
+	}
+}
+
+func capabilitiesForOrganization(org accountclient.Organization) []string {
+	caps := normalizeCapabilities(append(append([]string{}, org.Capabilities...), org.Permissions...))
+	if len(caps) > 0 {
+		return caps
+	}
+	if isReadOnlyCustomerRole(org.Role) {
+		return []string{
+			capabilityCustomerDevicesRead,
+			capabilityCustomerFirmwareRead,
+			capabilityCustomerStreamRead,
+		}
+	}
+	return fleetManagerCapabilities()
+}
+
+func normalizeCapabilities(values []string) []string {
+	seen := make(map[string]bool)
+	var out []string
+	for _, value := range values {
+		capability := strings.TrimSpace(value)
+		if capability == "" || seen[capability] {
+			continue
+		}
+		seen[capability] = true
+		out = append(out, capability)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func aggregateMembershipCapabilities(memberships []contracts.Membership, activeOrgID string) []string {
+	var values []string
+	for _, membership := range memberships {
+		if activeOrgID != "" && membership.OrganizationID != activeOrgID {
+			continue
+		}
+		values = append(values, membership.Capabilities...)
+	}
+	if len(values) == 0 && activeOrgID == "" {
+		for _, membership := range memberships {
+			values = append(values, membership.Capabilities...)
+		}
+	}
+	return normalizeCapabilities(values)
+}
+
+func hasCapability(capabilities []string, required string) bool {
+	for _, capability := range capabilities {
+		if capability == required {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) demoMemberships() ([]contracts.Membership, error) {
@@ -3069,6 +3167,7 @@ func (s *Server) demoMemberships() ([]contracts.Membership, error) {
 			Organization:   customer.Organization,
 			Role:           "operator",
 			Tier:           "commercial",
+			Capabilities:   fleetManagerCapabilities(),
 		}
 		if customer.OrganizationID == "org-acme" {
 			membership.Role = "owner"
@@ -3263,12 +3362,17 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
 		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
-	if role, ok := organizationRole(orgs, session.ActiveOrgID); ok && isReadOnlyCustomerRole(role) {
-		http.Error(w, "read-only customer role cannot perform lifecycle actions", http.StatusForbidden)
+	org, ok := organizationByID(orgs, session.ActiveOrgID)
+	if !ok {
+		http.Error(w, "active organization is not part of the current customer memberships", http.StatusForbidden)
 		return true
 	}
-	if !organizationAllowed(orgs, session.ActiveOrgID) {
-		http.Error(w, "active organization is not part of the current customer memberships", http.StatusForbidden)
+	requiredCapability := capabilityCustomerDevicesProvision
+	if action == "deactivate" {
+		requiredCapability = capabilityCustomerDevicesDeactivate
+	}
+	if !hasCapability(capabilitiesForOrganization(org), requiredCapability) {
+		http.Error(w, "missing required capability: "+requiredCapability, http.StatusForbidden)
 		return true
 	}
 	deviceID := r.PathValue("id")
@@ -3438,6 +3542,7 @@ func membershipFromOrganization(org accountclient.Organization) contracts.Member
 		Role:                  org.Role,
 		Tier:                  org.Tier,
 		EvaluationDeviceQuota: org.EvaluationDeviceQuota,
+		Capabilities:          capabilitiesForOrganization(org),
 	}
 }
 
