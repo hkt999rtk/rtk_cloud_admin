@@ -10,7 +10,7 @@ The first implementation uses a Go backend/BFF, SQLite, and a React JavaScript f
 
 The console follows the contracts in `rtk_cloud_contracts_doc`:
 
-- Account Manager owns customer authentication, organizations, members, registry devices, and provisioning/deactivation APIs.
+- Account Manager owns customer authentication, organizations, members, registry devices, provisioning/deactivation APIs, platform-admin/root identity, and brand-cloud administration.
 - Realtek Video Cloud owns activation, scoped tokens, stream/media routes, firmware routes, and transport ownership.
 - Product readiness is an aggregate projection across account registry, claim/bind, local onboarding, cloud activation, and transport online facts.
 - Frontend color, typography, status labels, and layout tone follow `rtk_cloud_contracts_doc/FRONTEND_STYLE.md`.
@@ -21,6 +21,10 @@ identity, tenant context, authorization, entitlement, device registry, and
 provisioning intent. `rtk_cloud_admin` is the enterprise/admin dashboard and
 BFF; it may proxy or aggregate upstream facts but must not become the canonical
 account, organization, device, quota, or provisioning store.
+The same boundary applies to brand clouds: Account Manager owns
+`organization_kind=brand_cloud` records, membership, status, and audit. Admin
+Console may proxy these APIs and later add WebUI screens, but it must not store
+authoritative brand-cloud records in SQLite.
 
 ## MVP Scope
 
@@ -43,6 +47,7 @@ Included in v0.1:
 - Platform admin pages:
   - service health
   - SSO provider status and settings
+  - backend/BFF brand-cloud management routes for future UI consumption
   - lifecycle operations log
   - audit log
 - Audit events are recorded when demo lifecycle actions are created from the
@@ -132,6 +137,11 @@ Public and shared routes:
 - `GET /api/service-health`: configured upstream service health.
 - `GET /api/audit`: audit log.
 - `GET /api/admin/audit`: platform-admin protected audit log.
+- `GET /api/admin/brand-clouds`: Account Manager-backed brand cloud list.
+- `POST /api/admin/brand-clouds`: Account Manager-backed brand cloud create.
+- `GET /api/admin/brand-clouds/{id}`: Account Manager-backed brand cloud read.
+- `PATCH /api/admin/brand-clouds/{id}`: Account Manager-backed brand cloud update.
+- `POST /api/admin/brand-clouds/{id}/members`: Account Manager-backed brand cloud member assignment.
 - `GET /assets/...`: built frontend assets.
 - `GET /*`: React SPA fallback.
 

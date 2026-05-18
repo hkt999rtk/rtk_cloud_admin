@@ -136,6 +136,83 @@ func TestClientAdminInventory(t *testing.T) {
 	}
 }
 
+func TestClientBrandCloudLifecycle(t *testing.T) {
+	t.Parallel()
+
+	var createBody map[string]any
+	var patchBody map[string]any
+	var memberBody map[string]any
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+			t.Fatalf("%s Authorization = %q, want Bearer admin-access", r.URL.Path, got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds":
+			if err := json.NewDecoder(r.Body).Decode(&createBody); err != nil {
+				t.Fatal(err)
+			}
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_clouds": []map[string]any{{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}}})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds/brand-1":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active", "metadata": map[string]any{"region": "tw"}}})
+		case r.Method == http.MethodPatch && r.URL.Path == "/v1/admin/brand-clouds/brand-1":
+			if err := json.NewDecoder(r.Body).Decode(&patchBody); err != nil {
+				t.Fatal(err)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect Plus", "organization_kind": "brand_cloud", "status": "disabled"}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/members":
+			if err := json.NewDecoder(r.Body).Decode(&memberBody); err != nil {
+				t.Fatal(err)
+			}
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"organization_id": "brand-1", "user_id": "user-1", "role": "owner"}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	created, err := client.CreateBrandCloud(t.Context(), "admin-access", BrandCloudRequest{Name: "Realtek Connect+"})
+	if err != nil {
+		t.Fatalf("CreateBrandCloud returned error: %v", err)
+	}
+	if created.ID != "brand-1" || created.OrganizationKind != "brand_cloud" || createBody["name"] != "Realtek Connect+" {
+		t.Fatalf("created brand cloud = %#v body=%#v", created, createBody)
+	}
+	list, err := client.BrandClouds(t.Context(), "admin-access")
+	if err != nil {
+		t.Fatalf("BrandClouds returned error: %v", err)
+	}
+	if len(list) != 1 || list[0].ID != "brand-1" {
+		t.Fatalf("list = %#v", list)
+	}
+	got, err := client.BrandCloud(t.Context(), "admin-access", "brand-1")
+	if err != nil {
+		t.Fatalf("BrandCloud returned error: %v", err)
+	}
+	if got.ID != "brand-1" || got.Metadata["region"] != "tw" {
+		t.Fatalf("brand cloud = %#v", got)
+	}
+	updated, err := client.UpdateBrandCloud(t.Context(), "admin-access", "brand-1", BrandCloudRequest{Name: "Realtek Connect Plus", Status: "disabled"})
+	if err != nil {
+		t.Fatalf("UpdateBrandCloud returned error: %v", err)
+	}
+	if updated.Status != "disabled" || patchBody["status"] != "disabled" {
+		t.Fatalf("updated brand cloud = %#v body=%#v", updated, patchBody)
+	}
+	member, err := client.AssignBrandCloudMember(t.Context(), "admin-access", "brand-1", BrandCloudMemberRequest{UserID: "user-1", Role: "owner"})
+	if err != nil {
+		t.Fatalf("AssignBrandCloudMember returned error: %v", err)
+	}
+	if member.UserID != "user-1" || memberBody["user_id"] != "user-1" {
+		t.Fatalf("member = %#v body=%#v", member, memberBody)
+	}
+}
+
 func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
