@@ -3467,6 +3467,27 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}})
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds":
 			_ = json.NewEncoder(w).Encode(map[string]any{"brand_clouds": []map[string]any{{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}}})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds/brand-1":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}})
+		case r.Method == http.MethodPatch && r.URL.Path == "/v1/admin/brand-clouds/brand-1":
+			var body accountclient.BrandCloudRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			if body.Status != "disabled" {
+				t.Fatalf("patch status = %q, want disabled", body.Status)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": body.Name, "organization_kind": "brand_cloud", "status": body.Status}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/members":
+			var body accountclient.BrandCloudMemberRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			if body.UserID != "user-1" || body.Role != "owner" {
+				t.Fatalf("member request = %#v", body)
+			}
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"organization_id": "brand-1", "user_id": "user-1", "role": "owner"}})
 		default:
 			http.NotFound(w, r)
 		}
@@ -3510,12 +3531,57 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 		t.Fatalf("brand cloud list status = %d, want 200; body=%s", list.Code, list.Body.String())
 	}
 
+	getOne := httptest.NewRecorder()
+	getOneReq := httptest.NewRequest(http.MethodGet, "/api/admin/brand-clouds/brand-1", nil)
+	getOneReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(getOne, getOneReq)
+	if getOne.Code != http.StatusOK {
+		t.Fatalf("brand cloud get status = %d, want 200; body=%s", getOne.Code, getOne.Body.String())
+	}
+
+	update := httptest.NewRecorder()
+	updateReq := httptest.NewRequest(http.MethodPatch, "/api/admin/brand-clouds/brand-1", strings.NewReader(`{"name":"Realtek Connect+","status":" disabled "}`))
+	updateReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(update, updateReq)
+	if update.Code != http.StatusOK {
+		t.Fatalf("brand cloud update status = %d, want 200; body=%s", update.Code, update.Body.String())
+	}
+
+	member := httptest.NewRecorder()
+	memberReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/members", strings.NewReader(`{"user_id":" user-1 ","role":" owner "}`))
+	memberReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(member, memberReq)
+	if member.Code != http.StatusCreated {
+		t.Fatalf("brand cloud member status = %d, want 201; body=%s", member.Code, member.Body.String())
+	}
+
 	blocked := httptest.NewRecorder()
 	blockedReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds", strings.NewReader(`{"name":"Blocked"}`))
 	blockedReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: breakGlassSession.ID})
 	srv.ServeHTTP(blocked, blockedReq)
 	if blocked.Code != http.StatusForbidden {
 		t.Fatalf("break-glass brand cloud create status = %d, want 403; body=%s", blocked.Code, blocked.Body.String())
+	}
+
+	notConfiguredStore, err := store.Open(t.TempDir() + "/not-configured.db")
+	if err != nil {
+		t.Fatalf("Open not configured returned error: %v", err)
+	}
+	defer notConfiguredStore.Close()
+	if err := notConfiguredStore.Migrate(); err != nil {
+		t.Fatalf("Migrate not configured returned error: %v", err)
+	}
+	localSession, err := notConfiguredStore.CreateSession("platform_admin", "admin", "admin@example.com", "admin-access", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession not configured returned error: %v", err)
+	}
+	notConfigured := New(notConfiguredStore)
+	missingAccountManager := httptest.NewRecorder()
+	missingReq := httptest.NewRequest(http.MethodGet, "/api/admin/brand-clouds", nil)
+	missingReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: localSession.ID})
+	notConfigured.ServeHTTP(missingAccountManager, missingReq)
+	if missingAccountManager.Code != http.StatusServiceUnavailable {
+		t.Fatalf("not configured status = %d, want 503; body=%s", missingAccountManager.Code, missingAccountManager.Body.String())
 	}
 }
 
