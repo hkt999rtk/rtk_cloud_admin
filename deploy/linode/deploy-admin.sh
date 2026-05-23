@@ -2,6 +2,23 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+load_secret_env() {
+  local file="$1"
+  if [ -f "$file" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$file"
+    set +a
+  fi
+}
+
+if [ -n "${DEPLOY_SECRETS_DIR:-}" ]; then
+  [ -d "$DEPLOY_SECRETS_DIR" ] || { printf 'error: DEPLOY_SECRETS_DIR not found: %s\n' "$DEPLOY_SECRETS_DIR" >&2; exit 1; }
+  load_secret_env "$DEPLOY_SECRETS_DIR/env/admin-staging.env"
+  load_secret_env "$DEPLOY_SECRETS_DIR/state/${ADMIN_LINODE_LABEL:-rtk-cloud-admin-staging}.state"
+fi
+
 label="${ADMIN_LINODE_LABEL:-rtk-cloud-admin-staging}"
 release_bundle="${ADMIN_LINODE_RELEASE_BUNDLE:-}"
 bundle_release=""
