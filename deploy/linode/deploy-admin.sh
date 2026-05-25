@@ -119,6 +119,7 @@ apt-get update -y
 nginx_candidate="$(apt-cache policy nginx | awk '/Candidate:/ {print $2}')"
 dpkg --compare-versions "$nginx_candidate" ge 1.30.0
 apt-get install -y -o Dpkg::Options::=--force-confold nginx certbot python3-certbot-nginx
+mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
 if ! grep -q 'server_names_hash_bucket_size' /etc/nginx/nginx.conf; then
   sed -i '/http {/a\    server_names_hash_bucket_size 128;' /etc/nginx/nginx.conf
 fi
@@ -127,7 +128,7 @@ if [ -d /etc/nginx/sites-enabled ] && ! grep -q 'sites-enabled' /etc/nginx/nginx
 fi
 systemctl enable --now docker
 
-mkdir -p /etc/rtk_cloud_admin "$data_dir" /etc/nginx/sites-available /etc/nginx/sites-enabled
+mkdir -p /etc/rtk_cloud_admin "$data_dir"
 chmod 0750 /etc/rtk_cloud_admin
 # Dockerfile creates the runtime app user/group as the first system uid/gid.
 # The host bind mount must be writable by that non-root container user.
@@ -172,8 +173,9 @@ server {
 }
 NGINX
 ln -sf /etc/nginx/sites-available/rtk-cloud-admin.conf /etc/nginx/sites-enabled/rtk-cloud-admin.conf
-rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
 nginx -t
+systemctl enable --now nginx
 systemctl reload nginx
 
 docker load -i "$remote_image"
