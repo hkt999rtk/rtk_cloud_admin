@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+load_secret_env() {
+  local file="$1"
+  if [ -f "$file" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$file"
+    set +a
+  fi
+}
+
+if [ -n "${DEPLOY_SECRETS_DIR:-}" ]; then
+  [ -d "$DEPLOY_SECRETS_DIR" ] || { printf 'error: DEPLOY_SECRETS_DIR not found: %s\n' "$DEPLOY_SECRETS_DIR" >&2; exit 1; }
+  load_secret_env "$DEPLOY_SECRETS_DIR/env/admin-staging.env"
+fi
+
 label="${ADMIN_LINODE_LABEL:-rtk-cloud-admin-staging}"
 region="${ADMIN_LINODE_REGION:-us-sea}"
 type="${ADMIN_LINODE_TYPE:-g6-standard-2}"
@@ -8,7 +23,8 @@ image="${ADMIN_LINODE_IMAGE:-linode/ubuntu24.04}"
 public_key_path="${ADMIN_LINODE_PUBLIC_KEY_PATH:-$HOME/.ssh/id_ed25519_rtkcloud.pub}"
 allowed_ssh_cidrs="${ADMIN_LINODE_ALLOWED_SSH_CIDRS:-}"
 firewall_label="${ADMIN_LINODE_FIREWALL_LABEL:-${label}-firewall}"
-state_path="${ADMIN_LINODE_STATE_PATH:-deploy/linode/${label}.state}"
+default_state_path="${DEPLOY_SECRETS_DIR:+$DEPLOY_SECRETS_DIR/state/${label}.state}"
+state_path="${ADMIN_LINODE_STATE_PATH:-${default_state_path:-deploy/linode/${label}.state}}"
 
 die() {
   printf 'error: %s\n' "$*" >&2

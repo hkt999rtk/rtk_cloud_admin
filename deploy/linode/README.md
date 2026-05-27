@@ -61,14 +61,18 @@ Remote Admin VM:
 ## 1. Prepare Local Env
 
 ```sh
-cp deploy/linode/admin-staging.env.example deploy/linode/admin-staging.env
-$EDITOR deploy/linode/admin-staging.env
-set -a
-. deploy/linode/admin-staging.env
-set +a
+export WORKSPACE=/path/to/rtk_cloud_workspace
+export DEPLOY_SECRETS_DIR="$WORKSPACE/.secrets/staging/linode/admin"
+mkdir -p "$DEPLOY_SECRETS_DIR"/{env,state}
+cp deploy/linode/admin-staging.env.example "$DEPLOY_SECRETS_DIR/env/admin-staging.env"
+$EDITOR "$DEPLOY_SECRETS_DIR/env/admin-staging.env"
 ```
 
-Do not commit the copied env file. It contains deployment secrets.
+When `DEPLOY_SECRETS_DIR` is set, the Linode scripts source
+`$DEPLOY_SECRETS_DIR/env/admin-staging.env` and write/read state under
+`$DEPLOY_SECRETS_DIR/state/`. The legacy `deploy/linode/*.env` and
+`deploy/linode/*.state` paths remain supported for standalone repo usage. Do
+not commit the copied env file. It contains deployment secrets.
 
 ## 2. Provision VM
 
@@ -79,7 +83,7 @@ deploy/linode/provision-admin-vm.sh
 The script writes a local ignored state file such as:
 
 ```text
-deploy/linode/rtk-cloud-admin-staging.state
+$DEPLOY_SECRETS_DIR/state/rtk-cloud-admin-staging.state
 ```
 
 Create the DNS A record printed by the script before running the deploy step.
@@ -87,10 +91,8 @@ Create the DNS A record printed by the script before running the deploy step.
 ## 3. Deploy App
 
 ```sh
-set -a
-. deploy/linode/admin-staging.env
-. deploy/linode/rtk-cloud-admin-staging.state
-set +a
+export WORKSPACE=/path/to/rtk_cloud_workspace
+export DEPLOY_SECRETS_DIR="$WORKSPACE/.secrets/staging/linode/admin"
 
 deploy/linode/deploy-admin.sh
 ```
@@ -113,14 +115,11 @@ releases/rtk_cloud_admin-<version>/<version>.tar.gz
 releases/rtk_cloud_admin-<version>/<version>.tar.gz.sha256
 releases/rtk_cloud_admin-<version>/manifest.json
 ```
-
 ## 4. Verify
 
 ```sh
-set -a
-. deploy/linode/admin-staging.env
-. deploy/linode/rtk-cloud-admin-staging.state
-set +a
+export WORKSPACE=/path/to/rtk_cloud_workspace
+export DEPLOY_SECRETS_DIR="$WORKSPACE/.secrets/staging/linode/admin"
 
 deploy/linode/verify-admin.sh
 ```
@@ -137,10 +136,8 @@ Artifacts are written to `.artifacts/linode-admin-verify/` and are not tracked.
 ## Backup
 
 ```sh
-set -a
-. deploy/linode/admin-staging.env
-. deploy/linode/rtk-cloud-admin-staging.state
-set +a
+export WORKSPACE=/path/to/rtk_cloud_workspace
+export DEPLOY_SECRETS_DIR="$WORKSPACE/.secrets/staging/linode/admin"
 
 deploy/linode/backup-admin-db.sh
 ```

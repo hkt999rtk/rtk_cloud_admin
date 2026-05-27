@@ -31,6 +31,8 @@ type Organization struct {
 	Status                string         `json:"status,omitempty"`
 	Tier                  string         `json:"tier,omitempty"`
 	EvaluationDeviceQuota int            `json:"evaluation_device_quota,omitempty"`
+	Capabilities          []string       `json:"capabilities,omitempty"`
+	Permissions           []string       `json:"permissions,omitempty"`
 	Metadata              map[string]any `json:"metadata,omitempty"`
 }
 

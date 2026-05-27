@@ -195,11 +195,32 @@ For a production private-cloud deployment, see
 [`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md). For the
 Linode staging scripts, see [`deploy/linode/`](deploy/linode/).
 
+## Release Artifacts
+
+Release artifacts are native Linux bundles produced by `deploy/package.sh` and
+verified by `deploy/check-release.sh`:
+
+```sh
+VERSION=v1.2.3 deploy/package.sh
+deploy/check-release.sh dist/rtk_cloud_admin-v1.2.3
+```
+
+Release runs upload the bundle, checksum, and manifest to Linode Object Storage
+under `releases/rtk_cloud_admin-<version>/`. The object filenames use the
+version directly, for example `v1.2.3.tar.gz`. Object Storage credentials belong
+in GitHub repository secrets and variables, not local `.env` files.
+
 ## CI
 
 `.github/workflows/ci.yml` checks out submodules and runs `go test ./...`,
 `go build ./cmd/server`, `npm ci`, `npm test`, `npm run build`, and a native
 server smoke test on the self-hosted `rtk-cloud-admin-ci` runner.
+
+`.github/workflows/release.yml` runs only for `v*` tags or manual dispatch.
+Manual dispatch builds and verifies a release bundle as a GitHub workflow
+artifact. Tag-triggered runs also publish the release bundle to Linode Object
+Storage and attach assets to the GitHub Release. Normal PR and main CI do not
+upload release artifacts.
 
 Runner health and recovery notes live in [`docs/ci-runner.md`](docs/ci-runner.md).
 

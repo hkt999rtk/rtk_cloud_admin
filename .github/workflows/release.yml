@@ -131,9 +131,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          asset="dist/rtk_cloud_admin-${{ steps.version.outputs.version }}.tar.gz"
+          version="${{ steps.version.outputs.version }}"
+          assets=(
+            "dist/rtk_cloud_admin-$version.tar.gz"
+            "dist/$version.tar.gz"
+            "dist/$version.tar.gz.sha256"
+            "dist/$version.object-manifest.json"
+          )
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "$asset" --clobber
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "$asset" --generate-notes --title "$GITHUB_REF_NAME"
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" --generate-notes --title "$GITHUB_REF_NAME"
           fi

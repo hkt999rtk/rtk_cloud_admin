@@ -23,7 +23,7 @@ case "$version" in
 esac
 
 desc="$(file "$release_dir/bin/rtk-cloud-admin")"
-printf '%s\n' "$desc" | grep -Eq 'ELF 64-bit.*x86-64|ELF 64-bit.*x86-64' || {
+printf '%s\n' "$desc" | grep -Eq 'ELF 64-bit.*x86-64' || {
 	printf 'rtk-cloud-admin binary is not linux x86_64: %s\n' "$desc" >&2
 	exit 1
 }

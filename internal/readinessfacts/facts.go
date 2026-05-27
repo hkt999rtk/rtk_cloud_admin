@@ -124,14 +124,19 @@ func transportOnlineFact(device contracts.Device, fallbackUpdatedAt string, vcFa
 	}
 
 	// Video Cloud transport is authoritative; use it regardless of LastSeenAt.
-	if vcFacts != nil && vcFacts.Transport != "" {
+	if vcFacts != nil {
 		ts := fallbackUpdatedAt
 		if vcFacts.UpdatedAt != "" {
 			ts = vcFacts.UpdatedAt
 		}
-		fact.State = "present"
-		fact.Detail = "Video Cloud transport: " + vcFacts.Transport + "."
 		fact.UpdatedAt = ts
+		if vcFacts.Transport != "" {
+			fact.State = "present"
+			fact.Detail = "Video Cloud transport: " + vcFacts.Transport + "."
+			return fact
+		}
+		fact.State = "missing"
+		fact.Detail = "Video Cloud has no current transport evidence."
 		return fact
 	}
 

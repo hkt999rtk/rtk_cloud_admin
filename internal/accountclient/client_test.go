@@ -21,7 +21,7 @@ func TestClientLoginAndMe(t *testing.T) {
 				t.Fatalf("Authorization = %q", got)
 			}
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-1","name":"Acme","role":"owner","tier":"evaluation","evaluation_device_quota":5}]}`))
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"user@example.com","name":"User"},"organizations":[{"id":"org-1","name":"Acme","role":"fleet_manager","tier":"evaluation","evaluation_device_quota":5,"capabilities":["customer.devices.read","customer.devices.provision"],"permissions":["customer.devices.deactivate"]}]}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -45,6 +45,12 @@ func TestClientLoginAndMe(t *testing.T) {
 	}
 	if me.Organizations[0].Tier != "evaluation" || me.Organizations[0].EvaluationDeviceQuota != 5 {
 		t.Fatalf("organization metadata = %#v", me.Organizations[0])
+	}
+	if got := strings.Join(me.Organizations[0].Capabilities, ","); got != "customer.devices.read,customer.devices.provision" {
+		t.Fatalf("organization capabilities = %q", got)
+	}
+	if got := strings.Join(me.Organizations[0].Permissions, ","); got != "customer.devices.deactivate" {
+		t.Fatalf("organization permissions = %q", got)
 	}
 }
 
@@ -150,6 +156,8 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}})
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds":
 			_ = json.NewEncoder(w).Encode(map[string]any{"brand_clouds": []map[string]any{{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}}})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds/brand-1":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active", "metadata": map[string]any{"region": "tw"}}})
 		case r.Method == http.MethodPatch && r.URL.Path == "/v1/admin/brand-clouds/brand-1":
 			if err := json.NewDecoder(r.Body).Decode(&patchBody); err != nil {
 				t.Fatal(err)
@@ -181,6 +189,13 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 	}
 	if len(list) != 1 || list[0].ID != "brand-1" {
 		t.Fatalf("list = %#v", list)
+	}
+	got, err := client.BrandCloud(t.Context(), "admin-access", "brand-1")
+	if err != nil {
+		t.Fatalf("BrandCloud returned error: %v", err)
+	}
+	if got.ID != "brand-1" || got.Metadata["region"] != "tw" {
+		t.Fatalf("brand cloud = %#v", got)
 	}
 	updated, err := client.UpdateBrandCloud(t.Context(), "admin-access", "brand-1", BrandCloudRequest{Name: "Realtek Connect Plus", Status: "disabled"})
 	if err != nil {

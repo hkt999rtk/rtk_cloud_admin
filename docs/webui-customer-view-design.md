@@ -196,6 +196,10 @@ Behavior notes:
 - Customer users must not see out-of-org devices.
 - Platform admin data must not leak through the Customer View device drawer or
   customer API payloads.
+- In production mode, readiness badges and fleet counts must use the API's
+  source-attributed readiness projection: Account Manager owns registry and
+  lifecycle operations, while Video Cloud owns activation and current transport.
+  Demo/cache facts must remain visibly local projections.
 - Filters must preserve table scan speed and avoid card-wall layouts.
 - Read-only Observer sessions must be enforced by the backend before any
   provision or deactivate action is accepted.

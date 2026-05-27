@@ -1098,6 +1098,112 @@ func TestCustomerDevicesReportVideoCloudActivationFailures(t *testing.T) {
 	}
 }
 
+func TestCustomerDevicesUseVideoCloudTransportForOnlineReadiness(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/login":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"tokens":{"access_token":"access","refresh_token":"refresh","expires_in":3600}}`))
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs/org-acme/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"online","status":"online","video_cloud_devid":"device-2","last_seen_at":"2026-05-01T10:00:00Z"}]}`))
+		default:
+			t.Fatalf("unexpected account path: %s", r.URL.Path)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/query_camera_activate":
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("query activation Authorization = %q, want Bearer vc-secret", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":  "ok",
+				"devices": []string{"1"},
+			})
+		case "/get_camera_info":
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("camera info Authorization = %q, want Bearer vc-secret", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "ok",
+				"info":   map[string]any{"current_transport": ""},
+			})
+		default:
+			t.Fatalf("unexpected video path: %s", r.URL.Path)
+		}
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL:              accountUpstream.URL,
+			LegacyCustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:                  videoUpstream.URL,
+			VideoCloudAdminToken:               "vc-secret",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+
+	login := httptest.NewRecorder()
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"customer@example.com","password":"secret"}`)))
+	if login.Code != http.StatusOK {
+		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
+	}
+	cookie := login.Result().Cookies()[0]
+
+	devices := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	req.AddCookie(cookie)
+	srv.ServeHTTP(devices, req)
+	if devices.Code != http.StatusOK {
+		t.Fatalf("devices status = %d, body=%s", devices.Code, devices.Body.String())
+	}
+	if strings.Contains(devices.Body.String(), "vc-secret") {
+		t.Fatalf("devices response leaked Video Cloud token: %s", devices.Body.String())
+	}
+
+	var payload []contracts.CustomerDevice
+	if err := json.NewDecoder(devices.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode devices response: %v", err)
+	}
+	if len(payload) != 1 {
+		t.Fatalf("devices length = %d, want 1", len(payload))
+	}
+	if payload[0].Readiness != contracts.ReadinessActivated {
+		t.Fatalf("readiness = %q, want %q", payload[0].Readiness, contracts.ReadinessActivated)
+	}
+	var transport contracts.CustomerSourceFact
+	for _, fact := range payload[0].SourceFacts {
+		if fact.Layer == "Transport Online" {
+			transport = fact
+			break
+		}
+	}
+	if transport.State != "missing" {
+		t.Fatalf("transport fact = %#v, want missing", transport)
+	}
+}
+
 func TestCustomerLoginSurvivesProfileRetryFailure(t *testing.T) {
 	t.Parallel()
 
@@ -3467,6 +3573,27 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}})
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds":
 			_ = json.NewEncoder(w).Encode(map[string]any{"brand_clouds": []map[string]any{{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}}})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds/brand-1":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect+", "organization_kind": "brand_cloud", "status": "active"}})
+		case r.Method == http.MethodPatch && r.URL.Path == "/v1/admin/brand-clouds/brand-1":
+			var body accountclient.BrandCloudRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			if body.Status != "disabled" {
+				t.Fatalf("patch status = %q, want disabled", body.Status)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": body.Name, "organization_kind": "brand_cloud", "status": body.Status}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/members":
+			var body accountclient.BrandCloudMemberRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			if body.UserID != "user-1" || body.Role != "owner" {
+				t.Fatalf("member request = %#v", body)
+			}
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"organization_id": "brand-1", "user_id": "user-1", "role": "owner"}})
 		default:
 			http.NotFound(w, r)
 		}
@@ -3510,12 +3637,57 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 		t.Fatalf("brand cloud list status = %d, want 200; body=%s", list.Code, list.Body.String())
 	}
 
+	getOne := httptest.NewRecorder()
+	getOneReq := httptest.NewRequest(http.MethodGet, "/api/admin/brand-clouds/brand-1", nil)
+	getOneReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(getOne, getOneReq)
+	if getOne.Code != http.StatusOK {
+		t.Fatalf("brand cloud get status = %d, want 200; body=%s", getOne.Code, getOne.Body.String())
+	}
+
+	update := httptest.NewRecorder()
+	updateReq := httptest.NewRequest(http.MethodPatch, "/api/admin/brand-clouds/brand-1", strings.NewReader(`{"name":"Realtek Connect+","status":" disabled "}`))
+	updateReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(update, updateReq)
+	if update.Code != http.StatusOK {
+		t.Fatalf("brand cloud update status = %d, want 200; body=%s", update.Code, update.Body.String())
+	}
+
+	member := httptest.NewRecorder()
+	memberReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/members", strings.NewReader(`{"user_id":" user-1 ","role":" owner "}`))
+	memberReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(member, memberReq)
+	if member.Code != http.StatusCreated {
+		t.Fatalf("brand cloud member status = %d, want 201; body=%s", member.Code, member.Body.String())
+	}
+
 	blocked := httptest.NewRecorder()
 	blockedReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds", strings.NewReader(`{"name":"Blocked"}`))
 	blockedReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: breakGlassSession.ID})
 	srv.ServeHTTP(blocked, blockedReq)
 	if blocked.Code != http.StatusForbidden {
 		t.Fatalf("break-glass brand cloud create status = %d, want 403; body=%s", blocked.Code, blocked.Body.String())
+	}
+
+	notConfiguredStore, err := store.Open(t.TempDir() + "/not-configured.db")
+	if err != nil {
+		t.Fatalf("Open not configured returned error: %v", err)
+	}
+	defer notConfiguredStore.Close()
+	if err := notConfiguredStore.Migrate(); err != nil {
+		t.Fatalf("Migrate not configured returned error: %v", err)
+	}
+	localSession, err := notConfiguredStore.CreateSession("platform_admin", "admin", "admin@example.com", "admin-access", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession not configured returned error: %v", err)
+	}
+	notConfigured := New(notConfiguredStore)
+	missingAccountManager := httptest.NewRecorder()
+	missingReq := httptest.NewRequest(http.MethodGet, "/api/admin/brand-clouds", nil)
+	missingReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: localSession.ID})
+	notConfigured.ServeHTTP(missingAccountManager, missingReq)
+	if missingAccountManager.Code != http.StatusServiceUnavailable {
+		t.Fatalf("not configured status = %d, want 503; body=%s", missingAccountManager.Code, missingAccountManager.Body.String())
 	}
 }
 
@@ -3642,6 +3814,106 @@ func TestMeContractStabilizesMembershipShape(t *testing.T) {
 	admin := checkMe(&http.Cookie{Name: "rtk_admin_session", Value: adminSession.ID}, true)
 	if admin.Kind != "platform_admin" || admin.Memberships == nil {
 		t.Fatalf("platform admin me contract is incomplete: %#v", admin)
+	}
+}
+
+func TestCustomerMeProjectsAccountManagerCapabilities(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/me" {
+			http.NotFound(w, r)
+			return
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer access" {
+			t.Fatalf("Authorization = %q, want Bearer access", got)
+		}
+		_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"manager@example.com","name":"Manager"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"fleet_manager","tier":"commercial","capabilities":["customer.devices.read","customer.devices.provision"],"permissions":["customer.devices.deactivate"]}]}`))
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	session, err := st.CreateSession("customer", "u1", "manager@example.com", "access", "refresh", "org-up", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("/api/me status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Capabilities []string `json:"capabilities"`
+		Memberships  []struct {
+			OrganizationID string   `json:"organization_id"`
+			Capabilities   []string `json:"capabilities"`
+		} `json:"memberships"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode /api/me: %v", err)
+	}
+	if strings.Join(body.Capabilities, ",") != "customer.devices.deactivate,customer.devices.provision,customer.devices.read" {
+		t.Fatalf("top-level capabilities = %#v", body.Capabilities)
+	}
+	if len(body.Memberships) != 1 || body.Memberships[0].OrganizationID != "org-up" {
+		t.Fatalf("memberships = %#v", body.Memberships)
+	}
+	if strings.Join(body.Memberships[0].Capabilities, ",") != "customer.devices.deactivate,customer.devices.provision,customer.devices.read" {
+		t.Fatalf("membership capabilities = %#v", body.Memberships[0].Capabilities)
+	}
+}
+
+func TestPlatformAdminMeProjectsBreakGlassCompatibilityCapabilities(t *testing.T) {
+	t.Parallel()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{Config: config.Config{AdminBreakGlassEnabled: true}})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("/api/me status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Kind              string   `json:"kind"`
+		Capabilities      []string `json:"capabilities"`
+		BreakGlassEnabled bool     `json:"break_glass_enabled"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode /api/me: %v", err)
+	}
+	if body.Kind != "platform_admin" || !body.BreakGlassEnabled {
+		t.Fatalf("platform me = %#v", body)
+	}
+	if !containsString(body.Capabilities, "platform.audit.read") || !containsString(body.Capabilities, "platform.sso.manage") {
+		t.Fatalf("platform capabilities = %#v", body.Capabilities)
 	}
 }
 
@@ -3901,6 +4173,58 @@ func TestCustomerReadOnlyObserverLifecycleReturns403(t *testing.T) {
 	}
 	if upstreamProvisionCalls != 0 {
 		t.Fatalf("read-only lifecycle should not call upstream, got %d calls", upstreamProvisionCalls)
+	}
+}
+
+func TestCustomerLifecycleRequiresAccountManagerCapability(t *testing.T) {
+	t.Parallel()
+
+	upstreamProvisionCalls := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-up","name":"Upstream Org","role":"fleet_manager","capabilities":["customer.devices.read"]}]}`))
+		case "/v1/orgs/org-up/devices/dev-002/provision":
+			upstreamProvisionCalls++
+			_, _ = w.Write([]byte(`{"operation":{"id":"op-up","state":"published","message":"accepted"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+	session, err := st.CreateSession("customer", "u1", "manager@example.com", "access", "refresh", "org-up", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/devices/dev-002/provision", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("provision status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "customer.devices.provision") {
+		t.Fatalf("forbidden body should name missing capability: %s", rec.Body.String())
+	}
+	if upstreamProvisionCalls != 0 {
+		t.Fatalf("blocked lifecycle should not call upstream, got %d calls", upstreamProvisionCalls)
 	}
 }
 

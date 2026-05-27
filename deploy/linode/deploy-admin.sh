@@ -2,8 +2,51 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+load_secret_env() {
+  local file="$1"
+  if [ -f "$file" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$file"
+    set +a
+  fi
+}
+
+if [ -n "${DEPLOY_SECRETS_DIR:-}" ]; then
+  [ -d "$DEPLOY_SECRETS_DIR" ] || { printf 'error: DEPLOY_SECRETS_DIR not found: %s\n' "$DEPLOY_SECRETS_DIR" >&2; exit 1; }
+  load_secret_env "$DEPLOY_SECRETS_DIR/env/admin-staging.env"
+  load_secret_env "$DEPLOY_SECRETS_DIR/state/${ADMIN_LINODE_LABEL:-rtk-cloud-admin-staging}.state"
+fi
+
 label="${ADMIN_LINODE_LABEL:-rtk-cloud-admin-staging}"
-release="${ADMIN_LINODE_RELEASE:-$(git -C "$root_dir" rev-parse --short HEAD)}"
+release_bundle="${ADMIN_LINODE_RELEASE_BUNDLE:-}"
+bundle_release=""
+if [ -n "$release_bundle" ]; then
+  release_name="$(basename "$release_bundle")"
+  case "$release_name" in
+    rtk_cloud_admin-*.tar.gz)
+      bundle_release="${release_name#rtk_cloud_admin-}"
+      bundle_release="${bundle_release%.tar.gz}"
+      ;;
+    *)
+      printf 'error: ADMIN_LINODE_RELEASE_BUNDLE must be named rtk_cloud_admin-<version>.tar.gz\n' >&2
+      exit 1
+      ;;
+  esac
+fi
+
+if [ -n "${ADMIN_LINODE_RELEASE:-}" ]; then
+  release="$ADMIN_LINODE_RELEASE"
+elif [ -n "$release_bundle" ]; then
+  release="$bundle_release"
+else
+  release="$(git -C "$root_dir" rev-parse --short HEAD)"
+fi
+if [ -n "$bundle_release" ] && [ "$release" != "$bundle_release" ]; then
+  printf 'error: ADMIN_LINODE_RELEASE (%s) must match bundle version (%s)\n' "$release" "$bundle_release" >&2
+  exit 1
+fi
 domain="${ADMIN_LINODE_DOMAIN:-}"
 certbot_email="${ADMIN_LINODE_CERTBOT_EMAIL:-}"
 ssh_user="${ADMIN_LINODE_SSH_USER:-root}"
