@@ -3476,6 +3476,8 @@ func mapUpstreamDevice(org accountclient.Organization, device accountclient.Devi
 	status := fallback(device.Status, metadataString(device.Metadata, "status", "unknown"))
 	videoID := fallback(device.VideoCloudDevID, metadataString(device.Metadata, "video_cloud_devid", ""))
 	updatedAt := fallback(device.UpdatedAt, now)
+	latestOp := upstreamOperationFromMetadata(device, updatedAt)
+	readiness = authoritativeReadiness(readiness, videoID, latestOp, vcFacts)
 	mapped := contracts.Device{
 		ID:              device.ID,
 		OrganizationID:  fallback(device.OrganizationID, org.ID),
@@ -3494,8 +3496,41 @@ func mapUpstreamDevice(org accountclient.Organization, device accountclient.Devi
 		LastSeenAt: fallback(device.LastSeenAt, metadataString(device.Metadata, "last_seen_at", "")),
 		UpdatedAt:  updatedAt,
 	}
-	mapped.SourceFacts = readinessfacts.Build(mapped, upstreamOperationFromMetadata(device, updatedAt), vcFacts)
+	mapped.SourceFacts = readinessfacts.Build(mapped, latestOp, vcFacts)
 	return mapped
+}
+
+func authoritativeReadiness(readiness contracts.ReadinessState, videoID string, latestOp *contracts.Operation, vcFacts *readinessfacts.VideoCloudFacts) contracts.ReadinessState {
+	switch readiness {
+	case contracts.ReadinessFailed, contracts.ReadinessDeactivationPending, contracts.ReadinessDeactivated:
+		return readiness
+	case contracts.ReadinessClaimPending, contracts.ReadinessLocalOnboardingPending:
+		return readiness
+	}
+	if latestOp != nil {
+		switch latestOp.State {
+		case contracts.OperationPending, contracts.OperationPublished, contracts.OperationRetrying:
+			return contracts.ReadinessCloudActivationPending
+		case contracts.OperationFailed, contracts.OperationDeadLettered:
+			return contracts.ReadinessFailed
+		}
+	}
+	if vcFacts == nil {
+		return readiness
+	}
+	if videoID == "" {
+		if readiness == contracts.ReadinessActivated || readiness == contracts.ReadinessOnline {
+			return contracts.ReadinessRegistered
+		}
+		return readiness
+	}
+	if !vcFacts.Activated {
+		return contracts.ReadinessCloudActivationPending
+	}
+	if vcFacts.Transport == "" {
+		return contracts.ReadinessActivated
+	}
+	return contracts.ReadinessOnline
 }
 
 func upstreamOperationFromMetadata(device accountclient.Device, fallbackUpdatedAt string) *contracts.Operation {
