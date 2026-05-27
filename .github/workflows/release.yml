@@ -78,10 +78,6 @@ jobs:
           ARTIFACT_NAME: ${{ steps.version.outputs.artifact_name }}
         run: |
           set -euo pipefail
-          if ! command -v aws >/dev/null 2>&1; then
-            python3 -m pip install --user awscli
-            export PATH="$HOME/.local/bin:$PATH"
-          fi
           test -n "$AWS_ACCESS_KEY_ID"
           test -n "$AWS_SECRET_ACCESS_KEY"
           test -n "$LINODE_OBJ_BUCKET"
@@ -112,10 +108,10 @@ jobs:
               "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
           }, indent=2, sort_keys=True))
           PY
-          prefix="s3://$LINODE_OBJ_BUCKET/releases/$ARTIFACT_NAME"
-          aws s3 cp "$object_bundle" "s3://$LINODE_OBJ_BUCKET/$artifact_path" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
-          aws s3 cp "$checksum" "$prefix/$VERSION.tar.gz.sha256" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
-          aws s3 cp "$manifest" "$prefix/manifest.json" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
+          prefix="releases/$ARTIFACT_NAME"
+          go run ./cmd/s3put --file "$object_bundle" --key "$artifact_path"
+          go run ./cmd/s3put --file "$checksum" --key "$prefix/$VERSION.tar.gz.sha256"
+          go run ./cmd/s3put --file "$manifest" --key "$prefix/manifest.json"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
