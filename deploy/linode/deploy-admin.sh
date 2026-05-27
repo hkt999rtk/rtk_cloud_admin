@@ -136,7 +136,8 @@ mv /tmp/rtk-cloud-admin-deploy/admin.env "$env_path"
 chmod 0600 "$env_path"
 rm -rf "$release_dir"
 mkdir -p "$release_dir"
-tar --warning=no-unknown-keyword -xzf "$remote_bundle" -C "$release_dir" --strip-components=1
+tar --warning=no-unknown-keyword -xzf "$remote_bundle" -C "$release_dir" --strip-components=1 \
+  2> >(grep -v "Ignoring unknown extended header keyword 'LIBARCHIVE.xattr.com.apple.provenance'" >&2)
 test -x "$release_dir/bin/rtk-cloud-admin"
 test -s "$release_dir/web/dist/index.html"
 ln -sfn "$release_dir" "$current_dir"
