@@ -1098,6 +1098,112 @@ func TestCustomerDevicesReportVideoCloudActivationFailures(t *testing.T) {
 	}
 }
 
+func TestCustomerDevicesUseVideoCloudTransportForOnlineReadiness(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/login":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"tokens":{"access_token":"access","refresh_token":"refresh","expires_in":3600}}`))
+		case "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs":
+			_, _ = w.Write([]byte(`{"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
+		case "/v1/orgs/org-acme/devices":
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"online","status":"online","video_cloud_devid":"device-2","last_seen_at":"2026-05-01T10:00:00Z"}]}`))
+		default:
+			t.Fatalf("unexpected account path: %s", r.URL.Path)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/query_camera_activate":
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("query activation Authorization = %q, want Bearer vc-secret", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":  "ok",
+				"devices": []string{"1"},
+			})
+		case "/get_camera_info":
+			if got := r.Header.Get("Authorization"); got != "Bearer vc-secret" {
+				t.Fatalf("camera info Authorization = %q, want Bearer vc-secret", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": "ok",
+				"info":   map[string]any{"current_transport": ""},
+			})
+		default:
+			t.Fatalf("unexpected video path: %s", r.URL.Path)
+		}
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL:              accountUpstream.URL,
+			LegacyCustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:                  videoUpstream.URL,
+			VideoCloudAdminToken:               "vc-secret",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+
+	login := httptest.NewRecorder()
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"customer@example.com","password":"secret"}`)))
+	if login.Code != http.StatusOK {
+		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
+	}
+	cookie := login.Result().Cookies()[0]
+
+	devices := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	req.AddCookie(cookie)
+	srv.ServeHTTP(devices, req)
+	if devices.Code != http.StatusOK {
+		t.Fatalf("devices status = %d, body=%s", devices.Code, devices.Body.String())
+	}
+	if strings.Contains(devices.Body.String(), "vc-secret") {
+		t.Fatalf("devices response leaked Video Cloud token: %s", devices.Body.String())
+	}
+
+	var payload []contracts.CustomerDevice
+	if err := json.NewDecoder(devices.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode devices response: %v", err)
+	}
+	if len(payload) != 1 {
+		t.Fatalf("devices length = %d, want 1", len(payload))
+	}
+	if payload[0].Readiness != contracts.ReadinessActivated {
+		t.Fatalf("readiness = %q, want %q", payload[0].Readiness, contracts.ReadinessActivated)
+	}
+	var transport contracts.CustomerSourceFact
+	for _, fact := range payload[0].SourceFacts {
+		if fact.Layer == "Transport Online" {
+			transport = fact
+			break
+		}
+	}
+	if transport.State != "missing" {
+		t.Fatalf("transport fact = %#v, want missing", transport)
+	}
+}
+
 func TestCustomerLoginSurvivesProfileRetryFailure(t *testing.T) {
 	t.Parallel()
 

@@ -132,7 +132,7 @@ func TestBuildSourceFacts(t *testing.T) {
 				Activated: false,
 				UpdatedAt: "2026-05-01T10:05:00Z",
 			},
-			wantStates:    []string{"present", "stale", "present"},
+			wantStates:    []string{"present", "stale", "missing"},
 			wantRetryable: true,
 		},
 		{
@@ -150,8 +150,7 @@ func TestBuildSourceFacts(t *testing.T) {
 				Transport: "",
 				UpdatedAt: "2026-05-01T10:05:00Z",
 			},
-			// transport falls back to inferred "stale" (status=offline, no VC transport)
-			wantStates: []string{"present", "present", "stale"},
+			wantStates: []string{"present", "present", "missing"},
 		},
 	}
 
