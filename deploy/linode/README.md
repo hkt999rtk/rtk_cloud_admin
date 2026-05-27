@@ -34,9 +34,11 @@ mutation and host deployment with local secrets.
 | --- | --- |
 | `admin-staging.env.example` | Local operator env template. Copy it before editing. |
 | `provision-admin-vm.sh` | Creates the public-only Linode VM and firewall with `linode-cli`. |
-| `deploy-admin.sh` | Builds the Docker image locally, uploads it, installs nginx/systemd, and starts the service. |
+| `deploy-admin.sh` | Deploys the selected release to the Admin VM, installs nginx/systemd, and starts the service. |
 | `verify-admin.sh` | Runs external HTTP checks against the deployed dashboard. |
 | `backup-admin-db.sh` | Pulls a sanitized SQLite backup archive from the Admin VM. |
+| `../package.sh` | Builds a native Linux release bundle for CI/Object Storage handoff. |
+| `../check-release.sh` | Verifies a native release bundle before upload/deploy. |
 
 ## Prerequisites
 
@@ -44,7 +46,6 @@ Operator machine:
 
 - `linode-cli`
 - `jq`
-- `docker`
 - `ssh` and `scp`
 - a Linode API token configured for `linode-cli`
 - an SSH key allowed for the Admin VM
@@ -96,13 +97,22 @@ deploy/linode/deploy-admin.sh
 
 The deploy script:
 
-1. builds `rtk-cloud-admin:<release>` locally
-2. uploads a Docker image archive to the VM
-3. installs Docker, nginx, certbot, and systemd units
+1. downloads or receives an explicit native release bundle
+2. uploads the release bundle to the VM
+3. installs nginx, certbot, and systemd units
 4. writes `/etc/rtk_cloud_admin/admin.env`
 5. stores SQLite data under `/var/lib/rtk_cloud_admin`
 6. starts `rtk-cloud-admin.service`
 7. optionally obtains a Let's Encrypt certificate and redirects HTTP to HTTPS
+
+Release CI publishes native bundles to Linode Object Storage using the same
+layout as the Video Cloud release flow:
+
+```text
+releases/rtk_cloud_admin-<version>/<version>.tar.gz
+releases/rtk_cloud_admin-<version>/<version>.tar.gz.sha256
+releases/rtk_cloud_admin-<version>/manifest.json
+```
 
 ## 4. Verify
 
