@@ -35,7 +35,7 @@ Implemented in this first version:
 - explicit SQLite schema migrations tracked in `schema_migrations`
 - URL routes for `/console`, `/console/customers`, `/console/devices`,
   `/console/operations`, `/console/audit`, and `/admin`
-- Docker packaging and GitHub Actions CI
+- native release packaging and GitHub Actions CI
 - shared frontend style contract in `rtk_cloud_contracts_doc/FRONTEND_STYLE.md`
 - local Realtek logo asset copied from the Realtek Connect+ marketing site
 
@@ -178,29 +178,18 @@ Account Manager and Video Cloud facts; they can be refreshed or rebuilt from the
 owning services. Local SQLite remains authoritative only for console-local
 sessions, platform admins, integration settings, and audit metadata.
 
-## Docker
+## Release Packaging
 
-Build:
-
-```sh
-docker build -t rtk-cloud-admin .
-```
-
-Run with a mounted SQLite data path:
+Build a Linux amd64 release bundle:
 
 ```sh
-docker run --rm -p 18081:8080 \
-  -v "$PWD/data:/data" \
-  -e ACCOUNT_MANAGER_BASE_URL="https://account-manager.example" \
-  -e VIDEO_CLOUD_BASE_URL="https://video-cloud.example" \
-  -e VIDEO_CLOUD_ADMIN_TOKEN="replace-me" \
-  -e ADMIN_BOOTSTRAP_EMAIL="admin@example.com" \
-  -e ADMIN_BOOTSTRAP_PASSWORD="change-me" \
-  -e ADMIN_BREAK_GLASS_ENABLED="true" \
-  rtk-cloud-admin
+VERSION=dev-local deploy/package.sh
+deploy/check-release.sh dist/rtk_cloud_admin-dev-local
 ```
 
-Container health uses `/healthz`.
+The release bundle contains the Go server binary, built frontend assets, a
+manifest, and checksums. The Linode deploy script installs this bundle as a
+native systemd service behind nginx.
 
 For a production private-cloud deployment, see
 [`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md). For the
@@ -209,8 +198,8 @@ Linode staging scripts, see [`deploy/linode/`](deploy/linode/).
 ## CI
 
 `.github/workflows/ci.yml` checks out submodules and runs `go test ./...`,
-`go build ./cmd/server`, `npm ci`, `npm run build`, a container smoke test, and
-Docker cache cleanup on the self-hosted `rtk-cloud-admin-ci` runner.
+`go build ./cmd/server`, `npm ci`, `npm test`, `npm run build`, and a native
+server smoke test on the self-hosted `rtk-cloud-admin-ci` runner.
 
 Runner health and recovery notes live in [`docs/ci-runner.md`](docs/ci-runner.md).
 

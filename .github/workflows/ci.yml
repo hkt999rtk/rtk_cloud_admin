@@ -7,7 +7,7 @@ on:
 
 jobs:
   validate:
-    runs-on: [self-hosted, linux, x64, rtk-ci-cloud-admin]
+    runs-on: [self-hosted, linux, x64, rtk-cloud-admin-ci]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,7 +36,7 @@ jobs:
       - name: Go build
         run: |
           set -euo pipefail
-          go build ./cmd/server 2>&1 | tee .artifacts/logs/go-build.log
+          go build -o .artifacts/rtk-cloud-admin ./cmd/server 2>&1 | tee .artifacts/logs/go-build.log
           echo PASS > .artifacts/logs/go-build.status
 
       - name: Go coverage gate
@@ -74,69 +74,56 @@ jobs:
           npm run build 2>&1 | tee ../.artifacts/logs/frontend-build.log
           echo PASS > ../.artifacts/logs/frontend-build.status
 
-      - name: Docker build
-        id: docker_build
-        run: |
-          image_tag="rtk-cloud-admin:${GITHUB_SHA}"
-          docker build -t "${image_tag}" -t rtk-cloud-admin:ci . 2>&1 | tee .artifacts/logs/docker-build.log
-          echo "ci_image_tag=${image_tag}" >> "$GITHUB_OUTPUT"
-          echo PASS > .artifacts/logs/docker-build.status
-
-      - name: Container smoke
+      - name: Native server smoke
         run: |
           set -euo pipefail
-          exec > >(tee .artifacts/logs/container-smoke.log) 2>&1
+          exec > >(tee .artifacts/logs/native-smoke.log) 2>&1
 
-          ci_image_tag="${{ steps.docker_build.outputs.ci_image_tag }}"
-          if [ -z "${ci_image_tag}" ]; then
-            ci_image_tag="rtk-cloud-admin:ci"
-          fi
-          container_name="rtk-cloud-admin-ci-smoke-${GITHUB_RUN_ID}"
           smoke_dir="$(mktemp -d)"
-          chmod 0777 "$smoke_dir"
-          container_id=""
+          server_pid=""
           cleanup() {
-            if [ -n "$container_id" ]; then
-              docker rm -f "$container_id" >/dev/null 2>&1 || true
+            if [ -n "$server_pid" ]; then
+              kill "$server_pid" >/dev/null 2>&1 || true
+              wait "$server_pid" >/dev/null 2>&1 || true
             fi
-            docker rm -f "$container_name" >/dev/null 2>&1 || true
             rm -rf "$smoke_dir"
           }
           trap cleanup EXIT
 
-          container_id="$(docker run -d \
-            --name "$container_name" \
-            -e PORT=8080 \
-            -e DATABASE_PATH=/data/ci.db \
-            -e ADMIN_BOOTSTRAP_EMAIL=admin@example.com \
-            -e ADMIN_BOOTSTRAP_PASSWORD=secret \
-            -e ADMIN_BREAK_GLASS_ENABLED=true \
-            -v "$smoke_dir:/data" \
-            "$ci_image_tag")"
+          PORT=18080 \
+            DATABASE_PATH="$smoke_dir/ci.db" \
+            ADMIN_BOOTSTRAP_EMAIL=admin@example.com \
+            ADMIN_BOOTSTRAP_PASSWORD=secret \
+            ADMIN_BREAK_GLASS_ENABLED=true \
+            .artifacts/rtk-cloud-admin > "$smoke_dir/server.log" 2>&1 &
+          server_pid="$!"
 
           ready=0
           for _ in $(seq 1 30); do
-            if docker exec "$container_id" wget -qO- http://127.0.0.1:8080/healthz | grep -qx 'ok'; then
+            if curl -fsS http://127.0.0.1:18080/healthz | grep -qx 'ok'; then
               ready=1
               break
             fi
-            if ! docker inspect -f '{{.State.Running}}' "$container_id" >/dev/null 2>&1; then
-              docker logs "$container_id" >&2 || true
+            if ! kill -0 "$server_pid" >/dev/null 2>&1; then
+              cat "$smoke_dir/server.log" >&2 || true
               exit 1
             fi
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then
-            docker logs "$container_id" >&2 || true
+            cat "$smoke_dir/server.log" >&2 || true
             echo "timeout: service did not become ready within 30s" >&2
             exit 1
           fi
 
-          docker exec "$container_id" wget -qO- http://127.0.0.1:8080/healthz | grep -qx 'ok'
-          docker exec "$container_id" wget -qO- http://127.0.0.1:8080/api/service-health | grep -q '"status":"demo"'
+          curl -fsS http://127.0.0.1:18080/healthz | grep -qx 'ok'
+          curl -fsS http://127.0.0.1:18080/api/service-health | grep -q '"status":"demo"'
 
           printf '%s' '{"email":"admin@example.com","password":"secret"}' > "$smoke_dir/login.json"
-          docker exec "$container_id" sh -lc 'wget -S -O - --post-file=/data/login.json http://127.0.0.1:8080/api/auth/platform/login' > "$smoke_dir/login.body" 2> "$smoke_dir/login.headers"
+          curl -fsS -D "$smoke_dir/login.headers" -o "$smoke_dir/login.body" \
+            -H 'Content-Type: application/json' \
+            --data-binary @"$smoke_dir/login.json" \
+            http://127.0.0.1:18080/api/auth/platform/login
           session_id="$(sed -n 's/.*rtk_admin_session=\([^;[:space:]]*\).*/\1/p' "$smoke_dir/login.headers" | head -n1)"
           if [ -z "$session_id" ]; then
             echo "platform login did not return an rtk_admin_session cookie" >&2
@@ -145,11 +132,11 @@ jobs:
             exit 1
           fi
           grep -q '"status":"ok"' "$smoke_dir/login.body"
-          docker exec "$container_id" sh -lc "wget -qO- --header='Cookie: rtk_admin_session=${session_id}' http://127.0.0.1:8080/api/me" | grep -q '"kind":"platform_admin"'
+          curl -fsS --cookie "rtk_admin_session=${session_id}" http://127.0.0.1:18080/api/me | grep -q '"kind":"platform_admin"'
 
-          docker exec "$container_id" wget -qO- http://127.0.0.1:8080/api/summary | grep -q '"total_devices"'
-          docker exec "$container_id" wget -qO- http://127.0.0.1:8080/console | grep -q 'id="root"'
-          echo PASS > .artifacts/logs/container-smoke.status
+          curl -fsS http://127.0.0.1:18080/api/summary | grep -q '"total_devices"'
+          curl -fsS http://127.0.0.1:18080/console | grep -q 'id="root"'
+          echo PASS > .artifacts/logs/native-smoke.status
 
       - name: Generate test report candidate
         if: always()
@@ -182,10 +169,3 @@ jobs:
             diff -u docs/TEST_REPORT.md .artifacts/report-candidates/docs/TEST_REPORT.md >&2 || true
             exit 1
           }
-
-      - name: Docker cleanup
-        if: always()
-        run: |
-          docker image rm rtk-cloud-admin:ci "${{ steps.docker_build.outputs.ci_image_tag }}" >/dev/null 2>&1 || true
-          docker image prune -af >/dev/null 2>&1 || true
-          docker builder prune -af >/dev/null 2>&1 || true
