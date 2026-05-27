@@ -3,6 +3,7 @@
 .claude/
 .artifacts/
 bin/
+dist/
 data/
 keys/*
 !keys/README.md

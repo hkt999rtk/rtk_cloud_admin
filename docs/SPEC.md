@@ -283,4 +283,4 @@ Environment variables:
 - App tests for customer login, upstream proxy mode, provision proxy, and platform admin route guards.
 - Frontend build verification with `npm run build`.
 - Backend build verification with `go test ./...` and `go build ./cmd/server`.
-- Container smoke verification for `/healthz`, `/api/service-health`, platform admin login/session, `/api/summary`, and `/console`.
+- Native server smoke verification for `/healthz`, `/api/service-health`, platform admin login/session, `/api/summary`, and `/console`.
