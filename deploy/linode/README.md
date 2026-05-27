@@ -17,7 +17,7 @@ The Admin VM is intentionally independent from the `rtk_video_cloud` Linode VPC:
 internet
   -> admin.video-cloud-staging.realtekconnect.com:443
   -> nginx on the Admin VM
-  -> rtk_cloud_admin container on 127.0.0.1:8080
+  -> native rtk_cloud_admin systemd service on 127.0.0.1:8080
 
 rtk_cloud_admin
   -> ACCOUNT_MANAGER_BASE_URL over public HTTPS
