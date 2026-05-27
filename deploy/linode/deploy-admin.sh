@@ -24,13 +24,21 @@ release_bundle="${ADMIN_LINODE_RELEASE_BUNDLE:-}"
 bundle_release=""
 if [ -n "$release_bundle" ]; then
   release_name="$(basename "$release_bundle")"
+  release_parent="$(basename "$(dirname "$release_bundle")")"
   case "$release_name" in
     rtk_cloud_admin-*.tar.gz)
       bundle_release="${release_name#rtk_cloud_admin-}"
       bundle_release="${bundle_release%.tar.gz}"
       ;;
+    *.tar.gz)
+      bundle_release="${release_name%.tar.gz}"
+      if [ "$release_parent" != "rtk_cloud_admin-$bundle_release" ]; then
+        printf 'error: ADMIN_LINODE_RELEASE_BUNDLE must be named rtk_cloud_admin-<version>.tar.gz or stored as rtk_cloud_admin-<version>/<version>.tar.gz\n' >&2
+        exit 1
+      fi
+      ;;
     *)
-      printf 'error: ADMIN_LINODE_RELEASE_BUNDLE must be named rtk_cloud_admin-<version>.tar.gz\n' >&2
+      printf 'error: ADMIN_LINODE_RELEASE_BUNDLE must be named rtk_cloud_admin-<version>.tar.gz or stored as rtk_cloud_admin-<version>/<version>.tar.gz\n' >&2
       exit 1
       ;;
   esac
