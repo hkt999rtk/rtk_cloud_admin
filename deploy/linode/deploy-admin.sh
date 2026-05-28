@@ -65,6 +65,7 @@ remote_bundle="${ADMIN_LINODE_REMOTE_BUNDLE:-/tmp/rtk-cloud-admin-${release}.tar
 data_dir="${ADMIN_LINODE_DATA_DIR:-/var/lib/rtk_cloud_admin}"
 env_path="${ADMIN_LINODE_ENV_PATH:-/etc/rtk_cloud_admin/admin.env}"
 certbot_enable="${ADMIN_LINODE_CERTBOT_ENABLE:-1}"
+cert_cache_dir="${ADMIN_LINODE_CERT_CACHE_DIR:-}"
 http_only="${ADMIN_LINODE_HTTP_ONLY:-0}"
 artifact_dir="${ADMIN_LINODE_ARTIFACT_DIR:-$root_dir/.artifacts/linode-admin-deploy/$release}"
 
@@ -99,12 +100,18 @@ write_env() {
 
 need ssh
 need scp
+need openssl
 
 [ -n "$domain" ] || die "ADMIN_LINODE_DOMAIN is required"
 [ -n "$certbot_email" ] || [ "$certbot_enable" = "0" ] || die "ADMIN_LINODE_CERTBOT_EMAIL is required when certbot is enabled"
 [ -n "$admin_host" ] || die "ADMIN_LINODE_HOST or ADMIN_LINODE_PUBLIC_IPV4 is required"
 [ -s "$ssh_key" ] || die "SSH key not found: $ssh_key"
-[ -s "$release_bundle" ] || die "ADMIN_LINODE_RELEASE_BUNDLE not found or empty: $release_bundle"
+if [ -n "$cert_cache_dir" ]; then
+  [ -s "$cert_cache_dir/fullchain.pem" ] || die "cached certificate fullchain not found: $cert_cache_dir/fullchain.pem"
+  [ -s "$cert_cache_dir/privkey.pem" ] || die "cached certificate private key not found: $cert_cache_dir/privkey.pem"
+  openssl x509 -in "$cert_cache_dir/fullchain.pem" -noout -checkend "${ADMIN_LINODE_CERT_CACHE_MIN_VALID_SECONDS:-604800}" >/dev/null \
+    || die "cached certificate is expired or too close to expiry: $cert_cache_dir/fullchain.pem"
+fi
 for key in "${required_runtime[@]}"; do
   [ -n "${!key:-}" ] || die "$key is required"
 done
@@ -141,9 +148,15 @@ printf '[admin-deploy] uploading release bundle and env to %s\n' "$remote" >&2
 ssh "${ssh_opts[@]}" "$remote" "mkdir -p /tmp/rtk-cloud-admin-deploy"
 scp "${ssh_opts[@]}" "$release_bundle" "$remote:$remote_bundle"
 scp "${ssh_opts[@]}" "$tmp_env" "$remote:/tmp/rtk-cloud-admin-deploy/admin.env"
+if [ -n "$cert_cache_dir" ]; then
+  printf '[admin-deploy] uploading cached certificate for %s\n' "$domain" >&2
+  ssh "${ssh_opts[@]}" "$remote" "mkdir -p /tmp/rtk-cloud-admin-deploy/cert-cache"
+  scp "${ssh_opts[@]}" "$cert_cache_dir/fullchain.pem" "$remote:/tmp/rtk-cloud-admin-deploy/cert-cache/fullchain.pem"
+  scp "${ssh_opts[@]}" "$cert_cache_dir/privkey.pem" "$remote:/tmp/rtk-cloud-admin-deploy/cert-cache/privkey.pem"
+fi
 
 printf '[admin-deploy] installing runtime on %s\n' "$remote" >&2
-ssh "${ssh_opts[@]}" "$remote" bash -s -- "$domain" "$certbot_email" "$release" "$remote_bundle" "$data_dir" "$env_path" "$certbot_enable" "$http_only" <<'REMOTE'
+ssh "${ssh_opts[@]}" "$remote" bash -s -- "$domain" "$certbot_email" "$release" "$remote_bundle" "$data_dir" "$env_path" "$certbot_enable" "$http_only" "$cert_cache_dir" <<'REMOTE'
 set -euo pipefail
 
 domain="$1"
@@ -154,6 +167,8 @@ data_dir="$5"
 env_path="$6"
 certbot_enable="$7"
 http_only="$8"
+cert_cache_dir="${9:-}"
+service_user="rtk-cloud-admin"
 release_root="/opt/rtk_cloud_admin/releases"
 release_dir="$release_root/$release"
 current_dir="/opt/rtk_cloud_admin/current"
@@ -174,6 +189,7 @@ nginx_candidate="$(apt-cache policy nginx | awk '/Candidate:/ {print $2}')"
 dpkg --compare-versions "$nginx_candidate" ge 1.30.0
 apt-get install -y -o Dpkg::Options::=--force-confold nginx certbot python3-certbot-nginx
 mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+mkdir -p /var/www/certbot/.well-known/acme-challenge
 if ! grep -q 'server_names_hash_bucket_size' /etc/nginx/nginx.conf; then
   sed -i '/http {/a\    server_names_hash_bucket_size 128;' /etc/nginx/nginx.conf
 fi
@@ -181,11 +197,15 @@ if [ -d /etc/nginx/sites-enabled ] && ! grep -q 'sites-enabled' /etc/nginx/nginx
   printf 'include /etc/nginx/sites-enabled/*;\n' > /etc/nginx/conf.d/rtk-sites-enabled.conf
 fi
 
+if ! id "$service_user" >/dev/null 2>&1; then
+  useradd --system --home-dir "$data_dir" --shell /usr/sbin/nologin "$service_user"
+fi
 mkdir -p /etc/rtk_cloud_admin "$data_dir" "$release_root" "$release_dir"
-chmod 0750 /etc/rtk_cloud_admin
-chmod 0750 "$data_dir"
+chmod 0750 /etc/rtk_cloud_admin "$data_dir"
+chown "$service_user:$service_user" "$data_dir"
 mv /tmp/rtk-cloud-admin-deploy/admin.env "$env_path"
-chmod 0600 "$env_path"
+chown root:"$service_user" "$env_path"
+chmod 0640 "$env_path"
 rm -rf "$release_dir"
 mkdir -p "$release_dir"
 tar --warning=no-unknown-keyword -xzf "$remote_bundle" -C "$release_dir" --strip-components=1 \
@@ -209,8 +229,6 @@ EnvironmentFile=$env_path
 Restart=always
 RestartSec=5
 TimeoutStartSec=120
-EnvironmentFile=$env_path
-WorkingDirectory=$current_dir
 ExecStart=$current_dir/bin/rtk-cloud-admin
 
 [Install]
@@ -223,6 +241,11 @@ server {
     server_name $domain;
 
     client_max_body_size 10m;
+
+    location ^~ /.well-known/acme-challenge/ {
+        alias /var/www/certbot/.well-known/acme-challenge/;
+        default_type text/plain;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:8080;
@@ -257,7 +280,87 @@ if [ "${ready:-0}" != "1" ]; then
   exit 1
 fi
 
-if [ "$certbot_enable" = "1" ] && [ "$http_only" != "1" ]; then
+if [ -n "$cert_cache_dir" ] && [ "$http_only" != "1" ]; then
+  archive_dir="/etc/letsencrypt/archive/$domain"
+  live_dir="/etc/letsencrypt/live/$domain"
+  renewal_conf="/etc/letsencrypt/renewal/$domain.conf"
+  mkdir -p "$archive_dir" "$live_dir" /etc/letsencrypt/renewal /var/www/certbot/.well-known/acme-challenge
+  install -m 0644 /tmp/rtk-cloud-admin-deploy/cert-cache/fullchain.pem "$archive_dir/fullchain1.pem"
+  install -m 0600 /tmp/rtk-cloud-admin-deploy/cert-cache/privkey.pem "$archive_dir/privkey1.pem"
+  awk 'BEGIN{n=0} /-----BEGIN CERTIFICATE-----/{n++} n==1{print > cert} n>1{print > chain}' \
+    cert="$archive_dir/cert1.pem" chain="$archive_dir/chain1.pem" "$archive_dir/fullchain1.pem"
+  if [ ! -s "$archive_dir/chain1.pem" ]; then
+    cp "$archive_dir/fullchain1.pem" "$archive_dir/chain1.pem"
+  fi
+  ln -sfn "../../archive/$domain/cert1.pem" "$live_dir/cert.pem"
+  ln -sfn "../../archive/$domain/chain1.pem" "$live_dir/chain.pem"
+  ln -sfn "../../archive/$domain/fullchain1.pem" "$live_dir/fullchain.pem"
+  ln -sfn "../../archive/$domain/privkey1.pem" "$live_dir/privkey.pem"
+  cat > "$renewal_conf" <<RENEWAL
+version = 2.9.0
+archive_dir = /etc/letsencrypt/archive/$domain
+cert = /etc/letsencrypt/live/$domain/cert.pem
+privkey = /etc/letsencrypt/live/$domain/privkey.pem
+chain = /etc/letsencrypt/live/$domain/chain.pem
+fullchain = /etc/letsencrypt/live/$domain/fullchain.pem
+
+[renewalparams]
+account =
+authenticator = webroot
+webroot_path = /var/www/certbot
+server = https://acme-v02.api.letsencrypt.org/directory
+key_type = rsa
+deploy_hook = systemctl reload nginx
+RENEWAL
+  certbot register --non-interactive --agree-tos --email "$certbot_email" >/dev/null 2>&1 || true
+  account="$(find /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -n1 | xargs basename || true)"
+  if [ -n "$account" ]; then
+    sed -i "s/^account =.*/account = $account/" "$renewal_conf"
+  fi
+  cat > /etc/nginx/sites-available/rtk-cloud-admin.conf <<NGINX
+server {
+    listen 80;
+    server_name $domain;
+
+    location ^~ /.well-known/acme-challenge/ {
+        alias /var/www/certbot/.well-known/acme-challenge/;
+        default_type text/plain;
+    }
+
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name $domain;
+
+    ssl_certificate /etc/letsencrypt/live/$domain/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$domain/privkey.pem;
+    client_max_body_size 10m;
+
+    location ^~ /.well-known/acme-challenge/ {
+        alias /var/www/certbot/.well-known/acme-challenge/;
+        default_type text/plain;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+NGINX
+  nginx -t
+  systemctl reload nginx
+  systemctl enable --now certbot.timer
+  systemctl is-enabled certbot.timer >/dev/null
+  printf 'installed cached certificate lineage for %s\n' "$domain"
+elif [ "$certbot_enable" = "1" ] && [ "$http_only" != "1" ]; then
   certbot_log="$(mktemp)"
   set +e
   certbot --nginx --non-interactive --agree-tos --email "$certbot_email" -d "$domain" --redirect 2>&1 | tee "$certbot_log"
@@ -277,6 +380,8 @@ if [ "$certbot_enable" = "1" ] && [ "$http_only" != "1" ]; then
     exit "$certbot_status"
   fi
   rm -f "$certbot_log"
+  systemctl enable --now certbot.timer
+  systemctl is-enabled certbot.timer >/dev/null
 fi
 
 systemctl is-active rtk-cloud-admin
