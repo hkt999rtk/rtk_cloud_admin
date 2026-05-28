@@ -46,8 +46,7 @@ cat > "$output" <<EOF
 | Frontend | \`npm ci\` | $(status_for_log "$logs_dir/frontend-install.log") |
 | Frontend | \`npm test\` | $(status_for_log "$logs_dir/frontend-test.log") |
 | Frontend | \`npm run build\` | $(status_for_log "$logs_dir/frontend-build.log") |
-| Docker | Docker image build | $(status_for_log "$logs_dir/docker-build.log") |
-| Docker | Container smoke test | $(status_for_log "$logs_dir/container-smoke.log") |
+| Release | Native release bundle and deploy script check | $(status_for_log "$logs_dir/release-artifacts.log") |
 
 ## Coverage By Package
 
@@ -75,7 +74,7 @@ cat >> "$output" <<'EOF'
 ## Artifact Policy
 
 - Raw command logs are uploaded as CI artifacts and are not committed.
-- Docker output and container smoke diagnostics are uploaded as CI artifacts and are not committed.
+- Release packaging diagnostics are uploaded as CI artifacts and are not committed.
 - `coverage.out` is uploaded as a CI artifact and is not committed.
 - This report contains only sanitized summaries and pass/fail outcomes.
 

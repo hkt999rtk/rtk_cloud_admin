@@ -8,47 +8,24 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 FAKE_BIN="$TMP_DIR/bin"
 mkdir -p "$FAKE_BIN"
 
-cat > "$FAKE_BIN/docker" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-echo "$*" >> "${FAKE_DOCKER_LOG:?}"
-case "$1" in
-  build)
-    exit 0
-    ;;
-  save)
-    printf 'fake docker image archive for %s\n' "$2"
-    ;;
-  load)
-    shift
-    while [ "$#" -gt 0 ]; do
-      case "$1" in
-        -i)
-          test -s "$2"
-          shift 2
-          ;;
-        *)
-          shift
-          ;;
-      esac
-    done
-    ;;
-  image)
-    test "$2" = "inspect"
-    test "$3" = "rtk-cloud-admin:${EXPECTED_VERSION:?}"
-    ;;
-  *)
-    echo "unexpected docker command: $*" >&2
-    exit 1
-    ;;
-esac
-SH
-chmod +x "$FAKE_BIN/docker"
-
 cat > "$FAKE_BIN/ssh" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 echo "$*" >> "${FAKE_SSH_LOG:?}"
+remote=""
+for arg in "$@"; do
+  if [ "$arg" = "root@203.0.113.10" ]; then
+    remote="$arg"
+  fi
+done
+if [ "$remote" = "root@203.0.113.10" ]; then
+  script="$(cat)"
+  printf '%s\n' "$script" > "${FAKE_REMOTE_SCRIPT:?}"
+  if grep -Eq 'docker|docker\\.io|containerd|ExecStart=.*docker|docker load' "$FAKE_REMOTE_SCRIPT"; then
+    echo "remote deploy script still contains Docker runtime commands" >&2
+    exit 1
+  fi
+fi
 exit 0
 SH
 chmod +x "$FAKE_BIN/ssh"
@@ -62,13 +39,13 @@ SH
 chmod +x "$FAKE_BIN/scp"
 
 export PATH="$FAKE_BIN:$PATH"
-export FAKE_DOCKER_LOG="$TMP_DIR/docker.log"
 export FAKE_SSH_LOG="$TMP_DIR/ssh.log"
 export FAKE_SCP_LOG="$TMP_DIR/scp.log"
+export FAKE_REMOTE_SCRIPT="$TMP_DIR/remote-script.sh"
 export EXPECTED_VERSION="test-local"
-: > "$FAKE_DOCKER_LOG"
 : > "$FAKE_SSH_LOG"
 : > "$FAKE_SCP_LOG"
+: > "$FAKE_REMOTE_SCRIPT"
 
 OUTPUT_DIR="$TMP_DIR/dist"
 OUTPUT_DIR="$OUTPUT_DIR" VERSION="$EXPECTED_VERSION" "$ROOT_DIR/deploy/package-release.sh"
@@ -91,16 +68,20 @@ with open(manifest_path, "r", encoding="utf-8") as handle:
 assert manifest["version"] == version
 assert manifest["bundle"] == f"{version}.tar.gz"
 assert manifest["artifact_path"] == f"releases/rtk_cloud_admin-{version}/{version}.tar.gz"
+assert manifest["format"] == "native-tar"
+assert manifest["binary"] == "bin/rtk-cloud-admin"
+assert manifest["web_dist"] == "web/dist"
 assert manifest["sha256"]
 assert manifest["created_at"].endswith("Z")
 PY
 
+tar -tzf "$BUNDLE" | grep -Fx "rtk_cloud_admin-$EXPECTED_VERSION/bin/rtk-cloud-admin" >/dev/null
+tar -tzf "$BUNDLE" | grep -Fx "rtk_cloud_admin-$EXPECTED_VERSION/web/dist/index.html" >/dev/null
 "$ROOT_DIR/deploy/check-release.sh" "$BUNDLE"
 
 SSH_KEY="$TMP_DIR/id_ed25519"
 printf 'fake-key\n' > "$SSH_KEY"
 chmod 0600 "$SSH_KEY"
-: > "$FAKE_DOCKER_LOG"
 
 ADMIN_LINODE_RELEASE="$EXPECTED_VERSION" \
 ADMIN_LINODE_RELEASE_BUNDLE="$BUNDLE" \
@@ -115,11 +96,10 @@ ADMIN_BOOTSTRAP_EMAIL="admin@example.test" \
 ADMIN_BOOTSTRAP_PASSWORD="password" \
 "$ROOT_DIR/deploy/linode/deploy-admin.sh"
 
-if grep -q '^build ' "$FAKE_DOCKER_LOG"; then
-  echo "deploy-admin.sh built a local Docker image despite ADMIN_LINODE_RELEASE_BUNDLE" >&2
-  cat "$FAKE_DOCKER_LOG" >&2
-  exit 1
-fi
 grep -q "$BUNDLE" "$FAKE_SCP_LOG"
+grep -q "rtk-cloud-admin-release.tar.gz" "$FAKE_SCP_LOG"
+grep -q "ExecStart=.*bin/rtk-cloud-admin" "$FAKE_REMOTE_SCRIPT"
+grep -q "tar --warning=no-unknown-keyword -xzf" "$FAKE_REMOTE_SCRIPT"
+grep -q "ln -sf /etc/nginx/sites-available/rtk-cloud-admin.conf /etc/nginx/conf.d/rtk-cloud-admin.conf" "$FAKE_REMOTE_SCRIPT"
 
 echo "release artifact tests passed"

@@ -10,7 +10,7 @@ environment.
 
 Recommended production layout:
 
-- run the Go server as a container image or as a native system service
+- run the Go server as a native system service
 - place it behind a reverse proxy that terminates TLS
 - mount a persistent SQLite volume for `DATABASE_PATH`
 - configure upstream Account Manager and Video Cloud endpoints explicitly
@@ -34,7 +34,7 @@ Recommended staging traffic:
 internet
   -> admin.video-cloud-staging.realtekconnect.com:443
   -> nginx on the Admin VM
-  -> rtk_cloud_admin container on 127.0.0.1:8080
+  -> rtk_cloud_admin systemd service on 127.0.0.1:8080
 
 rtk_cloud_admin
   -> ACCOUNT_MANAGER_BASE_URL over public HTTPS
@@ -44,7 +44,7 @@ rtk_cloud_admin
 The operator-local scripts live under [`deploy/linode/`](../deploy/linode/):
 
 - `provision-admin-vm.sh` creates the public-only Linode VM and firewall.
-- `deploy-admin.sh` builds and uploads the Docker image, installs nginx, writes
+- `deploy-admin.sh` uploads a native release bundle, installs nginx, writes
   the systemd unit, and starts the service.
 - `verify-admin.sh` checks the deployed HTTP surface.
 - `backup-admin-db.sh` pulls a timestamped SQLite backup.
@@ -107,15 +107,13 @@ Practical workflow:
 
 1. Stop the service or quiesce traffic.
 2. Copy the current database file from `DATABASE_PATH`.
-3. Archive the container image tag or native binary version that produced the
-   running release.
-4. Restore by replacing the database file and redeploying the known-good image
-   or binary.
+3. Archive the native release version that produced the running release.
+4. Restore by replacing the database file and redeploying the known-good binary.
 5. Roll back by restoring the previous database snapshot and the previous app
    artifact together.
 
-The fastest rollback path is to pin the previous image tag and point it at the
-last known good SQLite snapshot.
+The fastest rollback path is to pin the previous release bundle and point it at
+the last known good SQLite snapshot.
 
 ## Smoke Checks
 

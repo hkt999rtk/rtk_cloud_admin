@@ -19,8 +19,7 @@
 | Frontend | `npm ci` | PASS |
 | Frontend | `npm test` | PASS |
 | Frontend | `npm run build` | PASS |
-| Docker | Docker image build | PASS |
-| Docker | Container smoke test | PASS |
+| Release | Native release bundle and deploy script check | PASS |
 
 ## Coverage By Package
 
@@ -37,7 +36,7 @@
 ## Artifact Policy
 
 - Raw command logs are uploaded as CI artifacts and are not committed.
-- Docker output and container smoke diagnostics are uploaded as CI artifacts and are not committed.
+- Release packaging diagnostics are uploaded as CI artifacts and are not committed.
 - `coverage.out` is uploaded as a CI artifact and is not committed.
 - This report contains only sanitized summaries and pass/fail outcomes.
 

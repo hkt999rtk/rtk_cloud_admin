@@ -1,28 +1,26 @@
 # CI Runner Notes
 
 The GitHub Actions workflow runs on the self-hosted `rtk-cloud-admin-ci`
-runner. The current pipeline is intentionally local-only: it builds the Go
-server, builds the React frontend, builds a Docker image, and runs container
-smoke checks against the built image.
+runner. The current pipeline is intentionally artifact-only: it builds the Go
+server, builds the React frontend, creates a native Linux release tarball, and
+checks the Linode deploy script against that native bundle format.
 
-The workflow does not push images to a registry. It tags the image as
-`rtk-cloud-admin:ci` for the duration of the run and then removes the image and
-build cache so the runner disk does not grow without bound.
+The workflow does not push images or deploy to Linode. Release artifacts are
+uploaded only by the release workflow.
 
 ## Quick Health Checks
 
 On the runner host, verify:
 
 - the runner service is still connected to GitHub
-- Docker is available and has free disk space
-- the last workflow run finished with the expected smoke checks
+- Go and Node.js are available through the workflow setup actions
+- the last workflow run finished with the release artifact check
 
 Useful commands:
 
 ```sh
-docker ps
-docker system df
-docker info
+df -h
+du -sh "$RUNNER_WORKSPACE" 2>/dev/null || true
 ```
 
 ## Recovery
@@ -30,24 +28,13 @@ docker info
 If the runner gets stuck or disk usage climbs too high:
 
 1. Restart the runner service on `cloud-admin-ci.local`.
-2. Check current runner/container state:
-   - `docker ps -a`
-   - `docker images | head`
-   - `docker system df`
-3. Prune stale local CI artifacts:
-   - `docker image rm rtk-cloud-admin:ci`
-   - `docker image prune -af`
-   - `docker builder prune -af`
-4. Prune and restart the runner service if needed:
-   - `sudo systemctl restart actions.runner.hkt999rtk-rtk-cloud-admin-ci-1.service`
+2. Check current runner workspace disk usage.
+3. Prune stale local CI work directories and temporary artifacts.
+4. Restart the runner service if needed:
+   `sudo systemctl restart actions.runner.hkt999rtk-rtk-cloud-admin-ci-1.service`
 5. Rerun the workflow from GitHub.
-6. If smoke checks fail again, reproduce locally:
-   - `docker run --rm -p 18080:8080 -e DATABASE_PATH=/tmp/ci.db rtk-cloud-admin:ci`
-   - `curl http://127.0.0.1:18080/healthz`
-   - `curl http://127.0.0.1:18080/api/service-health`
-   - `curl -X POST http://127.0.0.1:18080/api/auth/platform/login` after
-     setting `ADMIN_BOOTSTRAP_EMAIL`, `ADMIN_BOOTSTRAP_PASSWORD`, and
-     `ADMIN_BREAK_GLASS_ENABLED=true`
-   - `curl http://127.0.0.1:18080/api/me` after replaying the login cookie
-   - `curl http://127.0.0.1:18080/api/summary`
-   - `curl http://127.0.0.1:18080/console`
+6. If release artifact checks fail again, reproduce locally:
+
+```sh
+deploy/test-release-artifacts.sh
+```

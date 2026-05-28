@@ -17,7 +17,7 @@ The Admin VM is intentionally independent from the `rtk_video_cloud` Linode VPC:
 internet
   -> admin.video-cloud-staging.realtekconnect.com:443
   -> nginx on the Admin VM
-  -> rtk_cloud_admin container on 127.0.0.1:8080
+  -> rtk_cloud_admin systemd service on 127.0.0.1:8080
 
 rtk_cloud_admin
   -> ACCOUNT_MANAGER_BASE_URL over public HTTPS
@@ -34,7 +34,7 @@ mutation and host deployment with local secrets.
 | --- | --- |
 | `admin-staging.env.example` | Local operator env template. Copy it before editing. |
 | `provision-admin-vm.sh` | Creates the public-only Linode VM and firewall with `linode-cli`. |
-| `deploy-admin.sh` | Builds the Docker image locally or uses `ADMIN_LINODE_RELEASE_BUNDLE`, uploads it, installs nginx/systemd, and starts the service. |
+| `deploy-admin.sh` | Uses a native release bundle, uploads it, installs nginx/systemd, and starts the service. |
 | `verify-admin.sh` | Runs external HTTP checks against the deployed dashboard. |
 | `backup-admin-db.sh` | Pulls a sanitized SQLite backup archive from the Admin VM. |
 
@@ -44,7 +44,6 @@ Operator machine:
 
 - `linode-cli`
 - `jq`
-- `docker`
 - `ssh` and `scp`
 - a Linode API token configured for `linode-cli`
 - an SSH key allowed for the Admin VM
@@ -98,9 +97,9 @@ deploy/linode/deploy-admin.sh
 
 The deploy script:
 
-1. builds `rtk-cloud-admin:<release>` locally, unless `ADMIN_LINODE_RELEASE_BUNDLE` points at a prebuilt release archive
-2. uploads a Docker image archive to the VM
-3. installs Docker, nginx, certbot, and systemd units
+1. uses `ADMIN_LINODE_RELEASE_BUNDLE`, or builds a native Linux release bundle locally
+2. uploads the native release archive to the VM
+3. installs nginx, certbot, and systemd units
 4. writes `/etc/rtk_cloud_admin/admin.env`
 5. stores SQLite data under `/var/lib/rtk_cloud_admin`
 6. starts `rtk-cloud-admin.service`
@@ -115,7 +114,7 @@ deploy/linode/deploy-admin.sh
 ```
 
 The release bundle must be named `rtk_cloud_admin-<version>.tar.gz` and contain
-the Docker image tag `rtk-cloud-admin:<version>`.
+`bin/rtk-cloud-admin` plus `web/dist`.
 
 ## 4. Verify
 

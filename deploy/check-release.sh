@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOCKER_BIN="${DOCKER_BIN:-docker}"
-
 if [ "$#" -ne 1 ]; then
   echo "usage: $0 <release-bundle-or-stem>" >&2
   exit 1
@@ -76,12 +74,27 @@ if manifest["artifact_path"] != f"releases/rtk_cloud_admin-{version}/{bundle}":
     raise SystemExit("manifest artifact_path mismatch")
 if manifest["sha256"] != expected_sha:
     raise SystemExit("manifest sha256 mismatch")
+if manifest.get("format") not in ("native-tar", None):
+    raise SystemExit("manifest format must be native-tar")
 if not manifest["created_at"].endswith("Z"):
     raise SystemExit("manifest created_at must be UTC Z")
 PY
 
+tmp="$(mktemp -d)"
+cleanup() { rm -rf "$tmp"; }
+trap cleanup EXIT
+
 gzip -t "$bundle"
-"$DOCKER_BIN" load -i "$bundle" >/dev/null
-"$DOCKER_BIN" image inspect "rtk-cloud-admin:$version" >/dev/null
+tar -xzf "$bundle" -C "$tmp"
+release_dir="$tmp/rtk_cloud_admin-$version"
+require_file "$release_dir/manifest.txt"
+require_file "$release_dir/SHA256SUMS"
+require_file "$release_dir/bin/rtk-cloud-admin"
+require_file "$release_dir/web/dist/index.html"
+test -x "$release_dir/bin/rtk-cloud-admin" || { echo "release binary is not executable" >&2; exit 1; }
+(
+  cd "$release_dir"
+  shasum -a 256 -c SHA256SUMS >/dev/null
+)
 
 echo "release bundle verification passed: $bundle"

@@ -19,7 +19,6 @@ if [ -n "${DEPLOY_SECRETS_DIR:-}" ]; then
   load_secret_env "$DEPLOY_SECRETS_DIR/state/${ADMIN_LINODE_LABEL:-rtk-cloud-admin-staging}.state"
 fi
 
-label="${ADMIN_LINODE_LABEL:-rtk-cloud-admin-staging}"
 release_bundle="${ADMIN_LINODE_RELEASE_BUNDLE:-}"
 bundle_release=""
 if [ -n "$release_bundle" ]; then
@@ -47,19 +46,19 @@ if [ -n "$bundle_release" ] && [ "$release" != "$bundle_release" ]; then
   printf 'error: ADMIN_LINODE_RELEASE (%s) must match bundle version (%s)\n' "$release" "$bundle_release" >&2
   exit 1
 fi
+
 domain="${ADMIN_LINODE_DOMAIN:-}"
 certbot_email="${ADMIN_LINODE_CERTBOT_EMAIL:-}"
 ssh_user="${ADMIN_LINODE_SSH_USER:-root}"
 ssh_key="${ADMIN_LINODE_SSH_KEY:-$HOME/.ssh/id_ed25519_rtkcloud}"
 admin_host="${ADMIN_LINODE_HOST:-${ADMIN_LINODE_PUBLIC_IPV4:-}}"
-remote_image="${ADMIN_LINODE_REMOTE_IMAGE:-/tmp/rtk-cloud-admin-image.tar.gz}"
+remote_bundle="${ADMIN_LINODE_REMOTE_BUNDLE:-/tmp/rtk-cloud-admin-release.tar.gz}"
+install_root="${ADMIN_LINODE_INSTALL_ROOT:-/opt/rtk_cloud_admin}"
 data_dir="${ADMIN_LINODE_DATA_DIR:-/var/lib/rtk_cloud_admin}"
 env_path="${ADMIN_LINODE_ENV_PATH:-/etc/rtk_cloud_admin/admin.env}"
 certbot_enable="${ADMIN_LINODE_CERTBOT_ENABLE:-1}"
 http_only="${ADMIN_LINODE_HTTP_ONLY:-0}"
-image_tag="rtk-cloud-admin:${release}"
 artifact_dir="${ADMIN_LINODE_ARTIFACT_DIR:-$root_dir/.artifacts/linode-admin-deploy/$release}"
-image_archive="$artifact_dir/rtk-cloud-admin-${release}.tar.gz"
 
 required_runtime=(
   ACCOUNT_MANAGER_BASE_URL
@@ -84,14 +83,12 @@ write_env() {
   if printf '%s' "$value" | grep -q '[[:cntrl:]]'; then
     die "$key contains control characters"
   fi
-  if printf '%s' "$value" | grep -q '[[:space:]]'; then
-    die "$key contains whitespace, which is not supported in Docker env files"
-  fi
   printf '%s=%s\n' "$key" "$value"
 }
 
 if [ -z "$release_bundle" ]; then
-  need docker
+  release_bundle="$artifact_dir/rtk_cloud_admin-$release.tar.gz"
+  VERSION="$release" OUTPUT_DIR="$artifact_dir" "$root_dir/deploy/package-release.sh"
 fi
 need ssh
 need scp
@@ -100,23 +97,10 @@ need scp
 [ -n "$certbot_email" ] || [ "$certbot_enable" = "0" ] || die "ADMIN_LINODE_CERTBOT_EMAIL is required when certbot is enabled"
 [ -n "$admin_host" ] || die "ADMIN_LINODE_HOST or ADMIN_LINODE_PUBLIC_IPV4 is required"
 [ -s "$ssh_key" ] || die "SSH key not found: $ssh_key"
+[ -s "$release_bundle" ] || die "ADMIN_LINODE_RELEASE_BUNDLE not found or empty: $release_bundle"
 for key in "${required_runtime[@]}"; do
   [ -n "${!key:-}" ] || die "$key is required"
 done
-
-mkdir -p "$artifact_dir"
-
-if [ -n "$release_bundle" ]; then
-  [ -s "$release_bundle" ] || die "ADMIN_LINODE_RELEASE_BUNDLE not found or empty: $release_bundle"
-  image_archive="$release_bundle"
-  printf '[admin-deploy] using release bundle %s\n' "$image_archive" >&2
-else
-  printf '[admin-deploy] building Docker image %s\n' "$image_tag" >&2
-  docker build --platform linux/amd64 -t "$image_tag" "$root_dir"
-
-  printf '[admin-deploy] saving image archive %s\n' "$image_archive" >&2
-  docker save "$image_tag" | gzip -c > "$image_archive"
-fi
 
 ssh_opts=(-i "$ssh_key" -o BatchMode=yes -o StrictHostKeyChecking=accept-new)
 remote="$ssh_user@$admin_host"
@@ -126,7 +110,7 @@ cleanup() { rm -f "$tmp_env"; }
 trap cleanup EXIT
 {
   printf 'PORT=8080\n'
-  printf 'DATABASE_PATH=/data/rtk-cloud-admin.db\n'
+  printf 'DATABASE_PATH=%s/rtk-cloud-admin.db\n' "$data_dir"
   write_env ACCOUNT_MANAGER_BASE_URL
   write_env VIDEO_CLOUD_BASE_URL
   write_env VIDEO_CLOUD_ADMIN_TOKEN
@@ -137,27 +121,32 @@ trap cleanup EXIT
 } > "$tmp_env"
 chmod 0600 "$tmp_env"
 
-printf '[admin-deploy] uploading image and env to %s\n' "$remote" >&2
+printf '[admin-deploy] using native release bundle %s\n' "$release_bundle" >&2
+printf '[admin-deploy] uploading release bundle and env to %s\n' "$remote" >&2
 ssh "${ssh_opts[@]}" "$remote" "mkdir -p /tmp/rtk-cloud-admin-deploy"
-scp "${ssh_opts[@]}" "$image_archive" "$remote:$remote_image"
+scp "${ssh_opts[@]}" "$release_bundle" "$remote:$remote_bundle"
 scp "${ssh_opts[@]}" "$tmp_env" "$remote:/tmp/rtk-cloud-admin-deploy/admin.env"
 
 printf '[admin-deploy] installing runtime on %s\n' "$remote" >&2
-ssh "${ssh_opts[@]}" "$remote" bash -s -- "$domain" "$certbot_email" "$image_tag" "$remote_image" "$data_dir" "$env_path" "$certbot_enable" "$http_only" <<'REMOTE'
+ssh "${ssh_opts[@]}" "$remote" bash -s -- "$domain" "$certbot_email" "$release" "$remote_bundle" "$install_root" "$data_dir" "$env_path" "$certbot_enable" "$http_only" <<'REMOTE'
 set -euo pipefail
 
 domain="$1"
 certbot_email="$2"
-image_tag="$3"
-remote_image="$4"
-data_dir="$5"
-env_path="$6"
-certbot_enable="$7"
-http_only="$8"
+release="$3"
+remote_bundle="$4"
+install_root="$5"
+data_dir="$6"
+env_path="$7"
+certbot_enable="$8"
+http_only="$9"
+service_user="rtk-cloud-admin"
+release_dir="$install_root/releases/$release"
+current_dir="$install_root/current"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y docker.io curl systemd ca-certificates gnupg2 lsb-release ubuntu-keyring
+apt-get install -y curl systemd ca-certificates gnupg2 lsb-release ubuntu-keyring tar
 curl -fsS https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg.tmp
 mv /usr/share/keyrings/nginx-archive-keyring.gpg.tmp /usr/share/keyrings/nginx-archive-keyring.gpg
 printf 'deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/ubuntu %s nginx\n' "$(lsb_release -cs)" > /etc/apt/sources.list.d/nginx-org.list
@@ -173,33 +162,42 @@ apt-get install -y -o Dpkg::Options::=--force-confold nginx certbot python3-cert
 if ! grep -q 'server_names_hash_bucket_size' /etc/nginx/nginx.conf; then
   sed -i '/http {/a\    server_names_hash_bucket_size 128;' /etc/nginx/nginx.conf
 fi
-if [ -d /etc/nginx/sites-enabled ] && ! grep -q 'sites-enabled' /etc/nginx/nginx.conf && [ ! -f /etc/nginx/conf.d/rtk-sites-enabled.conf ]; then
-  printf 'include /etc/nginx/sites-enabled/*;\n' > /etc/nginx/conf.d/rtk-sites-enabled.conf
-fi
-systemctl enable --now docker
 
-mkdir -p /etc/rtk_cloud_admin "$data_dir" /etc/nginx/sites-available /etc/nginx/sites-enabled
-chmod 0750 /etc/rtk_cloud_admin
-# Dockerfile creates the runtime app user/group as the first system uid/gid.
-# The host bind mount must be writable by that non-root container user.
-chown 100:100 "$data_dir"
-chmod 0750 "$data_dir"
+if ! id "$service_user" >/dev/null 2>&1; then
+  useradd --system --home-dir "$data_dir" --shell /usr/sbin/nologin "$service_user"
+fi
+mkdir -p /etc/rtk_cloud_admin "$data_dir" "$install_root/releases" /etc/nginx/sites-available /etc/nginx/sites-enabled
+chmod 0750 /etc/rtk_cloud_admin "$data_dir"
+chown "$service_user:$service_user" "$data_dir"
+
+rm -rf "$release_dir"
+mkdir -p "$release_dir"
+tar --warning=no-unknown-keyword -xzf "$remote_bundle" -C "$release_dir" --strip-components=1
+test -x "$release_dir/bin/rtk-cloud-admin"
+test -f "$release_dir/web/dist/index.html"
+ln -sfn "$release_dir" "$current_dir"
+chown -R root:root "$release_dir"
+
 mv /tmp/rtk-cloud-admin-deploy/admin.env "$env_path"
-chmod 0600 "$env_path"
+chown root:"$service_user" "$env_path"
+chmod 0640 "$env_path"
 
 cat > /etc/systemd/system/rtk-cloud-admin.service <<UNIT
 [Unit]
 Description=RTK Cloud Admin dashboard
-After=network-online.target docker.service
-Wants=network-online.target docker.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
+Type=simple
+User=$service_user
+Group=$service_user
+WorkingDirectory=$current_dir
+EnvironmentFile=$env_path
 Restart=always
 RestartSec=5
 TimeoutStartSec=120
-ExecStartPre=-/usr/bin/docker rm -f rtk-cloud-admin
-ExecStart=/usr/bin/docker run --rm --name rtk-cloud-admin --env-file $env_path -p 127.0.0.1:8080:8080 -v $data_dir:/data $image_tag
-ExecStop=/usr/bin/docker rm -f rtk-cloud-admin
+ExecStart=$current_dir/bin/rtk-cloud-admin
 
 [Install]
 WantedBy=multi-user.target
@@ -223,11 +221,12 @@ server {
 }
 NGINX
 ln -sf /etc/nginx/sites-available/rtk-cloud-admin.conf /etc/nginx/sites-enabled/rtk-cloud-admin.conf
-rm -f /etc/nginx/sites-enabled/default
+ln -sf /etc/nginx/sites-available/rtk-cloud-admin.conf /etc/nginx/conf.d/rtk-cloud-admin.conf
+rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
 nginx -t
+systemctl enable --now nginx
 systemctl reload nginx
 
-docker load -i "$remote_image"
 systemctl daemon-reload
 systemctl enable --now rtk-cloud-admin
 systemctl restart rtk-cloud-admin
@@ -245,11 +244,29 @@ if [ "${ready:-0}" != "1" ]; then
 fi
 
 if [ "$certbot_enable" = "1" ] && [ "$http_only" != "1" ]; then
-  certbot --nginx --non-interactive --agree-tos --email "$certbot_email" -d "$domain" --redirect
+  certbot_log="$(mktemp)"
+  set +e
+  certbot --nginx --non-interactive --agree-tos --email "$certbot_email" -d "$domain" --redirect 2>&1 | tee "$certbot_log"
+  certbot_status="${PIPESTATUS[0]}"
+  set -e
+  if [ "$certbot_status" -ne 0 ]; then
+    if grep -Eqi 'too many certificates|rate-limits|rate limit' "$certbot_log"; then
+      retry_after="$(sed -nE 's/.*retry after ([^:]+:[^:]+:[^ ]+ UTC).*/\1/p' "$certbot_log" | tail -n 1)"
+      printf 'error: Let'\''s Encrypt rate limit hit for %s; Cloud Admin deploy stopped before verify.' "$domain" >&2
+      if [ -n "$retry_after" ]; then
+        printf ' Retry after %s.' "$retry_after" >&2
+      fi
+      printf ' See Certbot output above and %s.\n' "$certbot_log" >&2
+    else
+      printf 'error: Certbot failed for %s; Cloud Admin deploy stopped before verify. See output above and %s.\n' "$domain" "$certbot_log" >&2
+    fi
+    exit "$certbot_status"
+  fi
+  rm -f "$certbot_log"
 fi
 
 systemctl is-active rtk-cloud-admin
 systemctl is-active nginx
 REMOTE
 
-printf '[admin-deploy] deployed %s to %s\n' "$image_tag" "$domain" >&2
+printf '[admin-deploy] deployed %s to %s\n' "$release" "$domain" >&2

@@ -20,7 +20,7 @@ if grep -Eiq '(access_token|refresh_token|authorization: bearer|rtk_admin_sessio
   exit 1
 fi
 
-if grep -Eq '^\+\+\+|^---|^Step [0-9]+/|docker buildx|Sending build context|Successfully built|coverage mode:|^mode: ' "$report"; then
+if grep -Eq '^\+\+\+|^---|^Step [0-9]+/|Sending build context|Successfully built|coverage mode:|^mode: ' "$report"; then
   echo "test report appears to contain raw logs or raw coverage data" >&2
   exit 1
 fi

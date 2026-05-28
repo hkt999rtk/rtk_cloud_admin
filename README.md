@@ -35,7 +35,7 @@ Implemented in this first version:
 - explicit SQLite schema migrations tracked in `schema_migrations`
 - URL routes for `/console`, `/console/customers`, `/console/devices`,
   `/console/operations`, `/console/audit`, and `/admin`
-- Docker packaging and GitHub Actions CI
+- native Linux release packaging and GitHub Actions CI
 - shared frontend style contract in `rtk_cloud_contracts_doc/FRONTEND_STYLE.md`
 - local Realtek logo asset copied from the Realtek Connect+ marketing site
 
@@ -178,29 +178,22 @@ Account Manager and Video Cloud facts; they can be refreshed or rebuilt from the
 owning services. Local SQLite remains authoritative only for console-local
 sessions, platform admins, integration settings, and audit metadata.
 
-## Docker
+## Native Release
 
-Build:
-
-```sh
-docker build -t rtk-cloud-admin .
-```
-
-Run with a mounted SQLite data path:
+Build a Linux release bundle:
 
 ```sh
-docker run --rm -p 18081:8080 \
-  -v "$PWD/data:/data" \
-  -e ACCOUNT_MANAGER_BASE_URL="https://account-manager.example" \
-  -e VIDEO_CLOUD_BASE_URL="https://video-cloud.example" \
-  -e VIDEO_CLOUD_ADMIN_TOKEN="replace-me" \
-  -e ADMIN_BOOTSTRAP_EMAIL="admin@example.com" \
-  -e ADMIN_BOOTSTRAP_PASSWORD="change-me" \
-  -e ADMIN_BREAK_GLASS_ENABLED="true" \
-  rtk-cloud-admin
+VERSION=v1.2.3 deploy/package-release.sh
 ```
 
-Container health uses `/healthz`.
+Verify the bundle:
+
+```sh
+deploy/check-release.sh dist/rtk_cloud_admin-v1.2.3.tar.gz
+```
+
+The bundle contains a Linux `bin/rtk-cloud-admin` binary and `web/dist` static
+assets. Runtime health uses `/healthz`.
 
 For a production private-cloud deployment, see
 [`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md). For the
@@ -208,7 +201,7 @@ Linode staging scripts, see [`deploy/linode/`](deploy/linode/).
 
 ## Release Artifacts
 
-Release artifacts are Docker image archives produced by
+Release artifacts are native Linux tarballs produced by
 `deploy/package-release.sh` and verified by `deploy/check-release.sh`:
 
 ```sh
@@ -226,8 +219,8 @@ GitHub repository secrets and variables, not local `.env` files.
 ## CI
 
 `.github/workflows/ci.yml` checks out submodules and runs `go test ./...`,
-`go build ./cmd/server`, `npm ci`, `npm run build`, a container smoke test, and
-Docker cache cleanup on the self-hosted `rtk-cloud-admin-ci` runner.
+`go build ./cmd/server`, `npm ci`, `npm run build`, and release packaging checks
+on the self-hosted `rtk-cloud-admin-ci` runner.
 
 `.github/workflows/release.yml` runs only for `v*` tags or manual dispatch.
 Manual dispatch builds and verifies a release bundle as a GitHub workflow

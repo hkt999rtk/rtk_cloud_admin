@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT_DIR="${OUTPUT_DIR:-$ROOT_DIR/dist}"
 VERSION="${VERSION:-}"
-DOCKER_BIN="${DOCKER_BIN:-docker}"
+GOOS="${GOOS:-linux}"
+GOARCH="${GOARCH:-amd64}"
 
 if [ -z "$VERSION" ]; then
   if command -v git >/dev/null 2>&1 && git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -26,19 +27,56 @@ if [ "$SOURCE_COMMIT" = "unknown" ] && command -v git >/dev/null 2>&1 && git -C 
   SOURCE_COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || printf unknown)"
 fi
 
+need() {
+  command -v "$1" >/dev/null 2>&1 || { echo "$1 is required" >&2; exit 1; }
+}
+
+need go
+need npm
+need tar
+
 mkdir -p "$OUTPUT_DIR"
 
-image_tag="rtk-cloud-admin:$VERSION"
 bundle="$OUTPUT_DIR/rtk_cloud_admin-$VERSION.tar.gz"
 checksum="$bundle.sha256"
 manifest="$OUTPUT_DIR/rtk_cloud_admin-$VERSION.object-manifest.json"
+staging="$(mktemp -d)"
+cleanup() { rm -rf "$staging"; }
+trap cleanup EXIT
 
-printf '[release] building Docker image %s\n' "$image_tag" >&2
-"$DOCKER_BIN" build --platform linux/amd64 -t "$image_tag" "$ROOT_DIR"
+release_name="rtk_cloud_admin-$VERSION"
+release_dir="$staging/$release_name"
+mkdir -p "$release_dir/bin" "$release_dir/web"
 
-printf '[release] saving image archive %s\n' "$bundle" >&2
+printf '[release] building frontend\n' >&2
+(cd "$ROOT_DIR/web" && npm ci && npm run build)
+cp -R "$ROOT_DIR/web/dist" "$release_dir/web/dist"
+
+printf '[release] building %s/%s binary\n' "$GOOS" "$GOARCH" >&2
+(
+  cd "$ROOT_DIR"
+  CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -trimpath -ldflags "-s -w" -o "$release_dir/bin/rtk-cloud-admin" ./cmd/server
+)
+chmod 0755 "$release_dir/bin/rtk-cloud-admin"
+
+cat > "$release_dir/manifest.txt" <<EOF_MANIFEST
+release_name=$release_name
+version=$VERSION
+source_commit=$SOURCE_COMMIT
+binary=bin/rtk-cloud-admin
+web_dist=web/dist
+goos=$GOOS
+goarch=$GOARCH
+EOF_MANIFEST
+
+(
+  cd "$release_dir"
+  find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 shasum -a 256 > SHA256SUMS
+)
+
+printf '[release] creating native bundle %s\n' "$bundle" >&2
 rm -f "$bundle" "$checksum" "$manifest"
-"$DOCKER_BIN" save "$image_tag" | gzip -c > "$bundle"
+COPYFILE_DISABLE=1 tar -czf "$bundle" -C "$staging" "$release_name"
 
 if command -v shasum >/dev/null 2>&1; then
   shasum -a 256 "$bundle" | awk '{print $1}' > "$checksum"
@@ -58,9 +96,7 @@ from pathlib import Path
 version = os.environ["VERSION"]
 local_bundle = f"rtk_cloud_admin-{version}.tar.gz"
 object_bundle = f"{version}.tar.gz"
-checksum = Path(f"{os.environ.get('OUTPUT_DIR', 'dist')}/{local_bundle}.sha256")
-if not checksum.exists():
-    checksum = Path(os.environ["BUNDLE_SHA256_PATH"])
+checksum = Path(os.environ["BUNDLE_SHA256_PATH"])
 sha256 = checksum.read_text(encoding="utf-8").strip()
 print(json.dumps({
     "version": version,
@@ -68,6 +104,9 @@ print(json.dumps({
     "bundle": object_bundle,
     "artifact_path": f"releases/rtk_cloud_admin-{version}/{object_bundle}",
     "sha256": sha256,
+    "format": "native-tar",
+    "binary": "bin/rtk-cloud-admin",
+    "web_dist": "web/dist",
     "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
 }, indent=2, sort_keys=True))
 PY
