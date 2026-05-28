@@ -36,7 +36,7 @@ jobs:
       - name: Go build
         run: |
           set -euo pipefail
-          go build ./cmd/server 2>&1 | tee .artifacts/logs/go-build.log
+          go build -o .artifacts/rtk-cloud-admin ./cmd/server 2>&1 | tee .artifacts/logs/go-build.log
           echo PASS > .artifacts/logs/go-build.status
 
       - name: Go coverage gate
@@ -74,11 +74,69 @@ jobs:
           npm run build 2>&1 | tee ../.artifacts/logs/frontend-build.log
           echo PASS > ../.artifacts/logs/frontend-build.status
 
-      - name: Release artifact check
+      - name: Native server smoke
         run: |
           set -euo pipefail
-          deploy/test-release-artifacts.sh 2>&1 | tee .artifacts/logs/release-artifacts.log
-          echo PASS > .artifacts/logs/release-artifacts.status
+          exec > >(tee .artifacts/logs/native-smoke.log) 2>&1
+
+          smoke_dir="$(mktemp -d)"
+          server_pid=""
+          cleanup() {
+            if [ -n "$server_pid" ]; then
+              kill "$server_pid" >/dev/null 2>&1 || true
+              wait "$server_pid" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$smoke_dir"
+          }
+          trap cleanup EXIT
+
+          PORT=18080 \
+            DATABASE_PATH="$smoke_dir/ci.db" \
+            ADMIN_BOOTSTRAP_EMAIL=admin@example.com \
+            ADMIN_BOOTSTRAP_PASSWORD=secret \
+            ADMIN_BREAK_GLASS_ENABLED=true \
+            .artifacts/rtk-cloud-admin > "$smoke_dir/server.log" 2>&1 &
+          server_pid="$!"
+
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/healthz | grep -qx 'ok'; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" >/dev/null 2>&1; then
+              cat "$smoke_dir/server.log" >&2 || true
+              exit 1
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat "$smoke_dir/server.log" >&2 || true
+            echo "timeout: service did not become ready within 30s" >&2
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1:18080/healthz | grep -qx 'ok'
+          curl -fsS http://127.0.0.1:18080/api/service-health | grep -q '"status":"demo"'
+
+          printf '%s' '{"email":"admin@example.com","password":"secret"}' > "$smoke_dir/login.json"
+          curl -fsS -D "$smoke_dir/login.headers" -o "$smoke_dir/login.body" \
+            -H 'Content-Type: application/json' \
+            --data-binary @"$smoke_dir/login.json" \
+            http://127.0.0.1:18080/api/auth/platform/login
+          session_id="$(sed -n 's/.*rtk_admin_session=\([^;[:space:]]*\).*/\1/p' "$smoke_dir/login.headers" | head -n1)"
+          if [ -z "$session_id" ]; then
+            echo "platform login did not return an rtk_admin_session cookie" >&2
+            cat "$smoke_dir/login.body" >&2 || true
+            cat "$smoke_dir/login.headers" >&2 || true
+            exit 1
+          fi
+          grep -q '"status":"ok"' "$smoke_dir/login.body"
+          curl -fsS --cookie "rtk_admin_session=${session_id}" http://127.0.0.1:18080/api/me | grep -q '"kind":"platform_admin"'
+
+          curl -fsS http://127.0.0.1:18080/api/summary | grep -q '"total_devices"'
+          curl -fsS http://127.0.0.1:18080/console | grep -q 'id="root"'
+          echo PASS > .artifacts/logs/native-smoke.status
 
       - name: Generate test report candidate
         if: always()

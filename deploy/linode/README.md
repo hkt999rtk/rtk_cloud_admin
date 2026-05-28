@@ -17,7 +17,7 @@ The Admin VM is intentionally independent from the `rtk_video_cloud` Linode VPC:
 internet
   -> admin.video-cloud-staging.realtekconnect.com:443
   -> nginx on the Admin VM
-  -> rtk_cloud_admin systemd service on 127.0.0.1:8080
+  -> native rtk_cloud_admin systemd service on 127.0.0.1:8080
 
 rtk_cloud_admin
   -> ACCOUNT_MANAGER_BASE_URL over public HTTPS
@@ -34,9 +34,11 @@ mutation and host deployment with local secrets.
 | --- | --- |
 | `admin-staging.env.example` | Local operator env template. Copy it before editing. |
 | `provision-admin-vm.sh` | Creates the public-only Linode VM and firewall with `linode-cli`. |
-| `deploy-admin.sh` | Uses a native release bundle, uploads it, installs nginx/systemd, and starts the service. |
+| `deploy-admin.sh` | Deploys the selected release to the Admin VM, installs nginx/systemd, and starts the service. |
 | `verify-admin.sh` | Runs external HTTP checks against the deployed dashboard. |
 | `backup-admin-db.sh` | Pulls a sanitized SQLite backup archive from the Admin VM. |
+| `../package.sh` | Builds a native Linux release bundle for CI/Object Storage handoff. |
+| `../check-release.sh` | Verifies a native release bundle before upload/deploy. |
 
 ## Prerequisites
 
@@ -97,25 +99,22 @@ deploy/linode/deploy-admin.sh
 
 The deploy script:
 
-1. uses `ADMIN_LINODE_RELEASE_BUNDLE`, or builds a native Linux release bundle locally
-2. uploads the native release archive to the VM
+1. downloads or receives an explicit native release bundle
+2. uploads the release bundle to the VM
 3. installs nginx, certbot, and systemd units
 4. writes `/etc/rtk_cloud_admin/admin.env`
 5. stores SQLite data under `/var/lib/rtk_cloud_admin`
 6. starts `rtk-cloud-admin.service`
 7. optionally obtains a Let's Encrypt certificate and redirects HTTP to HTTPS
 
-To deploy a CI-built release artifact instead of building locally:
+Release CI publishes native bundles to Linode Object Storage using the same
+layout as the Video Cloud release flow:
 
-```sh
-ADMIN_LINODE_RELEASE=v1.2.3 \
-ADMIN_LINODE_RELEASE_BUNDLE="$PWD/dist/rtk_cloud_admin-v1.2.3.tar.gz" \
-deploy/linode/deploy-admin.sh
+```text
+releases/rtk_cloud_admin-<version>/<version>.tar.gz
+releases/rtk_cloud_admin-<version>/<version>.tar.gz.sha256
+releases/rtk_cloud_admin-<version>/manifest.json
 ```
-
-The release bundle must be named `rtk_cloud_admin-<version>.tar.gz` and contain
-`bin/rtk-cloud-admin` plus `web/dist`.
-
 ## 4. Verify
 
 ```sh

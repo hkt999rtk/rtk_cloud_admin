@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version. Defaults to tag name or ci-<timestamp>-<shortsha>."
+        description: "Release version. Defaults to the git ref name or timestamped short SHA."
         required: false
         type: string
 
@@ -17,10 +17,23 @@ permissions:
 jobs:
   package:
     name: Package release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, rtk-cloud-admin-ci]
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
       - name: Select version
         id: version
@@ -42,16 +55,17 @@ jobs:
               exit 1
               ;;
           esac
+          artifact_name="rtk_cloud_admin-$version"
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+          printf 'artifact_name=%s\n' "$artifact_name" >> "$GITHUB_OUTPUT"
 
       - name: Build release bundle
-        run: VERSION="${{ steps.version.outputs.version }}" deploy/package-release.sh
+        run: VERSION="${{ steps.version.outputs.version }}" ./deploy/package.sh
 
       - name: Verify release bundle
-        run: deploy/check-release.sh "dist/rtk_cloud_admin-${{ steps.version.outputs.version }}.tar.gz"
+        run: ./deploy/check-release.sh "dist/rtk_cloud_admin-${{ steps.version.outputs.version }}"
 
       - name: Upload release bundle to Linode Object Storage
-        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.LINODE_OBJ_ACCESS_KEY_ID }}
@@ -61,34 +75,54 @@ jobs:
           LINODE_OBJ_BUCKET: ${{ vars.LINODE_OBJ_BUCKET }}
           LINODE_OBJ_ENDPOINT: ${{ vars.LINODE_OBJ_ENDPOINT }}
           VERSION: ${{ steps.version.outputs.version }}
+          ARTIFACT_NAME: ${{ steps.version.outputs.artifact_name }}
         run: |
           set -euo pipefail
-          if ! command -v aws >/dev/null 2>&1; then
-            python3 -m pip install --user awscli
-            export PATH="$HOME/.local/bin:$PATH"
-          fi
           test -n "$AWS_ACCESS_KEY_ID"
           test -n "$AWS_SECRET_ACCESS_KEY"
           test -n "$LINODE_OBJ_BUCKET"
           test -n "$LINODE_OBJ_ENDPOINT"
+          local_bundle="dist/rtk_cloud_admin-$VERSION.tar.gz"
+          object_bundle="dist/$VERSION.tar.gz"
+          checksum="$object_bundle.sha256"
+          manifest="dist/$VERSION.object-manifest.json"
+          artifact_path="releases/$ARTIFACT_NAME/$VERSION.tar.gz"
+          cp "$local_bundle" "$object_bundle"
+          shasum -a 256 "$object_bundle" | awk '{print $1}' > "$checksum"
+          python3 - <<'PY' > "$manifest"
+          import json
+          import os
+          from pathlib import Path
+          from datetime import datetime, timezone
 
-          bundle="dist/rtk_cloud_admin-$VERSION.tar.gz"
-          checksum="$bundle.sha256"
-          manifest="dist/rtk_cloud_admin-$VERSION.object-manifest.json"
-          prefix="s3://$LINODE_OBJ_BUCKET/releases/rtk_cloud_admin-$VERSION"
-
-          aws s3 cp "$bundle" "$prefix/$VERSION.tar.gz" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
-          aws s3 cp "$checksum" "$prefix/$VERSION.tar.gz.sha256" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
-          aws s3 cp "$manifest" "$prefix/manifest.json" --endpoint-url "$LINODE_OBJ_ENDPOINT" --only-show-errors
+          version = os.environ["VERSION"]
+          artifact_name = os.environ["ARTIFACT_NAME"]
+          bundle = f"{version}.tar.gz"
+          checksum = Path(f"dist/{bundle}.sha256").read_text().strip()
+          print(json.dumps({
+              "version": version,
+              "source_commit": os.environ["GITHUB_SHA"],
+              "bundle": bundle,
+              "artifact_path": f"releases/{artifact_name}/{bundle}",
+              "sha256": checksum,
+              "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+          }, indent=2, sort_keys=True))
+          PY
+          prefix="releases/$ARTIFACT_NAME"
+          go run ./cmd/s3put --file "$object_bundle" --key "$artifact_path"
+          go run ./cmd/s3put --file "$checksum" --key "$prefix/$VERSION.tar.gz.sha256"
+          go run ./cmd/s3put --file "$manifest" --key "$prefix/manifest.json"
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          name: rtk_cloud_admin-${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.artifact_name }}
           path: |
+            dist/rtk_cloud_admin-${{ steps.version.outputs.version }}
             dist/rtk_cloud_admin-${{ steps.version.outputs.version }}.tar.gz
-            dist/rtk_cloud_admin-${{ steps.version.outputs.version }}.tar.gz.sha256
-            dist/rtk_cloud_admin-${{ steps.version.outputs.version }}.object-manifest.json
+            dist/${{ steps.version.outputs.version }}.tar.gz
+            dist/${{ steps.version.outputs.version }}.tar.gz.sha256
+            dist/${{ steps.version.outputs.version }}.object-manifest.json
           if-no-files-found: error
 
       - name: Publish GitHub release
@@ -100,8 +134,9 @@ jobs:
           version="${{ steps.version.outputs.version }}"
           assets=(
             "dist/rtk_cloud_admin-$version.tar.gz"
-            "dist/rtk_cloud_admin-$version.tar.gz.sha256"
-            "dist/rtk_cloud_admin-$version.object-manifest.json"
+            "dist/$version.tar.gz"
+            "dist/$version.tar.gz.sha256"
+            "dist/$version.object-manifest.json"
           )
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber

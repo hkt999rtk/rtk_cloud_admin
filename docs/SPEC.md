@@ -243,6 +243,24 @@ Operation states:
 - `retrying`
 - `dead_lettered`
 
+Production-mode readiness precedence:
+
+- Account Manager owns registry, organization membership, account status, and
+  lifecycle operation state.
+- Video Cloud owns cloud activation and current transport online facts whenever
+  `VIDEO_CLOUD_BASE_URL` and `VIDEO_CLOUD_ADMIN_TOKEN` are configured.
+- `online` requires both Video Cloud activation and current Video Cloud
+  transport evidence; `DeviceProvisionSucceeded` or Account Manager
+  `status=online` is not enough.
+- Activated devices with missing or stale Video Cloud transport are shown as
+  `activated`, with `transport_online` exposed as a missing/stale source fact.
+- Missing `video_cloud_devid`, unavailable Video Cloud facts, authorization
+  failures, stale data, or partial device-info/transport responses are surfaced
+  as readiness gaps instead of being treated as activation success.
+- Demo/cache mode remains available when upstream services are not configured,
+  but its source facts are local projections and are not authoritative
+  production readiness.
+
 ## Configuration
 
 Environment variables:
@@ -265,4 +283,4 @@ Environment variables:
 - App tests for customer login, upstream proxy mode, provision proxy, and platform admin route guards.
 - Frontend build verification with `npm run build`.
 - Backend build verification with `go test ./...` and `go build ./cmd/server`.
-- Container smoke verification for `/healthz`, `/api/service-health`, platform admin login/session, `/api/summary`, and `/console`.
+- Native server smoke verification for `/healthz`, `/api/service-health`, platform admin login/session, `/api/summary`, and `/console`.

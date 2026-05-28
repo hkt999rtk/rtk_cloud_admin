@@ -35,7 +35,7 @@ Implemented in this first version:
 - explicit SQLite schema migrations tracked in `schema_migrations`
 - URL routes for `/console`, `/console/customers`, `/console/devices`,
   `/console/operations`, `/console/audit`, and `/admin`
-- native Linux release packaging and GitHub Actions CI
+- native release packaging and GitHub Actions CI
 - shared frontend style contract in `rtk_cloud_contracts_doc/FRONTEND_STYLE.md`
 - local Realtek logo asset copied from the Realtek Connect+ marketing site
 
@@ -178,22 +178,18 @@ Account Manager and Video Cloud facts; they can be refreshed or rebuilt from the
 owning services. Local SQLite remains authoritative only for console-local
 sessions, platform admins, integration settings, and audit metadata.
 
-## Native Release
+## Release Packaging
 
-Build a Linux release bundle:
-
-```sh
-VERSION=v1.2.3 deploy/package-release.sh
-```
-
-Verify the bundle:
+Build a Linux amd64 release bundle:
 
 ```sh
-deploy/check-release.sh dist/rtk_cloud_admin-v1.2.3.tar.gz
+VERSION=dev-local deploy/package.sh
+deploy/check-release.sh dist/rtk_cloud_admin-dev-local
 ```
 
-The bundle contains a Linux `bin/rtk-cloud-admin` binary and `web/dist` static
-assets. Runtime health uses `/healthz`.
+The release bundle contains the Go server binary, built frontend assets, a
+manifest, and checksums. The Linode deploy script installs this bundle as a
+native systemd service behind nginx.
 
 For a production private-cloud deployment, see
 [`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md). For the
@@ -201,26 +197,24 @@ Linode staging scripts, see [`deploy/linode/`](deploy/linode/).
 
 ## Release Artifacts
 
-Release artifacts are native Linux tarballs produced by
-`deploy/package-release.sh` and verified by `deploy/check-release.sh`:
+Release artifacts are native Linux bundles produced by `deploy/package.sh` and
+verified by `deploy/check-release.sh`:
 
 ```sh
-VERSION=v1.2.3 deploy/package-release.sh
-deploy/check-release.sh dist/rtk_cloud_admin-v1.2.3.tar.gz
+VERSION=v1.2.3 deploy/package.sh
+deploy/check-release.sh dist/rtk_cloud_admin-v1.2.3
 ```
 
-Tag-triggered release runs upload the bundle, checksum, and manifest to Linode
-Object Storage under `releases/rtk_cloud_admin-<version>/`. The object filenames
-use the version directly, for example `v1.2.3.tar.gz`. Manual release workflow
-runs build and verify the bundle and publish a GitHub workflow artifact only;
-they do not write to Linode Object Storage. Object Storage credentials belong in
-GitHub repository secrets and variables, not local `.env` files.
+Release runs upload the bundle, checksum, and manifest to Linode Object Storage
+under `releases/rtk_cloud_admin-<version>/`. The object filenames use the
+version directly, for example `v1.2.3.tar.gz`. Object Storage credentials belong
+in GitHub repository secrets and variables, not local `.env` files.
 
 ## CI
 
 `.github/workflows/ci.yml` checks out submodules and runs `go test ./...`,
-`go build ./cmd/server`, `npm ci`, `npm run build`, and release packaging checks
-on the self-hosted `rtk-cloud-admin-ci` runner.
+`go build ./cmd/server`, `npm ci`, `npm test`, `npm run build`, and a native
+server smoke test on the self-hosted `rtk-cloud-admin-ci` runner.
 
 `.github/workflows/release.yml` runs only for `v*` tags or manual dispatch.
 Manual dispatch builds and verifies a release bundle as a GitHub workflow
