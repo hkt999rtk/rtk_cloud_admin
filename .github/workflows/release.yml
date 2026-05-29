@@ -113,18 +113,6 @@ jobs:
           go run ./cmd/s3put --file "$checksum" --key "$prefix/$VERSION.tar.gz.sha256"
           go run ./cmd/s3put --file "$manifest" --key "$prefix/manifest.json"
 
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.version.outputs.artifact_name }}
-          path: |
-            dist/rtk_cloud_admin-${{ steps.version.outputs.version }}
-            dist/rtk_cloud_admin-${{ steps.version.outputs.version }}.tar.gz
-            dist/${{ steps.version.outputs.version }}.tar.gz
-            dist/${{ steps.version.outputs.version }}.tar.gz.sha256
-            dist/${{ steps.version.outputs.version }}.object-manifest.json
-          if-no-files-found: error
-
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         env:
