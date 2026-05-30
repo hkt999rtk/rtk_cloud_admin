@@ -145,22 +145,6 @@ jobs:
           scripts/generate_test_report.sh coverage.out .artifacts/logs .artifacts/report-candidates/docs/TEST_REPORT.md
           scripts/validate_test_report.sh .artifacts/report-candidates/docs/TEST_REPORT.md
 
-      - name: Upload test report candidate
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-report-candidate
-          path: .artifacts/report-candidates/
-
-      - name: Upload CI diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-diagnostics
-          path: |
-            .artifacts/logs/
-            coverage.out
-
       - name: Check tracked test report drift
         run: |
           set -euo pipefail
