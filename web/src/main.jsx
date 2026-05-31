@@ -21,6 +21,7 @@ import {
 import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
+import { auditCoverageCopy, ssoProtocolLabel } from './platform-view.mjs';
 import {
   sourceAvailable,
   sourceMessage,
@@ -1479,7 +1480,7 @@ function PlatformSSOProviders({ providers, customers, onSave }) {
         </div>
         <div className="sso-note">
           <strong>Secret handling</strong>
-          <span>Client secrets are sent only to Account Manager and are never returned by this console.</span>
+          <span>Client secrets are sent only to Account Manager and are never returned by this console. OIDC is the first supported protocol; SAML is not implemented.</span>
         </div>
       </section>
       <section className="panel">
@@ -1528,6 +1529,7 @@ function SSOProviderCard({ provider, onSave }) {
         issuer,
         client_id: clientID,
         client_secret: clientSecret,
+        protocol: 'oidc',
         verified_domains: domains.split(',').map((domain) => domain.trim()).filter(Boolean),
         enabled,
       });
@@ -1543,6 +1545,7 @@ function SSOProviderCard({ provider, onSave }) {
         <div>
           <strong>{provider.organization || provider.organization_id}</strong>
           <small>{provider.organization_id}</small>
+          <small>{ssoProtocolLabel(provider.protocol)}</small>
         </div>
         <span className={`status-pill ${provider.enabled ? 'ok' : provider.configured ? 'warn' : 'neutral'}`}>
           {provider.enabled ? 'Enabled' : provider.configured ? 'Configured' : 'Not configured'}
@@ -2649,7 +2652,7 @@ function AuditLog({ audit, compact = false, loading = false }) {
       <div className="panel-head">
         <div>
           <h2>{compact ? 'Recent audit' : 'Audit log'}</h2>
-          <p>Local operator actions captured by the Go BFF.</p>
+          <p>{auditCoverageCopy()}</p>
         </div>
       </div>
       {loading && !audit.length ? (
