@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
+import {
+  postJSON,
+  putJSON,
+  startSSOLogin,
+  userFacingSignupError,
+  userFacingSSOError,
+  userFacingVerificationError,
+} from './http.mjs';
 
 test('postJSON throws on failed verification responses', async () => {
   const originalFetch = globalThis.fetch;
@@ -167,5 +174,47 @@ test('userFacingSSOError maps auth and malformed redirect failures to operator-s
   assert.equal(
     userFacingSSOError(new Error('SSO start did not return a redirect URL')),
     'SSO could not start because the identity provider did not return a redirect URL.',
+  );
+  assert.equal(
+    userFacingSSOError(new Error('callback state verification failed')),
+    'SSO callback could not be verified. Try signing in again.',
+  );
+  assert.equal(
+    userFacingSSOError(new Error('video_cloud_devid=vc raw_payload={"error":"boom"}')),
+    'SSO sign-in could not be started. Please try again.',
+  );
+});
+
+test('public signup errors use evaluation-tier safe copy', () => {
+  assert.equal(
+    userFacingSignupError(new Error('email validation failed with 400')),
+    'Check the signup fields and try again.',
+  );
+  assert.equal(
+    userFacingSignupError(new Error('Account Manager unavailable with 503')),
+    'Evaluation signup is temporarily unavailable. Please try again later.',
+  );
+  assert.equal(
+    userFacingSignupError(new Error('raw_payload={"internal":"secret"}')),
+    'Evaluation signup could not be completed. Please try again.',
+  );
+});
+
+test('verification errors distinguish token and service states without raw payloads', () => {
+  assert.equal(
+    userFacingVerificationError(new Error('expired verification token')),
+    'Verification link expired. Request a new verification email.',
+  );
+  assert.equal(
+    userFacingVerificationError(new Error('already verified')),
+    'Email is already verified. Sign in to continue.',
+  );
+  assert.equal(
+    userFacingVerificationError(new Error('invalid verification token')),
+    'Verification token is invalid. Check the link and try again.',
+  );
+  assert.equal(
+    userFacingVerificationError(new Error('raw_payload={"token":"secret"}')),
+    'Verification could not be completed. Please try again.',
   );
 });

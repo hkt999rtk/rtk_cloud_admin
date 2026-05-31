@@ -10,7 +10,14 @@ import {
   routeFromLocation,
   titleFor,
 } from './routes.mjs';
-import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
+import {
+  postJSON,
+  putJSON,
+  startSSOLogin,
+  userFacingSignupError,
+  userFacingSSOError,
+  userFacingVerificationError,
+} from './http.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
@@ -335,7 +342,7 @@ function App() {
       setRefreshTick((tick) => tick + 1);
       return result;
     } catch (err) {
-      setError(err.message);
+      setError(userFacingSignupError(err));
       throw err;
     }
   }
@@ -351,7 +358,7 @@ function App() {
       }
       return result;
     } catch (err) {
-      setError(err.message);
+      setError(userFacingVerificationError(err));
       throw err;
     }
   }
@@ -361,7 +368,7 @@ function App() {
     try {
       return await postJSON('/api/auth/customer/resend-verification', { email });
     } catch (err) {
-      setError(err.message);
+      setError(userFacingVerificationError(err));
       throw err;
     }
   }
@@ -584,6 +591,7 @@ function SignupForm({ onSignup }) {
   const [captchaToken, setCaptchaToken] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [honeypot, setHoneypot] = useState('');
+  const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
   const strength = passwordStrength(password);
 
@@ -591,6 +599,7 @@ function SignupForm({ onSignup }) {
     event.preventDefault();
     if (!acceptTerms || honeypot) return;
     setBusy(true);
+    setLocalError('');
     try {
       await onSignup({
         email,
@@ -599,8 +608,8 @@ function SignupForm({ onSignup }) {
         organization_name: organizationName,
         captcha_token: captchaToken,
       });
-    } catch (_) {
-      return;
+    } catch (err) {
+      setLocalError(userFacingSignupError(err));
     } finally {
       setBusy(false);
     }
@@ -641,6 +650,7 @@ function SignupForm({ onSignup }) {
         I accept the evaluation-tier terms.
       </label>
       <button type="submit" disabled={busy || !acceptTerms || !!honeypot}>Create account</button>
+      {error ? <p className="error">{error}</p> : null}
     </form>
   );
 }
@@ -662,8 +672,8 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
         return;
       }
       setStatus('Verification link requested again.');
-    } catch (_) {
-      setLocalError('Failed to request a new verification link.');
+    } catch (err) {
+      setLocalError(userFacingVerificationError(err));
     } finally {
       setBusy(false);
     }
@@ -704,7 +714,7 @@ function VerifyForm({ token, onVerify }) {
           setStatus('Email verified. Sign in to continue.');
         }
       })
-      .catch(() => setLocalError('Verification failed. Check the token and try again.'))
+      .catch((err) => setLocalError(userFacingVerificationError(err)))
       .finally(() => setBusy(false));
   }, [attempted, onVerify, value]);
 
@@ -721,8 +731,8 @@ function VerifyForm({ token, onVerify }) {
       } else {
         setStatus('Email verified. Sign in to continue.');
       }
-    } catch (_) {
-      setLocalError('Verification failed. Check the token and try again.');
+    } catch (err) {
+      setLocalError(userFacingVerificationError(err));
     } finally {
       setBusy(false);
     }
