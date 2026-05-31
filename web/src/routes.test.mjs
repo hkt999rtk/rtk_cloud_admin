@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { customerNavItems, devicesPathWithFilters, routeFromPath, titleFor } from './routes.mjs';
+import {
+  customerNavItems,
+  devicesPathWithFilters,
+  isPlatformRouteId,
+  isPublicRouteId,
+  navItemsForRoute,
+  platformNavItems,
+  routeFromPath,
+  titleFor,
+} from './routes.mjs';
 
 test('maps platform shell paths to platform routes', () => {
   assert.equal(routeFromPath('/admin'), 'platform-health');
@@ -24,9 +33,11 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/devices'), 'devices');
   assert.equal(routeFromPath('/console/customers'), 'overview');
   assert.equal(routeFromPath('/console/operations'), 'overview');
+  assert.equal(routeFromPath('/console/operations/history'), 'overview');
   assert.equal(routeFromPath('/console/firmware-ota'), 'firmware-ota');
   assert.equal(routeFromPath('/console/stream-health'), 'stream-health');
   assert.equal(routeFromPath('/console/groups'), 'overview');
+  assert.equal(routeFromPath('/console/groups/legacy'), 'overview');
 });
 
 test('customer nav follows the approved Customer View design order', () => {
@@ -34,6 +45,35 @@ test('customer nav follows the approved Customer View design order', () => {
     customerNavItems.map((item) => item.label),
     ['Overview', 'Devices', 'Firmware & OTA', 'Stream Health'],
   );
+});
+
+test('retired customer pages are not exposed in section navigation', () => {
+  const customerLabels = customerNavItems.map((item) => item.label);
+  const platformLabels = platformNavItems.map((item) => item.label);
+
+  assert.equal(customerLabels.includes('Groups'), false);
+  assert.equal(customerLabels.includes('Customers'), false);
+  assert.equal(customerLabels.includes('Operations'), false);
+  assert.equal(platformLabels.includes('Groups'), false);
+  assert.equal(platformLabels.includes('Customers'), false);
+});
+
+test('public auth routes stay outside Customer and Platform section navigation', () => {
+  for (const route of ['signup', 'signup-check-email', 'verify']) {
+    assert.equal(isPublicRouteId(route), true, route);
+    assert.equal(isPlatformRouteId(route), false, route);
+    assert.deepEqual(navItemsForRoute(route), []);
+  }
+});
+
+test('route classification selects the separated view navigation', () => {
+  assert.equal(isPublicRouteId('overview'), false);
+  assert.equal(isPlatformRouteId('overview'), false);
+  assert.deepEqual(navItemsForRoute('overview'), customerNavItems);
+
+  assert.equal(isPublicRouteId('platform-sso'), false);
+  assert.equal(isPlatformRouteId('platform-sso'), true);
+  assert.deepEqual(navItemsForRoute('platform-sso'), platformNavItems);
 });
 
 test('builds devices URLs with supported filters only', () => {

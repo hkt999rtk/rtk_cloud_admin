@@ -12,6 +12,21 @@ export const platformNavItems = [
   { id: 'platform-audit', label: 'Audit Log', path: '/admin/audit' },
 ];
 
+const publicRouteIds = new Set(['signup', 'signup-check-email', 'verify']);
+
+export function isPublicRouteId(route) {
+  return publicRouteIds.has(route);
+}
+
+export function isPlatformRouteId(route) {
+  return String(route || '').startsWith('platform');
+}
+
+export function navItemsForRoute(route) {
+  if (isPublicRouteId(route)) return [];
+  return isPlatformRouteId(route) ? platformNavItems : customerNavItems;
+}
+
 export function titleFor(active) {
   return {
     signup: 'Sign up',
