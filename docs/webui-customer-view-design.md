@@ -1,6 +1,6 @@
 # Customer View WebUI Design
 
-Status: approved concept.
+Status: approved concept with coverage addendum.
 
 Date: 2026-05-09
 
@@ -15,6 +15,7 @@ Related documents:
 - [ROLES.md](ROLES.md)
 - [admin-dashboard-redesign.md](admin-dashboard-redesign.md)
 - [backend-api-gap-audit.md](backend-api-gap-audit.md)
+- [sso-oidc-design.md](sso-oidc-design.md)
 
 ## Summary
 
@@ -23,15 +24,39 @@ RTK Cloud Admin. The visual direction is **Realtek Ops Console**: a dense,
 calm B2B operations console based on the Realtek Connect+ palette from
 `webtest.mgmeet.io`.
 
-The first design batch covers:
+The approved Customer View concept batch covers:
 
 - Fleet Health Overview
 - Devices with Detail Drawer
 - Firmware & OTA
 - Stream Health
 
-Platform View redesign and Groups are not part of this batch. Groups must not
-appear in the first-batch Customer View sidebar.
+Platform View pages, auth pages, and signup pages are required WebUI surfaces,
+but they are not part of the four Customer View PNG concepts. Device Groups are
+deferred and must not appear in the first-batch Customer View sidebar.
+
+The approved images are visual concepts for the Customer View work area, not a
+complete application-state inventory. The implementation must also satisfy the
+coverage addendum below for auth, quota, capability, error, and source-state
+requirements from `SPEC.md`, `ROLES.md`, and `backend-api-gap-audit.md`.
+
+## Design Coverage Matrix
+
+| Surface | Required for v0.1 | Visual source | Status in this design |
+| --- | --- | --- | --- |
+| Customer View shell | Yes | Customer View concept PNGs plus this document | Approved, with Groups removed from nav |
+| Fleet Health Overview | Yes | `customer-overview.png` | Approved |
+| Devices + Detail Drawer | Yes | `customer-devices.png` | Approved, with unsupported Settings writes removed |
+| Firmware & OTA | Yes | `customer-firmware-ota.png` | Approved, read-only campaign scope |
+| Stream Health | Yes | `customer-stream-health.png` | Approved, source-backed modes only |
+| Signup / check-email / verify | Yes | Text requirements in this document and `SPEC.md` | Required, no PNG concept |
+| SSO login and route gates | Yes | Text requirements in this document and `sso-oidc-design.md` | Required, no PNG concept |
+| Platform View: Service Health | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
+| Platform View: SSO Providers | Yes | `admin-dashboard-redesign.md` and `sso-oidc-design.md` | Required outside Customer View PNG batch |
+| Platform View: Operations Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
+| Platform View: Audit Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
+| Brand-cloud management UI | No | `BRAND_CLOUD_ADMIN.md` backend/BFF contract | Deferred UI |
+| Device Groups | No | None for v0.1 | Deferred and hidden |
 
 ## Approved Concepts
 
@@ -50,6 +75,22 @@ appear in the first-batch Customer View sidebar.
 ### Stream Health
 
 ![Stream Health](assets/webui-design/customer-stream-health.png)
+
+### Known Asset Differences
+
+The concept images show a `Groups` sidebar item. This is a stale visual detail.
+`Groups` is deferred for v0.1 and must not appear in the first-batch Customer
+View sidebar, route list, empty placeholder, or mobile navigation until the
+device group API and UI design are approved.
+
+The concept images also show secondary drawer tabs and stream mode examples.
+Those are treated as layout examples only. The authoritative scope is:
+
+- Drawer `Overview` is required.
+- Drawer `Streams` and `Events` are read-only only when backed by documented
+  source data.
+- Drawer `Settings` must not expose unsupported customer write controls.
+- Stream modes beyond WebRTC appear only when the upstream source reports them.
 
 ## Design Goals
 
@@ -110,7 +151,8 @@ Sidebar:
 - Customer View nav items: `Overview`, `Devices`, `Firmware & OTA`,
   `Stream Health`.
 - Active nav item uses primary blue fill.
-- Platform View switcher is visually separated from Customer View navigation.
+- Platform View switcher is visually separated from Customer View navigation and
+  routes only to role-gated Platform View pages.
 - Platform View content must not appear inside Customer View pages.
 
 Main header:
@@ -119,6 +161,18 @@ Main header:
 - Organization selector near the title, using the active organization name.
 - Window controls where relevant, usually `7d` / `30d`.
 - Last updated timestamp and refresh affordance on the right.
+
+Organization selector:
+
+- Customer sessions with multiple memberships can switch only to organizations
+  returned by `/api/me.memberships`.
+- Switching organization calls `POST /api/me/active-org`, refreshes all
+  page-level data, and clears page filters that reference org-specific values
+  such as firmware versions or device IDs.
+- The selector must not offer cross-tenant search, platform customer browsing,
+  or tenant impersonation. Platform Admin impersonation is deferred.
+- If switching fails, keep the previous active organization visible and show a
+  concise retryable error near the selector.
 
 Customer-safe field policy:
 
@@ -129,6 +183,36 @@ Customer-safe field policy:
 - Customer View API payloads must not include `dead_lettered` or platform-only
   lifecycle vocabulary.
 - Use customer-readable labels and contract-backed display names.
+
+Capability and role behavior:
+
+- Fleet Managers can see and execute `Provision` and `Deactivate` when the
+  active membership includes `customer.devices.provision` or
+  `customer.devices.deactivate`.
+- Read-only Observers see the same Customer View data as Fleet Managers, but
+  write actions are disabled or hidden with clear read-only affordance text.
+- Frontend affordances are usability only. Backend route guards remain the
+  enforcement boundary for provision, deactivate, quota, and any future tenant
+  write action.
+- Customer sessions must not receive Platform View data. If they open a
+  Platform View route or switcher target, the UI shows a role/access gate rather
+  than platform content.
+- Platform Admin sessions must see a guard if they open Customer View directly,
+  with a route back to Platform View rather than customer data.
+
+Auth and access states:
+
+- Unauthenticated users see an email-first SSO sign-in panel. Password login is
+  legacy compatibility and must not be presented as the primary production path.
+- Signup entry points route to the self-service evaluation flow documented in
+  `SPEC.md`; commercial brand-cloud user creation is separate and platform
+  admin-owned.
+- SSO callback, verification, expired-token, and gateway-error states need
+  dedicated copy. Do not leave users on a blank dashboard shell while auth state
+  is pending.
+- Local demo mode is development-only. Customer View can use demo data locally,
+  but production/server validation must show source-unavailable states instead
+  of silently substituting demo trends.
 
 ## Fleet Health Overview
 
@@ -154,6 +238,15 @@ Behavior notes:
   Devices view when the backend/frontend path supports it.
 - Service health, open platform operations, and platform audit content stay out
   of this page.
+- Evaluation-tier organizations show a compact quota indicator when device usage
+  approaches or reaches `evaluation_device_quota`. The quota callout belongs
+  below the operational panels so it does not displace Fleet Health KPIs.
+- The quota callout includes current usage, current quota, a requested quota
+  input, and a submit action backed by
+  `POST /api/orgs/{orgId}/quota-raise-requests`. It appears only for the active
+  organization and never for Platform Admin sessions.
+- Quota request errors must distinguish validation errors from Account Manager
+  gateway failures with stable, user-facing messages.
 
 ## Devices + Detail Drawer
 
@@ -191,6 +284,19 @@ Detail drawer content:
 - `Provision` and `Deactivate` actions, with destructive styling only for
   deactivate.
 
+Drawer tabs and states:
+
+- The concept image includes Overview, Streams, Events, and Settings tabs. For
+  v0.1, Overview is required; Streams and Events may be implemented as
+  read-only drill-downs when backed by the documented telemetry and stream
+  endpoints; Settings must not expose unsupported customer write controls.
+- Telemetry loading, unavailable-source, empty-data, and unexpected-schema
+  states are first-class drawer states. Show the affected panel as unavailable
+  while preserving the rest of the drawer.
+- Provision and Deactivate actions require confirmation or clear action
+  feedback when they create a lifecycle operation. Deactivate uses destructive
+  color and copy; Provision stays secondary.
+
 Behavior notes:
 
 - Customer users must not see out-of-org devices.
@@ -203,6 +309,8 @@ Behavior notes:
 - Filters must preserve table scan speed and avoid card-wall layouts.
 - Read-only Observer sessions must be enforced by the backend before any
   provision or deactivate action is accepted.
+- Device action menus must not expose operation IDs, raw upstream errors,
+  `video_cloud_devid`, or platform-only lifecycle states in Customer View.
 
 ## Firmware & OTA
 
@@ -230,6 +338,11 @@ Behavior notes:
 - Production firmware distribution must use observed firmware and rollout facts
   from Video Cloud or the normalized telemetry read model, not generated sample
   versions.
+- Campaign drill-down is read-only. It may show device rollout status, reason,
+  and last updated values from the documented rollout facts, but it must not
+  introduce campaign create, pause, resume, cancel, or policy-edit workflows.
+- Unsupported policy values should be shown explicitly as unsupported rather
+  than silently mapped to an implemented policy.
 
 ## Stream Health
 
@@ -262,6 +375,87 @@ Behavior notes:
   drawer once route/state wiring is implemented.
 - Production stream metrics must use WebRTC session event data from Video Cloud
   or an equivalent normalized read model, not local demo-derived estimates.
+- The By Mode panel can show non-WebRTC rows only when backed by source data.
+  Do not imply RTSP/HLS production support from sample rows if the upstream
+  source reports WebRTC-only stream facts.
+- Stream attention rows must link to the Devices drawer or to a filtered Devices
+  route. They must not open a live viewer; stream preview/player is out of scope.
+
+## Complementary WebUI Surfaces
+
+The Customer View image batch does not cover every WebUI surface required by
+`SPEC.md`. The following surfaces are required for v0.1 but are governed by
+separate designs or by the app shell rules in this document.
+
+### Self-Service Signup And Verification
+
+Required routes:
+
+- `/signup`
+- `/signup/check-email`
+- `/verify`
+
+Design requirements:
+
+- Signup is for public evaluation-tier onboarding only. It creates a pending
+  Account Manager signup and must not be used for commercial brand-cloud user
+  creation.
+- The signup form collects the minimum Account Manager fields needed to start
+  evaluation onboarding and shows that verification email is required before
+  account use.
+- The check-email state explains that the user must verify email before signing
+  in. It may offer resend only through the Account Manager-backed API.
+- The verification landing state handles success, expired token, invalid token,
+  already verified, and service-unavailable outcomes. Success routes users
+  toward SSO or legacy login wiring for the newly verified account.
+- Evaluation-tier quota copy uses the Account Manager quota fields
+  `tier=evaluation` and `evaluation_device_quota`; it must not imply commercial
+  entitlement or automatic quota approval.
+
+### SSO Login And Session Gates
+
+Required behavior:
+
+- The primary sign-in panel is email-first SSO and sends users through Account
+  Manager discovery.
+- The UI displays redirecting, callback verification, denied access,
+  source-unavailable, and retry states.
+- Platform break-glass login is visually secondary, available only when enabled
+  by deployment configuration, and labeled as emergency local admin access.
+- Route gates distinguish unauthenticated, wrong-role, and missing-capability
+  states. A missing Customer View membership should not render empty fleet data.
+
+### Platform View Coverage Boundary
+
+The approved Customer View concepts do not complete Platform View design. The
+Platform View still requires implementation-aligned UI treatment for:
+
+- Service Health
+- SSO Providers
+- Operations Log
+- Audit Log
+
+Those pages use the same Realtek Ops Console shell and density, but they are
+Tier 1 only. Customer View must not show service health, audit data, raw
+operation payloads, `dead_lettered`, or platform customer browsing. Brand-cloud
+management routes are backend/BFF surfaces for future UI consumption and should
+not appear as a Platform View page until a dedicated design is approved.
+
+## Required Page States
+
+Each Customer View page and complementary auth surface must define these states
+before implementation is considered complete:
+
+- Loading: preserve the app shell and show panel-level loading text or skeletons.
+- Empty: explain that no source data exists for the current org/filter/window.
+- Filtered empty: identify that filters, not fleet absence, produced no rows.
+- Source unavailable: name the unavailable source category without leaking raw
+  upstream payloads.
+- Gateway error: show a retryable message and keep the last safe context when
+  possible.
+- Read-only: expose data normally and remove or disable write controls.
+- Mobile/tablet: keep the sidebar and tables usable; tables may scroll
+  horizontally rather than dropping required columns.
 
 ## Implementation Notes
 
@@ -274,13 +468,22 @@ Behavior notes:
 - Preserve URL-backed routes for directly linkable console views.
 - Do not include Groups in the first-batch sidebar or page set.
 - Treat the four approved images in this document as the visual source of truth
-  for Customer View implementation.
+  for Customer View work-area layout, density, and visual hierarchy.
+- When the images conflict with text requirements, the text requirements in
+  this document, `SPEC.md`, `ROLES.md`, and `admin-dashboard-redesign.md` win.
 
 ## Review Checklist
 
 - Customer View pages use the Realtek Ops Console palette and density.
 - All pages keep the left sidebar + main work area structure.
 - Customer View does not contain Platform View content.
+- Customer View navigation does not show Groups.
+- Auth, signup, verification, and route-gate states are covered.
+- Active organization switching is scoped to `/api/me.memberships`.
+- Evaluation quota display and quota raise request states are covered.
+- Read-only Observer sessions show read-only action behavior.
+- Source-unavailable, loading, empty, filtered-empty, and gateway-error states
+  are covered per panel.
 - Customer-safe field policy is followed.
 - Customer View network payloads are customer-safe, not just visually hidden in
   the React components.
