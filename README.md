@@ -213,7 +213,7 @@ in GitHub repository secrets and variables, not local `.env` files.
 ## CI
 
 `.github/workflows/ci.yml` runs on GitHub-hosted `ubuntu-latest`, initializes
-the contracts submodule with `CONTRACTS_REPO_TOKEN`, and runs
+the contracts submodule when `CONTRACTS_REPO_TOKEN` is configured, and runs
 `go test ./...`, `go build ./cmd/server`, `npm ci`, `npm test`,
 `npm run build`, and a native server smoke test.
 

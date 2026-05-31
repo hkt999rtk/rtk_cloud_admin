@@ -14,20 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Initialize contracts submodule
+      - name: Initialize contracts submodule when token is available
         env:
           CONTRACTS_REPO_TOKEN: ${{ secrets.CONTRACTS_REPO_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "$CONTRACTS_REPO_TOKEN" ]; then
-            cat >&2 <<'MSG'
-          Missing CONTRACTS_REPO_TOKEN.
-
-          The contracts submodule needs read access to the private
-          hkt999rtk/rtk_cloud_contracts_doc repository. Add a repository or
-          organization secret named CONTRACTS_REPO_TOKEN with read-only access.
-          MSG
-            exit 1
+            echo "::warning::CONTRACTS_REPO_TOKEN is not configured; skipping private contracts submodule checkout"
+            exit 0
           fi
           git config --global \
             url."https://x-access-token:${CONTRACTS_REPO_TOKEN}@github.com/hkt999rtk/rtk_cloud_contracts_doc.git".insteadOf \
