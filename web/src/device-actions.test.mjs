@@ -25,6 +25,20 @@ test('deviceActionState uses explicit capabilities for lifecycle writes', () => 
 
   const allowed = deviceActionState({ readiness: 'registered' }, 'provision', { capabilities: ['customer.devices.provision'] });
   assert.equal(allowed.enabled, true);
+
+  const wrongActionCapability = deviceActionState({ readiness: 'activated' }, 'deactivate', { capabilities: ['customer.devices.provision'] });
+  assert.equal(wrongActionCapability.enabled, false);
+  assert.match(wrongActionCapability.reason, /permission/);
+});
+
+test('deviceActionState keeps observer write gates even with lifecycle capabilities', () => {
+  const state = deviceActionState(
+    { readiness: 'registered' },
+    'provision',
+    { readOnly: true, capabilities: ['customer.devices.provision'] },
+  );
+  assert.equal(state.enabled, false);
+  assert.match(state.reason, /Read-only Observer/);
 });
 
 test('deviceActionState disables actions when telemetry source is unavailable', () => {

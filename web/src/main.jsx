@@ -2013,7 +2013,25 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
       value: (device) => device.last_seen_at,
       render: (device) => device.last_seen_at ? <time title={device.last_seen_at}>{formatRelativeTime(device.last_seen_at)}</time> : 'No transport evidence',
     },
-  ], []);
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      value: () => '',
+      render: (device) => (
+        <button
+          type="button"
+          className="table-action-button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setSelectedDeviceId(device.id);
+          }}
+        >
+          Inspect
+        </button>
+      ),
+    },
+  ], [setSelectedDeviceId]);
 
   const selectedTelemetry = selectedDevice ? telemetryById[selectedDevice.id] || null : null;
   const telemetryBusy = deviceDrawerOpen && selectedDevice?.id && telemetryLoadingId === selectedDevice.id && !selectedTelemetry;
@@ -2117,6 +2135,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
                 <StatusBadge value={normalizeStatusKey(device.readiness)} label={device.readiness_display} />
               </span>
               <time title={device.last_seen_at || ''}>{device.last_seen_at ? formatRelativeTime(device.last_seen_at) : 'No transport evidence'}</time>
+              <span className="mobile-row-action">Inspect</span>
             </button>
           )) : <p className="empty-state">No devices match the current filter.</p>}
         </div>

@@ -366,6 +366,8 @@ async function runDesktopSmoke(page) {
 
   await gotoAndAssert(page, '/console/devices?device=dev-1002', 'Devices');
   await expectText(page, 'Dock Door 07');
+  await expectText(page, 'Actions');
+  await expectText(page, 'Inspect');
   await expectText(page, 'Provision device');
   await screenshot(page, 'desktop-devices-drawer.png');
 
