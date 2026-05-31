@@ -18,6 +18,7 @@ Related contracts:
 - [FIRMWARE_CAMPAIGN.md](../rtk_cloud_contracts_doc/FIRMWARE_CAMPAIGN.md)
 - [FRONTEND_STYLE.md](../rtk_cloud_contracts_doc/FRONTEND_STYLE.md)
 - [HTTP_API.md](../rtk_cloud_contracts_doc/HTTP_API.md)
+- [sso-oidc-design.md](sso-oidc-design.md)
 
 ---
 
@@ -52,7 +53,9 @@ operators while preserving a clean internal view for Tier 1 roles.
 
 1. Surface the data Tier 2 operators actually need to manage their fleet.
 2. Remove internal implementation vocabulary (`cloud_activation_pending`, `dead_lettered`, `video_cloud_devid`, etc.) from Customer View routes.
-3. Ensure no Customer View route exposes Platform View data, and no Platform View route is reachable from Customer View navigation.
+3. Ensure no Customer View route exposes Platform View data, and Platform View
+   routes are reachable only through a visually separated, role-gated view
+   switcher or direct `/admin` route.
 4. Ground all new data surfaces in existing contracts (TELEMETRY_INSIGHTS,
    FIRMWARE_CAMPAIGN) to avoid inventing new vocabulary.
 
@@ -87,12 +90,14 @@ sidebar.
 
 ```
 Service Health   →  moved from customer view
+SSO Providers    →  Account Manager-backed provider status/settings
 Operations       →  operations log (existing, refined)
 Audit Log        →  new section (uses existing audit_events table)
 ```
 
-The two views should have clearly differentiated entry points. A nav switcher
-or separate route prefix (`/admin/ops`) is acceptable. Do not intermix Tier 2
+The two views should have clearly differentiated entry points. A visually
+separate view switcher is acceptable when it is gated by role and route guards;
+it is not part of the Customer View section navigation. Do not intermix Tier 2
 customer content and Tier 1 platform content on the same page.
 
 ---
@@ -355,6 +360,42 @@ move out of Customer View into Platform View.
 When a service is in `demo` mode, the "Demo Mode" banner appears in Platform
 View only.
 
+### SSO Providers (new)
+
+Platform View includes an SSO Providers page for Tier 1 Platform Admins. This
+page aligns with [sso-oidc-design.md](sso-oidc-design.md): Account Manager owns
+identity provider configuration, OIDC exchange, external identity mapping, and
+role authorization; Admin Console only renders the BFF-facing status/settings
+surface and forwards changes to Account Manager.
+
+Required layout:
+
+- Organization SSO status table, one row per customer organization visible to
+  the platform admin.
+- Provider status badge: Not configured / Configured / Disabled / Error.
+- Protocol display: OIDC first; SAML remains deferred and must not be presented
+  as available.
+- Domain or issuer summary where Account Manager exposes it.
+- Last updated and last test/check timestamp when available.
+- Row-level edit action for provider settings when the session has the required
+  platform SSO capability.
+
+Required behavior:
+
+- Daily customer and platform login is SSO-first. Local platform password login
+  is a secondary break-glass path only when enabled by deployment configuration.
+- Provider secrets are never displayed and are never stored in Admin Console
+  SQLite.
+- Raw IdP claims are not shown as product authorization facts. Display resolved
+  Account Manager roles/capabilities only when such a read model is explicitly
+  available.
+- Customer users cannot see this page.
+- Empty state: no customer organizations or no provider status returned.
+- Error state: Account Manager SSO status unavailable, with retry affordance.
+- Audit expectations: provider setting changes should be audited by Account
+  Manager; Admin Console local audit may record the forwarding action if a local
+  audit hook exists.
+
 ### Operations Log (refined)
 
 The Operations page is retained for Tier 1 platform operators.
@@ -546,7 +587,10 @@ The following are intentionally deferred:
 
 - Device group creation and management UI (depends on device-group feature)
 - Alert notification rules and email/webhook delivery
-- Multi-org / platform-level fleet aggregation (single-org only for now)
+- Customer View multi-org fleet aggregation. Customer pages remain scoped to the
+  active organization; Platform View may still show cross-tenant admin read
+  models that are already documented in `SPEC.md` and
+  `backend-api-gap-audit.md`.
 - Stream viewer / live preview
 - Tenant impersonation for Tier 1 Platform Admin
 - Role assignment UI
@@ -568,7 +612,7 @@ The following are intentionally deferred:
     ├── Devices Table (improved)
     ├── Firmware & OTA (new)
     ├── Stream Health (new)
-    └── Platform View (reorganized)
+    └── Platform View (Service Health, SSO Providers, Operations Log, Audit Log)
 ```
 
 Backend work in rtk_video_cloud is the critical path dependency for
@@ -591,10 +635,14 @@ For each new frontend section, the implementation must verify:
 - Empty states are defined (e.g., "No campaigns active", "No stream requests in selected window")
 - Tables show the most actionable items first (worst-performing devices at top)
 - Color usage follows FRONTEND_STYLE.md tokens
-- Platform View content does not appear in any Customer View route, and no Customer View navigation links to a Platform View route
+- Platform View content does not appear in any Customer View route, and Platform
+  View links appear only in the visually separated, role-gated view switcher.
 - Customer View payloads omit customer-hidden fields at the backend boundary,
   not only in React rendering.
 - The backend route handler for each section returns 403 for any session whose
   role is not listed in that section's "Primary users" annotation. Read-only
   Observer sessions must be rejected by provision, deactivate, and future tenant
   write handlers.
+- SSO Providers follows `sso-oidc-design.md`: Account Manager remains the
+  identity provider source of truth, secrets are never displayed or stored in
+  Admin Console SQLite, and SAML is not shown as implemented.
