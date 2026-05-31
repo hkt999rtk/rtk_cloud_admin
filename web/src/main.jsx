@@ -1,6 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { customerNavItems, devicesPathWithFilters, platformNavItems, routeFromLocation, titleFor } from './routes.mjs';
+import {
+  customerNavItems,
+  devicesPathWithFilters,
+  isPlatformRouteId,
+  isPublicRouteId,
+  navItemsForRoute,
+  platformNavItems,
+  routeFromLocation,
+  titleFor,
+} from './routes.mjs';
 import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
 import { quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
@@ -32,9 +41,9 @@ function App() {
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
-  const isPublicRoute = active === 'signup' || active === 'signup-check-email' || active === 'verify';
-  const isPlatformView = active.startsWith('platform');
-  const visibleNavItems = isPlatformView ? platformNavItems : customerNavItems;
+  const isPublicRoute = isPublicRouteId(active);
+  const isPlatformView = isPlatformRouteId(active);
+  const visibleNavItems = navItemsForRoute(active);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
   const customerViewPending = !isPlatformView && !isPublicRoute && me === null;
   const customerViewBlocked = !isPlatformView && !isPublicRoute && me !== null && (me.authenticated === false || me.kind === 'platform_admin');
@@ -1307,20 +1316,6 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
       ) : (
         <p className="empty-state">{unavailableText}</p>
       )}
-    </section>
-  );
-}
-
-function GroupsPage() {
-  return (
-    <section className="panel">
-      <div className="panel-head">
-        <div>
-          <h2>Groups</h2>
-          <p>Customer group management and membership assignment will be added here.</p>
-        </div>
-      </div>
-      <p className="placeholder-subtitle">Placeholder area for customer group workspace.</p>
     </section>
   );
 }
