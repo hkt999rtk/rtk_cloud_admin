@@ -21,7 +21,7 @@ import {
   sourceUnavailableFromError,
   telemetrySourceState,
 } from './source-state.mjs';
-import { streamWorstDeviceRows } from './stream.mjs';
+import { streamAttentionRows, streamModeRows, streamWorstDeviceRows } from './stream.mjs';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -1189,6 +1189,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
   const modeTrends = stats?.trend_by_mode || [];
   const worstDevices = streamWorstDeviceRows(stats?.worst_devices || []);
   const byMode = stats?.by_mode || {};
+  const modeRows = streamModeRows(byMode);
   const available = sourceAvailable(stats);
   const pageState = sourceStateForPanel({
     loading,
@@ -1318,8 +1319,8 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
             )}
 
             <div className="stream-mode-summary">
-              {['webrtc'].map((mode) => {
-                const statsForMode = byMode[mode] || {};
+              {modeRows.length ? modeRows.map((statsForMode) => {
+                const mode = statsForMode.mode;
                 return (
                   <div key={mode} className="stream-mode-summary__item">
                     <span>{streamModeLabel(mode)}</span>
@@ -1327,7 +1328,9 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
                     <small>{statsForMode.requests ?? 0} requests</small>
                   </div>
                 );
-              })}
+              }) : (
+                <p className="empty-state">No source-backed stream mode data in selected window.</p>
+              )}
             </div>
           </section>
 
@@ -1364,7 +1367,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
               <p className="empty-state">No stream requests in selected window.</p>
             )}
           </section>
-          <StreamAttentionPanel devices={devices} onOpenDevice={onOpenDevice} />
+          <StreamAttentionPanel stats={stats} onOpenDevice={onOpenDevice} />
         </div>
       ) : (
         <p className="empty-state">{unavailableText}</p>
@@ -1827,8 +1830,8 @@ function AttentionQueuePanel({ loading, items, onOpenDevice }) {
   );
 }
 
-function StreamAttentionPanel({ devices, onOpenDevice }) {
-  const items = buildStreamAttentionItems(devices);
+function StreamAttentionPanel({ stats, onOpenDevice }) {
+  const items = streamAttentionRows(stats);
   return (
     <section className="panel stream-attention-panel">
       <div className="panel-head">
@@ -3020,21 +3023,6 @@ function buildAttentionQueue(devices, alerts) {
     })
     .filter(Boolean)
     .sort((left, right) => right.score - left.score || left.device_name.localeCompare(right.device_name));
-}
-
-function buildStreamAttentionItems(devices) {
-  return devices
-    .map((device) => {
-      const health = String(device.health || 'unknown').toLowerCase();
-      const signal = String(device.signal_quality || '').toLowerCase();
-      const readiness = String(device.readiness || '').toLowerCase();
-      if (health === 'critical') return { device_id: device.id, device_name: device.name, health, issue: 'Low success rate or offline risk' };
-      if (signal === 'poor') return { device_id: device.id, device_name: device.name, health, issue: 'Intermittent stream signal' };
-      if (readiness !== 'online' && readiness !== 'activated') return { device_id: device.id, device_name: device.name, health, issue: 'Never streamed or not ready' };
-      return null;
-    })
-    .filter(Boolean)
-    .slice(0, 5);
 }
 
 function formatTierLabel(tier) {
