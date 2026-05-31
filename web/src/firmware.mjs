@@ -7,9 +7,21 @@ const statusPriority = {
   applied: 5,
 };
 
+const supportedPolicies = new Set(['normal', 'staged', 'maintenance_window', 'manual']);
+
 export function firmwareVersionFilterValue(version) {
   const normalized = String(version || '').trim();
   return normalized && normalized.toLowerCase() !== 'unknown' ? normalized : 'unknown';
+}
+
+export function firmwarePolicyLabel(policy) {
+  const normalized = String(policy || 'normal').trim().toLowerCase();
+  if (!normalized) return 'Normal';
+  if (!supportedPolicies.has(normalized)) return `Unsupported policy: ${policy}`;
+  return normalized
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 export function firmwareCampaignDetailRows(campaign = {}) {

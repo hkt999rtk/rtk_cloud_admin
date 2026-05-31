@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { firmwareCampaignDetailRows, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
+import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
 
 const campaign = {
   campaign_id: 'campaign-1',
@@ -32,8 +32,19 @@ test('firmwareRiskRows includes unknown firmware as operational risk', () => {
   assert.deepEqual(rows.map((row) => row.device_id), ['dev-d', 'dev-c', 'dev-b']);
 });
 
+test('firmwareRiskRows handles empty campaign data', () => {
+  assert.deepEqual(firmwareRiskRows([], 10), []);
+});
+
 test('firmwareVersionFilterValue preserves unknown firmware filter', () => {
   assert.equal(firmwareVersionFilterValue(''), 'unknown');
   assert.equal(firmwareVersionFilterValue('Unknown'), 'unknown');
   assert.equal(firmwareVersionFilterValue('v1.2.4'), 'v1.2.4');
+});
+
+test('firmwarePolicyLabel marks unsupported policy values explicitly', () => {
+  assert.equal(firmwarePolicyLabel('staged'), 'Staged');
+  assert.equal(firmwarePolicyLabel('normal'), 'Normal');
+  assert.equal(firmwarePolicyLabel('region_canary'), 'Unsupported policy: region_canary');
+  assert.equal(firmwarePolicyLabel(''), 'Normal');
 });
