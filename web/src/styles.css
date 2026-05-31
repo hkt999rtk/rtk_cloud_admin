@@ -2056,6 +2056,21 @@ tbody tr:hover,
   background: rgba(0, 104, 183, 0.06);
 }
 
+.table-action-button {
+  background: #fff;
+  border: 1px solid rgba(0, 104, 183, 0.22);
+  border-radius: 7px;
+  color: var(--brand);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 7px 10px;
+}
+
+.table-action-button:hover {
+  background: rgba(0, 104, 183, 0.08);
+}
+
 th {
   color: var(--muted);
   font-size: 12px;
@@ -2435,6 +2450,11 @@ th {
   .mobile-device-row small,
   .mobile-device-row time {
     color: var(--muted);
+  }
+
+  .mobile-row-action {
+    color: var(--brand);
+    font-weight: 700;
   }
 
   .topbar,
