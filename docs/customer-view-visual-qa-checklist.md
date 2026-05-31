@@ -147,3 +147,15 @@ Use this mapping when reviewing developer issues opened from
 - Tables scroll horizontally rather than clipping columns.
 - Drawer fits within viewport and remains scrollable.
 - Charts remain visible and do not overlap adjacent panels.
+
+## Final Signoff
+
+- Status: admin repo WebUI design scope is implementation-ready and smoke-tested
+  for the current mocked BFF contract.
+- Browser QA command: `cd web && npm run browser:smoke`.
+- Final smoke coverage includes desktop Customer View, Platform View, public
+  auth routes, and mobile Devices/signup checks. Screenshots are emitted to
+  `.artifacts/browser-smoke/`.
+- Remaining production validation blockers are upstream source availability for
+  telemetry, firmware rollout facts, and WebRTC session facts; these are tracked
+  separately from Customer View and Platform View UI completion.
