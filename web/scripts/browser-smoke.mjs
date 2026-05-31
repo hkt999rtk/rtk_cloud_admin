@@ -364,6 +364,15 @@ async function runDesktopSmoke(page) {
   await expectText(page, 'Active Streams');
   await screenshot(page, 'desktop-overview.png');
 
+  await gotoAndAssert(page, '/signup', 'Sign up');
+  await expectText(page, 'evaluation-tier');
+  await expectText(page, 'Create account');
+  await gotoAndAssert(page, '/signup/check-email?email=fleet.manager%40example.com', 'Check your email');
+  await expectText(page, 'Resend');
+  await gotoAndAssert(page, '/verify', 'Verify email');
+  await expectText(page, 'Waiting for verification link');
+  await screenshot(page, 'desktop-public-auth.png');
+
   await gotoAndAssert(page, '/console/devices?device=dev-1002', 'Devices');
   await expectText(page, 'Dock Door 07');
   await expectText(page, 'Actions');
@@ -388,6 +397,14 @@ async function runDesktopSmoke(page) {
   await expectText(page, 'Provisioning succeeded');
   await expectText(page, 'Raw type: DeviceProvisionSucceeded');
   await screenshot(page, 'desktop-platform-operations.png');
+
+  await gotoAndAssert(page, '/admin/sso', 'SSO Providers');
+  await expectText(page, 'OIDC is the first supported protocol');
+  await screenshot(page, 'desktop-platform-sso.png');
+
+  await gotoAndAssert(page, '/admin/audit', 'Audit Log');
+  await expectText(page, 'Current write coverage');
+  await screenshot(page, 'desktop-platform-audit.png');
 }
 
 async function runMobileSmoke(browserContext) {
@@ -407,6 +424,10 @@ async function runMobileSmoke(browserContext) {
     throw new Error('Mobile Devices view must hide the full table and show compact rows.');
   }
   await screenshot(page, 'mobile-devices.png');
+
+  await gotoAndAssert(page, '/signup', 'Sign up');
+  await expectText(page, 'Create account');
+  await screenshot(page, 'mobile-public-signup.png');
 
   if (consoleIssues.length) {
     throw new Error(`Mobile console issues detected:\n${consoleIssues.join('\n')}`);
