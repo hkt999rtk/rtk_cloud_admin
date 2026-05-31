@@ -13,7 +13,7 @@ import {
 import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
-import { firmwareCampaignDetailRows, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
+import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
 import {
   sourceAvailable,
   sourceMessage,
@@ -1022,7 +1022,7 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
                     >
                       <strong>{campaign.campaign_id}</strong>
                       <span>{campaign.target_version}</span>
-                      <span>{campaign.policy || 'normal'}</span>
+                      <span>{firmwarePolicyLabel(campaign.policy)}</span>
                       <StatusBadge value={normalizeStatusKey(campaign.state)} label={toTitleCase(campaign.state || 'unknown')} />
                       <span>{campaign.applied} ({formatPercent(campaign.total ? campaign.applied / campaign.total * 100 : 0)})</span>
                       <span>{campaign.pending} ({formatPercent(campaign.total ? campaign.pending / campaign.total * 100 : 0)})</span>
@@ -1113,7 +1113,7 @@ function FirmwareCampaignSummary({ campaign }) {
       <div className="panel-head">
         <div>
           <h3>Rollout Campaign Summary</h3>
-          <p>Target {campaign.target_version} / {campaign.policy || 'normal'} / {campaign.started_at ? formatRelativeTime(campaign.started_at) : 'not started'}</p>
+          <p>Target {campaign.target_version} / {firmwarePolicyLabel(campaign.policy)} / {campaign.started_at ? formatRelativeTime(campaign.started_at) : 'not started'}</p>
         </div>
         <StatusBadge value={normalizeStatusKey(campaign.state)} label={toTitleCase(campaign.state || 'unknown')} />
       </div>
