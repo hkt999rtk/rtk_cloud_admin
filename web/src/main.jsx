@@ -11,7 +11,7 @@ import {
   titleFor,
 } from './routes.mjs';
 import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs';
-import { quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
+import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
 import {
@@ -754,6 +754,11 @@ function QuotaRaiseForm({ organizationId, organizationName, currentUsage, curren
     event.preventDefault();
     setBusy(true);
     setLocalError('');
+    if (!Number.isFinite(Number(requestedQuota)) || Number(requestedQuota) <= Number(currentUsage || 0)) {
+      setLocalError('Quota request needs a valid requested quota and use case.');
+      setBusy(false);
+      return;
+    }
     try {
       const result = await onSubmit(organizationId, {
         requested_quota: Number(requestedQuota),
@@ -769,8 +774,8 @@ function QuotaRaiseForm({ organizationId, organizationName, currentUsage, curren
         return;
       }
       setLastStatus(result?.quota_raise_request?.status ? `Latest request: ${result.quota_raise_request.status}` : 'Latest request submitted.');
-    } catch (_) {
-      setLocalError('Quota-raise request failed.');
+    } catch (err) {
+      setLocalError(quotaRaiseErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -880,7 +885,7 @@ function Overview({
       </section>
 
       <section className="overview-lower-grid">
-        <RecentAlertsPanel loading={loading} alerts={recentAlerts} source={fleetHealth} />
+        <RecentAlertsPanel loading={loading} alerts={recentAlerts} source={fleetHealth} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
         <AttentionQueuePanel loading={loading} items={attentionDevices} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
       </section>
 
@@ -1749,7 +1754,7 @@ function HealthDistributionPanel({ loading, current, onFilter, source }) {
   );
 }
 
-function RecentAlertsPanel({ loading, alerts, source }) {
+function RecentAlertsPanel({ loading, alerts, source, onOpenDevice }) {
   const available = sourceAvailable(source);
   return (
     <section className="panel overview-panel alerts-panel">
@@ -1772,12 +1777,12 @@ function RecentAlertsPanel({ loading, alerts, source }) {
             <span>Health</span>
           </div>
           {alerts.map((alert) => (
-            <div className="alerts-table-row" key={alert.id}>
+            <button type="button" className="alerts-table-row" key={alert.id} onClick={() => onOpenDevice(alert.device_id)}>
               <time title={alert.occurred_at}>{formatRelativeTime(alert.occurred_at)}</time>
               <strong>{alert.device_name}</strong>
               <span>{alert.signal}</span>
               <StatusBadge value={normalizeStatusKey(alert.health)} label={toTitleCase(alert.health)} />
-            </div>
+            </button>
           ))}
         </div>
       ) : (
@@ -3104,6 +3109,7 @@ async function fetchRecentAlerts(devices) {
     for (const event of telemetry.recent_events || []) {
       alerts.push({
         id: `${device.id}:${event.occurred_at}:${event.event_type}`,
+        device_id: device.id,
         occurred_at: event.occurred_at,
         device_name: device.name,
         signal: alertSignalLabel(event.event_type, event.summary),
