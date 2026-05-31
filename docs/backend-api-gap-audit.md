@@ -145,18 +145,21 @@ validation.
 
 ### Admin Repo Follow-Up Work
 
-Status: open WebUI issues.
+Status: tracked in [webui-implementation-roadmap.md](webui-implementation-roadmap.md).
 
 These items can be implemented in `rtk_cloud_admin` without making this repo the
-source of truth for upstream facts:
+source of truth for upstream facts. Open developer issues from the roadmap
+milestones, not from ad hoc page lists:
 
-- Harden source-aware UI states for Customer View pages and device telemetry.
-- Complete Devices filter, drill-down, and drawer action workflows.
-- Add read-only Firmware & OTA campaign drill-downs.
-- Add Stream Health worst-device and attention drill-downs.
-- Polish Platform View guards, Operations Log, and Audit Log states.
-- Complete SSO, signup, and quota UX states around the existing BFF routes.
-- Add repeatable browser QA coverage for desktop and mobile console workflows.
+1. WebUI foundation cleanup and route guards.
+2. Customer View source-aware page states.
+3. Fleet Health Overview completion.
+4. Devices table and detail drawer completion.
+5. Firmware & OTA read-only workflows.
+6. Stream Health read-only workflows.
+7. Public auth, signup, verification, and quota UX polish.
+8. Platform View polish.
+9. Final WebUI browser QA and documentation signoff.
 
 Production telemetry, firmware rollout, and stream-session facts remain
 upstream blockers. Admin Console must show blocked/unavailable states when
