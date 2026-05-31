@@ -212,9 +212,10 @@ in GitHub repository secrets and variables, not local `.env` files.
 
 ## CI
 
-`.github/workflows/ci.yml` checks out submodules and runs `go test ./...`,
-`go build ./cmd/server`, `npm ci`, `npm test`, `npm run build`, and a native
-server smoke test on the self-hosted `rtk-cloud-admin-ci` runner.
+`.github/workflows/ci.yml` runs on GitHub-hosted `ubuntu-latest`, initializes
+the contracts submodule with `CONTRACTS_REPO_TOKEN`, and runs
+`go test ./...`, `go build ./cmd/server`, `npm ci`, `npm test`,
+`npm run build`, and a native server smoke test.
 
 `.github/workflows/release.yml` runs only for `v*` tags or manual dispatch.
 Manual dispatch builds and verifies a release bundle as a GitHub workflow
@@ -222,7 +223,7 @@ artifact. Tag-triggered runs also publish the release bundle to Linode Object
 Storage and attach assets to the GitHub Release. Normal PR and main CI do not
 upload release artifacts.
 
-Runner health and recovery notes live in [`docs/ci-runner.md`](docs/ci-runner.md).
+CI environment notes live in [`docs/ci-runner.md`](docs/ci-runner.md).
 
 ## Contracts
 
