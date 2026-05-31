@@ -123,6 +123,23 @@ Reference: `docs/assets/webui-design/customer-stream-health.png`
 - Brand-cloud management routes are future UI consumption surfaces and do not
   appear as a Platform View page without a dedicated design.
 
+## Issue Coverage Mapping
+
+Use this mapping when reviewing developer issues opened from
+`docs/webui-implementation-roadmap.md`.
+
+| Roadmap milestone | QA focus |
+| --- | --- |
+| 1. WebUI foundation cleanup and route guards | Global shell, hidden Groups, role-gated Platform switcher, wrong-role route gates |
+| 2. Customer View source-aware page states | Loading, empty, filtered-empty, source-unavailable, gateway-error, and read-only panel states |
+| 3. Fleet Health Overview completion | Overview KPI strip, trend chart, health distribution, recent alerts, attention queue, quota callout |
+| 4. Devices table and detail drawer completion | Device filters, selected row, drawer overview, source facts, telemetry panels, provision/deactivate states |
+| 5. Firmware & OTA read-only workflows | Firmware distribution, campaign summary/table, read-only drill-down, unsupported policies, firmware risk queue |
+| 6. Stream Health read-only workflows | Stream KPIs, trend, source-backed By Mode rows, per-device table, attention routing |
+| 7. Public auth, signup, verification, and quota UX polish | SSO-first login, signup/check-email/verify states, quota request states, break-glass secondary treatment |
+| 8. Platform View polish | Service Health, SSO Providers, Operations Log, Audit Log, Tier 1-only boundaries |
+| 9. Final WebUI browser QA and documentation signoff | Desktop/mobile browser smoke, visual checklist closure, documented remaining upstream blockers |
+
 ## Responsive Checks
 
 - At desktop width, sidebar stays fixed-width and tables remain readable.
