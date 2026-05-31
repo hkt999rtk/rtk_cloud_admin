@@ -14,7 +14,13 @@ import { postJSON, putJSON, startSSOLogin, userFacingSSOError } from './http.mjs
 import { quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
-import { sourceAvailable, sourceMessage } from './source-state.mjs';
+import {
+  sourceAvailable,
+  sourceMessage,
+  sourceStateForPanel,
+  sourceUnavailableFromError,
+  telemetrySourceState,
+} from './source-state.mjs';
 import { streamWorstDeviceRows } from './stream.mjs';
 import './styles.css';
 
@@ -129,7 +135,11 @@ function App() {
           setSSOProviders([]);
         }
         if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin') {
-          const nextFirmwareDistribution = await fetchJSON('/api/fleet/firmware-distribution');
+          const nextFirmwareDistribution = await fetchJSON('/api/fleet/firmware-distribution')
+            .catch((err) => {
+              if (err.isAuthError) throw err;
+              return sourceUnavailableFromError('firmware', err);
+            });
           if (!alive) return;
           setFirmwareDistribution(nextFirmwareDistribution);
         } else {
@@ -139,13 +149,21 @@ function App() {
         if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
           const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
           const [nextFleetHealth, nextStreamStats] = await Promise.all([
-            fetchJSON(`/api/fleet/health-summary?window=${overviewWindow}`),
-            fetchJSON(`/api/fleet/stream-stats?window=${streamWindowToUse}`),
+            fetchJSON(`/api/fleet/health-summary?window=${overviewWindow}`)
+              .catch((err) => {
+                if (err.isAuthError) throw err;
+                return sourceUnavailableFromError('telemetry', err);
+              }),
+            fetchJSON(`/api/fleet/stream-stats?window=${streamWindowToUse}`)
+              .catch((err) => {
+                if (err.isAuthError) throw err;
+                return sourceUnavailableFromError('stream', err);
+              }),
           ]);
           if (!alive) return;
           setFleetHealth(nextFleetHealth);
           setStreamStats(nextStreamStats);
-          if (active === 'overview') {
+          if (active === 'overview' && sourceAvailable(nextFleetHealth)) {
             const nextAlerts = await fetchRecentAlerts(nextDevices);
             if (!alive) return;
             setRecentAlerts(nextAlerts);
@@ -809,13 +827,27 @@ function Overview({
   const onlineCount = summary?.online_devices ?? '-';
   const telemetryAvailable = sourceAvailable(fleetHealth);
   const streamAvailable = sourceAvailable(streamStats);
+  const telemetryState = sourceStateForPanel({
+    loading,
+    source: fleetHealth,
+    hasData: Boolean(fleetHealth?.current || fleetHealth?.trend?.length),
+    category: 'telemetry',
+    fallbackMessage: 'No telemetry source configured.',
+  });
+  const streamState = sourceStateForPanel({
+    loading,
+    source: streamStats,
+    hasData: Boolean(streamStats?.trend?.length || streamStats?.active_sessions || streamStats?.worst_devices?.length),
+    category: 'stream',
+    fallbackMessage: 'No stream source configured.',
+  });
   const onlineRate = telemetryAvailable ? fleetHealth?.online_rate_7d_pct : null;
   const needsAttention = telemetryAvailable && (current.warning !== undefined || current.critical !== undefined)
     ? (current.warning || 0) + (current.critical || 0)
     : 'Unavailable';
   const activeStreams = streamAvailable ? (streamStats?.active_sessions ?? 0) : 'Unavailable';
-  const telemetryReason = sourceMessage(fleetHealth, 'No telemetry source configured.');
-  const streamReason = sourceMessage(streamStats, 'No stream source configured.');
+  const telemetryReason = telemetryState.message || sourceMessage(fleetHealth, 'No telemetry source configured.');
+  const streamReason = streamState.message || sourceMessage(streamStats, 'No stream source configured.');
   const attentionDevices = buildAttentionQueue(devices, recentAlerts);
 
   return (
@@ -829,7 +861,7 @@ function Overview({
         <MetricCard icon="ST" label="Active Streams" value={activeStreams} hint={streamAvailable ? `of ${summary?.total_devices ?? 0} devices` : streamReason} tone="info" />
       </section>
 
-      {!telemetryAvailable ? <SourceBlockedState title="Telemetry source unavailable" message={telemetryReason} /> : null}
+      {!telemetryAvailable ? <SourceBlockedState title={telemetryState.title} message={telemetryReason} /> : null}
 
       <section className="overview-grid">
         <FleetHealthTrendPanel
@@ -876,7 +908,15 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
   const campaigns = distribution?.campaigns || [];
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const available = sourceAvailable(distribution);
-  const unavailableText = sourceMessage(distribution, 'Firmware observation source is not configured.');
+  const pageState = sourceStateForPanel({
+    loading,
+    source: distribution,
+    hasData: Boolean(versions.length || campaigns.length),
+    category: 'firmware',
+    fallbackMessage: 'Firmware observation source is not configured.',
+    emptyMessage: 'No firmware distribution data available.',
+  });
+  const unavailableText = pageState.message || sourceMessage(distribution, 'Firmware observation source is not configured.');
   const totalDevices = versions.reduce((sum, version) => sum + (version.count || 0), 0);
   const activeCampaigns = campaigns.filter((campaign) => ['active', 'scheduled'].includes(String(campaign.state || '').toLowerCase())).length;
   const latestVersionRow = versions.find((version) => version.is_latest) || versions[0] || null;
@@ -904,7 +944,7 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
       </section>
 
       {loading && !distribution ? <p className="empty-state">Loading firmware distribution.</p> : null}
-      {distribution && !available ? <SourceBlockedState title="Firmware source unavailable" message={unavailableText} /> : null}
+      {distribution && !available ? <SourceBlockedState title={pageState.title} message={unavailableText} /> : null}
 
       {distribution && available ? (
         <>
@@ -1145,7 +1185,15 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
   const worstDevices = streamWorstDeviceRows(stats?.worst_devices || []);
   const byMode = stats?.by_mode || {};
   const available = sourceAvailable(stats);
-  const unavailableText = sourceMessage(stats, 'WebRTC session event source is not configured.');
+  const pageState = sourceStateForPanel({
+    loading,
+    source: stats,
+    hasData: Boolean(trend.length || worstDevices.length || stats?.active_sessions),
+    category: 'stream',
+    fallbackMessage: 'WebRTC session event source is not configured.',
+    emptyMessage: 'No stream requests in selected window.',
+  });
+  const unavailableText = pageState.message || sourceMessage(stats, 'WebRTC session event source is not configured.');
   const windowLabel = String(streamWindow || '7d').toUpperCase();
   const chart = useMemo(() => buildStreamHealthChart(trend, modeTrends), [trend, modeTrends]);
   const kpis = [
@@ -1196,7 +1244,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
         ))}
       </section>
 
-      {!available && stats ? <SourceBlockedState title="Stream source unavailable" message={unavailableText} /> : null}
+      {!available && stats ? <SourceBlockedState title={pageState.title} message={unavailableText} /> : null}
 
       {loading && !stats ? (
         <p className="empty-state">Loading stream health data.</p>
@@ -2139,7 +2187,8 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
   const drawerLastSeen = telemetry?.last_seen_at || device?.last_seen_at || '';
   const drawerFirmware = telemetry?.firmware_version || device?.firmware_version || '—';
   const telemetryAvailable = telemetry?.telemetry_status === 'available';
-  const telemetryUnavailableText = telemetry?.unavailable_reason || error || 'Telemetry source is unavailable for this device.';
+  const telemetryState = telemetrySourceState({ telemetry, loading, error });
+  const telemetryUnavailableText = telemetryState.message || 'Telemetry source is unavailable for this device.';
   const streamStatus = deriveStreamStatus(telemetry);
   const actionContext = { readOnly, capabilities, telemetryStatus: telemetry?.telemetry_status };
   const provisionState = deviceActionState(device, 'provision', actionContext);
@@ -2189,7 +2238,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             {loading ? <p className="empty-state">Loading telemetry for this device.</p> : null}
             {!loading && (error || (telemetry && !telemetryAvailable)) ? (
               <section className="drawer-unavailable">
-                <strong>Telemetry unavailable</strong>
+                <strong>{telemetryState.title}</strong>
                 <p>{telemetryUnavailableText}</p>
               </section>
             ) : null}
