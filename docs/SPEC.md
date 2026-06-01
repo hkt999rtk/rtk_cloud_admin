@@ -121,6 +121,10 @@ Data ownership:
 
 ## HTTP Interface
 
+The machine-readable BFF API contract is maintained in
+[`docs/openapi.yaml`](openapi.yaml). Keep that file in sync when adding,
+renaming, or changing JSON API routes registered by `internal/app`.
+
 Public and shared routes:
 
 - `GET /healthz`: plain health check.

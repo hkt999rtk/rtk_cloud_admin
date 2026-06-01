@@ -1,0 +1,1968 @@
+openapi: 3.0.3
+info:
+  title: RTK Cloud Admin BFF API
+  version: 0.1.0
+  license:
+    name: Proprietary
+  description: |
+    HTTP API exposed by `rtk_cloud_admin` for the Admin Console web UI.
+
+    This service is a BFF. Account Manager remains authoritative for identity,
+    organizations, membership, brand-cloud records, registry devices, quota
+    requests, and SSO provider configuration. Video Cloud remains authoritative
+    for activation, telemetry, firmware, and streaming facts. Admin Console
+    stores local sessions, break-glass platform admins, audit metadata, and demo
+    projections.
+
+    All JSON endpoints may return `text/plain` error responses from Go
+    `http.Error` for validation, authorization, and upstream failures.
+servers:
+  - url: /
+    description: Same-origin Admin Console server
+tags:
+  - name: Health
+    description: Process and upstream health checks.
+  - name: Auth
+    description: Login, logout, signup, verification, and SSO session creation.
+  - name: Session
+    description: Current user and active organization state.
+  - name: Customer
+    description: Customer-scoped organization and account workflows.
+  - name: Platform Admin
+    description: Platform-admin protected operations.
+  - name: Devices
+    description: Device inventory, detail, telemetry, and lifecycle actions.
+  - name: Fleet
+    description: Customer fleet health, stream, firmware, and telemetry projections.
+  - name: Operations
+    description: Provisioning and deactivation lifecycle operations.
+  - name: Audit
+    description: Audit event views.
+  - name: Brand Clouds
+    description: Account Manager-backed brand-cloud administration.
+  - name: SSO
+    description: Account Manager-backed OIDC SSO configuration and flows.
+security:
+  - SessionCookie: []
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Process health check
+      security: []
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "ok\n"
+
+  /api/auth/customer/signup:
+    post:
+      tags: [Auth]
+      summary: Start customer self-service signup
+      description: Proxies signup to Account Manager. Requires `ACCOUNT_MANAGER_BASE_URL`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+      responses:
+        "202":
+          description: Signup accepted; Account Manager created a pending user and organization.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignupResult"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/customer/login:
+    post:
+      tags: [Auth]
+      summary: Legacy customer password login
+      description: Disabled unless `LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED=true`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login succeeded and set `rtk_admin_session`.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: HTTP-only `rtk_admin_session` cookie.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusOK"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/customer/verify-email:
+    post:
+      tags: [Auth]
+      summary: Verify a customer signup email token
+      description: Proxies token verification to Account Manager and creates a customer session when tokens are returned.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthTokenRequest"
+      responses:
+        "200":
+          description: Verification succeeded.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: HTTP-only `rtk_admin_session` cookie when Account Manager returns tokens.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyEmailResult"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/customer/resend-verification:
+    post:
+      tags: [Auth]
+      summary: Resend customer email verification
+      description: Proxies resend request to Account Manager.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "202":
+          description: Resend accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusAccepted"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/sso/start:
+    post:
+      tags: [SSO, Auth]
+      summary: Start Account Manager-backed SSO
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SSOStartRequest"
+      responses:
+        "200":
+          description: SSO provider was resolved and a redirect URL was returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SSOStartResult"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/sso/callback:
+    get:
+      tags: [SSO, Auth]
+      summary: Complete Account Manager-backed SSO
+      description: Exchanges `code` and `state`, creates a local session, then redirects to `/console` or `/admin`.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Code"
+        - $ref: "#/components/parameters/State"
+        - name: redirect_uri
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+      responses:
+        "302":
+          description: Session created; browser redirected to the console.
+          headers:
+            Location:
+              schema:
+                type: string
+                enum: [/console, /admin]
+            Set-Cookie:
+              schema:
+                type: string
+              description: HTTP-only `rtk_admin_session` cookie.
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/platform/login:
+    post:
+      tags: [Auth, Platform Admin]
+      summary: Local platform-admin break-glass login
+      description: Disabled unless `ADMIN_BREAK_GLASS_ENABLED=true`; daily admin login should use SSO.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login succeeded and set `rtk_admin_session`.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: HTTP-only `rtk_admin_session` cookie.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusOK"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/logout:
+    post:
+      tags: [Auth, Session]
+      summary: Delete the local Admin Console session
+      responses:
+        "200":
+          description: Session row was deleted if present and cookie was cleared.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Expired `rtk_admin_session` cookie.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusOK"
+
+  /api/me:
+    get:
+      tags: [Session]
+      summary: Current user, memberships, active organization, and auth settings
+      description: Returns demo identity when no session exists.
+      security:
+        - SessionCookie: []
+        - {}
+      responses:
+        "200":
+          description: Current identity and console capabilities.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/me/active-org:
+    post:
+      tags: [Session, Customer]
+      summary: Switch active customer organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActiveOrgRequest"
+      responses:
+        "200":
+          description: Active organization was updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveOrgResponse"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/summary:
+    get:
+      tags: [Customer]
+      summary: Dashboard summary
+      description: Returns a customer-scoped summary when a customer session exists; otherwise local/demo summary.
+      security:
+        - SessionCookie: []
+        - {}
+      responses:
+        "200":
+          description: Fleet summary.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Summary"
+                  - $ref: "#/components/schemas/CustomerSummary"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/summary:
+    get:
+      tags: [Platform Admin]
+      summary: Platform-wide dashboard summary
+      responses:
+        "200":
+          description: Platform-wide summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Summary"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/customers:
+    get:
+      tags: [Customer]
+      summary: Visible customer organizations
+      description: Customer session returns visible Account Manager organizations; unauthenticated local mode returns demo customers.
+      security:
+        - SessionCookie: []
+        - {}
+      responses:
+        "200":
+          description: Customer organization list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Organization"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/customers:
+    get:
+      tags: [Platform Admin]
+      summary: Platform-visible customer organizations
+      responses:
+        "200":
+          description: Customer organization list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Organization"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/orgs/{orgId}/quota-raise-requests:
+    post:
+      tags: [Customer]
+      summary: Create an evaluation quota raise request
+      description: Requires an authenticated customer session and active organization matching `orgId`.
+      parameters:
+        - $ref: "#/components/parameters/OrgID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuotaRaiseRequest"
+      responses:
+        "201":
+          description: Quota request created by Account Manager.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuotaRaiseRequestResult"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/devices:
+    get:
+      tags: [Devices]
+      summary: List devices
+      description: Customer sessions return customer-safe devices; local/demo mode returns full demo devices.
+      security:
+        - SessionCookie: []
+        - {}
+      responses:
+        "200":
+          description: Device list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  oneOf:
+                    - $ref: "#/components/schemas/Device"
+                    - $ref: "#/components/schemas/CustomerDevice"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/devices:
+    get:
+      tags: [Platform Admin, Devices]
+      summary: Platform-wide device list
+      responses:
+        "200":
+          description: Device list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Device"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/devices/{id}:
+    get:
+      tags: [Devices]
+      summary: Get device detail
+      security:
+        - SessionCookie: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/DeviceID"
+      responses:
+        "200":
+          description: Device detail.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Device"
+                  - $ref: "#/components/schemas/CustomerDevice"
+        "404":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/devices/{id}/provision:
+    post:
+      tags: [Devices, Operations]
+      summary: Request device provisioning
+      parameters:
+        - $ref: "#/components/parameters/DeviceID"
+      responses:
+        "201":
+          description: Lifecycle operation was created or accepted upstream.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operation"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/devices/{id}/deactivate:
+    post:
+      tags: [Devices, Operations]
+      summary: Request device deactivation
+      parameters:
+        - $ref: "#/components/parameters/DeviceID"
+      responses:
+        "201":
+          description: Lifecycle operation was created or accepted upstream.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operation"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/devices/{id}/telemetry:
+    get:
+      tags: [Devices, Fleet]
+      summary: Device telemetry projection
+      parameters:
+        - $ref: "#/components/parameters/DeviceID"
+      responses:
+        "200":
+          description: Telemetry, signal, uptime, and recent events for one device.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceTelemetry"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "404":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/fleet/health-summary:
+    get:
+      tags: [Fleet]
+      summary: Customer fleet health summary
+      parameters:
+        - $ref: "#/components/parameters/FleetWindow"
+      responses:
+        "200":
+          description: Customer fleet health summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetHealthSummary"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/fleet/stream-stats:
+    get:
+      tags: [Fleet]
+      summary: Customer fleet stream statistics
+      parameters:
+        - $ref: "#/components/parameters/FleetWindow"
+      responses:
+        "200":
+          description: Customer fleet stream statistics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetStreamStats"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/fleet/firmware-distribution:
+    get:
+      tags: [Fleet]
+      summary: Customer fleet firmware distribution
+      responses:
+        "200":
+          description: Firmware versions, campaigns, and rollout state for the active organization.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FirmwareDistribution"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/operations:
+    get:
+      tags: [Operations]
+      summary: List lifecycle operations
+      description: Customer sessions return customer-visible upstream operations; local/demo mode returns local operations.
+      security:
+        - SessionCookie: []
+        - {}
+      responses:
+        "200":
+          description: Lifecycle operation list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Operation"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/operations:
+    get:
+      tags: [Platform Admin, Operations]
+      summary: Platform-wide lifecycle operations
+      responses:
+        "200":
+          description: Lifecycle operation list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Operation"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/service-health:
+    get:
+      tags: [Health]
+      summary: Upstream service health
+      security:
+        - SessionCookie: []
+        - {}
+      responses:
+        "200":
+          description: Configured upstream service health.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceHealth"
+
+  /api/admin/service-health:
+    get:
+      tags: [Platform Admin, Health]
+      summary: Platform-admin upstream service health
+      responses:
+        "200":
+          description: Configured upstream service health.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceHealth"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/audit:
+    get:
+      tags: [Audit]
+      summary: List audit events
+      description: Customer sessions return customer-scoped events; local/demo mode returns local events.
+      security:
+        - SessionCookie: []
+        - {}
+      responses:
+        "200":
+          description: Audit event list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEvent"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/audit:
+    get:
+      tags: [Platform Admin, Audit]
+      summary: Platform-wide audit events
+      responses:
+        "200":
+          description: Audit event list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEvent"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/brand-clouds:
+    get:
+      tags: [Platform Admin, Brand Clouds]
+      summary: List brand-cloud organizations
+      description: Requires Account Manager-backed platform-admin session.
+      responses:
+        "200":
+          description: Brand-cloud organizations.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [brand_clouds]
+                properties:
+                  brand_clouds:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Organization"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+    post:
+      tags: [Platform Admin, Brand Clouds]
+      summary: Create a brand-cloud organization
+      description: Requires Account Manager-backed platform-admin session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandCloudRequest"
+      responses:
+        "201":
+          description: Brand cloud created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [brand_cloud]
+                properties:
+                  brand_cloud:
+                    $ref: "#/components/schemas/Organization"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/brand-clouds/{brandCloudId}:
+    get:
+      tags: [Platform Admin, Brand Clouds]
+      summary: Get a brand-cloud organization
+      parameters:
+        - $ref: "#/components/parameters/BrandCloudID"
+      responses:
+        "200":
+          description: Brand cloud organization.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [brand_cloud]
+                properties:
+                  brand_cloud:
+                    $ref: "#/components/schemas/Organization"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+    patch:
+      tags: [Platform Admin, Brand Clouds]
+      summary: Update a brand-cloud organization
+      parameters:
+        - $ref: "#/components/parameters/BrandCloudID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandCloudRequest"
+      responses:
+        "200":
+          description: Brand cloud updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [brand_cloud]
+                properties:
+                  brand_cloud:
+                    $ref: "#/components/schemas/Organization"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/brand-clouds/{brandCloudId}/members:
+    post:
+      tags: [Platform Admin, Brand Clouds]
+      summary: Assign a user to a brand cloud
+      parameters:
+        - $ref: "#/components/parameters/BrandCloudID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandCloudMemberRequest"
+      responses:
+        "201":
+          description: Member assignment created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [member]
+                properties:
+                  member:
+                    $ref: "#/components/schemas/Member"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/sso/providers:
+    get:
+      tags: [Platform Admin, SSO]
+      summary: List SSO provider status for platform-visible organizations
+      responses:
+        "200":
+          description: SSO provider status list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers]
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SSOProviderStatus"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/orgs/{orgId}/sso-provider:
+    get:
+      tags: [Platform Admin, SSO]
+      summary: Get SSO provider configuration status for an organization
+      parameters:
+        - $ref: "#/components/parameters/OrgID"
+      responses:
+        "200":
+          description: SSO provider status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [provider]
+                properties:
+                  provider:
+                    $ref: "#/components/schemas/SSOProviderStatus"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+    put:
+      tags: [Platform Admin, SSO]
+      summary: Upsert SSO provider configuration for an organization
+      parameters:
+        - $ref: "#/components/parameters/OrgID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SSOProviderConfigRequest"
+      responses:
+        "200":
+          description: SSO provider configuration updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [provider]
+                properties:
+                  provider:
+                    $ref: "#/components/schemas/SSOProviderStatus"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: rtk_admin_session
+
+  parameters:
+    DeviceID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      example: dev-001
+    OrgID:
+      name: orgId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: org-acme
+    BrandCloudID:
+      name: brandCloudId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: brand-1
+    FleetWindow:
+      name: window
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [7d, 30d, 90d]
+        default: 7d
+    Code:
+      name: code
+      in: query
+      required: true
+      schema:
+        type: string
+    State:
+      name: state
+      in: query
+      required: true
+      schema:
+        type: string
+
+  responses:
+    PlainTextError:
+      description: Plain text error response.
+      content:
+        text/plain:
+          schema:
+            type: string
+            example: authentication required
+
+  schemas:
+    StatusOK:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    StatusAccepted:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [accepted]
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    SignupRequest:
+      type: object
+      required: [email, password, organization_name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        display_name:
+          type: string
+        organization_name:
+          type: string
+        captcha_token:
+          type: string
+    SignupResult:
+      type: object
+      required: [user, organization]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        organization:
+          $ref: "#/components/schemas/Organization"
+    AuthTokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    VerifyEmailResult:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        tokens:
+          $ref: "#/components/schemas/Tokens"
+    EmailRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    SSOStartRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+        return_url:
+          type: string
+          format: uri-reference
+    SSOStartResult:
+      type: object
+      required: [redirect_url]
+      properties:
+        redirect_url:
+          type: string
+          format: uri
+        state:
+          type: string
+        provider_id:
+          type: string
+        organization_id:
+          type: string
+        organization:
+          type: string
+    ActiveOrgRequest:
+      type: object
+      required: [organization_id]
+      properties:
+        organization_id:
+          type: string
+    ActiveOrgResponse:
+      type: object
+      required: [active_org_id]
+      properties:
+        active_org_id:
+          type: string
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+    Tokens:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+        expires_at:
+          type: string
+          format: date-time
+    Organization:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        organization_kind:
+          type: string
+        status:
+          type: string
+        tier:
+          type: string
+        evaluation_device_quota:
+          type: integer
+        capabilities:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+          additionalProperties: true
+    Membership:
+      type: object
+      required: [organization_id, organization, role]
+      properties:
+        organization_id:
+          type: string
+        organization:
+          type: string
+        role:
+          type: string
+        tier:
+          type: string
+        evaluation_device_quota:
+          type: integer
+        capabilities:
+          type: array
+          items:
+            type: string
+    Me:
+      type: object
+      required:
+        - user_id
+        - email
+        - name
+        - kind
+        - memberships
+        - active_org_id
+        - demo_mode
+        - authenticated
+        - break_glass_enabled
+        - legacy_customer_password_login_enabled
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [demo, customer, platform_admin]
+        memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/Membership"
+        active_org_id:
+          type: string
+        demo_mode:
+          type: boolean
+        authenticated:
+          type: boolean
+        capabilities:
+          type: array
+          items:
+            type: string
+        break_glass_enabled:
+          type: boolean
+        legacy_customer_password_login_enabled:
+          type: boolean
+    Summary:
+      type: object
+      required:
+        - total_devices
+        - online_devices
+        - activated_devices
+        - pending_devices
+        - failed_devices
+        - open_operations
+        - customers
+      properties:
+        total_devices:
+          type: integer
+        online_devices:
+          type: integer
+        activated_devices:
+          type: integer
+        pending_devices:
+          type: integer
+        failed_devices:
+          type: integer
+        open_operations:
+          type: integer
+        customers:
+          type: integer
+    CustomerSummary:
+      type: object
+      required:
+        - organization_id
+        - organization
+        - total_devices
+        - online_devices
+        - activated_devices
+        - pending_devices
+        - failed_devices
+        - last_seen_at
+      properties:
+        organization_id:
+          type: string
+        organization:
+          type: string
+        total_devices:
+          type: integer
+        online_devices:
+          type: integer
+        activated_devices:
+          type: integer
+        pending_devices:
+          type: integer
+        failed_devices:
+          type: integer
+        last_seen_at:
+          type: string
+          format: date-time
+    ReadinessState:
+      type: string
+      enum:
+        - registered
+        - claim_pending
+        - local_onboarding_pending
+        - cloud_activation_pending
+        - activated
+        - online
+        - failed
+        - deactivation_pending
+        - deactivated
+    OperationState:
+      type: string
+      enum:
+        - pending
+        - published
+        - succeeded
+        - failed
+        - retrying
+        - dead_lettered
+    SourceFact:
+      type: object
+      required: [layer, state, detail, retryable]
+      properties:
+        layer:
+          type: string
+        state:
+          type: string
+        detail:
+          type: string
+        retryable:
+          type: boolean
+        error_code:
+          type: string
+        operation_id:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+    CustomerSourceFact:
+      type: object
+      required: [layer, state, detail, retryable]
+      properties:
+        layer:
+          type: string
+        state:
+          type: string
+        detail:
+          type: string
+        retryable:
+          type: boolean
+        error_code:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+    Device:
+      type: object
+      required:
+        - id
+        - organization_id
+        - organization
+        - name
+        - category
+        - model
+        - serial_number
+        - video_cloud_devid
+        - firmware_version
+        - status
+        - readiness
+        - source_facts
+        - last_seen_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        organization_id:
+          type: string
+        organization:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        model:
+          type: string
+        serial_number:
+          type: string
+        video_cloud_devid:
+          type: string
+        firmware_version:
+          type: string
+        health:
+          type: string
+        signal_quality:
+          type: string
+        status:
+          type: string
+        readiness:
+          $ref: "#/components/schemas/ReadinessState"
+        source_facts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceFact"
+        last_seen_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CustomerDevice:
+      type: object
+      description: Customer-safe device DTO; does not include `video_cloud_devid`.
+      required:
+        - id
+        - organization_id
+        - organization
+        - name
+        - category
+        - model
+        - serial_number
+        - firmware_version
+        - status
+        - readiness
+        - source_facts
+        - last_seen_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        organization_id:
+          type: string
+        organization:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        model:
+          type: string
+        serial_number:
+          type: string
+        firmware_version:
+          type: string
+        health:
+          type: string
+        signal_quality:
+          type: string
+        status:
+          type: string
+        readiness:
+          $ref: "#/components/schemas/ReadinessState"
+        source_facts:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerSourceFact"
+        last_seen_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Operation:
+      type: object
+      required: [id, type, state, message, updated_at]
+      properties:
+        id:
+          type: string
+        device_id:
+          type: string
+        device_name:
+          type: string
+        organization:
+          type: string
+        type:
+          type: string
+        state:
+          $ref: "#/components/schemas/OperationState"
+        upstream_operation_id:
+          type: string
+        upstream_state:
+          type: string
+        message:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+    ServiceHealth:
+      type: object
+      required: [name, status, detail]
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [ok, demo, unavailable, degraded]
+        detail:
+          type: string
+        latency_ms:
+          type: integer
+          format: int64
+        last_checked_at:
+          type: string
+          format: date-time
+    AuditEvent:
+      type: object
+      required: [id, actor, actor_kind, action, target, result, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        actor:
+          type: string
+        actor_kind:
+          type: string
+        action:
+          type: string
+        target:
+          type: string
+        organization_id:
+          type: string
+        result:
+          type: string
+        request_id:
+          type: string
+        upstream_operation_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    TelemetryRssiSample:
+      type: object
+      required: [date, avg_dbm, quality]
+      properties:
+        date:
+          type: string
+        avg_dbm:
+          type: integer
+        quality:
+          type: string
+    TelemetryUptimeSample:
+      type: object
+      required: [date, online_pct]
+      properties:
+        date:
+          type: string
+        online_pct:
+          type: number
+          format: double
+    TelemetryEvent:
+      type: object
+      required: [occurred_at, event_type, summary]
+      properties:
+        occurred_at:
+          type: string
+          format: date-time
+        event_type:
+          type: string
+        summary:
+          type: string
+    DeviceTelemetry:
+      type: object
+      required:
+        - device_id
+        - health
+        - signals
+        - firmware_version
+        - telemetry_status
+        - active_stream_status
+        - rssi_7d
+        - uptime_7d
+        - recent_events
+      properties:
+        device_id:
+          type: string
+        device_name:
+          type: string
+        organization:
+          type: string
+        serial_number:
+          type: string
+        model:
+          type: string
+        last_seen_at:
+          type: string
+          format: date-time
+        health:
+          type: string
+        signals:
+          type: array
+          items:
+            type: string
+        firmware_version:
+          type: string
+        telemetry_status:
+          type: string
+        active_stream_status:
+          type: string
+        unavailable_reason:
+          type: string
+        rssi_7d:
+          type: array
+          items:
+            $ref: "#/components/schemas/TelemetryRssiSample"
+        uptime_7d:
+          type: array
+          items:
+            $ref: "#/components/schemas/TelemetryUptimeSample"
+        recent_events:
+          type: array
+          items:
+            $ref: "#/components/schemas/TelemetryEvent"
+    FleetHealthCurrent:
+      type: object
+      required: [healthy, warning, critical, unknown]
+      properties:
+        healthy:
+          type: integer
+        warning:
+          type: integer
+        critical:
+          type: integer
+        unknown:
+          type: integer
+    FleetHealthTrendPoint:
+      type: object
+      required: [date, online_pct, warning_count, critical_count]
+      properties:
+        date:
+          type: string
+        online_pct:
+          type: number
+        warning_count:
+          type: integer
+        critical_count:
+          type: integer
+    FleetHealthSummary:
+      type: object
+      required: [org_id, source_status, current, online_rate_7d_pct, trend]
+      properties:
+        org_id:
+          type: string
+        source_status:
+          type: string
+        source_message:
+          type: string
+        current:
+          $ref: "#/components/schemas/FleetHealthCurrent"
+        online_rate_7d_pct:
+          type: number
+        trend:
+          type: array
+          items:
+            $ref: "#/components/schemas/FleetHealthTrendPoint"
+    FleetStreamStatsMode:
+      type: object
+      required: [requests, success_rate_pct]
+      properties:
+        requests:
+          type: integer
+        success_rate_pct:
+          type: number
+    FleetStreamTrendPoint:
+      type: object
+      required: [date, requests, success_rate_pct]
+      properties:
+        date:
+          type: string
+        requests:
+          type: integer
+        success_rate_pct:
+          type: number
+    FleetStreamWorstDevice:
+      type: object
+      required: [device_id, device_name, mode_used, readiness, success_rate_pct, requests]
+      properties:
+        device_id:
+          type: string
+        device_name:
+          type: string
+        mode_used:
+          type: string
+        readiness:
+          type: string
+        success_rate_pct:
+          type: number
+        requests:
+          type: integer
+        last_stream_at:
+          type: string
+          format: date-time
+    FleetStreamModeTrend:
+      type: object
+      required: [mode, points]
+      properties:
+        mode:
+          type: string
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/FleetStreamTrendPoint"
+    FleetStreamStats:
+      type: object
+      required:
+        - org_id
+        - window
+        - source_status
+        - success_rate_pct
+        - avg_duration_seconds
+        - active_sessions
+        - never_streamed_count
+        - by_mode
+        - trend
+        - trend_by_mode
+        - worst_devices
+      properties:
+        org_id:
+          type: string
+        window:
+          type: string
+        source_status:
+          type: string
+        source_message:
+          type: string
+        success_rate_pct:
+          type: number
+        avg_duration_seconds:
+          type: number
+        active_sessions:
+          type: integer
+        never_streamed_count:
+          type: integer
+        by_mode:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/FleetStreamStatsMode"
+        trend:
+          type: array
+          items:
+            $ref: "#/components/schemas/FleetStreamTrendPoint"
+        trend_by_mode:
+          type: array
+          items:
+            $ref: "#/components/schemas/FleetStreamModeTrend"
+        worst_devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/FleetStreamWorstDevice"
+    FirmwareDistributionVersion:
+      type: object
+      required: [version, count, pct, is_latest]
+      properties:
+        version:
+          type: string
+        count:
+          type: integer
+        pct:
+          type: number
+        is_latest:
+          type: boolean
+    FirmwareDistributionRollout:
+      type: object
+      required: [device_id, device_name, current_version, target_version, rollout_status]
+      properties:
+        device_id:
+          type: string
+        device_name:
+          type: string
+        current_version:
+          type: string
+        target_version:
+          type: string
+        rollout_status:
+          type: string
+        failure_reason:
+          type: string
+        last_updated:
+          type: string
+          format: date-time
+    FirmwareDistributionCampaign:
+      type: object
+      required: [campaign_id, target_version, policy, state, applied, pending, failed, skipped, total, started_at]
+      properties:
+        campaign_id:
+          type: string
+        target_version:
+          type: string
+        policy:
+          type: string
+        state:
+          type: string
+        applied:
+          type: integer
+        pending:
+          type: integer
+        failed:
+          type: integer
+        skipped:
+          type: integer
+        total:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        rollouts:
+          type: array
+          items:
+            $ref: "#/components/schemas/FirmwareDistributionRollout"
+    FirmwareDistribution:
+      type: object
+      required: [org_id, source_status, versions, campaigns]
+      properties:
+        org_id:
+          type: string
+        source_status:
+          type: string
+        source_message:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/FirmwareDistributionVersion"
+        campaigns:
+          type: array
+          items:
+            $ref: "#/components/schemas/FirmwareDistributionCampaign"
+    QuotaRaiseRequest:
+      type: object
+      required: [requested_quota, use_case, contact_info]
+      properties:
+        requested_quota:
+          type: integer
+          minimum: 1
+        use_case:
+          type: string
+        contact_info:
+          type: object
+          additionalProperties: true
+    QuotaRaiseRequestRecord:
+      type: object
+      required: [id, organization_id, requested_by, requested_quota, use_case, contact_info, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        organization_id:
+          type: string
+        requested_by:
+          type: string
+        requested_quota:
+          type: integer
+        use_case:
+          type: string
+        contact_info:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+        decided_by:
+          type: string
+        decision_reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        decided_at:
+          type: string
+          format: date-time
+    QuotaRaiseRequestResult:
+      type: object
+      required: [quota_raise_request, organization]
+      properties:
+        quota_raise_request:
+          $ref: "#/components/schemas/QuotaRaiseRequestRecord"
+        organization:
+          $ref: "#/components/schemas/Organization"
+    BrandCloudRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+    BrandCloudMemberRequest:
+      type: object
+      required: [user_id, role]
+      properties:
+        user_id:
+          type: string
+        role:
+          type: string
+    Member:
+      type: object
+      required: [organization_id, user_id, role]
+      properties:
+        organization_id:
+          type: string
+        user_id:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+    SSOProviderStatus:
+      type: object
+      required: [organization_id, enabled, configured]
+      properties:
+        organization_id:
+          type: string
+        organization:
+          type: string
+        provider_id:
+          type: string
+        issuer:
+          type: string
+          format: uri
+        client_id:
+          type: string
+        verified_domains:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+        configured:
+          type: boolean
+        status:
+          type: string
+        error:
+          type: string
+        last_validated_at:
+          type: string
+          format: date-time
+    SSOProviderConfigRequest:
+      type: object
+      required: [issuer, client_id, verified_domains, enabled]
+      properties:
+        issuer:
+          type: string
+          format: uri
+        client_id:
+          type: string
+        client_secret:
+          type: string
+          format: password
+        verified_domains:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean

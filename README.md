@@ -197,6 +197,7 @@ internal/contracts/          Go DTOs and shared vocabulary
 internal/store/              SQLite schema, seed data, and repositories
 web/                         React frontend
 docs/SPEC.md                 Product and implementation specification
+docs/openapi.yaml            OpenAPI contract for the Admin Console BFF API
 docs/assets/webui-design/    WebUI visual concepts and static GUI mocks
 rtk_cloud_contracts_doc/     Shared contracts submodule
 ```
