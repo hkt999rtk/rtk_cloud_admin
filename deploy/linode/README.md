@@ -3,12 +3,12 @@
 This directory contains the operator-local deployment scripts for running
 `rtk_cloud_admin` on a dedicated Linode VM.
 
-The Admin VM is intentionally independent from the `rtk_video_cloud` Linode VPC:
+The Admin VM is a dedicated public+VPC Linode:
 
 - one dedicated public Linode VM
-- no VPC interface
-- no dependency on the Video Cloud edge VM as a gateway
+- one VPC interface on the Video Cloud subnet for private observability queries
 - public HTTPS to Account Manager and Video Cloud upstreams
+- private VPC HTTP to the Video Cloud Prometheus endpoint
 - local SQLite persisted on the Admin VM
 
 ## Target Shape
@@ -22,6 +22,7 @@ internet
 rtk_cloud_admin
   -> ACCOUNT_MANAGER_BASE_URL over public HTTPS
   -> VIDEO_CLOUD_BASE_URL over public HTTPS
+  -> VIDEO_CLOUD_PROMETHEUS_BASE_URL over private VPC HTTP
 ```
 
 This is the same operator-local deployment model used by the Video Cloud Linode
@@ -33,7 +34,7 @@ mutation and host deployment with local secrets.
 | File | Purpose |
 | --- | --- |
 | `admin-staging.env.example` | Local operator env template. Copy it before editing. |
-| `provision-admin-vm.sh` | Creates the public-only Linode VM and firewall with `linode-cli`. |
+| `provision-admin-vm.sh` | Creates the public+VPC Linode VM and firewall with the Linode API. |
 | `deploy-admin.sh` | Deploys the selected release to the Admin VM, installs nginx/systemd, and starts the service. |
 | `verify-admin.sh` | Runs external HTTP checks against the deployed dashboard. |
 | `backup-admin-db.sh` | Pulls a sanitized SQLite backup archive from the Admin VM. |
@@ -54,9 +55,10 @@ Operator machine:
 Remote Admin VM:
 
 - Ubuntu 24.04 image
-- public IPv4 only
+- public IPv4 plus one Video Cloud VPC interface
 - inbound `22/tcp` limited to operator CIDRs
 - inbound `80/tcp` and `443/tcp` public for certbot and dashboard HTTPS
+- outbound private VPC access to Prometheus on the Video Cloud infra VM
 
 ## 1. Prepare Local Env
 
@@ -150,7 +152,8 @@ The backup script pulls `rtk-cloud-admin.db` and any SQLite WAL/SHM files into
 - Remote hosts never push to GitHub.
 - Secrets are provided from the operator shell and copied only to
   `/etc/rtk_cloud_admin/admin.env` on the VM.
-- The Admin VM does not join the Video Cloud VPC and must not call private
-  `10.42.x.x` service addresses.
+- The Admin VM joins the Video Cloud VPC only for private operator/runtime
+  dependencies such as Prometheus. Do not expose Prometheus on the public
+  network.
 - `ADMIN_BREAK_GLASS_ENABLED=true` is acceptable for staging bootstrap. The
   production direction remains Account Manager-backed SSO.

@@ -211,6 +211,7 @@ Environment variables:
 - `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token
+- `VIDEO_CLOUD_PROMETHEUS_BASE_URL`: optional private Prometheus query endpoint
 - `ADMIN_BOOTSTRAP_EMAIL`: optional local platform admin break-glass email
 - `ADMIN_BOOTSTRAP_PASSWORD`: optional local platform admin break-glass password
 - `ADMIN_BREAK_GLASS_ENABLED`: set to `true` to enable local Platform Admin break-glass login; default `false`

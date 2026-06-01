@@ -12,6 +12,7 @@ type Config struct {
 	AccountManagerBaseURL              string
 	VideoCloudBaseURL                  string
 	VideoCloudAdminToken               string
+	VideoCloudPrometheusBaseURL        string
 	AdminBootstrapEmail                string
 	AdminBootstrapPassword             string
 	AdminBreakGlassEnabled             bool
@@ -25,6 +26,7 @@ func FromEnv() Config {
 		AccountManagerBaseURL:              os.Getenv("ACCOUNT_MANAGER_BASE_URL"),
 		VideoCloudBaseURL:                  os.Getenv("VIDEO_CLOUD_BASE_URL"),
 		VideoCloudAdminToken:               os.Getenv("VIDEO_CLOUD_ADMIN_TOKEN"),
+		VideoCloudPrometheusBaseURL:        os.Getenv("VIDEO_CLOUD_PROMETHEUS_BASE_URL"),
 		AdminBootstrapEmail:                os.Getenv("ADMIN_BOOTSTRAP_EMAIL"),
 		AdminBootstrapPassword:             os.Getenv("ADMIN_BOOTSTRAP_PASSWORD"),
 		AdminBreakGlassEnabled:             truthy(os.Getenv("ADMIN_BREAK_GLASS_ENABLED")),

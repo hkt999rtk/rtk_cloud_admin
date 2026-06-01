@@ -8,6 +8,7 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	t.Setenv("ACCOUNT_MANAGER_BASE_URL", "https://account.example")
 	t.Setenv("VIDEO_CLOUD_BASE_URL", "https://video.example")
 	t.Setenv("VIDEO_CLOUD_ADMIN_TOKEN", "video-admin-token")
+	t.Setenv("VIDEO_CLOUD_PROMETHEUS_BASE_URL", "http://10.42.1.30:9090")
 	t.Setenv("ADMIN_BOOTSTRAP_EMAIL", "admin@example.com")
 	t.Setenv("ADMIN_BOOTSTRAP_PASSWORD", "secret")
 	t.Setenv("ADMIN_BREAK_GLASS_ENABLED", "true")
@@ -28,6 +29,9 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	}
 	if cfg.VideoCloudAdminToken != "video-admin-token" {
 		t.Fatalf("VideoCloudAdminToken = %q", cfg.VideoCloudAdminToken)
+	}
+	if cfg.VideoCloudPrometheusBaseURL != "http://10.42.1.30:9090" {
+		t.Fatalf("VideoCloudPrometheusBaseURL = %q", cfg.VideoCloudPrometheusBaseURL)
 	}
 	if cfg.AdminBootstrapEmail != "admin@example.com" || cfg.AdminBootstrapPassword != "secret" {
 		t.Fatalf("admin bootstrap env not loaded")
