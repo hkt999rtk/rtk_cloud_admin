@@ -47,7 +47,8 @@ Included in v0.1:
 - Platform admin pages:
   - service health
   - SSO provider status and settings
-  - backend/BFF brand-cloud management routes for future UI consumption
+  - backend/BFF brand-cloud management routes for future Platform View Brand
+    Clouds UI consumption
   - lifecycle operations log
   - audit log
 - Audit events are recorded when demo lifecycle actions are created from the
@@ -217,6 +218,17 @@ The visual system follows `rtk_cloud_contracts_doc/FRONTEND_STYLE.md` and should
 - status labels using the contract vocabulary instead of vague UI-only names
 - URL-backed routes so console views are directly linkable
 - device readiness detail panels that show source facts, including missing/stale facts
+
+The WebUI design history is documented in:
+
+- [`webui-customer-view-design.md`](webui-customer-view-design.md) for the
+  approved Customer View visual concepts and state requirements
+- [`admin-dashboard-redesign.md`](admin-dashboard-redesign.md) for Platform
+  View structure
+- [`platform-brand-cloud-management-design.md`](platform-brand-cloud-management-design.md)
+  for the Platform View Brand Clouds GUI draft
+- [`webui-implementation-roadmap.md`](webui-implementation-roadmap.md) for the
+  developer-ready WebUI issue sequence
 
 Avoid marketing-style hero sections, decorative card grids, and large illustration-led pages.
 
