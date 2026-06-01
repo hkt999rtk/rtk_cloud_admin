@@ -13,6 +13,10 @@ The console is tenant-first:
 The product and integration contracts live in the
 `rtk_cloud_contracts_doc` submodule.
 
+The service logging migration to `rtk_cloud_logger` zap and central journald
+forwarding is documented in
+[`docs/SERVICE_LOGGING_MIGRATION.md`](docs/SERVICE_LOGGING_MIGRATION.md).
+
 ## Current Scope
 
 Implemented in this first version:

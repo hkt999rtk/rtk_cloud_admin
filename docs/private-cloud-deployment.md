@@ -11,6 +11,7 @@ environment.
 Recommended production layout:
 
 - run the Go server as a native systemd service
+- emit `rtk_cloud_logger` zap JSON logs to stdout/stderr for journald collection
 - place it behind a reverse proxy that terminates TLS
 - mount a persistent SQLite volume for `DATABASE_PATH`
 - configure upstream Account Manager and Video Cloud endpoints explicitly
