@@ -60,6 +60,7 @@ certbot_email="${ADMIN_LINODE_CERTBOT_EMAIL:-}"
 ssh_user="${ADMIN_LINODE_SSH_USER:-root}"
 ssh_key="${ADMIN_LINODE_SSH_KEY:-$HOME/.ssh/id_ed25519_rtkcloud}"
 admin_host="${ADMIN_LINODE_HOST:-${ADMIN_LINODE_PUBLIC_IPV4:-}}"
+node_exporter_listen_addr="${ADMIN_PROMETHEUS_NODE_EXPORTER_LISTEN_ADDR:-127.0.0.1:9100}"
 release_bundle="${ADMIN_LINODE_RELEASE_BUNDLE:-}"
 remote_bundle="${ADMIN_LINODE_REMOTE_BUNDLE:-/tmp/rtk-cloud-admin-${release}.tar.gz}"
 data_dir="${ADMIN_LINODE_DATA_DIR:-/var/lib/rtk_cloud_admin}"
@@ -156,7 +157,7 @@ if [ -n "$cert_cache_dir" ]; then
 fi
 
 printf '[admin-deploy] installing runtime on %s\n' "$remote" >&2
-ssh "${ssh_opts[@]}" "$remote" bash -s -- "$domain" "$certbot_email" "$release" "$remote_bundle" "$data_dir" "$env_path" "$certbot_enable" "$http_only" "$cert_cache_dir" <<'REMOTE'
+ssh "${ssh_opts[@]}" "$remote" bash -s -- "$domain" "$certbot_email" "$release" "$remote_bundle" "$data_dir" "$env_path" "$certbot_enable" "$http_only" "$cert_cache_dir" "$node_exporter_listen_addr" <<'REMOTE'
 set -euo pipefail
 
 domain="$1"
@@ -168,6 +169,7 @@ env_path="$6"
 certbot_enable="$7"
 http_only="$8"
 cert_cache_dir="${9:-}"
+node_exporter_listen_addr="${10:-127.0.0.1:9100}"
 service_user="rtk-cloud-admin"
 release_root="/opt/rtk_cloud_admin/releases"
 release_dir="$release_root/$release"
@@ -175,7 +177,8 @@ current_dir="/opt/rtk_cloud_admin/current"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y curl systemd ca-certificates gnupg2 lsb-release ubuntu-keyring
+apt-get install -y curl systemd ca-certificates gnupg2 lsb-release ubuntu-keyring prometheus-node-exporter
+printf 'ARGS="--web.listen-address=%s"\n' "$node_exporter_listen_addr" > /etc/default/prometheus-node-exporter
 curl -fsS https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg.tmp
 mv /usr/share/keyrings/nginx-archive-keyring.gpg.tmp /usr/share/keyrings/nginx-archive-keyring.gpg
 printf 'deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/ubuntu %s nginx\n' "$(lsb_release -cs)" > /etc/apt/sources.list.d/nginx-org.list
@@ -265,6 +268,10 @@ systemctl enable --now nginx
 systemctl reload nginx
 
 systemctl daemon-reload
+systemctl enable --now prometheus-node-exporter
+systemctl restart prometheus-node-exporter
+systemctl is-active prometheus-node-exporter
+ss -lnt | grep "$node_exporter_listen_addr"
 systemctl enable --now rtk-cloud-admin
 systemctl restart rtk-cloud-admin
 
