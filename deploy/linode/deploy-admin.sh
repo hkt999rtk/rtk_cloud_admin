@@ -64,6 +64,10 @@ node_exporter_listen_addr="${ADMIN_PROMETHEUS_NODE_EXPORTER_LISTEN_ADDR:-127.0.0
 if [ -z "${ADMIN_PROMETHEUS_NODE_EXPORTER_LISTEN_ADDR:-}" ] && [ -n "${ADMIN_LINODE_PRIVATE_IPV4:-}" ]; then
   node_exporter_listen_addr="$ADMIN_LINODE_PRIVATE_IPV4:9100"
 fi
+nginx_exporter_listen_addr="${ADMIN_PROMETHEUS_NGINX_EXPORTER_LISTEN_ADDR:-127.0.0.1:9113}"
+if [ -z "${ADMIN_PROMETHEUS_NGINX_EXPORTER_LISTEN_ADDR:-}" ] && [ -n "${ADMIN_LINODE_PRIVATE_IPV4:-}" ]; then
+  nginx_exporter_listen_addr="$ADMIN_LINODE_PRIVATE_IPV4:9113"
+fi
 release_bundle="${ADMIN_LINODE_RELEASE_BUNDLE:-}"
 remote_bundle="${ADMIN_LINODE_REMOTE_BUNDLE:-/tmp/rtk-cloud-admin-${release}.tar.gz}"
 data_dir="${ADMIN_LINODE_DATA_DIR:-/var/lib/rtk_cloud_admin}"
@@ -162,7 +166,7 @@ if [ -n "$cert_cache_dir" ]; then
 fi
 
 printf '[admin-deploy] installing runtime on %s\n' "$remote" >&2
-ssh "${ssh_opts[@]}" "$remote" bash -s -- "$domain" "$certbot_email" "$release" "$remote_bundle" "$data_dir" "$env_path" "$certbot_enable" "$http_only" "$cert_cache_dir" "$node_exporter_listen_addr" <<'REMOTE'
+ssh "${ssh_opts[@]}" "$remote" bash -s -- "$domain" "$certbot_email" "$release" "$remote_bundle" "$data_dir" "$env_path" "$certbot_enable" "$http_only" "$cert_cache_dir" "$node_exporter_listen_addr" "$nginx_exporter_listen_addr" <<'REMOTE'
 set -euo pipefail
 
 domain="$1"
@@ -175,6 +179,7 @@ certbot_enable="$7"
 http_only="$8"
 cert_cache_dir="${9:-}"
 node_exporter_listen_addr="${10:-127.0.0.1:9100}"
+nginx_exporter_listen_addr="${11:-127.0.0.1:9113}"
 service_user="rtk-cloud-admin"
 release_root="/opt/rtk_cloud_admin/releases"
 release_dir="$release_root/$release"
@@ -182,8 +187,14 @@ current_dir="/opt/rtk_cloud_admin/current"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y curl systemd ca-certificates gnupg2 lsb-release ubuntu-keyring prometheus-node-exporter
+apt-get install -y curl systemd ca-certificates gnupg2 lsb-release ubuntu-keyring prometheus-node-exporter prometheus-nginx-exporter
 printf 'ARGS="--web.listen-address=%s"\n' "$node_exporter_listen_addr" > /etc/default/prometheus-node-exporter
+mkdir -p /etc/systemd/system/prometheus-nginx-exporter.service.d
+cat > /etc/systemd/system/prometheus-nginx-exporter.service.d/override.conf <<EXPORTER
+[Service]
+ExecStart=
+ExecStart=/usr/bin/prometheus-nginx-exporter -nginx.scrape-uri=http://127.0.0.1:8081/stub_status -web.listen-address=$nginx_exporter_listen_addr
+EXPORTER
 curl -fsS https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg.tmp
 mv /usr/share/keyrings/nginx-archive-keyring.gpg.tmp /usr/share/keyrings/nginx-archive-keyring.gpg
 printf 'deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/ubuntu %s nginx\n' "$(lsb_release -cs)" > /etc/apt/sources.list.d/nginx-org.list
@@ -245,6 +256,17 @@ UNIT
 
 cat > /etc/nginx/sites-available/rtk-cloud-admin.conf <<NGINX
 server {
+    listen 127.0.0.1:8081;
+    server_name localhost;
+
+    location = /stub_status {
+        stub_status;
+        allow 127.0.0.1;
+        deny all;
+    }
+}
+
+server {
     listen 80;
     server_name $domain;
 
@@ -275,6 +297,9 @@ systemctl daemon-reload
 systemctl enable --now prometheus-node-exporter
 systemctl restart prometheus-node-exporter
 systemctl is-active prometheus-node-exporter
+systemctl enable --now prometheus-nginx-exporter
+systemctl restart prometheus-nginx-exporter
+systemctl is-active prometheus-nginx-exporter
 for _ in $(seq 1 10); do
   if ss -lnt | grep -F "$node_exporter_listen_addr" >/dev/null; then
     node_exporter_ready=1
@@ -283,6 +308,17 @@ for _ in $(seq 1 10); do
   sleep 1
 done
 if [ "${node_exporter_ready:-0}" != "1" ]; then
+  ss -lnt >&2 || true
+  exit 1
+fi
+for _ in $(seq 1 10); do
+  if ss -lnt | grep -F "$nginx_exporter_listen_addr" >/dev/null; then
+    nginx_exporter_ready=1
+    break
+  fi
+  sleep 1
+done
+if [ "${nginx_exporter_ready:-0}" != "1" ]; then
   ss -lnt >&2 || true
   exit 1
 fi
@@ -339,6 +375,17 @@ RENEWAL
     sed -i "s/^account =.*/account = $account/" "$renewal_conf"
   fi
   cat > /etc/nginx/sites-available/rtk-cloud-admin.conf <<NGINX
+server {
+    listen 127.0.0.1:8081;
+    server_name localhost;
+
+    location = /stub_status {
+        stub_status;
+        allow 127.0.0.1;
+        deny all;
+    }
+}
+
 server {
     listen 80;
     server_name $domain;

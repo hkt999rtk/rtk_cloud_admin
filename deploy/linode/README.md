@@ -59,6 +59,7 @@ Remote Admin VM:
 - inbound `22/tcp` limited to operator CIDRs
 - inbound `80/tcp` and `443/tcp` public for certbot and dashboard HTTPS
 - outbound private VPC access to Prometheus on the Video Cloud infra VM
+- inbound private VPC access to Admin metrics ports `9100` and `9113`
 
 ## 1. Prepare Local Env
 
@@ -103,11 +104,16 @@ The deploy script:
 
 1. downloads or receives an explicit native release bundle
 2. uploads the release bundle to the VM
-3. installs nginx, certbot, and systemd units
+3. installs nginx, certbot, node exporter, nginx exporter, and systemd units
 4. writes `/etc/rtk_cloud_admin/admin.env`
 5. stores SQLite data under `/var/lib/rtk_cloud_admin`
 6. starts `rtk-cloud-admin.service`
 7. optionally obtains a Let's Encrypt certificate and redirects HTTP to HTTPS
+
+The nginx exporter listens on the Admin private IP by default when
+`ADMIN_LINODE_PRIVATE_IPV4` is set. It scrapes nginx `stub_status` through
+`127.0.0.1:8081/stub_status` so the Admin app can keep using
+`127.0.0.1:8080`.
 
 Release CI publishes native bundles to Linode Object Storage using the same
 layout as the Video Cloud release flow:

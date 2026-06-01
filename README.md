@@ -221,6 +221,10 @@ If both admin bootstrap variables are set, startup creates the first local
 platform admin break-glass account if it does not already exist. Passwords are
 stored as bcrypt hashes. Session rows store metadata and upstream
 bearer/refresh tokens, never plaintext credentials.
+
+Linode Admin deployments install node and nginx Prometheus exporters for
+private Prometheus scraping. The nginx exporter uses local nginx `stub_status`
+on `127.0.0.1:8081` so the Admin service remains bound to `127.0.0.1:8080`.
 Break-glass login is rejected unless `ADMIN_BREAK_GLASS_ENABLED=true`, and
 customer password login is rejected unless
 `LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED=true`.

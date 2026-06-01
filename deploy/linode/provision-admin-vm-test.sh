@@ -99,6 +99,14 @@ jq -e '
   .interfaces[1].ipv4.vpc == "10.42.1.60"
 ' "$capture/linode-create.json" >/dev/null
 
+jq -e '
+  [.rules.inbound[] | select(.label == "vpc-metrics")] as $rules |
+  ($rules | length) == 1 and
+  $rules[0].protocol == "TCP" and
+  $rules[0].ports == "9100,9113" and
+  $rules[0].addresses.ipv4 == ["10.42.1.0/24"]
+' "$capture/firewall-create.json" >/dev/null
+
 grep -q '^ADMIN_LINODE_PRIVATE_IPV4=10.42.1.60$' "$state"
 
 printf 'provision-admin-vm VPC test passed\n'
