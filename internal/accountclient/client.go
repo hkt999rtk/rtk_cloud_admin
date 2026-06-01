@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"rtk_cloud_admin/internal/correlation"
 )
 
 type Client struct {
@@ -459,6 +461,7 @@ func (c *Client) Health(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	correlation.ApplyHeaders(ctx, req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
@@ -495,6 +498,7 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, in any,
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
+	correlation.ApplyHeaders(ctx, req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err

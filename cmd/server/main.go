@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,32 +12,42 @@ import (
 	"rtk_cloud_admin/internal/app"
 	"rtk_cloud_admin/internal/config"
 	"rtk_cloud_admin/internal/store"
+
+	cloudlogger "github.com/hkt999rtk/rtk_cloud_logger"
+	"go.uber.org/zap"
 )
 
 func main() {
 	cfg := config.FromEnv()
+	logger := cloudlogger.MustNew(cloudlogger.Config{
+		Service: "rtk-cloud-admin",
+		Env:     getenv("ENV", "unknown"),
+		Version: getenv("VERSION", "dev"),
+		Level:   getenv("LOG_LEVEL", "info"),
+	})
+	defer logger.Sync()
 
 	if err := os.MkdirAll(filepath.Dir(cfg.DatabasePath), 0o755); err != nil {
-		log.Fatalf("create data dir: %v", err)
+		logger.Fatal("create data dir", zap.Error(err))
 	}
 
 	st, err := store.Open(cfg.DatabasePath)
 	if err != nil {
-		log.Fatalf("open store: %v", err)
+		logger.Fatal("open store", zap.Error(err))
 	}
 	defer st.Close()
 
 	if err := st.Migrate(); err != nil {
-		log.Fatalf("migrate store: %v", err)
+		logger.Fatal("migrate store", zap.Error(err))
 	}
 	if err := st.SeedDemoData(); err != nil {
-		log.Fatalf("seed demo data: %v", err)
+		logger.Fatal("seed demo data", zap.Error(err))
 	}
 	if err := st.BootstrapPlatformAdmin(cfg.AdminBootstrapEmail, cfg.AdminBootstrapPassword); err != nil {
-		log.Fatalf("bootstrap platform admin: %v", err)
+		logger.Fatal("bootstrap platform admin", zap.Error(err))
 	}
 
-	handler := app.NewWithOptions(st, app.Options{Config: cfg})
+	handler := app.NewWithOptions(st, app.Options{Config: cfg, Logger: logger})
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           handler,
@@ -49,9 +58,9 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("rtk cloud admin listening on http://localhost:%s", cfg.Port)
+		logger.Info("starting service", zap.String("addr", ":"+cfg.Port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("serve: %v", err)
+			logger.Fatal("serve", zap.Error(err))
 		}
 	}()
 
@@ -62,6 +71,13 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("shutdown: %v", err)
+		logger.Warn("shutdown", zap.Error(err))
 	}
+}
+
+func getenv(name string, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
 }
