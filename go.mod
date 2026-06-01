@@ -3,6 +3,8 @@ module rtk_cloud_admin
 go 1.26.3
 
 require (
+	github.com/hkt999rtk/rtk_cloud_logger v0.0.0-20260601031801-bb087feb69a6
+	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.52.0
 	modernc.org/sqlite v1.51.0
 )
@@ -14,6 +16,7 @@ require (
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect
 	modernc.org/cc/v4 v4.28.4 // indirect

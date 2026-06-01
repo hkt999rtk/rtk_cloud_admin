@@ -24,20 +24,26 @@ import (
 	"rtk_cloud_admin/internal/readinessfacts"
 	"rtk_cloud_admin/internal/store"
 	"rtk_cloud_admin/internal/videoclient"
+
+	cloudlogger "github.com/hkt999rtk/rtk_cloud_logger"
+	"go.uber.org/zap"
 )
 
 type Server struct {
 	store         *store.Store
 	mux           *http.ServeMux
+	handler       http.Handler
 	cfg           config.Config
 	accountClient *accountclient.Client
 	videoClient   *videoclient.Client
+	logger        *zap.Logger
 }
 
 type Options struct {
 	Config        config.Config
 	AccountClient *accountclient.Client
 	VideoClient   *videoclient.Client
+	Logger        *zap.Logger
 }
 
 var operationIDPattern = regexp.MustCompile(`(?i)\b(op|operation|upstream)[-_]?[a-z0-9][a-z0-9._:-]*\b`)
@@ -69,13 +75,17 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 	if opts.VideoClient == nil && opts.Config.VideoCloudBaseURL != "" {
 		opts.VideoClient = videoclient.New(opts.Config.VideoCloudBaseURL)
 	}
-	s := &Server{store: st, mux: http.NewServeMux(), cfg: opts.Config, accountClient: opts.AccountClient, videoClient: opts.VideoClient}
+	if opts.Logger == nil {
+		opts.Logger = cloudlogger.Nop()
+	}
+	s := &Server{store: st, mux: http.NewServeMux(), cfg: opts.Config, accountClient: opts.AccountClient, videoClient: opts.VideoClient, logger: opts.Logger}
 	s.routes()
+	s.handler = requestContextMiddleware(cloudlogger.HTTPMiddleware(opts.Logger)(s.mux))
 	return s
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mux.ServeHTTP(w, r)
+	s.handler.ServeHTTP(w, r)
 }
 
 func (s *Server) routes() {
@@ -2915,10 +2925,12 @@ func (s *Server) writeCustomerError(w http.ResponseWriter, err error) {
 		return
 	}
 	if errors.Is(err, errVideoCloudRequestFailed) {
+		s.logUpstreamError("video_cloud", err)
 		http.Error(w, "Video Cloud request failed", http.StatusBadGateway)
 		return
 	}
 	if status, ok := customerUpstreamStatus(err); ok {
+		s.logUpstreamError("account_manager", err)
 		switch status {
 		case http.StatusUnauthorized:
 			http.Error(w, "customer session expired; please sign in again", http.StatusUnauthorized)
@@ -2940,6 +2952,7 @@ func (s *Server) writeUpstreamReadError(w http.ResponseWriter, err error) {
 		return
 	}
 	if status, ok := customerUpstreamStatus(err); ok {
+		s.logUpstreamError("account_manager", err)
 		switch status {
 		case http.StatusUnauthorized:
 			http.Error(w, "platform admin upstream session expired; please sign in again", http.StatusUnauthorized)
@@ -2956,6 +2969,7 @@ func (s *Server) writeUpstreamReadError(w http.ResponseWriter, err error) {
 }
 
 func (s *Server) writeVideoCloudGatewayError(w http.ResponseWriter, err error) {
+	s.logUpstreamError("video_cloud", err)
 	if isTimeoutError(err) {
 		http.Error(w, "Video Cloud request timed out", http.StatusGatewayTimeout)
 		return

@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"rtk_cloud_admin/internal/correlation"
 )
 
 type Client struct {
@@ -211,6 +213,7 @@ func (c *Client) doJSON(ctx context.Context, method, path, adminToken string, in
 	if adminToken != "" {
 		req.Header.Set("Authorization", "Bearer "+adminToken)
 	}
+	correlation.ApplyHeaders(ctx, req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
@@ -245,6 +248,7 @@ func (c *Client) Health(ctx context.Context) error {
 		return err
 	}
 	req.Header.Set("Accept", "application/json, text/plain")
+	correlation.ApplyHeaders(ctx, req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
@@ -273,6 +277,7 @@ func (c *Client) QueryActivation(ctx context.Context, adminToken string, devids 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+adminToken)
+	correlation.ApplyHeaders(ctx, req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -325,6 +330,7 @@ func (c *Client) GetDeviceInfo(ctx context.Context, adminToken, devid string) (D
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+adminToken)
+	correlation.ApplyHeaders(ctx, req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return DeviceInfo{}, err
