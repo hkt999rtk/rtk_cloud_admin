@@ -55,7 +55,7 @@ requirements from `SPEC.md`, `ROLES.md`, and `backend-api-gap-audit.md`.
 | Platform View: SSO Providers | Yes | `admin-dashboard-redesign.md` and `sso-oidc-design.md` | Required outside Customer View PNG batch |
 | Platform View: Operations Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Platform View: Audit Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
-| Brand-cloud management UI | No | `BRAND_CLOUD_ADMIN.md` backend/BFF contract | Deferred UI |
+| Brand-cloud management UI | No | [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md) plus backend/BFF contract | Platform View draft, outside Customer View |
 | Device Groups | No | None for v0.1 | Deferred and hidden |
 
 ## Approved Concepts
@@ -437,9 +437,9 @@ Platform View still requires implementation-aligned UI treatment for:
 
 Those pages use the same Realtek Ops Console shell and density, but they are
 Tier 1 only. Customer View must not show service health, audit data, raw
-operation payloads, `dead_lettered`, or platform customer browsing. Brand-cloud
-management routes are backend/BFF surfaces for future UI consumption and should
-not appear as a Platform View page until a dedicated design is approved.
+operation payloads, `dead_lettered`, or platform customer browsing.
+Brand-cloud management belongs in Platform View only and is covered by
+[platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md).
 
 ## Required Page States
 

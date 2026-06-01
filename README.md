@@ -10,6 +10,13 @@ The console is tenant-first:
 - platform administrators inspect customers, devices, lifecycle operations,
   service health, and audit activity across tenants
 
+The WebUI is intentionally implemented in this repository, not in
+`rtk_account_manager`. Account Manager owns identity, organizations,
+membership, entitlement, and brand-cloud source-of-truth APIs. This server owns
+the React WebUI and BFF surface that operators use to view or administer those
+upstream facts. Realtek Video Cloud owns activation, firmware, telemetry,
+streaming, and media runtime facts.
+
 The product and integration contracts live in the
 `rtk_cloud_contracts_doc` submodule.
 
@@ -32,6 +39,8 @@ Implemented in this first version:
 - legacy local platform admin login/session endpoint backed by SQLite for controlled break-glass access
 - SSO/OIDC architecture documented for the next authentication milestone
 - Account Manager proxy mode for organizations, devices, provision, and deactivate
+- Account Manager-backed brand-cloud admin BFF routes for future Platform View
+  UI implementation
 - explicit SQLite schema migrations tracked in `schema_migrations`
 - URL routes for `/console`, `/console/customers`, `/console/devices`,
   `/console/operations`, `/console/audit`, and `/admin`
@@ -49,6 +58,44 @@ identity broker and authorization source. See
 [`docs/sso-oidc-design.md`](docs/sso-oidc-design.md). Existing password login
 paths are legacy compatibility or controlled break-glass surfaces, not the
 long-term production target.
+
+## WebUI Background
+
+This server has two WebUI modes that share the same React/Vite application and
+Go BFF:
+
+- **Customer View** is for Tier 2 brand operators. It covers Fleet Health,
+  Devices, Firmware & OTA, and Stream Health for the active organization only.
+  Customer-facing pages must not expose platform-only audit, customer browsing,
+  raw upstream payloads, or cross-tenant facts.
+- **Platform View** is for Tier 1 Platform Admins. It covers Service Health,
+  SSO Providers, Operations Log, Audit Log, and the planned Brand Clouds
+  management UI. Platform View data and navigation are role-gated away from
+  Customer View.
+
+The design and implementation context is split across these documents:
+
+- [`docs/SPEC.md`](docs/SPEC.md): product scope, source-of-truth ownership,
+  HTTP routes, and runtime architecture.
+- [`docs/ROLES.md`](docs/ROLES.md): Tier 1/Tier 2 responsibilities,
+  capabilities, and field visibility rules.
+- [`docs/webui-customer-view-design.md`](docs/webui-customer-view-design.md):
+  approved Customer View design direction and visual concepts.
+- [`docs/admin-dashboard-redesign.md`](docs/admin-dashboard-redesign.md):
+  Platform View structure for service health, SSO providers, operations, and
+  audit.
+- [`docs/platform-brand-cloud-management-design.md`](docs/platform-brand-cloud-management-design.md):
+  draft Platform View Brand Clouds GUI and workflow design.
+- [`docs/webui-implementation-roadmap.md`](docs/webui-implementation-roadmap.md):
+  developer-ready issue roadmap for implementing the WebUI milestones.
+- [`docs/customer-view-visual-qa-checklist.md`](docs/customer-view-visual-qa-checklist.md)
+  and [`docs/webui-browser-qa.md`](docs/webui-browser-qa.md): browser QA and
+  visual signoff expectations.
+
+Visual mock assets live under `docs/assets/webui-design/`. Customer View has
+approved PNG concepts. Brand Clouds has a reviewable static GUI mock at
+`docs/assets/webui-design/platform-brand-clouds-mock.html` plus PNG captures
+for the list, create drawer, and detail drawer states.
 
 ## Requirements
 
@@ -146,6 +193,7 @@ internal/contracts/          Go DTOs and shared vocabulary
 internal/store/              SQLite schema, seed data, and repositories
 web/                         React frontend
 docs/SPEC.md                 Product and implementation specification
+docs/assets/webui-design/    WebUI visual concepts and static GUI mocks
 rtk_cloud_contracts_doc/     Shared contracts submodule
 ```
 

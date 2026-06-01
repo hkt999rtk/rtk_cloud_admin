@@ -352,6 +352,11 @@ When available, the Groups section provides:
 
 Primary users: Tier 1 Platform Admin. Not visible to any Tier 2 role.
 
+Platform View is the home for brand-cloud administration. The dedicated
+Brand Clouds design is tracked in
+[platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md)
+and should be treated as the product/UX source for that future WebUI work.
+
 ### Service Health (moved from Customer View)
 
 The Account Manager, Video Cloud, and SQLite health indicators remain, but

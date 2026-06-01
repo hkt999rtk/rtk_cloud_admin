@@ -12,6 +12,7 @@ Related documents:
 
 - [webui-customer-view-design.md](webui-customer-view-design.md)
 - [admin-dashboard-redesign.md](admin-dashboard-redesign.md)
+- [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md)
 - [customer-view-visual-qa-checklist.md](customer-view-visual-qa-checklist.md)
 - [backend-api-gap-audit.md](backend-api-gap-audit.md)
 - [SPEC.md](SPEC.md)
@@ -26,6 +27,12 @@ browser QA are implemented once and reused consistently.
 All issues in this roadmap are for `hkt999rtk/rtk_cloud_admin`. Upstream
 production data work in `rtk_video_cloud` or `rtk_account_manager` is tracked as
 a dependency note only; do not open upstream issues as part of this batch.
+
+This roadmap tracks the completed first WebUI implementation sequence for
+Customer View, auth, and the initial Platform View pages. Brand Clouds is the
+next Platform View design extension; its GUI draft and future issue breakdown
+live in
+[platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md).
 
 ## Issue Body Template
 

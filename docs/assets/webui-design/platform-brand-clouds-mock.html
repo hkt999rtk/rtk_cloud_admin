@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Platform Brand Clouds Mock</title>
+  <style>
+    :root {
+      --blue: #0068b7;
+      --blue-strong: #00518f;
+      --teal: #0d9488;
+      --navy: #25384c;
+      --ink: #1d2b3a;
+      --muted: #647384;
+      --line: #dfe7ef;
+      --line-strong: #c8d4df;
+      --wash: #f4f9fb;
+      --panel: #ffffff;
+      --soft-blue: #e4f4fa;
+      --warning: #b7791f;
+      --danger: #b42318;
+      --success: #16794c;
+      --shadow: 0 18px 50px rgba(37, 56, 76, .16);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--wash);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 244px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      color: #dbe7f2;
+      background: var(--navy);
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .brand {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: white;
+      font-weight: 760;
+      font-size: 15px;
+    }
+
+    .mark {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      background: #ffffff;
+      color: var(--blue);
+      font-weight: 820;
+    }
+
+    .section-label {
+      margin: 12px 8px 6px;
+      color: #9eb0c3;
+      font-size: 11px;
+      font-weight: 760;
+      text-transform: uppercase;
+    }
+
+    .nav {
+      display: grid;
+      gap: 4px;
+    }
+
+    .nav a {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      color: #dbe7f2;
+      text-decoration: none;
+      border-radius: 7px;
+      font-weight: 620;
+      font-size: 13px;
+    }
+
+    .nav a.active {
+      color: #ffffff;
+      background: rgba(0, 104, 183, .55);
+      box-shadow: inset 3px 0 0 #59c4ff;
+    }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 4px;
+      color: inherit;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 12px;
+      border: 1px solid rgba(219, 231, 242, .16);
+      border-radius: 8px;
+      color: #c7d6e6;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .crumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 620;
+    }
+
+    .crumb strong { color: var(--ink); }
+
+    .session {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: var(--blue);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .content {
+      padding: 24px 28px 34px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      color: #142638;
+      font-size: 26px;
+      line-height: 1.15;
+      font-weight: 780;
+    }
+
+    .lede {
+      margin: 7px 0 0;
+      max-width: 740px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .button {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--ink);
+      padding: 8px 12px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 720;
+      white-space: nowrap;
+    }
+
+    .button.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #ffffff;
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .kpi {
+      min-height: 92px;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .kpi label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .kpi strong {
+      display: block;
+      margin-top: 8px;
+      color: #13283b;
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .kpi span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) 150px 150px 150px auto;
+      gap: 10px;
+      padding: 12px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .field,
+    select {
+      width: 100%;
+      height: 36px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--ink);
+      padding: 0 11px;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .table-panel {
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    thead {
+      background: #f8fbfd;
+      color: #526273;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    th,
+    td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr.selected { background: #f0f8fc; }
+
+    .primary-text {
+      display: block;
+      overflow: hidden;
+      color: #16283a;
+      font-weight: 760;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .secondary-text {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 12px;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
+    .badge.active {
+      color: var(--success);
+      background: #e9f7f0;
+      border-color: #bfe5d0;
+    }
+
+    .badge.warn {
+      color: var(--warning);
+      background: #fff7e8;
+      border-color: #f3d49b;
+    }
+
+    .badge.disabled {
+      color: #677281;
+      background: #eef2f5;
+      border-color: #d8e0e7;
+    }
+
+    .badge.error {
+      color: var(--danger);
+      background: #fff0ed;
+      border-color: #fac7bd;
+    }
+
+    .row-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .icon-button {
+      width: 32px;
+      height: 32px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--navy);
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .source-note {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 11px 13px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      background: rgba(16, 33, 48, .24);
+    }
+
+    body[data-state="create"] .overlay,
+    body[data-state="detail"] .overlay {
+      display: block;
+    }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(560px, calc(100vw - 32px));
+      display: none;
+      grid-template-rows: auto 1fr auto;
+      background: #ffffff;
+      box-shadow: var(--shadow);
+      border-left: 1px solid var(--line);
+    }
+
+    body[data-state="create"] .drawer.create,
+    body[data-state="detail"] .drawer.detail {
+      display: grid;
+    }
+
+    .drawer-head {
+      padding: 22px 24px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .drawer-head h2 {
+      margin: 0;
+      color: #142638;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    .drawer-head p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .drawer-body {
+      overflow: auto;
+      padding: 20px 24px 24px;
+      display: grid;
+      align-content: start;
+      gap: 16px;
+      background: #fbfdfe;
+    }
+
+    .drawer-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 24px;
+      border-top: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .stepper {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .step {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 760;
+      text-transform: uppercase;
+    }
+
+    .bar {
+      height: 4px;
+      border-radius: 999px;
+      background: #d7e2ec;
+    }
+
+    .step.active { color: var(--blue); }
+    .step.active .bar,
+    .step.done .bar { background: var(--blue); }
+
+    .form-card,
+    .detail-card {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .form-card h3,
+    .detail-card h3 {
+      margin: 0 0 12px;
+      color: #17293c;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .control {
+      display: grid;
+      gap: 6px;
+    }
+
+    .control label {
+      color: #465667;
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .input {
+      height: 36px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      padding: 0 10px;
+      color: #142638;
+      background: #ffffff;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .readonly {
+      display: flex;
+      align-items: center;
+      min-height: 36px;
+      border: 1px solid #dce7ef;
+      border-radius: 7px;
+      padding: 0 10px;
+      color: #526273;
+      background: #f5f9fc;
+      font-size: 13px;
+    }
+
+    .callout {
+      padding: 12px;
+      border: 1px solid #f3d49b;
+      border-radius: 8px;
+      color: #73510d;
+      background: #fff9ed;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 9px;
+    }
+
+    .check {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      color: #25384c;
+      font-size: 13px;
+    }
+
+    .check:last-child { border-bottom: 0; }
+    .check .ok { color: var(--success); font-weight: 760; }
+    .check .todo { color: var(--warning); font-weight: 760; }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 148px 1fr;
+      gap: 8px 14px;
+      color: #1d2b3a;
+      font-size: 13px;
+    }
+
+    .kv dt {
+      margin: 0;
+      color: var(--muted);
+      font-weight: 680;
+    }
+
+    .kv dd {
+      margin: 0;
+      color: #17293c;
+      font-weight: 640;
+    }
+
+    .member-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .member-row:last-child { border-bottom: 0; }
+
+    .link-button {
+      border: 0;
+      background: transparent;
+      color: var(--blue);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 760;
+      padding: 0;
+    }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .topbar { padding: 0 18px; }
+      .content { padding: 20px 18px; }
+      .header { flex-direction: column; }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .toolbar { grid-template-columns: 1fr 1fr; }
+      .toolbar .button { justify-content: center; }
+      .table-panel { overflow-x: auto; }
+      table { min-width: 980px; }
+    }
+
+    @media (max-width: 560px) {
+      .kpis,
+      .toolbar,
+      .form-grid,
+      .stepper {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="mark">R</span><span>RTK Cloud Admin</span></div>
+      <div>
+        <div class="section-label">Platform View</div>
+        <nav class="nav" aria-label="Platform View">
+          <a href="#"><span class="icon">S</span>Service Health</a>
+          <a class="active" href="#"><span class="icon">B</span>Brand Clouds</a>
+          <a href="#"><span class="icon">I</span>SSO Providers</a>
+          <a href="#"><span class="icon">O</span>Operations Log</a>
+          <a href="#"><span class="icon">A</span>Audit Log</a>
+        </nav>
+      </div>
+      <div>
+        <div class="section-label">Customer View</div>
+        <nav class="nav" aria-label="Customer View">
+          <a href="#"><span class="icon">F</span>Fleet Health</a>
+          <a href="#"><span class="icon">D</span>Devices</a>
+          <a href="#"><span class="icon">U</span>Firmware & OTA</a>
+          <a href="#"><span class="icon">V</span>Stream Health</a>
+        </nav>
+      </div>
+      <div class="sidebar-footer">
+        Account Manager Platform Admin<br>
+        Upstream token active
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumb"><span>Platform View</span><span>/</span><strong>Brand Clouds</strong></div>
+        <div class="session"><span>platform-admin@realtek.com</span><span class="avatar">PA</span></div>
+      </header>
+
+      <section class="content">
+        <div class="header">
+          <div>
+            <h1>Brand Clouds</h1>
+            <p class="lede">Create and administer licensed brand operators backed by Account Manager. Brand-cloud records, members, status, and audit remain upstream-owned.</p>
+          </div>
+          <button class="button primary"><span class="icon">+</span>Create Brand Cloud</button>
+        </div>
+
+        <section class="kpis" aria-label="Brand cloud summary">
+          <div class="kpi"><label>Total Brand Clouds</label><strong>24</strong><span>Across 4 configured regions</span></div>
+          <div class="kpi"><label>Active</label><strong>19</strong><span>Ready for tenant operations</span></div>
+          <div class="kpi"><label>Setup Required</label><strong>3</strong><span>Owner or SSO still pending</span></div>
+          <div class="kpi"><label>Disabled</label><strong>2</strong><span>Tenant access paused</span></div>
+        </section>
+
+        <section class="toolbar" aria-label="Brand cloud filters">
+          <input class="field" value="Search brand, org id, owner" aria-label="Search">
+          <select aria-label="Status"><option>Status: All</option></select>
+          <select aria-label="Tier"><option>Tier: All</option></select>
+          <select aria-label="Region"><option>Region: All</option></select>
+          <button class="button">Refresh</button>
+        </section>
+
+        <section class="table-panel">
+          <table aria-label="Brand cloud list">
+            <colgroup>
+              <col style="width: 21%">
+              <col style="width: 12%">
+              <col style="width: 11%">
+              <col style="width: 13%">
+              <col style="width: 16%">
+              <col style="width: 10%">
+              <col style="width: 8%">
+              <col style="width: 9%">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Brand</th>
+                <th>Org ID</th>
+                <th>Tier</th>
+                <th>Status</th>
+                <th>Owner/Admin</th>
+                <th>SSO</th>
+                <th>Devices</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="selected">
+                <td><span class="primary-text">Realtek Connect+</span><span class="secondary-text">Taiwan region</span></td>
+                <td><span class="primary-text">brand-001</span></td>
+                <td>Evaluation</td>
+                <td><span class="badge active">Active</span></td>
+                <td><span class="primary-text">ops@example.com</span><span class="secondary-text">Owner</span></td>
+                <td><span class="badge active">Ready</span></td>
+                <td>18 / 200</td>
+                <td><div class="row-actions"><button class="icon-button">View</button></div></td>
+              </tr>
+              <tr>
+                <td><span class="primary-text">Acme Vision</span><span class="secondary-text">US West region</span></td>
+                <td><span class="primary-text">brand-002</span></td>
+                <td>Evaluation</td>
+                <td><span class="badge warn">Setup Required</span></td>
+                <td><span class="primary-text">Not assigned</span><span class="secondary-text">Retry member setup</span></td>
+                <td><span class="badge warn">Not set up</span></td>
+                <td>0 / 5</td>
+                <td><div class="row-actions"><button class="icon-button">View</button></div></td>
+              </tr>
+              <tr>
+                <td><span class="primary-text">Northstar Home</span><span class="secondary-text">Japan region</span></td>
+                <td><span class="primary-text">brand-003</span></td>
+                <td>Commercial</td>
+                <td><span class="badge active">Active</span></td>
+                <td><span class="primary-text">admin@northstar.example</span><span class="secondary-text">Admin</span></td>
+                <td><span class="badge active">Ready</span></td>
+                <td>312 / 500</td>
+                <td><div class="row-actions"><button class="icon-button">View</button></div></td>
+              </tr>
+              <tr>
+                <td><span class="primary-text">Demo Disabled</span><span class="secondary-text">Singapore region</span></td>
+                <td><span class="primary-text">brand-004</span></td>
+                <td>Commercial</td>
+                <td><span class="badge disabled">Disabled</span></td>
+                <td><span class="primary-text">support@example.com</span><span class="secondary-text">Owner</span></td>
+                <td><span class="badge disabled">Disabled</span></td>
+                <td>0 / 500</td>
+                <td><div class="row-actions"><button class="icon-button">View</button></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <div class="source-note">
+          <span>Source: Account Manager /v1/admin/brand-clouds</span>
+          <span>Last refreshed 2026-06-01 10:14</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="overlay" aria-hidden="true"></div>
+
+  <aside class="drawer create" aria-label="Create Brand Cloud">
+    <div class="drawer-head">
+      <h2>Create Brand Cloud</h2>
+      <p>Create a Tier 2 brand-cloud organization in Account Manager, then assign an existing Account Manager user as owner.</p>
+    </div>
+    <div class="drawer-body">
+      <div class="stepper">
+        <div class="step done"><span class="bar"></span><span>Identity</span></div>
+        <div class="step active"><span class="bar"></span><span>Admin</span></div>
+        <div class="step"><span class="bar"></span><span>Entitlement</span></div>
+        <div class="step"><span class="bar"></span><span>Review</span></div>
+      </div>
+      <section class="form-card">
+        <h3>Brand Identity</h3>
+        <div class="form-grid">
+          <div class="control"><label>Brand display name</label><input class="input" value="Acme Vision"></div>
+          <div class="control"><label>Brand code</label><input class="input" value="acme-vision"></div>
+          <div class="control"><label>Region</label><select><option>US West</option></select></div>
+          <div class="control"><label>Organization kind</label><span class="readonly">brand_cloud</span></div>
+        </div>
+      </section>
+      <section class="form-card">
+        <h3>Initial Admin</h3>
+        <div class="form-grid">
+          <div class="control"><label>Existing user email</label><input class="input" value="ops@acme.example"></div>
+          <div class="control"><label>Role</label><select><option>Owner</option></select></div>
+        </div>
+      </section>
+      <section class="form-card">
+        <h3>Entitlement Snapshot</h3>
+        <div class="form-grid">
+          <div class="control"><label>Tier</label><select><option>Evaluation</option></select></div>
+          <div class="control"><label>Device quota</label><span class="readonly">5 evaluation devices</span></div>
+        </div>
+      </section>
+      <div class="callout">If member assignment fails after creation, keep the brand cloud and retry the owner assignment from the detail drawer.</div>
+    </div>
+    <div class="drawer-foot">
+      <button class="button">Cancel</button>
+      <button class="button primary">Create Brand Cloud</button>
+    </div>
+  </aside>
+
+  <aside class="drawer detail" aria-label="Brand Cloud Detail">
+    <div class="drawer-head">
+      <h2>Realtek Connect+</h2>
+      <p>brand-001 / brand_cloud <span class="badge active">Active</span></p>
+    </div>
+    <div class="drawer-body">
+      <section class="detail-card">
+        <h3>Setup</h3>
+        <div class="checklist">
+          <div class="check"><span>Brand cloud created</span><span class="ok">Complete</span></div>
+          <div class="check"><span>Owner assigned</span><span class="ok">Complete</span></div>
+          <div class="check"><span>SSO configured</span><span class="todo">Review</span></div>
+          <div class="check"><span>Evaluation quota available</span><span class="ok">Complete</span></div>
+        </div>
+      </section>
+      <section class="detail-card">
+        <h3>Identity</h3>
+        <dl class="kv">
+          <dt>Name</dt><dd>Realtek Connect+</dd>
+          <dt>Region</dt><dd>Taiwan</dd>
+          <dt>Tier</dt><dd>Evaluation</dd>
+          <dt>Status</dt><dd>Active</dd>
+          <dt>Created</dt><dd>2026-05-02</dd>
+        </dl>
+      </section>
+      <section class="detail-card">
+        <h3>Members</h3>
+        <div class="member-row"><div><span class="primary-text">ops@example.com</span><span class="secondary-text">Owner</span></div><span class="badge active">Active</span></div>
+        <button class="link-button">Assign Existing User</button>
+      </section>
+      <section class="detail-card">
+        <h3>SSO</h3>
+        <dl class="kv">
+          <dt>Status</dt><dd>Ready</dd>
+          <dt>Provider</dt><dd>OIDC</dd>
+        </dl>
+        <button class="link-button">Open SSO Provider</button>
+      </section>
+      <section class="detail-card">
+        <h3>Recent Activity</h3>
+        <div class="member-row"><div><span class="primary-text">Owner assigned</span><span class="secondary-text">2026-05-18 by platform-admin@realtek.com</span></div></div>
+        <div class="member-row"><div><span class="primary-text">SSO provider updated</span><span class="secondary-text">2026-05-17 by platform-admin@realtek.com</span></div></div>
+      </section>
+    </div>
+    <div class="drawer-foot">
+      <button class="button">Disable Brand Cloud</button>
+      <button class="button primary">Edit Metadata</button>
+    </div>
+  </aside>
+
+  <script>
+    const state = new URLSearchParams(window.location.search).get('state') || 'list';
+    document.body.dataset.state = state;
+  </script>
+</body>
+</html>
