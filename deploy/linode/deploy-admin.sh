@@ -266,8 +266,7 @@ server {
 }
 NGINX
 ln -sf /etc/nginx/sites-available/rtk-cloud-admin.conf /etc/nginx/sites-enabled/rtk-cloud-admin.conf
-ln -sf /etc/nginx/sites-available/rtk-cloud-admin.conf /etc/nginx/conf.d/rtk-cloud-admin.conf
-rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
+rm -f /etc/nginx/conf.d/rtk-cloud-admin.conf /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
 nginx -t
 systemctl enable --now nginx
 systemctl reload nginx
@@ -276,7 +275,17 @@ systemctl daemon-reload
 systemctl enable --now prometheus-node-exporter
 systemctl restart prometheus-node-exporter
 systemctl is-active prometheus-node-exporter
-ss -lnt | grep "$node_exporter_listen_addr"
+for _ in $(seq 1 10); do
+  if ss -lnt | grep -F "$node_exporter_listen_addr" >/dev/null; then
+    node_exporter_ready=1
+    break
+  fi
+  sleep 1
+done
+if [ "${node_exporter_ready:-0}" != "1" ]; then
+  ss -lnt >&2 || true
+  exit 1
+fi
 systemctl enable --now rtk-cloud-admin
 systemctl restart rtk-cloud-admin
 

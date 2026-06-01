@@ -44,7 +44,7 @@ mkdir -p "$STAGE_DIR/bin" "$STAGE_DIR/web" "$OUTPUT_DIR"
 
 (
 	cd "$ROOT_DIR"
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o "$STAGE_DIR/bin/rtk-cloud-admin" ./cmd/server
+	GOWORK=off GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o "$STAGE_DIR/bin/rtk-cloud-admin" ./cmd/server
 )
 
 cp -R "$ROOT_DIR/web/dist" "$STAGE_DIR/web/dist"
