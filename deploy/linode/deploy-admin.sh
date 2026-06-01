@@ -61,6 +61,9 @@ ssh_user="${ADMIN_LINODE_SSH_USER:-root}"
 ssh_key="${ADMIN_LINODE_SSH_KEY:-$HOME/.ssh/id_ed25519_rtkcloud}"
 admin_host="${ADMIN_LINODE_HOST:-${ADMIN_LINODE_PUBLIC_IPV4:-}}"
 node_exporter_listen_addr="${ADMIN_PROMETHEUS_NODE_EXPORTER_LISTEN_ADDR:-127.0.0.1:9100}"
+if [ -z "${ADMIN_PROMETHEUS_NODE_EXPORTER_LISTEN_ADDR:-}" ] && [ -n "${ADMIN_LINODE_PRIVATE_IPV4:-}" ]; then
+  node_exporter_listen_addr="$ADMIN_LINODE_PRIVATE_IPV4:9100"
+fi
 release_bundle="${ADMIN_LINODE_RELEASE_BUNDLE:-}"
 remote_bundle="${ADMIN_LINODE_REMOTE_BUNDLE:-/tmp/rtk-cloud-admin-${release}.tar.gz}"
 data_dir="${ADMIN_LINODE_DATA_DIR:-/var/lib/rtk_cloud_admin}"
@@ -74,6 +77,7 @@ required_runtime=(
   ACCOUNT_MANAGER_BASE_URL
   VIDEO_CLOUD_BASE_URL
   VIDEO_CLOUD_ADMIN_TOKEN
+  VIDEO_CLOUD_PROMETHEUS_BASE_URL
   ADMIN_BOOTSTRAP_EMAIL
   ADMIN_BOOTSTRAP_PASSWORD
 )
@@ -138,6 +142,7 @@ trap cleanup EXIT
   write_env ACCOUNT_MANAGER_BASE_URL
   write_env VIDEO_CLOUD_BASE_URL
   write_env VIDEO_CLOUD_ADMIN_TOKEN
+  write_env VIDEO_CLOUD_PROMETHEUS_BASE_URL
   write_env ADMIN_BOOTSTRAP_EMAIL
   write_env ADMIN_BOOTSTRAP_PASSWORD
   printf 'ADMIN_BREAK_GLASS_ENABLED=%s\n' "${ADMIN_BREAK_GLASS_ENABLED:-true}"

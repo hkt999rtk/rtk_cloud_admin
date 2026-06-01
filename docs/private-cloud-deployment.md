@@ -24,10 +24,10 @@ database file as production state and back it up accordingly.
 
 ## Linode Staging Profile
 
-The supported Linode staging shape is a dedicated public-only Admin VM, not a
-node inside the Video Cloud VPC. This keeps the dashboard deployment boundary
-separate from `rtk_video_cloud` and avoids relying on the Video Cloud edge VM as
-a shared gateway.
+The supported Linode staging shape is a dedicated Admin VM with public HTTPS
+ingress and a Video Cloud VPC interface for private observability access. This
+keeps the dashboard deployment boundary separate from `rtk_video_cloud` while
+avoiding any public exposure of Prometheus.
 
 Recommended staging traffic:
 
@@ -40,6 +40,7 @@ internet
 rtk_cloud_admin
   -> ACCOUNT_MANAGER_BASE_URL over public HTTPS
   -> VIDEO_CLOUD_BASE_URL over public HTTPS
+  -> VIDEO_CLOUD_PROMETHEUS_BASE_URL over private VPC HTTP
 ```
 
 The operator-local scripts live under [`deploy/linode/`](../deploy/linode/):
@@ -63,6 +64,8 @@ Required or recommended environment variables:
 - `VIDEO_CLOUD_BASE_URL`: upstream Video Cloud base URL
 - `VIDEO_CLOUD_ADMIN_TOKEN`: admin token used for telemetry, firmware, and
   stream queries
+- `VIDEO_CLOUD_PROMETHEUS_BASE_URL`: private Prometheus query endpoint, for
+  example `http://10.42.1.30:9090`
 - `ADMIN_BOOTSTRAP_EMAIL`: local platform admin bootstrap email
 - `ADMIN_BOOTSTRAP_PASSWORD`: local platform admin bootstrap password
 
