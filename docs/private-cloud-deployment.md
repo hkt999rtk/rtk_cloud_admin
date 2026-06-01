@@ -45,9 +45,11 @@ rtk_cloud_admin
 
 The operator-local scripts live under [`deploy/linode/`](../deploy/linode/):
 
-- `provision-admin-vm.sh` creates the public-only Linode VM and firewall.
+- `provision-admin-vm.sh` creates the public+VPC Linode VM and firewall,
+  including private metrics access for node and nginx exporters.
 - `deploy-admin.sh` uploads the selected native release bundle, installs nginx,
-  writes the systemd unit, and starts the service.
+  installs node/nginx exporters, writes the systemd unit, and starts the
+  service.
 - `verify-admin.sh` checks the deployed HTTP surface.
 - `backup-admin-db.sh` pulls a timestamped SQLite backup.
 
@@ -85,6 +87,8 @@ Operational expectations:
   operator's proxy stack
 - keep the session cookie `HttpOnly` and treat it as an authenticated browser
   session, not an API token
+- expose node and nginx exporter ports only on the Admin private IP; nginx
+  `stub_status` is local-only and uses `127.0.0.1:8081` to avoid the app port
 
 ## Data Ownership
 

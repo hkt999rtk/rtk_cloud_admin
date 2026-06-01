@@ -49,6 +49,7 @@ RTK_TEST_CAPTURE_DIR="$capture" \
 ADMIN_LINODE_DOMAIN="admin.example.test" \
 ADMIN_LINODE_CERTBOT_EMAIL="admin@example.test" \
 ADMIN_LINODE_HOST="203.0.113.30" \
+ADMIN_LINODE_PRIVATE_IPV4="10.42.1.60" \
 ADMIN_LINODE_SSH_KEY="$ssh_key" \
 ADMIN_LINODE_RELEASE="test" \
 ADMIN_LINODE_RELEASE_BUNDLE="$release_bundle" \
@@ -61,5 +62,10 @@ ADMIN_BOOTSTRAP_PASSWORD="admin-password" \
   "$repo_root/deploy/linode/deploy-admin.sh" >/tmp/deploy-admin-env-test.out
 
 grep -q '^VIDEO_CLOUD_PROMETHEUS_BASE_URL=http://10.42.1.30:9090$' "$capture/admin.env"
+grep -q 'prometheus-nginx-exporter' "$capture/remote-install.sh"
+grep -q '127.0.0.1:8081/stub_status' "$capture/remote-install.sh"
+grep -q -- '-web.listen-address=$nginx_exporter_listen_addr' "$capture/remote-install.sh"
+grep -q '10.42.1.60:9113' "$capture/remote-install-args.txt"
+grep -q 'systemctl enable --now prometheus-nginx-exporter' "$capture/remote-install.sh"
 
 printf 'deploy-admin env test passed\n'
