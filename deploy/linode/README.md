@@ -17,12 +17,15 @@ The Admin VM is a dedicated public+VPC Linode:
 internet
   -> admin.video-cloud-staging.realtekconnect.com:443
   -> nginx on the Admin VM
-  -> native rtk_cloud_admin systemd service on 127.0.0.1:8080
+  -> native rtk_cloud_admin systemd service on :8080
 
 rtk_cloud_admin
   -> ACCOUNT_MANAGER_BASE_URL over public HTTPS
   -> VIDEO_CLOUD_BASE_URL over public HTTPS
   -> VIDEO_CLOUD_PROMETHEUS_BASE_URL over private VPC HTTP
+
+Video Cloud Prometheus
+  -> rtk_cloud_admin private VPC IP :8080 /metrics/prometheus
 ```
 
 This is the same operator-local deployment model used by the Video Cloud Linode
@@ -59,7 +62,10 @@ Remote Admin VM:
 - inbound `22/tcp` limited to operator CIDRs
 - inbound `80/tcp` and `443/tcp` public for certbot and dashboard HTTPS
 - outbound private VPC access to Prometheus on the Video Cloud infra VM
-- inbound private VPC access to Admin metrics ports `9100` and `9113`
+- inbound private VPC access to Admin app/exporter metrics ports `8080`,
+  `9100`, and `9113`
+- app metrics at `GET /metrics/prometheus`, intended for private/VPC
+  Prometheus scraping by the Video Cloud observability stack
 
 ## 1. Prepare Local Env
 
@@ -113,7 +119,10 @@ The deploy script:
 The nginx exporter listens on the Admin private IP by default when
 `ADMIN_LINODE_PRIVATE_IPV4` is set. It scrapes nginx `stub_status` through
 `127.0.0.1:8081/stub_status` so the Admin app can keep using
-`127.0.0.1:8080`.
+`:8080`.
+
+Public nginx returns 404 for `/metrics/prometheus`; scrape the app metrics over
+the private VPC IP instead.
 
 Release CI publishes native bundles to Linode Object Storage using the same
 layout as the Video Cloud release flow:

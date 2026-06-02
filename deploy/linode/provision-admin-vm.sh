@@ -116,7 +116,7 @@ firewall_payload="$(jq -cn --arg label "$firewall_label" --arg cidrs "$allowed_s
       {label:"ssh", action:"ACCEPT", protocol:"TCP", ports:"22", addresses:{ipv4:($cidrs|split(","))}},
       {label:"http", action:"ACCEPT", protocol:"TCP", ports:"80", addresses:{ipv4:["0.0.0.0/0"], ipv6:["::/0"]}},
       {label:"https", action:"ACCEPT", protocol:"TCP", ports:"443", addresses:{ipv4:["0.0.0.0/0"], ipv6:["::/0"]}},
-      {label:"vpc-metrics", action:"ACCEPT", protocol:"TCP", ports:"9100,9113", addresses:{ipv4:[$vpc_cidr]}}
+      {label:"vpc-metrics", action:"ACCEPT", protocol:"TCP", ports:"8080,9100,9113", addresses:{ipv4:[$vpc_cidr]}}
     ],
     outbound: []
   }
