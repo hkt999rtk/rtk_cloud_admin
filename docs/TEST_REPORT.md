@@ -28,7 +28,7 @@
 | `rtk_cloud_admin/cmd/s3put` | 73.4% |
 | `rtk_cloud_admin/cmd/server` | 0.0% |
 | `rtk_cloud_admin/internal/accountclient` | 89.8% |
-| `rtk_cloud_admin/internal/app` | 80.5% |
+| `rtk_cloud_admin/internal/app` | 80.6% |
 | `rtk_cloud_admin/internal/config` | 100.0% |
 | `rtk_cloud_admin/internal/correlation` | 90.5% |
 | `rtk_cloud_admin/internal/readinessfacts` | 86.0% |

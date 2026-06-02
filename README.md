@@ -72,10 +72,10 @@ Go BFF:
   Devices, Firmware & OTA, and Stream Health for the active organization only.
   Customer-facing pages must not expose platform-only audit, customer browsing,
   raw upstream payloads, or cross-tenant facts.
-- **Platform View** is for Tier 1 Platform Admins. It covers Service Health,
-  SSO Providers, Operations Log, Audit Log, and the planned Brand Clouds
-  management UI. Platform View data and navigation are role-gated away from
-  Customer View.
+- **Platform View** is for Tier 1 Platform Admins. It covers Platform
+  Dashboard, Service Health, SSO Providers, Operations Log, Audit Log, and the
+  planned Brand Clouds management UI. Platform View data and navigation are
+  role-gated away from Customer View.
 
 The design and implementation context is split across these documents:
 
@@ -86,8 +86,9 @@ The design and implementation context is split across these documents:
 - [`docs/webui-customer-view-design.md`](docs/webui-customer-view-design.md):
   approved Customer View design direction and visual concepts.
 - [`docs/admin-dashboard-redesign.md`](docs/admin-dashboard-redesign.md):
-  Platform View structure for service health, SSO providers, operations, and
-  audit.
+  Customer/Platform View split and Platform View structure.
+- [`docs/platform-view-dashboard-design.md`](docs/platform-view-dashboard-design.md):
+  Platform Dashboard metrics, Prometheus source mapping, and BFF boundary.
 - [`docs/platform-brand-cloud-management-design.md`](docs/platform-brand-cloud-management-design.md):
   draft Platform View Brand Clouds GUI and workflow design.
 - [`docs/webui-implementation-roadmap.md`](docs/webui-implementation-roadmap.md):

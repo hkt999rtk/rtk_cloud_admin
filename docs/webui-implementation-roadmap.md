@@ -12,6 +12,7 @@ Related documents:
 
 - [webui-customer-view-design.md](webui-customer-view-design.md)
 - [admin-dashboard-redesign.md](admin-dashboard-redesign.md)
+- [platform-view-dashboard-design.md](platform-view-dashboard-design.md)
 - [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md)
 - [customer-view-visual-qa-checklist.md](customer-view-visual-qa-checklist.md)
 - [backend-api-gap-audit.md](backend-api-gap-audit.md)
@@ -29,9 +30,10 @@ production data work in `rtk_video_cloud` or `rtk_account_manager` is tracked as
 a dependency note only; do not open upstream issues as part of this batch.
 
 This roadmap tracks the completed first WebUI implementation sequence for
-Customer View, auth, and the initial Platform View pages. Brand Clouds is the
-next Platform View design extension; its GUI draft and future issue breakdown
-live in
+Customer View, auth, and the initial Platform View pages. Platform Dashboard
+metrics and Brand Clouds are subsequent Platform View design extensions; their
+drafts live in
+[platform-view-dashboard-design.md](platform-view-dashboard-design.md) and
 [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md).
 
 ## Issue Body Template
@@ -473,6 +475,8 @@ Platform View separation.
 ## Scope
 
 - Polish Service Health, including Platform-only demo mode banner behavior.
+- Add Platform Dashboard as the Tier 1 landing page when the metrics BFF surface
+  is implemented; follow `platform-view-dashboard-design.md`.
 - Complete SSO Providers status/settings surface through Account Manager-backed
   data.
 - Complete Operations Log with Friendly Summary, raw type/state as Platform-only
