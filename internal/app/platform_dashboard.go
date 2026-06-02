@@ -44,6 +44,86 @@ var platformDashboardPrometheusQueries = []prometheusQueryDefinition{
 		StaleAfter:   5 * time.Minute,
 		StaleMessage: "Prometheus data is stale.",
 	},
+	{
+		ID:    "runtime_request_rate",
+		Title: "Runtime request rate",
+		Query: `sum by(service) (rate(http_requests_total[5m]))`,
+	},
+	{
+		ID:    "runtime_5xx_rate",
+		Title: "Runtime 5xx rate",
+		Query: `sum by(service) (rate(http_status_group_total{status="5xx"}[5m]))`,
+	},
+	{
+		ID:    "runtime_avg_latency_seconds",
+		Title: "Runtime average latency",
+		Query: `sum by(service) (rate(http_request_duration_seconds_sum[5m])) / sum by(service) (rate(http_request_duration_seconds_count[5m]))`,
+	},
+	{
+		ID:    "app_up",
+		Title: "Application up",
+		Query: `rtk_account_manager_up or rtk_cloud_admin_up or rtk_cloud_frontend_up`,
+	},
+	{
+		ID:    "crossservice_consumer_backlog",
+		Title: "Consumer backlog",
+		Query: `sum by(service) (crossservice_bus_consumer_pending_messages)`,
+	},
+	{
+		ID:    "crossservice_dead_letters",
+		Title: "Worker dead letters",
+		Query: `sum by(service) (increase(crossservice_worker_dead_letters_total[1h]))`,
+	},
+	{
+		ID:    "crossservice_publish_errors",
+		Title: "Publish errors",
+		Query: `sum by(service) (increase(crossservice_bus_publish_total{status="error"}[1h]))`,
+	},
+	{
+		ID:    "crossservice_consume_errors",
+		Title: "Consume errors",
+		Query: `sum by(service) (increase(crossservice_bus_consume_total{status="error"}[1h]))`,
+	},
+	{
+		ID:    "business_video_devices_online",
+		Title: "Video Cloud devices online",
+		Query: `video_cloud_devices_online`,
+	},
+	{
+		ID:    "business_blob_utilization_percent",
+		Title: "Blob utilization",
+		Query: `video_cloud_blob_capacity_utilization_percent`,
+	},
+	{
+		ID:    "business_exporter_success",
+		Title: "Exporter success",
+		Query: `video_cloud_exporter_last_collect_success`,
+	},
+	{
+		ID:    "business_quota_requests",
+		Title: "Quota requests",
+		Query: `rtk_account_manager_quota_raise_requests`,
+	},
+	{
+		ID:    "business_eval_signups_24h",
+		Title: "Evaluation signups",
+		Query: `increase(rtk_account_manager_eval_signups_total[24h])`,
+	},
+	{
+		ID:    "infra_cpu_utilization_percent",
+		Title: "CPU utilization",
+		Query: `100 - avg by(role) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100`,
+	},
+	{
+		ID:    "infra_memory_utilization_percent",
+		Title: "Memory utilization",
+		Query: `(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100`,
+	},
+	{
+		ID:    "infra_disk_utilization_percent",
+		Title: "Disk utilization",
+		Query: `(1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100`,
+	},
 }
 
 type prometheusQueryDefinition struct {

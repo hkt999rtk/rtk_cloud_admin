@@ -1626,7 +1626,26 @@ components:
       properties:
         id:
           type: string
-          enum: [scrape_targets_up, scrape_targets_down, exporter_freshness_seconds]
+          enum:
+            - scrape_targets_up
+            - scrape_targets_down
+            - exporter_freshness_seconds
+            - runtime_request_rate
+            - runtime_5xx_rate
+            - runtime_avg_latency_seconds
+            - app_up
+            - crossservice_consumer_backlog
+            - crossservice_dead_letters
+            - crossservice_publish_errors
+            - crossservice_consume_errors
+            - business_video_devices_online
+            - business_blob_utilization_percent
+            - business_exporter_success
+            - business_quota_requests
+            - business_eval_signups_24h
+            - infra_cpu_utilization_percent
+            - infra_memory_utilization_percent
+            - infra_disk_utilization_percent
         title:
           type: string
         source_status:

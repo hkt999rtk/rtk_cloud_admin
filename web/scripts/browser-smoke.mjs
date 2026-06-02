@@ -278,7 +278,26 @@ const platformDashboard = {
     service_scrape_health: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
     operation_risk: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
   },
-  prometheus: { queries: [] },
+  prometheus: {
+    queries: [
+      { id: 'runtime_request_rate', source_status: 'configured', series: [{ labels: { service: 'api' }, value: 18.4 }] },
+      { id: 'runtime_5xx_rate', source_status: 'configured', series: [{ labels: { service: 'api' }, value: 0 }] },
+      { id: 'runtime_avg_latency_seconds', source_status: 'configured', series: [{ labels: { service: 'api' }, value: 0.08 }] },
+      { id: 'app_up', source_status: 'configured', series: [{ labels: { job: 'cloud_admin_app' }, value: 1 }] },
+      { id: 'crossservice_consumer_backlog', source_status: 'configured', series: [{ labels: { service: 'crossservice' }, value: 4 }] },
+      { id: 'crossservice_dead_letters', source_status: 'configured', series: [{ labels: { service: 'crossservice' }, value: 0 }] },
+      { id: 'crossservice_publish_errors', source_status: 'configured', series: [{ labels: { service: 'crossservice' }, value: 0 }] },
+      { id: 'crossservice_consume_errors', source_status: 'configured', series: [{ labels: { service: 'crossservice' }, value: 0 }] },
+      { id: 'business_video_devices_online', source_status: 'configured', series: [{ labels: { job: 'metricsexporter' }, value: 1 }] },
+      { id: 'business_blob_utilization_percent', source_status: 'configured', series: [{ labels: { job: 'metricsexporter' }, value: 37 }] },
+      { id: 'business_exporter_success', source_status: 'configured', series: [{ labels: { job: 'metricsexporter' }, value: 1 }] },
+      { id: 'business_quota_requests', source_status: 'configured', series: [{ labels: { service: 'account-manager' }, value: 2 }] },
+      { id: 'business_eval_signups_24h', source_status: 'configured', series: [{ labels: { service: 'account-manager' }, value: 3 }] },
+      { id: 'infra_cpu_utilization_percent', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 42 }] },
+      { id: 'infra_memory_utilization_percent', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 61 }] },
+      { id: 'infra_disk_utilization_percent', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 55 }] },
+    ],
+  },
 };
 
 const customers = [{
@@ -430,6 +449,8 @@ async function runDesktopSmoke(page) {
   await expectText(page, 'Scrape Targets Down');
   await expectText(page, 'Service & Scrape Health');
   await expectText(page, 'Tenant & Device Footprint');
+  await expectText(page, 'Runtime Health');
+  await expectText(page, 'Infrastructure Health');
   await screenshot(page, 'desktop-platform-dashboard.png');
 
   await gotoAndAssert(page, '/admin/ops', 'Operations');

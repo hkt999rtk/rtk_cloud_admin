@@ -613,6 +613,40 @@ p {
   font-size: 22px;
 }
 
+.metric-row-list {
+  display: grid;
+  gap: 10px;
+}
+
+.metric-row {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 4px 0 10px;
+}
+
+.metric-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.metric-row span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.metric-row strong {
+  color: var(--navy);
+  font-size: 16px;
+  text-align: right;
+}
+
+.platform-dashboard-panel-secondary {
+  background: rgba(255, 255, 255, 0.78);
+}
+
 .overview-lower-grid {
   display: grid;
   gap: 18px;
