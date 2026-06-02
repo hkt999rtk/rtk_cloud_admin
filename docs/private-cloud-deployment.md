@@ -105,6 +105,9 @@ state.
 In production, upstream failures must be visible. The dashboard should surface
 gateway errors instead of silently falling back when a configured upstream is
 unreachable.
+Platform Dashboard Prometheus panels are sourced through the Admin BFF using
+`VIDEO_CLOUD_PROMETHEUS_BASE_URL`; browser JavaScript must not call Prometheus
+directly, and Prometheus must remain private to the VPC.
 
 ## Backup, Restore, And Rollback
 

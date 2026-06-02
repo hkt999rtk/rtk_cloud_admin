@@ -45,6 +45,8 @@ Included in v0.1:
   - provisioning/deactivation actions in the device drawer
   - readiness, health, firmware, telemetry, and stream status displays
 - Platform admin pages:
+  - Platform Dashboard with cross-tenant summary and curated Prometheus-backed
+    operational metrics
   - service health
   - SSO provider status and settings
   - backend/BFF brand-cloud management routes for future Platform View Brand
@@ -229,6 +231,8 @@ The WebUI design history is documented in:
   approved Customer View visual concepts and state requirements
 - [`admin-dashboard-redesign.md`](admin-dashboard-redesign.md) for Platform
   View structure
+- [`platform-view-dashboard-design.md`](platform-view-dashboard-design.md) for
+  the Platform Dashboard metrics and Prometheus-backed source mapping
 - [`platform-brand-cloud-management-design.md`](platform-brand-cloud-management-design.md)
   for the Platform View Brand Clouds GUI draft
 - [`webui-implementation-roadmap.md`](webui-implementation-roadmap.md) for the
