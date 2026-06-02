@@ -23,6 +23,7 @@ const (
 	platformDashboardSourceStale        = "stale"
 
 	platformDashboardPrometheusSource = "prometheus"
+	platformDashboardReadModelSource  = "admin_read_models"
 )
 
 var platformDashboardPrometheusQueries = []prometheusQueryDefinition{
@@ -63,23 +64,43 @@ func (s *Server) apiAdminPlatformDashboard(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		return
 	}
-	summary, err := s.platformDashboardSummary(r.Context(), session)
+	summary, operations, err := s.platformDashboardReadModels(r.Context(), session)
 	if err != nil {
 		s.writeUpstreamReadError(w, err)
 		return
 	}
-	writeJSON(w, s.platformDashboard(r.Context(), summary))
+	writeJSON(w, s.platformDashboard(r.Context(), summary, operations))
 }
 
-func (s *Server) platformDashboardSummary(ctx context.Context, session store.Session) (contracts.Summary, error) {
+func (s *Server) platformDashboardReadModels(ctx context.Context, session store.Session) (contracts.Summary, []contracts.Operation, error) {
 	if s.usePlatformAdminUpstream(session) {
-		return s.platformAdminSummary(ctx, session)
+		devices, err := s.platformAdminDevices(ctx, session)
+		if err != nil {
+			return contracts.Summary{}, nil, err
+		}
+		operations, err := s.platformAdminOperations(ctx, session)
+		if err != nil {
+			return contracts.Summary{}, nil, err
+		}
+		return summaryFromReadModels(devices, operations), operations, nil
 	}
-	return s.store.Summary()
+	summary, err := s.store.Summary()
+	if err != nil {
+		return contracts.Summary{}, nil, err
+	}
+	operations, err := s.store.ListOperations()
+	if err != nil {
+		return contracts.Summary{}, nil, err
+	}
+	return summary, operations, nil
 }
 
-func (s *Server) platformDashboard(ctx context.Context, summary contracts.Summary) contracts.PlatformDashboard {
+func (s *Server) platformDashboard(ctx context.Context, summary contracts.Summary, operations []contracts.Operation) contracts.PlatformDashboard {
 	checkedAt := time.Now().UTC().Format(time.RFC3339)
+	adminSource := contracts.PlatformDashboardSource{
+		SourceStatus: platformDashboardSourceConfigured,
+		CheckedAt:    checkedAt,
+	}
 	source := contracts.PlatformDashboardSource{
 		SourceStatus:  platformDashboardSourceUnconfigured,
 		SourceMessage: "Prometheus is not configured.",
@@ -99,10 +120,20 @@ func (s *Server) platformDashboard(ctx context.Context, summary contracts.Summar
 		}
 		return contracts.PlatformDashboard{
 			Summary: summary,
+			KPIs: buildPlatformDashboardKPIs(summary, map[string]contracts.PlatformDashboardPrometheusQuery{
+				"scrape_targets_down": {
+					SourceStatus: platformDashboardSourceUnconfigured,
+					Series:       []contracts.PlatformDashboardPrometheusSeries{},
+				},
+			}),
+			ServiceScrapeHealth: buildPlatformDashboardServiceScrapeHealth(queries),
+			OperationRisk:       buildPlatformDashboardOperationRisk(summary, operations),
 			Sources: map[string]contracts.PlatformDashboardSource{
 				platformDashboardPrometheusSource: source,
+				platformDashboardReadModelSource:  adminSource,
 			},
-			Prometheus: contracts.PlatformDashboardPrometheus{Queries: queries},
+			PanelSources: platformDashboardPanelSources(adminSource, source),
+			Prometheus:   contracts.PlatformDashboardPrometheus{Queries: queries},
 		}
 	}
 
@@ -143,13 +174,202 @@ func (s *Server) platformDashboard(ctx context.Context, summary contracts.Summar
 		source.SourceMessage = "Prometheus returned no dashboard data."
 	}
 	source.CheckedAt = checkedAt
+	queriesByID := platformDashboardQueriesByID(queries)
 	return contracts.PlatformDashboard{
-		Summary: summary,
+		Summary:             summary,
+		KPIs:                buildPlatformDashboardKPIs(summary, queriesByID),
+		ServiceScrapeHealth: buildPlatformDashboardServiceScrapeHealth(queries),
+		OperationRisk:       buildPlatformDashboardOperationRisk(summary, operations),
 		Sources: map[string]contracts.PlatformDashboardSource{
 			platformDashboardPrometheusSource: source,
+			platformDashboardReadModelSource:  adminSource,
 		},
-		Prometheus: contracts.PlatformDashboardPrometheus{Queries: queries},
+		PanelSources: platformDashboardPanelSources(adminSource, source),
+		Prometheus:   contracts.PlatformDashboardPrometheus{Queries: queries},
 	}
+}
+
+func platformDashboardPanelSources(adminSource, prometheusSource contracts.PlatformDashboardSource) map[string]contracts.PlatformDashboardSource {
+	return map[string]contracts.PlatformDashboardSource{
+		"kpis":                  mixedPanelSource(adminSource, prometheusSource),
+		"service_scrape_health": prometheusSource,
+		"operation_risk":        adminSource,
+	}
+}
+
+func mixedPanelSource(primary, secondary contracts.PlatformDashboardSource) contracts.PlatformDashboardSource {
+	if secondary.SourceStatus == platformDashboardSourceConfigured {
+		return primary
+	}
+	source := secondary
+	source.SourceMessage = fallback(source.SourceMessage, "Some dashboard data is unavailable.")
+	return source
+}
+
+func buildPlatformDashboardKPIs(summary contracts.Summary, queriesByID map[string]contracts.PlatformDashboardPrometheusQuery) []contracts.PlatformDashboardKPI {
+	scrapeTargetsDown := queriesByID["scrape_targets_down"]
+	return []contracts.PlatformDashboardKPI{
+		{
+			ID:           "tenants",
+			Label:        "Tenants",
+			Value:        float64(summary.Customers),
+			SourceStatus: platformDashboardSourceConfigured,
+		},
+		{
+			ID:             "devices_online",
+			Label:          "Devices Online",
+			Value:          float64(summary.OnlineDevices),
+			Unit:           "devices",
+			SecondaryLabel: "online_rate_pct",
+			SecondaryValue: percent(summary.OnlineDevices, summary.TotalDevices),
+			SourceStatus:   platformDashboardSourceConfigured,
+		},
+		{
+			ID:           "open_operations",
+			Label:        "Open Operations",
+			Value:        float64(summary.OpenOperations),
+			SourceStatus: platformDashboardSourceConfigured,
+		},
+		{
+			ID:           "scrape_targets_down",
+			Label:        "Scrape Targets Down",
+			Value:        sumPrometheusSeries(scrapeTargetsDown),
+			SourceStatus: fallback(scrapeTargetsDown.SourceStatus, platformDashboardSourceUnconfigured),
+		},
+	}
+}
+
+func buildPlatformDashboardOperationRisk(summary contracts.Summary, operations []contracts.Operation) contracts.PlatformDashboardOperationRisk {
+	risk := contracts.PlatformDashboardOperationRisk{
+		OpenOperations: summary.OpenOperations,
+		SourceStatus:   platformDashboardSourceConfigured,
+	}
+	for _, op := range operations {
+		switch op.State {
+		case contracts.OperationFailed:
+			risk.FailedOperations++
+		case contracts.OperationDeadLettered:
+			risk.DeadLetteredOperations++
+		}
+	}
+	return risk
+}
+
+func buildPlatformDashboardServiceScrapeHealth(queries []contracts.PlatformDashboardPrometheusQuery) []contracts.PlatformDashboardServiceScrapeHealth {
+	queriesByID := platformDashboardQueriesByID(queries)
+	up := queriesByID["scrape_targets_up"]
+	down := queriesByID["scrape_targets_down"]
+	groups := []contracts.PlatformDashboardServiceScrapeHealth{
+		{ID: "app", Name: "App", SourceStatus: combinedPrometheusQueryStatus(up, down)},
+		{ID: "host", Name: "Host", SourceStatus: combinedPrometheusQueryStatus(up, down)},
+		{ID: "data", Name: "Data", SourceStatus: combinedPrometheusQueryStatus(up, down)},
+		{ID: "broker", Name: "Broker", SourceStatus: combinedPrometheusQueryStatus(up, down)},
+		{ID: "gateway", Name: "Gateway", SourceStatus: combinedPrometheusQueryStatus(up, down)},
+	}
+	for i := range groups {
+		groups[i].TargetsUp = int(sumPrometheusSeriesForGroup(up, groups[i].ID))
+		groups[i].TargetsDown = int(sumPrometheusSeriesForGroup(down, groups[i].ID))
+		groups[i].TargetsTotal = groups[i].TargetsUp + groups[i].TargetsDown
+		groups[i].Status = platformDashboardScrapeGroupStatus(groups[i])
+	}
+	return groups
+}
+
+func platformDashboardQueriesByID(queries []contracts.PlatformDashboardPrometheusQuery) map[string]contracts.PlatformDashboardPrometheusQuery {
+	byID := make(map[string]contracts.PlatformDashboardPrometheusQuery, len(queries))
+	for _, query := range queries {
+		byID[query.ID] = query
+	}
+	return byID
+}
+
+func sumPrometheusSeries(query contracts.PlatformDashboardPrometheusQuery) float64 {
+	var total float64
+	for _, series := range query.Series {
+		total += series.Value
+	}
+	return total
+}
+
+func sumPrometheusSeriesForGroup(query contracts.PlatformDashboardPrometheusQuery, groupID string) float64 {
+	var total float64
+	for _, series := range query.Series {
+		if platformDashboardScrapeGroup(series.Labels) == groupID {
+			total += series.Value
+		}
+	}
+	return total
+}
+
+func platformDashboardScrapeGroup(labels map[string]string) string {
+	job := strings.ToLower(labels["job"])
+	role := strings.ToLower(labels["role"])
+	switch {
+	case job == "node":
+		return "host"
+	case job == "postgres" || job == "redis":
+		return "data"
+	case job == "nats" || job == "emqx" || role == "mqtt":
+		return "broker"
+	case job == "nginx" || role == "edge" || role == "gateway":
+		return "gateway"
+	default:
+		return "app"
+	}
+}
+
+func platformDashboardScrapeGroupStatus(group contracts.PlatformDashboardServiceScrapeHealth) string {
+	switch {
+	case group.SourceStatus == platformDashboardSourceUnconfigured || group.SourceStatus == platformDashboardSourceUnavailable:
+		return group.SourceStatus
+	case group.SourceStatus == platformDashboardSourceEmpty || group.TargetsTotal == 0:
+		return platformDashboardSourceEmpty
+	case group.TargetsDown > 0:
+		return "degraded"
+	default:
+		return "ok"
+	}
+}
+
+func combinedPrometheusQueryStatus(queries ...contracts.PlatformDashboardPrometheusQuery) string {
+	anyUnavailable := false
+	anyStale := false
+	anyConfigured := false
+	anyEmpty := false
+	for _, query := range queries {
+		switch query.SourceStatus {
+		case platformDashboardSourceUnavailable, platformDashboardSourceUnconfigured:
+			anyUnavailable = query.SourceStatus == platformDashboardSourceUnavailable || anyUnavailable
+			if query.SourceStatus == platformDashboardSourceUnconfigured {
+				return platformDashboardSourceUnconfigured
+			}
+		case platformDashboardSourceStale:
+			anyStale = true
+		case platformDashboardSourceConfigured:
+			anyConfigured = true
+		case platformDashboardSourceEmpty:
+			anyEmpty = true
+		}
+	}
+	switch {
+	case anyUnavailable:
+		return platformDashboardSourceUnavailable
+	case anyStale:
+		return platformDashboardSourceStale
+	case anyConfigured:
+		return platformDashboardSourceConfigured
+	case anyEmpty:
+		return platformDashboardSourceEmpty
+	default:
+		return platformDashboardSourceEmpty
+	}
+}
+
+func percent(numerator, denominator int) float64 {
+	if denominator <= 0 {
+		return 0
+	}
+	return toTwoDecimal(float64(numerator) / float64(denominator) * 100)
 }
 
 func newPrometheusClient(baseURL string) prometheusClient {

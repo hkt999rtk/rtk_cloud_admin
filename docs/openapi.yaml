@@ -1520,11 +1520,25 @@ components:
           format: date-time
     PlatformDashboard:
       type: object
-      required: [summary, sources, prometheus]
+      required: [summary, kpis, service_scrape_health, operation_risk, sources, panel_sources, prometheus]
       properties:
         summary:
           $ref: "#/components/schemas/Summary"
+        kpis:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformDashboardKPI"
+        service_scrape_health:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformDashboardServiceScrapeHealth"
+        operation_risk:
+          $ref: "#/components/schemas/PlatformDashboardOperationRisk"
         sources:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PlatformDashboardSource"
+        panel_sources:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/PlatformDashboardSource"
@@ -1542,6 +1556,62 @@ components:
         checked_at:
           type: string
           format: date-time
+    PlatformDashboardKPI:
+      type: object
+      required: [id, label, value, source_status]
+      properties:
+        id:
+          type: string
+          enum: [tenants, devices_online, open_operations, scrape_targets_down]
+        label:
+          type: string
+        value:
+          type: number
+          format: double
+        unit:
+          type: string
+        secondary_label:
+          type: string
+        secondary_value:
+          type: number
+          format: double
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale]
+    PlatformDashboardServiceScrapeHealth:
+      type: object
+      required: [id, name, status, targets_up, targets_down, targets_total, source_status]
+      properties:
+        id:
+          type: string
+          enum: [app, host, data, broker, gateway]
+        name:
+          type: string
+        status:
+          type: string
+          enum: [ok, degraded, configured, unconfigured, unavailable, empty, stale]
+        targets_up:
+          type: integer
+        targets_down:
+          type: integer
+        targets_total:
+          type: integer
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale]
+    PlatformDashboardOperationRisk:
+      type: object
+      required: [open_operations, failed_operations, dead_lettered_operations, source_status]
+      properties:
+        open_operations:
+          type: integer
+        failed_operations:
+          type: integer
+        dead_lettered_operations:
+          type: integer
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale]
     PlatformDashboardPrometheus:
       type: object
       required: [queries]

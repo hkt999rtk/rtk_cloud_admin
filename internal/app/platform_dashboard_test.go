@@ -59,6 +59,23 @@ func TestAdminPlatformDashboardUnconfiguredPrometheusReturnsSummary(t *testing.T
 	if len(payload.Prometheus.Queries) == 0 {
 		t.Fatalf("prometheus queries are empty")
 	}
+	if kpiValue(payload.KPIs, "tenants") != float64(payload.Summary.Customers) {
+		t.Fatalf("tenants KPI = %v, want %d", kpiValue(payload.KPIs, "tenants"), payload.Summary.Customers)
+	}
+	if kpiStatus(payload.KPIs, "scrape_targets_down") != "unconfigured" {
+		t.Fatalf("scrape_targets_down KPI status = %q, want unconfigured", kpiStatus(payload.KPIs, "scrape_targets_down"))
+	}
+	if len(payload.ServiceScrapeHealth) != 5 {
+		t.Fatalf("service scrape group count = %d, want 5", len(payload.ServiceScrapeHealth))
+	}
+	for _, group := range payload.ServiceScrapeHealth {
+		if group.SourceStatus != "unconfigured" || group.Status != "unconfigured" {
+			t.Fatalf("group %s source/status = %s/%s, want unconfigured/unconfigured", group.ID, group.SourceStatus, group.Status)
+		}
+	}
+	if payload.PanelSources["service_scrape_health"].SourceStatus != "unconfigured" {
+		t.Fatalf("service_scrape_health panel source = %q, want unconfigured", payload.PanelSources["service_scrape_health"].SourceStatus)
+	}
 	for _, query := range payload.Prometheus.Queries {
 		if query.SourceStatus != "unconfigured" {
 			t.Fatalf("%s source_status = %q, want unconfigured", query.ID, query.SourceStatus)
@@ -124,6 +141,100 @@ func TestAdminPlatformDashboardPrometheusEmptyResponse(t *testing.T) {
 			t.Fatalf("%s source_status = %q, want empty", query.ID, query.SourceStatus)
 		}
 	}
+	for _, group := range payload.ServiceScrapeHealth {
+		if group.Status != "empty" {
+			t.Fatalf("%s status = %q, want empty", group.ID, group.Status)
+		}
+	}
+}
+
+func TestAdminPlatformDashboardAllTargetsUpFixture(t *testing.T) {
+	t.Parallel()
+
+	prometheus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch query := r.URL.Query().Get("query"); {
+		case query == `sum by(job, service, role) (up)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"2"]},{"metric":{"job":"node","role":"api"},"value":[1780369304,"1"]},{"metric":{"job":"postgres","role":"infra"},"value":[1780369304,"1"]},{"metric":{"job":"nats","role":"broker"},"value":[1780369304,"1"]},{"metric":{"job":"nginx","role":"gateway"},"value":[1780369304,"1"]}]}}`))
+		case query == `sum by(job, service, role) (up == 0)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"0"]},{"metric":{"job":"node","role":"api"},"value":[1780369304,"0"]},{"metric":{"job":"postgres","role":"infra"},"value":[1780369304,"0"]},{"metric":{"job":"nats","role":"broker"},"value":[1780369304,"0"]},{"metric":{"job":"nginx","role":"gateway"},"value":[1780369304,"0"]}]}}`))
+		default:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"metricsexporter"},"value":[1780369304,"60"]}]}}`))
+		}
+	}))
+	defer prometheus.Close()
+
+	payload := getPlatformDashboardForPrometheus(t, prometheus.URL)
+	if payload.Sources["prometheus"].SourceStatus != "configured" {
+		t.Fatalf("prometheus source = %q, want configured", payload.Sources["prometheus"].SourceStatus)
+	}
+	if kpiValue(payload.KPIs, "scrape_targets_down") != 0 {
+		t.Fatalf("scrape_targets_down KPI = %v, want 0", kpiValue(payload.KPIs, "scrape_targets_down"))
+	}
+	wantTotals := map[string]int{"app": 2, "host": 1, "data": 1, "broker": 1, "gateway": 1}
+	for _, group := range payload.ServiceScrapeHealth {
+		if group.Status != "ok" {
+			t.Fatalf("%s status = %q, want ok", group.ID, group.Status)
+		}
+		if group.TargetsTotal != wantTotals[group.ID] {
+			t.Fatalf("%s targets_total = %d, want %d", group.ID, group.TargetsTotal, wantTotals[group.ID])
+		}
+	}
+}
+
+func TestAdminPlatformDashboardOneTargetDownFixture(t *testing.T) {
+	t.Parallel()
+
+	prometheus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch query := r.URL.Query().Get("query"); {
+		case query == `sum by(job, service, role) (up)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"1"]},{"metric":{"job":"nginx","role":"gateway"},"value":[1780369304,"1"]}]}}`))
+		case query == `sum by(job, service, role) (up == 0)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"1"]},{"metric":{"job":"nginx","role":"gateway"},"value":[1780369304,"0"]}]}}`))
+		default:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"metricsexporter"},"value":[1780369304,"60"]}]}}`))
+		}
+	}))
+	defer prometheus.Close()
+
+	payload := getPlatformDashboardForPrometheus(t, prometheus.URL)
+	if kpiValue(payload.KPIs, "scrape_targets_down") != 1 {
+		t.Fatalf("scrape_targets_down KPI = %v, want 1", kpiValue(payload.KPIs, "scrape_targets_down"))
+	}
+	app := scrapeGroup(payload.ServiceScrapeHealth, "app")
+	if app.Status != "degraded" || app.TargetsUp != 1 || app.TargetsDown != 1 || app.TargetsTotal != 2 {
+		t.Fatalf("app group = %+v, want degraded 1 up / 1 down / 2 total", app)
+	}
+	gateway := scrapeGroup(payload.ServiceScrapeHealth, "gateway")
+	if gateway.Status != "ok" || gateway.TargetsDown != 0 {
+		t.Fatalf("gateway group = %+v, want ok with 0 down", gateway)
+	}
+}
+
+func TestAdminPlatformDashboardMissingSeriesFixture(t *testing.T) {
+	t.Parallel()
+
+	prometheus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch query := r.URL.Query().Get("query"); {
+		case query == `sum by(job, service, role) (up)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"1"]}]}}`))
+		case query == `sum by(job, service, role) (up == 0)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"0"]}]}}`))
+		default:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"metricsexporter"},"value":[1780369304,"60"]}]}}`))
+		}
+	}))
+	defer prometheus.Close()
+
+	payload := getPlatformDashboardForPrometheus(t, prometheus.URL)
+	if scrapeGroup(payload.ServiceScrapeHealth, "app").Status != "ok" {
+		t.Fatalf("app group = %+v, want ok", scrapeGroup(payload.ServiceScrapeHealth, "app"))
+	}
+	for _, id := range []string{"host", "data", "broker", "gateway"} {
+		group := scrapeGroup(payload.ServiceScrapeHealth, id)
+		if group.Status != "empty" || group.TargetsTotal != 0 {
+			t.Fatalf("%s group = %+v, want empty with no targets", id, group)
+		}
+	}
 }
 
 func TestAdminPlatformDashboardPrometheusConfiguredAndStale(t *testing.T) {
@@ -186,6 +297,44 @@ func getPlatformDashboard(t *testing.T, srv http.Handler, sessionID string) cont
 		t.Fatalf("decode platform dashboard: %v", err)
 	}
 	return payload
+}
+
+func getPlatformDashboardForPrometheus(t *testing.T, prometheusBaseURL string) contracts.PlatformDashboard {
+	t.Helper()
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{Config: config.Config{VideoCloudPrometheusBaseURL: prometheusBaseURL}})
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	return getPlatformDashboard(t, srv, session.ID)
+}
+
+func kpiValue(kpis []contracts.PlatformDashboardKPI, id string) float64 {
+	for _, kpi := range kpis {
+		if kpi.ID == id {
+			return kpi.Value
+		}
+	}
+	return -1
+}
+
+func kpiStatus(kpis []contracts.PlatformDashboardKPI, id string) string {
+	for _, kpi := range kpis {
+		if kpi.ID == id {
+			return kpi.SourceStatus
+		}
+	}
+	return ""
+}
+
+func scrapeGroup(groups []contracts.PlatformDashboardServiceScrapeHealth, id string) contracts.PlatformDashboardServiceScrapeHealth {
+	for _, group := range groups {
+		if group.ID == id {
+			return group
+		}
+	}
+	return contracts.PlatformDashboardServiceScrapeHealth{}
 }
 
 func TestPrometheusClientRejectsInvalidBaseURL(t *testing.T) {
