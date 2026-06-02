@@ -89,6 +89,7 @@ sidebar.
 **Platform View** — Tier 1 Platform Admin only:
 
 ```
+Dashboard        →  cross-tenant summary + curated Prometheus-backed metrics
 Service Health   →  moved from customer view
 SSO Providers    →  Account Manager-backed provider status/settings
 Operations       →  operations log (existing, refined)
@@ -356,6 +357,18 @@ Platform View is the home for brand-cloud administration. The dedicated
 Brand Clouds design is tracked in
 [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md)
 and should be treated as the product/UX source for that future WebUI work.
+The dedicated Platform Dashboard metrics design is tracked in
+[platform-view-dashboard-design.md](platform-view-dashboard-design.md); it
+defines the Tier 1 landing page and the Prometheus-backed metrics that can be
+summarized in this product UI.
+
+### Platform Dashboard (new)
+
+Platform Dashboard is the Tier 1 landing page. It summarizes cross-tenant
+device/operation footprint, service health, Prometheus scrape health,
+cross-service risk, and infrastructure status. It is implemented by Admin
+Console as a curated product dashboard, not as an embedded Grafana replacement
+or a raw Prometheus query UI.
 
 ### Service Health (moved from Customer View)
 
@@ -617,7 +630,7 @@ The following are intentionally deferred:
     ├── Devices Table (improved)
     ├── Firmware & OTA (new)
     ├── Stream Health (new)
-    └── Platform View (Service Health, SSO Providers, Operations Log, Audit Log)
+    └── Platform View (Platform Dashboard, Service Health, SSO Providers, Operations Log, Audit Log)
 ```
 
 Backend work in rtk_video_cloud is the critical path dependency for

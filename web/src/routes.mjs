@@ -6,7 +6,8 @@ export const customerNavItems = [
 ];
 
 export const platformNavItems = [
-  { id: 'platform-health', label: 'Service Health', path: '/admin' },
+  { id: 'platform-dashboard', label: 'Platform Dashboard', path: '/admin' },
+  { id: 'platform-health', label: 'Service Health', path: '/admin/health' },
   { id: 'platform-sso', label: 'SSO Providers', path: '/admin/sso' },
   { id: 'platform-operations', label: 'Operations Log', path: '/admin/ops' },
   { id: 'platform-audit', label: 'Audit Log', path: '/admin/audit' },
@@ -36,6 +37,7 @@ export function titleFor(active) {
     devices: 'Devices',
     'firmware-ota': 'Firmware & OTA',
     'stream-health': 'Stream Health',
+    'platform-dashboard': 'Platform Dashboard',
     'platform-health': 'Service Health',
     'platform-sso': 'SSO Providers',
     'platform-operations': 'Operations',
@@ -47,12 +49,13 @@ export function routeFromPath(path) {
   if (path === '/signup' || path === '/signup/') return 'signup';
   if (path === '/signup/check-email' || path.startsWith('/signup/check-email/')) return 'signup-check-email';
   if (path === '/verify' || path.startsWith('/verify/')) return 'verify';
-  if (path === '/admin' || path === '/admin/') return 'platform-health';
+  if (path === '/admin' || path === '/admin/') return 'platform-dashboard';
+  if (path === '/admin/health' || path.startsWith('/admin/health/')) return 'platform-health';
   if (path === '/admin/sso' || path.startsWith('/admin/sso/')) return 'platform-sso';
   if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
   if (path === '/admin/operations' || path.startsWith('/admin/operations/')) return 'platform-operations';
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
-  if (path.startsWith('/admin/')) return 'platform-health';
+  if (path.startsWith('/admin/')) return 'platform-dashboard';
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
   if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';

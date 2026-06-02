@@ -248,6 +248,58 @@ const platformOperations = [
   },
 ];
 
+const platformDashboard = {
+  summary,
+  kpis: [
+    { id: 'tenants', label: 'Tenants', value: 1, source_status: 'configured' },
+    { id: 'devices_online', label: 'Devices Online', value: 1, secondary_label: 'online_rate_pct', secondary_value: 50, source_status: 'configured' },
+    { id: 'open_operations', label: 'Open Operations', value: 1, source_status: 'configured' },
+    { id: 'scrape_targets_down', label: 'Scrape Targets Down', value: 0, source_status: 'configured' },
+  ],
+  service_scrape_health: [
+    { id: 'app', name: 'App', status: 'ok', targets_up: 4, targets_down: 0, targets_total: 4, source_status: 'configured' },
+    { id: 'host', name: 'Host', status: 'ok', targets_up: 5, targets_down: 0, targets_total: 5, source_status: 'configured' },
+    { id: 'data', name: 'Data', status: 'ok', targets_up: 2, targets_down: 0, targets_total: 2, source_status: 'configured' },
+    { id: 'broker', name: 'Broker', status: 'ok', targets_up: 2, targets_down: 0, targets_total: 2, source_status: 'configured' },
+    { id: 'gateway', name: 'Gateway', status: 'ok', targets_up: 2, targets_down: 0, targets_total: 2, source_status: 'configured' },
+  ],
+  operation_risk: {
+    open_operations: 1,
+    failed_operations: 1,
+    dead_lettered_operations: 0,
+    source_status: 'configured',
+  },
+  sources: {
+    prometheus: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    admin_read_models: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+  },
+  panel_sources: {
+    kpis: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    service_scrape_health: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    operation_risk: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+  },
+  prometheus: {
+    queries: [
+      { id: 'runtime_request_rate', source_status: 'configured', series: [{ labels: { service: 'api' }, value: 18.4 }] },
+      { id: 'runtime_5xx_rate', source_status: 'configured', series: [{ labels: { service: 'api' }, value: 0 }] },
+      { id: 'runtime_avg_latency_seconds', source_status: 'configured', series: [{ labels: { service: 'api' }, value: 0.08 }] },
+      { id: 'app_up', source_status: 'configured', series: [{ labels: { job: 'cloud_admin_app' }, value: 1 }] },
+      { id: 'crossservice_consumer_backlog', source_status: 'configured', series: [{ labels: { service: 'crossservice' }, value: 4 }] },
+      { id: 'crossservice_dead_letters', source_status: 'configured', series: [{ labels: { service: 'crossservice' }, value: 0 }] },
+      { id: 'crossservice_publish_errors', source_status: 'configured', series: [{ labels: { service: 'crossservice' }, value: 0 }] },
+      { id: 'crossservice_consume_errors', source_status: 'configured', series: [{ labels: { service: 'crossservice' }, value: 0 }] },
+      { id: 'business_video_devices_online', source_status: 'configured', series: [{ labels: { job: 'metricsexporter' }, value: 1 }] },
+      { id: 'business_blob_utilization_percent', source_status: 'configured', series: [{ labels: { job: 'metricsexporter' }, value: 37 }] },
+      { id: 'business_exporter_success', source_status: 'configured', series: [{ labels: { job: 'metricsexporter' }, value: 1 }] },
+      { id: 'business_quota_requests', source_status: 'configured', series: [{ labels: { service: 'account-manager' }, value: 2 }] },
+      { id: 'business_eval_signups_24h', source_status: 'configured', series: [{ labels: { service: 'account-manager' }, value: 3 }] },
+      { id: 'infra_cpu_utilization_percent', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 42 }] },
+      { id: 'infra_memory_utilization_percent', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 61 }] },
+      { id: 'infra_disk_utilization_percent', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 55 }] },
+    ],
+  },
+};
+
 const customers = [{
   organization_id: 'org-acme',
   organization: 'Acme Smart Camera',
@@ -326,6 +378,7 @@ async function installApiMocks(page) {
     if (pathName === '/api/fleet/health-summary') return route.fulfill({ json: fleetHealth });
     if (pathName === '/api/fleet/stream-stats') return route.fulfill({ json: streamStats });
     if (pathName === '/api/fleet/firmware-distribution') return route.fulfill({ json: firmwareDistribution });
+    if (pathName === '/api/admin/platform-dashboard') return route.fulfill({ json: platformDashboard });
     if (pathName === '/api/admin/service-health') return route.fulfill({ json: platformHealth });
     if (pathName === '/api/admin/operations') return route.fulfill({ json: platformOperations });
     if (pathName === '/api/admin/audit') return route.fulfill({ json: audit });
@@ -392,6 +445,14 @@ async function runDesktopSmoke(page) {
   await expectText(page, 'Provision device');
   await screenshot(page, 'desktop-stream-open-device.png');
 
+  await gotoAndAssert(page, '/admin', 'Platform Dashboard');
+  await expectText(page, 'Scrape Targets Down');
+  await expectText(page, 'Service & Scrape Health');
+  await expectText(page, 'Tenant & Device Footprint');
+  await expectText(page, 'Runtime Health');
+  await expectText(page, 'Infrastructure Health');
+  await screenshot(page, 'desktop-platform-dashboard.png');
+
   await gotoAndAssert(page, '/admin/ops', 'Operations');
   await expectText(page, 'Lifecycle operations');
   await expectText(page, 'Provisioning succeeded');
@@ -424,6 +485,10 @@ async function runMobileSmoke(browserContext) {
     throw new Error('Mobile Devices view must hide the full table and show compact rows.');
   }
   await screenshot(page, 'mobile-devices.png');
+
+  await gotoAndAssert(page, '/admin', 'Platform Dashboard');
+  await expectText(page, 'Tenant & Device Footprint');
+  await screenshot(page, 'mobile-platform-dashboard.png');
 
   await gotoAndAssert(page, '/signup', 'Sign up');
   await expectText(page, 'Create account');

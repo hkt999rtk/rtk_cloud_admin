@@ -114,8 +114,11 @@ Reference: `docs/assets/webui-design/customer-stream-health.png`
 ## Platform View Boundary
 
 - Customer View concept images do not complete Platform View design.
-- Platform View contains Service Health, SSO Providers, Operations Log, and Audit
-  Log for Tier 1 only.
+- Platform View contains Platform Dashboard, Service Health, SSO Providers,
+  Operations Log, and Audit Log for Tier 1 only.
+- Platform Dashboard follows `docs/platform-view-dashboard-design.md`: curated
+  cross-tenant metrics, Prometheus scrape health, and source-unavailable states,
+  not a raw Prometheus or Grafana replacement UI.
 - SSO Providers page shows organization provider status/settings through Account
   Manager-backed data, never stored provider secrets or raw IdP claims.
 - SSO Providers does not present SAML as implemented; OIDC is the first
@@ -137,7 +140,7 @@ Use this mapping when reviewing developer issues opened from
 | 5. Firmware & OTA read-only workflows | Firmware distribution, campaign summary/table, read-only drill-down, unsupported policies, firmware risk queue |
 | 6. Stream Health read-only workflows | Stream KPIs, trend, source-backed By Mode rows, per-device table, attention routing |
 | 7. Public auth, signup, verification, and quota UX polish | SSO-first login, signup/check-email/verify states, quota request states, break-glass secondary treatment |
-| 8. Platform View polish | Service Health, SSO Providers, Operations Log, Audit Log, Tier 1-only boundaries |
+| 8. Platform View polish | Platform Dashboard, Service Health, SSO Providers, Operations Log, Audit Log, Tier 1-only boundaries |
 | 9. Final WebUI browser QA and documentation signoff | Desktop/mobile browser smoke, visual checklist closure, documented remaining upstream blockers |
 
 ## Responsive Checks

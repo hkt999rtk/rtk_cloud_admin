@@ -29,12 +29,15 @@ gitignored.
   - Devices with detail drawer open
   - Firmware & OTA campaign drill-down
   - Stream Health worst-device drill-down into Devices
+  - Platform Dashboard with Prometheus configured, KPI strip, scrape health,
+    runtime, cross-service, business, and infrastructure panels
   - Platform Operations Log
   - Platform SSO Providers
   - Platform Audit Log
 - Mobile 390px:
   - Customer sidebar/nav remains visible
   - Devices uses compact rows instead of rendering the full table
+  - Platform Dashboard remains navigable and readable on a narrow viewport
   - Public signup remains usable on a narrow viewport
 
 The smoke test fails on app-level `console.error`, `console.warn`, or uncaught
@@ -47,12 +50,20 @@ does not validate production upstream telemetry, firmware, stream, or account
 manager integrations. Those remain covered by backend contract tests and live
 environment validation.
 
+Platform Dashboard browser code calls only Admin Console BFF JSON routes. The
+mocked Platform Dashboard fixture covers the configured Prometheus path and the
+backend fixture tests cover Prometheus unset, unavailable/timeout-like upstream
+failure, empty results, stale exporter data, one target down, missing series,
+and representative runtime/cross-service/business/infrastructure metric
+families. Grafana remains optional SRE tooling for deep time-series inspection;
+it is not the Platform Admin UI and is not embedded by the browser smoke.
+
 ## Final Signoff Notes
 
 - Admin repo WebUI milestone coverage is complete for the documented scope:
   Customer View four pages, public auth/signup/verification/quota states,
-  Platform View four pages, route guards, source-aware states, and read-only
-  customer workflows.
+  Platform Dashboard, Platform View drill-down pages, route guards,
+  source-aware states, and read-only customer workflows.
 - Remaining blockers are upstream production sources, not admin repo WebUI
   completion: authoritative telemetry, firmware rollout facts, and WebRTC
   session facts still require live-source validation outside this mocked smoke

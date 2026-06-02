@@ -45,6 +45,8 @@ Included in v0.1:
   - provisioning/deactivation actions in the device drawer
   - readiness, health, firmware, telemetry, and stream status displays
 - Platform admin pages:
+  - Platform Dashboard with cross-tenant summary and curated Prometheus-backed
+    operational metrics
   - service health
   - SSO provider status and settings
   - backend/BFF brand-cloud management routes for future Platform View Brand
@@ -134,6 +136,8 @@ Public and shared routes:
 - `GET /api/me`: current user, memberships, active organization, and demo/auth state.
 - `POST /api/me/active-org`: switches active organization for the current session.
 - `GET /api/summary`: customer and platform dashboard summary.
+- `GET /api/admin/platform-dashboard`: platform-admin protected Platform
+  Dashboard BFF contract with server-side allowlisted Prometheus queries.
 - `GET /api/devices`: device list from cache/demo or upstream aggregation.
 - `GET /api/devices/{id}`: device detail.
 - `POST /api/devices/{id}/provision`: starts or simulates provisioning.
@@ -229,6 +233,8 @@ The WebUI design history is documented in:
   approved Customer View visual concepts and state requirements
 - [`admin-dashboard-redesign.md`](admin-dashboard-redesign.md) for Platform
   View structure
+- [`platform-view-dashboard-design.md`](platform-view-dashboard-design.md) for
+  the Platform Dashboard metrics and Prometheus-backed source mapping
 - [`platform-brand-cloud-management-design.md`](platform-brand-cloud-management-design.md)
   for the Platform View Brand Clouds GUI draft
 - [`webui-implementation-roadmap.md`](webui-implementation-roadmap.md) for the

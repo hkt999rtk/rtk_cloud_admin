@@ -104,6 +104,66 @@ type Summary struct {
 	Customers        int `json:"customers"`
 }
 
+type PlatformDashboard struct {
+	Summary             Summary                                `json:"summary"`
+	KPIs                []PlatformDashboardKPI                 `json:"kpis"`
+	ServiceScrapeHealth []PlatformDashboardServiceScrapeHealth `json:"service_scrape_health"`
+	OperationRisk       PlatformDashboardOperationRisk         `json:"operation_risk"`
+	Sources             map[string]PlatformDashboardSource     `json:"sources"`
+	PanelSources        map[string]PlatformDashboardSource     `json:"panel_sources"`
+	Prometheus          PlatformDashboardPrometheus            `json:"prometheus"`
+}
+
+type PlatformDashboardSource struct {
+	SourceStatus  string `json:"source_status"`
+	SourceMessage string `json:"source_message,omitempty"`
+	CheckedAt     string `json:"checked_at,omitempty"`
+}
+
+type PlatformDashboardKPI struct {
+	ID             string  `json:"id"`
+	Label          string  `json:"label"`
+	Value          float64 `json:"value"`
+	Unit           string  `json:"unit,omitempty"`
+	SecondaryLabel string  `json:"secondary_label,omitempty"`
+	SecondaryValue float64 `json:"secondary_value,omitempty"`
+	SourceStatus   string  `json:"source_status"`
+}
+
+type PlatformDashboardServiceScrapeHealth struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Status       string `json:"status"`
+	TargetsUp    int    `json:"targets_up"`
+	TargetsDown  int    `json:"targets_down"`
+	TargetsTotal int    `json:"targets_total"`
+	SourceStatus string `json:"source_status"`
+}
+
+type PlatformDashboardOperationRisk struct {
+	OpenOperations         int    `json:"open_operations"`
+	FailedOperations       int    `json:"failed_operations"`
+	DeadLetteredOperations int    `json:"dead_lettered_operations"`
+	SourceStatus           string `json:"source_status"`
+}
+
+type PlatformDashboardPrometheus struct {
+	Queries []PlatformDashboardPrometheusQuery `json:"queries"`
+}
+
+type PlatformDashboardPrometheusQuery struct {
+	ID           string                              `json:"id"`
+	Title        string                              `json:"title"`
+	SourceStatus string                              `json:"source_status"`
+	CheckedAt    string                              `json:"checked_at,omitempty"`
+	Series       []PlatformDashboardPrometheusSeries `json:"series"`
+}
+
+type PlatformDashboardPrometheusSeries struct {
+	Labels map[string]string `json:"labels"`
+	Value  float64           `json:"value"`
+}
+
 type CustomerSummary struct {
 	OrganizationID   string `json:"organization_id"`
 	Organization     string `json:"organization"`

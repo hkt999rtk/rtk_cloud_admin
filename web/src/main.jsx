@@ -46,6 +46,7 @@ function App() {
   const [operations, setOperations] = useState([]);
   const [health, setHealth] = useState([]);
   const [audit, setAudit] = useState([]);
+  const [platformDashboard, setPlatformDashboard] = useState(null);
   const [ssoProviders, setSSOProviders] = useState([]);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
@@ -89,6 +90,7 @@ function App() {
           setOperations([]);
           setHealth([]);
           setAudit([]);
+          setPlatformDashboard(null);
           setSSOProviders([]);
           setFirmwareDistribution(null);
           setLoading(false);
@@ -104,6 +106,7 @@ function App() {
           setOperations([]);
           setHealth([]);
           setAudit([]);
+          setPlatformDashboard(null);
           setSSOProviders([]);
           setLoading(false);
           return;
@@ -118,6 +121,7 @@ function App() {
               fetchJSON(`${prefix}/operations`),
               fetchJSON(`${prefix}/service-health`),
               fetchJSON(`${prefix}/audit`),
+              fetchJSON(`${prefix}/platform-dashboard`),
             ]
           : [
               fetchJSON(`${prefix}/summary`),
@@ -126,8 +130,9 @@ function App() {
               Promise.resolve([]),
               Promise.resolve([]),
               Promise.resolve([]),
+              Promise.resolve(null),
             ];
-        const [nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit] = await Promise.all(baseRequests);
+        const [nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit, nextPlatformDashboard] = await Promise.all(baseRequests);
         if (!alive) return;
         setSummary(nextSummary);
         setCustomers(nextCustomers);
@@ -135,6 +140,7 @@ function App() {
         setOperations(nextOperations);
         setHealth(nextHealth);
         setAudit(nextAudit);
+        setPlatformDashboard(nextPlatformDashboard);
         if (useAdminApi && active === 'platform-sso') {
           const nextSSOProviders = await fetchJSON('/api/admin/sso/providers');
           if (!alive) return;
@@ -547,6 +553,7 @@ function App() {
             onOpenDevice={selectDevice}
           />
         ) : null}
+        {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
         {!needsPlatformAccess && active === 'platform-sso' ? (
           <PlatformSSOProviders providers={ssoProviders} customers={customers} onSave={handleSSOProviderSave} />
@@ -1426,6 +1433,239 @@ function PlatformAccessGate({ active, me, onSSOStart, onBreakGlassLogin }) {
       </section>
     </>
   );
+}
+
+function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
+  const source = dashboard?.sources?.prometheus || null;
+  const kpis = dashboard?.kpis?.length ? dashboard.kpis : fallbackPlatformKPIs(summary);
+  const serviceGroups = dashboard?.service_scrape_health || [];
+  const risk = dashboard?.operation_risk || {
+    open_operations: summary?.open_operations ?? 0,
+    failed_operations: operations.filter((operation) => operation.state === 'failed').length,
+    dead_lettered_operations: operations.filter((operation) => operation.state === 'dead_lettered').length,
+    source_status: 'configured',
+  };
+  const footprintRows = [
+    ['Tenants', dashboard?.summary?.customers ?? summary?.customers ?? 0],
+    ['Total devices', dashboard?.summary?.total_devices ?? summary?.total_devices ?? 0],
+    ['Activated', dashboard?.summary?.activated_devices ?? summary?.activated_devices ?? 0],
+    ['Pending', dashboard?.summary?.pending_devices ?? summary?.pending_devices ?? 0],
+    ['Failed', dashboard?.summary?.failed_devices ?? summary?.failed_devices ?? 0],
+  ];
+  const openOps = operations.filter((operation) => operation.state !== 'succeeded').slice(0, 5);
+  const queries = dashboardQueriesByID(dashboard);
+  const runtimeRows = [
+    metricPanelRow('Request rate', queries.runtime_request_rate, { suffix: '/s' }),
+    metricPanelRow('5xx rate', queries.runtime_5xx_rate, { suffix: '/s' }),
+    metricPanelRow('Avg latency', queries.runtime_avg_latency_seconds, { suffix: 's' }),
+    metricPanelRow('App up', queries.app_up),
+  ];
+  const crossServiceRows = [
+    metricPanelRow('Consumer backlog', queries.crossservice_consumer_backlog),
+    metricPanelRow('Dead letters', queries.crossservice_dead_letters),
+    metricPanelRow('Publish errors', queries.crossservice_publish_errors),
+    metricPanelRow('Consume errors', queries.crossservice_consume_errors),
+  ];
+  const businessRows = [
+    metricPanelRow('Video devices online', queries.business_video_devices_online),
+    metricPanelRow('Blob utilization', queries.business_blob_utilization_percent, { suffix: '%' }),
+    metricPanelRow('Exporter success', queries.business_exporter_success),
+    metricPanelRow('Quota requests', queries.business_quota_requests),
+    metricPanelRow('Eval signups 24h', queries.business_eval_signups_24h),
+  ];
+  const infrastructureRows = [
+    metricPanelRow('CPU utilization', queries.infra_cpu_utilization_percent, { suffix: '%' }),
+    metricPanelRow('Memory utilization', queries.infra_memory_utilization_percent, { suffix: '%' }),
+    metricPanelRow('Disk utilization', queries.infra_disk_utilization_percent, { suffix: '%' }),
+    metricPanelRow('Gateway targets', dashboardGroup(serviceGroups, 'gateway')),
+    metricPanelRow('Broker targets', dashboardGroup(serviceGroups, 'broker')),
+  ];
+  return (
+    <section className="platform-dashboard">
+      <div className="platform-dashboard-head">
+        <div>
+          <h2>Platform Dashboard</h2>
+          <p>Cross-tenant operating status for Platform Admins.</p>
+        </div>
+        <SourceStatusPill source={source} />
+      </div>
+
+      <section className="platform-kpi-strip">
+        {kpis.map((kpi) => (
+          <article className="platform-kpi" key={kpi.id}>
+            <span>{kpi.label}</span>
+            <strong>{formatPlatformKPIValue(kpi)}</strong>
+            <small>{platformKPIHint(kpi)}</small>
+          </article>
+        ))}
+      </section>
+
+      <section className="platform-dashboard-grid">
+        <article className="panel platform-dashboard-panel">
+          <div className="panel-head">
+            <div>
+              <h2>Service & Scrape Health</h2>
+              <p>Grouped target health from the admin Prometheus boundary.</p>
+            </div>
+            <SourceStatusPill source={dashboard?.panel_sources?.service_scrape_health || source} />
+          </div>
+          <div className="scrape-group-list">
+            {serviceGroups.map((group) => (
+              <div className="scrape-group-row" key={group.id}>
+                <div>
+                  <strong>{group.name}</strong>
+                  <small>{group.targets_up} up / {group.targets_down} down</small>
+                </div>
+                <StatusBadge value={normalizeStatusKey(group.status)} label={toTitleCase(group.status)} />
+              </div>
+            ))}
+            {!serviceGroups.length ? <p className="empty-state">No scrape group data available.</p> : null}
+          </div>
+        </article>
+
+        <article className="panel platform-dashboard-panel">
+          <div className="panel-head">
+            <div>
+              <h2>Tenant & Device Footprint</h2>
+              <p>Admin read-model totals across customer organizations.</p>
+            </div>
+            <StatusBadge value="ok" label="Configured" />
+          </div>
+          <div className="footprint-list">
+            {footprintRows.map(([label, value]) => (
+              <div key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel platform-dashboard-panel">
+          <div className="panel-head">
+            <div>
+              <h2>Operation Risk</h2>
+              <p>Lifecycle activity that may need operator attention.</p>
+            </div>
+            <StatusBadge value={risk.failed_operations || risk.dead_lettered_operations ? 'degraded' : 'ok'} />
+          </div>
+          <div className="risk-strip">
+            <div><strong>{risk.open_operations}</strong><span>Open</span></div>
+            <div><strong>{risk.failed_operations}</strong><span>Failed</span></div>
+            <div><strong>{risk.dead_lettered_operations}</strong><span>Dead letters</span></div>
+          </div>
+          <OperationList operations={openOps} detailed />
+        </article>
+
+        <article className="panel platform-dashboard-panel">
+          <div className="panel-head">
+            <div>
+              <h2>Platform Activity</h2>
+              <p>Current service checks and recent operations summary.</p>
+            </div>
+            <StatusBadge value={health.some((item) => item.status === 'unavailable' || item.status === 'degraded') ? 'degraded' : 'ok'} />
+          </div>
+          <ServiceHealth health={health} compact />
+        </article>
+
+        <PlatformMetricPanel title="Runtime Health" rows={runtimeRows} />
+        <PlatformMetricPanel title="Cross-Service Risk" rows={crossServiceRows} />
+        <PlatformMetricPanel title="Business Signals" rows={businessRows} secondary />
+        <PlatformMetricPanel title="Infrastructure Health" rows={infrastructureRows} />
+      </section>
+    </section>
+  );
+}
+
+function PlatformMetricPanel({ title, rows, secondary = false }) {
+  return (
+    <article className={`panel platform-dashboard-panel ${secondary ? 'platform-dashboard-panel-secondary' : ''}`}>
+      <div className="panel-head">
+        <div>
+          <h2>{title}</h2>
+        </div>
+        <StatusBadge value={rows.some((row) => row.status === 'configured') ? 'ok' : 'empty'} label={rows.some((row) => row.status === 'configured') ? 'Configured' : 'Empty'} />
+      </div>
+      <div className="metric-row-list">
+        {rows.map((row) => (
+          <div className="metric-row" key={row.label}>
+            <span>{row.label}</span>
+            <strong>{row.value}</strong>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function SourceStatusPill({ source }) {
+  const status = source?.source_status || 'unconfigured';
+  return (
+    <span className={`source-pill source-pill-${normalizeStatusKey(status)}`}>
+      {toTitleCase(status)}
+    </span>
+  );
+}
+
+function fallbackPlatformKPIs(summary) {
+  return [
+    { id: 'tenants', label: 'Tenants', value: summary?.customers ?? 0, source_status: 'configured' },
+    {
+      id: 'devices_online',
+      label: 'Devices Online',
+      value: summary?.online_devices ?? 0,
+      secondary_label: 'online_rate_pct',
+      secondary_value: summary?.total_devices ? (summary.online_devices / summary.total_devices) * 100 : 0,
+      source_status: 'configured',
+    },
+    { id: 'open_operations', label: 'Open Operations', value: summary?.open_operations ?? 0, source_status: 'configured' },
+    { id: 'scrape_targets_down', label: 'Scrape Targets Down', value: 0, source_status: 'unconfigured' },
+  ];
+}
+
+function formatPlatformKPIValue(kpi) {
+  if (kpi.id === 'devices_online' && kpi.secondary_label === 'online_rate_pct') {
+    return `${Number(kpi.value || 0).toLocaleString()} / ${formatPercent(kpi.secondary_value || 0)}`;
+  }
+  return Number(kpi.value || 0).toLocaleString();
+}
+
+function platformKPIHint(kpi) {
+  if (kpi.id === 'devices_online') return 'count / online rate';
+  if (kpi.source_status && kpi.source_status !== 'configured') return toTitleCase(kpi.source_status);
+  return kpi.unit || 'current';
+}
+
+function dashboardQueriesByID(dashboard) {
+  const byID = {};
+  for (const query of dashboard?.prometheus?.queries || []) {
+    byID[query.id] = query;
+  }
+  return byID;
+}
+
+function metricPanelRow(label, item, { suffix = '' } = {}) {
+  if (!item) return { label, value: 'Empty', status: 'empty' };
+  if (item.source_status && item.source_status !== 'configured' && item.source_status !== 'stale') {
+    return { label, value: toTitleCase(item.source_status), status: item.source_status };
+  }
+  if (item.targets_total !== undefined) {
+    return { label, value: `${item.targets_up} up / ${item.targets_down} down`, status: item.source_status || 'configured' };
+  }
+  const total = (item.series || []).reduce((sum, series) => sum + Number(series.value || 0), 0);
+  if (!item.series?.length) return { label, value: toTitleCase(item.source_status || 'empty'), status: item.source_status || 'empty' };
+  return { label, value: `${formatCompactNumber(total)}${suffix}`, status: item.source_status || 'configured' };
+}
+
+function dashboardGroup(groups, id) {
+  return groups.find((group) => group.id === id) || null;
+}
+
+function formatCompactNumber(value) {
+  const number = Number(value || 0);
+  if (Math.abs(number) >= 1000) return number.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (Math.abs(number) >= 10) return number.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  return number.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 function PlatformHealth({ summary, health }) {

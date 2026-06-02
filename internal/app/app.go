@@ -30,13 +30,17 @@ import (
 )
 
 type Server struct {
-	store         *store.Store
-	mux           *http.ServeMux
-	handler       http.Handler
-	cfg           config.Config
-	accountClient *accountclient.Client
-	videoClient   *videoclient.Client
-	logger        *zap.Logger
+	sessions            sessionStore
+	platformAdmins      platformAdminStore
+	audit               auditStore
+	projections         projectionStore
+	lifecycleOperations lifecycleOperationStore
+	mux                 *http.ServeMux
+	handler             http.Handler
+	cfg                 config.Config
+	accountClient       *accountclient.Client
+	videoClient         *videoclient.Client
+	logger              *zap.Logger
 }
 
 type Options struct {
@@ -78,7 +82,18 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 	if opts.Logger == nil {
 		opts.Logger = cloudlogger.Nop()
 	}
-	s := &Server{store: st, mux: http.NewServeMux(), cfg: opts.Config, accountClient: opts.AccountClient, videoClient: opts.VideoClient, logger: opts.Logger}
+	s := &Server{
+		sessions:            st,
+		platformAdmins:      st,
+		audit:               st,
+		projections:         st,
+		lifecycleOperations: st,
+		mux:                 http.NewServeMux(),
+		cfg:                 opts.Config,
+		accountClient:       opts.AccountClient,
+		videoClient:         opts.VideoClient,
+		logger:              opts.Logger,
+	}
 	s.routes()
 	s.handler = requestContextMiddleware(cloudlogger.HTTPMiddleware(opts.Logger)(s.mux))
 	return s
@@ -93,6 +108,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /metrics/prometheus", s.metricsPrometheus)
 	s.mux.HandleFunc("GET /api/summary", s.apiSummary)
 	s.mux.HandleFunc("GET /api/admin/summary", s.apiAdminSummary)
+	s.mux.HandleFunc("GET /api/admin/platform-dashboard", s.apiAdminPlatformDashboard)
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
@@ -145,6 +161,7 @@ func (s *Server) routes() {
 		"/console/operations",
 		"/console/audit",
 		"/admin",
+		"/admin/health",
 		"/admin/ops",
 		"/admin/operations",
 		"/admin/audit",
@@ -240,7 +257,7 @@ func (s *Server) apiSummary(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, summary)
 		return
 	}
-	summary, err := s.store.Summary()
+	summary, err := s.projections.Summary()
 	if err != nil {
 		writeError(w, err)
 		return
@@ -262,7 +279,7 @@ func (s *Server) apiAdminSummary(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, summary)
 		return
 	}
-	summary, err := s.store.Summary()
+	summary, err := s.projections.Summary()
 	if err != nil {
 		writeError(w, err)
 		return
@@ -318,7 +335,7 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 			RefreshToken: session.RefreshToken,
 		})
 		if tokens.AccessToken != "" && (tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken) {
-			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+			_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
 		if err != nil {
 			if errors.Is(err, errCustomerSessionInvalid) {
@@ -385,7 +402,7 @@ func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+			_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
 		if !organizationAllowed(orgs, body.OrganizationID) {
 			http.Error(w, "organization is not part of the current customer memberships", http.StatusForbidden)
@@ -402,7 +419,7 @@ func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := s.store.UpdateSessionActiveOrg(session.ID, body.OrganizationID); err != nil {
+	if err := s.sessions.UpdateSessionActiveOrg(session.ID, body.OrganizationID); err != nil {
 		writeError(w, err)
 		return
 	}
@@ -443,7 +460,7 @@ func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if result.Tokens.AccessToken != "" {
-		session, sessionErr := s.store.CreateSession("customer", result.User.ID, result.User.Email, result.Tokens.AccessToken, result.Tokens.RefreshToken, "", tokenTTL(result.Tokens))
+		session, sessionErr := s.sessions.CreateSession("customer", result.User.ID, result.User.Email, result.Tokens.AccessToken, result.Tokens.RefreshToken, "", tokenTTL(result.Tokens))
 		if sessionErr != nil {
 			writeError(w, sessionErr)
 			return
@@ -522,7 +539,7 @@ func (s *Server) apiSSOCallback(w http.ResponseWriter, r *http.Request) {
 	if result.Kind == "customer" && activeOrgID == "" && len(result.Organizations) > 0 {
 		activeOrgID = result.Organizations[0].ID
 	}
-	session, err := s.store.CreateSession(result.Kind, result.User.ID, result.User.Email, result.Tokens.AccessToken, result.Tokens.RefreshToken, activeOrgID, tokenTTL(result.Tokens))
+	session, err := s.sessions.CreateSession(result.Kind, result.User.ID, result.User.Email, result.Tokens.AccessToken, result.Tokens.RefreshToken, activeOrgID, tokenTTL(result.Tokens))
 	if err != nil {
 		writeError(w, err)
 		return
@@ -611,7 +628,7 @@ func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
 	if err == nil && len(me.Organizations) > 0 {
 		activeOrgID = me.Organizations[0].ID
 	}
-	session, err := s.store.CreateSession("customer", login.User.ID, login.User.Email, tokens.AccessToken, tokens.RefreshToken, activeOrgID, tokenTTL(tokens))
+	session, err := s.sessions.CreateSession("customer", login.User.ID, login.User.Email, tokens.AccessToken, tokens.RefreshToken, activeOrgID, tokenTTL(tokens))
 	if err != nil {
 		writeError(w, err)
 		return
@@ -635,13 +652,13 @@ func (s *Server) apiPlatformLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "platform break-glass login is disabled; use SSO", http.StatusForbidden)
 		return
 	}
-	admin, err := s.store.VerifyPlatformAdmin(body.Email, body.Password)
+	admin, err := s.platformAdmins.VerifyPlatformAdmin(body.Email, body.Password)
 	if err != nil {
 		_ = s.auditPlatformBreakGlassLogin(body.Email, "failed")
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
-	session, err := s.store.CreateSession("platform_admin", admin.ID, admin.Email, "", "", "", 12*time.Hour)
+	session, err := s.sessions.CreateSession("platform_admin", admin.ID, admin.Email, "", "", "", 12*time.Hour)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -656,8 +673,8 @@ func (s *Server) apiPlatformLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) apiLogout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie("rtk_admin_session"); err == nil {
-		session, sessionErr := s.store.GetSession(cookie.Value)
-		_ = s.store.DeleteSession(cookie.Value)
+		session, sessionErr := s.sessions.GetSession(cookie.Value)
+		_ = s.sessions.DeleteSession(cookie.Value)
 		if sessionErr == nil {
 			_ = s.auditSessionLogout(session)
 		}
@@ -676,7 +693,7 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, customerSafeDevices(devicesWithFirmwareVersion(devices)))
 		return
 	}
-	devices, err := s.store.ListDevices()
+	devices, err := s.projections.ListDevices()
 	if err != nil {
 		writeError(w, err)
 		return
@@ -698,7 +715,7 @@ func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, devicesWithFirmwareVersion(devices))
 		return
 	}
-	devices, err := s.store.ListDevices()
+	devices, err := s.projections.ListDevices()
 	if err != nil {
 		writeError(w, err)
 		return
@@ -722,7 +739,7 @@ func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	device, err := s.store.GetDevice(r.PathValue("id"))
+	device, err := s.projections.GetDevice(r.PathValue("id"))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			http.NotFound(w, r)
@@ -833,7 +850,7 @@ func (s *Server) firmwareDistributionDevices(ctx context.Context, session store.
 		}
 		return filtered, nil
 	}
-	devices, err := s.store.ListDevices()
+	devices, err := s.projections.ListDevices()
 	if err != nil {
 		return nil, err
 	}
@@ -1412,7 +1429,7 @@ func (s *Server) customerOrgIDForSession(ctx context.Context, session store.Sess
 		return "", err
 	}
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	return org.ID, nil
 }
@@ -1469,7 +1486,7 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-	device, err := s.store.GetDevice(r.PathValue("id"))
+	device, err := s.projections.GetDevice(r.PathValue("id"))
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -2055,7 +2072,7 @@ func (s *Server) apiCustomers(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, customers)
 		return
 	}
-	customers, err := s.store.ListCustomers()
+	customers, err := s.projections.ListCustomers()
 	if err != nil {
 		writeError(w, err)
 		return
@@ -2077,7 +2094,7 @@ func (s *Server) apiAdminCustomers(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, customers)
 		return
 	}
-	customers, err := s.store.ListCustomers()
+	customers, err := s.projections.ListCustomers()
 	if err != nil {
 		writeError(w, err)
 		return
@@ -2242,7 +2259,7 @@ func (s *Server) apiOperations(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, ops)
 		return
 	}
-	ops, err := s.store.ListOperations()
+	ops, err := s.projections.ListOperations()
 	if err != nil {
 		writeError(w, err)
 		return
@@ -2264,7 +2281,7 @@ func (s *Server) apiAdminOperations(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, ops)
 		return
 	}
-	ops, err := s.store.ListOperations()
+	ops, err := s.projections.ListOperations()
 	if err != nil {
 		writeError(w, err)
 		return
@@ -2293,7 +2310,7 @@ func (s *Server) apiAudit(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, events)
 		return
 	}
-	events, err := s.store.ListAuditEvents()
+	events, err := s.audit.ListAuditEvents()
 	if err != nil {
 		writeError(w, err)
 		return
@@ -2305,7 +2322,7 @@ func (s *Server) apiAdminAudit(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.requirePlatformAdmin(w, r); !ok {
 		return
 	}
-	events, err := s.store.ListAuditEvents()
+	events, err := s.audit.ListAuditEvents()
 	if err != nil {
 		writeError(w, err)
 		return
@@ -2369,7 +2386,7 @@ func (s *Server) customerDevices(ctx context.Context, session store.Session) ([]
 		if err != nil {
 			return nil, err
 		}
-		devices, err := s.store.ListDevices()
+		devices, err := s.projections.ListDevices()
 		if err != nil {
 			return nil, err
 		}
@@ -2395,7 +2412,7 @@ func (s *Server) customerDevices(ctx context.Context, session store.Session) ([]
 		return nil, err
 	}
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	vcFacts, err := s.videoCloudFacts(ctx, devices)
 	if err != nil {
@@ -2474,7 +2491,7 @@ func (s *Server) customerOperations(ctx context.Context, session store.Session) 
 	for _, device := range devices {
 		allowed[device.ID] = struct{}{}
 	}
-	ops, err := s.store.ListOperations()
+	ops, err := s.projections.ListOperations()
 	if err != nil {
 		return nil, err
 	}
@@ -2492,7 +2509,7 @@ func (s *Server) customerOperations(ctx context.Context, session store.Session) 
 
 func (s *Server) customerStreamDevices(ctx context.Context, session store.Session, orgID string) ([]contracts.Device, error) {
 	if !s.accountClient.Enabled() {
-		allDevices, err := s.store.ListDevices()
+		allDevices, err := s.projections.ListDevices()
 		if err != nil {
 			return nil, err
 		}
@@ -2512,7 +2529,7 @@ func (s *Server) customerStreamDevices(ctx context.Context, session store.Sessio
 		return nil, err
 	}
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	devices := make([]contracts.Device, 0, len(upstreamDevices))
 	for _, device := range upstreamDevices {
@@ -2669,7 +2686,7 @@ func (s *Server) customerAudit(ctx context.Context, session store.Session) ([]co
 	for _, device := range devices {
 		allowed[device.ID] = struct{}{}
 	}
-	events, err := s.store.ListAuditEvents()
+	events, err := s.audit.ListAuditEvents()
 	if err != nil {
 		return nil, err
 	}
@@ -2731,7 +2748,7 @@ func (s *Server) activeCustomerOrg(ctx context.Context, session store.Session) (
 		return accountclient.Organization{}, accountclient.Tokens{}, err
 	}
 	if nextTokens.AccessToken != session.AccessToken || nextTokens.RefreshToken != session.RefreshToken {
-		_ = s.store.UpdateSessionTokens(session.ID, nextTokens.AccessToken, nextTokens.RefreshToken, tokenTTL(nextTokens))
+		_ = s.sessions.UpdateSessionTokens(session.ID, nextTokens.AccessToken, nextTokens.RefreshToken, tokenTTL(nextTokens))
 	}
 	if session.ActiveOrgID != "" {
 		for _, org := range me.Organizations {
@@ -2755,7 +2772,7 @@ func (s *Server) apiProvisionDevice(w http.ResponseWriter, r *http.Request) {
 	if s.tryUpstreamLifecycle(w, r, "provision") {
 		return
 	}
-	op, err := s.store.CreateLifecycleOperation(r.PathValue("id"), "DeviceProvisionRequested")
+	op, err := s.lifecycleOperations.CreateLifecycleOperation(r.PathValue("id"), "DeviceProvisionRequested")
 	if err != nil {
 		writeError(w, err)
 		return
@@ -2772,7 +2789,7 @@ func (s *Server) apiDeactivateDevice(w http.ResponseWriter, r *http.Request) {
 	if s.tryUpstreamLifecycle(w, r, "deactivate") {
 		return
 	}
-	op, err := s.store.CreateLifecycleOperation(r.PathValue("id"), "DeviceDeactivateRequested")
+	op, err := s.lifecycleOperations.CreateLifecycleOperation(r.PathValue("id"), "DeviceDeactivateRequested")
 	if err != nil {
 		writeError(w, err)
 		return
@@ -2805,7 +2822,7 @@ func (s *Server) requestSession(r *http.Request) (store.Session, bool) {
 	if err != nil || cookie.Value == "" {
 		return store.Session{}, false
 	}
-	session, err := s.store.GetSession(cookie.Value)
+	session, err := s.sessions.GetSession(cookie.Value)
 	return session, err == nil
 }
 
@@ -2824,7 +2841,7 @@ var errCustomerSessionInvalid = errors.New("customer session is invalid")
 var errCustomerActiveOrgInvalid = errors.New("active organization is not part of the current customer memberships")
 
 func (s *Server) invalidateCustomerSession(w http.ResponseWriter, sessionID string) {
-	_ = s.store.DeleteSession(sessionID)
+	_ = s.sessions.DeleteSession(sessionID)
 	http.SetCookie(w, &http.Cookie{Name: "rtk_admin_session", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 }
 
@@ -2991,7 +3008,7 @@ func isTimeoutError(err error) bool {
 }
 
 func (s *Server) auditPlatformBreakGlassLogin(email, result string) error {
-	return s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+	return s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{
 		Actor:     fallback(email, "unknown-platform-admin"),
 		ActorKind: "platform_admin",
 		Action:    "PlatformBreakGlassLogin",
@@ -3001,7 +3018,7 @@ func (s *Server) auditPlatformBreakGlassLogin(email, result string) error {
 }
 
 func (s *Server) auditSSOSession(email, kind, orgID, result string) error {
-	return s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+	return s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{
 		Actor:          fallback(email, "unknown-sso-user"),
 		ActorKind:      fallback(kind, "sso"),
 		Action:         "SSOLogin",
@@ -3012,7 +3029,7 @@ func (s *Server) auditSSOSession(email, kind, orgID, result string) error {
 }
 
 func (s *Server) auditSessionLogout(session store.Session) error {
-	return s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+	return s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{
 		Actor:          fallback(session.Email, session.Subject),
 		ActorKind:      fallback(session.Kind, "session"),
 		Action:         "SessionLogout",
@@ -3171,7 +3188,7 @@ func hasCapability(capabilities []string, required string) bool {
 }
 
 func (s *Server) demoMemberships() ([]contracts.Membership, error) {
-	customers, err := s.store.ListCustomers()
+	customers, err := s.projections.ListCustomers()
 	if err != nil {
 		return nil, err
 	}
@@ -3249,7 +3266,7 @@ func (s *Server) upstreamCustomers(w http.ResponseWriter, r *http.Request) ([]co
 		return nil, true
 	}
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	customers := make([]contracts.CustomerSummary, 0, len(orgs))
 	for _, org := range orgs {
@@ -3271,7 +3288,7 @@ func (s *Server) upstreamCustomers(w http.ResponseWriter, r *http.Request) ([]co
 			return nil, true
 		}
 		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+			_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
 		for _, device := range devices {
 			mapped := mapUpstreamDevice(org, device, nil)
@@ -3317,7 +3334,7 @@ func (s *Server) upstreamDevices(w http.ResponseWriter, r *http.Request) ([]cont
 		return nil, true
 	}
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	var out []contracts.Device
 	for _, org := range orgs {
@@ -3335,7 +3352,7 @@ func (s *Server) upstreamDevices(w http.ResponseWriter, r *http.Request) ([]cont
 			return nil, true
 		}
 		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-			_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+			_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 		}
 		vcFacts, err := s.videoCloudFacts(r.Context(), devices)
 		if err != nil {
@@ -3375,7 +3392,7 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 		return true
 	}
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	org, ok := organizationByID(orgs, session.ActiveOrgID)
 	if !ok {
@@ -3395,8 +3412,8 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	if action == "deactivate" {
 		operationType = "DeviceDeactivateRequested"
 	}
-	if existing, ok, err := s.store.GetOpenLifecycleOperation(deviceID, operationType); err == nil && ok {
-		_ = s.store.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
+	if existing, ok, err := s.lifecycleOperations.GetOpenLifecycleOperation(deviceID, operationType); err == nil && ok {
+		_ = s.audit.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
 		writeJSON(w, existing)
 		return true
 	} else if err != nil {
@@ -3418,7 +3435,7 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 			return callErr
 		})
 	}
-	_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{
 		Actor:          session.Email,
 		ActorKind:      session.Kind,
 		Action:         operationType + ".attempted",
@@ -3430,8 +3447,8 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 		if errors.Is(err, errCustomerSessionInvalid) {
 			s.invalidateCustomerSession(w, session.ID)
 		}
-		if _, createErr := s.store.CreateFailedUpstreamLifecycleOperation(deviceID, operationType, session.Email, err.Error()); createErr != nil {
-			_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		if _, createErr := s.lifecycleOperations.CreateFailedUpstreamLifecycleOperation(deviceID, operationType, session.Email, err.Error()); createErr != nil {
+			_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{
 				Actor:          session.Email,
 				ActorKind:      session.Kind,
 				Action:         operationType + ".failed",
@@ -3440,7 +3457,7 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 				Result:         "failed",
 			})
 		}
-		_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+		_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{
 			Actor:          session.Email,
 			ActorKind:      session.Kind,
 			Action:         operationType + ".failed",
@@ -3449,8 +3466,8 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 			Result:         "failed",
 		})
 		if strings.Contains(err.Error(), "returned 409") {
-			if existing, ok, lookupErr := s.store.GetOpenLifecycleOperation(deviceID, operationType); lookupErr == nil && ok {
-				_ = s.store.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
+			if existing, ok, lookupErr := s.lifecycleOperations.GetOpenLifecycleOperation(deviceID, operationType); lookupErr == nil && ok {
+				_ = s.audit.CreateAuditEvent(session.Email, operationType+".idempotent", deviceID)
 				writeJSON(w, existing)
 				return true
 			}
@@ -3462,12 +3479,12 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 	operationState := mapOperationState(op.State)
 	upstreamID := fallback(op.ID, fmt.Sprintf("op-%d", time.Now().UTC().UnixNano()))
 	upstreamMessage := fallback(op.Message, "Accepted by Account Manager.")
-	recorded, err := s.store.CreateUpstreamLifecycleOperation(deviceID, operationType, session.Email, upstreamID, string(operationState), upstreamMessage)
+	recorded, err := s.lifecycleOperations.CreateUpstreamLifecycleOperation(deviceID, operationType, session.Email, upstreamID, string(operationState), upstreamMessage)
 	if err != nil {
 		writeError(w, err)
 		return true
 	}
-	_ = s.store.CreateAuditEventWithMetadata(store.AuditEventInput{
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{
 		Actor:               session.Email,
 		ActorKind:           session.Kind,
 		Action:              operationType + ".completed",
@@ -3477,7 +3494,7 @@ func (s *Server) tryUpstreamLifecycle(w http.ResponseWriter, r *http.Request, ac
 		UpstreamOperationID: recorded.UpstreamOperationID,
 	})
 	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-		_ = s.store.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	recorded.Message = fallback(recorded.Message, upstreamMessage)
 	recorded.UpdatedAt = fallback(op.UpdatedAt, recorded.UpdatedAt)

@@ -12,7 +12,8 @@ import {
 } from './routes.mjs';
 
 test('maps platform shell paths to platform routes', () => {
-  assert.equal(routeFromPath('/admin'), 'platform-health');
+  assert.equal(routeFromPath('/admin'), 'platform-dashboard');
+  assert.equal(routeFromPath('/admin/health'), 'platform-health');
   assert.equal(routeFromPath('/admin/sso'), 'platform-sso');
   assert.equal(routeFromPath('/admin/ops'), 'platform-operations');
   assert.equal(routeFromPath('/admin/operations'), 'platform-operations');
@@ -58,6 +59,17 @@ test('retired customer pages are not exposed in section navigation', () => {
   assert.equal(platformLabels.includes('Customers'), false);
 });
 
+test('platform nav follows the Platform Dashboard landing order', () => {
+  assert.deepEqual(
+    platformNavItems.map((item) => item.label),
+    ['Platform Dashboard', 'Service Health', 'SSO Providers', 'Operations Log', 'Audit Log'],
+  );
+  assert.deepEqual(
+    platformNavItems.map((item) => item.path),
+    ['/admin', '/admin/health', '/admin/sso', '/admin/ops', '/admin/audit'],
+  );
+});
+
 test('public auth routes stay outside Customer and Platform section navigation', () => {
   for (const route of ['signup', 'signup-check-email', 'verify']) {
     assert.equal(isPublicRouteId(route), true, route);
@@ -95,8 +107,8 @@ test('falls back unknown paths to the customer overview route', () => {
 });
 
 test('falls back unknown platform paths inside Platform View', () => {
-  assert.equal(routeFromPath('/admin/unknown'), 'platform-health');
-  assert.equal(routeFromPath('/admin/unknown/deep'), 'platform-health');
+  assert.equal(routeFromPath('/admin/unknown'), 'platform-dashboard');
+  assert.equal(routeFromPath('/admin/unknown/deep'), 'platform-dashboard');
 });
 
 test('provides titles for all public shell routes', () => {
@@ -108,6 +120,7 @@ test('provides titles for all public shell routes', () => {
     'devices',
     'firmware-ota',
     'stream-health',
+    'platform-dashboard',
     'platform-health',
     'platform-sso',
     'platform-operations',

@@ -54,6 +54,7 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 		"/console/operations",
 		"/console/audit",
 		"/admin",
+		"/admin/health",
 		"/admin/ops",
 		"/admin/operations",
 		"/admin/audit",
