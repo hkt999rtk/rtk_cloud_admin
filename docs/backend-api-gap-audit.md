@@ -42,7 +42,7 @@ from Account Manager or Video Cloud before server validation is complete.
 | Fleet stream | `GET /api/fleet/stream-stats` | api shape implemented / production source pending | BFF route exists, but production validation requires WebRTC session event data from Video Cloud or an equivalent normalized read model, not local estimates. |
 | Firmware | `GET /api/fleet/firmware-distribution` | api shape implemented / production source pending | BFF route exists and proxies firmware endpoints when configured. Production validation requires observed firmware and rollout facts; generated fallback versions are not acceptable. |
 | Platform dashboard | `GET /api/admin/summary` | implemented | Platform-admin protected. Returns cross-tenant customer/device/operation summary. |
-| Platform dashboard | `GET /api/admin/platform-dashboard` | api shape implemented / composition pending | Platform-admin protected BFF boundary for existing summary data and allowlisted server-side Prometheus queries. Returns stable Prometheus source states instead of leaking raw upstream errors. |
+| Platform dashboard | `GET /api/admin/platform-dashboard` | implemented | Platform-admin protected BFF boundary for existing summary data, operation risk, KPI strip, grouped scrape health, and allowlisted server-side Prometheus queries. Returns stable source states instead of leaking raw upstream errors. |
 | Platform dashboard | `GET /api/admin/customers` | implemented | Platform-admin protected. Returns organization id/name, totals, readiness buckets, and last seen. |
 | Platform dashboard | `GET /api/admin/devices` | implemented | Platform-admin protected. Returns all device read models with organization, readiness, firmware, health, signal quality, and source facts. |
 | Platform operations | `GET /api/admin/operations` | implemented | Platform-admin protected. |
@@ -87,7 +87,9 @@ rejected and unauthenticated requests return `401`.
 `GET /api/admin/platform-dashboard` is the server-side Prometheus boundary for
 Platform Dashboard. It uses `VIDEO_CLOUD_PROMETHEUS_BASE_URL` from the BFF,
 runs only repo-owned allowlisted query definitions, and returns source states
-`configured`, `unconfigured`, `unavailable`, `empty`, or `stale`.
+`configured`, `unconfigured`, `unavailable`, `empty`, or `stale`. The payload
+also composes deterministic KPI, service/scrape health, and operation-risk
+sections from Admin BFF read models plus those Prometheus results.
 
 The device read model is additive and includes customer organization, readiness,
 firmware version, source facts, health, signal quality, last seen, and updated
