@@ -9,6 +9,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -141,6 +142,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/operations", s.apiAdminOperations)
 	s.mux.HandleFunc("GET /api/service-health", s.apiServiceHealth)
 	s.mux.HandleFunc("GET /api/admin/service-health", s.apiAdminServiceHealth)
+	s.mux.HandleFunc("GET /api/admin/service-logs", s.apiAdminServiceLogs)
 	s.mux.HandleFunc("GET /api/audit", s.apiAudit)
 	s.mux.HandleFunc("GET /api/admin/audit", s.apiAdminAudit)
 	s.mux.HandleFunc("POST /api/devices/{id}/provision", s.apiProvisionDevice)
@@ -165,6 +167,7 @@ func (s *Server) routes() {
 		"/admin/ops",
 		"/admin/operations",
 		"/admin/audit",
+		"/admin/logs",
 		"/admin/sso",
 	} {
 		s.mux.HandleFunc("GET "+path, s.shell)
@@ -2298,6 +2301,87 @@ func (s *Server) apiAdminServiceHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, s.serviceHealth(r.Context()))
+}
+
+func (s *Server) apiAdminServiceLogs(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+		return
+	}
+	endpoint := strings.TrimRight(s.cfg.CloudLoggerEndpoint, "/")
+	if endpoint == "" || s.cfg.CloudLoggerToken == "" {
+		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"status": "unavailable", "message": "Central service logging is not configured.", "events": []any{}})
+		return
+	}
+	query := url.Values{}
+	for _, key := range []string{"since", "until", "service", "host", "unit", "level", "trace_id", "request_id", "operation_id", "device_id", "org_id", "user_id"} {
+		if value := strings.TrimSpace(r.URL.Query().Get(key)); value != "" {
+			query.Set(key, value)
+		}
+	}
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, endpoint+"/v1/logs?"+query.Encode(), nil)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+s.cfg.CloudLoggerToken)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"status": "degraded", "message": "Central service logging is unavailable.", "events": []any{}})
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"status": "degraded", "message": "Central service logging is unavailable.", "events": []any{}})
+		return
+	}
+	var payload struct {
+		Events []map[string]any `json:"events"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"status": "degraded", "message": "Central service logging response was invalid.", "events": []any{}})
+		return
+	}
+	writeJSON(w, map[string]any{"status": "ok", "events": redactServiceLogEvents(payload.Events)})
+}
+
+func redactServiceLogEvents(events []map[string]any) []map[string]any {
+	out := make([]map[string]any, 0, len(events))
+	for _, event := range events {
+		clean := map[string]any{}
+		for key, value := range event {
+			if adminSensitiveLogKey(key) {
+				clean[key] = "REDACTED"
+			} else if fields, ok := value.(map[string]any); ok {
+				clean[key] = redactServiceLogFields(fields)
+			} else {
+				clean[key] = value
+			}
+		}
+		out = append(out, clean)
+	}
+	return out
+}
+
+func redactServiceLogFields(fields map[string]any) map[string]any {
+	out := map[string]any{}
+	for key, value := range fields {
+		if adminSensitiveLogKey(key) {
+			out[key] = "REDACTED"
+		} else {
+			out[key] = value
+		}
+	}
+	return out
+}
+
+func adminSensitiveLogKey(key string) bool {
+	normalized := strings.ToLower(strings.ReplaceAll(key, "-", "_"))
+	for _, item := range []string{"token", "password", "secret", "credential", "private_key", "access_key", "authorization", "cookie"} {
+		if strings.Contains(normalized, item) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) apiAudit(w http.ResponseWriter, r *http.Request) {
