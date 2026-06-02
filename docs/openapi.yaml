@@ -374,8 +374,10 @@ paths:
       summary: Platform Dashboard BFF payload
       description: |
         Platform-admin protected dashboard boundary. The BFF composes existing
-        admin read-model summary data and server-side allowlisted Prometheus
-        queries. Browser clients never receive a raw Prometheus passthrough.
+        admin read-model summary data, KPI strip, operation-risk data, grouped
+        scrape health, and server-side allowlisted Prometheus queries for
+        runtime, cross-service, business, and infrastructure panels. Browser
+        clients never receive a raw Prometheus passthrough.
       responses:
         "200":
           description: Platform Dashboard payload with per-source states.

@@ -30,9 +30,8 @@ production data work in `rtk_video_cloud` or `rtk_account_manager` is tracked as
 a dependency note only; do not open upstream issues as part of this batch.
 
 This roadmap tracks the completed first WebUI implementation sequence for
-Customer View, auth, and the initial Platform View pages. Platform Dashboard
-metrics and Brand Clouds are subsequent Platform View design extensions; their
-drafts live in
+Customer View, auth, Platform View pages, and Platform Dashboard. Brand Clouds
+remain a subsequent Platform View design extension; the relevant drafts live in
 [platform-view-dashboard-design.md](platform-view-dashboard-design.md) and
 [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md).
 
@@ -475,8 +474,8 @@ Platform View separation.
 ## Scope
 
 - Polish Service Health, including Platform-only demo mode banner behavior.
-- Add Platform Dashboard as the Tier 1 landing page when the metrics BFF surface
-  is implemented; follow `platform-view-dashboard-design.md`.
+- Keep Platform Dashboard as the Tier 1 landing page through the implemented
+  metrics BFF surface; follow `platform-view-dashboard-design.md`.
 - Complete SSO Providers status/settings surface through Account Manager-backed
   data.
 - Complete Operations Log with Friendly Summary, raw type/state as Platform-only
@@ -497,7 +496,7 @@ Platform View separation.
 ## Dependencies
 
 - Milestone 1 route and role gates.
-- `/api/admin/service-health`, `/api/admin/sso/providers`,
+- `/api/admin/platform-dashboard`, `/api/admin/service-health`, `/api/admin/sso/providers`,
   `/api/admin/operations`, and `/api/admin/audit`.
 - Account Manager remains source of truth for SSO provider configuration and
   secrets.
@@ -505,6 +504,8 @@ Platform View separation.
 ## Acceptance Criteria
 
 - Customer users cannot see Platform View data.
+- Platform Dashboard remains the first Platform View route and shows Prometheus
+  source states instead of direct Prometheus or Grafana browser access.
 - SSO Providers never displays secrets or stores provider secrets in Admin
   Console SQLite.
 - SSO Providers does not present SAML as implemented; OIDC is first supported.
