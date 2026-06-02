@@ -121,6 +121,15 @@ Data ownership:
   [`docs/sso-oidc-design.md`](sso-oidc-design.md).
 - Video Cloud remains authoritative for activation, transport, streaming, media, firmware, and device runtime facts.
 
+Future Redis-compatible session or projection cache support must start by
+extracting narrow ports from the current SQLite `internal/store.Store`. SQLite
+remains authoritative only for console-local data such as platform break-glass
+users, sessions, audit, settings, preferences, and demo data. Upstream
+organization, device, operation, readiness, firmware, telemetry, and stream
+facts remain non-authoritative projections or proxy results from Account Manager
+and Video Cloud. The cross-repository roadmap is maintained in
+`../../docs/persistence-cache-refactor-roadmap.md`.
+
 ## HTTP Interface
 
 The machine-readable BFF API contract is maintained in
