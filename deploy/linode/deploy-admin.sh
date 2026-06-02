@@ -330,9 +330,13 @@ systemctl enable --now rtk-cloud-admin
 systemctl restart rtk-cloud-admin
 
 for _ in $(seq 1 30); do
-  if curl -fsS http://127.0.0.1:8080/healthz | grep -qx ok; then
+  if curl -fsS http://127.0.0.1:8080/healthz 2>/dev/null | grep -qx ok; then
     ready=1
     break
+  fi
+  if [ "${health_wait_logged:-0}" != "1" ]; then
+    printf '[admin-deploy] waiting for rtk-cloud-admin local health on 127.0.0.1:8080\n' >&2
+    health_wait_logged=1
   fi
   sleep 1
 done
