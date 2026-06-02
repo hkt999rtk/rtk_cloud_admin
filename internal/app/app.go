@@ -93,6 +93,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /metrics/prometheus", s.metricsPrometheus)
 	s.mux.HandleFunc("GET /api/summary", s.apiSummary)
 	s.mux.HandleFunc("GET /api/admin/summary", s.apiAdminSummary)
+	s.mux.HandleFunc("GET /api/admin/platform-dashboard", s.apiAdminPlatformDashboard)
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)

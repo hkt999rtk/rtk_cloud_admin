@@ -104,6 +104,35 @@ type Summary struct {
 	Customers        int `json:"customers"`
 }
 
+type PlatformDashboard struct {
+	Summary    Summary                            `json:"summary"`
+	Sources    map[string]PlatformDashboardSource `json:"sources"`
+	Prometheus PlatformDashboardPrometheus        `json:"prometheus"`
+}
+
+type PlatformDashboardSource struct {
+	SourceStatus  string `json:"source_status"`
+	SourceMessage string `json:"source_message,omitempty"`
+	CheckedAt     string `json:"checked_at,omitempty"`
+}
+
+type PlatformDashboardPrometheus struct {
+	Queries []PlatformDashboardPrometheusQuery `json:"queries"`
+}
+
+type PlatformDashboardPrometheusQuery struct {
+	ID           string                              `json:"id"`
+	Title        string                              `json:"title"`
+	SourceStatus string                              `json:"source_status"`
+	CheckedAt    string                              `json:"checked_at,omitempty"`
+	Series       []PlatformDashboardPrometheusSeries `json:"series"`
+}
+
+type PlatformDashboardPrometheusSeries struct {
+	Labels map[string]string `json:"labels"`
+	Value  float64           `json:"value"`
+}
+
 type CustomerSummary struct {
 	OrganizationID   string `json:"organization_id"`
 	Organization     string `json:"organization"`

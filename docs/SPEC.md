@@ -136,6 +136,8 @@ Public and shared routes:
 - `GET /api/me`: current user, memberships, active organization, and demo/auth state.
 - `POST /api/me/active-org`: switches active organization for the current session.
 - `GET /api/summary`: customer and platform dashboard summary.
+- `GET /api/admin/platform-dashboard`: platform-admin protected Platform
+  Dashboard BFF contract with server-side allowlisted Prometheus queries.
 - `GET /api/devices`: device list from cache/demo or upstream aggregation.
 - `GET /api/devices/{id}`: device detail.
 - `POST /api/devices/{id}/provision`: starts or simulates provisioning.
