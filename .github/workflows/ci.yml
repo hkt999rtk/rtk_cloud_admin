@@ -27,6 +27,9 @@ jobs:
           git config --global \
             url."https://x-access-token:${CONTRACTS_REPO_TOKEN}@github.com/hkt999rtk/rtk_cloud_contracts_doc.git".insteadOf \
             "https://github.com/hkt999rtk/rtk_cloud_contracts_doc.git"
+          git config --global --add \
+            url."https://x-access-token:${CONTRACTS_REPO_TOKEN}@github.com/hkt999rtk/rtk_cloud_contracts_doc.git".insteadOf \
+            "git@github.com-work:hkt999rtk/rtk_cloud_contracts_doc.git"
           git submodule update --init --depth=1 rtk_cloud_contracts_doc
 
       - uses: actions/setup-go@v5
