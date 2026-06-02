@@ -164,11 +164,11 @@ func (s *Server) platformDashboardReadModels(ctx context.Context, session store.
 		}
 		return summaryFromReadModels(devices, operations), operations, nil
 	}
-	summary, err := s.store.Summary()
+	summary, err := s.projections.Summary()
 	if err != nil {
 		return contracts.Summary{}, nil, err
 	}
-	operations, err := s.store.ListOperations()
+	operations, err := s.projections.ListOperations()
 	if err != nil {
 		return contracts.Summary{}, nil, err
 	}
