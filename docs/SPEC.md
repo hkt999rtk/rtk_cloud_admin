@@ -106,7 +106,11 @@ Runtime components:
 
 - `cmd/server`: process entry point, configuration, server startup, graceful shutdown.
 - `internal/app`: application wiring, route registration, JSON API handlers, static frontend serving, health endpoint.
-- `internal/store`: SQLite schema, repository methods, seed data, and migrations.
+- `internal/app/store_ports.go`: narrow local-store interfaces for sessions,
+  break-glass platform admin verification, audit events, projection reads, and
+  lifecycle operations.
+- `internal/store`: SQLite schema, repository methods, seed data, migrations,
+  and the current implementation of the app-local store interfaces.
 - `internal/contracts`: Go vocabulary for readiness states, operation states, roles, and DTOs used by the UI.
 - `web`: React frontend source, built with Vite and served as static files by the Go backend.
 - `web/dist`: generated frontend build output, not manually edited.
@@ -115,6 +119,9 @@ Data ownership:
 
 - SQLite is authoritative only for console-local data: platform admins, sessions, audit, settings, preferences, and demo projections.
 - SQLite cache tables for upstream organizations, devices, operations, and readiness facts are non-authoritative mirrors that can be refreshed from Account Manager and Video Cloud.
+- Application handlers depend on narrow local-store interfaces where practical;
+  this is a boundary for future cache/session backends, not a change in source
+  of truth.
 - Account Manager remains authoritative for customer users, organizations, membership, and registry devices.
 - Account Manager is also the planned identity broker and authorization source
   for standards-based SSO; see

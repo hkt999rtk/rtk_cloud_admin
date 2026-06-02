@@ -1,6 +1,6 @@
 # WebUI Implementation Roadmap
 
-Status: developer-ready issue roadmap.
+Status: completed first-batch implementation roadmap.
 
 Audience:
 
@@ -20,14 +20,15 @@ Related documents:
 
 ## Summary
 
-This roadmap is the source of truth for opening developer issues to finish the
-RTK Cloud Admin WebUI. Issues are split by implementation milestone rather than
-by isolated page so that shared route guards, source states, role behavior, and
-browser QA are implemented once and reused consistently.
+This roadmap records the completed first RTK Cloud Admin WebUI implementation
+batch and remains the reference for future follow-up issues. The original work
+was split by implementation milestone rather than by isolated page so that
+shared route guards, source states, role behavior, and browser QA were
+implemented once and reused consistently.
 
-All issues in this roadmap are for `hkt999rtk/rtk_cloud_admin`. Upstream
-production data work in `rtk_video_cloud` or `rtk_account_manager` is tracked as
-a dependency note only; do not open upstream issues as part of this batch.
+The completed admin-repo issues were for `hkt999rtk/rtk_cloud_admin`. Upstream
+production data work in `rtk_video_cloud` or `rtk_account_manager` remains a
+dependency note only and was not opened as part of this batch.
 
 This roadmap tracks the completed first WebUI implementation sequence for
 Customer View, auth, Platform View pages, and Platform Dashboard. Brand Clouds

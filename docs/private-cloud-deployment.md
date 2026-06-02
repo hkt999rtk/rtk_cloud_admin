@@ -22,6 +22,12 @@ The app is not a stateless frontend. Local SQLite holds sessions, platform
 admins, audit metadata, settings, and upstream cache projections. Treat the
 database file as production state and back it up accordingly.
 
+The Go application now accesses this local state through narrow app-level
+interfaces for sessions, break-glass platform admin verification, audit,
+projection reads, and lifecycle operations. SQLite remains the implementation
+for this deployment profile; no Redis-compatible session or projection cache is
+required or configured by this release.
+
 ## Linode Staging Profile
 
 The supported Linode staging shape is a dedicated Admin VM with public HTTPS
@@ -101,6 +107,9 @@ state.
   firmware facts
 - local SQLite remains authoritative for admin sessions, platform admins,
   audit metadata, and cached projections used by the dashboard
+- local projection interfaces are non-authoritative cache/read-model ports;
+  they must not be used to turn Admin Console into the canonical brand-cloud,
+  organization, device, or lifecycle-operation store
 
 In production, upstream failures must be visible. The dashboard should surface
 gateway errors instead of silently falling back when a configured upstream is
