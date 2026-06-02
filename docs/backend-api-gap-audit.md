@@ -154,11 +154,11 @@ validation.
 
 ### Admin Repo Follow-Up Work
 
-Status: tracked in [webui-implementation-roadmap.md](webui-implementation-roadmap.md).
+Status: completed for the first WebUI implementation batch tracked in
+[webui-implementation-roadmap.md](webui-implementation-roadmap.md).
 
 These items can be implemented in `rtk_cloud_admin` without making this repo the
-source of truth for upstream facts. Open developer issues from the roadmap
-milestones, not from ad hoc page lists:
+source of truth for upstream facts. The completed milestone sequence covered:
 
 1. WebUI foundation cleanup and route guards.
 2. Customer View source-aware page states.

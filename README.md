@@ -43,8 +43,14 @@ Implemented in this first version:
 - legacy local platform admin login/session endpoint backed by SQLite for controlled break-glass access
 - SSO/OIDC architecture documented for the next authentication milestone
 - Account Manager proxy mode for organizations, devices, provision, and deactivate
+- Platform Dashboard BFF and React landing page with curated Prometheus-backed
+  operational panels, source states, and no browser-side Prometheus or Grafana
+  access
 - Account Manager-backed brand-cloud admin BFF routes for future Platform View
   UI implementation
+- narrow application store interfaces for sessions, break-glass platform
+  admins, audit events, projection reads, and lifecycle operations; the current
+  implementation remains SQLite-backed and does not add Redis
 - explicit SQLite schema migrations tracked in `schema_migrations`
 - URL routes for `/console`, `/console/customers`, `/console/devices`,
   `/console/operations`, `/console/audit`, and `/admin`
@@ -62,6 +68,17 @@ identity broker and authorization source. See
 [`docs/sso-oidc-design.md`](docs/sso-oidc-design.md). Existing password login
 paths are legacy compatibility or controlled break-glass surfaces, not the
 long-term production target.
+
+Recent completion status:
+
+- Platform Dashboard implementation, QA documentation, OpenAPI coverage, and
+  browser smoke coverage are complete.
+- Admin Console local-store access is split behind narrow interfaces so future
+  session/projection cache work can be introduced without making Admin Console
+  the source of truth for upstream tenant or device facts.
+- The contracts documentation submodule URL and CI rewrite now support the
+  local `github.com-work` SSH alias while preserving token-authenticated CI
+  checkout.
 
 ## WebUI Background
 
