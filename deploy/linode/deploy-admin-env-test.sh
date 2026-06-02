@@ -67,5 +67,7 @@ grep -q '127.0.0.1:8081/stub_status' "$capture/remote-install.sh"
 grep -q -- '-web.listen-address=$nginx_exporter_listen_addr' "$capture/remote-install.sh"
 grep -q '10.42.1.60:9113' "$capture/remote-install-args.txt"
 grep -q 'systemctl enable --now prometheus-nginx-exporter' "$capture/remote-install.sh"
+grep -q '\[admin-deploy\] waiting for rtk-cloud-admin local health on 127.0.0.1:8080' "$capture/remote-install.sh"
+grep -q 'curl -fsS http://127.0.0.1:8080/healthz 2>/dev/null' "$capture/remote-install.sh"
 
 printf 'deploy-admin env test passed\n'
