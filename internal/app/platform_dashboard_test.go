@@ -237,6 +237,77 @@ func TestAdminPlatformDashboardMissingSeriesFixture(t *testing.T) {
 	}
 }
 
+func TestAdminPlatformDashboardRepresentativeMetricFamilies(t *testing.T) {
+	t.Parallel()
+
+	seen := map[string]bool{}
+	prometheus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query().Get("query")
+		seen[query] = true
+		metric := map[string]any{"job": "video_cloud_app", "service": "api", "role": "app", "device_id": "dev-secret", "instance": "10.0.0.1:9100"}
+		value := "1"
+		if strings.Contains(query, "node_cpu") || strings.Contains(query, "node_memory") || strings.Contains(query, "node_filesystem") || strings.Contains(query, "blob_capacity") {
+			metric = map[string]any{"job": "node", "role": "infra", "instance": "10.0.0.1:9100"}
+			value = "42"
+		}
+		if strings.Contains(query, "consumer_pending") || strings.Contains(query, "dead_letters") || strings.Contains(query, "publish_total") || strings.Contains(query, "consume_total") {
+			metric = map[string]any{"job": "video_cloud_app", "service": "crossservice", "consumer": "sensitive-consumer"}
+			value = "2"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status": "success",
+			"data": map[string]any{
+				"resultType": "vector",
+				"result": []map[string]any{{
+					"metric": metric,
+					"value":  []any{1780369304, value},
+				}},
+			},
+		})
+	}))
+	defer prometheus.Close()
+
+	payload := getPlatformDashboardForPrometheus(t, prometheus.URL)
+	queries := map[string]contracts.PlatformDashboardPrometheusQuery{}
+	for _, query := range payload.Prometheus.Queries {
+		queries[query.ID] = query
+	}
+	for _, id := range []string{
+		"runtime_request_rate",
+		"runtime_5xx_rate",
+		"runtime_avg_latency_seconds",
+		"app_up",
+		"crossservice_consumer_backlog",
+		"crossservice_dead_letters",
+		"crossservice_publish_errors",
+		"crossservice_consume_errors",
+		"business_video_devices_online",
+		"business_blob_utilization_percent",
+		"business_exporter_success",
+		"business_quota_requests",
+		"business_eval_signups_24h",
+		"infra_cpu_utilization_percent",
+		"infra_memory_utilization_percent",
+		"infra_disk_utilization_percent",
+	} {
+		if queries[id].SourceStatus != "configured" {
+			t.Fatalf("%s source_status = %q, want configured", id, queries[id].SourceStatus)
+		}
+	}
+	if len(seen) != len(platformDashboardPrometheusQueries) {
+		t.Fatalf("seen query count = %d, want %d", len(seen), len(platformDashboardPrometheusQueries))
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	for _, leaked := range []string{"device_id", "dev-secret", "instance", "10.0.0.1", "sensitive-consumer"} {
+		if strings.Contains(string(body), leaked) {
+			t.Fatalf("payload leaked disallowed label %q: %s", leaked, body)
+		}
+	}
+}
+
 func TestAdminPlatformDashboardPrometheusConfiguredAndStale(t *testing.T) {
 	t.Parallel()
 
