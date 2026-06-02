@@ -103,7 +103,7 @@ jq -e '
   [.rules.inbound[] | select(.label == "vpc-metrics")] as $rules |
   ($rules | length) == 1 and
   $rules[0].protocol == "TCP" and
-  $rules[0].ports == "9100,9113" and
+  $rules[0].ports == "8080,9100,9113" and
   $rules[0].addresses.ipv4 == ["10.42.1.0/24"]
 ' "$capture/firewall-create.json" >/dev/null
 

@@ -277,6 +277,10 @@ server {
         default_type text/plain;
     }
 
+    location = /metrics/prometheus {
+        return 404;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
@@ -411,6 +415,10 @@ server {
     location ^~ /.well-known/acme-challenge/ {
         alias /var/www/certbot/.well-known/acme-challenge/;
         default_type text/plain;
+    }
+
+    location = /metrics/prometheus {
+        return 404;
     }
 
     location / {
