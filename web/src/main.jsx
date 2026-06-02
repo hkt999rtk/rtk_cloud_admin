@@ -547,6 +547,7 @@ function App() {
             onOpenDevice={selectDevice}
           />
         ) : null}
+        {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding summary={summary} health={health} operations={operations} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
         {!needsPlatformAccess && active === 'platform-sso' ? (
           <PlatformSSOProviders providers={ssoProviders} customers={customers} onSave={handleSSOProviderSave} />
@@ -1424,6 +1425,41 @@ function PlatformAccessGate({ active, me, onSSOStart, onBreakGlassLogin }) {
           <p>Sign in with a platform admin session to open {titleFor(active)}.</p>
         </div>
       </section>
+    </>
+  );
+}
+
+function PlatformDashboardLanding({ summary, health, operations }) {
+  const customerCount = summary?.customers ?? '-';
+  const onlineDevices = summary?.online_devices ?? '-';
+  const openOperations = summary?.open_operations ?? '-';
+  const degradedServices = health.filter((item) => item.status !== 'ok' && item.status !== 'demo').length;
+  const failedOperations = operations.filter((operation) => operation.state === 'failed' || operation.state === 'dead_lettered').length;
+  return (
+    <>
+      <section className="panel split-panel">
+        <div>
+          <h2>Platform Dashboard</h2>
+          <p>Cross-tenant operating status for Platform Admins.</p>
+          <div className="admin-kpis">
+            <div><strong>{customerCount}</strong><span>Tenants</span></div>
+            <div><strong>{onlineDevices}</strong><span>Devices online</span></div>
+            <div><strong>{openOperations}</strong><span>Open ops</span></div>
+          </div>
+        </div>
+        <ServiceHealth health={health} compact />
+      </section>
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Operation Risk</h2>
+            <p>Open and failed lifecycle activity across tenants.</p>
+          </div>
+          <StatusBadge value={failedOperations ? 'degraded' : 'ok'} />
+        </div>
+        <OperationList operations={operations.filter((operation) => operation.state !== 'succeeded').slice(0, 5)} detailed />
+      </section>
+      {degradedServices ? <section className="panel demo-banner"><p>{`${degradedServices} service checks need attention.`}</p></section> : null}
     </>
   );
 }
