@@ -368,6 +368,28 @@ paths:
         "502":
           $ref: "#/components/responses/PlainTextError"
 
+  /api/admin/platform-dashboard:
+    get:
+      tags: [Platform Admin]
+      summary: Platform Dashboard BFF payload
+      description: |
+        Platform-admin protected dashboard boundary. The BFF composes existing
+        admin read-model summary data and server-side allowlisted Prometheus
+        queries. Browser clients never receive a raw Prometheus passthrough.
+      responses:
+        "200":
+          description: Platform Dashboard payload with per-source states.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformDashboard"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+
   /api/customers:
     get:
       tags: [Customer]
@@ -1496,6 +1518,69 @@ components:
         updated_at:
           type: string
           format: date-time
+    PlatformDashboard:
+      type: object
+      required: [summary, sources, prometheus]
+      properties:
+        summary:
+          $ref: "#/components/schemas/Summary"
+        sources:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PlatformDashboardSource"
+        prometheus:
+          $ref: "#/components/schemas/PlatformDashboardPrometheus"
+    PlatformDashboardSource:
+      type: object
+      required: [source_status]
+      properties:
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale]
+        source_message:
+          type: string
+        checked_at:
+          type: string
+          format: date-time
+    PlatformDashboardPrometheus:
+      type: object
+      required: [queries]
+      properties:
+        queries:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformDashboardPrometheusQuery"
+    PlatformDashboardPrometheusQuery:
+      type: object
+      required: [id, title, source_status, series]
+      properties:
+        id:
+          type: string
+          enum: [scrape_targets_up, scrape_targets_down, exporter_freshness_seconds]
+        title:
+          type: string
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale]
+        checked_at:
+          type: string
+          format: date-time
+        series:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformDashboardPrometheusSeries"
+    PlatformDashboardPrometheusSeries:
+      type: object
+      required: [labels, value]
+      properties:
+        labels:
+          type: object
+          description: Allowlisted Prometheus labels only: job, service, and role.
+          additionalProperties:
+            type: string
+        value:
+          type: number
+          format: double
     ServiceHealth:
       type: object
       required: [name, status, detail]
