@@ -68,6 +68,59 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 	}
 }
 
+func TestAdminServiceLogsProxyFiltersAndRedacts(t *testing.T) {
+	t.Parallel()
+
+	var gotAuth, gotQuery string
+	logger := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotQuery = r.URL.RawQuery
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"events": []map[string]any{{
+				"event_id":   "evt-1",
+				"ts":         "2026-06-02T00:00:00Z",
+				"service":    "account-manager",
+				"level":      "info",
+				"msg":        "login",
+				"trace_id":   "trace-1",
+				"request_id": "request-1",
+				"fields": map[string]any{
+					"access_token": "raw-token",
+					"safe":         "ok",
+				},
+			}},
+		})
+	}))
+	defer logger.Close()
+
+	st := mustOpenStore(t)
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{Config: config.Config{CloudLoggerEndpoint: logger.URL, CloudLoggerToken: "logger-token"}})
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/service-logs?service=account-manager&trace_id=trace-1&ignored=secret", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	if gotAuth != "Bearer logger-token" {
+		t.Fatalf("Authorization = %q", gotAuth)
+	}
+	if !strings.Contains(gotQuery, "service=account-manager") || !strings.Contains(gotQuery, "trace_id=trace-1") || strings.Contains(gotQuery, "ignored") {
+		t.Fatalf("query = %q", gotQuery)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "raw-token") || strings.Contains(body, "logger-token") {
+		t.Fatalf("service logs response leaked secret: %s", body)
+	}
+	if !strings.Contains(body, `"access_token":"REDACTED"`) || !strings.Contains(body, `"safe":"ok"`) {
+		t.Fatalf("service logs response missing redacted fields: %s", body)
+	}
+}
+
 func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 	t.Parallel()
 

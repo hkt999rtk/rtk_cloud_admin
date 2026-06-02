@@ -647,6 +647,33 @@ p {
   background: rgba(255, 255, 255, 0.78);
 }
 
+.filter-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  margin: 14px 0;
+}
+
+.filter-row label {
+  color: var(--muted);
+  display: grid;
+  font-size: 12px;
+  gap: 5px;
+}
+
+.filter-row input {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--navy);
+  min-width: 0;
+  padding: 8px 9px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
 .overview-lower-grid {
   display: grid;
   gap: 18px;

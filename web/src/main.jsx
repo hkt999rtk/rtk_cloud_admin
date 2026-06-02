@@ -45,6 +45,7 @@ function App() {
   const [devices, setDevices] = useState([]);
   const [operations, setOperations] = useState([]);
   const [health, setHealth] = useState([]);
+  const [serviceLogs, setServiceLogs] = useState(null);
   const [audit, setAudit] = useState([]);
   const [platformDashboard, setPlatformDashboard] = useState(null);
   const [ssoProviders, setSSOProviders] = useState([]);
@@ -89,6 +90,7 @@ function App() {
           setDevices([]);
           setOperations([]);
           setHealth([]);
+          setServiceLogs(null);
           setAudit([]);
           setPlatformDashboard(null);
           setSSOProviders([]);
@@ -105,6 +107,7 @@ function App() {
           setDevices([]);
           setOperations([]);
           setHealth([]);
+          setServiceLogs(null);
           setAudit([]);
           setPlatformDashboard(null);
           setSSOProviders([]);
@@ -139,6 +142,17 @@ function App() {
         setDevices(nextDevices);
         setOperations(nextOperations);
         setHealth(nextHealth);
+        if (useAdminApi && active === 'platform-logs') {
+          const logs = await fetchJSON('/api/admin/service-logs?service=workspace-readiness').catch((err) => ({
+            status: 'degraded',
+            message: err.message || 'Central service logging is unavailable.',
+            events: [],
+          }));
+          if (!alive) return;
+          setServiceLogs(logs);
+        } else {
+          setServiceLogs(null);
+        }
         setAudit(nextAudit);
         setPlatformDashboard(nextPlatformDashboard);
         if (useAdminApi && active === 'platform-sso') {
@@ -201,6 +215,7 @@ function App() {
           setDevices([]);
           setOperations([]);
           setHealth([]);
+          setServiceLogs(null);
           setAudit([]);
           setSSOProviders([]);
           setFirmwareDistribution(null);
@@ -228,6 +243,7 @@ function App() {
     setDevices([]);
     setOperations([]);
     setHealth([]);
+    setServiceLogs(null);
     setAudit([]);
     setSSOProviders([]);
     setFirmwareDistribution(null);
@@ -555,6 +571,7 @@ function App() {
         ) : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
+        {!needsPlatformAccess && active === 'platform-logs' ? <PlatformServiceLogs logs={serviceLogs} loading={loading} /> : null}
         {!needsPlatformAccess && active === 'platform-sso' ? (
           <PlatformSSOProviders providers={ssoProviders} customers={customers} onSave={handleSSOProviderSave} />
         ) : null}
@@ -1687,6 +1704,52 @@ function PlatformHealth({ summary, health }) {
       </section>
       {hasDemo ? <section className="panel demo-banner"><p>{`Demo services active: ${demoServices.map((service) => service.name).join(', ')}`}</p></section> : null}
     </>
+  );
+}
+
+function PlatformServiceLogs({ logs, loading }) {
+  const events = logs?.events || [];
+  const status = logs?.status || (loading ? 'loading' : 'unavailable');
+  return (
+    <section className="panel platform-dashboard-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Cloud Service Logs</h2>
+          <p>Centralized application logs from Account Manager, Video Cloud, Cloud Admin, and staging hosts.</p>
+        </div>
+        <span className={`status-pill ${status === 'ok' ? 'ok' : 'warn'}`}>{status}</span>
+      </div>
+      <div className="filter-row">
+        {['service', 'host', 'unit', 'level', 'trace_id', 'request_id', 'operation_id', 'device_id', 'org_id', 'user_id'].map((field) => (
+          <label key={field}>
+            <span>{field}</span>
+            <input readOnly value="" placeholder={field} />
+          </label>
+        ))}
+      </div>
+      {logs?.message ? <p className="source-note">{logs.message}</p> : null}
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Time</th><th>Service</th><th>Level</th><th>Host</th><th>Message</th><th>Trace</th><th>Request</th></tr>
+          </thead>
+          <tbody>
+            {events.map((event) => (
+              <tr key={event.event_id || `${event.ts}-${event.msg}`}>
+                <td>{event.ts || '-'}</td>
+                <td>{event.service || '-'}</td>
+                <td>{event.level || '-'}</td>
+                <td>{event.host || '-'}</td>
+                <td>{event.msg || '-'}</td>
+                <td>{event.trace_id || '-'}</td>
+                <td>{event.request_id || '-'}</td>
+              </tr>
+            ))}
+            {!events.length ? <tr><td colSpan="7">{loading ? 'Loading service logs' : 'No service log events found'}</td></tr> : null}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
