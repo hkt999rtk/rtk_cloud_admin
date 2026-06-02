@@ -1,3 +1,3 @@
 [submodule "rtk_cloud_contracts_doc"]
 	path = rtk_cloud_contracts_doc
-	url = https://github.com/hkt999rtk/rtk_cloud_contracts_doc.git
+	url = git@github.com-work:hkt999rtk/rtk_cloud_contracts_doc.git
