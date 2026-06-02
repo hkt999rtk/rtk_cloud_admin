@@ -146,6 +146,7 @@ func (s *Server) routes() {
 		"/console/operations",
 		"/console/audit",
 		"/admin",
+		"/admin/health",
 		"/admin/ops",
 		"/admin/operations",
 		"/admin/audit",
