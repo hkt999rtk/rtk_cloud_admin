@@ -18,7 +18,7 @@ upstream facts. Realtek Video Cloud owns activation, firmware, telemetry,
 streaming, and media runtime facts.
 
 The product and integration contracts live in the
-`rtk_cloud_contracts_doc` submodule.
+`docs/rtk_cloud_contracts_doc` submodule.
 
 The service logging migration to `rtk_cloud_logger` zap and central journald
 forwarding is documented in
@@ -55,7 +55,7 @@ Implemented in this first version:
 - URL routes for `/console`, `/console/customers`, `/console/devices`,
   `/console/operations`, `/console/audit`, and `/admin`
 - native release packaging and GitHub Actions CI
-- shared frontend style contract in `rtk_cloud_contracts_doc/FRONTEND_STYLE.md`
+- shared frontend style contract in `docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md`
 - local Realtek logo asset copied from the Realtek Connect+ marketing site
 
 When `ACCOUNT_MANAGER_BASE_URL` is unset, the app runs from SQLite demo/cache
@@ -217,7 +217,7 @@ web/                         React frontend
 docs/SPEC.md                 Product and implementation specification
 docs/openapi.yaml            OpenAPI contract for the Admin Console BFF API
 docs/assets/webui-design/    WebUI visual concepts and static GUI mocks
-rtk_cloud_contracts_doc/     Shared contracts submodule
+docs/rtk_cloud_contracts_doc/ Shared contracts submodule
 ```
 
 ## Configuration
@@ -312,14 +312,14 @@ git submodule update --init --recursive
 Update the contracts submodule:
 
 ```sh
-git -C rtk_cloud_contracts_doc pull --ff-only
-git add rtk_cloud_contracts_doc
+git -C docs/rtk_cloud_contracts_doc pull --ff-only
+git add docs/rtk_cloud_contracts_doc
 ```
 
 Frontend color, typography, layout, and status presentation rules are defined in:
 
 ```text
-rtk_cloud_contracts_doc/FRONTEND_STYLE.md
+docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md
 ```
 
 The React console uses a local copy of the Realtek logo at:

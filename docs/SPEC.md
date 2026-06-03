@@ -8,12 +8,12 @@ The first implementation uses a Go backend/BFF, SQLite, and a React JavaScript f
 
 ## Product Direction
 
-The console follows the contracts in `rtk_cloud_contracts_doc`:
+The console follows the contracts in `docs/rtk_cloud_contracts_doc`:
 
 - Account Manager owns customer authentication, organizations, members, registry devices, provisioning/deactivation APIs, platform-admin/root identity, and brand-cloud administration.
 - Realtek Video Cloud owns activation, scoped tokens, stream/media routes, firmware routes, and transport ownership.
 - Product readiness is an aggregate projection across account registry, claim/bind, local onboarding, cloud activation, and transport online facts.
-- Frontend color, typography, status labels, and layout tone follow `rtk_cloud_contracts_doc/FRONTEND_STYLE.md`.
+- Frontend color, typography, status labels, and layout tone follow `docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md`.
 - This repository provides a frontend/BFF surface. It must not redefine the source-of-truth ownership from the contracts.
 
 In short, `rtk_account_manager` is the authoritative backend control plane for
@@ -231,7 +231,7 @@ Service health:
 
 ## UI Direction
 
-The visual system follows `rtk_cloud_contracts_doc/FRONTEND_STYLE.md` and should feel like an operational B2B console:
+The visual system follows `docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md` and should feel like an operational B2B console:
 
 - compact left sidebar navigation
 - restrained white/gray surfaces
