@@ -17,7 +17,7 @@ Related documents:
 - [admin-dashboard-redesign.md](admin-dashboard-redesign.md)
 - [backend-api-gap-audit.md](backend-api-gap-audit.md)
 - [private-cloud-deployment.md](private-cloud-deployment.md)
-- [rtk_cloud_contracts_doc/METRICS_EXPORT.md](../rtk_cloud_contracts_doc/METRICS_EXPORT.md)
+- [rtk_cloud_contracts_doc/METRICS_EXPORT.md](../docs/rtk_cloud_contracts_doc/METRICS_EXPORT.md)
 
 ## Summary
 

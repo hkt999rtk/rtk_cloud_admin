@@ -6,9 +6,9 @@ checks against the built server binary.
 
 ## Required Secrets
 
-CI initializes the private `rtk_cloud_contracts_doc` submodule over HTTPS when
-`CONTRACTS_REPO_TOKEN` is configured. Configure a repository or organization
-secret named `CONTRACTS_REPO_TOKEN` with read access to
+CI initializes the private `docs/rtk_cloud_contracts_doc` submodule over HTTPS
+when `CONTRACTS_REPO_TOKEN` is configured. Configure a repository or
+organization secret named `CONTRACTS_REPO_TOKEN` with read access to
 `hkt999rtk/rtk_cloud_contracts_doc` when a CI job needs contract file contents.
 
 If `CONTRACTS_REPO_TOKEN` is missing, CI skips the private submodule checkout

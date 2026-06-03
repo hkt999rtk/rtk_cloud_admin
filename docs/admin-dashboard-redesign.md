@@ -14,10 +14,10 @@ Audience:
 Related contracts:
 
 - [ROLES.md](ROLES.md) — three-tier role definitions (read this first)
-- [TELEMETRY_INSIGHTS.md](../rtk_cloud_contracts_doc/TELEMETRY_INSIGHTS.md)
-- [FIRMWARE_CAMPAIGN.md](../rtk_cloud_contracts_doc/FIRMWARE_CAMPAIGN.md)
-- [FRONTEND_STYLE.md](../rtk_cloud_contracts_doc/FRONTEND_STYLE.md)
-- [HTTP_API.md](../rtk_cloud_contracts_doc/HTTP_API.md)
+- [TELEMETRY_INSIGHTS.md](../docs/rtk_cloud_contracts_doc/TELEMETRY_INSIGHTS.md)
+- [FIRMWARE_CAMPAIGN.md](../docs/rtk_cloud_contracts_doc/FIRMWARE_CAMPAIGN.md)
+- [FRONTEND_STYLE.md](../docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md)
+- [HTTP_API.md](../docs/rtk_cloud_contracts_doc/HTTP_API.md)
 - [sso-oidc-design.md](sso-oidc-design.md)
 
 ---
