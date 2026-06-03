@@ -23,7 +23,7 @@ func main() {
 		Service: "rtk-cloud-admin",
 		Env:     getenv("ENV", "unknown"),
 		Version: getenv("VERSION", "dev"),
-		Level:   getenv("LOG_LEVEL", "info"),
+		Level:   cfg.LogLevel,
 	})
 	defer logger.Sync()
 
