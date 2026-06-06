@@ -1,6 +1,6 @@
 # Backend API Gap Audit
 
-Date: 2026-05-09
+Date: 2026-06-06
 
 Source documents:
 
@@ -20,9 +20,9 @@ from Account Manager or Video Cloud before server validation is complete.
 
 - `implemented`: API exists and has the fields/guards required for v0.1.
 - `partially implemented`: API exists but needs contract or authorization work.
-- `api shape implemented / production source pending`: BFF route and DTO shape
-  exist, but production validation still depends on authoritative upstream data
-  rather than demo-derived or locally inferred values.
+- `implemented / live evidence pending`: BFF route, DTO shape, upstream proxy
+  behavior, unavailable states, and route tests exist; production validation
+  still requires live Account Manager or Video Cloud evidence.
 - `missing`: backend API does not exist.
 - `deferred / out of scope`: explicitly not part of this backend API batch.
 
@@ -37,10 +37,10 @@ from Account Manager or Video Cloud before server validation is complete.
 | Customer dashboard | `GET /api/customers` | partially implemented | Returns active customer organization summary for customer sessions; production validation should not rely on public demo fallback. |
 | Customer dashboard | `GET /api/devices` | implemented | Customer sessions return org-scoped customer-safe DTOs without `video_cloud_devid`, operation IDs, raw upstream payloads, or platform-only lifecycle states. |
 | Device detail | `GET /api/devices/{id}` | implemented | Customer sessions return customer-safe identity, readiness, firmware, health, signal, timestamps, and source facts. Platform Admin routes keep the full internal projection where allowed. |
-| Device telemetry | `GET /api/devices/{id}/telemetry` | api shape implemented / production source pending | DTO shape exists and Video Cloud proxy mode exists. Production validation requires authoritative per-device telemetry; demo telemetry fallback is not acceptable for server testing. |
-| Fleet health | `GET /api/fleet/health-summary` | api shape implemented / production source pending | BFF route exists, but production validation requires `device.health.summary` aggregation or equivalent authoritative telemetry read model, not readiness-derived trend data. |
-| Fleet stream | `GET /api/fleet/stream-stats` | api shape implemented / production source pending | BFF route exists, but production validation requires WebRTC session event data from Video Cloud or an equivalent normalized read model, not local estimates. |
-| Firmware | `GET /api/fleet/firmware-distribution` | api shape implemented / production source pending | BFF route exists and proxies firmware endpoints when configured. Production validation requires observed firmware and rollout facts; generated fallback versions are not acceptable. |
+| Device telemetry | `GET /api/devices/{id}/telemetry` | implemented / live evidence pending | DTO shape, Video Cloud proxy mode, customer-safe redaction, unauthorized/unavailable handling, and route tests exist. Production sign-off still requires authoritative per-device telemetry from a live Video Cloud environment. |
+| Fleet health | `GET /api/fleet/health-summary` | implemented / live evidence pending | BFF route and unavailable states exist. Production sign-off requires live `device.health.summary` aggregation or equivalent authoritative telemetry read model evidence, not demo data. |
+| Fleet stream | `GET /api/fleet/stream-stats` | implemented / live evidence pending | BFF route proxies Video Cloud WebRTC session stats and handles upstream failures. Production sign-off requires live WebRTC session event aggregation evidence. |
+| Firmware | `GET /api/fleet/firmware-distribution` | implemented / live evidence pending | BFF route proxies firmware endpoints when configured and avoids treating generated fallback versions as production evidence. Production sign-off requires observed firmware and rollout facts. |
 | Platform dashboard | `GET /api/admin/summary` | implemented | Platform-admin protected. Returns cross-tenant customer/device/operation summary. |
 | Platform dashboard | `GET /api/admin/platform-dashboard` | implemented | Platform-admin protected BFF boundary for existing summary data, operation risk, KPI strip, grouped scrape health, and allowlisted server-side Prometheus queries. Returns stable source states instead of leaking raw upstream errors. |
 | Platform dashboard | `GET /api/admin/customers` | implemented | Platform-admin protected. Returns organization id/name, totals, readiness buckets, and last seen. |
@@ -132,11 +132,11 @@ full internal projection.
 
 ### Production Data Source Requirements
 
-Status: production source pending.
+Status: implemented locally; live source evidence pending.
 
 The Customer View WebUI is intended to be validated against real upstream
-servers. The following production sources are required before the redesigned
-pages can be treated as complete:
+servers. The following production sources are required before live deployment
+sign-off, but their absence is no longer a backend API implementation gap:
 
 - Fleet Health Overview: normalized `device.health.summary` aggregation per
   organization and time window.
@@ -149,8 +149,10 @@ pages can be treated as complete:
   duration, active-session, never-streamed, and per-device worst-device facts.
 
 Local demo, deterministic sample generation, or readiness-derived trends may
-remain useful for development, but they are not acceptable evidence for server
-validation.
+remain useful for development, but they are not acceptable evidence for live
+server validation. When upstreams are absent, Admin Console must expose stable
+not-configured, unauthorized, unavailable, empty, or stale states rather than
+silently falling back to demo-derived production data.
 
 ### Admin Repo Follow-Up Work
 
@@ -170,8 +172,8 @@ source of truth for upstream facts. The completed milestone sequence covered:
 8. Platform View polish.
 9. Final WebUI browser QA and documentation signoff.
 
-Production telemetry, firmware rollout, and stream-session facts remain
-upstream blockers. Admin Console must show blocked/unavailable states when
+Production telemetry, firmware rollout, and stream-session facts remain live
+evidence requirements. Admin Console shows blocked/unavailable states when
 those sources are absent; it must not replace those sources with demo-derived
 production data.
 
