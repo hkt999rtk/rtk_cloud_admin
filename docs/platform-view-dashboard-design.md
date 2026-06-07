@@ -92,7 +92,7 @@ Tenant & Device Footprint                         Operation Risk
 | Readiness distribution | top customer risks |    | open ops | failed ops | dead letters |
 
 Runtime Health                                    Infrastructure Health
-| request rate / 5xx / latency by service |       | CPU | memory | disk | nginx | postgres | redis | nats | emqx |
+| request rate / 5xx / latency by service |       | CPU | memory | disk | nginx | postgres | redis | emqx |
 
 Business Signals                                  Recent Platform Activity
 | quota requests | eval signups | blob use |       | audit + ops links |
@@ -133,14 +133,12 @@ Current configured targets:
 | Job | Target | Path | Dashboard use |
 | --- | --- | --- | --- |
 | `prometheus` | `10.42.1.30:9090` | `/metrics` | Prometheus self-health |
-| `nats` | `10.42.1.30:8222` | `/metrics` | message bus / JetStream health |
 | `nginx` role `edge` | `10.42.1.5:9113` | `/metrics` | public gateway health |
 | `nginx` role `admin` | `10.42.1.60:9113` | `/metrics` | Admin gateway health |
 | `postgres` role `infra` | `10.42.1.30:9187` | `/metrics` | database exporter health |
 | `redis` role `infra` | `10.42.1.30:9121` | `/metrics` | cache exporter health |
 | `emqx` role `mqtt` | `10.42.1.40:18083` | `/api/v5/prometheus/stats` | MQTT broker health |
 | `video_cloud_app` service `api` | `10.42.1.10:18080` | `/metrics/prometheus` | Video Cloud API runtime |
-| `video_cloud_app` service `crossservice` | `10.42.1.10:18180` | `/metrics/prometheus` | bus/worker runtime |
 | `video_cloud_app` service `turnregistry` | `10.42.1.10:18190` | `/metrics/prometheus` | TURN registry runtime |
 | `video_cloud_app` service `metricsexporter` | `10.42.1.10:19200` | `/metrics/prometheus` | aggregate device/blob metrics |
 | `video_cloud_app` service `logingester` | `10.42.1.10:19300` | `/metrics/prometheus` | device log ingestion |
@@ -217,7 +215,6 @@ aggregated health groups and drill-down rows.
 | nginx | `nginx_up`, `nginx_connections_*`, `nginx_http_requests_total` | Gateway status summary. |
 | PostgreSQL | `up{job="postgres"}` plus exporter-specific `pg_*` detail | Primary card is availability; deep DB charts remain Grafana/SRE. |
 | Redis | `up{job="redis"}` plus exporter-specific `redis_*` detail | Primary card is availability. |
-| NATS | `up{job="nats"}` plus NATS/JetStream families | Primary card is availability and backlog risk. |
 | EMQX | `up{job="emqx"}` plus broker/client/session families | Primary card is availability and broker pressure. |
 
 ## Drill-Down Behavior

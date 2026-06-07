@@ -389,7 +389,7 @@ func platformDashboardScrapeGroup(labels map[string]string) string {
 		return "host"
 	case job == "postgres" || job == "redis":
 		return "data"
-	case job == "nats" || job == "emqx" || role == "mqtt":
+	case job == "emqx" || role == "mqtt":
 		return "broker"
 	case job == "nginx" || role == "edge" || role == "gateway":
 		return "gateway"
