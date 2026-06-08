@@ -21,6 +21,7 @@ fi
 
 release_bundle="${ADMIN_LINODE_RELEASE_BUNDLE:-}"
 bundle_release=""
+release_hint="${ADMIN_LINODE_RELEASE:-}"
 if [ -n "$release_bundle" ]; then
   release_name="$(basename "$release_bundle")"
   release_parent="$(basename "$(dirname "$release_bundle")")"
@@ -31,13 +32,13 @@ if [ -n "$release_bundle" ]; then
       ;;
     *.tar.gz)
       bundle_release="${release_name%.tar.gz}"
-      if [ "$release_parent" != "rtk_cloud_admin-$bundle_release" ]; then
-        printf 'error: ADMIN_LINODE_RELEASE_BUNDLE must be named rtk_cloud_admin-<version>.tar.gz or stored as rtk_cloud_admin-<version>/<version>.tar.gz\n' >&2
+      if [ "$release_parent" != "rtk_cloud_admin-$bundle_release" ] && { [ -z "$release_hint" ] || [ "$bundle_release" != "$release_hint" ]; }; then
+        printf 'error: ADMIN_LINODE_RELEASE_BUNDLE must be named rtk_cloud_admin-<version>.tar.gz, stored as rtk_cloud_admin-<version>/<version>.tar.gz, or match ADMIN_LINODE_RELEASE as <version>.tar.gz\n' >&2
         exit 1
       fi
       ;;
     *)
-      printf 'error: ADMIN_LINODE_RELEASE_BUNDLE must be named rtk_cloud_admin-<version>.tar.gz or stored as rtk_cloud_admin-<version>/<version>.tar.gz\n' >&2
+      printf 'error: ADMIN_LINODE_RELEASE_BUNDLE must be named rtk_cloud_admin-<version>.tar.gz, stored as rtk_cloud_admin-<version>/<version>.tar.gz, or match ADMIN_LINODE_RELEASE as <version>.tar.gz\n' >&2
       exit 1
       ;;
   esac
@@ -136,7 +137,7 @@ if [ -z "$release_bundle" ]; then
 fi
 [ -s "$release_bundle" ] || die "release bundle not found: $release_bundle"
 
-ssh_opts=(-i "$ssh_key" -o BatchMode=yes -o StrictHostKeyChecking=accept-new)
+ssh_opts=(-i "$ssh_key" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null)
 remote="$ssh_user@$admin_host"
 
 tmp_env="$(mktemp)"

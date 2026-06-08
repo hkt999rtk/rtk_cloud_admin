@@ -29,7 +29,7 @@ local_archive="$backup_dir/rtk-cloud-admin-db-$stamp.tar.gz"
 [ -n "$admin_host" ] || { echo "ADMIN_LINODE_HOST or ADMIN_LINODE_PUBLIC_IPV4 is required" >&2; exit 1; }
 [ -s "$ssh_key" ] || { echo "SSH key not found: $ssh_key" >&2; exit 1; }
 mkdir -p "$backup_dir"
-ssh_opts=(-i "$ssh_key" -o BatchMode=yes -o StrictHostKeyChecking=accept-new)
+ssh_opts=(-i "$ssh_key" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null)
 remote="$ssh_user@$admin_host"
 
 ssh "${ssh_opts[@]}" "$remote" "tar -C '$data_dir' -czf '$remote_archive' rtk-cloud-admin.db rtk-cloud-admin.db-wal rtk-cloud-admin.db-shm 2>/dev/null || tar -C '$data_dir' -czf '$remote_archive' rtk-cloud-admin.db"
