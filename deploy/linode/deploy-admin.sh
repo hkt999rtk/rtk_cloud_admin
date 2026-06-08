@@ -74,6 +74,7 @@ data_dir="${ADMIN_LINODE_DATA_DIR:-/var/lib/rtk_cloud_admin}"
 env_path="${ADMIN_LINODE_ENV_PATH:-/etc/rtk_cloud_admin/admin.env}"
 certbot_enable="${ADMIN_LINODE_CERTBOT_ENABLE:-1}"
 cert_cache_dir="${ADMIN_LINODE_CERT_CACHE_DIR:-}"
+cert_cache_enabled=0
 http_only="${ADMIN_LINODE_HTTP_ONLY:-0}"
 artifact_dir="${ADMIN_LINODE_ARTIFACT_DIR:-$root_dir/.artifacts/linode-admin-deploy/$release}"
 
@@ -120,6 +121,7 @@ if [ -n "$cert_cache_dir" ]; then
   [ -s "$cert_cache_dir/privkey.pem" ] || die "cached certificate private key not found: $cert_cache_dir/privkey.pem"
   openssl x509 -in "$cert_cache_dir/fullchain.pem" -noout -checkend "${ADMIN_LINODE_CERT_CACHE_MIN_VALID_SECONDS:-604800}" >/dev/null \
     || die "cached certificate is expired or too close to expiry: $cert_cache_dir/fullchain.pem"
+  cert_cache_enabled=1
 fi
 for key in "${required_runtime[@]}"; do
   [ -n "${!key:-}" ] || die "$key is required"
@@ -167,7 +169,7 @@ if [ -n "$cert_cache_dir" ]; then
 fi
 
 printf '[admin-deploy] installing runtime on %s\n' "$remote" >&2
-ssh "${ssh_opts[@]}" "$remote" bash -s -- "$domain" "$certbot_email" "$release" "$remote_bundle" "$data_dir" "$env_path" "$certbot_enable" "$http_only" "$cert_cache_dir" "$node_exporter_listen_addr" "$nginx_exporter_listen_addr" <<'REMOTE'
+ssh "${ssh_opts[@]}" "$remote" bash -s -- "$domain" "$certbot_email" "$release" "$remote_bundle" "$data_dir" "$env_path" "$certbot_enable" "$http_only" "$cert_cache_enabled" "$node_exporter_listen_addr" "$nginx_exporter_listen_addr" <<'REMOTE'
 set -euo pipefail
 
 domain="$1"
@@ -178,7 +180,7 @@ data_dir="$5"
 env_path="$6"
 certbot_enable="$7"
 http_only="$8"
-cert_cache_dir="${9:-}"
+cert_cache_enabled="${9:-0}"
 node_exporter_listen_addr="${10:-127.0.0.1:9100}"
 nginx_exporter_listen_addr="${11:-127.0.0.1:9113}"
 service_user="rtk-cloud-admin"
@@ -346,7 +348,7 @@ if [ "${ready:-0}" != "1" ]; then
   exit 1
 fi
 
-if [ -n "$cert_cache_dir" ] && [ "$http_only" != "1" ]; then
+if [ "$cert_cache_enabled" = "1" ] && [ "$http_only" != "1" ]; then
   archive_dir="/etc/letsencrypt/archive/$domain"
   live_dir="/etc/letsencrypt/live/$domain"
   renewal_conf="/etc/letsencrypt/renewal/$domain.conf"
