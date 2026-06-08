@@ -39,7 +39,7 @@ esac
 FAKE_SCP
 chmod +x "$fake_bin/scp"
 
-release_bundle="$tmpdir/release/rtk_cloud_admin-test.tar.gz"
+release_bundle="$tmpdir/release/test.tar.gz"
 printf 'fake release\n' > "$release_bundle"
 ssh_key="$tmpdir/id_ed25519"
 printf 'fake key\n' > "$ssh_key"
