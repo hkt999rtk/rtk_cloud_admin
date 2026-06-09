@@ -233,7 +233,7 @@ Environment variables:
 - `ADMIN_BOOTSTRAP_EMAIL`: optional local platform admin break-glass email
 - `ADMIN_BOOTSTRAP_PASSWORD`: optional local platform admin break-glass password
 - `ADMIN_BREAK_GLASS_ENABLED`: set to `true` to enable local Platform Admin break-glass login; default `false`
-- `LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED`: set to `true` to enable legacy customer password login; default `false`
+- `CUSTOMER_PASSWORD_LOGIN_ENABLED`: set to `false` to disable customer password login; default `true`
 
 If both admin bootstrap variables are set, startup creates the first local
 platform admin break-glass account if it does not already exist. Passwords are
@@ -243,9 +243,9 @@ bearer/refresh tokens, never plaintext credentials.
 Linode Admin deployments install node and nginx Prometheus exporters for
 private Prometheus scraping. The nginx exporter uses local nginx `stub_status`
 on `127.0.0.1:8081` so the Admin service remains bound to `127.0.0.1:8080`.
-Break-glass login is rejected unless `ADMIN_BREAK_GLASS_ENABLED=true`, and
-customer password login is rejected unless
-`LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED=true`.
+Break-glass login is rejected unless `ADMIN_BREAK_GLASS_ENABLED=true`.
+Customer password login is enabled by default and is rejected only when
+`CUSTOMER_PASSWORD_LOGIN_ENABLED=false`.
 
 SQLite schema changes are applied through versioned migrations. Existing local
 databases are upgraded in place and applied versions are stored in

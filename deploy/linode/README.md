@@ -171,4 +171,4 @@ The backup script pulls `rtk-cloud-admin.db` and any SQLite WAL/SHM files into
   dependencies such as Prometheus. Do not expose Prometheus on the public
   network.
 - `ADMIN_BREAK_GLASS_ENABLED=true` is acceptable for staging bootstrap. The
-  production direction remains Account Manager-backed SSO.
+  production direction remains Account Manager-backed customer password login.

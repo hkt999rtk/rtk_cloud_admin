@@ -415,11 +415,15 @@ async function runAuthSmoke(browserContext) {
     throw new Error(`Unauthenticated admin route should redirect to login, got ${page.url()}`);
   }
   await expectText(page, 'Sign in to Admin Console');
-  await expectText(page, 'Customer View');
-  await expectText(page, 'Platform View');
   const sidebarVisible = await page.locator('.sidebar').isVisible();
   if (sidebarVisible) {
     throw new Error('Login page must not render dashboard sidebar navigation.');
+  }
+  if (await page.getByText('Platform admin recovery').count()) {
+    throw new Error('Login page must not render recovery access controls.');
+  }
+  if (await page.locator('.login-preview').count()) {
+    throw new Error('Login page must not render destination preview panels.');
   }
   await screenshot(page, 'desktop-login.png');
   if (consoleIssues.length) {
@@ -509,7 +513,9 @@ async function runMobileSmoke(browserContext) {
   await installApiMocks(page, { sessionForPath: () => anonymousMe });
   await page.goto(`${baseURL}/login?next=%2Fconsole%2Fdevices`, { waitUntil: 'networkidle' });
   await expectText(page, 'Sign in to Admin Console');
-  await expectText(page, 'Emergency platform access');
+  if (await page.getByText('Platform admin recovery').count()) {
+    throw new Error('Mobile login page must not render recovery access controls.');
+  }
   await screenshot(page, 'mobile-login.png');
   await page.unroute('**/api/**');
   await installApiMocks(page);

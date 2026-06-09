@@ -412,12 +412,13 @@ success, active sessions, and devices needing stream attention.
 ## Goal
 
 Complete public auth and evaluation-tier UX around the existing BFF routes while
-keeping SSO as the primary production sign-in path.
+keeping Account Manager-backed email/password login as the primary production
+sign-in path.
 
 ## Scope
 
-- Polish email-first SSO login states: idle, redirecting, callback verification,
-  denied access, unavailable source, and retry.
+- Polish email/password login states: idle, submitting, denied access,
+  unavailable source, and retry.
 - Keep local platform break-glass visually secondary and available only when
   enabled by deployment configuration.
 - Complete `/signup`, `/signup/check-email`, and `/verify` states for public
@@ -437,7 +438,8 @@ keeping SSO as the primary production sign-in path.
 
 ## Dependencies
 
-- Existing BFF routes for signup, verification, SSO start/callback, `/api/me`,
+- Existing BFF routes for signup, verification, customer password login,
+  SSO start/callback, `/api/me`,
   active org, and quota raise requests.
 - Account Manager remains source of truth for accounts, verification, SSO, and
   quota decisions.
@@ -446,10 +448,10 @@ keeping SSO as the primary production sign-in path.
 
 - Public auth pages are outside Customer View and Platform View section nav.
 - Signup is clearly evaluation-tier only.
-- Verification and SSO errors use user-facing copy without exposing internal
+- Verification and login errors use user-facing copy without exposing internal
   upstream payloads.
 - Quota raise requests target only the active organization.
-- Password login is not presented as the primary production path.
+- Password login is presented as the primary production path.
 
 ## Required Tests
 

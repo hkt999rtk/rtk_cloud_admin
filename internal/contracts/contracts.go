@@ -193,17 +193,17 @@ type Membership struct {
 }
 
 type Me struct {
-	UserID                             string       `json:"user_id"`
-	Email                              string       `json:"email"`
-	Name                               string       `json:"name"`
-	Kind                               string       `json:"kind"`
-	Memberships                        []Membership `json:"memberships"`
-	ActiveOrgID                        string       `json:"active_org_id"`
-	DemoMode                           bool         `json:"demo_mode"`
-	Authenticated                      bool         `json:"authenticated"`
-	Capabilities                       []string     `json:"capabilities,omitempty"`
-	BreakGlassEnabled                  bool         `json:"break_glass_enabled"`
-	LegacyCustomerPasswordLoginEnabled bool         `json:"legacy_customer_password_login_enabled"`
+	UserID                       string       `json:"user_id"`
+	Email                        string       `json:"email"`
+	Name                         string       `json:"name"`
+	Kind                         string       `json:"kind"`
+	Memberships                  []Membership `json:"memberships"`
+	ActiveOrgID                  string       `json:"active_org_id"`
+	DemoMode                     bool         `json:"demo_mode"`
+	Authenticated                bool         `json:"authenticated"`
+	Capabilities                 []string     `json:"capabilities,omitempty"`
+	BreakGlassEnabled            bool         `json:"break_glass_enabled"`
+	CustomerPasswordLoginEnabled bool         `json:"customer_password_login_enabled"`
 }
 
 type AuditEvent struct {

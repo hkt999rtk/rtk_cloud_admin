@@ -375,6 +375,29 @@ function App() {
     window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, loginNextFromLocation(window.location)));
   }
 
+  async function handlePasswordLogin(credentials) {
+    setError('');
+    try {
+      await postJSON('/api/auth/customer/login', credentials);
+      window.location.assign(destinationForSession({ authenticated: true, kind: 'customer' }, loginNextFromLocation(window.location)));
+    } catch (err) {
+      const message = err?.message || '';
+      if (message.includes('customer password sign-in is disabled')) {
+        const nextError = 'Password sign-in is not enabled for this environment.';
+        setError(nextError);
+        throw new Error(nextError);
+      }
+      if (err?.status === 401 || /invalid credentials/i.test(message)) {
+        const nextError = 'Email or password is incorrect.';
+        setError(nextError);
+        throw new Error(nextError);
+      }
+      const nextError = 'Sign-in is temporarily unavailable. Please try again later.';
+      setError(nextError);
+      throw new Error(nextError);
+    }
+  }
+
   async function handleSignup(payload) {
     setError('');
     try {
@@ -460,9 +483,7 @@ function App() {
         <LoginPage
           error={error}
           loading={loading}
-          me={me}
-          onSSOStart={handleSSOStart}
-          onBreakGlassLogin={handleBreakGlassLogin}
+          onPasswordLogin={handlePasswordLogin}
         />
       );
     }
@@ -609,7 +630,7 @@ function App() {
   );
 }
 
-function LoginPage({ error, loading, me, onSSOStart, onBreakGlassLogin }) {
+function LoginPage({ error, loading, onPasswordLogin }) {
   return (
     <div className="login-shell">
       <header className="login-topbar" aria-label="Connect+ Ops">
@@ -622,75 +643,18 @@ function LoginPage({ error, loading, me, onSSOStart, onBreakGlassLogin }) {
             <strong>Connect+ Ops</strong>
           </div>
           <h1 id="login-title">Sign in to Admin Console</h1>
-          <p className="login-copy">Use your organization identity to continue to Customer View or Platform View.</p>
-          <LoginSSOForm onSSOStart={onSSOStart} disabled={loading} />
+          <p className="login-copy">Use your work email to continue.</p>
+          <LoginPasswordForm onPasswordLogin={onPasswordLogin} disabled={loading} />
           {error ? <div className="error">{error}</div> : null}
-          <LoginRecoveryPanel enabled={shouldShowBreakGlass(me)} onBreakGlassLogin={onBreakGlassLogin} />
         </section>
-
-        <aside className="login-preview" aria-label="Admin console destinations">
-          <div className="login-preview-head">
-            <span className="login-preview-mark" aria-hidden="true">+</span>
-            <div>
-              <h2>Choose your destination after sign-in</h2>
-              <p>Account Manager resolves the session kind and returns you to the right workspace.</p>
-            </div>
-          </div>
-          <div className="login-destination-list">
-            <article className="login-destination">
-              <div>
-                <strong>Customer View</strong>
-                <span>Manage devices, users, and organization settings.</span>
-              </div>
-              <MiniConsoleMock view="Customer View" />
-            </article>
-            <article className="login-destination">
-              <div>
-                <strong>Platform View</strong>
-                <span>Operate the platform, manage brand clouds, and monitor system health.</span>
-              </div>
-              <MiniConsoleMock view="Platform View" platform />
-            </article>
-          </div>
-          <div className="login-preview-footer">
-            <span>Deep links are restored after authentication.</span>
-          </div>
-        </aside>
       </main>
     </div>
   );
 }
 
-function MiniConsoleMock({ view, platform = false }) {
-  const items = platform
-    ? ['Platform Overview', 'Brand Clouds', 'Infrastructure', 'Health']
-    : ['Overview', 'Devices', 'Users', 'Groups'];
-  return (
-    <div className="login-console-mock" aria-hidden="true">
-      <div className="login-console-bar">
-        <span>{view}</span>
-        <small>{platform ? 'PA' : 'AC'}</small>
-      </div>
-      <div className="login-console-body">
-        <div className="login-console-nav">
-          {items.map((item, index) => <span className={index === 0 ? 'active' : ''} key={item}>{item}</span>)}
-        </div>
-        <div className="login-console-main">
-          <strong>{platform ? 'Platform Overview' : 'Overview'}</strong>
-          <div className="login-console-metrics">
-            <i /><i /><i />
-          </div>
-          <div className="login-console-grid">
-            <span /><span />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LoginSSOForm({ onSSOStart, disabled }) {
+function LoginPasswordForm({ onPasswordLogin, disabled }) {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState('');
   async function submit(event) {
@@ -698,9 +662,9 @@ function LoginSSOForm({ onSSOStart, disabled }) {
     setBusy(true);
     setLocalError('');
     try {
-      await onSSOStart(email);
+      await onPasswordLogin({ email, password });
     } catch (err) {
-      setLocalError(userFacingSSOError(err));
+      setLocalError(err?.message || 'Sign-in is temporarily unavailable. Please try again later.');
     } finally {
       setBusy(false);
     }
@@ -711,41 +675,13 @@ function LoginSSOForm({ onSSOStart, disabled }) {
         Work email
         <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
       </label>
-      <button type="submit" disabled={busy || disabled}>{busy ? 'Redirecting' : 'Continue with SSO'}</button>
+      <label>
+        Password
+        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required />
+      </label>
+      <button type="submit" disabled={busy || disabled}>{busy ? 'Signing in' : 'Sign in'}</button>
       {localError ? <p className="error">{localError}</p> : null}
     </form>
-  );
-}
-
-function LoginRecoveryPanel({ enabled, onBreakGlassLogin }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    try {
-      await onBreakGlassLogin({ email, password });
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <details className="login-recovery" open>
-      <summary>Emergency platform access</summary>
-      <form onSubmit={submit}>
-        <p>Use only when SSO or Account Manager is unavailable.</p>
-        <label>
-          Email
-          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Break-glass email" disabled={!enabled} />
-        </label>
-        <label>
-          Password
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" disabled={!enabled} />
-        </label>
-        <button type="submit" disabled={!enabled || busy}>{enabled ? (busy ? 'Signing in' : 'Use break-glass') : 'Break-glass disabled'}</button>
-      </form>
-    </details>
   );
 }
 

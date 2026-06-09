@@ -1683,16 +1683,13 @@ p {
 }
 
 .login-layout {
-  align-items: stretch;
+  align-items: start;
   display: grid;
-  gap: clamp(22px, 4vw, 56px);
-  grid-template-columns: minmax(360px, 0.72fr) minmax(560px, 1.1fr);
-  margin: clamp(28px, 5vw, 52px) auto 0;
-  max-width: 1180px;
+  margin: clamp(64px, 12vh, 116px) auto 0;
+  max-width: 620px;
 }
 
-.login-primary,
-.login-preview {
+.login-primary {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1700,18 +1697,18 @@ p {
 }
 
 .login-primary {
-  align-self: start;
   display: grid;
-  gap: 20px;
-  padding: clamp(24px, 4vw, 42px);
+  gap: 18px;
+  padding: clamp(26px, 4vw, 40px);
 }
 
 .login-primary h1 {
   color: var(--navy);
-  font-size: clamp(34px, 4vw, 44px);
+  font-size: 38px;
   letter-spacing: 0;
-  line-height: 1.02;
+  line-height: 1.08;
   margin: 0;
+  white-space: nowrap;
 }
 
 .login-copy {
@@ -1721,14 +1718,12 @@ p {
   max-width: 40ch;
 }
 
-.login-form,
-.login-recovery form {
+.login-form {
   display: grid;
   gap: 12px;
 }
 
-.login-form label,
-.login-recovery label {
+.login-form label {
   color: var(--navy);
   display: grid;
   font-size: 14px;
@@ -1736,8 +1731,7 @@ p {
   gap: 7px;
 }
 
-.login-form input,
-.login-recovery input {
+.login-form input {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1747,15 +1741,13 @@ p {
   padding: 0 12px;
 }
 
-.login-form input:focus,
-.login-recovery input:focus {
+.login-form input:focus {
   border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(0, 104, 183, 0.12);
   outline: none;
 }
 
-.login-form button,
-.login-recovery button {
+.login-form button {
   background: var(--brand);
   border: 0;
   border-radius: 8px;
@@ -1766,226 +1758,9 @@ p {
   padding: 0 16px;
 }
 
-.login-form button:disabled,
-.login-recovery button:disabled {
+.login-form button:disabled {
   background: #ccd7e0;
   cursor: not-allowed;
-}
-
-.login-recovery {
-  border-top: 1px solid var(--line);
-  padding-top: 16px;
-}
-
-.login-recovery summary {
-  color: var(--brand-dark);
-  cursor: pointer;
-  font-weight: 800;
-}
-
-.login-recovery form {
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  margin-top: 12px;
-  padding: 14px;
-}
-
-.login-recovery p {
-  color: var(--muted);
-  margin: 0;
-}
-
-.login-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  min-height: 100%;
-  overflow: hidden;
-  padding: clamp(22px, 4vw, 34px);
-}
-
-.login-preview-head {
-  align-items: flex-start;
-  display: flex;
-  gap: 14px;
-}
-
-.login-preview-mark {
-  align-items: center;
-  background: var(--brand-soft);
-  border: 1px solid rgba(0, 104, 183, 0.18);
-  border-radius: 8px;
-  color: var(--brand);
-  display: flex;
-  flex: 0 0 auto;
-  font-size: 24px;
-  font-weight: 800;
-  height: 44px;
-  justify-content: center;
-  width: 44px;
-}
-
-.login-preview h2 {
-  color: var(--navy);
-  font-size: 24px;
-  letter-spacing: 0;
-  line-height: 1.12;
-  margin: 0 0 8px;
-}
-
-.login-preview p {
-  color: var(--muted);
-  margin: 0;
-}
-
-.login-destination-list {
-  display: grid;
-  gap: 24px;
-}
-
-.login-destination {
-  align-items: center;
-  background: #fff;
-  border: 0;
-  border-radius: 0;
-  display: grid;
-  gap: 22px;
-  grid-template-columns: 180px 1fr;
-  justify-content: space-between;
-  padding: 0 0 24px;
-}
-
-.login-destination:nth-child(2) {
-  border-top: 1px solid var(--line);
-  padding-top: 24px;
-}
-
-.login-destination strong,
-.login-destination span {
-  display: block;
-}
-
-.login-destination strong {
-  color: var(--navy);
-  font-size: 22px;
-  margin-bottom: 8px;
-}
-
-.login-destination span,
-.login-preview-footer {
-  color: var(--muted);
-  font-size: 16px;
-}
-
-.login-preview-footer {
-  border-top: 1px solid var(--line);
-  margin-top: auto;
-  padding-top: 16px;
-}
-
-.login-console-mock {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 10px 24px rgba(37, 56, 76, 0.08);
-  overflow: hidden;
-}
-
-.login-console-bar {
-  align-items: center;
-  background: linear-gradient(180deg, #082944 0%, var(--navy) 100%);
-  color: #fff;
-  display: flex;
-  font-size: 12px;
-  font-weight: 800;
-  justify-content: space-between;
-  min-height: 36px;
-  padding: 0 12px;
-}
-
-.login-console-bar small {
-  align-items: center;
-  background: #fff;
-  border-radius: 999px;
-  color: var(--navy);
-  display: flex;
-  height: 22px;
-  justify-content: center;
-  width: 22px;
-}
-
-.login-console-body {
-  display: grid;
-  grid-template-columns: 112px 1fr;
-  min-height: 164px;
-}
-
-.login-console-nav {
-  background: #f8fafc;
-  border-right: 1px solid var(--line);
-  display: grid;
-  gap: 6px;
-  align-content: start;
-  padding: 10px;
-}
-
-.login-console-nav span {
-  border-radius: 4px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 6px 8px;
-}
-
-.login-console-nav span.active {
-  background: var(--brand);
-  color: #fff;
-}
-
-.login-console-main {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-}
-
-.login-console-main strong {
-  color: var(--navy);
-  font-size: 14px;
-}
-
-.login-console-metrics,
-.login-console-grid {
-  display: grid;
-  gap: 8px;
-}
-
-.login-console-metrics {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.login-console-metrics i,
-.login-console-grid span {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  display: block;
-}
-
-.login-console-metrics i {
-  background:
-    linear-gradient(90deg, var(--brand) 0 42%, transparent 42%),
-    linear-gradient(180deg, #fff 0%, #f8fafc 100%);
-  height: 52px;
-}
-
-.login-console-grid {
-  grid-template-columns: 1fr 1fr;
-}
-
-.login-console-grid span {
-  background:
-    linear-gradient(90deg, var(--brand-cyan) 0 6px, transparent 6px),
-    #fff;
-  height: 52px;
 }
 
 .quota-pill {
@@ -2903,30 +2678,12 @@ th {
   }
 
   .login-layout {
-    grid-template-columns: 1fr;
-    margin-top: 36px;
+    margin-top: 42px;
   }
 
   .login-primary h1 {
-    font-size: 38px;
-  }
-
-  .login-destination {
-    align-items: flex-start;
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .login-console-body {
-    grid-template-columns: 96px 1fr;
-  }
-
-  .login-console-metrics {
-    grid-template-columns: 1fr;
-  }
-
-  .login-console-grid {
-    grid-template-columns: 1fr;
+    font-size: 34px;
+    white-space: normal;
   }
 
   .app-shell {

@@ -88,8 +88,8 @@ paths:
   /api/auth/customer/login:
     post:
       tags: [Auth]
-      summary: Legacy customer password login
-      description: Disabled unless `LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED=true`.
+      summary: Customer password login
+      description: Enabled by default; set `CUSTOMER_PASSWORD_LOGIN_ENABLED=false` to disable.
       security: []
       requestBody:
         required: true
@@ -1249,7 +1249,7 @@ components:
         - demo_mode
         - authenticated
         - break_glass_enabled
-        - legacy_customer_password_login_enabled
+        - customer_password_login_enabled
       properties:
         user_id:
           type: string
@@ -1276,7 +1276,7 @@ components:
             type: string
         break_glass_enabled:
           type: boolean
-        legacy_customer_password_login_enabled:
+        customer_password_login_enabled:
           type: boolean
     Summary:
       type: object

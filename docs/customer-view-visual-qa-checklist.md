@@ -103,7 +103,7 @@ Reference: `docs/assets/webui-design/customer-stream-health.png`
 - Check-email and verification routes cover pending verification, success,
   expired token, invalid token, already verified, resend, and service-unavailable
   states.
-- Primary sign-in path is email-first SSO through Account Manager.
+- Primary sign-in path is email and password through Account Manager.
 - Platform break-glass login is visually secondary and appears only when enabled
   by deployment configuration.
 - Customer sessions cannot see Platform View data; Platform View routes and
@@ -139,7 +139,7 @@ Use this mapping when reviewing developer issues opened from
 | 4. Devices table and detail drawer completion | Device filters, selected row, drawer overview, source facts, telemetry panels, provision/deactivate states |
 | 5. Firmware & OTA read-only workflows | Firmware distribution, campaign summary/table, read-only drill-down, unsupported policies, firmware risk queue |
 | 6. Stream Health read-only workflows | Stream KPIs, trend, source-backed By Mode rows, per-device table, attention routing |
-| 7. Public auth, signup, verification, and quota UX polish | SSO-first login, signup/check-email/verify states, quota request states, break-glass secondary treatment |
+| 7. Public auth, signup, verification, and quota UX polish | Email/password login, signup/check-email/verify states, quota request states, break-glass secondary treatment |
 | 8. Platform View polish | Platform Dashboard, Service Health, SSO Providers, Operations Log, Audit Log, Tier 1-only boundaries |
 | 9. Final WebUI browser QA and documentation signoff | Desktop/mobile browser smoke, visual checklist closure, documented remaining upstream blockers |
 

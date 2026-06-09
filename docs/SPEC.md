@@ -146,7 +146,7 @@ renaming, or changing JSON API routes registered by `internal/app`.
 Public and shared routes:
 
 - `GET /healthz`: plain health check.
-- `POST /api/auth/customer/login`: legacy customer password login through Account Manager when configured.
+- `POST /api/auth/customer/login`: customer password login through Account Manager when configured.
 - `POST /api/auth/platform/login`: legacy local SQLite platform admin login for controlled break-glass access.
 - `POST /api/auth/logout`: deletes local session metadata.
 - `GET /api/me`: current user, memberships, active organization, and demo/auth state.
@@ -183,18 +183,16 @@ errors instead of silently falling back.
 
 ## Authentication And Sessions
 
-Long-term production authentication is SSO-first. The planned SSO architecture
-uses Account Manager as the OIDC identity broker and role authorization source
-for both Customer users and Platform Admins. Admin Console remains the BFF and
-session owner, creating the existing `rtk_admin_session` cookie after Account
-Manager completes SSO. The design is documented in
-[`docs/sso-oidc-design.md`](sso-oidc-design.md).
+Production Customer authentication uses email and password credentials verified
+by Account Manager. Admin Console remains the BFF and session owner, creating
+the existing `rtk_admin_session` cookie after Account Manager returns customer
+account and organization context. Platform SSO provider management remains a
+separate capability documented in [`docs/sso-oidc-design.md`](sso-oidc-design.md).
 
 Customer sessions:
 
-- customer password login is legacy and disabled by default; daily production
-  login should use Account Manager-backed SSO
-- while legacy login is enabled, customer credentials are posted only to Account Manager login
+- customer password login is enabled by default
+- customer credentials are posted only to Account Manager login
 - the BFF stores session metadata plus upstream access/refresh tokens
 - plaintext passwords are never stored
 - `/api/me` returns user, memberships, active organization, and auth state
@@ -311,7 +309,7 @@ Environment variables:
 - `ADMIN_BOOTSTRAP_EMAIL`: optional first local platform admin break-glass email.
 - `ADMIN_BOOTSTRAP_PASSWORD`: optional first local platform admin break-glass password for development.
 - `ADMIN_BREAK_GLASS_ENABLED`: enables local Platform Admin break-glass login when set to `true`; default `false`.
-- `LEGACY_CUSTOMER_PASSWORD_LOGIN_ENABLED`: enables legacy customer password login when set to `true`; default `false`.
+- `CUSTOMER_PASSWORD_LOGIN_ENABLED`: disables customer password login when set to `false`; default `true`.
 
 ## Test Plan
 
