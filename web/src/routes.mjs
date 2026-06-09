@@ -14,7 +14,7 @@ export const platformNavItems = [
   { id: 'platform-audit', label: 'Audit Log', path: '/admin/audit' },
 ];
 
-const publicRouteIds = new Set(['signup', 'signup-check-email', 'verify']);
+const publicRouteIds = new Set(['login', 'signup', 'signup-check-email', 'verify']);
 
 export function isPublicRouteId(route) {
   return publicRouteIds.has(route);
@@ -31,6 +31,7 @@ export function navItemsForRoute(route) {
 
 export function titleFor(active) {
   return {
+    login: 'Sign in',
     signup: 'Sign up',
     'signup-check-email': 'Check your email',
     verify: 'Verify email',
@@ -48,6 +49,7 @@ export function titleFor(active) {
 }
 
 export function routeFromPath(path) {
+  if (path === '/login' || path.startsWith('/login/')) return 'login';
   if (path === '/signup' || path === '/signup/') return 'signup';
   if (path === '/signup/check-email' || path.startsWith('/signup/check-email/')) return 'signup-check-email';
   if (path === '/verify' || path.startsWith('/verify/')) return 'verify';

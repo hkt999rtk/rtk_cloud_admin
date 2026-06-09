@@ -150,6 +150,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /assets/", s.assets)
 	s.mux.HandleFunc("GET /", s.home)
 	for _, path := range []string{
+		"/login",
 		"/signup",
 		"/signup/check-email",
 		"/verify",

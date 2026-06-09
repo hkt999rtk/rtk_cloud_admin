@@ -22,6 +22,8 @@ test('maps platform shell paths to platform routes', () => {
 });
 
 test('maps public signup paths to auth routes', () => {
+  assert.equal(routeFromPath('/login'), 'login');
+  assert.equal(routeFromPath('/login/'), 'login');
   assert.equal(routeFromPath('/signup'), 'signup');
   assert.equal(routeFromPath('/signup/check-email'), 'signup-check-email');
   assert.equal(routeFromPath('/signup/check-email/inbox'), 'signup-check-email');
@@ -72,7 +74,7 @@ test('platform nav follows the Platform Dashboard landing order', () => {
 });
 
 test('public auth routes stay outside Customer and Platform section navigation', () => {
-  for (const route of ['signup', 'signup-check-email', 'verify']) {
+  for (const route of ['login', 'signup', 'signup-check-email', 'verify']) {
     assert.equal(isPublicRouteId(route), true, route);
     assert.equal(isPlatformRouteId(route), false, route);
     assert.deepEqual(navItemsForRoute(route), []);
@@ -117,6 +119,7 @@ test('provides titles for all public shell routes', () => {
     'signup',
     'signup-check-email',
     'verify',
+    'login',
     'overview',
     'devices',
     'firmware-ota',

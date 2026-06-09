@@ -34,6 +34,11 @@ const platformMe = {
   break_glass_enabled: true,
 };
 
+const anonymousMe = {
+  authenticated: false,
+  break_glass_enabled: true,
+};
+
 const devices = [
   {
     id: 'dev-1001',
@@ -348,6 +353,7 @@ try {
   await page.clock.setFixedTime(now);
   const consoleIssues = collectConsoleIssues(page);
 
+  await runAuthSmoke(context);
   await runDesktopSmoke(page);
   await runMobileSmoke(context);
 
@@ -362,7 +368,7 @@ try {
   await new Promise((resolve) => httpServer.close(resolve));
 }
 
-async function installApiMocks(page) {
+async function installApiMocks(page, { sessionForPath } = {}) {
   await page.route('**/api/**', async (route, request) => {
     const url = new URL(request.url());
     const framePath = request.frame()?.url() ? new URL(request.frame().url()).pathname : '/console/overview';
@@ -370,6 +376,9 @@ async function installApiMocks(page) {
     const pathName = url.pathname;
 
     if (pathName === '/api/me') {
+      if (sessionForPath) {
+        return route.fulfill({ json: sessionForPath(framePath) });
+      }
       return route.fulfill({ json: isPlatformFrame ? platformMe : customerMe });
     }
     if (pathName === '/api/summary' || pathName === '/api/admin/summary') return route.fulfill({ json: summary });
@@ -394,6 +403,29 @@ async function installApiMocks(page) {
 
     return route.fulfill({ status: 404, json: { error: `Unhandled browser smoke API: ${pathName}` } });
   });
+}
+
+async function runAuthSmoke(browserContext) {
+  const page = await browserContext.newPage();
+  await installApiMocks(page, { sessionForPath: () => anonymousMe });
+  const consoleIssues = collectConsoleIssues(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${baseURL}/admin`, { waitUntil: 'networkidle' });
+  if (page.url() !== `${baseURL}/login?next=%2Fadmin`) {
+    throw new Error(`Unauthenticated admin route should redirect to login, got ${page.url()}`);
+  }
+  await expectText(page, 'Sign in to Admin Console');
+  await expectText(page, 'Customer View');
+  await expectText(page, 'Platform View');
+  const sidebarVisible = await page.locator('.sidebar').isVisible();
+  if (sidebarVisible) {
+    throw new Error('Login page must not render dashboard sidebar navigation.');
+  }
+  await screenshot(page, 'desktop-login.png');
+  if (consoleIssues.length) {
+    throw new Error(`Auth smoke console issues detected:\n${consoleIssues.join('\n')}`);
+  }
+  await page.close();
 }
 
 function collectConsoleIssues(page) {
@@ -474,6 +506,13 @@ async function runMobileSmoke(browserContext) {
   const consoleIssues = collectConsoleIssues(page);
   await page.clock.setFixedTime(now);
   await page.setViewportSize({ width: 390, height: 844 });
+  await installApiMocks(page, { sessionForPath: () => anonymousMe });
+  await page.goto(`${baseURL}/login?next=%2Fconsole%2Fdevices`, { waitUntil: 'networkidle' });
+  await expectText(page, 'Sign in to Admin Console');
+  await expectText(page, 'Emergency platform access');
+  await screenshot(page, 'mobile-login.png');
+  await page.unroute('**/api/**');
+  await installApiMocks(page);
   await gotoAndAssert(page, '/console/devices', 'Devices');
   await expectText(page, 'Overview');
   await expectText(page, 'Stream Health');

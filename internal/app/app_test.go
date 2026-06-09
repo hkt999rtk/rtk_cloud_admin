@@ -44,6 +44,7 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 	}
 
 	for _, path := range []string{
+		"/login",
 		"/console",
 		"/console/overview",
 		"/console/devices",
@@ -155,7 +156,7 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
-	for _, path := range []string{"/signup", "/signup/check-email", "/verify"} {
+	for _, path := range []string{"/login", "/signup", "/signup/check-email", "/verify"} {
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
 		if rec.Code != http.StatusOK {

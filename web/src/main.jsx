@@ -18,6 +18,12 @@ import {
   userFacingSSOError,
   userFacingVerificationError,
 } from './http.mjs';
+import {
+  destinationForSession,
+  loginNextFromLocation,
+  loginPathFor,
+  protectedPathFromLocation,
+} from './auth-routing.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
@@ -58,6 +64,7 @@ function App() {
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
   const isPublicRoute = isPublicRouteId(active);
+  const isLoginRoute = active === 'login';
   const isPlatformView = isPlatformRouteId(active);
   const visibleNavItems = navItemsForRoute(active);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
@@ -67,8 +74,24 @@ function App() {
   const activeOrgLabel = activeMembership?.organization || me?.active_org_id || 'Acme Smart Camera';
   const lastUpdatedAt = latestCustomerUpdate(devices, recentAlerts);
 
+  function clearDashboardState() {
+    setSummary(null);
+    setFleetHealth(null);
+    setStreamStats(null);
+    setRecentAlerts([]);
+    setCustomers([]);
+    setDevices([]);
+    setOperations([]);
+    setHealth([]);
+    setServiceLogs(null);
+    setAudit([]);
+    setPlatformDashboard(null);
+    setSSOProviders([]);
+    setFirmwareDistribution(null);
+  }
+
   useEffect(() => {
-    if (isPublicRoute) {
+    if (isPublicRoute && !isLoginRoute) {
       return;
     }
     let alive = true;
@@ -80,37 +103,29 @@ function App() {
         if (!alive) return;
         setMe(nextMe);
 
+        if (isLoginRoute) {
+          if (nextMe.authenticated) {
+            window.location.replace(destinationForSession(nextMe, loginNextFromLocation(window.location)));
+            return;
+          }
+          clearDashboardState();
+          setLoading(false);
+          return;
+        }
+
+        if (!nextMe.authenticated) {
+          window.location.replace(loginPathFor(protectedPathFromLocation(window.location)));
+          return;
+        }
+
         const useAdminApi = isPlatformView && nextMe.kind === 'platform_admin';
-        if (!isPlatformView && (!nextMe.authenticated || nextMe.kind === 'platform_admin')) {
-          setSummary(null);
-          setFleetHealth(null);
-          setStreamStats(null);
-          setRecentAlerts([]);
-          setCustomers([]);
-          setDevices([]);
-          setOperations([]);
-          setHealth([]);
-          setServiceLogs(null);
-          setAudit([]);
-          setPlatformDashboard(null);
-          setSSOProviders([]);
-          setFirmwareDistribution(null);
+        if (!isPlatformView && nextMe.kind === 'platform_admin') {
+          clearDashboardState();
           setLoading(false);
           return;
         }
         if (isPlatformView && nextMe.kind !== 'platform_admin') {
-          setSummary(null);
-          setFleetHealth(null);
-          setStreamStats(null);
-          setRecentAlerts([]);
-          setCustomers([]);
-          setDevices([]);
-          setOperations([]);
-          setHealth([]);
-          setServiceLogs(null);
-          setAudit([]);
-          setPlatformDashboard(null);
-          setSSOProviders([]);
+          clearDashboardState();
           setLoading(false);
           return;
         }
@@ -206,6 +221,10 @@ function App() {
       } catch (err) {
         if (!alive) return;
         if (err.isAuthError) {
+          if (!isLoginRoute) {
+            window.location.replace(loginPathFor(protectedPathFromLocation(window.location)));
+            return;
+          }
           try {
             const freshMe = await fetch('/api/me').then((r) => r.json());
             if (alive) setMe(freshMe);
@@ -232,10 +251,10 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
+  }, [active, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
 
   useEffect(() => {
-    if (!isPublicRoute) return;
+    if (!isPublicRoute || isLoginRoute) return;
     setError('');
     setMe(null);
     setSummary(null);
@@ -250,7 +269,7 @@ function App() {
     setFleetHealth(null);
     setStreamStats(null);
     setRecentAlerts([]);
-  }, [isPublicRoute]);
+  }, [isLoginRoute, isPublicRoute]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -353,7 +372,7 @@ function App() {
       setError(details || `break-glass login failed with ${response.status}`);
       return;
     }
-    setRefreshTick((tick) => tick + 1);
+    window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, loginNextFromLocation(window.location)));
   }
 
   async function handleSignup(payload) {
@@ -436,6 +455,17 @@ function App() {
   }, [devices, selectedDeviceId]);
 
   if (isPublicRoute) {
+    if (isLoginRoute) {
+      return (
+        <LoginPage
+          error={error}
+          loading={loading}
+          me={me}
+          onSSOStart={handleSSOStart}
+          onBreakGlassLogin={handleBreakGlassLogin}
+        />
+      );
+    }
     return (
       <PublicAuthPage
         active={active}
@@ -518,12 +548,10 @@ function App() {
           <PlatformAccessGate
             active={active}
             me={me}
-            onSSOStart={handleSSOStart}
-            onBreakGlassLogin={handleBreakGlassLogin}
           />
         ) : null}
         {!needsPlatformAccess && customerViewPending ? <section className="panel split-panel"><div><h2>Loading session</h2><p>Checking customer access before loading dashboard data.</p></div></section> : null}
-        {!needsPlatformAccess && !customerViewPending && customerViewBlocked ? <CustomerAccessGate me={me} onSSOStart={handleSSOStart} /> : null}
+        {!needsPlatformAccess && !customerViewPending && customerViewBlocked ? <CustomerAccessGate me={me} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'overview' ? (
           <Overview
             summary={summary}
@@ -535,7 +563,6 @@ function App() {
             me={me}
             loading={loading}
             devices={devices}
-            onSSOStart={handleSSOStart}
             onHealthFilter={filterDevicesByHealth}
             onRequestQuotaRaise={handleQuotaRaiseRequest}
           />
@@ -579,6 +606,146 @@ function App() {
         {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} loading={loading} /> : null}
       </main>
     </div>
+  );
+}
+
+function LoginPage({ error, loading, me, onSSOStart, onBreakGlassLogin }) {
+  return (
+    <div className="login-shell">
+      <header className="login-topbar" aria-label="Connect+ Ops">
+        <a href="mailto:cloud-ops@example.com" className="login-help">Need help?</a>
+      </header>
+      <main className="login-layout">
+        <section className="login-primary" aria-labelledby="login-title">
+          <div className="login-brand">
+            <span className="login-brand-grid" aria-hidden="true"><i /><i /><i /><i /></span>
+            <strong>Connect+ Ops</strong>
+          </div>
+          <h1 id="login-title">Sign in to Admin Console</h1>
+          <p className="login-copy">Use your organization identity to continue to Customer View or Platform View.</p>
+          <LoginSSOForm onSSOStart={onSSOStart} disabled={loading} />
+          {error ? <div className="error">{error}</div> : null}
+          <LoginRecoveryPanel enabled={shouldShowBreakGlass(me)} onBreakGlassLogin={onBreakGlassLogin} />
+        </section>
+
+        <aside className="login-preview" aria-label="Admin console destinations">
+          <div className="login-preview-head">
+            <span className="login-preview-mark" aria-hidden="true">+</span>
+            <div>
+              <h2>Choose your destination after sign-in</h2>
+              <p>Account Manager resolves the session kind and returns you to the right workspace.</p>
+            </div>
+          </div>
+          <div className="login-destination-list">
+            <article className="login-destination">
+              <div>
+                <strong>Customer View</strong>
+                <span>Manage devices, users, and organization settings.</span>
+              </div>
+              <MiniConsoleMock view="Customer View" />
+            </article>
+            <article className="login-destination">
+              <div>
+                <strong>Platform View</strong>
+                <span>Operate the platform, manage brand clouds, and monitor system health.</span>
+              </div>
+              <MiniConsoleMock view="Platform View" platform />
+            </article>
+          </div>
+          <div className="login-preview-footer">
+            <span>Deep links are restored after authentication.</span>
+          </div>
+        </aside>
+      </main>
+    </div>
+  );
+}
+
+function MiniConsoleMock({ view, platform = false }) {
+  const items = platform
+    ? ['Platform Overview', 'Brand Clouds', 'Infrastructure', 'Health']
+    : ['Overview', 'Devices', 'Users', 'Groups'];
+  return (
+    <div className="login-console-mock" aria-hidden="true">
+      <div className="login-console-bar">
+        <span>{view}</span>
+        <small>{platform ? 'PA' : 'AC'}</small>
+      </div>
+      <div className="login-console-body">
+        <div className="login-console-nav">
+          {items.map((item, index) => <span className={index === 0 ? 'active' : ''} key={item}>{item}</span>)}
+        </div>
+        <div className="login-console-main">
+          <strong>{platform ? 'Platform Overview' : 'Overview'}</strong>
+          <div className="login-console-metrics">
+            <i /><i /><i />
+          </div>
+          <div className="login-console-grid">
+            <span /><span />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoginSSOForm({ onSSOStart, disabled }) {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState('');
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setLocalError('');
+    try {
+      await onSSOStart(email);
+    } catch (err) {
+      setLocalError(userFacingSSOError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="login-form" onSubmit={submit}>
+      <label>
+        Work email
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
+      </label>
+      <button type="submit" disabled={busy || disabled}>{busy ? 'Redirecting' : 'Continue with SSO'}</button>
+      {localError ? <p className="error">{localError}</p> : null}
+    </form>
+  );
+}
+
+function LoginRecoveryPanel({ enabled, onBreakGlassLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await onBreakGlassLogin({ email, password });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <details className="login-recovery" open>
+      <summary>Emergency platform access</summary>
+      <form onSubmit={submit}>
+        <p>Use only when SSO or Account Manager is unavailable.</p>
+        <label>
+          Email
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Break-glass email" disabled={!enabled} />
+        </label>
+        <label>
+          Password
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" disabled={!enabled} />
+        </label>
+        <button type="submit" disabled={!enabled || busy}>{enabled ? (busy ? 'Signing in' : 'Use break-glass') : 'Break-glass disabled'}</button>
+      </form>
+    </details>
   );
 }
 
@@ -852,7 +1019,6 @@ function Overview({
   me,
   loading,
   devices,
-  onSSOStart,
   onHealthFilter,
   onRequestQuotaRaise,
 }) {
@@ -892,8 +1058,6 @@ function Overview({
 
   return (
     <div className="overview-layout">
-      {!me?.authenticated ? <SSOLoginPanel title="Sign in with SSO" onSSOStart={onSSOStart} /> : null}
-
       <section className="metrics overview-metrics">
         <MetricCard icon="ON" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
         <MetricCard icon="%" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
@@ -1411,7 +1575,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
   );
 }
 
-function CustomerAccessGate({ me, onSSOStart }) {
+function CustomerAccessGate({ me }) {
   if (me?.kind === 'platform_admin') {
     return (
       <section className="panel split-panel">
@@ -1423,32 +1587,26 @@ function CustomerAccessGate({ me, onSSOStart }) {
     );
   }
   return (
-    <>
-      <SSOLoginPanel title="Sign in with SSO" onSSOStart={onSSOStart} />
-      <section className="panel split-panel">
-        <div>
-          <h2>Customer access required</h2>
-          <p>Sign in with a customer account to open the operations console.</p>
-        </div>
-      </section>
-    </>
+    <section className="panel split-panel">
+      <div>
+        <h2>Customer access required</h2>
+        <p>Sign in with a customer account to open the operations console.</p>
+        <a className="inline-action" href={loginPathFor(protectedPathFromLocation(window.location))}>Go to sign in</a>
+      </div>
+    </section>
   );
 }
 
-function PlatformAccessGate({ active, me, onSSOStart, onBreakGlassLogin }) {
+function PlatformAccessGate({ active, me }) {
+  const signedInCustomer = me?.authenticated && me.kind === 'customer';
   return (
-    <>
-      <SSOLoginPanel title="Platform SSO sign in" onSSOStart={onSSOStart} />
-      {shouldShowBreakGlass(me) ? (
-        <BreakGlassLoginPanel title="Break-glass platform access" onLogin={onBreakGlassLogin} />
-      ) : null}
-      <section className="panel split-panel">
-        <div>
-          <h2>Platform access required</h2>
-          <p>Sign in with a platform admin session to open {titleFor(active)}.</p>
-        </div>
-      </section>
-    </>
+    <section className="panel split-panel">
+      <div>
+        <h2>{signedInCustomer ? 'Platform access denied' : 'Platform access required'}</h2>
+        <p>{signedInCustomer ? 'Your current customer session cannot open Platform View.' : `Sign in with a platform admin session to open ${titleFor(active)}.`}</p>
+        {!signedInCustomer ? <a className="inline-action" href={loginPathFor(protectedPathFromLocation(window.location))}>Go to sign in</a> : null}
+      </div>
+    </section>
   );
 }
 
@@ -2904,44 +3062,6 @@ function OperationList({ operations, detailed = false }) {
   );
 }
 
-function PlatformAdmin({ summary, health, devices, customers, operations, audit, me, onSSOStart, onBreakGlassLogin }) {
-  const customerCount = summary?.customers ?? '-';
-  return (
-    <>
-      {me?.kind !== 'platform_admin' ? (
-        <>
-          <SSOLoginPanel title="Platform SSO sign in" onSSOStart={onSSOStart} />
-          {shouldShowBreakGlass(me) ? (
-            <BreakGlassLoginPanel title="Break-glass platform access" onLogin={onBreakGlassLogin} />
-          ) : null}
-        </>
-      ) : null}
-      <section className="panel split-panel">
-        <div>
-          <h2>Platform Operations</h2>
-          <p>Cross-customer view for support and service operators.</p>
-          <div className="admin-kpis">
-            <div><strong>{customerCount}</strong><span>Customers</span></div>
-            <div><strong>{devices.length}</strong><span>Devices cached</span></div>
-          </div>
-        </div>
-        <ServiceHealth health={health} compact />
-      </section>
-      <section className="panel">
-        <div className="panel-head">
-          <div>
-            <h2>Lifecycle operations</h2>
-            <p>Cross-customer provisioning and deactivation activity.</p>
-          </div>
-        </div>
-        <OperationList operations={operations} detailed />
-      </section>
-      <Customers customers={customers} />
-      <AuditLog audit={audit.slice(0, 5)} compact />
-    </>
-  );
-}
-
 function AuditLog({ audit, compact = false, loading = false }) {
   const columns = useMemo(() => [
     { key: 'action', label: 'Action', value: (event) => event.action },
@@ -3143,58 +3263,6 @@ function ServiceHealth({ health, compact = false }) {
           {item.last_checked_at ? <time>{item.last_checked_at}</time> : null}
         </div>
       ))}
-    </section>
-  );
-}
-
-function SSOLoginPanel({ title, onSSOStart }) {
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [localError, setLocalError] = useState('');
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setLocalError('');
-    try {
-      await onSSOStart(email);
-    } catch (err) {
-      setLocalError(userFacingSSOError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <section className="panel login-panel">
-      <div>
-        <h2>{title}</h2>
-        <p>Use your organization email to continue through Account Manager SSO. SSO is the primary production sign-in path.</p>
-      </div>
-      <form onSubmit={submit}>
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
-        <button type="submit" disabled={busy}>{busy ? 'Redirecting' : 'Continue with SSO'}</button>
-      </form>
-      {localError ? <p className="error">{localError}</p> : null}
-    </section>
-  );
-}
-
-function BreakGlassLoginPanel({ title, onLogin }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  return (
-    <section className="panel login-panel">
-      <div>
-        <h2>{title}</h2>
-        <p>Emergency local admin access for SSO or Account Manager outage recovery.</p>
-      </div>
-      <form onSubmit={(event) => {
-        event.preventDefault();
-        onLogin({ email, password });
-      }}>
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Break-glass email" />
-        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" />
-        <button type="submit">Use break-glass</button>
-      </form>
     </section>
   );
 }
