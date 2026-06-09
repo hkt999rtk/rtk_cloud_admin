@@ -377,17 +377,32 @@ function App() {
 
   async function handlePasswordLogin(credentials) {
     setError('');
+    let customerError = null;
     try {
       await postJSON('/api/auth/customer/login', credentials);
       window.location.assign(destinationForSession({ authenticated: true, kind: 'customer' }, loginNextFromLocation(window.location)));
+      return;
     } catch (err) {
-      const message = err?.message || '';
+      customerError = err;
+    }
+
+    try {
+      await postJSON('/api/auth/platform/login', credentials);
+      window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, loginNextFromLocation(window.location)));
+      return;
+    } catch (platformError) {
+      const message = `${customerError?.message || ''}\n${platformError?.message || ''}`;
       if (message.includes('customer password sign-in is disabled')) {
         const nextError = 'Password sign-in is not enabled for this environment.';
         setError(nextError);
         throw new Error(nextError);
       }
-      if (err?.status === 401 || /invalid credentials/i.test(message)) {
+      if (message.includes('platform break-glass login is disabled')) {
+        const nextError = 'Platform password sign-in is not enabled for this environment.';
+        setError(nextError);
+        throw new Error(nextError);
+      }
+      if ((customerError?.status === 401 && platformError?.status === 401) || /invalid credentials/i.test(message)) {
         const nextError = 'Email or password is incorrect.';
         setError(nextError);
         throw new Error(nextError);
