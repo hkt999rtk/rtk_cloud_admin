@@ -34,6 +34,11 @@ const platformMe = {
   break_glass_enabled: true,
 };
 
+const anonymousMe = {
+  authenticated: false,
+  break_glass_enabled: true,
+};
+
 const devices = [
   {
     id: 'dev-1001',
@@ -263,6 +268,16 @@ const platformDashboard = {
     { id: 'broker', name: 'Broker', status: 'ok', targets_up: 2, targets_down: 0, targets_total: 2, source_status: 'configured' },
     { id: 'gateway', name: 'Gateway', status: 'ok', targets_up: 2, targets_down: 0, targets_total: 2, source_status: 'configured' },
   ],
+  server_resources: [
+    { id: 'edge', label: 'Edge', role: 'Video Cloud gateway', cpu_percent: 18, memory_percent: 52, disk_percent: 41, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'api', label: 'API', role: 'Video Cloud API', cpu_percent: 72, memory_percent: 61, disk_percent: 55, status: 'warning', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'infra', label: 'Infra', role: 'PostgreSQL, Redis, Prometheus', cpu_percent: 34, memory_percent: 91, disk_percent: 78, status: 'critical', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'mqtt', label: 'MQTT', role: 'EMQX broker', cpu_percent: 28, memory_percent: 44, disk_percent: 22, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'coturn', label: 'Coturn', role: 'TURN relay', status: 'unmonitored', source_status: 'unmonitored', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'account-manager', label: 'Account Manager', role: 'Account Manager', status: 'unmonitored', source_status: 'unmonitored', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'cloud-admin', label: 'Cloud Admin', role: 'Admin Console', cpu_percent: 16, memory_percent: 38, disk_percent: 19, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'cloud-logger', label: 'Cloud Logger', role: 'Log ingestion', status: 'unmonitored', source_status: 'unmonitored', checked_at: '2026-05-13T11:59:00Z' },
+  ],
   operation_risk: {
     open_operations: 1,
     failed_operations: 1,
@@ -276,6 +291,7 @@ const platformDashboard = {
   panel_sources: {
     kpis: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
     service_scrape_health: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    server_resources: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
     operation_risk: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
   },
   prometheus: {
@@ -348,6 +364,7 @@ try {
   await page.clock.setFixedTime(now);
   const consoleIssues = collectConsoleIssues(page);
 
+  await runAuthSmoke(context);
   await runDesktopSmoke(page);
   await runMobileSmoke(context);
 
@@ -362,7 +379,7 @@ try {
   await new Promise((resolve) => httpServer.close(resolve));
 }
 
-async function installApiMocks(page) {
+async function installApiMocks(page, { sessionForPath } = {}) {
   await page.route('**/api/**', async (route, request) => {
     const url = new URL(request.url());
     const framePath = request.frame()?.url() ? new URL(request.frame().url()).pathname : '/console/overview';
@@ -370,6 +387,9 @@ async function installApiMocks(page) {
     const pathName = url.pathname;
 
     if (pathName === '/api/me') {
+      if (sessionForPath) {
+        return route.fulfill({ json: sessionForPath(framePath) });
+      }
       return route.fulfill({ json: isPlatformFrame ? platformMe : customerMe });
     }
     if (pathName === '/api/summary' || pathName === '/api/admin/summary') return route.fulfill({ json: summary });
@@ -394,6 +414,33 @@ async function installApiMocks(page) {
 
     return route.fulfill({ status: 404, json: { error: `Unhandled browser smoke API: ${pathName}` } });
   });
+}
+
+async function runAuthSmoke(browserContext) {
+  const page = await browserContext.newPage();
+  await installApiMocks(page, { sessionForPath: () => anonymousMe });
+  const consoleIssues = collectConsoleIssues(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${baseURL}/admin`, { waitUntil: 'networkidle' });
+  if (page.url() !== `${baseURL}/login?next=%2Fadmin`) {
+    throw new Error(`Unauthenticated admin route should redirect to login, got ${page.url()}`);
+  }
+  await expectText(page, 'Sign in to Admin Console');
+  const sidebarVisible = await page.locator('.sidebar').isVisible();
+  if (sidebarVisible) {
+    throw new Error('Login page must not render dashboard sidebar navigation.');
+  }
+  if (await page.getByText('Platform admin recovery').count()) {
+    throw new Error('Login page must not render recovery access controls.');
+  }
+  if (await page.locator('.login-preview').count()) {
+    throw new Error('Login page must not render destination preview panels.');
+  }
+  await screenshot(page, 'desktop-login.png');
+  if (consoleIssues.length) {
+    throw new Error(`Auth smoke console issues detected:\n${consoleIssues.join('\n')}`);
+  }
+  await page.close();
 }
 
 function collectConsoleIssues(page) {
@@ -474,6 +521,15 @@ async function runMobileSmoke(browserContext) {
   const consoleIssues = collectConsoleIssues(page);
   await page.clock.setFixedTime(now);
   await page.setViewportSize({ width: 390, height: 844 });
+  await installApiMocks(page, { sessionForPath: () => anonymousMe });
+  await page.goto(`${baseURL}/login?next=%2Fconsole%2Fdevices`, { waitUntil: 'networkidle' });
+  await expectText(page, 'Sign in to Admin Console');
+  if (await page.getByText('Platform admin recovery').count()) {
+    throw new Error('Mobile login page must not render recovery access controls.');
+  }
+  await screenshot(page, 'mobile-login.png');
+  await page.unroute('**/api/**');
+  await installApiMocks(page);
   await gotoAndAssert(page, '/console/devices', 'Devices');
   await expectText(page, 'Overview');
   await expectText(page, 'Stream Health');

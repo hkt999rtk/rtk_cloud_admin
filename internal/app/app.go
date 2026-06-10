@@ -150,6 +150,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /assets/", s.assets)
 	s.mux.HandleFunc("GET /", s.home)
 	for _, path := range []string{
+		"/login",
 		"/signup",
 		"/signup/check-email",
 		"/verify",
@@ -371,7 +372,7 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) meAuthSettings(me contracts.Me) contracts.Me {
 	me.BreakGlassEnabled = s.cfg.AdminBreakGlassEnabled
-	me.LegacyCustomerPasswordLoginEnabled = s.cfg.LegacyCustomerPasswordLoginEnabled
+	me.CustomerPasswordLoginEnabled = s.cfg.CustomerPasswordLoginEnabled
 	return me
 }
 
@@ -592,8 +593,8 @@ func (s *Server) apiQuotaRaiseRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
-	if !s.cfg.LegacyCustomerPasswordLoginEnabled {
-		http.Error(w, "customer password login is disabled; use SSO", http.StatusForbidden)
+	if !s.cfg.CustomerPasswordLoginEnabled {
+		http.Error(w, "customer password sign-in is disabled", http.StatusForbidden)
 		return
 	}
 	if !s.accountClient.Enabled() {

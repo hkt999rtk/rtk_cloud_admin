@@ -18,10 +18,16 @@ import {
   userFacingSSOError,
   userFacingVerificationError,
 } from './http.mjs';
+import {
+  destinationForSession,
+  loginNextFromLocation,
+  loginPathFor,
+  protectedPathFromLocation,
+} from './auth-routing.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
-import { auditCoverageCopy, ssoProtocolLabel } from './platform-view.mjs';
+import { auditCoverageCopy, formatResourcePercent, resourceStatusLabel, resourceStatusTone, ssoProtocolLabel } from './platform-view.mjs';
 import {
   sourceAvailable,
   sourceMessage,
@@ -58,6 +64,7 @@ function App() {
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
   const isPublicRoute = isPublicRouteId(active);
+  const isLoginRoute = active === 'login';
   const isPlatformView = isPlatformRouteId(active);
   const visibleNavItems = navItemsForRoute(active);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
@@ -67,8 +74,24 @@ function App() {
   const activeOrgLabel = activeMembership?.organization || me?.active_org_id || 'Acme Smart Camera';
   const lastUpdatedAt = latestCustomerUpdate(devices, recentAlerts);
 
+  function clearDashboardState() {
+    setSummary(null);
+    setFleetHealth(null);
+    setStreamStats(null);
+    setRecentAlerts([]);
+    setCustomers([]);
+    setDevices([]);
+    setOperations([]);
+    setHealth([]);
+    setServiceLogs(null);
+    setAudit([]);
+    setPlatformDashboard(null);
+    setSSOProviders([]);
+    setFirmwareDistribution(null);
+  }
+
   useEffect(() => {
-    if (isPublicRoute) {
+    if (isPublicRoute && !isLoginRoute) {
       return;
     }
     let alive = true;
@@ -80,37 +103,29 @@ function App() {
         if (!alive) return;
         setMe(nextMe);
 
+        if (isLoginRoute) {
+          if (nextMe.authenticated) {
+            window.location.replace(destinationForSession(nextMe, loginNextFromLocation(window.location)));
+            return;
+          }
+          clearDashboardState();
+          setLoading(false);
+          return;
+        }
+
+        if (!nextMe.authenticated) {
+          window.location.replace(loginPathFor(protectedPathFromLocation(window.location)));
+          return;
+        }
+
         const useAdminApi = isPlatformView && nextMe.kind === 'platform_admin';
-        if (!isPlatformView && (!nextMe.authenticated || nextMe.kind === 'platform_admin')) {
-          setSummary(null);
-          setFleetHealth(null);
-          setStreamStats(null);
-          setRecentAlerts([]);
-          setCustomers([]);
-          setDevices([]);
-          setOperations([]);
-          setHealth([]);
-          setServiceLogs(null);
-          setAudit([]);
-          setPlatformDashboard(null);
-          setSSOProviders([]);
-          setFirmwareDistribution(null);
+        if (!isPlatformView && nextMe.kind === 'platform_admin') {
+          clearDashboardState();
           setLoading(false);
           return;
         }
         if (isPlatformView && nextMe.kind !== 'platform_admin') {
-          setSummary(null);
-          setFleetHealth(null);
-          setStreamStats(null);
-          setRecentAlerts([]);
-          setCustomers([]);
-          setDevices([]);
-          setOperations([]);
-          setHealth([]);
-          setServiceLogs(null);
-          setAudit([]);
-          setPlatformDashboard(null);
-          setSSOProviders([]);
+          clearDashboardState();
           setLoading(false);
           return;
         }
@@ -206,6 +221,10 @@ function App() {
       } catch (err) {
         if (!alive) return;
         if (err.isAuthError) {
+          if (!isLoginRoute) {
+            window.location.replace(loginPathFor(protectedPathFromLocation(window.location)));
+            return;
+          }
           try {
             const freshMe = await fetch('/api/me').then((r) => r.json());
             if (alive) setMe(freshMe);
@@ -232,10 +251,10 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
+  }, [active, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
 
   useEffect(() => {
-    if (!isPublicRoute) return;
+    if (!isPublicRoute || isLoginRoute) return;
     setError('');
     setMe(null);
     setSummary(null);
@@ -250,7 +269,7 @@ function App() {
     setFleetHealth(null);
     setStreamStats(null);
     setRecentAlerts([]);
-  }, [isPublicRoute]);
+  }, [isLoginRoute, isPublicRoute]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -353,7 +372,45 @@ function App() {
       setError(details || `break-glass login failed with ${response.status}`);
       return;
     }
-    setRefreshTick((tick) => tick + 1);
+    window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, loginNextFromLocation(window.location)));
+  }
+
+  async function handlePasswordLogin(credentials) {
+    setError('');
+    let customerError = null;
+    try {
+      await postJSON('/api/auth/customer/login', credentials);
+      window.location.assign(destinationForSession({ authenticated: true, kind: 'customer' }, loginNextFromLocation(window.location)));
+      return;
+    } catch (err) {
+      customerError = err;
+    }
+
+    try {
+      await postJSON('/api/auth/platform/login', credentials);
+      window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, loginNextFromLocation(window.location)));
+      return;
+    } catch (platformError) {
+      const message = `${customerError?.message || ''}\n${platformError?.message || ''}`;
+      if (message.includes('customer password sign-in is disabled')) {
+        const nextError = 'Password sign-in is not enabled for this environment.';
+        setError(nextError);
+        throw new Error(nextError);
+      }
+      if (message.includes('platform break-glass login is disabled')) {
+        const nextError = 'Platform password sign-in is not enabled for this environment.';
+        setError(nextError);
+        throw new Error(nextError);
+      }
+      if ((customerError?.status === 401 && platformError?.status === 401) || /invalid credentials/i.test(message)) {
+        const nextError = 'Email or password is incorrect.';
+        setError(nextError);
+        throw new Error(nextError);
+      }
+      const nextError = 'Sign-in is temporarily unavailable. Please try again later.';
+      setError(nextError);
+      throw new Error(nextError);
+    }
   }
 
   async function handleSignup(payload) {
@@ -436,6 +493,15 @@ function App() {
   }, [devices, selectedDeviceId]);
 
   if (isPublicRoute) {
+    if (isLoginRoute) {
+      return (
+        <LoginPage
+          error={error}
+          loading={loading}
+          onPasswordLogin={handlePasswordLogin}
+        />
+      );
+    }
     return (
       <PublicAuthPage
         active={active}
@@ -518,12 +584,10 @@ function App() {
           <PlatformAccessGate
             active={active}
             me={me}
-            onSSOStart={handleSSOStart}
-            onBreakGlassLogin={handleBreakGlassLogin}
           />
         ) : null}
         {!needsPlatformAccess && customerViewPending ? <section className="panel split-panel"><div><h2>Loading session</h2><p>Checking customer access before loading dashboard data.</p></div></section> : null}
-        {!needsPlatformAccess && !customerViewPending && customerViewBlocked ? <CustomerAccessGate me={me} onSSOStart={handleSSOStart} /> : null}
+        {!needsPlatformAccess && !customerViewPending && customerViewBlocked ? <CustomerAccessGate me={me} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'overview' ? (
           <Overview
             summary={summary}
@@ -535,7 +599,6 @@ function App() {
             me={me}
             loading={loading}
             devices={devices}
-            onSSOStart={handleSSOStart}
             onHealthFilter={filterDevicesByHealth}
             onRequestQuotaRaise={handleQuotaRaiseRequest}
           />
@@ -579,6 +642,61 @@ function App() {
         {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} loading={loading} /> : null}
       </main>
     </div>
+  );
+}
+
+function LoginPage({ error, loading, onPasswordLogin }) {
+  return (
+    <div className="login-shell">
+      <header className="login-topbar" aria-label="Connect+ Ops">
+        <a href="mailto:cloud-ops@example.com" className="login-help">Need help?</a>
+      </header>
+      <main className="login-layout">
+        <section className="login-primary" aria-labelledby="login-title">
+          <div className="login-brand">
+            <span className="login-brand-grid" aria-hidden="true"><i /><i /><i /><i /></span>
+            <strong>Connect+ Ops</strong>
+          </div>
+          <h1 id="login-title">Sign in to Admin Console</h1>
+          <p className="login-copy">Use your work email to continue.</p>
+          <LoginPasswordForm onPasswordLogin={onPasswordLogin} disabled={loading} />
+          {error ? <div className="error">{error}</div> : null}
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function LoginPasswordForm({ onPasswordLogin, disabled }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState('');
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setLocalError('');
+    try {
+      await onPasswordLogin({ email, password });
+    } catch (err) {
+      setLocalError(err?.message || 'Sign-in is temporarily unavailable. Please try again later.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="login-form" onSubmit={submit}>
+      <label>
+        Work email
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
+      </label>
+      <label>
+        Password
+        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required />
+      </label>
+      <button type="submit" disabled={busy || disabled}>{busy ? 'Signing in' : 'Sign in'}</button>
+      {localError ? <p className="error">{localError}</p> : null}
+    </form>
   );
 }
 
@@ -852,7 +970,6 @@ function Overview({
   me,
   loading,
   devices,
-  onSSOStart,
   onHealthFilter,
   onRequestQuotaRaise,
 }) {
@@ -892,8 +1009,6 @@ function Overview({
 
   return (
     <div className="overview-layout">
-      {!me?.authenticated ? <SSOLoginPanel title="Sign in with SSO" onSSOStart={onSSOStart} /> : null}
-
       <section className="metrics overview-metrics">
         <MetricCard icon="ON" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
         <MetricCard icon="%" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
@@ -1411,7 +1526,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
   );
 }
 
-function CustomerAccessGate({ me, onSSOStart }) {
+function CustomerAccessGate({ me }) {
   if (me?.kind === 'platform_admin') {
     return (
       <section className="panel split-panel">
@@ -1423,32 +1538,26 @@ function CustomerAccessGate({ me, onSSOStart }) {
     );
   }
   return (
-    <>
-      <SSOLoginPanel title="Sign in with SSO" onSSOStart={onSSOStart} />
-      <section className="panel split-panel">
-        <div>
-          <h2>Customer access required</h2>
-          <p>Sign in with a customer account to open the operations console.</p>
-        </div>
-      </section>
-    </>
+    <section className="panel split-panel">
+      <div>
+        <h2>Customer access required</h2>
+        <p>Sign in with a customer account to open the operations console.</p>
+        <a className="inline-action" href={loginPathFor(protectedPathFromLocation(window.location))}>Go to sign in</a>
+      </div>
+    </section>
   );
 }
 
-function PlatformAccessGate({ active, me, onSSOStart, onBreakGlassLogin }) {
+function PlatformAccessGate({ active, me }) {
+  const signedInCustomer = me?.authenticated && me.kind === 'customer';
   return (
-    <>
-      <SSOLoginPanel title="Platform SSO sign in" onSSOStart={onSSOStart} />
-      {shouldShowBreakGlass(me) ? (
-        <BreakGlassLoginPanel title="Break-glass platform access" onLogin={onBreakGlassLogin} />
-      ) : null}
-      <section className="panel split-panel">
-        <div>
-          <h2>Platform access required</h2>
-          <p>Sign in with a platform admin session to open {titleFor(active)}.</p>
-        </div>
-      </section>
-    </>
+    <section className="panel split-panel">
+      <div>
+        <h2>{signedInCustomer ? 'Platform access denied' : 'Platform access required'}</h2>
+        <p>{signedInCustomer ? 'Your current customer session cannot open Platform View.' : `Sign in with a platform admin session to open ${titleFor(active)}.`}</p>
+        {!signedInCustomer ? <a className="inline-action" href={loginPathFor(protectedPathFromLocation(window.location))}>Go to sign in</a> : null}
+      </div>
+    </section>
   );
 }
 
@@ -1456,6 +1565,8 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
   const source = dashboard?.sources?.prometheus || null;
   const kpis = dashboard?.kpis?.length ? dashboard.kpis : fallbackPlatformKPIs(summary);
   const serviceGroups = dashboard?.service_scrape_health || [];
+  const serviceExporters = dashboard?.service_exporters || [];
+  const serverResources = dashboard?.server_resources || [];
   const risk = dashboard?.operation_risk || {
     open_operations: summary?.open_operations ?? 0,
     failed_operations: operations.filter((operation) => operation.state === 'failed').length,
@@ -1516,6 +1627,10 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
           </article>
         ))}
       </section>
+
+      <ServerResourceStatus resources={serverResources} source={dashboard?.panel_sources?.server_resources || source} />
+
+      <ServiceExporterStatus exporters={serviceExporters} source={dashboard?.panel_sources?.service_exporters || source} />
 
       <section className="platform-dashboard-grid">
         <article className="panel platform-dashboard-panel">
@@ -1591,6 +1706,96 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
         <PlatformMetricPanel title="Infrastructure Health" rows={infrastructureRows} />
       </section>
     </section>
+  );
+}
+
+function ServiceExporterStatus({ exporters, source }) {
+  return (
+    <article className="panel platform-dashboard-panel server-resource-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Service Exporter Status</h2>
+          <p>Application and service-owned exporters published into the admin Prometheus boundary.</p>
+        </div>
+        <SourceStatusPill source={source} />
+      </div>
+      <div className="server-resource-table-wrap">
+        <table className="server-resource-table service-exporter-table">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Exporter role</th>
+              <th>Targets</th>
+              <th>Status</th>
+              <th>Last checked</th>
+            </tr>
+          </thead>
+          <tbody>
+            {exporters.map((exporter) => (
+              <tr key={exporter.id}>
+                <td><strong>{exporter.label || exporter.id}</strong></td>
+                <td>{exporter.role || '-'}</td>
+                <td>{exporter.targets_total ? `${exporter.targets_up} up / ${exporter.targets_down} down` : 'Unavailable'}</td>
+                <td><StatusBadge value={resourceStatusTone(exporter.status)} label={resourceStatusLabel(exporter.status)} /></td>
+                <td>{exporter.checked_at ? formatRelativeTime(exporter.checked_at) : '-'}</td>
+              </tr>
+            ))}
+            {!exporters.length ? (
+              <tr>
+                <td colSpan="5" className="empty-state">No service exporter data available.</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  );
+}
+
+function ServerResourceStatus({ resources, source }) {
+  return (
+    <article className="panel platform-dashboard-panel server-resource-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Server Resource Status</h2>
+          <p>Per-server CPU, memory, and root disk usage from the admin Prometheus boundary.</p>
+        </div>
+        <SourceStatusPill source={source} />
+      </div>
+      <div className="server-resource-table-wrap">
+        <table className="server-resource-table">
+          <thead>
+            <tr>
+              <th>Server</th>
+              <th>Role / Service</th>
+              <th>CPU</th>
+              <th>Memory</th>
+              <th>Disk</th>
+              <th>Status</th>
+              <th>Last checked</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resources.map((resource) => (
+              <tr key={resource.id}>
+                <td><strong>{resource.label || resource.id}</strong></td>
+                <td>{resource.role || '-'}</td>
+                <td>{formatResourcePercent(resource.cpu_percent)}</td>
+                <td>{formatResourcePercent(resource.memory_percent)}</td>
+                <td>{formatResourcePercent(resource.disk_percent)}</td>
+                <td><StatusBadge value={resourceStatusTone(resource.status)} label={resourceStatusLabel(resource.status)} /></td>
+                <td>{resource.checked_at ? formatRelativeTime(resource.checked_at) : '-'}</td>
+              </tr>
+            ))}
+            {!resources.length ? (
+              <tr>
+                <td colSpan="7" className="empty-state">No server resource data available.</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </article>
   );
 }
 
@@ -2904,44 +3109,6 @@ function OperationList({ operations, detailed = false }) {
   );
 }
 
-function PlatformAdmin({ summary, health, devices, customers, operations, audit, me, onSSOStart, onBreakGlassLogin }) {
-  const customerCount = summary?.customers ?? '-';
-  return (
-    <>
-      {me?.kind !== 'platform_admin' ? (
-        <>
-          <SSOLoginPanel title="Platform SSO sign in" onSSOStart={onSSOStart} />
-          {shouldShowBreakGlass(me) ? (
-            <BreakGlassLoginPanel title="Break-glass platform access" onLogin={onBreakGlassLogin} />
-          ) : null}
-        </>
-      ) : null}
-      <section className="panel split-panel">
-        <div>
-          <h2>Platform Operations</h2>
-          <p>Cross-customer view for support and service operators.</p>
-          <div className="admin-kpis">
-            <div><strong>{customerCount}</strong><span>Customers</span></div>
-            <div><strong>{devices.length}</strong><span>Devices cached</span></div>
-          </div>
-        </div>
-        <ServiceHealth health={health} compact />
-      </section>
-      <section className="panel">
-        <div className="panel-head">
-          <div>
-            <h2>Lifecycle operations</h2>
-            <p>Cross-customer provisioning and deactivation activity.</p>
-          </div>
-        </div>
-        <OperationList operations={operations} detailed />
-      </section>
-      <Customers customers={customers} />
-      <AuditLog audit={audit.slice(0, 5)} compact />
-    </>
-  );
-}
-
 function AuditLog({ audit, compact = false, loading = false }) {
   const columns = useMemo(() => [
     { key: 'action', label: 'Action', value: (event) => event.action },
@@ -3143,58 +3310,6 @@ function ServiceHealth({ health, compact = false }) {
           {item.last_checked_at ? <time>{item.last_checked_at}</time> : null}
         </div>
       ))}
-    </section>
-  );
-}
-
-function SSOLoginPanel({ title, onSSOStart }) {
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [localError, setLocalError] = useState('');
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setLocalError('');
-    try {
-      await onSSOStart(email);
-    } catch (err) {
-      setLocalError(userFacingSSOError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <section className="panel login-panel">
-      <div>
-        <h2>{title}</h2>
-        <p>Use your organization email to continue through Account Manager SSO. SSO is the primary production sign-in path.</p>
-      </div>
-      <form onSubmit={submit}>
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
-        <button type="submit" disabled={busy}>{busy ? 'Redirecting' : 'Continue with SSO'}</button>
-      </form>
-      {localError ? <p className="error">{localError}</p> : null}
-    </section>
-  );
-}
-
-function BreakGlassLoginPanel({ title, onLogin }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  return (
-    <section className="panel login-panel">
-      <div>
-        <h2>{title}</h2>
-        <p>Emergency local admin access for SSO or Account Manager outage recovery.</p>
-      </div>
-      <form onSubmit={(event) => {
-        event.preventDefault();
-        onLogin({ email, password });
-      }}>
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Break-glass email" />
-        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" />
-        <button type="submit">Use break-glass</button>
-      </form>
     </section>
   );
 }

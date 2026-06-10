@@ -44,6 +44,7 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 	}
 
 	for _, path := range []string{
+		"/login",
 		"/console",
 		"/console/overview",
 		"/console/devices",
@@ -155,7 +156,7 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
-	for _, path := range []string{"/signup", "/signup/check-email", "/verify"} {
+	for _, path := range []string{"/login", "/signup", "/signup/check-email", "/verify"} {
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
 		if rec.Code != http.StatusOK {
@@ -270,7 +271,7 @@ func TestSSOStartAndCallbackCreateSessions(t *testing.T) {
 
 	st := mustOpenStore(t)
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -456,16 +457,16 @@ func TestSSOEndpointsMapStableErrors(t *testing.T) {
 	}
 }
 
-func TestLegacyCustomerPasswordLoginDisabledByDefault(t *testing.T) {
+func TestCustomerPasswordLoginCanBeDisabled(t *testing.T) {
 	t.Parallel()
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatalf("legacy customer login should not call upstream when disabled: %s", r.URL.Path)
+		t.Fatalf("customer login should not call upstream when disabled: %s", r.URL.Path)
 	}))
 	defer upstream.Close()
 
 	srv := NewWithOptions(mustOpenStore(t), Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL, CustomerPasswordLoginEnabled: false},
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -474,7 +475,7 @@ func TestLegacyCustomerPasswordLoginDisabledByDefault(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("customer login status = %d, body=%s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "customer password login is disabled") {
+	if !strings.Contains(rec.Body.String(), "customer password sign-in is disabled") {
 		t.Fatalf("customer login body = %s", rec.Body.String())
 	}
 }
@@ -781,10 +782,10 @@ func mustOpenStore(t *testing.T) *store.Store {
 	return st
 }
 
-func legacyCustomerLoginConfig(baseURL string) config.Config {
+func customerPasswordLoginConfig(baseURL string) config.Config {
 	return config.Config{
-		AccountManagerBaseURL:              baseURL,
-		LegacyCustomerPasswordLoginEnabled: true,
+		AccountManagerBaseURL:        baseURL,
+		CustomerPasswordLoginEnabled: true,
 	}
 }
 
@@ -986,7 +987,7 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -1124,10 +1125,10 @@ func TestCustomerDevicesReportVideoCloudActivationFailures(t *testing.T) {
 
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL:              accountUpstream.URL,
-			LegacyCustomerPasswordLoginEnabled: true,
-			VideoCloudBaseURL:                  videoUpstream.URL,
-			VideoCloudAdminToken:               "vc-secret",
+			AccountManagerBaseURL:        accountUpstream.URL,
+			CustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:            videoUpstream.URL,
+			VideoCloudAdminToken:         "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -1209,10 +1210,10 @@ func TestCustomerDevicesUseVideoCloudTransportForOnlineReadiness(t *testing.T) {
 
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL:              accountUpstream.URL,
-			LegacyCustomerPasswordLoginEnabled: true,
-			VideoCloudBaseURL:                  videoUpstream.URL,
-			VideoCloudAdminToken:               "vc-secret",
+			AccountManagerBaseURL:        accountUpstream.URL,
+			CustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:            videoUpstream.URL,
+			VideoCloudAdminToken:         "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -1291,7 +1292,7 @@ func TestCustomerLoginSurvivesProfileRetryFailure(t *testing.T) {
 		t.Fatalf("Migrate returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -1348,7 +1349,7 @@ func TestCustomerSessionInvalidRefreshClearsStoredSession(t *testing.T) {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -1422,7 +1423,7 @@ func TestCustomerDevicesInvalidSessionRefreshClearsStoredSession(t *testing.T) {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -1474,7 +1475,7 @@ func TestCustomerMePersistsRotatedTokensOnRetryFailure(t *testing.T) {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -1515,7 +1516,7 @@ func TestCustomerLoginMapsUpstreamFailures(t *testing.T) {
 			t.Fatalf("Migrate returned error: %v", err)
 		}
 		srv := NewWithOptions(st, Options{
-			Config:        legacyCustomerLoginConfig(upstream.URL),
+			Config:        customerPasswordLoginConfig(upstream.URL),
 			AccountClient: accountclient.New(upstream.URL),
 		})
 
@@ -1544,7 +1545,7 @@ func TestCustomerLoginMapsUpstreamFailures(t *testing.T) {
 			t.Fatalf("Migrate returned error: %v", err)
 		}
 		srv := NewWithOptions(st, Options{
-			Config:        legacyCustomerLoginConfig(upstream.URL),
+			Config:        customerPasswordLoginConfig(upstream.URL),
 			AccountClient: accountclient.New(upstream.URL),
 		})
 
@@ -1577,7 +1578,7 @@ func TestCustomerLoginMapsUpstreamFailures(t *testing.T) {
 			t.Fatalf("Migrate returned error: %v", err)
 		}
 		srv := NewWithOptions(st, Options{
-			Config:        legacyCustomerLoginConfig(upstream.URL),
+			Config:        customerPasswordLoginConfig(upstream.URL),
 			AccountClient: accountclient.NewWithHTTPClient(upstream.URL, &http.Client{Timeout: 40 * time.Millisecond}),
 		})
 
@@ -1623,7 +1624,7 @@ func TestCustomerDevicesRefreshesExpiredAccessAndRejectsInvalidActiveOrg(t *test
 		t.Fatalf("Migrate returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 	session, err := st.CreateSession("customer", "u1", "user@example.com", "access", "refresh", "org-up", time.Hour)
@@ -1694,7 +1695,7 @@ func TestCustomerUpstreamErrorsMapDeterministically(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.NewWithHTTPClient(upstream.URL, &http.Client{Timeout: 50 * time.Millisecond}),
 	})
 
@@ -2742,10 +2743,10 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL:              accountUpstream.URL,
-			LegacyCustomerPasswordLoginEnabled: true,
-			VideoCloudBaseURL:                  videoUpstream.URL,
-			VideoCloudAdminToken:               "vc-secret",
+			AccountManagerBaseURL:        accountUpstream.URL,
+			CustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:            videoUpstream.URL,
+			VideoCloudAdminToken:         "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -2862,10 +2863,10 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 	}
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL:              accountUpstream.URL,
-			LegacyCustomerPasswordLoginEnabled: true,
-			VideoCloudBaseURL:                  videoUpstream.URL,
-			VideoCloudAdminToken:               "vc-secret",
+			AccountManagerBaseURL:        accountUpstream.URL,
+			CustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:            videoUpstream.URL,
+			VideoCloudAdminToken:         "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -3097,10 +3098,10 @@ func TestDeviceTelemetryProxyModeUsesVideoCloud(t *testing.T) {
 
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL:              accountUpstream.URL,
-			LegacyCustomerPasswordLoginEnabled: true,
-			VideoCloudBaseURL:                  videoUpstream.URL,
-			VideoCloudAdminToken:               "vc-secret",
+			AccountManagerBaseURL:        accountUpstream.URL,
+			CustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:            videoUpstream.URL,
+			VideoCloudAdminToken:         "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -3225,10 +3226,10 @@ func TestDeviceTelemetryProxyModeMapsVideoCloudFailure(t *testing.T) {
 
 	srv := NewWithOptions(st, Options{
 		Config: config.Config{
-			AccountManagerBaseURL:              accountUpstream.URL,
-			LegacyCustomerPasswordLoginEnabled: true,
-			VideoCloudBaseURL:                  videoUpstream.URL,
-			VideoCloudAdminToken:               "vc-secret",
+			AccountManagerBaseURL:        accountUpstream.URL,
+			CustomerPasswordLoginEnabled: true,
+			VideoCloudBaseURL:            videoUpstream.URL,
+			VideoCloudAdminToken:         "vc-secret",
 		},
 		AccountClient: accountclient.New(accountUpstream.URL),
 		VideoClient:   videoclient.New(videoUpstream.URL),
@@ -3333,10 +3334,10 @@ func TestDeviceTelemetryProxyModeMapsVideoCloudFailureModes(t *testing.T) {
 
 			srv := NewWithOptions(st, Options{
 				Config: config.Config{
-					AccountManagerBaseURL:              accountUpstream.URL,
-					LegacyCustomerPasswordLoginEnabled: true,
-					VideoCloudBaseURL:                  videoUpstream.URL,
-					VideoCloudAdminToken:               "vc-secret",
+					AccountManagerBaseURL:        accountUpstream.URL,
+					CustomerPasswordLoginEnabled: true,
+					VideoCloudBaseURL:            videoUpstream.URL,
+					VideoCloudAdminToken:         "vc-secret",
 				},
 				AccountClient: accountclient.New(accountUpstream.URL),
 				VideoClient:   videoclient.New(videoUpstream.URL),
@@ -4016,7 +4017,7 @@ func TestActiveOrgAndQuotaContractsRejectInvalidOrganizations(t *testing.T) {
 	}))
 	defer upstream.Close()
 	proxySrv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -4121,7 +4122,7 @@ func TestCustomerUpstreamLifecycleIsIdempotentAndDurable(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -4317,7 +4318,7 @@ func TestDeactivateDoesNotReturnOpenProvisionOperation(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
@@ -4389,7 +4390,7 @@ func TestCustomerUpstreamLifecycleFailurePersistsFailedOperation(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
-		Config:        legacyCustomerLoginConfig(upstream.URL),
+		Config:        customerPasswordLoginConfig(upstream.URL),
 		AccountClient: accountclient.New(upstream.URL),
 	})
 

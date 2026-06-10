@@ -202,8 +202,8 @@ Capability and role behavior:
 
 Auth and access states:
 
-- Unauthenticated users see an email-first SSO sign-in panel. Password login is
-  legacy compatibility and must not be presented as the primary production path.
+- Unauthenticated users see the standalone Admin Console login page with email
+  and password fields.
 - Signup entry points route to the self-service evaluation flow documented in
   `SPEC.md`; commercial brand-cloud user creation is separate and platform
   admin-owned.
@@ -407,7 +407,7 @@ Design requirements:
   in. It may offer resend only through the Account Manager-backed API.
 - The verification landing state handles success, expired token, invalid token,
   already verified, and service-unavailable outcomes. Success routes users
-  toward SSO or legacy login wiring for the newly verified account.
+  toward the email/password login flow for the newly verified account.
 - Evaluation-tier quota copy uses the Account Manager quota fields
   `tier=evaluation` and `evaluation_device_quota`; it must not imply commercial
   entitlement or automatic quota approval.
@@ -416,10 +416,10 @@ Design requirements:
 
 Required behavior:
 
-- The primary sign-in panel is email-first SSO and sends users through Account
-  Manager discovery.
-- The UI displays redirecting, callback verification, denied access,
-  source-unavailable, and retry states.
+- The primary sign-in panel posts email and password credentials to Account
+  Manager through the Admin Console BFF.
+- The UI displays submitting, denied access, source-unavailable, and retry
+  states.
 - Platform break-glass login is visually secondary, available only when enabled
   by deployment configuration, and labeled as emergency local admin access.
 - Route gates distinguish unauthenticated, wrong-role, and missing-capability
