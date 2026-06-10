@@ -1988,9 +1988,9 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       mount.appendChild(renderer.domElement);
 
-      const camera = new THREE.OrthographicCamera(-4.8, 4.8, 2.9, -2.9, 0.1, 100);
-      camera.position.set(0, 4.2, 6.8);
-      camera.lookAt(0, 0.35, 0);
+      const camera = new THREE.OrthographicCamera(-4.4, 4.4, 2.15, -1.75, 0.1, 100);
+      camera.position.set(0, 0, 8);
+      camera.lookAt(0, 0, 0);
 
       const ambient = new THREE.AmbientLight(0xffffff, 0.72);
       const key = new THREE.DirectionalLight(0xffffff, 0.74);
@@ -1998,17 +1998,14 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
       scene.add(ambient, key);
 
       const plane = new THREE.Mesh(
-        new THREE.PlaneGeometry(7.6, 3.6),
+        new THREE.PlaneGeometry(7.25, 2.8),
         new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
-          opacity: 0.46,
-          side: THREE.DoubleSide,
+          opacity: 0.58,
         }),
       );
-      plane.rotation.x = -Math.PI / 2;
-      plane.position.y = -0.05;
-      plane.position.z = -0.08;
+      plane.position.set(0, 0.28, -0.04);
       scene.add(plane);
 
       const grid = buildResourceTrendGrid(THREE);
@@ -2016,11 +2013,11 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
 
       const latestMarkers = [];
       series.forEach((item, index) => {
-        const laneOffset = series.length > 1 ? ((index / Math.max(series.length - 1, 1)) - 0.5) * 1.9 : 0;
+        const depth = index * 0.035;
         const points = item.samples.map((point, pointIndex) => {
-          const x = -3.55 + (pointIndex / Math.max(item.samples.length - 1, 1)) * 7.1;
-          const y = 0.1 + (Number(point.value || 0) / Math.max(chart.maxValue || 1, 1)) * 2.1;
-          const z = laneOffset + Math.sin(pointIndex * 0.45) * 0.025;
+          const x = -3.35 + (pointIndex / Math.max(item.samples.length - 1, 1)) * 6.7;
+          const y = -0.95 + (Number(point.value || 0) / Math.max(chart.maxValue || 1, 1)) * 2.45;
+          const z = depth;
           return new THREE.Vector3(x, y, z);
         });
         if (points.length < 2) return;
@@ -2081,7 +2078,7 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
         const latest = points[points.length - 1];
         const dropLine = new THREE.Line(
           new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(latest.x, 0.02, latest.z),
+            new THREE.Vector3(latest.x, -0.95, latest.z),
             new THREE.Vector3(latest.x, latest.y, latest.z),
           ]),
           new THREE.LineBasicMaterial({
@@ -2101,10 +2098,10 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
         const height = Math.max(280, Math.floor(bounds.height));
         renderer.setSize(width, height, false);
         const aspect = width / height;
-        camera.left = -4.4 * Math.max(1, aspect / 1.55);
-        camera.right = 4.4 * Math.max(1, aspect / 1.55);
-        camera.top = 2.9;
-        camera.bottom = -2.7;
+        camera.left = -4.15 * Math.max(1, aspect / 1.8);
+        camera.right = 4.15 * Math.max(1, aspect / 1.8);
+        camera.top = 1.95;
+        camera.bottom = -1.55;
         camera.updateProjectionMatrix();
       };
       const observer = new ResizeObserver(resize);
@@ -2117,8 +2114,8 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
         latestMarkers.forEach((marker) => {
           marker.scale.setScalar(1 + pulse);
         });
-        camera.position.x = Math.sin(frame / 150) * 0.12;
-        camera.lookAt(0, 0.35, 0);
+        camera.position.x = Math.sin(frame / 160) * 0.018;
+        camera.lookAt(0, 0, 0);
         renderer.render(scene, camera);
         animation = requestAnimationFrame(animate);
       };
@@ -2147,7 +2144,7 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
 
   return (
     <div className="resource-three-chart-shell">
-      <div className="resource-three-chart" ref={mountRef} role="img" aria-label={`${title} three dimensional trend chart`}>
+      <div className="resource-three-chart" ref={mountRef} role="img" aria-label={`${title} WebGL trend chart`}>
         <div className="resource-three-chart-overlay">
           <span>{maxLabel}</span>
           <span>0</span>
@@ -2184,20 +2181,16 @@ function buildResourceTrendGrid(THREE) {
   const material = new THREE.LineBasicMaterial({
     color: 0x99a7b6,
     transparent: true,
-    opacity: 0.32,
+    opacity: 0.26,
   });
   const points = [];
   for (let i = 0; i <= 6; i += 1) {
-    const x = -3.55 + i * (7.1 / 6);
-    points.push(new THREE.Vector3(x, 0, -1.9), new THREE.Vector3(x, 0, 1.9));
+    const x = -3.35 + i * (6.7 / 6);
+    points.push(new THREE.Vector3(x, -0.95, -0.02), new THREE.Vector3(x, 1.5, -0.02));
   }
   for (let i = 0; i <= 4; i += 1) {
-    const z = -1.9 + i * (3.8 / 4);
-    points.push(new THREE.Vector3(-3.55, 0, z), new THREE.Vector3(3.55, 0, z));
-  }
-  for (let i = 1; i <= 3; i += 1) {
-    const y = i * 0.58;
-    points.push(new THREE.Vector3(-3.55, y, -1.92), new THREE.Vector3(3.55, y, -1.92));
+    const y = -0.95 + i * (2.45 / 4);
+    points.push(new THREE.Vector3(-3.35, y, -0.02), new THREE.Vector3(3.35, y, -0.02));
   }
   return new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points), material);
 }
@@ -2206,7 +2199,7 @@ function buildResourceTrendRibbon(THREE, points) {
   const vertices = [];
   const indices = [];
   for (const point of points) {
-    vertices.push(point.x, 0.02, point.z, point.x, point.y, point.z);
+    vertices.push(point.x, -0.95, point.z - 0.01, point.x, point.y, point.z - 0.01);
   }
   for (let index = 0; index < points.length - 1; index += 1) {
     const base = index * 2;

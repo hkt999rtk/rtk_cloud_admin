@@ -645,13 +645,10 @@ p {
 .resource-three-chart {
   aspect-ratio: 16 / 7;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(241, 246, 250, 0.9)),
-    radial-gradient(circle at 20% 16%, rgba(15, 159, 154, 0.14), transparent 26%),
-    radial-gradient(circle at 76% 18%, rgba(37, 99, 235, 0.1), transparent 25%),
-    radial-gradient(circle at 68% 68%, rgba(200, 135, 25, 0.08), transparent 28%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 248, 251, 0.96));
   border: 1px solid rgba(37, 56, 76, 0.1);
   border-radius: 8px;
-  min-height: 340px;
+  min-height: 360px;
   overflow: hidden;
   position: relative;
   width: 100%;
@@ -677,11 +674,12 @@ p {
 }
 
 .resource-three-chart-overlay {
-  bottom: 42px;
+  bottom: 54px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  top: 18px;
+  left: 22px;
+  top: 24px;
 }
 
 .resource-three-chart-axis {
@@ -724,9 +722,9 @@ p {
   flex-direction: column;
   gap: 8px;
   left: auto;
-  max-width: 180px;
-  right: 18px;
-  top: 20px;
+  max-width: 170px;
+  right: 20px;
+  top: 24px;
 }
 
 .resource-three-callouts span {
@@ -2994,7 +2992,7 @@ th {
 
   .resource-three-chart {
     aspect-ratio: 4 / 3;
-    min-height: 300px;
+    min-height: 310px;
   }
 
   .resource-three-chart-overlay,
