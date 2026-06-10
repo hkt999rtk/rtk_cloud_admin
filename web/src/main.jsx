@@ -22,6 +22,7 @@ import {
   destinationForSession,
   loginNextFromLocation,
   loginPathFor,
+  passwordLoginOrderForNext,
   protectedPathFromLocation,
 } from './auth-routing.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
@@ -399,40 +400,45 @@ function App() {
 
   async function handlePasswordLogin(credentials) {
     setError('');
-    let customerError = null;
-    try {
-      await postJSON('/api/auth/customer/login', credentials);
-      window.location.assign(destinationForSession({ authenticated: true, kind: 'customer' }, loginNextFromLocation(window.location)));
-      return;
-    } catch (err) {
-      customerError = err;
+    const nextPath = loginNextFromLocation(window.location);
+    const order = passwordLoginOrderForNext(nextPath);
+    const errors = {};
+    for (const kind of order) {
+      try {
+        if (kind === 'platform') {
+          await postJSON('/api/auth/platform/login', credentials);
+          window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, nextPath));
+          return;
+        }
+        await postJSON('/api/auth/customer/login', credentials);
+        window.location.assign(destinationForSession({ authenticated: true, kind: 'customer' }, nextPath));
+        return;
+      } catch (err) {
+        errors[kind] = err;
+      }
     }
 
-    try {
-      await postJSON('/api/auth/platform/login', credentials);
-      window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, loginNextFromLocation(window.location)));
-      return;
-    } catch (platformError) {
-      const message = `${customerError?.message || ''}\n${platformError?.message || ''}`;
-      if (message.includes('customer password sign-in is disabled')) {
-        const nextError = 'Password sign-in is not enabled for this environment.';
-        setError(nextError);
-        throw new Error(nextError);
-      }
-      if (message.includes('platform break-glass login is disabled')) {
-        const nextError = 'Platform password sign-in is not enabled for this environment.';
-        setError(nextError);
-        throw new Error(nextError);
-      }
-      if ((customerError?.status === 401 && platformError?.status === 401) || /invalid credentials/i.test(message)) {
-        const nextError = 'Email or password is incorrect.';
-        setError(nextError);
-        throw new Error(nextError);
-      }
-      const nextError = 'Sign-in is temporarily unavailable. Please try again later.';
+    const message = `${errors.customer?.message || ''}\n${errors.platform?.message || ''}`;
+    if (order[0] === 'platform' && message.includes('platform break-glass login is disabled')) {
+      const nextError = 'Platform password sign-in is not enabled for this environment.';
       setError(nextError);
       throw new Error(nextError);
     }
+    if (order[0] === 'customer' && message.includes('customer password sign-in is disabled')) {
+      const nextError = 'Password sign-in is not enabled for this environment.';
+      setError(nextError);
+      throw new Error(nextError);
+    }
+    if (((errors.customer?.status === 401 || errors.customer?.status === 403) &&
+      (errors.platform?.status === 401 || errors.platform?.status === 403)) ||
+      /invalid credentials/i.test(message)) {
+      const nextError = 'Email or password is incorrect.';
+      setError(nextError);
+      throw new Error(nextError);
+    }
+    const nextError = 'Sign-in is temporarily unavailable. Please try again later.';
+    setError(nextError);
+    throw new Error(nextError);
   }
 
   async function handleSignup(payload) {
