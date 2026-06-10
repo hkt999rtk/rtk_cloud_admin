@@ -21,10 +21,27 @@ const (
 	platformDashboardSourceUnavailable  = "unavailable"
 	platformDashboardSourceEmpty        = "empty"
 	platformDashboardSourceStale        = "stale"
+	platformDashboardSourceUnmonitored  = "unmonitored"
 
 	platformDashboardPrometheusSource = "prometheus"
 	platformDashboardReadModelSource  = "admin_read_models"
 )
+
+var platformDashboardServerResources = []struct {
+	ID       string
+	Label    string
+	Role     string
+	NodeRole string
+}{
+	{ID: "edge", Label: "Edge", Role: "Video Cloud gateway", NodeRole: "edge"},
+	{ID: "api", Label: "API", Role: "Video Cloud API", NodeRole: "api"},
+	{ID: "infra", Label: "Infra", Role: "PostgreSQL, Redis, Prometheus", NodeRole: "infra"},
+	{ID: "mqtt", Label: "MQTT", Role: "EMQX broker", NodeRole: "mqtt"},
+	{ID: "coturn", Label: "Coturn", Role: "TURN relay", NodeRole: "coturn"},
+	{ID: "account-manager", Label: "Account Manager", Role: "Account Manager", NodeRole: "account-manager"},
+	{ID: "cloud-admin", Label: "Cloud Admin", Role: "Admin Console", NodeRole: "admin"},
+	{ID: "cloud-logger", Label: "Cloud Logger", Role: "Log ingestion", NodeRole: "cloud-logger"},
+}
 
 var platformDashboardPrometheusQueries = []prometheusQueryDefinition{
 	{
@@ -207,6 +224,7 @@ func (s *Server) platformDashboard(ctx context.Context, summary contracts.Summar
 				},
 			}),
 			ServiceScrapeHealth: buildPlatformDashboardServiceScrapeHealth(queries),
+			ServerResources:     buildPlatformDashboardServerResources(platformDashboardQueriesByID(queries)),
 			OperationRisk:       buildPlatformDashboardOperationRisk(summary, operations),
 			Sources: map[string]contracts.PlatformDashboardSource{
 				platformDashboardPrometheusSource: source,
@@ -259,6 +277,7 @@ func (s *Server) platformDashboard(ctx context.Context, summary contracts.Summar
 		Summary:             summary,
 		KPIs:                buildPlatformDashboardKPIs(summary, queriesByID),
 		ServiceScrapeHealth: buildPlatformDashboardServiceScrapeHealth(queries),
+		ServerResources:     buildPlatformDashboardServerResources(queriesByID),
 		OperationRisk:       buildPlatformDashboardOperationRisk(summary, operations),
 		Sources: map[string]contracts.PlatformDashboardSource{
 			platformDashboardPrometheusSource: source,
@@ -273,6 +292,7 @@ func platformDashboardPanelSources(adminSource, prometheusSource contracts.Platf
 	return map[string]contracts.PlatformDashboardSource{
 		"kpis":                  mixedPanelSource(adminSource, prometheusSource),
 		"service_scrape_health": prometheusSource,
+		"server_resources":      prometheusSource,
 		"operation_risk":        adminSource,
 	}
 }
@@ -353,6 +373,68 @@ func buildPlatformDashboardServiceScrapeHealth(queries []contracts.PlatformDashb
 		groups[i].Status = platformDashboardScrapeGroupStatus(groups[i])
 	}
 	return groups
+}
+
+func buildPlatformDashboardServerResources(queriesByID map[string]contracts.PlatformDashboardPrometheusQuery) []contracts.PlatformDashboardServerResource {
+	cpu := queriesByID["infra_cpu_utilization_percent"]
+	memory := queriesByID["infra_memory_utilization_percent"]
+	disk := queriesByID["infra_disk_utilization_percent"]
+	rows := make([]contracts.PlatformDashboardServerResource, 0, len(platformDashboardServerResources))
+	for _, server := range platformDashboardServerResources {
+		row := contracts.PlatformDashboardServerResource{
+			ID:           server.ID,
+			Label:        server.Label,
+			Role:         server.Role,
+			Status:       platformDashboardSourceUnmonitored,
+			SourceStatus: platformDashboardServerResourceSourceStatus(cpu, memory, disk),
+			CheckedAt:    firstNonEmpty(cpu.CheckedAt, memory.CheckedAt, disk.CheckedAt),
+		}
+		if row.SourceStatus == platformDashboardSourceConfigured || row.SourceStatus == platformDashboardSourceStale || row.SourceStatus == platformDashboardSourceEmpty {
+			row.CPUPercent = prometheusSeriesValueForRole(cpu, server.NodeRole)
+			row.MemoryPercent = prometheusSeriesValueForRole(memory, server.NodeRole)
+			row.DiskPercent = prometheusSeriesValueForRole(disk, server.NodeRole)
+			if row.CPUPercent != nil || row.MemoryPercent != nil || row.DiskPercent != nil {
+				row.SourceStatus = combinedPrometheusQueryStatus(cpu, memory, disk)
+				row.Status = platformDashboardServerResourceStatus(row)
+			} else {
+				row.SourceStatus = platformDashboardSourceUnmonitored
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+func platformDashboardServerResourceSourceStatus(queries ...contracts.PlatformDashboardPrometheusQuery) string {
+	status := combinedPrometheusQueryStatus(queries...)
+	if status == "" {
+		return platformDashboardSourceUnconfigured
+	}
+	return status
+}
+
+func platformDashboardServerResourceStatus(row contracts.PlatformDashboardServerResource) string {
+	if resourceMetricAtLeast(row.CPUPercent, 85) || resourceMetricAtLeast(row.MemoryPercent, 90) || resourceMetricAtLeast(row.DiskPercent, 90) {
+		return "critical"
+	}
+	if resourceMetricAtLeast(row.CPUPercent, 70) || resourceMetricAtLeast(row.MemoryPercent, 75) || resourceMetricAtLeast(row.DiskPercent, 75) {
+		return "warning"
+	}
+	return "ok"
+}
+
+func resourceMetricAtLeast(value *float64, threshold float64) bool {
+	return value != nil && *value >= threshold
+}
+
+func prometheusSeriesValueForRole(query contracts.PlatformDashboardPrometheusQuery, role string) *float64 {
+	for _, series := range query.Series {
+		if strings.EqualFold(series.Labels["role"], role) {
+			value := toTwoDecimal(series.Value)
+			return &value
+		}
+	}
+	return nil
 }
 
 func platformDashboardQueriesByID(queries []contracts.PlatformDashboardPrometheusQuery) map[string]contracts.PlatformDashboardPrometheusQuery {

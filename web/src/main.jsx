@@ -27,7 +27,7 @@ import {
 import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
-import { auditCoverageCopy, ssoProtocolLabel } from './platform-view.mjs';
+import { auditCoverageCopy, formatResourcePercent, resourceStatusLabel, resourceStatusTone, ssoProtocolLabel } from './platform-view.mjs';
 import {
   sourceAvailable,
   sourceMessage,
@@ -1565,6 +1565,7 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
   const source = dashboard?.sources?.prometheus || null;
   const kpis = dashboard?.kpis?.length ? dashboard.kpis : fallbackPlatformKPIs(summary);
   const serviceGroups = dashboard?.service_scrape_health || [];
+  const serverResources = dashboard?.server_resources || [];
   const risk = dashboard?.operation_risk || {
     open_operations: summary?.open_operations ?? 0,
     failed_operations: operations.filter((operation) => operation.state === 'failed').length,
@@ -1625,6 +1626,8 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
           </article>
         ))}
       </section>
+
+      <ServerResourceStatus resources={serverResources} source={dashboard?.panel_sources?.server_resources || source} />
 
       <section className="platform-dashboard-grid">
         <article className="panel platform-dashboard-panel">
@@ -1700,6 +1703,53 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
         <PlatformMetricPanel title="Infrastructure Health" rows={infrastructureRows} />
       </section>
     </section>
+  );
+}
+
+function ServerResourceStatus({ resources, source }) {
+  return (
+    <article className="panel platform-dashboard-panel server-resource-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Server Resource Status</h2>
+          <p>Per-server CPU, memory, and root disk usage from the admin Prometheus boundary.</p>
+        </div>
+        <SourceStatusPill source={source} />
+      </div>
+      <div className="server-resource-table-wrap">
+        <table className="server-resource-table">
+          <thead>
+            <tr>
+              <th>Server</th>
+              <th>Role / Service</th>
+              <th>CPU</th>
+              <th>Memory</th>
+              <th>Disk</th>
+              <th>Status</th>
+              <th>Last checked</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resources.map((resource) => (
+              <tr key={resource.id}>
+                <td><strong>{resource.label || resource.id}</strong></td>
+                <td>{resource.role || '-'}</td>
+                <td>{formatResourcePercent(resource.cpu_percent)}</td>
+                <td>{formatResourcePercent(resource.memory_percent)}</td>
+                <td>{formatResourcePercent(resource.disk_percent)}</td>
+                <td><StatusBadge value={resourceStatusTone(resource.status)} label={resourceStatusLabel(resource.status)} /></td>
+                <td>{resource.checked_at ? formatRelativeTime(resource.checked_at) : '-'}</td>
+              </tr>
+            ))}
+            {!resources.length ? (
+              <tr>
+                <td colSpan="7" className="empty-state">No server resource data available.</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </article>
   );
 }
 

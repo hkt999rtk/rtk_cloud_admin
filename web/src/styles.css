@@ -551,6 +551,48 @@ p {
   min-height: 256px;
 }
 
+.server-resource-panel {
+  min-height: 0;
+}
+
+.server-resource-table-wrap {
+  overflow-x: auto;
+}
+
+.server-resource-table {
+  border-collapse: collapse;
+  min-width: 760px;
+  width: 100%;
+}
+
+.server-resource-table th,
+.server-resource-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 11px 10px;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.server-resource-table th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.server-resource-table td {
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.server-resource-table td:nth-child(2) {
+  color: var(--muted);
+}
+
+.server-resource-table tr:last-child td {
+  border-bottom: 0;
+}
+
 .source-pill {
   background: #fff;
   border: 1px solid var(--line);
@@ -563,7 +605,8 @@ p {
 }
 
 .source-pill-unavailable,
-.source-pill-unconfigured {
+.source-pill-unconfigured,
+.source-pill-unmonitored {
   background: #fff8f1;
   border-color: rgba(180, 35, 24, 0.2);
   color: #7c3f06;
@@ -2650,6 +2693,13 @@ th {
 .status-unknown {
   background: rgba(37, 56, 76, 0.08);
   color: var(--navy);
+}
+
+.status-unavailable,
+.status-unmonitored,
+.status-unconfigured {
+  background: rgba(37, 56, 76, 0.08);
+  color: var(--muted);
 }
 
 .status-active,

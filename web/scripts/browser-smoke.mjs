@@ -268,6 +268,16 @@ const platformDashboard = {
     { id: 'broker', name: 'Broker', status: 'ok', targets_up: 2, targets_down: 0, targets_total: 2, source_status: 'configured' },
     { id: 'gateway', name: 'Gateway', status: 'ok', targets_up: 2, targets_down: 0, targets_total: 2, source_status: 'configured' },
   ],
+  server_resources: [
+    { id: 'edge', label: 'Edge', role: 'Video Cloud gateway', cpu_percent: 18, memory_percent: 52, disk_percent: 41, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'api', label: 'API', role: 'Video Cloud API', cpu_percent: 72, memory_percent: 61, disk_percent: 55, status: 'warning', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'infra', label: 'Infra', role: 'PostgreSQL, Redis, Prometheus', cpu_percent: 34, memory_percent: 91, disk_percent: 78, status: 'critical', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'mqtt', label: 'MQTT', role: 'EMQX broker', cpu_percent: 28, memory_percent: 44, disk_percent: 22, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'coturn', label: 'Coturn', role: 'TURN relay', status: 'unmonitored', source_status: 'unmonitored', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'account-manager', label: 'Account Manager', role: 'Account Manager', status: 'unmonitored', source_status: 'unmonitored', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'cloud-admin', label: 'Cloud Admin', role: 'Admin Console', cpu_percent: 16, memory_percent: 38, disk_percent: 19, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'cloud-logger', label: 'Cloud Logger', role: 'Log ingestion', status: 'unmonitored', source_status: 'unmonitored', checked_at: '2026-05-13T11:59:00Z' },
+  ],
   operation_risk: {
     open_operations: 1,
     failed_operations: 1,
@@ -281,6 +291,7 @@ const platformDashboard = {
   panel_sources: {
     kpis: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
     service_scrape_health: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    server_resources: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
     operation_risk: { source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
   },
   prometheus: {

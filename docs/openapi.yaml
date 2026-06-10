@@ -1522,7 +1522,7 @@ components:
           format: date-time
     PlatformDashboard:
       type: object
-      required: [summary, kpis, service_scrape_health, operation_risk, sources, panel_sources, prometheus]
+      required: [summary, kpis, service_scrape_health, server_resources, operation_risk, sources, panel_sources, prometheus]
       properties:
         summary:
           $ref: "#/components/schemas/Summary"
@@ -1534,6 +1534,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PlatformDashboardServiceScrapeHealth"
+        server_resources:
+          type: array
+          description: Sanitized per-server CPU, memory, and root-disk status. Raw Prometheus instance labels and IP addresses are not exposed.
+          items:
+            $ref: "#/components/schemas/PlatformDashboardServerResource"
         operation_risk:
           $ref: "#/components/schemas/PlatformDashboardOperationRisk"
         sources:
@@ -1552,7 +1557,7 @@ components:
       properties:
         source_status:
           type: string
-          enum: [configured, unconfigured, unavailable, empty, stale]
+          enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
         source_message:
           type: string
         checked_at:
@@ -1579,7 +1584,7 @@ components:
           format: double
         source_status:
           type: string
-          enum: [configured, unconfigured, unavailable, empty, stale]
+          enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
     PlatformDashboardServiceScrapeHealth:
       type: object
       required: [id, name, status, targets_up, targets_down, targets_total, source_status]
@@ -1600,7 +1605,39 @@ components:
           type: integer
         source_status:
           type: string
-          enum: [configured, unconfigured, unavailable, empty, stale]
+          enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
+    PlatformDashboardServerResource:
+      type: object
+      required: [id, label, role, status, source_status]
+      properties:
+        id:
+          type: string
+          enum: [edge, api, infra, mqtt, coturn, account-manager, cloud-admin, cloud-logger]
+        label:
+          type: string
+        role:
+          type: string
+        cpu_percent:
+          type: number
+          format: double
+          nullable: true
+        memory_percent:
+          type: number
+          format: double
+          nullable: true
+        disk_percent:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [ok, warning, critical, unmonitored]
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
+        checked_at:
+          type: string
+          format: date-time
     PlatformDashboardOperationRisk:
       type: object
       required: [open_operations, failed_operations, dead_lettered_operations, source_status]
@@ -1666,7 +1703,7 @@ components:
       properties:
         labels:
           type: object
-          description: Allowlisted Prometheus labels only: job, service, and role.
+          description: "Allowlisted Prometheus labels only: job, service, and role."
           additionalProperties:
             type: string
         value:

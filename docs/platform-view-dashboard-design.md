@@ -85,6 +85,9 @@ Cross-tenant operating status for Realtek Platform Admins.
 
 [Tenants] [Devices Online] [Open Operations] [Scrape Targets Down]
 
+Server Resource Status
+| Server | Role / Service | CPU | memory | disk | status | last checked |
+
 Service & Scrape Health
 | Account Manager | Video Cloud API | Cloud Admin | Prometheus | SQLite |
 
@@ -174,6 +177,27 @@ aggregated health groups and drill-down rows.
 | Scrape duration | `scrape_duration_seconds` | Warning only when unusually high. |
 | Samples scraped | `scrape_samples_scraped` | Support detail; not a primary KPI. |
 
+### Server Resource Status
+
+The first dashboard viewport includes a per-server table for the current
+staging/server VM inventory:
+
+`edge`, `api`, `infra`, `mqtt`, `coturn`, `account-manager`, `cloud-admin`, and
+`cloud-logger`.
+
+| Metric | Prometheus query shape | UI treatment |
+| --- | --- | --- |
+| CPU | Node exporter idle rate converted to utilization by sanitized `role` | Show percent per server. Warning at 70%, critical at 85%. |
+| Memory | `1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes` by sanitized `role` | Show percent per server. Warning at 75%, critical at 90%. |
+| Disk | Root filesystem utilization by sanitized `role` | Show percent per server. Warning at 75%, critical at 90%. |
+
+Rows are always rendered for the known server inventory. Servers without
+resource metrics, such as coturn until private node-exporter scraping is added,
+are shown as `Unmonitored` instead of being hidden. The browser receives only
+sanitized server ids, labels, roles, percentages, status, source status, and
+checked timestamp; raw Prometheus `instance` labels and IP addresses are not
+part of the UI contract.
+
 ### Runtime Health
 
 | Metric | Prometheus query shape | UI treatment |
@@ -209,9 +233,9 @@ aggregated health groups and drill-down rows.
 
 | Metric group | Query approach | UI treatment |
 | --- | --- | --- |
-| CPU | Node exporter `node_cpu_*` aggregated by `role` | Show role-level utilization only. |
-| Memory | Node exporter memory available/total by `role` | Show role-level utilization only. |
-| Disk | Node filesystem utilization by `role` and mount | Show warning for high root/data utilization. |
+| CPU | Node exporter `node_cpu_*` aggregated by `role` | Summarize the Server Resource Status table. |
+| Memory | Node exporter memory available/total by `role` | Summarize the Server Resource Status table. |
+| Disk | Node filesystem utilization by `role` and mount | Summarize the Server Resource Status table. |
 | nginx | `nginx_up`, `nginx_connections_*`, `nginx_http_requests_total` | Gateway status summary. |
 | PostgreSQL | `up{job="postgres"}` plus exporter-specific `pg_*` detail | Primary card is availability; deep DB charts remain Grafana/SRE. |
 | Redis | `up{job="redis"}` plus exporter-specific `redis_*` detail | Primary card is availability. |
@@ -267,7 +291,9 @@ Implementation requirements:
 - The first viewport shows tenant/device footprint, open operation risk, and
   scrape health.
 - Prometheus-backed panels clearly distinguish configured, unavailable, stale,
-  and empty states.
+  empty, and unmonitored states.
+- The first viewport includes Server Resource Status with one row for every
+  known server and clear warning/critical/unmonitored treatment.
 - Prometheus data is grouped into product/SRE-friendly panels, not shown as raw
   target or series dumps.
 - No browser code calls Prometheus directly.
