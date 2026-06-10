@@ -589,8 +589,85 @@ p {
   color: var(--muted);
 }
 
+.network-throughput-cell {
+  display: grid;
+  gap: 3px;
+}
+
+.network-throughput-cell span {
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.network-throughput-cell span + span {
+  color: var(--muted);
+}
+
 .server-resource-table tr:last-child td {
   border-bottom: 0;
+}
+
+.resource-trends-controls {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+
+.resource-trends-controls > div {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.control-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.resource-trend-chart-panel {
+  min-height: 420px;
+}
+
+.chart-line-resource-1 {
+  stroke: var(--brand);
+}
+
+.chart-line-resource-2 {
+  stroke: #2563eb;
+}
+
+.chart-line-resource-3 {
+  stroke: #f79009;
+}
+
+.chart-line-resource-4 {
+  stroke: #7c3aed;
+}
+
+.legend-resource-1 {
+  background: var(--brand);
+}
+
+.legend-resource-2 {
+  background: #2563eb;
+}
+
+.legend-resource-3 {
+  background: #f79009;
+}
+
+.legend-resource-4 {
+  background: #7c3aed;
 }
 
 .source-pill {
@@ -2771,6 +2848,17 @@ th {
   .platform-dashboard .panel-head {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .resource-trends-controls,
+  .resource-trends-controls > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .resource-trends-controls .window-toggle {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   }
 
   .risk-strip {

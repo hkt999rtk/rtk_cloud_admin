@@ -154,6 +154,9 @@ Public and shared routes:
 - `GET /api/summary`: customer and platform dashboard summary.
 - `GET /api/admin/platform-dashboard`: platform-admin protected Platform
   Dashboard BFF contract with server-side allowlisted Prometheus queries.
+- `GET /api/admin/platform-resource-trends`: platform-admin protected rolling
+  24h, 7d, and 90d server resource trend contract with sanitized Prometheus
+  query_range output.
 - `GET /api/devices`: device list from cache/demo or upstream aggregation.
 - `GET /api/devices/{id}`: device detail.
 - `POST /api/devices/{id}/provision`: starts or simulates provisioning.

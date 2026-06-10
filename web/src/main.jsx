@@ -27,7 +27,7 @@ import {
 import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
-import { auditCoverageCopy, formatResourcePercent, resourceStatusLabel, resourceStatusTone, ssoProtocolLabel } from './platform-view.mjs';
+import { auditCoverageCopy, formatResourcePercent, formatThroughputBPS, resourceStatusLabel, resourceStatusTone, ssoProtocolLabel } from './platform-view.mjs';
 import {
   sourceAvailable,
   sourceMessage,
@@ -54,12 +54,15 @@ function App() {
   const [serviceLogs, setServiceLogs] = useState(null);
   const [audit, setAudit] = useState([]);
   const [platformDashboard, setPlatformDashboard] = useState(null);
+  const [platformResourceTrends, setPlatformResourceTrends] = useState(null);
   const [ssoProviders, setSSOProviders] = useState([]);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
   const [overviewWindow, setOverviewWindow] = useState('7d');
   const [streamWindow, setStreamWindow] = useState('7d');
+  const [platformResourceRange, setPlatformResourceRange] = useState('24h');
+  const [platformResourceMetric, setPlatformResourceMetric] = useState('network');
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -86,6 +89,7 @@ function App() {
     setServiceLogs(null);
     setAudit([]);
     setPlatformDashboard(null);
+    setPlatformResourceTrends(null);
     setSSOProviders([]);
     setFirmwareDistribution(null);
   }
@@ -170,6 +174,22 @@ function App() {
         }
         setAudit(nextAudit);
         setPlatformDashboard(nextPlatformDashboard);
+        if (useAdminApi && active === 'platform-resources') {
+          const nextResourceTrends = await fetchJSON(`/api/admin/platform-resource-trends?range=${platformResourceRange}`)
+            .catch((err) => {
+              if (err.isAuthError) throw err;
+              return {
+                range: platformResourceRange,
+                source: { source_status: 'unavailable', source_message: err.message || 'Resource trends are unavailable.' },
+                series: [],
+                summaries: [],
+              };
+            });
+          if (!alive) return;
+          setPlatformResourceTrends(nextResourceTrends);
+        } else {
+          setPlatformResourceTrends(null);
+        }
         if (useAdminApi && active === 'platform-sso') {
           const nextSSOProviders = await fetchJSON('/api/admin/sso/providers');
           if (!alive) return;
@@ -236,6 +256,7 @@ function App() {
           setHealth([]);
           setServiceLogs(null);
           setAudit([]);
+          setPlatformResourceTrends(null);
           setSSOProviders([]);
           setFirmwareDistribution(null);
           setFleetHealth(null);
@@ -251,7 +272,7 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
+  }, [active, isLoginRoute, isPublicRoute, overviewWindow, platformResourceRange, refreshTick, streamWindow]);
 
   useEffect(() => {
     if (!isPublicRoute || isLoginRoute) return;
@@ -264,6 +285,7 @@ function App() {
     setHealth([]);
     setServiceLogs(null);
     setAudit([]);
+    setPlatformResourceTrends(null);
     setSSOProviders([]);
     setFirmwareDistribution(null);
     setFleetHealth(null);
@@ -633,6 +655,16 @@ function App() {
           />
         ) : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} /> : null}
+        {!needsPlatformAccess && active === 'platform-resources' ? (
+          <PlatformResourceTrends
+            trends={platformResourceTrends}
+            range={platformResourceRange}
+            setRange={setPlatformResourceRange}
+            metric={platformResourceMetric}
+            setMetric={setPlatformResourceMetric}
+            loading={loading}
+          />
+        ) : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
         {!needsPlatformAccess && active === 'platform-logs' ? <PlatformServiceLogs logs={serviceLogs} loading={loading} /> : null}
         {!needsPlatformAccess && active === 'platform-sso' ? (
@@ -1758,7 +1790,7 @@ function ServerResourceStatus({ resources, source }) {
       <div className="panel-head">
         <div>
           <h2>Server Resource Status</h2>
-          <p>Per-server CPU, memory, and root disk usage from the admin Prometheus boundary.</p>
+          <p>Per-server CPU, memory, root disk, and network throughput from the admin Prometheus boundary.</p>
         </div>
         <SourceStatusPill source={source} />
       </div>
@@ -1771,6 +1803,7 @@ function ServerResourceStatus({ resources, source }) {
               <th>CPU</th>
               <th>Memory</th>
               <th>Disk</th>
+              <th>Network</th>
               <th>Status</th>
               <th>Last checked</th>
             </tr>
@@ -1783,13 +1816,19 @@ function ServerResourceStatus({ resources, source }) {
                 <td>{formatResourcePercent(resource.cpu_percent)}</td>
                 <td>{formatResourcePercent(resource.memory_percent)}</td>
                 <td>{formatResourcePercent(resource.disk_percent)}</td>
+                <td>
+                  <span className="network-throughput-cell">
+                    <span>In {formatThroughputBPS(resource.network_in_bps)}</span>
+                    <span>Out {formatThroughputBPS(resource.network_out_bps)}</span>
+                  </span>
+                </td>
                 <td><StatusBadge value={resourceStatusTone(resource.status)} label={resourceStatusLabel(resource.status)} /></td>
                 <td>{resource.checked_at ? formatRelativeTime(resource.checked_at) : '-'}</td>
               </tr>
             ))}
             {!resources.length ? (
               <tr>
-                <td colSpan="7" className="empty-state">No server resource data available.</td>
+                <td colSpan="8" className="empty-state">No server resource data available.</td>
               </tr>
             ) : null}
           </tbody>
@@ -1817,6 +1856,112 @@ function PlatformMetricPanel({ title, rows, secondary = false }) {
         ))}
       </div>
     </article>
+  );
+}
+
+function PlatformResourceTrends({ trends, range, setRange, metric, setMetric, loading }) {
+  const source = trends?.source || { source_status: loading ? 'empty' : 'unconfigured' };
+  const chart = useMemo(() => buildPlatformResourceTrendChart(trends, metric), [trends, metric]);
+  const summaryRows = trends?.summaries || [];
+  return (
+    <section className="platform-dashboard resource-trends-page">
+      <div className="platform-dashboard-head">
+        <div>
+          <h2>Resource Trends</h2>
+          <p>Historical server CPU, memory, disk, and network usage for Platform Admins.</p>
+        </div>
+        <SourceStatusPill source={source} />
+      </div>
+
+      <section className="resource-trends-controls">
+        <div>
+          <span className="control-label">Range</span>
+          <WindowToggle value={range} onChange={setRange} label="Resource trend range" options={['24h', '7d', '90d']} disabled={loading} />
+        </div>
+        <div>
+          <span className="control-label">Metric</span>
+          <WindowToggle value={metric} onChange={setMetric} label="Resource trend metric" options={['cpu', 'memory', 'disk', 'network']} disabled={loading} />
+        </div>
+      </section>
+
+      <article className="panel platform-dashboard-panel resource-trend-chart-panel">
+        <div className="panel-head">
+          <div>
+            <h2>{resourceTrendMetricTitle(metric)}</h2>
+            <p>{resourceTrendMetricSubtitle(metric, trends?.range || range)}</p>
+          </div>
+          <StatusBadge value={resourceStatusTone(source.source_status)} label={resourceStatusLabel(source.source_status)} />
+        </div>
+        {chart.series.length ? (
+          <>
+            <svg viewBox="0 0 720 300" className="trend-chart resource-trend-chart" role="img" aria-label={`${resourceTrendMetricTitle(metric)} trend chart`}>
+              {chart.grid.map((y) => <line key={y} className="chart-grid-line" x1="52" x2="676" y1={y} y2={y} />)}
+              <line className="chart-axis-line" x1="52" x2="676" y1="248" y2="248" />
+              {chart.series.map((series) => (
+                <polyline key={series.key} className={`chart-line ${series.className}`} points={series.points} />
+              ))}
+              {chart.labels.map((label) => (
+                <text key={`${label.text}-${label.x}`} className="chart-axis-label" x={label.x} y="278" textAnchor="middle">{label.text}</text>
+              ))}
+              <text className="chart-label" x="52" y="24">{chart.maxLabel}</text>
+              <text className="chart-label" x="52" y="244">0</text>
+            </svg>
+            <div className="chart-legend">
+              {chart.series.map((series) => (
+                <span key={series.key}><i className={`legend-line ${series.legendClass}`} />{series.label}</span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="empty-state">{source.source_message || 'No resource trend data available for this range.'}</p>
+        )}
+      </article>
+
+      <article className="panel platform-dashboard-panel server-resource-panel">
+        <div className="panel-head">
+          <div>
+            <h2>Server Trend Summary</h2>
+            <p>Current, average, p95, and max values for the selected range.</p>
+          </div>
+        </div>
+        <div className="server-resource-table-wrap">
+          <table className="server-resource-table resource-summary-table">
+            <thead>
+              <tr>
+                <th>Server</th>
+                <th>Role / Service</th>
+                <th>Current</th>
+                <th>Avg</th>
+                <th>P95</th>
+                <th>Max</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summaryRows.map((row) => {
+                const metricSummary = resourceTrendSummaryForMetric(row, metric);
+                return (
+                  <tr key={row.server_id}>
+                    <td><strong>{row.label || row.server_id}</strong></td>
+                    <td>{row.role || '-'}</td>
+                    <td>{formatResourceTrendValue(metricSummary.current, metric)}</td>
+                    <td>{formatResourceTrendValue(metricSummary.avg, metric)}</td>
+                    <td>{formatResourceTrendValue(metricSummary.p95, metric)}</td>
+                    <td>{formatResourceTrendValue(metricSummary.max, metric)}</td>
+                    <td><StatusBadge value={resourceStatusTone(row.source_status)} label={resourceStatusLabel(row.source_status)} /></td>
+                  </tr>
+                );
+              })}
+              {!summaryRows.length ? (
+                <tr>
+                  <td colSpan="7" className="empty-state">No server trend summary available.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
   );
 }
 
@@ -1888,6 +2033,42 @@ function formatCompactNumber(value) {
   if (Math.abs(number) >= 1000) return number.toLocaleString(undefined, { maximumFractionDigits: 0 });
   if (Math.abs(number) >= 10) return number.toLocaleString(undefined, { maximumFractionDigits: 1 });
   return number.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function resourceTrendMetricTitle(metric) {
+  return {
+    cpu: 'CPU Utilization',
+    memory: 'Memory Utilization',
+    disk: 'Root Disk Utilization',
+    network: 'Network Throughput',
+  }[metric] || 'Resource Trend';
+}
+
+function resourceTrendMetricSubtitle(metric, range) {
+  if (metric === 'network') return `Inbound and outbound throughput over ${String(range || '24h').toUpperCase()}.`;
+  return `Top servers by max ${resourceTrendMetricTitle(metric).toLowerCase()} over ${String(range || '24h').toUpperCase()}.`;
+}
+
+function resourceTrendSummaryForMetric(row, metric) {
+  if (metric === 'cpu') return row.cpu_percent || {};
+  if (metric === 'memory') return row.memory_percent || {};
+  if (metric === 'disk') return row.disk_percent || {};
+  if (metric === 'network') {
+    const hasNetwork = row.network_in_bps?.current !== undefined || row.network_out_bps?.current !== undefined;
+    if (!hasNetwork) return {};
+    return {
+      current: Number(row.network_in_bps?.current || 0) + Number(row.network_out_bps?.current || 0),
+      avg: Number(row.network_in_bps?.avg || 0) + Number(row.network_out_bps?.avg || 0),
+      p95: Number(row.network_in_bps?.p95 || 0) + Number(row.network_out_bps?.p95 || 0),
+      max: Number(row.network_in_bps?.max || 0) + Number(row.network_out_bps?.max || 0),
+    };
+  }
+  return {};
+}
+
+function formatResourceTrendValue(value, metric) {
+  if (metric === 'network') return formatThroughputBPS(value);
+  return formatResourcePercent(value);
 }
 
 function PlatformHealth({ summary, health }) {
@@ -2124,10 +2305,10 @@ function MetricCard({ icon, label, value, hint, tone = 'neutral' }) {
   );
 }
 
-function WindowToggle({ value, onChange, label, disabled = false }) {
+function WindowToggle({ value, onChange, label, disabled = false, options = ['7d', '30d'] }) {
   return (
     <div className="window-toggle" role="tablist" aria-label={label}>
-      {['7d', '30d'].map((option) => (
+      {options.map((option) => (
         <button
           key={option}
           type="button"
@@ -3598,6 +3779,85 @@ function formatRelativeTime(iso) {
   if (hours < 24) return deltaSeconds >= 0 ? `${hours}h ago` : `in ${hours}h`;
   const days = Math.round(hours / 24);
   return deltaSeconds >= 0 ? `${days}d ago` : `in ${days}d`;
+}
+
+function buildPlatformResourceTrendChart(trends, metric) {
+  const series = trends?.series || [];
+  const selected = resourceTrendChartSeries(series, metric);
+  if (!selected.length) {
+    return { series: [], labels: [], grid: [68, 113, 158, 203], maxLabel: '0' };
+  }
+  const allValues = selected.flatMap((item) => item.points.map((point) => Number(point.value || 0)));
+  const maxValue = Math.max(...allValues, 1);
+  const width = 624;
+  const top = 32;
+  const bottom = 248;
+  const chartSeries = selected.map((item, index) => {
+    const points = item.points.map((point, pointIndex) => {
+      const x = 52 + (pointIndex * width) / Math.max(item.points.length - 1, 1);
+      const y = bottom - (Number(point.value || 0) / maxValue) * (bottom - top);
+      return `${x},${y}`;
+    }).join(' ');
+    return {
+      key: item.key,
+      label: item.label,
+      points,
+      className: `chart-line-resource-${index + 1}`,
+      legendClass: `legend-resource-${index + 1}`,
+    };
+  });
+  const referencePoints = selected[0]?.points || [];
+  const labelStep = Math.max(1, Math.ceil(referencePoints.length / 6));
+  const labels = referencePoints
+    .filter((_, index) => index % labelStep === 0 || index === referencePoints.length - 1)
+    .map((point) => ({
+      text: formatTrendLabel(point.timestamp),
+      x: 52 + (referencePoints.indexOf(point) * width) / Math.max(referencePoints.length - 1, 1),
+    }));
+  return {
+    series: chartSeries,
+    labels,
+    grid: [68, 113, 158, 203],
+    maxLabel: metric === 'network' ? formatThroughputBPS(maxValue) : formatResourcePercent(maxValue),
+  };
+}
+
+function resourceTrendChartSeries(series, metric) {
+  if (metric === 'network') {
+    return [
+      aggregateResourceTrendSeries(series, 'network_in_bps', 'Total inbound'),
+      aggregateResourceTrendSeries(series, 'network_out_bps', 'Total outbound'),
+    ].filter((item) => item.points.length);
+  }
+  const metricID = {
+    cpu: 'cpu_percent',
+    memory: 'memory_percent',
+    disk: 'disk_percent',
+  }[metric];
+  return series
+    .filter((item) => item.metric === metricID && item.points?.length)
+    .map((item) => ({
+      key: `${item.metric}-${item.server_id}`,
+      label: item.label || item.server_id,
+      points: item.points,
+      max: Math.max(...item.points.map((point) => Number(point.value || 0))),
+    }))
+    .sort((a, b) => b.max - a.max)
+    .slice(0, 4);
+}
+
+function aggregateResourceTrendSeries(series, metric, label) {
+  const totals = new Map();
+  for (const item of series) {
+    if (item.metric !== metric || !item.points?.length) continue;
+    for (const point of item.points) {
+      totals.set(point.timestamp, (totals.get(point.timestamp) || 0) + Number(point.value || 0));
+    }
+  }
+  const points = [...totals.entries()]
+    .sort(([a], [b]) => String(a).localeCompare(String(b)))
+    .map(([timestamp, value]) => ({ timestamp, value }));
+  return { key: metric, label, points };
 }
 
 function buildFleetTrendChart(trend) {

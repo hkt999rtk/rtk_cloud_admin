@@ -161,9 +161,54 @@ type PlatformDashboardServerResource struct {
 	CPUPercent    *float64 `json:"cpu_percent,omitempty"`
 	MemoryPercent *float64 `json:"memory_percent,omitempty"`
 	DiskPercent   *float64 `json:"disk_percent,omitempty"`
+	NetworkInBPS  *float64 `json:"network_in_bps,omitempty"`
+	NetworkOutBPS *float64 `json:"network_out_bps,omitempty"`
 	Status        string   `json:"status"`
 	SourceStatus  string   `json:"source_status"`
 	CheckedAt     string   `json:"checked_at,omitempty"`
+}
+
+type PlatformResourceTrends struct {
+	Range       string                         `json:"range"`
+	StepSeconds int64                          `json:"step_seconds"`
+	CheckedAt   string                         `json:"checked_at,omitempty"`
+	Source      PlatformDashboardSource        `json:"source"`
+	Series      []PlatformResourceTrendSeries  `json:"series"`
+	Summaries   []PlatformResourceTrendSummary `json:"summaries"`
+}
+
+type PlatformResourceTrendSeries struct {
+	ServerID     string                       `json:"server_id"`
+	Label        string                       `json:"label"`
+	Role         string                       `json:"role"`
+	Metric       string                       `json:"metric"`
+	Unit         string                       `json:"unit"`
+	SourceStatus string                       `json:"source_status"`
+	Points       []PlatformResourceTrendPoint `json:"points"`
+}
+
+type PlatformResourceTrendPoint struct {
+	Timestamp string  `json:"timestamp"`
+	Value     float64 `json:"value"`
+}
+
+type PlatformResourceTrendSummary struct {
+	ServerID      string                        `json:"server_id"`
+	Label         string                        `json:"label"`
+	Role          string                        `json:"role"`
+	SourceStatus  string                        `json:"source_status"`
+	CPUPercent    PlatformResourceMetricSummary `json:"cpu_percent"`
+	MemoryPercent PlatformResourceMetricSummary `json:"memory_percent"`
+	DiskPercent   PlatformResourceMetricSummary `json:"disk_percent"`
+	NetworkInBPS  PlatformResourceMetricSummary `json:"network_in_bps"`
+	NetworkOutBPS PlatformResourceMetricSummary `json:"network_out_bps"`
+}
+
+type PlatformResourceMetricSummary struct {
+	Current *float64 `json:"current,omitempty"`
+	Avg     *float64 `json:"avg,omitempty"`
+	P95     *float64 `json:"p95,omitempty"`
+	Max     *float64 `json:"max,omitempty"`
 }
 
 type PlatformDashboardOperationRisk struct {

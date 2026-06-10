@@ -269,10 +269,10 @@ const platformDashboard = {
     { id: 'gateway', name: 'Gateway', status: 'ok', targets_up: 2, targets_down: 0, targets_total: 2, source_status: 'configured' },
   ],
   server_resources: [
-    { id: 'edge', label: 'Edge', role: 'Video Cloud gateway', cpu_percent: 18, memory_percent: 52, disk_percent: 41, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
-    { id: 'api', label: 'API', role: 'Video Cloud API', cpu_percent: 72, memory_percent: 61, disk_percent: 55, status: 'warning', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
-    { id: 'infra', label: 'Infra', role: 'PostgreSQL, Redis, Prometheus', cpu_percent: 34, memory_percent: 91, disk_percent: 78, status: 'critical', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
-    { id: 'mqtt', label: 'MQTT', role: 'EMQX broker', cpu_percent: 28, memory_percent: 44, disk_percent: 22, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'edge', label: 'Edge', role: 'Video Cloud gateway', cpu_percent: 18, memory_percent: 52, disk_percent: 41, network_in_bps: 18200000, network_out_bps: 6100000, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'api', label: 'API', role: 'Video Cloud API', cpu_percent: 72, memory_percent: 61, disk_percent: 55, network_in_bps: 4800000, network_out_bps: 9400000, status: 'warning', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'infra', label: 'Infra', role: 'PostgreSQL, Redis, Prometheus', cpu_percent: 34, memory_percent: 91, disk_percent: 78, network_in_bps: 22000000, network_out_bps: 14800000, status: 'critical', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
+    { id: 'mqtt', label: 'MQTT', role: 'EMQX broker', cpu_percent: 28, memory_percent: 44, disk_percent: 22, network_in_bps: 31500000, network_out_bps: 38200000, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
     { id: 'coturn', label: 'Coturn', role: 'TURN relay', status: 'unmonitored', source_status: 'unmonitored', checked_at: '2026-05-13T11:59:00Z' },
     { id: 'account-manager', label: 'Account Manager', role: 'Account Manager', status: 'unmonitored', source_status: 'unmonitored', checked_at: '2026-05-13T11:59:00Z' },
     { id: 'cloud-admin', label: 'Cloud Admin', role: 'Admin Console', cpu_percent: 16, memory_percent: 38, disk_percent: 19, status: 'ok', source_status: 'configured', checked_at: '2026-05-13T11:59:00Z' },
@@ -312,8 +312,25 @@ const platformDashboard = {
       { id: 'infra_cpu_utilization_percent', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 42 }] },
       { id: 'infra_memory_utilization_percent', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 61 }] },
       { id: 'infra_disk_utilization_percent', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 55 }] },
+      { id: 'infra_network_in_bps', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 4800000 }] },
+      { id: 'infra_network_out_bps', source_status: 'configured', series: [{ labels: { role: 'api' }, value: 9400000 }] },
     ],
   },
+};
+
+const platformResourceTrends = {
+  range: '24h',
+  step_seconds: 300,
+  checked_at: '2026-05-13T12:00:00Z',
+  source: { source_status: 'configured', checked_at: '2026-05-13T12:00:00Z' },
+  series: [
+    { server_id: 'edge', label: 'Edge', role: 'Video Cloud gateway', metric: 'network_in_bps', unit: 'bps', source_status: 'configured', points: [{ timestamp: '2026-05-13T10:00:00Z', value: 12000000 }, { timestamp: '2026-05-13T11:00:00Z', value: 18200000 }] },
+    { server_id: 'edge', label: 'Edge', role: 'Video Cloud gateway', metric: 'network_out_bps', unit: 'bps', source_status: 'configured', points: [{ timestamp: '2026-05-13T10:00:00Z', value: 4200000 }, { timestamp: '2026-05-13T11:00:00Z', value: 6100000 }] },
+  ],
+  summaries: [
+    { server_id: 'edge', label: 'Edge', role: 'Video Cloud gateway', source_status: 'configured', network_in_bps: { current: 18200000, avg: 15100000, p95: 17900000, max: 18200000 }, network_out_bps: { current: 6100000, avg: 5150000, p95: 6000000, max: 6100000 } },
+    { server_id: 'coturn', label: 'Coturn', role: 'TURN relay', source_status: 'unmonitored', network_in_bps: {}, network_out_bps: {} },
+  ],
 };
 
 const customers = [{
@@ -399,6 +416,7 @@ async function installApiMocks(page, { sessionForPath } = {}) {
     if (pathName === '/api/fleet/stream-stats') return route.fulfill({ json: streamStats });
     if (pathName === '/api/fleet/firmware-distribution') return route.fulfill({ json: firmwareDistribution });
     if (pathName === '/api/admin/platform-dashboard') return route.fulfill({ json: platformDashboard });
+    if (pathName === '/api/admin/platform-resource-trends') return route.fulfill({ json: platformResourceTrends });
     if (pathName === '/api/admin/service-health') return route.fulfill({ json: platformHealth });
     if (pathName === '/api/admin/operations') return route.fulfill({ json: platformOperations });
     if (pathName === '/api/admin/audit') return route.fulfill({ json: audit });
@@ -500,6 +518,11 @@ async function runDesktopSmoke(page) {
   await expectText(page, 'Infrastructure Health');
   await screenshot(page, 'desktop-platform-dashboard.png');
 
+  await gotoAndAssert(page, '/admin/resources', 'Resource Trends');
+  await expectText(page, 'Network Throughput');
+  await expectText(page, 'Server Trend Summary');
+  await screenshot(page, 'desktop-platform-resource-trends.png');
+
   await gotoAndAssert(page, '/admin/ops', 'Operations');
   await expectText(page, 'Lifecycle operations');
   await expectText(page, 'Provisioning succeeded');
@@ -545,6 +568,14 @@ async function runMobileSmoke(browserContext) {
   await gotoAndAssert(page, '/admin', 'Platform Dashboard');
   await expectText(page, 'Tenant & Device Footprint');
   await screenshot(page, 'mobile-platform-dashboard.png');
+
+  await gotoAndAssert(page, '/admin/resources', 'Resource Trends');
+  await expectText(page, 'Server Trend Summary');
+  const resourceOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  if (resourceOverflow) {
+    throw new Error('Mobile Resource Trends view must not overflow horizontally.');
+  }
+  await screenshot(page, 'mobile-platform-resource-trends.png');
 
   await gotoAndAssert(page, '/signup', 'Sign up');
   await expectText(page, 'Create account');

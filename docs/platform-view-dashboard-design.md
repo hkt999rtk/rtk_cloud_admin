@@ -86,7 +86,7 @@ Cross-tenant operating status for Realtek Platform Admins.
 [Tenants] [Devices Online] [Open Operations] [Scrape Targets Down]
 
 Server Resource Status
-| Server | Role / Service | CPU | memory | disk | status | last checked |
+| Server | Role / Service | CPU | memory | disk | network in/out | status | last checked |
 
 Service & Scrape Health
 | Account Manager | Video Cloud API | Cloud Admin | Prometheus | SQLite |
@@ -95,7 +95,7 @@ Tenant & Device Footprint                         Operation Risk
 | Readiness distribution | top customer risks |    | open ops | failed ops | dead letters |
 
 Runtime Health                                    Infrastructure Health
-| request rate / 5xx / latency by service |       | CPU | memory | disk | nginx | postgres | redis | emqx |
+| request rate / 5xx / latency by service |       | CPU | memory | disk | network | nginx | postgres | redis | emqx |
 
 Business Signals                                  Recent Platform Activity
 | quota requests | eval signups | blob use |       | audit + ops links |
@@ -194,13 +194,33 @@ staging/server VM inventory:
 | CPU | Node exporter idle rate converted to utilization by sanitized `role` | Show percent per server. Warning at 70%, critical at 85%. |
 | Memory | `1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes` by sanitized `role` | Show percent per server. Warning at 75%, critical at 90%. |
 | Disk | Root filesystem utilization by sanitized `role` | Show percent per server. Warning at 75%, critical at 90%. |
+| Network | Node exporter receive/transmit byte counters filtered to physical host interfaces and converted to bits/sec by sanitized `role` | Show inbound/outbound throughput per server. v1 is observational and does not drive warning/critical status. |
 
 Rows are always rendered for the known server inventory. Servers without
 resource metrics, such as coturn until private node-exporter scraping is added,
 are shown as `Unmonitored` instead of being hidden. The browser receives only
-sanitized server ids, labels, roles, percentages, status, source status, and
-checked timestamp; raw Prometheus `instance` labels and IP addresses are not
-part of the UI contract.
+sanitized server ids, labels, roles, percentages, network throughput, status,
+source status, and checked timestamp; raw Prometheus `instance` labels,
+interface labels, and IP addresses are not part of the UI contract.
+
+### Resource Trends
+
+Platform View also includes a dedicated Resource Trends page at
+`/admin/resources`. The main dashboard remains a current-state command center;
+historical charting lives on this separate page to avoid turning the landing
+view into a chart wall.
+
+| Range | Step | Treatment |
+| --- | --- | --- |
+| `24h` | 5 minutes | Short-term incident and deployment validation window. |
+| `7d` | 1 hour | Weekly capacity and recurring spike review. |
+| `90d` | 1 day | Rolling 90-day quarter view for long-term trends. |
+
+The Resource Trends BFF uses Prometheus `query_range` server-side for CPU,
+memory, root disk, network inbound, and network outbound series. The UI shows
+top servers for CPU/memory/disk and total inbound/outbound for network, with
+per-server current, average, p95, and max summaries below the chart. Missing
+metrics keep the server row visible as `Unmonitored`.
 
 ### Runtime Health
 
@@ -240,6 +260,7 @@ part of the UI contract.
 | CPU | Node exporter `node_cpu_*` aggregated by `role` | Summarize the Server Resource Status table. |
 | Memory | Node exporter memory available/total by `role` | Summarize the Server Resource Status table. |
 | Disk | Node filesystem utilization by `role` and mount | Summarize the Server Resource Status table. |
+| Network | Node exporter receive/transmit counters aggregated by `role` | Summarize current throughput; historical charting is on Resource Trends. |
 | nginx | `nginx_up`, `nginx_connections_*`, `nginx_http_requests_total` | Gateway status summary. |
 | PostgreSQL | `up{job="postgres"}` plus exporter-specific `pg_*` detail | Primary card is availability; deep DB charts remain Grafana/SRE. |
 | Redis | `up{job="redis"}` plus exporter-specific `redis_*` detail | Primary card is availability. |
@@ -274,6 +295,8 @@ Add a small, allowlisted Platform metrics BFF surface instead of exposing
 Prometheus directly:
 
 - `GET /api/admin/platform-dashboard`: composed dashboard payload for the page.
+- `GET /api/admin/platform-resource-trends?range=24h|7d|90d`: sanitized
+  query_range payload for the Resource Trends page.
 - Optional `GET /api/admin/platform-dashboard/prometheus-status`: scrape target
   health summary for service-health drill-downs.
 

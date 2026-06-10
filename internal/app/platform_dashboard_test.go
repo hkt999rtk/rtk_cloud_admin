@@ -289,6 +289,8 @@ func TestAdminPlatformDashboardRepresentativeMetricFamilies(t *testing.T) {
 		"infra_cpu_utilization_percent",
 		"infra_memory_utilization_percent",
 		"infra_disk_utilization_percent",
+		"infra_network_in_bps",
+		"infra_network_out_bps",
 	} {
 		if queries[id].SourceStatus != "configured" {
 			t.Fatalf("%s source_status = %q, want configured", id, queries[id].SourceStatus)
@@ -320,6 +322,16 @@ func TestAdminPlatformDashboardBuildsSanitizedServerResources(t *testing.T) {
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"node","role":"edge","instance":"10.42.1.5:9100"},"value":[1780369304,"20"]},{"metric":{"job":"node","role":"api","instance":"10.42.1.10:9100"},"value":[1780369304,"50"]},{"metric":{"job":"node","role":"infra","instance":"10.42.1.30:9100"},"value":[1780369304,"91"]},{"metric":{"job":"node","role":"mqtt","instance":"10.42.1.40:9100"},"value":[1780369304,"76"]},{"metric":{"job":"node","role":"admin","instance":"10.42.1.60:9100"},"value":[1780369304,"30"]}]}}`))
 		case strings.Contains(query, "node_filesystem"):
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"node","role":"edge","instance":"10.42.1.5:9100"},"value":[1780369304,"10"]},{"metric":{"job":"node","role":"api","instance":"10.42.1.10:9100"},"value":[1780369304,"40"]},{"metric":{"job":"node","role":"infra","instance":"10.42.1.30:9100"},"value":[1780369304,"92"]},{"metric":{"job":"node","role":"mqtt","instance":"10.42.1.40:9100"},"value":[1780369304,"20"]},{"metric":{"job":"node","role":"admin","instance":"10.42.1.60:9100"},"value":[1780369304,"78"]}]}}`))
+		case strings.Contains(query, "node_network_receive"):
+			if strings.Contains(query, "device!~") == false {
+				t.Fatalf("network receive query did not filter interfaces: %s", query)
+			}
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"node","role":"edge","instance":"10.42.1.5:9100","device":"eth0"},"value":[1780369304,"18000000"]},{"metric":{"job":"node","role":"api","instance":"10.42.1.10:9100","device":"eth0"},"value":[1780369304,"4800000"]}]}}`))
+		case strings.Contains(query, "node_network_transmit"):
+			if strings.Contains(query, "device!~") == false {
+				t.Fatalf("network transmit query did not filter interfaces: %s", query)
+			}
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"node","role":"edge","instance":"10.42.1.5:9100","device":"eth0"},"value":[1780369304,"6100000"]},{"metric":{"job":"node","role":"api","instance":"10.42.1.10:9100","device":"eth0"},"value":[1780369304,"9400000"]}]}}`))
 		default:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app","instance":"10.42.1.10:18080"},"value":[1780369304,"1"]}]}}`))
 		}
@@ -333,6 +345,9 @@ func TestAdminPlatformDashboardBuildsSanitizedServerResources(t *testing.T) {
 	edge := serverResource(payload.ServerResources, "edge")
 	if edge.Status != "warning" || edge.CPUPercent == nil || *edge.CPUPercent != 71 {
 		t.Fatalf("edge resource = %+v, want warning CPU 71", edge)
+	}
+	if edge.NetworkInBPS == nil || *edge.NetworkInBPS != 18000000 || edge.NetworkOutBPS == nil || *edge.NetworkOutBPS != 6100000 {
+		t.Fatalf("edge network = in %v out %v, want 18000000/6100000", edge.NetworkInBPS, edge.NetworkOutBPS)
 	}
 	api := serverResource(payload.ServerResources, "api")
 	if api.Status != "critical" || api.CPUPercent == nil || *api.CPUPercent != 86 {
@@ -412,6 +427,95 @@ func TestAdminPlatformDashboardServerResourcesUnavailableWithoutPrometheus(t *te
 	}
 }
 
+func TestAdminPlatformResourceTrendsBuildsSanitizedSeriesAndSummaries(t *testing.T) {
+	t.Parallel()
+
+	seen := map[string]url.Values{}
+	prometheus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/query_range" {
+			t.Fatalf("path = %q, want /api/v1/query_range", r.URL.Path)
+		}
+		query := r.URL.Query().Get("query")
+		seen[query] = r.URL.Query()
+		metric := map[string]any{"job": "node", "role": "edge", "instance": "10.42.1.5:9100", "device": "eth0"}
+		values := []any{[]any{1780369200, "10"}, []any{1780369500, "20"}, []any{1780369800, "30"}}
+		if strings.Contains(query, "node_network_receive") {
+			values = []any{[]any{1780369200, "1000"}, []any{1780369500, "2000"}, []any{1780369800, "3000"}}
+		}
+		if strings.Contains(query, "node_network_transmit") {
+			values = []any{[]any{1780369200, "4000"}, []any{1780369500, "5000"}, []any{1780369800, "6000"}}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status": "success",
+			"data": map[string]any{
+				"resultType": "matrix",
+				"result": []map[string]any{{
+					"metric": metric,
+					"values": values,
+				}},
+			},
+		})
+	}))
+	defer prometheus.Close()
+
+	payload := getPlatformResourceTrendsForPrometheus(t, prometheus.URL, "7d")
+	if payload.Range != "7d" || payload.StepSeconds != 3600 {
+		t.Fatalf("range/step = %s/%d, want 7d/3600", payload.Range, payload.StepSeconds)
+	}
+	if payload.Source.SourceStatus != "configured" {
+		t.Fatalf("source = %q, want configured", payload.Source.SourceStatus)
+	}
+	if len(payload.Summaries) != 8 {
+		t.Fatalf("summary count = %d, want 8", len(payload.Summaries))
+	}
+	edge := resourceTrendSummary(payload.Summaries, "edge")
+	if edge.CPUPercent.Current == nil || *edge.CPUPercent.Current != 30 || edge.CPUPercent.P95 == nil || *edge.CPUPercent.P95 == 0 {
+		t.Fatalf("edge CPU summary = %+v, want current 30 and p95", edge.CPUPercent)
+	}
+	if edge.NetworkInBPS.Max == nil || *edge.NetworkInBPS.Max != 3000 || edge.NetworkOutBPS.Max == nil || *edge.NetworkOutBPS.Max != 6000 {
+		t.Fatalf("edge network summary = in %+v out %+v, want max 3000/6000", edge.NetworkInBPS, edge.NetworkOutBPS)
+	}
+	coturn := resourceTrendSummary(payload.Summaries, "coturn")
+	if coturn.SourceStatus != "unmonitored" {
+		t.Fatalf("coturn source status = %q, want unmonitored", coturn.SourceStatus)
+	}
+	if len(seen) != len(platformResourceTrendQueries) {
+		t.Fatalf("query_range count = %d, want %d", len(seen), len(platformResourceTrendQueries))
+	}
+	for query, values := range seen {
+		if values.Get("step") != "3600" {
+			t.Fatalf("%s step = %q, want 3600", query, values.Get("step"))
+		}
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	for _, leaked := range []string{"instance", "10.42.1.", "device", "eth0"} {
+		if strings.Contains(string(body), leaked) {
+			t.Fatalf("payload leaked disallowed label %q: %s", leaked, body)
+		}
+	}
+}
+
+func TestAdminPlatformResourceTrendsUnavailablePrometheusKeepsRows(t *testing.T) {
+	t.Parallel()
+
+	payload := getPlatformResourceTrendsForPrometheus(t, "http://127.0.0.1:1", "90d")
+	if payload.Range != "90d" || payload.StepSeconds != 86400 {
+		t.Fatalf("range/step = %s/%d, want 90d/86400", payload.Range, payload.StepSeconds)
+	}
+	if payload.Source.SourceStatus != "unavailable" {
+		t.Fatalf("source = %q, want unavailable", payload.Source.SourceStatus)
+	}
+	if len(payload.Summaries) != 8 {
+		t.Fatalf("summary count = %d, want 8", len(payload.Summaries))
+	}
+	if len(payload.Series) != len(platformResourceTrendQueries)*len(platformDashboardServerResources) {
+		t.Fatalf("series count = %d, want per metric/server unavailable series", len(payload.Series))
+	}
+}
+
 func TestAdminPlatformDashboardPrometheusConfiguredAndStale(t *testing.T) {
 	t.Parallel()
 
@@ -485,6 +589,33 @@ func getPlatformDashboardForPrometheus(t *testing.T, prometheusBaseURL string) c
 	return getPlatformDashboard(t, srv, session.ID)
 }
 
+func getPlatformResourceTrends(t *testing.T, srv http.Handler, sessionID string, trendRange string) contracts.PlatformResourceTrends {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/platform-resource-trends?range="+url.QueryEscape(trendRange), nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: sessionID})
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("platform resource trends status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var payload contracts.PlatformResourceTrends
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode platform resource trends: %v", err)
+	}
+	return payload
+}
+
+func getPlatformResourceTrendsForPrometheus(t *testing.T, prometheusBaseURL string, trendRange string) contracts.PlatformResourceTrends {
+	t.Helper()
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{Config: config.Config{VideoCloudPrometheusBaseURL: prometheusBaseURL}})
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	return getPlatformResourceTrends(t, srv, session.ID, trendRange)
+}
+
 func kpiValue(kpis []contracts.PlatformDashboardKPI, id string) float64 {
 	for _, kpi := range kpis {
 		if kpi.ID == id {
@@ -528,6 +659,15 @@ func serviceExporter(exporters []contracts.PlatformDashboardServiceExporter, id 
 		}
 	}
 	return contracts.PlatformDashboardServiceExporter{}
+}
+
+func resourceTrendSummary(summaries []contracts.PlatformResourceTrendSummary, id string) contracts.PlatformResourceTrendSummary {
+	for _, summary := range summaries {
+		if summary.ServerID == id {
+			return summary
+		}
+	}
+	return contracts.PlatformResourceTrendSummary{}
 }
 
 func TestPrometheusClientRejectsInvalidBaseURL(t *testing.T) {

@@ -110,6 +110,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/summary", s.apiSummary)
 	s.mux.HandleFunc("GET /api/admin/summary", s.apiAdminSummary)
 	s.mux.HandleFunc("GET /api/admin/platform-dashboard", s.apiAdminPlatformDashboard)
+	s.mux.HandleFunc("GET /api/admin/platform-resource-trends", s.apiAdminPlatformResourceTrends)
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
@@ -164,6 +165,7 @@ func (s *Server) routes() {
 		"/console/operations",
 		"/console/audit",
 		"/admin",
+		"/admin/resources",
 		"/admin/health",
 		"/admin/ops",
 		"/admin/operations",

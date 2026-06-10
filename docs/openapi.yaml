@@ -376,8 +376,8 @@ paths:
         Platform-admin protected dashboard boundary. The BFF composes existing
         admin read-model summary data, KPI strip, operation-risk data, grouped
         scrape health, and server-side allowlisted Prometheus queries for
-        runtime, cross-service, business, and infrastructure panels. Browser
-        clients never receive a raw Prometheus passthrough.
+        runtime, cross-service, business, infrastructure, and network panels.
+        Browser clients never receive a raw Prometheus passthrough.
       responses:
         "200":
           description: Platform Dashboard payload with per-source states.
@@ -390,6 +390,36 @@ paths:
         "403":
           $ref: "#/components/responses/PlainTextError"
         "502":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/admin/platform-resource-trends:
+    get:
+      tags: [Platform Admin]
+      summary: Platform server resource trend payload
+      description: |
+        Platform-admin protected historical resource view. The BFF queries
+        Prometheus query_range server-side for CPU, memory, root disk, and
+        network throughput over 24h, 7d, or rolling 90d ranges. Browser clients
+        receive only normalized server ids, labels, roles, values, and source
+        states; raw Prometheus labels, instance addresses, and IP addresses are
+        not exposed.
+      parameters:
+        - in: query
+          name: range
+          schema:
+            type: string
+            enum: [24h, 7d, 90d]
+            default: 24h
+      responses:
+        "200":
+          description: Sanitized Platform resource trend payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformResourceTrends"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
           $ref: "#/components/responses/PlainTextError"
 
   /api/customers:
@@ -1541,7 +1571,7 @@ components:
             $ref: "#/components/schemas/PlatformDashboardServiceExporter"
         server_resources:
           type: array
-          description: Sanitized per-server CPU, memory, and root-disk status. Raw Prometheus instance labels and IP addresses are not exposed.
+          description: Sanitized per-server CPU, memory, root-disk, and network status. Raw Prometheus instance labels and IP addresses are not exposed.
           items:
             $ref: "#/components/schemas/PlatformDashboardServerResource"
         operation_risk:
@@ -1660,6 +1690,16 @@ components:
           type: number
           format: double
           nullable: true
+        network_in_bps:
+          type: number
+          format: double
+          nullable: true
+          description: Inbound network throughput in bits per second.
+        network_out_bps:
+          type: number
+          format: double
+          nullable: true
+          description: Outbound network throughput in bits per second.
         status:
           type: string
           enum: [ok, warning, critical, unmonitored]
@@ -1716,6 +1756,8 @@ components:
             - infra_cpu_utilization_percent
             - infra_memory_utilization_percent
             - infra_disk_utilization_percent
+            - infra_network_in_bps
+            - infra_network_out_bps
         title:
           type: string
         source_status:
@@ -1738,6 +1780,104 @@ components:
           additionalProperties:
             type: string
         value:
+          type: number
+          format: double
+    PlatformResourceTrends:
+      type: object
+      required: [range, step_seconds, source, series, summaries]
+      properties:
+        range:
+          type: string
+          enum: [24h, 7d, 90d]
+          description: Rolling time window; 90d is the v1 definition of one quarter.
+        step_seconds:
+          type: integer
+          format: int64
+          enum: [300, 3600, 86400]
+        checked_at:
+          type: string
+          format: date-time
+        source:
+          $ref: "#/components/schemas/PlatformDashboardSource"
+        series:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformResourceTrendSeries"
+        summaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformResourceTrendSummary"
+    PlatformResourceTrendSeries:
+      type: object
+      required: [server_id, label, role, metric, unit, source_status, points]
+      properties:
+        server_id:
+          type: string
+          enum: [edge, api, infra, mqtt, coturn, account-manager, cloud-admin, cloud-logger]
+        label:
+          type: string
+        role:
+          type: string
+        metric:
+          type: string
+          enum: [cpu_percent, memory_percent, disk_percent, network_in_bps, network_out_bps]
+        unit:
+          type: string
+          enum: [percent, bps]
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformResourceTrendPoint"
+    PlatformResourceTrendPoint:
+      type: object
+      required: [timestamp, value]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          type: number
+          format: double
+    PlatformResourceTrendSummary:
+      type: object
+      required: [server_id, label, role, source_status, cpu_percent, memory_percent, disk_percent, network_in_bps, network_out_bps]
+      properties:
+        server_id:
+          type: string
+          enum: [edge, api, infra, mqtt, coturn, account-manager, cloud-admin, cloud-logger]
+        label:
+          type: string
+        role:
+          type: string
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
+        cpu_percent:
+          $ref: "#/components/schemas/PlatformResourceMetricSummary"
+        memory_percent:
+          $ref: "#/components/schemas/PlatformResourceMetricSummary"
+        disk_percent:
+          $ref: "#/components/schemas/PlatformResourceMetricSummary"
+        network_in_bps:
+          $ref: "#/components/schemas/PlatformResourceMetricSummary"
+        network_out_bps:
+          $ref: "#/components/schemas/PlatformResourceMetricSummary"
+    PlatformResourceMetricSummary:
+      type: object
+      properties:
+        current:
+          type: number
+          format: double
+        avg:
+          type: number
+          format: double
+        p95:
+          type: number
+          format: double
+        max:
           type: number
           format: double
     ServiceHealth:
