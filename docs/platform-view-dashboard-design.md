@@ -228,8 +228,10 @@ subtle depth grid, low-perspective metric ribbons, and compact legend chips.
 CPU, memory, and disk show the top worst server series; network shows total
 inbound and outbound. The chart is full-width within the
 Resource Trends page content, with the summary table remaining the accessible
-numeric fallback. Mobile uses the same canvas with a taller aspect ratio and no
-horizontal overflow.
+numeric fallback. The x-axis keeps range-specific time units visible: `24h`
+shows hour/minute ticks, `7d` shows weekday ticks, and `90d` shows date ticks.
+Mobile uses the same canvas with a taller aspect ratio and no horizontal
+overflow.
 
 ### Runtime Health
 

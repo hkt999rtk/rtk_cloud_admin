@@ -1958,6 +1958,15 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
   const maxLabel = chart?.maxLabel || '0';
   const labels = chart?.labels || [];
   const series = chart?.series || [];
+  const latestValues = series.map((item) => {
+    const latest = item.samples.at(-1);
+    return {
+      key: item.key,
+      label: item.label,
+      color: item.color,
+      value: formatResourceTrendValue(latest?.value, metric),
+    };
+  });
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -2018,13 +2027,24 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
 
         const color = new THREE.Color(item.color);
         const curve = new THREE.CatmullRomCurve3(points);
+        const glow = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, Math.max(48, points.length * 12), 0.105, 14, false),
+          new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.13,
+            depthWrite: false,
+          }),
+        );
+        scene.add(glow);
+
         const line = new THREE.Mesh(
-          new THREE.TubeGeometry(curve, Math.max(24, points.length * 8), 0.035, 10, false),
+          new THREE.TubeGeometry(curve, Math.max(48, points.length * 12), 0.032, 12, false),
           new THREE.MeshStandardMaterial({
             color,
-            emissive: color.clone().multiplyScalar(0.12),
+            emissive: color.clone().multiplyScalar(0.18),
             metalness: 0.05,
-            roughness: 0.34,
+            roughness: 0.26,
           }),
         );
         scene.add(line);
@@ -2042,18 +2062,35 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
         );
         scene.add(ribbon);
 
+        const markerStep = Math.max(1, Math.floor(points.length / 6));
+        points.forEach((point, pointIndex) => {
+          if (pointIndex !== points.length - 1 && pointIndex % markerStep !== 0) return;
+          const marker = new THREE.Mesh(
+            new THREE.SphereGeometry(pointIndex === points.length - 1 ? 0.082 : 0.042, 14, 14),
+            new THREE.MeshStandardMaterial({
+              color,
+              emissive: color.clone().multiplyScalar(0.16),
+              roughness: 0.28,
+            }),
+          );
+          marker.position.copy(point);
+          scene.add(marker);
+          if (pointIndex === points.length - 1) latestMarkers.push(marker);
+        });
+
         const latest = points[points.length - 1];
-        const marker = new THREE.Mesh(
-          new THREE.SphereGeometry(0.085, 16, 16),
-          new THREE.MeshStandardMaterial({
+        const dropLine = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(latest.x, 0.02, latest.z),
+            new THREE.Vector3(latest.x, latest.y, latest.z),
+          ]),
+          new THREE.LineBasicMaterial({
             color,
-            emissive: color.clone().multiplyScalar(0.18),
-            roughness: 0.3,
+            transparent: true,
+            opacity: 0.38,
           }),
         );
-        marker.position.copy(latest);
-        latestMarkers.push(marker);
-        scene.add(marker);
+        scene.add(dropLine);
       });
 
       let frame = 0;
@@ -2116,7 +2153,21 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
           <span>0</span>
         </div>
         <div className="resource-three-chart-axis">
-          {labels.map((label) => <span key={`${label.text}-${label.index}`}>{label.text}</span>)}
+          {labels.map((label) => (
+            <span key={`${label.primary}-${label.positionPercent}`} style={{ left: `${label.positionPercent}%` }}>
+              <strong>{label.primary}</strong>
+              <small>{label.secondary}</small>
+            </span>
+          ))}
+        </div>
+        <div className="resource-three-callouts">
+          {latestValues.map((item) => (
+            <span key={item.key}>
+              <i style={{ background: item.color }} />
+              <strong>{item.value}</strong>
+              <small>{item.label}</small>
+            </span>
+          ))}
         </div>
       </div>
       <div className="chart-legend resource-three-legend">
@@ -4005,10 +4056,11 @@ function buildPlatformResourceTrendChart(trends, metric) {
   const referencePoints = selected[0]?.points || [];
   const labelStep = Math.max(1, Math.ceil(referencePoints.length / 6));
   const labels = referencePoints
-    .filter((_, index) => index % labelStep === 0 || index === referencePoints.length - 1)
-    .map((point, index) => ({
-      text: formatTrendLabel(point.timestamp),
-      index,
+    .map((point, index) => ({ point, index }))
+    .filter(({ index }) => index % labelStep === 0 || index === referencePoints.length - 1)
+    .map(({ point, index }) => ({
+      ...formatTrendAxisLabel(point.timestamp, trends?.range),
+      positionPercent: Math.min(94, Math.max(6, (index / Math.max(referencePoints.length - 1, 1)) * 100)),
     }));
   return {
     series: chartSeries,
@@ -4176,6 +4228,29 @@ function formatTrendLabel(date) {
   const parsed = Date.parse(date);
   if (Number.isNaN(parsed)) return date;
   return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(parsed));
+}
+
+function formatTrendAxisLabel(date, range) {
+  const parsed = Date.parse(date);
+  if (Number.isNaN(parsed)) return { primary: date, secondary: '' };
+  const value = new Date(parsed);
+  const normalizedRange = String(range || '24h').toLowerCase();
+  if (normalizedRange === '24h') {
+    return {
+      primary: new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit', hour12: false }).format(value),
+      secondary: new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value),
+    };
+  }
+  if (normalizedRange === '7d') {
+    return {
+      primary: new Intl.DateTimeFormat('en', { weekday: 'short' }).format(value),
+      secondary: new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value),
+    };
+  }
+  return {
+    primary: new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value),
+    secondary: new Intl.DateTimeFormat('en', { year: 'numeric' }).format(value),
+  };
 }
 
 function deviceIdFromLocation() {
