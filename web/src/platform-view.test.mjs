@@ -42,6 +42,7 @@ test('resource helpers map row status to stable labels and tones', () => {
   assert.equal(resourceStatusLabel('critical'), 'Critical');
   assert.equal(resourceStatusLabel('warning'), 'Warning');
   assert.equal(resourceStatusLabel('degraded'), 'Degraded');
+  assert.equal(resourceStatusLabel('configured'), 'Configured');
   assert.equal(resourceStatusLabel('unmonitored'), 'Unmonitored');
   assert.equal(resourceStatusTone('critical'), 'critical');
   assert.equal(resourceStatusTone('warning'), 'warning');

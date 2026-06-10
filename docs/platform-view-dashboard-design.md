@@ -222,6 +222,15 @@ top servers for CPU/memory/disk and total inbound/outbound for network, with
 per-server current, average, p95, and max summaries below the chart. Missing
 metrics keep the server row visible as `Unmonitored`.
 
+The chart surface uses a Three.js WebGL canvas instead of SVG polylines. The
+visual treatment stays operational rather than decorative: a light plot plane,
+subtle depth grid, low-perspective metric ribbons, and compact legend chips.
+CPU, memory, and disk show the top worst server series; network shows total
+inbound and outbound. The chart is full-width within the
+Resource Trends page content, with the summary table remaining the accessible
+numeric fallback. Mobile uses the same canvas with a taller aspect ratio and no
+horizontal overflow.
+
 ### Runtime Health
 
 | Metric | Prometheus query shape | UI treatment |

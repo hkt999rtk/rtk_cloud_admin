@@ -30,6 +30,7 @@ export function resourceStatusLabel(status) {
     warning: 'Warning',
     degraded: 'Degraded',
     ok: 'OK',
+    configured: 'Configured',
     unmonitored: 'Unmonitored',
     unavailable: 'Unavailable',
     unconfigured: 'Unconfigured',

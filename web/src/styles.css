@@ -638,6 +638,74 @@ p {
   min-height: 420px;
 }
 
+.resource-three-chart-shell {
+  margin-top: 16px;
+}
+
+.resource-three-chart {
+  aspect-ratio: 16 / 7;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(241, 246, 250, 0.82)),
+    radial-gradient(circle at 18% 16%, rgba(15, 159, 154, 0.1), transparent 28%),
+    radial-gradient(circle at 78% 18%, rgba(200, 135, 25, 0.1), transparent 24%);
+  border: 1px solid rgba(37, 56, 76, 0.1);
+  border-radius: 8px;
+  min-height: 340px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.resource-three-chart canvas {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.resource-three-chart-overlay,
+.resource-three-chart-axis {
+  color: rgba(37, 56, 76, 0.68);
+  font-size: 12px;
+  font-weight: 800;
+  left: 16px;
+  pointer-events: none;
+  position: absolute;
+  right: 16px;
+  z-index: 1;
+}
+
+.resource-three-chart-overlay {
+  bottom: 42px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  top: 18px;
+}
+
+.resource-three-chart-axis {
+  align-items: center;
+  bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.resource-three-chart-axis span {
+  background: rgba(255, 255, 255, 0.64);
+  border-radius: 6px;
+  padding: 2px 5px;
+}
+
+.resource-three-legend {
+  margin-top: 12px;
+}
+
+.resource-chart-note {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
 .chart-line-resource-1 {
   stroke: var(--brand);
 }
@@ -2859,6 +2927,34 @@ th {
   .resource-trends-controls .window-toggle {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  }
+
+  .resource-three-chart {
+    aspect-ratio: 4 / 3;
+    min-height: 300px;
+  }
+
+  .resource-three-chart-overlay,
+  .resource-three-chart-axis {
+    font-size: 11px;
+    left: 10px;
+    right: 10px;
+  }
+
+  .resource-three-chart-overlay {
+    bottom: 38px;
+    top: 16px;
+  }
+
+  .resource-three-chart-axis {
+    overflow: hidden;
+  }
+
+  .resource-three-chart-axis span {
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .risk-strip {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   customerNavItems,
@@ -1899,25 +1899,7 @@ function PlatformResourceTrends({ trends, range, setRange, metric, setMetric, lo
           <StatusBadge value={resourceStatusTone(source.source_status)} label={resourceStatusLabel(source.source_status)} />
         </div>
         {chart.series.length ? (
-          <>
-            <svg viewBox="0 0 720 300" className="trend-chart resource-trend-chart" role="img" aria-label={`${resourceTrendMetricTitle(metric)} trend chart`}>
-              {chart.grid.map((y) => <line key={y} className="chart-grid-line" x1="52" x2="676" y1={y} y2={y} />)}
-              <line className="chart-axis-line" x1="52" x2="676" y1="248" y2="248" />
-              {chart.series.map((series) => (
-                <polyline key={series.key} className={`chart-line ${series.className}`} points={series.points} />
-              ))}
-              {chart.labels.map((label) => (
-                <text key={`${label.text}-${label.x}`} className="chart-axis-label" x={label.x} y="278" textAnchor="middle">{label.text}</text>
-              ))}
-              <text className="chart-label" x="52" y="24">{chart.maxLabel}</text>
-              <text className="chart-label" x="52" y="244">0</text>
-            </svg>
-            <div className="chart-legend">
-              {chart.series.map((series) => (
-                <span key={series.key}><i className={`legend-line ${series.legendClass}`} />{series.label}</span>
-              ))}
-            </div>
-          </>
+          <ResourceTrendThreeChart chart={chart} metric={metric} title={resourceTrendMetricTitle(metric)} />
         ) : (
           <p className="empty-state">{source.source_message || 'No resource trend data available for this range.'}</p>
         )}
@@ -1969,6 +1951,221 @@ function PlatformResourceTrends({ trends, range, setRange, metric, setMetric, lo
       </article>
     </section>
   );
+}
+
+function ResourceTrendThreeChart({ chart, metric, title }) {
+  const mountRef = useRef(null);
+  const maxLabel = chart?.maxLabel || '0';
+  const labels = chart?.labels || [];
+  const series = chart?.series || [];
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount || !series.length) return undefined;
+
+    let disposed = false;
+    let cleanup = () => {};
+    (async () => {
+      const THREE = await import('three');
+      if (disposed) return;
+
+      const scene = new THREE.Scene();
+      const renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: true,
+        preserveDrawingBuffer: true,
+      });
+      renderer.setClearColor(0xf8fafc, 0);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      mount.appendChild(renderer.domElement);
+
+      const camera = new THREE.OrthographicCamera(-4.8, 4.8, 2.9, -2.9, 0.1, 100);
+      camera.position.set(0, 4.2, 6.8);
+      camera.lookAt(0, 0.35, 0);
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.72);
+      const key = new THREE.DirectionalLight(0xffffff, 0.74);
+      key.position.set(-2, 5, 4);
+      scene.add(ambient, key);
+
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(7.6, 3.6),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.46,
+          side: THREE.DoubleSide,
+        }),
+      );
+      plane.rotation.x = -Math.PI / 2;
+      plane.position.y = -0.05;
+      plane.position.z = -0.08;
+      scene.add(plane);
+
+      const grid = buildResourceTrendGrid(THREE);
+      scene.add(grid);
+
+      const latestMarkers = [];
+      series.forEach((item, index) => {
+        const laneOffset = series.length > 1 ? ((index / Math.max(series.length - 1, 1)) - 0.5) * 1.9 : 0;
+        const points = item.samples.map((point, pointIndex) => {
+          const x = -3.55 + (pointIndex / Math.max(item.samples.length - 1, 1)) * 7.1;
+          const y = 0.1 + (Number(point.value || 0) / Math.max(chart.maxValue || 1, 1)) * 2.1;
+          const z = laneOffset + Math.sin(pointIndex * 0.45) * 0.025;
+          return new THREE.Vector3(x, y, z);
+        });
+        if (points.length < 2) return;
+
+        const color = new THREE.Color(item.color);
+        const curve = new THREE.CatmullRomCurve3(points);
+        const line = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, Math.max(24, points.length * 8), 0.035, 10, false),
+          new THREE.MeshStandardMaterial({
+            color,
+            emissive: color.clone().multiplyScalar(0.12),
+            metalness: 0.05,
+            roughness: 0.34,
+          }),
+        );
+        scene.add(line);
+
+        const ribbonShape = buildResourceTrendRibbon(THREE, points);
+        const ribbon = new THREE.Mesh(
+          ribbonShape,
+          new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.14,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+          }),
+        );
+        scene.add(ribbon);
+
+        const latest = points[points.length - 1];
+        const marker = new THREE.Mesh(
+          new THREE.SphereGeometry(0.085, 16, 16),
+          new THREE.MeshStandardMaterial({
+            color,
+            emissive: color.clone().multiplyScalar(0.18),
+            roughness: 0.3,
+          }),
+        );
+        marker.position.copy(latest);
+        latestMarkers.push(marker);
+        scene.add(marker);
+      });
+
+      let frame = 0;
+      let animation = 0;
+      const resize = () => {
+        const bounds = mount.getBoundingClientRect();
+        const width = Math.max(320, Math.floor(bounds.width));
+        const height = Math.max(280, Math.floor(bounds.height));
+        renderer.setSize(width, height, false);
+        const aspect = width / height;
+        camera.left = -4.4 * Math.max(1, aspect / 1.55);
+        camera.right = 4.4 * Math.max(1, aspect / 1.55);
+        camera.top = 2.9;
+        camera.bottom = -2.7;
+        camera.updateProjectionMatrix();
+      };
+      const observer = new ResizeObserver(resize);
+      observer.observe(mount);
+      resize();
+
+      const animate = () => {
+        frame += 1;
+        const pulse = Math.sin(frame / 42) * 0.035;
+        latestMarkers.forEach((marker) => {
+          marker.scale.setScalar(1 + pulse);
+        });
+        camera.position.x = Math.sin(frame / 150) * 0.12;
+        camera.lookAt(0, 0.35, 0);
+        renderer.render(scene, camera);
+        animation = requestAnimationFrame(animate);
+      };
+      animate();
+
+      cleanup = () => {
+        cancelAnimationFrame(animation);
+        observer.disconnect();
+        scene.traverse((object) => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) {
+            if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose());
+            else object.material.dispose();
+          }
+        });
+        renderer.dispose();
+        renderer.domElement.remove();
+      };
+    })();
+
+    return () => {
+      disposed = true;
+      cleanup();
+    };
+  }, [chart, series]);
+
+  return (
+    <div className="resource-three-chart-shell">
+      <div className="resource-three-chart" ref={mountRef} role="img" aria-label={`${title} three dimensional trend chart`}>
+        <div className="resource-three-chart-overlay">
+          <span>{maxLabel}</span>
+          <span>0</span>
+        </div>
+        <div className="resource-three-chart-axis">
+          {labels.map((label) => <span key={`${label.text}-${label.index}`}>{label.text}</span>)}
+        </div>
+      </div>
+      <div className="chart-legend resource-three-legend">
+        {series.map((item) => (
+          <span key={item.key}><i className="legend-line" style={{ background: item.color }} />{item.label}</span>
+        ))}
+      </div>
+      <div className="resource-chart-note">{resourceTrendChartCaption(metric)}</div>
+    </div>
+  );
+}
+
+function buildResourceTrendGrid(THREE) {
+  const material = new THREE.LineBasicMaterial({
+    color: 0x99a7b6,
+    transparent: true,
+    opacity: 0.32,
+  });
+  const points = [];
+  for (let i = 0; i <= 6; i += 1) {
+    const x = -3.55 + i * (7.1 / 6);
+    points.push(new THREE.Vector3(x, 0, -1.9), new THREE.Vector3(x, 0, 1.9));
+  }
+  for (let i = 0; i <= 4; i += 1) {
+    const z = -1.9 + i * (3.8 / 4);
+    points.push(new THREE.Vector3(-3.55, 0, z), new THREE.Vector3(3.55, 0, z));
+  }
+  for (let i = 1; i <= 3; i += 1) {
+    const y = i * 0.58;
+    points.push(new THREE.Vector3(-3.55, y, -1.92), new THREE.Vector3(3.55, y, -1.92));
+  }
+  return new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points), material);
+}
+
+function buildResourceTrendRibbon(THREE, points) {
+  const vertices = [];
+  const indices = [];
+  for (const point of points) {
+    vertices.push(point.x, 0.02, point.z, point.x, point.y, point.z);
+  }
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const base = index * 2;
+    indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 function SourceStatusPill({ source }) {
@@ -3791,40 +3988,33 @@ function buildPlatformResourceTrendChart(trends, metric) {
   const series = trends?.series || [];
   const selected = resourceTrendChartSeries(series, metric);
   if (!selected.length) {
-    return { series: [], labels: [], grid: [68, 113, 158, 203], maxLabel: '0' };
+    return { series: [], labels: [], maxLabel: '0', maxValue: 0 };
   }
   const allValues = selected.flatMap((item) => item.points.map((point) => Number(point.value || 0)));
   const maxValue = Math.max(...allValues, 1);
-  const width = 624;
-  const top = 32;
-  const bottom = 248;
-  const chartSeries = selected.map((item, index) => {
-    const points = item.points.map((point, pointIndex) => {
-      const x = 52 + (pointIndex * width) / Math.max(item.points.length - 1, 1);
-      const y = bottom - (Number(point.value || 0) / maxValue) * (bottom - top);
-      return `${x},${y}`;
-    }).join(' ');
-    return {
-      key: item.key,
-      label: item.label,
-      points,
-      className: `chart-line-resource-${index + 1}`,
-      legendClass: `legend-resource-${index + 1}`,
-    };
-  });
+  const colors = ['#0f9f9a', '#2563eb', '#c88719', '#7a5af8'];
+  const chartSeries = selected.map((item, index) => ({
+    key: item.key,
+    label: item.label,
+    samples: item.points.map((point) => ({
+      timestamp: point.timestamp,
+      value: Number(point.value || 0),
+    })),
+    color: colors[index % colors.length],
+  }));
   const referencePoints = selected[0]?.points || [];
   const labelStep = Math.max(1, Math.ceil(referencePoints.length / 6));
   const labels = referencePoints
     .filter((_, index) => index % labelStep === 0 || index === referencePoints.length - 1)
-    .map((point) => ({
+    .map((point, index) => ({
       text: formatTrendLabel(point.timestamp),
-      x: 52 + (referencePoints.indexOf(point) * width) / Math.max(referencePoints.length - 1, 1),
+      index,
     }));
   return {
     series: chartSeries,
     labels,
-    grid: [68, 113, 158, 203],
     maxLabel: metric === 'network' ? formatThroughputBPS(maxValue) : formatResourcePercent(maxValue),
+    maxValue,
   };
 }
 
@@ -3864,6 +4054,11 @@ function aggregateResourceTrendSeries(series, metric, label) {
     .sort(([a], [b]) => String(a).localeCompare(String(b)))
     .map(([timestamp, value]) => ({ timestamp, value }));
   return { key: metric, label, points };
+}
+
+function resourceTrendChartCaption(metric) {
+  if (metric === 'network') return 'Inbound and outbound totals across monitored servers.';
+  return 'Top servers by max value in the selected window.';
 }
 
 function buildFleetTrendChart(trend) {

@@ -521,6 +521,7 @@ async function runDesktopSmoke(page) {
   await gotoAndAssert(page, '/admin/resources', 'Resource Trends');
   await expectText(page, 'Network Throughput');
   await expectText(page, 'Server Trend Summary');
+  await assertResourceTrendCanvas(page);
   await screenshot(page, 'desktop-platform-resource-trends.png');
 
   await gotoAndAssert(page, '/admin/ops', 'Operations');
@@ -571,11 +572,14 @@ async function runMobileSmoke(browserContext) {
 
   await gotoAndAssert(page, '/admin/resources', 'Resource Trends');
   await expectText(page, 'Server Trend Summary');
+  await assertResourceTrendCanvas(page);
   const resourceOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   if (resourceOverflow) {
     throw new Error('Mobile Resource Trends view must not overflow horizontally.');
   }
   await screenshot(page, 'mobile-platform-resource-trends.png');
+  await page.locator('.resource-trend-chart-panel').scrollIntoViewIfNeeded();
+  await screenshot(page, 'mobile-platform-resource-trends-chart.png');
 
   await gotoAndAssert(page, '/signup', 'Sign up');
   await expectText(page, 'Create account');
@@ -604,6 +608,38 @@ async function gotoAndAssert(page, routePath, expectedTitle) {
 
 async function expectText(page, text) {
   await page.getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout: 5000 });
+}
+
+async function assertResourceTrendCanvas(page) {
+  const canvas = page.locator('.resource-three-chart canvas');
+  await canvas.waitFor({ state: 'visible', timeout: 5000 });
+  const stats = await canvas.evaluate((source) => {
+    const width = Math.max(1, source.width);
+    const height = Math.max(1, source.height);
+    const sample = document.createElement('canvas');
+    sample.width = width;
+    sample.height = height;
+    const context = sample.getContext('2d');
+    context.drawImage(source, 0, 0);
+    const pixels = context.getImageData(0, 0, width, height).data;
+    let painted = 0;
+    const colors = new Set();
+    const stride = Math.max(4, Math.floor(pixels.length / 1600 / 4) * 4);
+    for (let index = 0; index < pixels.length; index += stride) {
+      const r = pixels[index];
+      const g = pixels[index + 1];
+      const b = pixels[index + 2];
+      const a = pixels[index + 3];
+      if (a > 16 && (r < 248 || g < 248 || b < 248)) {
+        painted += 1;
+        colors.add(`${Math.round(r / 8)}-${Math.round(g / 8)}-${Math.round(b / 8)}`);
+      }
+    }
+    return { painted, colorBuckets: colors.size, width, height };
+  });
+  if (stats.width < 300 || stats.height < 260 || stats.painted < 12 || stats.colorBuckets < 4) {
+    throw new Error(`Resource Trends Three.js canvas did not render enough pixels: ${JSON.stringify(stats)}`);
+  }
 }
 
 async function screenshot(page, name) {
