@@ -1085,9 +1085,9 @@ func (v prometheusVectorItem) floatValue() (float64, bool) {
 	switch value := v.Value[1].(type) {
 	case string:
 		parsed, err := strconv.ParseFloat(value, 64)
-		return parsed, err == nil
+		return finitePrometheusValue(parsed, err == nil)
 	case float64:
-		return value, true
+		return finitePrometheusValue(value, true)
 	default:
 		return 0, false
 	}
@@ -1136,10 +1136,17 @@ func prometheusSampleValue(value any) (float64, bool) {
 	switch typed := value.(type) {
 	case string:
 		parsed, err := strconv.ParseFloat(typed, 64)
-		return parsed, err == nil
+		return finitePrometheusValue(parsed, err == nil)
 	case float64:
-		return typed, true
+		return finitePrometheusValue(typed, true)
 	default:
 		return 0, false
 	}
+}
+
+func finitePrometheusValue(value float64, ok bool) (float64, bool) {
+	if !ok || math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0, false
+	}
+	return value, true
 }

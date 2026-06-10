@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -424,6 +425,20 @@ func TestAdminPlatformDashboardServerResourcesUnavailableWithoutPrometheus(t *te
 		if resource.Status != "unmonitored" || resource.SourceStatus != "unavailable" {
 			t.Fatalf("resource %s status/source = %s/%s, want unmonitored/unavailable", resource.ID, resource.Status, resource.SourceStatus)
 		}
+	}
+}
+
+func TestPrometheusValuesRejectNonFiniteSamples(t *testing.T) {
+	t.Parallel()
+
+	for _, sample := range []any{"NaN", "+Inf", "-Inf", math.NaN(), math.Inf(1), math.Inf(-1)} {
+		if value, ok := prometheusSampleValue(sample); ok {
+			t.Fatalf("prometheusSampleValue(%v) = %v, true; want rejected", sample, value)
+		}
+	}
+	item := prometheusVectorItem{Value: []any{float64(1780369304), "NaN"}}
+	if value, ok := item.floatValue(); ok {
+		t.Fatalf("floatValue NaN = %v, true; want rejected", value)
 	}
 }
 
