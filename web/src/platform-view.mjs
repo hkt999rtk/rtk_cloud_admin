@@ -18,6 +18,7 @@ export function resourceStatusLabel(status) {
   const labels = {
     critical: 'Critical',
     warning: 'Warning',
+    degraded: 'Degraded',
     ok: 'OK',
     unmonitored: 'Unmonitored',
     unavailable: 'Unavailable',
@@ -30,6 +31,7 @@ export function resourceStatusTone(status) {
   const normalized = String(status || '').toLowerCase();
   if (normalized === 'critical') return 'critical';
   if (normalized === 'warning') return 'warning';
+  if (normalized === 'degraded') return 'degraded';
   if (normalized === 'ok') return 'ok';
   if (normalized === 'unmonitored' || normalized === 'unavailable' || normalized === 'unconfigured') return 'unavailable';
   return 'unknown';

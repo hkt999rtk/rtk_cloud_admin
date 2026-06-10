@@ -1565,6 +1565,7 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
   const source = dashboard?.sources?.prometheus || null;
   const kpis = dashboard?.kpis?.length ? dashboard.kpis : fallbackPlatformKPIs(summary);
   const serviceGroups = dashboard?.service_scrape_health || [];
+  const serviceExporters = dashboard?.service_exporters || [];
   const serverResources = dashboard?.server_resources || [];
   const risk = dashboard?.operation_risk || {
     open_operations: summary?.open_operations ?? 0,
@@ -1628,6 +1629,8 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
       </section>
 
       <ServerResourceStatus resources={serverResources} source={dashboard?.panel_sources?.server_resources || source} />
+
+      <ServiceExporterStatus exporters={serviceExporters} source={dashboard?.panel_sources?.service_exporters || source} />
 
       <section className="platform-dashboard-grid">
         <article className="panel platform-dashboard-panel">
@@ -1703,6 +1706,49 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
         <PlatformMetricPanel title="Infrastructure Health" rows={infrastructureRows} />
       </section>
     </section>
+  );
+}
+
+function ServiceExporterStatus({ exporters, source }) {
+  return (
+    <article className="panel platform-dashboard-panel server-resource-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Service Exporter Status</h2>
+          <p>Application and service-owned exporters published into the admin Prometheus boundary.</p>
+        </div>
+        <SourceStatusPill source={source} />
+      </div>
+      <div className="server-resource-table-wrap">
+        <table className="server-resource-table service-exporter-table">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Exporter role</th>
+              <th>Targets</th>
+              <th>Status</th>
+              <th>Last checked</th>
+            </tr>
+          </thead>
+          <tbody>
+            {exporters.map((exporter) => (
+              <tr key={exporter.id}>
+                <td><strong>{exporter.label || exporter.id}</strong></td>
+                <td>{exporter.role || '-'}</td>
+                <td>{exporter.targets_total ? `${exporter.targets_up} up / ${exporter.targets_down} down` : 'Unavailable'}</td>
+                <td><StatusBadge value={resourceStatusTone(exporter.status)} label={resourceStatusLabel(exporter.status)} /></td>
+                <td>{exporter.checked_at ? formatRelativeTime(exporter.checked_at) : '-'}</td>
+              </tr>
+            ))}
+            {!exporters.length ? (
+              <tr>
+                <td colSpan="5" className="empty-state">No service exporter data available.</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </article>
   );
 }
 

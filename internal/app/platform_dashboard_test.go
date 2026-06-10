@@ -365,6 +365,39 @@ func TestAdminPlatformDashboardBuildsSanitizedServerResources(t *testing.T) {
 	}
 }
 
+func TestAdminPlatformDashboardBuildsServiceExporterStatus(t *testing.T) {
+	t.Parallel()
+
+	prometheus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch query := r.URL.Query().Get("query"); {
+		case query == `sum by(job, service, role) (up)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"account_manager_app","service":"account-manager","instance":"10.42.1.50:18081"},"value":[1780369304,"1"]},{"metric":{"job":"cloud_admin_app","service":"cloud-admin","instance":"10.42.1.60:8080"},"value":[1780369304,"1"]},{"metric":{"job":"cloud_logger_app","service":"cloud-logger","instance":"10.42.1.90:18090"},"value":[1780369304,"1"]},{"metric":{"job":"coturn_node","service":"coturn-node","role":"coturn","instance":"10.42.1.80:9100"},"value":[1780369304,"1"]}]}}`))
+		case query == `sum by(job, service, role) (up == 0)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"account_manager_app","service":"account-manager","instance":"10.42.1.50:18081"},"value":[1780369304,"0"]},{"metric":{"job":"cloud_admin_app","service":"cloud-admin","instance":"10.42.1.60:8080"},"value":[1780369304,"0"]},{"metric":{"job":"cloud_logger_app","service":"cloud-logger","instance":"10.42.1.90:18090"},"value":[1780369304,"0"]},{"metric":{"job":"coturn_node","service":"coturn-node","role":"coturn","instance":"10.42.1.80:9100"},"value":[1780369304,"0"]}]}}`))
+		default:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"node","role":"infra","instance":"10.42.1.30:9100"},"value":[1780369304,"1"]}]}}`))
+		}
+	}))
+	defer prometheus.Close()
+
+	payload := getPlatformDashboardForPrometheus(t, prometheus.URL)
+	for _, id := range []string{"account-manager", "cloud-admin", "cloud-logger", "coturn"} {
+		exporter := serviceExporter(payload.ServiceExporters, id)
+		if exporter.Status != "ok" || exporter.SourceStatus != "configured" || exporter.TargetsUp != 1 || exporter.TargetsDown != 0 {
+			t.Fatalf("%s exporter = %+v, want ok configured 1 up", id, exporter)
+		}
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	for _, leaked := range []string{"instance", "10.42.1.", "device_id", "dev-secret"} {
+		if strings.Contains(string(body), leaked) {
+			t.Fatalf("payload leaked disallowed label %q: %s", leaked, body)
+		}
+	}
+}
+
 func TestAdminPlatformDashboardServerResourcesUnavailableWithoutPrometheus(t *testing.T) {
 	t.Parallel()
 
@@ -486,6 +519,15 @@ func serverResource(resources []contracts.PlatformDashboardServerResource, id st
 		}
 	}
 	return contracts.PlatformDashboardServerResource{}
+}
+
+func serviceExporter(exporters []contracts.PlatformDashboardServiceExporter, id string) contracts.PlatformDashboardServiceExporter {
+	for _, exporter := range exporters {
+		if exporter.ID == id {
+			return exporter
+		}
+	}
+	return contracts.PlatformDashboardServiceExporter{}
 }
 
 func TestPrometheusClientRejectsInvalidBaseURL(t *testing.T) {

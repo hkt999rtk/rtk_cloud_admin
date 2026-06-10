@@ -108,6 +108,7 @@ type PlatformDashboard struct {
 	Summary             Summary                                `json:"summary"`
 	KPIs                []PlatformDashboardKPI                 `json:"kpis"`
 	ServiceScrapeHealth []PlatformDashboardServiceScrapeHealth `json:"service_scrape_health"`
+	ServiceExporters    []PlatformDashboardServiceExporter     `json:"service_exporters"`
 	ServerResources     []PlatformDashboardServerResource      `json:"server_resources"`
 	OperationRisk       PlatformDashboardOperationRisk         `json:"operation_risk"`
 	Sources             map[string]PlatformDashboardSource     `json:"sources"`
@@ -139,6 +140,18 @@ type PlatformDashboardServiceScrapeHealth struct {
 	TargetsDown  int    `json:"targets_down"`
 	TargetsTotal int    `json:"targets_total"`
 	SourceStatus string `json:"source_status"`
+}
+
+type PlatformDashboardServiceExporter struct {
+	ID           string `json:"id"`
+	Label        string `json:"label"`
+	Role         string `json:"role"`
+	Status       string `json:"status"`
+	TargetsUp    int    `json:"targets_up"`
+	TargetsDown  int    `json:"targets_down"`
+	TargetsTotal int    `json:"targets_total"`
+	SourceStatus string `json:"source_status"`
+	CheckedAt    string `json:"checked_at,omitempty"`
 }
 
 type PlatformDashboardServerResource struct {

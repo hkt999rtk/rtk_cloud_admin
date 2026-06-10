@@ -1522,7 +1522,7 @@ components:
           format: date-time
     PlatformDashboard:
       type: object
-      required: [summary, kpis, service_scrape_health, server_resources, operation_risk, sources, panel_sources, prometheus]
+      required: [summary, kpis, service_scrape_health, service_exporters, server_resources, operation_risk, sources, panel_sources, prometheus]
       properties:
         summary:
           $ref: "#/components/schemas/Summary"
@@ -1534,6 +1534,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PlatformDashboardServiceScrapeHealth"
+        service_exporters:
+          type: array
+          description: Sanitized service-owned exporter scrape status for adjacent platform services. Raw Prometheus instance labels and IP addresses are not exposed.
+          items:
+            $ref: "#/components/schemas/PlatformDashboardServiceExporter"
         server_resources:
           type: array
           description: Sanitized per-server CPU, memory, and root-disk status. Raw Prometheus instance labels and IP addresses are not exposed.
@@ -1606,6 +1611,32 @@ components:
         source_status:
           type: string
           enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
+    PlatformDashboardServiceExporter:
+      type: object
+      required: [id, label, role, status, targets_up, targets_down, targets_total, source_status]
+      properties:
+        id:
+          type: string
+          enum: [account-manager, cloud-admin, cloud-logger, coturn]
+        label:
+          type: string
+        role:
+          type: string
+        status:
+          type: string
+          enum: [ok, degraded, unconfigured, unavailable, unmonitored]
+        targets_up:
+          type: integer
+        targets_down:
+          type: integer
+        targets_total:
+          type: integer
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
+        checked_at:
+          type: string
+          format: date-time
     PlatformDashboardServerResource:
       type: object
       required: [id, label, role, status, source_status]

@@ -150,8 +150,12 @@ Current configured targets:
 | `node` role `infra` | `10.42.1.30:9100` | `/metrics` | infra host health |
 | `node` role `mqtt` | `10.42.1.40:9100` | `/metrics` | mqtt host health |
 | `node` role `admin` | `10.42.1.60:9100` | `/metrics` | admin host health |
-| `account_manager_app` | `10.42.1.20:18081` | `/metrics/prometheus` | Account Manager app signals |
+| `account_manager_app` | `10.42.1.50:18081` | `/metrics/prometheus` | Account Manager app signals |
+| `account_manager_node` role `account-manager` | `10.42.1.50:9100` | `/metrics` | Account Manager host resource signals |
 | `cloud_admin_app` | `10.42.1.60:8080` | `/metrics/prometheus` | Admin app up signal |
+| `coturn_node` role `coturn` | `10.42.1.80:9100` | `/metrics` | Coturn host resource signals over private VPC |
+| `cloud_logger_app` | `10.42.1.90:18090` | `/metrics/prometheus` | Cloud Logger backend app signal |
+| `cloud_logger_node` role `cloud-logger` | `10.42.1.90:9100` | `/metrics` | Cloud Logger host resource signals |
 | `cloud_frontend_app` | `10.42.1.70:8080` | `/metrics/prometheus` | marketing/signup frontend signals |
 
 Do not show this table as a raw target list in the first UI. Convert it into
