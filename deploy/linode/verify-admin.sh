@@ -45,19 +45,19 @@ curl -fsS "$base_url/console" > "$artifacts_dir/console.html"
 grep -q 'id="root"' "$artifacts_dir/console.html"
 record "PASS console shell"
 
-if [ -n "${ADMIN_BOOTSTRAP_EMAIL:-}" ] && [ -n "${ADMIN_BOOTSTRAP_PASSWORD:-}" ]; then
+if [ -n "${ACCOUNT_MANAGER_BOOTSTRAP_PLATFORM_ADMIN_EMAIL:-}" ] && [ -n "${ACCOUNT_MANAGER_BOOTSTRAP_PLATFORM_ADMIN_PASSWORD:-}" ]; then
   cookie_jar="$(mktemp)"
   login_body="$(mktemp)"
   trap 'rm -f "$login_body" "$cookie_jar"' EXIT
-  printf '{"email":"%s","password":"%s"}' "$ADMIN_BOOTSTRAP_EMAIL" "$ADMIN_BOOTSTRAP_PASSWORD" > "$login_body"
+  printf '{"email":"%s","password":"%s"}' "$ACCOUNT_MANAGER_BOOTSTRAP_PLATFORM_ADMIN_EMAIL" "$ACCOUNT_MANAGER_BOOTSTRAP_PLATFORM_ADMIN_PASSWORD" > "$login_body"
   curl -fsS -c "$cookie_jar" -H 'content-type: application/json' --data-binary "@$login_body" "$base_url/api/auth/platform/login" > "$artifacts_dir/login-response.json"
   rm -f "$login_body"
   grep -q '"status":"ok"' "$artifacts_dir/login-response.json"
   curl -fsS -b "$cookie_jar" "$base_url/api/me" > "$artifacts_dir/me.json"
   grep -q '"kind":"platform_admin"' "$artifacts_dir/me.json"
-  record "PASS platform login"
+  record "PASS Account Manager platform login"
 else
-  record "SKIP platform login credentials not provided"
+  record "SKIP Account Manager platform login credentials not provided"
 fi
 
 printf 'Admin verify passed: %s\nArtifacts: %s\n' "$base_url" "$artifacts_dir"

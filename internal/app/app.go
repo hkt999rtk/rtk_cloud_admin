@@ -32,7 +32,6 @@ import (
 
 type Server struct {
 	sessions            sessionStore
-	platformAdmins      platformAdminStore
 	audit               auditStore
 	projections         projectionStore
 	lifecycleOperations lifecycleOperationStore
@@ -85,7 +84,6 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 	}
 	s := &Server{
 		sessions:            st,
-		platformAdmins:      st,
 		audit:               st,
 		projections:         st,
 		lifecycleOperations: st,
@@ -117,6 +115,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
 	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
 	s.mux.HandleFunc("POST /api/auth/customer/resend-verification", s.apiCustomerResendVerification)
+	s.mux.HandleFunc("POST /api/auth/sign-in", s.apiAuthSignIn)
+	s.mux.HandleFunc("POST /api/auth/login/activate", s.apiAuthLoginActivate)
+	s.mux.HandleFunc("POST /api/auth/forgot-password", s.apiAuthForgotPassword)
+	s.mux.HandleFunc("POST /api/auth/reset-password", s.apiAuthResetPassword)
 	s.mux.HandleFunc("POST /api/auth/sso/start", s.apiSSOStart)
 	s.mux.HandleFunc("GET /api/auth/sso/callback", s.apiSSOCallback)
 	s.mux.HandleFunc("POST /api/auth/platform/login", s.apiPlatformLogin)
@@ -131,6 +133,12 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/brand-clouds/{brandCloudId}", s.apiAdminBrandCloud)
 	s.mux.HandleFunc("PATCH /api/admin/brand-clouds/{brandCloudId}", s.apiAdminBrandCloud)
 	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/members", s.apiAdminBrandCloudMember)
+	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users", s.apiAdminBrandCloudUser)
+	s.mux.HandleFunc("GET /api/admin/brand-clouds/{brandCloudId}/users", s.apiAdminBrandCloudUsers)
+	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}/disable", s.apiAdminBrandCloudUserAction)
+	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}/enable", s.apiAdminBrandCloudUserAction)
+	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}/approve", s.apiAdminBrandCloudUserAction)
+	s.mux.HandleFunc("DELETE /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}", s.apiAdminBrandCloudUserAction)
 	s.mux.HandleFunc("GET /api/admin/sso/providers", s.apiAdminSSOProviders)
 	s.mux.HandleFunc("GET /api/admin/orgs/{orgId}/sso-provider", s.apiAdminSSOProvider)
 	s.mux.HandleFunc("PUT /api/admin/orgs/{orgId}/sso-provider", s.apiAdminSSOProvider)
@@ -152,6 +160,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /", s.home)
 	for _, path := range []string{
 		"/login",
+		"/login/check-email",
+		"/login/activate",
+		"/forgot-password",
+		"/reset-password",
 		"/signup",
 		"/signup/check-email",
 		"/verify",
@@ -167,6 +179,7 @@ func (s *Server) routes() {
 		"/admin",
 		"/admin/resources",
 		"/admin/health",
+		"/admin/brand-clouds",
 		"/admin/ops",
 		"/admin/operations",
 		"/admin/audit",
@@ -279,7 +292,7 @@ func (s *Server) apiAdminSummary(w http.ResponseWriter, r *http.Request) {
 	if s.usePlatformAdminUpstream(session) {
 		summary, err := s.platformAdminSummary(r.Context(), session)
 		if err != nil {
-			s.writeUpstreamReadError(w, err)
+			s.writeUpstreamReadErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, summary)
@@ -315,13 +328,14 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 	}
 	if session.Kind == "platform_admin" {
 		writeJSON(w, s.meAuthSettings(contracts.Me{
-			UserID:        session.Subject,
-			Email:         session.Email,
-			Name:          session.Email,
-			Kind:          session.Kind,
-			Memberships:   []contracts.Membership{},
-			Authenticated: true,
-			Capabilities:  platformAdminCompatibilityCapabilities(),
+			UserID:                 session.Subject,
+			Email:                  session.Email,
+			Name:                   session.Email,
+			Kind:                   session.Kind,
+			Memberships:            []contracts.Membership{},
+			Authenticated:          true,
+			Capabilities:           platformAdminCompatibilityCapabilities(),
+			UpstreamAccountManager: s.usePlatformAdminUpstream(session),
 		}))
 		return
 	}
@@ -373,7 +387,6 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) meAuthSettings(me contracts.Me) contracts.Me {
-	me.BreakGlassEnabled = s.cfg.AdminBreakGlassEnabled
 	me.CustomerPasswordLoginEnabled = s.cfg.CustomerPasswordLoginEnabled
 	return me
 }
@@ -491,6 +504,81 @@ func (s *Server) apiCustomerResendVerification(w http.ResponseWriter, r *http.Re
 		return
 	}
 	writeJSONStatus(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+}
+
+func (s *Server) apiAuthSignIn(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.EmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Email) == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
+		return
+	}
+	if err := s.accountClient.SignIn(r.Context(), strings.TrimSpace(body.Email)); err != nil {
+		s.writeAuthProxyError(w, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+}
+
+func (s *Server) apiAuthLoginActivate(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.AuthTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" {
+		http.Error(w, "token is required", http.StatusBadRequest)
+		return
+	}
+	login, err := s.accountClient.ActivateLogin(r.Context(), strings.TrimSpace(body.Token))
+	if err != nil {
+		s.writeAuthProxyError(w, err)
+		return
+	}
+	session, kind, err := s.createSessionFromActivatedLogin(r.Context(), login)
+	if err != nil {
+		s.writeAuthProxyError(w, err)
+		return
+	}
+	setSessionCookie(w, session.ID)
+	writeJSON(w, map[string]string{"status": "ok", "kind": kind})
+}
+
+func (s *Server) apiAuthForgotPassword(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.EmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Email) == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
+		return
+	}
+	if err := s.accountClient.ForgotPassword(r.Context(), strings.TrimSpace(body.Email)); err != nil {
+		s.writeAuthProxyError(w, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+}
+
+func (s *Server) apiAuthResetPassword(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" || len(body.NewPassword) < 8 {
+		http.Error(w, "token and new_password are required", http.StatusBadRequest)
+		return
+	}
+	if err := s.accountClient.ResetPassword(r.Context(), strings.TrimSpace(body.Token), body.NewPassword); err != nil {
+		s.writeAuthProxyError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) apiSSOStart(w http.ResponseWriter, r *http.Request) {
@@ -630,6 +718,10 @@ func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
 			tokens = login.Tokens
 		}
 	}
+	if err == nil && len(me.Organizations) == 0 {
+		http.Error(w, errCustomerActiveOrgInvalid.Error(), http.StatusForbidden)
+		return
+	}
 	activeOrgID := ""
 	if err == nil && len(me.Organizations) > 0 {
 		activeOrgID = me.Organizations[0].ID
@@ -653,28 +745,51 @@ func (s *Server) apiPlatformLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body.Email = strings.TrimSpace(body.Email)
-	if !s.cfg.AdminBreakGlassEnabled {
-		_ = s.auditPlatformBreakGlassLogin(body.Email, "disabled")
-		http.Error(w, "platform break-glass login is disabled; use SSO", http.StatusForbidden)
-		return
-	}
-	admin, err := s.platformAdmins.VerifyPlatformAdmin(body.Email, body.Password)
+	session, err := s.createAccountManagerPlatformSession(r.Context(), body.Email, body.Password)
 	if err != nil {
-		_ = s.auditPlatformBreakGlassLogin(body.Email, "failed")
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
-		return
-	}
-	session, err := s.sessions.CreateSession("platform_admin", admin.ID, admin.Email, "", "", "", 12*time.Hour)
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	if err := s.auditPlatformBreakGlassLogin(admin.Email, "accepted"); err != nil {
-		writeError(w, err)
 		return
 	}
 	setSessionCookie(w, session.ID)
 	writeJSON(w, map[string]string{"status": "ok"})
+}
+
+func (s *Server) createAccountManagerPlatformSession(ctx context.Context, email, password string) (store.Session, error) {
+	if !s.accountClient.Enabled() {
+		return store.Session{}, errCustomerSessionInvalid
+	}
+	login, err := s.accountClient.Login(ctx, email, password)
+	if err != nil {
+		return store.Session{}, err
+	}
+	if strings.TrimSpace(login.Tokens.AccessToken) == "" {
+		return store.Session{}, errCustomerSessionInvalid
+	}
+	if _, err := s.accountClient.BrandClouds(ctx, login.Tokens.AccessToken); err != nil {
+		return store.Session{}, err
+	}
+	return s.sessions.CreateSession("platform_admin", login.User.ID, login.User.Email, login.Tokens.AccessToken, login.Tokens.RefreshToken, "", tokenTTL(login.Tokens))
+}
+
+func (s *Server) createSessionFromActivatedLogin(ctx context.Context, login accountclient.LoginResult) (store.Session, string, error) {
+	if strings.TrimSpace(login.Tokens.AccessToken) == "" {
+		return store.Session{}, "", errCustomerSessionInvalid
+	}
+	if _, err := s.accountClient.BrandClouds(ctx, login.Tokens.AccessToken); err == nil {
+		session, sessionErr := s.sessions.CreateSession("platform_admin", login.User.ID, login.User.Email, login.Tokens.AccessToken, login.Tokens.RefreshToken, "", tokenTTL(login.Tokens))
+		return session, "platform_admin", sessionErr
+	} else if !isAccessDeniedHTTPError(err) {
+		return store.Session{}, "", err
+	}
+	me, tokens, err := s.resolveCustomerProfile(ctx, login.Tokens)
+	if err != nil {
+		return store.Session{}, "", err
+	}
+	if len(me.Organizations) == 0 {
+		return store.Session{}, "", errCustomerActiveOrgInvalid
+	}
+	session, err := s.sessions.CreateSession("customer", login.User.ID, login.User.Email, tokens.AccessToken, tokens.RefreshToken, me.Organizations[0].ID, tokenTTL(tokens))
+	return session, "customer", err
 }
 
 func (s *Server) apiLogout(w http.ResponseWriter, r *http.Request) {
@@ -715,7 +830,7 @@ func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
 	if s.usePlatformAdminUpstream(session) {
 		devices, err := s.platformAdminDevices(r.Context(), session)
 		if err != nil {
-			s.writeUpstreamReadError(w, err)
+			s.writeUpstreamReadErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, devicesWithFirmwareVersion(devices))
@@ -2094,7 +2209,7 @@ func (s *Server) apiAdminCustomers(w http.ResponseWriter, r *http.Request) {
 	if s.usePlatformAdminUpstream(session) {
 		customers, err := s.platformAdminCustomers(r.Context(), session)
 		if err != nil {
-			s.writeUpstreamReadError(w, err)
+			s.writeUpstreamReadErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, customers)
@@ -2133,10 +2248,28 @@ func (s *Server) apiAdminBrandClouds(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		brandClouds, err := s.accountClient.BrandClouds(r.Context(), session.AccessToken)
 		if err != nil {
-			s.writeUpstreamReadError(w, err)
+			s.writeUpstreamReadErrorForSession(w, session.ID, err)
 			return
 		}
-		writeJSON(w, map[string][]accountclient.BrandCloud{"brand_clouds": brandClouds})
+		filtered := filterBrandCloudsForList(brandClouds, r.URL.Query())
+		limit, offset := paginationFromQuery(r.URL.Query(), 25, 100)
+		total := len(filtered)
+		end := offset + limit
+		if end > total {
+			end = total
+		}
+		page := []accountclient.BrandCloud{}
+		if offset < total {
+			page = filtered[offset:end]
+		}
+		writeJSON(w, map[string]any{
+			"brand_clouds": page,
+			"pagination": map[string]int{
+				"limit":  limit,
+				"offset": offset,
+				"total":  total,
+			},
+		})
 		return
 	}
 
@@ -2148,7 +2281,7 @@ func (s *Server) apiAdminBrandClouds(w http.ResponseWriter, r *http.Request) {
 	body.Name = strings.TrimSpace(body.Name)
 	brandCloud, err := s.accountClient.CreateBrandCloud(r.Context(), session.AccessToken, body)
 	if err != nil {
-		s.writeUpstreamReadError(w, err)
+		s.writeUpstreamReadErrorForSession(w, session.ID, err)
 		return
 	}
 	writeJSONStatus(w, http.StatusCreated, map[string]accountclient.BrandCloud{"brand_cloud": brandCloud})
@@ -2167,7 +2300,7 @@ func (s *Server) apiAdminBrandCloud(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		brandCloud, err := s.accountClient.BrandCloud(r.Context(), session.AccessToken, brandCloudID)
 		if err != nil {
-			s.writeUpstreamReadError(w, err)
+			s.writeUpstreamReadErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, map[string]accountclient.BrandCloud{"brand_cloud": brandCloud})
@@ -2183,7 +2316,7 @@ func (s *Server) apiAdminBrandCloud(w http.ResponseWriter, r *http.Request) {
 	body.Status = strings.TrimSpace(body.Status)
 	brandCloud, err := s.accountClient.UpdateBrandCloud(r.Context(), session.AccessToken, brandCloudID, body)
 	if err != nil {
-		s.writeUpstreamReadError(w, err)
+		s.writeUpstreamReadErrorForSession(w, session.ID, err)
 		return
 	}
 	writeJSON(w, map[string]accountclient.BrandCloud{"brand_cloud": brandCloud})
@@ -2208,10 +2341,99 @@ func (s *Server) apiAdminBrandCloudMember(w http.ResponseWriter, r *http.Request
 	body.Role = strings.TrimSpace(body.Role)
 	member, err := s.accountClient.AssignBrandCloudMember(r.Context(), session.AccessToken, brandCloudID, body)
 	if err != nil {
-		s.writeUpstreamReadError(w, err)
+		s.writeUpstreamReadErrorForSession(w, session.ID, err)
 		return
 	}
 	writeJSONStatus(w, http.StatusCreated, map[string]accountclient.Member{"member": member})
+}
+
+func (s *Server) apiAdminBrandCloudUser(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requireUpstreamPlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	brandCloudID := strings.TrimSpace(r.PathValue("brandCloudId"))
+	if brandCloudID == "" {
+		http.Error(w, "brand cloud id is required", http.StatusBadRequest)
+		return
+	}
+	var body accountclient.BrandCloudUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid brand cloud user request", http.StatusBadRequest)
+		return
+	}
+	body.Email = strings.ToLower(strings.TrimSpace(body.Email))
+	body.DisplayName = strings.TrimSpace(body.DisplayName)
+	body.Role = strings.TrimSpace(body.Role)
+	result, status, err := s.accountClient.CreateBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, body)
+	if err != nil {
+		s.writeUpstreamReadErrorForSession(w, session.ID, err)
+		return
+	}
+	if status != http.StatusCreated {
+		status = http.StatusOK
+	}
+	writeJSONStatus(w, status, result)
+}
+
+func (s *Server) apiAdminBrandCloudUsers(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requireUpstreamPlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	brandCloudID := strings.TrimSpace(r.PathValue("brandCloudId"))
+	if brandCloudID == "" {
+		http.Error(w, "brand cloud id is required", http.StatusBadRequest)
+		return
+	}
+	users, err := s.accountClient.BrandCloudUsers(r.Context(), session.AccessToken, brandCloudID, r.URL.Query())
+	if err != nil {
+		s.writeUpstreamReadErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string][]accountclient.BrandCloudUser{"brand_cloud_users": users})
+}
+
+func (s *Server) apiAdminBrandCloudUserAction(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requireUpstreamPlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	brandCloudID := strings.TrimSpace(r.PathValue("brandCloudId"))
+	brandCloudUserID := strings.TrimSpace(r.PathValue("brandCloudUserId"))
+	if brandCloudID == "" || brandCloudUserID == "" {
+		http.Error(w, "brand cloud id and user id are required", http.StatusBadRequest)
+		return
+	}
+	if r.Method == http.MethodDelete {
+		if err := s.accountClient.DeleteBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, brandCloudUserID); err != nil {
+			s.writeUpstreamReadErrorForSession(w, session.ID, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	action := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/admin/brand-clouds/"+brandCloudID+"/users/"+brandCloudUserID), "/")
+	var (
+		user accountclient.BrandCloudUser
+		err  error
+	)
+	switch action {
+	case "disable":
+		user, err = s.accountClient.DisableBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, brandCloudUserID)
+	case "enable":
+		user, err = s.accountClient.EnableBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, brandCloudUserID)
+	case "approve":
+		user, err = s.accountClient.ApproveBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, brandCloudUserID)
+	default:
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		s.writeUpstreamReadErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]accountclient.BrandCloudUser{"brand_cloud_user": user})
 }
 
 func (s *Server) apiAdminSSOProvider(w http.ResponseWriter, r *http.Request) {
@@ -2281,7 +2503,7 @@ func (s *Server) apiAdminOperations(w http.ResponseWriter, r *http.Request) {
 	if s.usePlatformAdminUpstream(session) {
 		ops, err := s.platformAdminOperations(r.Context(), session)
 		if err != nil {
-			s.writeUpstreamReadError(w, err)
+			s.writeUpstreamReadErrorForSession(w, session.ID, err)
 			return
 		}
 		writeJSON(w, ops)
@@ -2652,10 +2874,16 @@ func (s *Server) platformAdminCustomers(ctx context.Context, session store.Sessi
 func (s *Server) platformAdminDevices(ctx context.Context, session store.Session) ([]contracts.Device, error) {
 	orgs, err := s.accountClient.AdminOrganizations(ctx, session.AccessToken)
 	if err != nil {
+		if isOptionalAccountManagerAdminInventoryMissing(err) {
+			return s.projections.ListDevices()
+		}
 		return nil, err
 	}
 	upstreamDevices, err := s.accountClient.AdminDevices(ctx, session.AccessToken)
 	if err != nil {
+		if isOptionalAccountManagerAdminInventoryMissing(err) {
+			return s.projections.ListDevices()
+		}
 		return nil, err
 	}
 	vcFacts, err := s.videoCloudFacts(ctx, upstreamDevices)
@@ -2681,6 +2909,9 @@ func (s *Server) platformAdminDevices(ctx context.Context, session store.Session
 func (s *Server) platformAdminOperations(ctx context.Context, session store.Session) ([]contracts.Operation, error) {
 	upstreamOps, err := s.accountClient.AdminOperations(ctx, session.AccessToken)
 	if err != nil {
+		if isOptionalAccountManagerAdminInventoryMissing(err) {
+			return s.projections.ListOperations()
+		}
 		return nil, err
 	}
 	ops := make([]contracts.Operation, 0, len(upstreamOps))
@@ -2700,6 +2931,11 @@ func (s *Server) platformAdminOperations(ctx context.Context, session store.Sess
 		})
 	}
 	return ops, nil
+}
+
+func isOptionalAccountManagerAdminInventoryMissing(err error) bool {
+	var httpErr *accountclient.HTTPError
+	return errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusNotFound
 }
 
 func summaryFromReadModels(devices []contracts.Device, ops []contracts.Operation) contracts.Summary {
@@ -3013,6 +3249,30 @@ func customerUpstreamStatus(err error) (int, bool) {
 	return 0, false
 }
 
+func isAccessDeniedHTTPError(err error) bool {
+	var httpErr *accountclient.HTTPError
+	if !errors.As(err, &httpErr) {
+		return false
+	}
+	return httpErr.StatusCode == http.StatusUnauthorized || httpErr.StatusCode == http.StatusForbidden
+}
+
+func (s *Server) writeAuthProxyError(w http.ResponseWriter, err error) {
+	var httpErr *accountclient.HTTPError
+	if errors.As(err, &httpErr) {
+		message := strings.TrimSpace(httpErr.Body)
+		if message == "" {
+			message = http.StatusText(httpErr.StatusCode)
+		}
+		switch httpErr.StatusCode {
+		case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden:
+			http.Error(w, message, httpErr.StatusCode)
+			return
+		}
+	}
+	s.writeCustomerError(w, err)
+}
+
 func (s *Server) writeCustomerErrorForSession(w http.ResponseWriter, sessionID string, err error) {
 	if errors.Is(err, errCustomerSessionInvalid) {
 		s.invalidateCustomerSession(w, sessionID)
@@ -3073,6 +3333,13 @@ func (s *Server) writeUpstreamReadError(w http.ResponseWriter, err error) {
 	writeError(w, err)
 }
 
+func (s *Server) writeUpstreamReadErrorForSession(w http.ResponseWriter, sessionID string, err error) {
+	if status, ok := customerUpstreamStatus(err); ok && status == http.StatusUnauthorized {
+		s.invalidateCustomerSession(w, sessionID)
+	}
+	s.writeUpstreamReadError(w, err)
+}
+
 func (s *Server) writeVideoCloudGatewayError(w http.ResponseWriter, err error) {
 	s.logUpstreamError("video_cloud", err)
 	if isTimeoutError(err) {
@@ -3092,16 +3359,6 @@ func isTimeoutError(err error) bool {
 	}
 	var netErr net.Error
 	return errors.As(err, &netErr) && netErr.Timeout()
-}
-
-func (s *Server) auditPlatformBreakGlassLogin(email, result string) error {
-	return s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{
-		Actor:     fallback(email, "unknown-platform-admin"),
-		ActorKind: "platform_admin",
-		Action:    "PlatformBreakGlassLogin",
-		Target:    "platform_admin",
-		Result:    result,
-	})
 }
 
 func (s *Server) auditSSOSession(email, kind, orgID, result string) error {
@@ -3822,6 +4079,95 @@ func (s *Server) videoCloudFacts(ctx context.Context, devices []accountclient.De
 		}
 	}
 	return out, nil
+}
+
+func paginationFromQuery(query url.Values, defaultLimit, maxLimit int) (int, int) {
+	limit := defaultLimit
+	if raw := strings.TrimSpace(query.Get("limit")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if limit > maxLimit {
+		limit = maxLimit
+	}
+	offset := 0
+	if raw := strings.TrimSpace(query.Get("offset")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			offset = parsed
+		}
+	}
+	return limit, offset
+}
+
+func filterBrandCloudsForList(brands []accountclient.BrandCloud, query url.Values) []accountclient.BrandCloud {
+	search := strings.ToLower(strings.TrimSpace(firstNonEmpty(query.Get("q"), query.Get("query"), query.Get("search"))))
+	status := strings.ToLower(strings.TrimSpace(query.Get("status")))
+	tier := strings.ToLower(strings.TrimSpace(query.Get("tier")))
+	if status == "all" {
+		status = ""
+	}
+	if tier == "all" {
+		tier = ""
+	}
+	out := make([]accountclient.BrandCloud, 0, len(brands))
+	for _, brand := range brands {
+		if search != "" && !brandCloudMatchesSearch(brand, search) {
+			continue
+		}
+		if status != "" && brandCloudStatusKey(brand) != status {
+			continue
+		}
+		if tier != "" && strings.ToLower(brandCloudTier(brand)) != tier {
+			continue
+		}
+		out = append(out, brand)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
+	})
+	return out
+}
+
+func brandCloudMatchesSearch(brand accountclient.BrandCloud, search string) bool {
+	candidates := []string{
+		brand.ID,
+		brand.Name,
+		metadataString(brand.Metadata, "brandname", ""),
+		metadataString(brand.Metadata, "tenant_slug", ""),
+		metadataString(brand.Metadata, "owner_email", ""),
+		metadataString(brand.Metadata, "admin_email", ""),
+		metadataString(brand.Metadata, "primary_admin_email", ""),
+	}
+	for _, candidate := range candidates {
+		if strings.Contains(strings.ToLower(candidate), search) {
+			return true
+		}
+	}
+	return false
+}
+
+func brandCloudStatusKey(brand accountclient.BrandCloud) string {
+	raw := strings.ToLower(strings.TrimSpace(firstNonEmpty(brand.Status, metadataString(brand.Metadata, "status", ""))))
+	switch raw {
+	case "active", "enabled", "ready":
+		return "active"
+	case "disabled", "inactive", "suspended":
+		return "disabled"
+	case "pending", "pending_verification", "setup_required", "setup-required":
+		return "setup_required"
+	case "error", "failed":
+		return "error"
+	default:
+		if raw == "" {
+			return "setup_required"
+		}
+		return raw
+	}
+}
+
+func brandCloudTier(brand accountclient.BrandCloud) string {
+	return firstNonEmpty(brand.Tier, metadataString(brand.Metadata, "tier", ""), metadataString(brand.Metadata, "commercial_tier", ""), "Evaluation")
 }
 
 const telemetrySecondsPerDay = 24 * 60 * 60

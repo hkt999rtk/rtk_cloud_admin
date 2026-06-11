@@ -6,7 +6,7 @@ export function ssoProtocolLabel(protocol) {
 }
 
 export function auditCoverageCopy() {
-  return 'Local operator actions captured by the Go BFF. Current write coverage includes SSO, break-glass, session, and lifecycle request records; audit export and full upstream audit mirroring are not implemented.';
+  return 'Local operator actions captured by the Go BFF. Current write coverage includes SSO, session, and lifecycle request records; audit export and full upstream audit mirroring are not implemented.';
 }
 
 export function formatResourcePercent(value) {

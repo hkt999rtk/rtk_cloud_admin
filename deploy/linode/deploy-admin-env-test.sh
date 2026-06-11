@@ -57,8 +57,6 @@ ACCOUNT_MANAGER_BASE_URL="https://account-manager.example.test" \
 VIDEO_CLOUD_BASE_URL="https://video-cloud.example.test" \
 VIDEO_CLOUD_ADMIN_TOKEN="video-admin-token" \
 VIDEO_CLOUD_PROMETHEUS_BASE_URL="http://10.42.1.30:9090" \
-ADMIN_BOOTSTRAP_EMAIL="admin@example.test" \
-ADMIN_BOOTSTRAP_PASSWORD="admin-password" \
   "$repo_root/deploy/linode/deploy-admin.sh" >/tmp/deploy-admin-env-test.out
 
 grep -q '^VIDEO_CLOUD_PROMETHEUS_BASE_URL=http://10.42.1.30:9090$' "$capture/admin.env"

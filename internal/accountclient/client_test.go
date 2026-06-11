@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -169,6 +170,19 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 			}
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"organization_id": "brand-1", "user_id": "user-1", "role": "owner"}})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users":
+			if r.URL.Query().Get("status") != "pending_verification" {
+				t.Fatalf("brand user status query = %q", r.URL.Query().Get("status"))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_users": []map[string]any{{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "signup_pending_verification": true}}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/disable":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "disabled_at": "2026-06-11T00:00:00Z"}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/enable":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com"}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/approve":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "email_verified": true, "signup_pending_verification": false}})
+		case r.Method == http.MethodDelete && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1":
+			w.WriteHeader(http.StatusNoContent)
 		default:
 			http.NotFound(w, r)
 		}
@@ -210,6 +224,37 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 	}
 	if member.UserID != "user-1" || memberBody["user_id"] != "user-1" {
 		t.Fatalf("member = %#v body=%#v", member, memberBody)
+	}
+	users, err := client.BrandCloudUsers(t.Context(), "admin-access", "brand-1", url.Values{"status": []string{"pending_verification"}})
+	if err != nil {
+		t.Fatalf("BrandCloudUsers returned error: %v", err)
+	}
+	if len(users) != 1 || users[0].ID != "brand-user-1" || !users[0].SignupPendingVerification {
+		t.Fatalf("brand cloud users = %#v", users)
+	}
+	disabled, err := client.DisableBrandCloudUser(t.Context(), "admin-access", "brand-1", "brand-user-1")
+	if err != nil {
+		t.Fatalf("DisableBrandCloudUser returned error: %v", err)
+	}
+	if disabled.DisabledAt == "" {
+		t.Fatalf("disabled brand cloud user = %#v", disabled)
+	}
+	enabled, err := client.EnableBrandCloudUser(t.Context(), "admin-access", "brand-1", "brand-user-1")
+	if err != nil {
+		t.Fatalf("EnableBrandCloudUser returned error: %v", err)
+	}
+	if enabled.DisabledAt != "" {
+		t.Fatalf("enabled brand cloud user = %#v", enabled)
+	}
+	approved, err := client.ApproveBrandCloudUser(t.Context(), "admin-access", "brand-1", "brand-user-1")
+	if err != nil {
+		t.Fatalf("ApproveBrandCloudUser returned error: %v", err)
+	}
+	if !approved.EmailVerified || approved.SignupPendingVerification {
+		t.Fatalf("approved brand cloud user = %#v", approved)
+	}
+	if err := client.DeleteBrandCloudUser(t.Context(), "admin-access", "brand-1", "brand-user-1"); err != nil {
+		t.Fatalf("DeleteBrandCloudUser returned error: %v", err)
 	}
 }
 

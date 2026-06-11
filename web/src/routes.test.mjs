@@ -15,6 +15,8 @@ test('maps platform shell paths to platform routes', () => {
   assert.equal(routeFromPath('/admin'), 'platform-dashboard');
   assert.equal(routeFromPath('/admin/resources'), 'platform-resources');
   assert.equal(routeFromPath('/admin/health'), 'platform-health');
+  assert.equal(routeFromPath('/admin/brand-clouds'), 'platform-brand-clouds');
+  assert.equal(routeFromPath('/admin/brand-clouds/brand-001'), 'platform-brand-clouds');
   assert.equal(routeFromPath('/admin/sso'), 'platform-sso');
   assert.equal(routeFromPath('/admin/logs'), 'platform-logs');
   assert.equal(routeFromPath('/admin/ops'), 'platform-operations');
@@ -25,6 +27,10 @@ test('maps platform shell paths to platform routes', () => {
 test('maps public signup paths to auth routes', () => {
   assert.equal(routeFromPath('/login'), 'login');
   assert.equal(routeFromPath('/login/'), 'login');
+  assert.equal(routeFromPath('/login/check-email'), 'login-check-email');
+  assert.equal(routeFromPath('/login/activate'), 'login-activate');
+  assert.equal(routeFromPath('/forgot-password'), 'forgot-password');
+  assert.equal(routeFromPath('/reset-password'), 'reset-password');
   assert.equal(routeFromPath('/signup'), 'signup');
   assert.equal(routeFromPath('/signup/check-email'), 'signup-check-email');
   assert.equal(routeFromPath('/signup/check-email/inbox'), 'signup-check-email');
@@ -66,16 +72,16 @@ test('retired customer pages are not exposed in section navigation', () => {
 test('platform nav follows the Platform Dashboard landing order', () => {
   assert.deepEqual(
     platformNavItems.map((item) => item.label),
-    ['Platform Dashboard', 'Resource Trends', 'Service Health', 'SSO Providers', 'Service Logs', 'Operations Log', 'Audit Log'],
+    ['Platform Dashboard', 'Resource Trends', 'Service Health', 'Brand Clouds', 'SSO Providers', 'Service Logs', 'Operations Log', 'Audit Log'],
   );
   assert.deepEqual(
     platformNavItems.map((item) => item.path),
-    ['/admin', '/admin/resources', '/admin/health', '/admin/sso', '/admin/logs', '/admin/ops', '/admin/audit'],
+    ['/admin', '/admin/resources', '/admin/health', '/admin/brand-clouds', '/admin/sso', '/admin/logs', '/admin/ops', '/admin/audit'],
   );
 });
 
 test('public auth routes stay outside Customer and Platform section navigation', () => {
-  for (const route of ['login', 'signup', 'signup-check-email', 'verify']) {
+  for (const route of ['login', 'login-check-email', 'login-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'verify']) {
     assert.equal(isPublicRouteId(route), true, route);
     assert.equal(isPlatformRouteId(route), false, route);
     assert.deepEqual(navItemsForRoute(route), []);
@@ -121,6 +127,10 @@ test('provides titles for all public shell routes', () => {
     'signup-check-email',
     'verify',
     'login',
+    'login-check-email',
+    'login-activate',
+    'forgot-password',
+    'reset-password',
     'overview',
     'devices',
     'firmware-ota',
