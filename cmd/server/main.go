@@ -43,10 +43,6 @@ func main() {
 	if err := st.SeedDemoData(); err != nil {
 		logger.Fatal("seed demo data", zap.Error(err))
 	}
-	if err := st.BootstrapPlatformAdmin(cfg.AdminBootstrapEmail, cfg.AdminBootstrapPassword); err != nil {
-		logger.Fatal("bootstrap platform admin", zap.Error(err))
-	}
-
 	handler := app.NewWithOptions(st, app.Options{Config: cfg, Logger: logger})
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,

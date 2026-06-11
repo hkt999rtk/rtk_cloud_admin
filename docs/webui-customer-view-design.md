@@ -154,13 +154,43 @@ Sidebar:
 - Platform View switcher is visually separated from Customer View navigation and
   routes only to role-gated Platform View pages.
 - Platform View content must not appear inside Customer View pages.
+- Sidebar account summary shows the signed-in role and email only. It does not
+  repeat the active organization name.
 
 Main header:
 
 - Page title at the top-left of the content area.
-- Organization selector near the title, using the active organization name.
+- Organization selector only when the customer session has multiple
+  memberships.
 - Window controls where relevant, usually `7d` / `30d`.
-- Last updated timestamp and refresh affordance on the right.
+- Refresh affordance and signed-in actions on the right.
+- Do not show a passive active-organization label or global last-updated
+  timestamp in the header.
+
+Login page:
+
+- Use the Realtek logo asset, followed by the `Connect+ Ops` product label.
+- The default login mode is email sign-in: one `Email` field and a primary
+  `Continue` action that calls `POST /api/auth/sign-in`.
+- Password login is a secondary fallback exposed as `Use password instead`.
+  It keeps the existing platform/customer password login behavior during the
+  migration period, but it is not the primary first-viewport action.
+- The email field label is `Email`; do not use `Work email`.
+- Do not show a top-right `Need help?` link on the login page.
+- Keep login copy short and operational. Avoid support, marketing, or
+  instructional links in the first viewport.
+- `/login/check-email` confirms that a sign-in request was accepted. The copy
+  must be enumeration-safe and must not reveal whether the account exists,
+  is disabled, or was rate limited.
+- `/login/activate` consumes a login activation token and creates the Admin
+  Console session only after Account Manager returns successful credentials.
+  Invalid, expired, or replayed tokens show a compact failure state with a
+  route back to `/login`.
+- `/forgot-password` requests a password reset token by email and returns the
+  same accepted UI for known, unknown, disabled, or throttled accounts.
+- `/reset-password` consumes a reset token, writes the new password through
+  Account Manager, and returns to `/login` after success. The reset flow uses
+  the same server-side token delivery lifecycle as email sign-in.
 
 Organization selector:
 
@@ -203,7 +233,7 @@ Capability and role behavior:
 Auth and access states:
 
 - Unauthenticated users see the standalone Admin Console login page with email
-  and password fields.
+  sign-in as the default and password login as a secondary fallback.
 - Signup entry points route to the self-service evaluation flow documented in
   `SPEC.md`; commercial brand-cloud user creation is separate and platform
   admin-owned.
@@ -420,8 +450,8 @@ Required behavior:
   Manager through the Admin Console BFF.
 - The UI displays submitting, denied access, source-unavailable, and retry
   states.
-- Platform break-glass login is visually secondary, available only when enabled
-  by deployment configuration, and labeled as emergency local admin access.
+- Platform password login is Account Manager-backed and visually secondary to
+  the customer login path unless the requested route is a Platform View route.
 - Route gates distinguish unauthenticated, wrong-role, and missing-capability
   states. A missing Customer View membership should not render empty fleet data.
 

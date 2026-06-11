@@ -10,9 +10,6 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	t.Setenv("VIDEO_CLOUD_ADMIN_TOKEN", "video-admin-token")
 	t.Setenv("VIDEO_CLOUD_PROMETHEUS_BASE_URL", "http://10.42.1.30:9090")
 	t.Setenv("CLOUD_ADMIN_LOG_LEVEL", "warn")
-	t.Setenv("ADMIN_BOOTSTRAP_EMAIL", "admin@example.com")
-	t.Setenv("ADMIN_BOOTSTRAP_PASSWORD", "secret")
-	t.Setenv("ADMIN_BREAK_GLASS_ENABLED", "true")
 	t.Setenv("CUSTOMER_PASSWORD_LOGIN_ENABLED", "true")
 
 	cfg := FromEnv()
@@ -37,12 +34,6 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	if cfg.LogLevel != "warn" {
 		t.Fatalf("LogLevel = %q, want warn", cfg.LogLevel)
 	}
-	if cfg.AdminBootstrapEmail != "admin@example.com" || cfg.AdminBootstrapPassword != "secret" {
-		t.Fatalf("admin bootstrap env not loaded")
-	}
-	if !cfg.AdminBreakGlassEnabled {
-		t.Fatalf("AdminBreakGlassEnabled = false, want true")
-	}
 	if !cfg.CustomerPasswordLoginEnabled {
 		t.Fatalf("CustomerPasswordLoginEnabled = false, want true")
 	}
@@ -58,9 +49,6 @@ func TestFromEnvDefaults(t *testing.T) {
 	}
 	if cfg.LogLevel != "info" {
 		t.Fatalf("LogLevel default = %q, want info", cfg.LogLevel)
-	}
-	if cfg.AdminBreakGlassEnabled {
-		t.Fatalf("AdminBreakGlassEnabled default = true, want false")
 	}
 	if !cfg.CustomerPasswordLoginEnabled {
 		t.Fatalf("CustomerPasswordLoginEnabled default = false, want true")

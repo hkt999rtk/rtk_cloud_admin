@@ -11,8 +11,6 @@ ACCOUNT_DEVICE_1="${E2E_ACCOUNT_DEVICE_1:-dev-001}"
 VIDEO_DEVICE_1="${E2E_VIDEO_DEVICE_1:-device-1}"
 ACCOUNT_DEVICE_2="${E2E_ACCOUNT_DEVICE_2:-dev-002}"
 VIDEO_DEVICE_2="${E2E_VIDEO_DEVICE_2:-device-2}"
-ADMIN_EMAIL="${E2E_ADMIN_EMAIL:-admin@example.com}"
-ADMIN_PASSWORD="${E2E_ADMIN_PASSWORD:-local-e2e-secret}"
 PORT="${E2E_PORT:-}"
 ARTIFACTS_DIR="${E2E_ARTIFACTS_DIR:-$ROOT_DIR/.artifacts/live-video-cloud-e2e}"
 REPORT_PATH="$ARTIFACTS_DIR/report.json"
@@ -174,9 +172,6 @@ log "starting Admin BFF on $BASE_URL"
     DATABASE_PATH="$DB_PATH" \
     VIDEO_CLOUD_BASE_URL="$VIDEO_CLOUD_BASE_URL" \
     VIDEO_CLOUD_ADMIN_TOKEN="$admin_token" \
-    ADMIN_BOOTSTRAP_EMAIL="$ADMIN_EMAIL" \
-    ADMIN_BOOTSTRAP_PASSWORD="$ADMIN_PASSWORD" \
-    ADMIN_BREAK_GLASS_ENABLED=true \
     go run ./cmd/server >"$SERVER_LOG" 2>&1
 ) &
 SERVER_PID="$!"
@@ -388,17 +383,14 @@ record_check "service health" "pass" "Video Cloud ok" "/api/service-health"
 
 run_upstream_diagnostics
 
-log "checking platform break-glass login"
-platform_login="$("$curl_bin" -fsS -c "$COOKIE_JAR" \
-  -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \
-  "$BASE_URL/api/auth/platform/login")"
-assert_json "platform login" "$platform_login" '.status=="ok"'
-platform_session="$(awk '($0 !~ /^#/ || $0 ~ /^#HttpOnly_/) && $6=="rtk_admin_session"{print $7}' "$COOKIE_JAR" | tail -n1)"
-[[ -n "$platform_session" ]] || fail "platform login did not return rtk_admin_session cookie"
-platform_me="$("$curl_bin" -fsS -b "$COOKIE_JAR" "$BASE_URL/api/me")"
+platform_session="local-e2e-platform"
+"$sqlite_bin" "$DB_PATH" <<SQL
+INSERT OR REPLACE INTO sessions (id, kind, subject, email, access_token, refresh_token, active_org_id, expires_at, created_at)
+VALUES ('$platform_session', 'platform_admin', 'local-e2e-platform', 'platform@example.local', '', '', '', '$expires_at', '$created_at');
+SQL
+platform_me="$("$curl_bin" -fsS -H "Cookie: rtk_admin_session=$platform_session" "$BASE_URL/api/me")"
 assert_json "platform me" "$platform_me" '.kind=="platform_admin"'
-record_check "platform break-glass login" "pass" "platform_admin session issued" "/api/auth/platform/login"
+record_check "local platform fixture session" "pass" "platform_admin test fixture session issued"
 
 log "checking customer-safe devices"
 devices_json="$(customer_get_json /api/devices)"

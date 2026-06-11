@@ -86,6 +86,31 @@ export function userFacingVerificationError(error) {
   return 'Verification could not be completed. Please try again.';
 }
 
+export function userFacingLoginActivationError(error) {
+  const message = String(error?.message || error || '');
+  if (/invalid|expired|token|400|404|422/i.test(message) && !containsSensitiveDetails(message)) {
+    return 'Sign-in link is invalid or expired. Request a new sign-in email.';
+  }
+  if (/gateway|account manager|temporarily unavailable|timeout|network|502|503|504/i.test(message)) {
+    return 'Sign-in is temporarily unavailable. Please try again later.';
+  }
+  return 'Sign-in could not be completed. Please request a new sign-in email.';
+}
+
+export function userFacingPasswordResetError(error) {
+  const message = String(error?.message || error || '');
+  if (/invalid|expired|token|400|404|422/i.test(message) && !containsSensitiveDetails(message)) {
+    return 'Reset link is invalid or expired. Request a new reset email.';
+  }
+  if (/password|minLength|too short/i.test(message)) {
+    return 'Password must be at least 8 characters.';
+  }
+  if (/gateway|account manager|temporarily unavailable|timeout|network|502|503|504/i.test(message)) {
+    return 'Password reset is temporarily unavailable. Please try again later.';
+  }
+  return 'Password reset could not be completed. Please try again.';
+}
+
 function containsSensitiveDetails(message) {
   return /video_cloud_devid|operation_id|upstream_operation_id|raw_payload|\{.*\}/i.test(String(message || ''));
 }

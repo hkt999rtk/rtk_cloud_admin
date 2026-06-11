@@ -12,8 +12,11 @@ against the approved design assets in `docs/assets/webui-design/`.
   batch sidebar, mobile navigation, route list, or as a placeholder page.
 - Platform View switcher is visually separated from Customer View navigation and
   remains role/route gated.
-- Header contains page title, active organization, relevant window control,
-  last updated text, and refresh action.
+- Sidebar account summary shows role and email only; it does not repeat the
+  active organization name.
+- Header contains page title, relevant window control, refresh action, and
+  logout action when signed in. It does not show a passive active-organization
+  label or global last-updated text.
 - Organization selector lists only `/api/me.memberships`, switches through
   `/api/me/active-org`, and clears org-specific filters after a successful
   switch.
@@ -104,7 +107,8 @@ Reference: `docs/assets/webui-design/customer-stream-health.png`
   expired token, invalid token, already verified, resend, and service-unavailable
   states.
 - Primary sign-in path is email and password through Account Manager.
-- Platform break-glass login is visually secondary and appears only when enabled
+- Platform password login is Account Manager-backed and appears only for
+  platform routes
   by deployment configuration.
 - Customer sessions cannot see Platform View data; Platform View routes and
   switcher targets show an access gate for the wrong role. Platform Admin
@@ -139,7 +143,7 @@ Use this mapping when reviewing developer issues opened from
 | 4. Devices table and detail drawer completion | Device filters, selected row, drawer overview, source facts, telemetry panels, provision/deactivate states |
 | 5. Firmware & OTA read-only workflows | Firmware distribution, campaign summary/table, read-only drill-down, unsupported policies, firmware risk queue |
 | 6. Stream Health read-only workflows | Stream KPIs, trend, source-backed By Mode rows, per-device table, attention routing |
-| 7. Public auth, signup, verification, and quota UX polish | Email/password login, signup/check-email/verify states, quota request states, break-glass secondary treatment |
+| 7. Public auth, signup, verification, and quota UX polish | Email/password login, signup/check-email/verify states, quota request states, platform login routing |
 | 8. Platform View polish | Platform Dashboard, Service Health, SSO Providers, Operations Log, Audit Log, Tier 1-only boundaries |
 | 9. Final WebUI browser QA and documentation signoff | Desktop/mobile browser smoke, visual checklist closure, documented remaining upstream blockers |
 
