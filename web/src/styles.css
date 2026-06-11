@@ -1977,6 +1977,38 @@ p {
   gap: 12px;
 }
 
+.auth-mode-tabs {
+  background: #eef4f8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 4px;
+}
+
+.auth-mode-tabs button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 800;
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.auth-mode-tabs button.active {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(37, 56, 76, 0.12);
+  color: var(--navy);
+}
+
+.auth-mode-tabs button:focus-visible {
+  outline: 3px solid rgba(0, 104, 183, 0.18);
+  outline-offset: 2px;
+}
+
 .login-form label {
   color: var(--navy);
   display: grid;

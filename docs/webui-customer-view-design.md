@@ -170,11 +170,18 @@ Main header:
 Login page:
 
 - Use the Realtek logo asset, followed by the `Connect+ Ops` product label.
-- The default login mode is email sign-in: one `Email` field and a primary
-  `Continue` action that calls `POST /api/auth/sign-in`.
-- Password login is a secondary fallback exposed as `Use password instead`.
-  It keeps the existing platform/customer password login behavior during the
-  migration period, but it is not the primary first-viewport action.
+- The auth page is a normal website-style entry page with two first-class
+  modes: `Login` and `Sign-in`. Do not model either mode as a fallback hidden
+  behind copy such as `Use password instead`.
+- `Login` is the default mode for an existing Admin Console user. It shows
+  `Email`, `Password`, a primary `Login` action, and a `Forgot password?`
+  link. Password login keeps the existing platform/customer login behavior.
+- `Sign-in` is the email activation-link mode. It shows one `Email` field and
+  a primary `Continue` action that calls `POST /api/auth/sign-in`. The UI copy
+  must make clear that this sends an activation/sign-in link instead of
+  logging in immediately.
+- The `Login` / `Sign-in` switcher must be visible in the first viewport, for
+  example as tabs or a segmented control directly above the form.
 - The email field label is `Email`; do not use `Work email`.
 - Do not show a top-right `Need help?` link on the login page.
 - Keep login copy short and operational. Avoid support, marketing, or
@@ -232,8 +239,8 @@ Capability and role behavior:
 
 Auth and access states:
 
-- Unauthenticated users see the standalone Admin Console login page with email
-  sign-in as the default and password login as a secondary fallback.
+- Unauthenticated users see the standalone Admin Console auth page. `Login`
+  and `Sign-in` are both first-class modes, with `Login` selected by default.
 - Signup entry points route to the self-service evaluation flow documented in
   `SPEC.md`; commercial brand-cloud user creation is separate and platform
   admin-owned.

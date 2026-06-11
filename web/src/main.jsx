@@ -973,8 +973,8 @@ function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onP
             <img src="/assets/realtek-logo.png" alt="Realtek" />
             <strong>Connect+ Ops</strong>
           </div>
-          <h1 id="login-title">Sign in to Admin Console</h1>
-          <p className="login-copy">Use your email to continue.</p>
+          <h1 id="login-title">Admin Console</h1>
+          <p className="login-copy">Login with your password or sign in with an email activation link.</p>
           {content}
           {error ? <div className="error">{error}</div> : null}
         </section>
@@ -984,19 +984,39 @@ function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onP
 }
 
 function LoginEntryForm({ onEmailSignIn, onPasswordLogin, disabled }) {
-  const [mode, setMode] = useState('email');
-  if (mode === 'password') {
-    return (
-      <div className="auth-stack">
-        <LoginPasswordForm onPasswordLogin={onPasswordLogin} disabled={disabled} />
-        <button type="button" className="link-button" onClick={() => setMode('email')}>Use email sign-in</button>
+  const [mode, setMode] = useState('login');
+  return (
+    <div className="auth-stack">
+      <div className="auth-mode-tabs" role="tablist" aria-label="Auth mode">
+        <button
+          type="button"
+          className={mode === 'login' ? 'active' : ''}
+          role="tab"
+          aria-selected={mode === 'login'}
+          onClick={() => setMode('login')}
+        >
+          Login
+        </button>
+        <button
+          type="button"
+          className={mode === 'signin' ? 'active' : ''}
+          role="tab"
+          aria-selected={mode === 'signin'}
+          onClick={() => setMode('signin')}
+        >
+          Sign-in
+        </button>
       </div>
-    );
-  }
-  return <LoginEmailForm onEmailSignIn={onEmailSignIn} onUsePassword={() => setMode('password')} disabled={disabled} />;
+      {mode === 'signin' ? (
+        <LoginEmailForm onEmailSignIn={onEmailSignIn} disabled={disabled} />
+      ) : (
+        <LoginPasswordForm onPasswordLogin={onPasswordLogin} disabled={disabled} />
+      )}
+    </div>
+  );
 }
 
-function LoginEmailForm({ onEmailSignIn, onUsePassword, disabled }) {
+function LoginEmailForm({ onEmailSignIn, disabled }) {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState('');
@@ -1014,12 +1034,12 @@ function LoginEmailForm({ onEmailSignIn, onUsePassword, disabled }) {
   }
   return (
     <form className="login-form" onSubmit={submit}>
+      <p className="auth-status">Send an activation link to continue without a password.</p>
       <label>
         Email
         <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
       </label>
       <button type="submit" disabled={busy || disabled}>{busy ? 'Sending' : 'Continue'}</button>
-      <button type="button" className="secondary-button" onClick={onUsePassword}>Use password instead</button>
       {localError ? <p className="error">{localError}</p> : null}
     </form>
   );
@@ -1052,7 +1072,7 @@ function LoginPasswordForm({ onPasswordLogin, disabled }) {
         Password
         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required />
       </label>
-      <button type="submit" disabled={busy || disabled}>{busy ? 'Signing in' : 'Sign in'}</button>
+      <button type="submit" disabled={busy || disabled}>{busy ? 'Logging in' : 'Login'}</button>
       <a className="auth-link" href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}>Forgot password?</a>
       {localError ? <p className="error">{localError}</p> : null}
     </form>
