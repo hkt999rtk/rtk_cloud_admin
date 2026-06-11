@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -154,6 +156,44 @@ var platformDashboardPrometheusQueries = []prometheusQueryDefinition{
 		Title: "Disk utilization",
 		Query: `(1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100`,
 	},
+	{
+		ID:    "infra_network_in_bps",
+		Title: "Network inbound throughput",
+		Query: `sum by(role) (rate(node_network_receive_bytes_total{device!~"lo|docker.*|veth.*|br-.*|cni.*|flannel.*"}[5m])) * 8`,
+	},
+	{
+		ID:    "infra_network_out_bps",
+		Title: "Network outbound throughput",
+		Query: `sum by(role) (rate(node_network_transmit_bytes_total{device!~"lo|docker.*|veth.*|br-.*|cni.*|flannel.*"}[5m])) * 8`,
+	},
+}
+
+var platformResourceTrendQueries = []prometheusQueryDefinition{
+	{
+		ID:    "cpu_percent",
+		Title: "CPU utilization",
+		Query: `100 - avg by(role) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100`,
+	},
+	{
+		ID:    "memory_percent",
+		Title: "Memory utilization",
+		Query: `(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100`,
+	},
+	{
+		ID:    "disk_percent",
+		Title: "Disk utilization",
+		Query: `(1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100`,
+	},
+	{
+		ID:    "network_in_bps",
+		Title: "Network inbound throughput",
+		Query: `sum by(role) (rate(node_network_receive_bytes_total{device!~"lo|docker.*|veth.*|br-.*|cni.*|flannel.*"}[5m])) * 8`,
+	},
+	{
+		ID:    "network_out_bps",
+		Title: "Network outbound throughput",
+		Query: `sum by(role) (rate(node_network_transmit_bytes_total{device!~"lo|docker.*|veth.*|br-.*|cni.*|flannel.*"}[5m])) * 8`,
+	},
 }
 
 type prometheusQueryDefinition struct {
@@ -180,6 +220,14 @@ func (s *Server) apiAdminPlatformDashboard(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, s.platformDashboard(r.Context(), summary, operations))
+}
+
+func (s *Server) apiAdminPlatformResourceTrends(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+		return
+	}
+	payload := s.platformResourceTrends(r.Context(), r.URL.Query().Get("range"))
+	writeJSON(w, payload)
 }
 
 func (s *Server) platformDashboardReadModels(ctx context.Context, session store.Session) (contracts.Summary, []contracts.Operation, error) {
@@ -416,6 +464,8 @@ func buildPlatformDashboardServerResources(queriesByID map[string]contracts.Plat
 	cpu := queriesByID["infra_cpu_utilization_percent"]
 	memory := queriesByID["infra_memory_utilization_percent"]
 	disk := queriesByID["infra_disk_utilization_percent"]
+	networkIn := queriesByID["infra_network_in_bps"]
+	networkOut := queriesByID["infra_network_out_bps"]
 	rows := make([]contracts.PlatformDashboardServerResource, 0, len(platformDashboardServerResources))
 	for _, server := range platformDashboardServerResources {
 		row := contracts.PlatformDashboardServerResource{
@@ -423,16 +473,21 @@ func buildPlatformDashboardServerResources(queriesByID map[string]contracts.Plat
 			Label:        server.Label,
 			Role:         server.Role,
 			Status:       platformDashboardSourceUnmonitored,
-			SourceStatus: platformDashboardServerResourceSourceStatus(cpu, memory, disk),
-			CheckedAt:    firstNonEmpty(cpu.CheckedAt, memory.CheckedAt, disk.CheckedAt),
+			SourceStatus: platformDashboardServerResourceSourceStatus(cpu, memory, disk, networkIn, networkOut),
+			CheckedAt:    firstNonEmpty(cpu.CheckedAt, memory.CheckedAt, disk.CheckedAt, networkIn.CheckedAt, networkOut.CheckedAt),
 		}
 		if row.SourceStatus == platformDashboardSourceConfigured || row.SourceStatus == platformDashboardSourceStale || row.SourceStatus == platformDashboardSourceEmpty {
 			row.CPUPercent = prometheusSeriesValueForRole(cpu, server.NodeRole)
 			row.MemoryPercent = prometheusSeriesValueForRole(memory, server.NodeRole)
 			row.DiskPercent = prometheusSeriesValueForRole(disk, server.NodeRole)
-			if row.CPUPercent != nil || row.MemoryPercent != nil || row.DiskPercent != nil {
-				row.SourceStatus = combinedPrometheusQueryStatus(cpu, memory, disk)
-				row.Status = platformDashboardServerResourceStatus(row)
+			row.NetworkInBPS = prometheusSeriesValueForRole(networkIn, server.NodeRole)
+			row.NetworkOutBPS = prometheusSeriesValueForRole(networkOut, server.NodeRole)
+			hasStatusMetrics := row.CPUPercent != nil || row.MemoryPercent != nil || row.DiskPercent != nil
+			if hasStatusMetrics || row.NetworkInBPS != nil || row.NetworkOutBPS != nil {
+				row.SourceStatus = combinedPrometheusQueryStatus(cpu, memory, disk, networkIn, networkOut)
+				if hasStatusMetrics {
+					row.Status = platformDashboardServerResourceStatus(row)
+				}
 			} else {
 				row.SourceStatus = platformDashboardSourceUnmonitored
 			}
@@ -440,6 +495,234 @@ func buildPlatformDashboardServerResources(queriesByID map[string]contracts.Plat
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+func (s *Server) platformResourceTrends(ctx context.Context, requestedRange string) contracts.PlatformResourceTrends {
+	trendRange := platformResourceTrendRange(requestedRange)
+	checkedAt := time.Now().UTC().Format(time.RFC3339)
+	payload := contracts.PlatformResourceTrends{
+		Range:       trendRange.ID,
+		StepSeconds: int64(trendRange.Step.Seconds()),
+		CheckedAt:   checkedAt,
+		Source: contracts.PlatformDashboardSource{
+			SourceStatus:  platformDashboardSourceUnconfigured,
+			SourceMessage: "Prometheus is not configured.",
+			CheckedAt:     checkedAt,
+		},
+		Series:    []contracts.PlatformResourceTrendSeries{},
+		Summaries: emptyPlatformResourceTrendSummaries(platformDashboardSourceUnconfigured),
+	}
+	client := newPrometheusClient(s.cfg.VideoCloudPrometheusBaseURL)
+	if !client.configured() {
+		return payload
+	}
+
+	end := time.Now().UTC()
+	start := end.Add(-trendRange.Duration)
+	byMetric := map[string][]contracts.PlatformResourceTrendSeries{}
+	anyUnavailable := false
+	anyConfigured := false
+	anyEmpty := false
+	for _, def := range platformResourceTrendQueries {
+		series, err := client.queryRange(ctx, def, start, end, trendRange.Step)
+		if err != nil {
+			anyUnavailable = true
+			byMetric[def.ID] = unavailablePlatformResourceTrendSeries(def.ID)
+			continue
+		}
+		if len(series) == 0 {
+			anyEmpty = true
+		} else {
+			anyConfigured = true
+		}
+		byMetric[def.ID] = series
+	}
+
+	payload.Source.SourceStatus = platformDashboardSourceConfigured
+	payload.Source.SourceMessage = ""
+	switch {
+	case anyUnavailable:
+		payload.Source.SourceStatus = platformDashboardSourceUnavailable
+		payload.Source.SourceMessage = "Prometheus source is unavailable."
+	case anyConfigured:
+		payload.Source.SourceStatus = platformDashboardSourceConfigured
+	case anyEmpty:
+		payload.Source.SourceStatus = platformDashboardSourceEmpty
+		payload.Source.SourceMessage = "Prometheus returned no resource trend data."
+	}
+	payload.Series = normalizePlatformResourceTrendSeries(byMetric)
+	payload.Summaries = buildPlatformResourceTrendSummaries(payload.Series, payload.Source.SourceStatus)
+	return payload
+}
+
+type platformResourceRange struct {
+	ID       string
+	Duration time.Duration
+	Step     time.Duration
+}
+
+func platformResourceTrendRange(value string) platformResourceRange {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "7d":
+		return platformResourceRange{ID: "7d", Duration: 7 * 24 * time.Hour, Step: time.Hour}
+	case "90d":
+		return platformResourceRange{ID: "90d", Duration: 90 * 24 * time.Hour, Step: 24 * time.Hour}
+	default:
+		return platformResourceRange{ID: "24h", Duration: 24 * time.Hour, Step: 5 * time.Minute}
+	}
+}
+
+func normalizePlatformResourceTrendSeries(byMetric map[string][]contracts.PlatformResourceTrendSeries) []contracts.PlatformResourceTrendSeries {
+	out := []contracts.PlatformResourceTrendSeries{}
+	for _, def := range platformResourceTrendQueries {
+		seriesByServer := map[string]contracts.PlatformResourceTrendSeries{}
+		for _, series := range byMetric[def.ID] {
+			seriesByServer[series.ServerID] = series
+		}
+		for _, server := range platformDashboardServerResources {
+			series, ok := seriesByServer[server.ID]
+			if !ok {
+				series = contracts.PlatformResourceTrendSeries{
+					ServerID:     server.ID,
+					Label:        server.Label,
+					Role:         server.Role,
+					Metric:       def.ID,
+					Unit:         platformResourceTrendUnit(def.ID),
+					SourceStatus: platformDashboardSourceUnmonitored,
+					Points:       []contracts.PlatformResourceTrendPoint{},
+				}
+			}
+			out = append(out, series)
+		}
+	}
+	return out
+}
+
+func unavailablePlatformResourceTrendSeries(metric string) []contracts.PlatformResourceTrendSeries {
+	out := make([]contracts.PlatformResourceTrendSeries, 0, len(platformDashboardServerResources))
+	for _, server := range platformDashboardServerResources {
+		out = append(out, contracts.PlatformResourceTrendSeries{
+			ServerID:     server.ID,
+			Label:        server.Label,
+			Role:         server.Role,
+			Metric:       metric,
+			Unit:         platformResourceTrendUnit(metric),
+			SourceStatus: platformDashboardSourceUnavailable,
+			Points:       []contracts.PlatformResourceTrendPoint{},
+		})
+	}
+	return out
+}
+
+func emptyPlatformResourceTrendSummaries(status string) []contracts.PlatformResourceTrendSummary {
+	out := make([]contracts.PlatformResourceTrendSummary, 0, len(platformDashboardServerResources))
+	for _, server := range platformDashboardServerResources {
+		out = append(out, contracts.PlatformResourceTrendSummary{
+			ServerID:     server.ID,
+			Label:        server.Label,
+			Role:         server.Role,
+			SourceStatus: status,
+		})
+	}
+	return out
+}
+
+func buildPlatformResourceTrendSummaries(series []contracts.PlatformResourceTrendSeries, fallbackStatus string) []contracts.PlatformResourceTrendSummary {
+	byServer := map[string]*contracts.PlatformResourceTrendSummary{}
+	for _, server := range platformDashboardServerResources {
+		byServer[server.ID] = &contracts.PlatformResourceTrendSummary{
+			ServerID:     server.ID,
+			Label:        server.Label,
+			Role:         server.Role,
+			SourceStatus: fallbackStatus,
+		}
+	}
+	for _, item := range series {
+		summary := byServer[item.ServerID]
+		if summary == nil {
+			continue
+		}
+		metricSummary := platformResourceMetricSummary(item.Points)
+		if metricSummary.Current != nil {
+			summary.SourceStatus = item.SourceStatus
+		}
+		switch item.Metric {
+		case "cpu_percent":
+			summary.CPUPercent = metricSummary
+		case "memory_percent":
+			summary.MemoryPercent = metricSummary
+		case "disk_percent":
+			summary.DiskPercent = metricSummary
+		case "network_in_bps":
+			summary.NetworkInBPS = metricSummary
+		case "network_out_bps":
+			summary.NetworkOutBPS = metricSummary
+		}
+	}
+	out := make([]contracts.PlatformResourceTrendSummary, 0, len(platformDashboardServerResources))
+	for _, server := range platformDashboardServerResources {
+		summary := *byServer[server.ID]
+		if platformResourceTrendSummaryEmpty(summary) && (fallbackStatus == platformDashboardSourceConfigured || fallbackStatus == platformDashboardSourceEmpty) {
+			summary.SourceStatus = platformDashboardSourceUnmonitored
+		}
+		out = append(out, summary)
+	}
+	return out
+}
+
+func platformResourceTrendSummaryEmpty(summary contracts.PlatformResourceTrendSummary) bool {
+	return summary.CPUPercent.Current == nil &&
+		summary.MemoryPercent.Current == nil &&
+		summary.DiskPercent.Current == nil &&
+		summary.NetworkInBPS.Current == nil &&
+		summary.NetworkOutBPS.Current == nil
+}
+
+func platformResourceMetricSummary(points []contracts.PlatformResourceTrendPoint) contracts.PlatformResourceMetricSummary {
+	if len(points) == 0 {
+		return contracts.PlatformResourceMetricSummary{}
+	}
+	values := make([]float64, 0, len(points))
+	var sum float64
+	for _, point := range points {
+		values = append(values, point.Value)
+		sum += point.Value
+	}
+	sort.Float64s(values)
+	current := toTwoDecimal(points[len(points)-1].Value)
+	avg := toTwoDecimal(sum / float64(len(points)))
+	p95 := toTwoDecimal(percentile(values, 0.95))
+	maximum := toTwoDecimal(values[len(values)-1])
+	return contracts.PlatformResourceMetricSummary{
+		Current: &current,
+		Avg:     &avg,
+		P95:     &p95,
+		Max:     &maximum,
+	}
+}
+
+func percentile(sortedValues []float64, quantile float64) float64 {
+	if len(sortedValues) == 0 {
+		return 0
+	}
+	if len(sortedValues) == 1 {
+		return sortedValues[0]
+	}
+	index := quantile * float64(len(sortedValues)-1)
+	lower := int(math.Floor(index))
+	upper := int(math.Ceil(index))
+	if lower == upper {
+		return sortedValues[lower]
+	}
+	weight := index - float64(lower)
+	return sortedValues[lower]*(1-weight) + sortedValues[upper]*weight
+}
+
+func platformResourceTrendUnit(metric string) string {
+	if strings.HasSuffix(metric, "_bps") {
+		return "bps"
+	}
+	return "percent"
 }
 
 func platformDashboardServerResourceSourceStatus(queries ...contracts.PlatformDashboardPrometheusQuery) string {
@@ -684,6 +967,83 @@ func (c prometheusClient) query(ctx context.Context, def prometheusQueryDefiniti
 	return result, nil
 }
 
+func (c prometheusClient) queryRange(ctx context.Context, def prometheusQueryDefinition, start, end time.Time, step time.Duration) ([]contracts.PlatformResourceTrendSeries, error) {
+	if !c.configured() {
+		return nil, errors.New("prometheus is not configured")
+	}
+	endpoint, err := url.Parse(c.baseURL + "/api/v1/query_range")
+	if err != nil {
+		return nil, err
+	}
+	query := endpoint.Query()
+	query.Set("query", def.Query)
+	query.Set("start", start.Format(time.RFC3339))
+	query.Set("end", end.Format(time.RFC3339))
+	query.Set("step", strconv.FormatInt(int64(step.Seconds()), 10))
+	endpoint.RawQuery = query.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("prometheus query_range failed with status %d", resp.StatusCode)
+	}
+	var body prometheusQueryResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, err
+	}
+	if body.Status != "success" || body.Data.ResultType != "matrix" {
+		return nil, errors.New("prometheus returned an unsupported range response")
+	}
+
+	out := []contracts.PlatformResourceTrendSeries{}
+	for _, item := range body.Data.Result {
+		server, ok := platformDashboardServerForNodeRole(item.Metric["role"])
+		if !ok {
+			continue
+		}
+		points := item.floatPoints()
+		if len(points) == 0 {
+			continue
+		}
+		out = append(out, contracts.PlatformResourceTrendSeries{
+			ServerID:     server.ID,
+			Label:        server.Label,
+			Role:         server.Role,
+			Metric:       def.ID,
+			Unit:         platformResourceTrendUnit(def.ID),
+			SourceStatus: platformDashboardSourceConfigured,
+			Points:       points,
+		})
+	}
+	return out, nil
+}
+
+func platformDashboardServerForNodeRole(role string) (struct {
+	ID       string
+	Label    string
+	Role     string
+	NodeRole string
+}, bool) {
+	for _, server := range platformDashboardServerResources {
+		if strings.EqualFold(server.NodeRole, role) {
+			return server, true
+		}
+	}
+	return struct {
+		ID       string
+		Label    string
+		Role     string
+		NodeRole string
+	}{}, false
+}
+
 func unavailablePlatformDashboardQuery(def prometheusQueryDefinition, checkedAt string) contracts.PlatformDashboardPrometheusQuery {
 	return contracts.PlatformDashboardPrometheusQuery{
 		ID:           def.ID,
@@ -715,6 +1075,7 @@ type prometheusQueryResponse struct {
 type prometheusVectorItem struct {
 	Metric map[string]string `json:"metric"`
 	Value  []any             `json:"value"`
+	Values [][]any           `json:"values"`
 }
 
 func (v prometheusVectorItem) floatValue() (float64, bool) {
@@ -724,10 +1085,68 @@ func (v prometheusVectorItem) floatValue() (float64, bool) {
 	switch value := v.Value[1].(type) {
 	case string:
 		parsed, err := strconv.ParseFloat(value, 64)
-		return parsed, err == nil
+		return finitePrometheusValue(parsed, err == nil)
 	case float64:
-		return value, true
+		return finitePrometheusValue(value, true)
 	default:
 		return 0, false
 	}
+}
+
+func (v prometheusVectorItem) floatPoints() []contracts.PlatformResourceTrendPoint {
+	points := []contracts.PlatformResourceTrendPoint{}
+	for _, item := range v.Values {
+		if len(item) < 2 {
+			continue
+		}
+		timestamp, ok := prometheusTimestamp(item[0])
+		if !ok {
+			continue
+		}
+		value, ok := prometheusSampleValue(item[1])
+		if !ok {
+			continue
+		}
+		points = append(points, contracts.PlatformResourceTrendPoint{
+			Timestamp: timestamp.UTC().Format(time.RFC3339),
+			Value:     toTwoDecimal(value),
+		})
+	}
+	return points
+}
+
+func prometheusTimestamp(value any) (time.Time, bool) {
+	switch typed := value.(type) {
+	case float64:
+		seconds, fraction := math.Modf(typed)
+		return time.Unix(int64(seconds), int64(fraction*1e9)), true
+	case string:
+		parsed, err := strconv.ParseFloat(typed, 64)
+		if err != nil {
+			return time.Time{}, false
+		}
+		seconds, fraction := math.Modf(parsed)
+		return time.Unix(int64(seconds), int64(fraction*1e9)), true
+	default:
+		return time.Time{}, false
+	}
+}
+
+func prometheusSampleValue(value any) (float64, bool) {
+	switch typed := value.(type) {
+	case string:
+		parsed, err := strconv.ParseFloat(typed, 64)
+		return finitePrometheusValue(parsed, err == nil)
+	case float64:
+		return finitePrometheusValue(typed, true)
+	default:
+		return 0, false
+	}
+}
+
+func finitePrometheusValue(value float64, ok bool) (float64, bool) {
+	if !ok || math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0, false
+	}
+	return value, true
 }

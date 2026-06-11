@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   customerNavItems,
@@ -22,12 +22,13 @@ import {
   destinationForSession,
   loginNextFromLocation,
   loginPathFor,
+  passwordLoginOrderForNext,
   protectedPathFromLocation,
 } from './auth-routing.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
-import { auditCoverageCopy, formatResourcePercent, resourceStatusLabel, resourceStatusTone, ssoProtocolLabel } from './platform-view.mjs';
+import { auditCoverageCopy, formatResourcePercent, formatThroughputBPS, resourceStatusLabel, resourceStatusTone, ssoProtocolLabel } from './platform-view.mjs';
 import {
   sourceAvailable,
   sourceMessage,
@@ -54,12 +55,15 @@ function App() {
   const [serviceLogs, setServiceLogs] = useState(null);
   const [audit, setAudit] = useState([]);
   const [platformDashboard, setPlatformDashboard] = useState(null);
+  const [platformResourceTrends, setPlatformResourceTrends] = useState(null);
   const [ssoProviders, setSSOProviders] = useState([]);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
   const [overviewWindow, setOverviewWindow] = useState('7d');
   const [streamWindow, setStreamWindow] = useState('7d');
+  const [platformResourceRange, setPlatformResourceRange] = useState('24h');
+  const [platformResourceMetric, setPlatformResourceMetric] = useState('network');
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -86,6 +90,7 @@ function App() {
     setServiceLogs(null);
     setAudit([]);
     setPlatformDashboard(null);
+    setPlatformResourceTrends(null);
     setSSOProviders([]);
     setFirmwareDistribution(null);
   }
@@ -170,6 +175,22 @@ function App() {
         }
         setAudit(nextAudit);
         setPlatformDashboard(nextPlatformDashboard);
+        if (useAdminApi && active === 'platform-resources') {
+          const nextResourceTrends = await fetchJSON(`/api/admin/platform-resource-trends?range=${platformResourceRange}`)
+            .catch((err) => {
+              if (err.isAuthError) throw err;
+              return {
+                range: platformResourceRange,
+                source: { source_status: 'unavailable', source_message: err.message || 'Resource trends are unavailable.' },
+                series: [],
+                summaries: [],
+              };
+            });
+          if (!alive) return;
+          setPlatformResourceTrends(nextResourceTrends);
+        } else {
+          setPlatformResourceTrends(null);
+        }
         if (useAdminApi && active === 'platform-sso') {
           const nextSSOProviders = await fetchJSON('/api/admin/sso/providers');
           if (!alive) return;
@@ -236,6 +257,7 @@ function App() {
           setHealth([]);
           setServiceLogs(null);
           setAudit([]);
+          setPlatformResourceTrends(null);
           setSSOProviders([]);
           setFirmwareDistribution(null);
           setFleetHealth(null);
@@ -251,7 +273,7 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
+  }, [active, isLoginRoute, isPublicRoute, overviewWindow, platformResourceRange, refreshTick, streamWindow]);
 
   useEffect(() => {
     if (!isPublicRoute || isLoginRoute) return;
@@ -264,6 +286,7 @@ function App() {
     setHealth([]);
     setServiceLogs(null);
     setAudit([]);
+    setPlatformResourceTrends(null);
     setSSOProviders([]);
     setFirmwareDistribution(null);
     setFleetHealth(null);
@@ -377,40 +400,45 @@ function App() {
 
   async function handlePasswordLogin(credentials) {
     setError('');
-    let customerError = null;
-    try {
-      await postJSON('/api/auth/customer/login', credentials);
-      window.location.assign(destinationForSession({ authenticated: true, kind: 'customer' }, loginNextFromLocation(window.location)));
-      return;
-    } catch (err) {
-      customerError = err;
+    const nextPath = loginNextFromLocation(window.location);
+    const order = passwordLoginOrderForNext(nextPath);
+    const errors = {};
+    for (const kind of order) {
+      try {
+        if (kind === 'platform') {
+          await postJSON('/api/auth/platform/login', credentials);
+          window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, nextPath));
+          return;
+        }
+        await postJSON('/api/auth/customer/login', credentials);
+        window.location.assign(destinationForSession({ authenticated: true, kind: 'customer' }, nextPath));
+        return;
+      } catch (err) {
+        errors[kind] = err;
+      }
     }
 
-    try {
-      await postJSON('/api/auth/platform/login', credentials);
-      window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, loginNextFromLocation(window.location)));
-      return;
-    } catch (platformError) {
-      const message = `${customerError?.message || ''}\n${platformError?.message || ''}`;
-      if (message.includes('customer password sign-in is disabled')) {
-        const nextError = 'Password sign-in is not enabled for this environment.';
-        setError(nextError);
-        throw new Error(nextError);
-      }
-      if (message.includes('platform break-glass login is disabled')) {
-        const nextError = 'Platform password sign-in is not enabled for this environment.';
-        setError(nextError);
-        throw new Error(nextError);
-      }
-      if ((customerError?.status === 401 && platformError?.status === 401) || /invalid credentials/i.test(message)) {
-        const nextError = 'Email or password is incorrect.';
-        setError(nextError);
-        throw new Error(nextError);
-      }
-      const nextError = 'Sign-in is temporarily unavailable. Please try again later.';
+    const message = `${errors.customer?.message || ''}\n${errors.platform?.message || ''}`;
+    if (order[0] === 'platform' && message.includes('platform break-glass login is disabled')) {
+      const nextError = 'Platform password sign-in is not enabled for this environment.';
       setError(nextError);
       throw new Error(nextError);
     }
+    if (order[0] === 'customer' && message.includes('customer password sign-in is disabled')) {
+      const nextError = 'Password sign-in is not enabled for this environment.';
+      setError(nextError);
+      throw new Error(nextError);
+    }
+    if (((errors.customer?.status === 401 || errors.customer?.status === 403) &&
+      (errors.platform?.status === 401 || errors.platform?.status === 403)) ||
+      /invalid credentials/i.test(message)) {
+      const nextError = 'Email or password is incorrect.';
+      setError(nextError);
+      throw new Error(nextError);
+    }
+    const nextError = 'Sign-in is temporarily unavailable. Please try again later.';
+    setError(nextError);
+    throw new Error(nextError);
   }
 
   async function handleSignup(payload) {
@@ -633,6 +661,16 @@ function App() {
           />
         ) : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} /> : null}
+        {!needsPlatformAccess && active === 'platform-resources' ? (
+          <PlatformResourceTrends
+            trends={platformResourceTrends}
+            range={platformResourceRange}
+            setRange={setPlatformResourceRange}
+            metric={platformResourceMetric}
+            setMetric={setPlatformResourceMetric}
+            loading={loading}
+          />
+        ) : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
         {!needsPlatformAccess && active === 'platform-logs' ? <PlatformServiceLogs logs={serviceLogs} loading={loading} /> : null}
         {!needsPlatformAccess && active === 'platform-sso' ? (
@@ -1758,7 +1796,7 @@ function ServerResourceStatus({ resources, source }) {
       <div className="panel-head">
         <div>
           <h2>Server Resource Status</h2>
-          <p>Per-server CPU, memory, and root disk usage from the admin Prometheus boundary.</p>
+          <p>Per-server CPU, memory, root disk, and network throughput from the admin Prometheus boundary.</p>
         </div>
         <SourceStatusPill source={source} />
       </div>
@@ -1771,6 +1809,7 @@ function ServerResourceStatus({ resources, source }) {
               <th>CPU</th>
               <th>Memory</th>
               <th>Disk</th>
+              <th>Network</th>
               <th>Status</th>
               <th>Last checked</th>
             </tr>
@@ -1783,13 +1822,19 @@ function ServerResourceStatus({ resources, source }) {
                 <td>{formatResourcePercent(resource.cpu_percent)}</td>
                 <td>{formatResourcePercent(resource.memory_percent)}</td>
                 <td>{formatResourcePercent(resource.disk_percent)}</td>
+                <td>
+                  <span className="network-throughput-cell">
+                    <span>In {formatThroughputBPS(resource.network_in_bps)}</span>
+                    <span>Out {formatThroughputBPS(resource.network_out_bps)}</span>
+                  </span>
+                </td>
                 <td><StatusBadge value={resourceStatusTone(resource.status)} label={resourceStatusLabel(resource.status)} /></td>
                 <td>{resource.checked_at ? formatRelativeTime(resource.checked_at) : '-'}</td>
               </tr>
             ))}
             {!resources.length ? (
               <tr>
-                <td colSpan="7" className="empty-state">No server resource data available.</td>
+                <td colSpan="8" className="empty-state">No server resource data available.</td>
               </tr>
             ) : null}
           </tbody>
@@ -1818,6 +1863,353 @@ function PlatformMetricPanel({ title, rows, secondary = false }) {
       </div>
     </article>
   );
+}
+
+function PlatformResourceTrends({ trends, range, setRange, metric, setMetric, loading }) {
+  const source = trends?.source || { source_status: loading ? 'empty' : 'unconfigured' };
+  const chart = useMemo(() => buildPlatformResourceTrendChart(trends, metric), [trends, metric]);
+  const summaryRows = trends?.summaries || [];
+  return (
+    <section className="platform-dashboard resource-trends-page">
+      <div className="platform-dashboard-head">
+        <div>
+          <h2>Resource Trends</h2>
+          <p>Historical server CPU, memory, disk, and network usage for Platform Admins.</p>
+        </div>
+        <SourceStatusPill source={source} />
+      </div>
+
+      <section className="resource-trends-controls">
+        <div>
+          <span className="control-label">Range</span>
+          <WindowToggle value={range} onChange={setRange} label="Resource trend range" options={['24h', '7d', '90d']} disabled={loading} />
+        </div>
+        <div>
+          <span className="control-label">Metric</span>
+          <WindowToggle value={metric} onChange={setMetric} label="Resource trend metric" options={['cpu', 'memory', 'disk', 'network']} disabled={loading} />
+        </div>
+      </section>
+
+      <article className="panel platform-dashboard-panel resource-trend-chart-panel">
+        <div className="panel-head">
+          <div>
+            <h2>{resourceTrendMetricTitle(metric)}</h2>
+            <p>{resourceTrendMetricSubtitle(metric, trends?.range || range)}</p>
+          </div>
+          <StatusBadge value={resourceStatusTone(source.source_status)} label={resourceStatusLabel(source.source_status)} />
+        </div>
+        {chart.series.length ? (
+          <ResourceTrendThreeChart chart={chart} metric={metric} title={resourceTrendMetricTitle(metric)} />
+        ) : (
+          <p className="empty-state">{source.source_message || 'No resource trend data available for this range.'}</p>
+        )}
+      </article>
+
+      <article className="panel platform-dashboard-panel server-resource-panel">
+        <div className="panel-head">
+          <div>
+            <h2>Server Trend Summary</h2>
+            <p>Current, average, p95, and max values for the selected range.</p>
+          </div>
+        </div>
+        <div className="server-resource-table-wrap">
+          <table className="server-resource-table resource-summary-table">
+            <thead>
+              <tr>
+                <th>Server</th>
+                <th>Role / Service</th>
+                <th>Current</th>
+                <th>Avg</th>
+                <th>P95</th>
+                <th>Max</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summaryRows.map((row) => {
+                const metricSummary = resourceTrendSummaryForMetric(row, metric);
+                return (
+                  <tr key={row.server_id}>
+                    <td><strong>{row.label || row.server_id}</strong></td>
+                    <td>{row.role || '-'}</td>
+                    <td>{formatResourceTrendValue(metricSummary.current, metric)}</td>
+                    <td>{formatResourceTrendValue(metricSummary.avg, metric)}</td>
+                    <td>{formatResourceTrendValue(metricSummary.p95, metric)}</td>
+                    <td>{formatResourceTrendValue(metricSummary.max, metric)}</td>
+                    <td><StatusBadge value={resourceStatusTone(row.source_status)} label={resourceStatusLabel(row.source_status)} /></td>
+                  </tr>
+                );
+              })}
+              {!summaryRows.length ? (
+                <tr>
+                  <td colSpan="7" className="empty-state">No server trend summary available.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  );
+}
+
+function ResourceTrendThreeChart({ chart, metric, title }) {
+  const mountRef = useRef(null);
+  const maxLabel = chart?.maxLabel || '0';
+  const labels = chart?.labels || [];
+  const series = chart?.series || [];
+  const latestValues = series.map((item) => {
+    const latest = item.samples.at(-1);
+    return {
+      key: item.key,
+      label: item.label,
+      color: item.color,
+      value: formatResourceTrendValue(latest?.value, metric),
+    };
+  });
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount || !series.length) return undefined;
+
+    let disposed = false;
+    let cleanup = () => {};
+    (async () => {
+      const THREE = await import('three');
+      if (disposed) return;
+
+      const scene = new THREE.Scene();
+      const renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: true,
+        preserveDrawingBuffer: true,
+      });
+      renderer.setClearColor(0xf8fafc, 0);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      mount.appendChild(renderer.domElement);
+
+      const camera = new THREE.OrthographicCamera(-4.4, 4.4, 2.15, -1.75, 0.1, 100);
+      camera.position.set(0, 0, 8);
+      camera.lookAt(0, 0, 0);
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.72);
+      const key = new THREE.DirectionalLight(0xffffff, 0.74);
+      key.position.set(-2, 5, 4);
+      scene.add(ambient, key);
+
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(7.25, 2.8),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.58,
+        }),
+      );
+      plane.position.set(0, 0.28, -0.04);
+      scene.add(plane);
+
+      const grid = buildResourceTrendGrid(THREE);
+      scene.add(grid);
+
+      const latestMarkers = [];
+      series.forEach((item, index) => {
+        const depth = index * 0.035;
+        const points = item.samples.map((point, pointIndex) => {
+          const x = -3.35 + (pointIndex / Math.max(item.samples.length - 1, 1)) * 6.7;
+          const y = -0.95 + (Number(point.value || 0) / Math.max(chart.maxValue || 1, 1)) * 2.45;
+          const z = depth;
+          return new THREE.Vector3(x, y, z);
+        });
+        if (points.length < 2) return;
+
+        const color = new THREE.Color(item.color);
+        const curve = new THREE.CatmullRomCurve3(points);
+        const glow = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, Math.max(48, points.length * 12), 0.105, 14, false),
+          new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.13,
+            depthWrite: false,
+          }),
+        );
+        scene.add(glow);
+
+        const line = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, Math.max(48, points.length * 12), 0.032, 12, false),
+          new THREE.MeshStandardMaterial({
+            color,
+            emissive: color.clone().multiplyScalar(0.18),
+            metalness: 0.05,
+            roughness: 0.26,
+          }),
+        );
+        scene.add(line);
+
+        const ribbonShape = buildResourceTrendRibbon(THREE, points);
+        const ribbon = new THREE.Mesh(
+          ribbonShape,
+          new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.14,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+          }),
+        );
+        scene.add(ribbon);
+
+        const markerStep = Math.max(1, Math.floor(points.length / 6));
+        points.forEach((point, pointIndex) => {
+          if (pointIndex !== points.length - 1 && pointIndex % markerStep !== 0) return;
+          const marker = new THREE.Mesh(
+            new THREE.SphereGeometry(pointIndex === points.length - 1 ? 0.082 : 0.042, 14, 14),
+            new THREE.MeshStandardMaterial({
+              color,
+              emissive: color.clone().multiplyScalar(0.16),
+              roughness: 0.28,
+            }),
+          );
+          marker.position.copy(point);
+          scene.add(marker);
+          if (pointIndex === points.length - 1) latestMarkers.push(marker);
+        });
+
+        const latest = points[points.length - 1];
+        const dropLine = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(latest.x, -0.95, latest.z),
+            new THREE.Vector3(latest.x, latest.y, latest.z),
+          ]),
+          new THREE.LineBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.38,
+          }),
+        );
+        scene.add(dropLine);
+      });
+
+      let frame = 0;
+      let animation = 0;
+      const resize = () => {
+        const bounds = mount.getBoundingClientRect();
+        const width = Math.max(320, Math.floor(bounds.width));
+        const height = Math.max(280, Math.floor(bounds.height));
+        renderer.setSize(width, height, false);
+        const aspect = width / height;
+        camera.left = -4.15 * Math.max(1, aspect / 1.8);
+        camera.right = 4.15 * Math.max(1, aspect / 1.8);
+        camera.top = 1.95;
+        camera.bottom = -1.55;
+        camera.updateProjectionMatrix();
+      };
+      const observer = new ResizeObserver(resize);
+      observer.observe(mount);
+      resize();
+
+      const animate = () => {
+        frame += 1;
+        const pulse = Math.sin(frame / 42) * 0.035;
+        latestMarkers.forEach((marker) => {
+          marker.scale.setScalar(1 + pulse);
+        });
+        camera.position.x = Math.sin(frame / 160) * 0.018;
+        camera.lookAt(0, 0, 0);
+        renderer.render(scene, camera);
+        animation = requestAnimationFrame(animate);
+      };
+      animate();
+
+      cleanup = () => {
+        cancelAnimationFrame(animation);
+        observer.disconnect();
+        scene.traverse((object) => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) {
+            if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose());
+            else object.material.dispose();
+          }
+        });
+        renderer.dispose();
+        renderer.domElement.remove();
+      };
+    })();
+
+    return () => {
+      disposed = true;
+      cleanup();
+    };
+  }, [chart, series]);
+
+  return (
+    <div className="resource-three-chart-shell">
+      <div className="resource-three-chart" ref={mountRef} role="img" aria-label={`${title} WebGL trend chart`}>
+        <div className="resource-three-chart-overlay">
+          <span>{maxLabel}</span>
+          <span>0</span>
+        </div>
+        <div className="resource-three-chart-axis">
+          {labels.map((label) => (
+            <span key={`${label.primary}-${label.positionPercent}`} style={{ left: `${label.positionPercent}%` }}>
+              <strong>{label.primary}</strong>
+              <small>{label.secondary}</small>
+            </span>
+          ))}
+        </div>
+        <div className="resource-three-callouts">
+          {latestValues.map((item) => (
+            <span key={item.key}>
+              <i style={{ background: item.color }} />
+              <strong>{item.value}</strong>
+              <small>{item.label}</small>
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="chart-legend resource-three-legend">
+        {series.map((item) => (
+          <span key={item.key}><i className="legend-line" style={{ background: item.color }} />{item.label}</span>
+        ))}
+      </div>
+      <div className="resource-chart-note">{resourceTrendChartCaption(metric)}</div>
+    </div>
+  );
+}
+
+function buildResourceTrendGrid(THREE) {
+  const material = new THREE.LineBasicMaterial({
+    color: 0x99a7b6,
+    transparent: true,
+    opacity: 0.26,
+  });
+  const points = [];
+  for (let i = 0; i <= 6; i += 1) {
+    const x = -3.35 + i * (6.7 / 6);
+    points.push(new THREE.Vector3(x, -0.95, -0.02), new THREE.Vector3(x, 1.5, -0.02));
+  }
+  for (let i = 0; i <= 4; i += 1) {
+    const y = -0.95 + i * (2.45 / 4);
+    points.push(new THREE.Vector3(-3.35, y, -0.02), new THREE.Vector3(3.35, y, -0.02));
+  }
+  return new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points), material);
+}
+
+function buildResourceTrendRibbon(THREE, points) {
+  const vertices = [];
+  const indices = [];
+  for (const point of points) {
+    vertices.push(point.x, -0.95, point.z - 0.01, point.x, point.y, point.z - 0.01);
+  }
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const base = index * 2;
+    indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 function SourceStatusPill({ source }) {
@@ -1888,6 +2280,42 @@ function formatCompactNumber(value) {
   if (Math.abs(number) >= 1000) return number.toLocaleString(undefined, { maximumFractionDigits: 0 });
   if (Math.abs(number) >= 10) return number.toLocaleString(undefined, { maximumFractionDigits: 1 });
   return number.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function resourceTrendMetricTitle(metric) {
+  return {
+    cpu: 'CPU Utilization',
+    memory: 'Memory Utilization',
+    disk: 'Root Disk Utilization',
+    network: 'Network Throughput',
+  }[metric] || 'Resource Trend';
+}
+
+function resourceTrendMetricSubtitle(metric, range) {
+  if (metric === 'network') return `Inbound and outbound throughput over ${String(range || '24h').toUpperCase()}.`;
+  return `Top servers by max ${resourceTrendMetricTitle(metric).toLowerCase()} over ${String(range || '24h').toUpperCase()}.`;
+}
+
+function resourceTrendSummaryForMetric(row, metric) {
+  if (metric === 'cpu') return row.cpu_percent || {};
+  if (metric === 'memory') return row.memory_percent || {};
+  if (metric === 'disk') return row.disk_percent || {};
+  if (metric === 'network') {
+    const hasNetwork = row.network_in_bps?.current !== undefined || row.network_out_bps?.current !== undefined;
+    if (!hasNetwork) return {};
+    return {
+      current: Number(row.network_in_bps?.current || 0) + Number(row.network_out_bps?.current || 0),
+      avg: Number(row.network_in_bps?.avg || 0) + Number(row.network_out_bps?.avg || 0),
+      p95: Number(row.network_in_bps?.p95 || 0) + Number(row.network_out_bps?.p95 || 0),
+      max: Number(row.network_in_bps?.max || 0) + Number(row.network_out_bps?.max || 0),
+    };
+  }
+  return {};
+}
+
+function formatResourceTrendValue(value, metric) {
+  if (metric === 'network') return formatThroughputBPS(value);
+  return formatResourcePercent(value);
 }
 
 function PlatformHealth({ summary, health }) {
@@ -2124,10 +2552,10 @@ function MetricCard({ icon, label, value, hint, tone = 'neutral' }) {
   );
 }
 
-function WindowToggle({ value, onChange, label, disabled = false }) {
+function WindowToggle({ value, onChange, label, disabled = false, options = ['7d', '30d'] }) {
   return (
     <div className="window-toggle" role="tablist" aria-label={label}>
-      {['7d', '30d'].map((option) => (
+      {options.map((option) => (
         <button
           key={option}
           type="button"
@@ -3600,6 +4028,84 @@ function formatRelativeTime(iso) {
   return deltaSeconds >= 0 ? `${days}d ago` : `in ${days}d`;
 }
 
+function buildPlatformResourceTrendChart(trends, metric) {
+  const series = trends?.series || [];
+  const selected = resourceTrendChartSeries(series, metric);
+  if (!selected.length) {
+    return { series: [], labels: [], maxLabel: '0', maxValue: 0 };
+  }
+  const allValues = selected.flatMap((item) => item.points.map((point) => Number(point.value || 0)));
+  const maxValue = Math.max(...allValues, 1);
+  const colors = ['#0f9f9a', '#2563eb', '#c88719', '#7a5af8'];
+  const chartSeries = selected.map((item, index) => ({
+    key: item.key,
+    label: item.label,
+    samples: item.points.map((point) => ({
+      timestamp: point.timestamp,
+      value: Number(point.value || 0),
+    })),
+    color: colors[index % colors.length],
+  }));
+  const referencePoints = selected[0]?.points || [];
+  const labelStep = Math.max(1, Math.ceil(referencePoints.length / 6));
+  const labels = referencePoints
+    .map((point, index) => ({ point, index }))
+    .filter(({ index }) => index % labelStep === 0 || index === referencePoints.length - 1)
+    .map(({ point, index }) => ({
+      ...formatTrendAxisLabel(point.timestamp, trends?.range),
+      positionPercent: Math.min(94, Math.max(6, (index / Math.max(referencePoints.length - 1, 1)) * 100)),
+    }));
+  return {
+    series: chartSeries,
+    labels,
+    maxLabel: metric === 'network' ? formatThroughputBPS(maxValue) : formatResourcePercent(maxValue),
+    maxValue,
+  };
+}
+
+function resourceTrendChartSeries(series, metric) {
+  if (metric === 'network') {
+    return [
+      aggregateResourceTrendSeries(series, 'network_in_bps', 'Total inbound'),
+      aggregateResourceTrendSeries(series, 'network_out_bps', 'Total outbound'),
+    ].filter((item) => item.points.length);
+  }
+  const metricID = {
+    cpu: 'cpu_percent',
+    memory: 'memory_percent',
+    disk: 'disk_percent',
+  }[metric];
+  return series
+    .filter((item) => item.metric === metricID && item.points?.length)
+    .map((item) => ({
+      key: `${item.metric}-${item.server_id}`,
+      label: item.label || item.server_id,
+      points: item.points,
+      max: Math.max(...item.points.map((point) => Number(point.value || 0))),
+    }))
+    .sort((a, b) => b.max - a.max)
+    .slice(0, 4);
+}
+
+function aggregateResourceTrendSeries(series, metric, label) {
+  const totals = new Map();
+  for (const item of series) {
+    if (item.metric !== metric || !item.points?.length) continue;
+    for (const point of item.points) {
+      totals.set(point.timestamp, (totals.get(point.timestamp) || 0) + Number(point.value || 0));
+    }
+  }
+  const points = [...totals.entries()]
+    .sort(([a], [b]) => String(a).localeCompare(String(b)))
+    .map(([timestamp, value]) => ({ timestamp, value }));
+  return { key: metric, label, points };
+}
+
+function resourceTrendChartCaption(metric) {
+  if (metric === 'network') return 'Inbound and outbound totals across monitored servers.';
+  return 'Top servers by max value in the selected window.';
+}
+
 function buildFleetTrendChart(trend) {
   if (!trend.length) {
     return { points: [], onlinePoints: '', alertPoints: '', grid: [], maxPct: 100, maxAlerts: 0, labelStep: 1 };
@@ -3715,6 +4221,29 @@ function formatTrendLabel(date) {
   const parsed = Date.parse(date);
   if (Number.isNaN(parsed)) return date;
   return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(parsed));
+}
+
+function formatTrendAxisLabel(date, range) {
+  const parsed = Date.parse(date);
+  if (Number.isNaN(parsed)) return { primary: date, secondary: '' };
+  const value = new Date(parsed);
+  const normalizedRange = String(range || '24h').toLowerCase();
+  if (normalizedRange === '24h') {
+    return {
+      primary: new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit', hour12: false }).format(value),
+      secondary: new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value),
+    };
+  }
+  if (normalizedRange === '7d') {
+    return {
+      primary: new Intl.DateTimeFormat('en', { weekday: 'short' }).format(value),
+      secondary: new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value),
+    };
+  }
+  return {
+    primary: new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value),
+    secondary: new Intl.DateTimeFormat('en', { year: 'numeric' }).format(value),
+  };
 }
 
 function deviceIdFromLocation() {

@@ -14,12 +14,23 @@ export function formatResourcePercent(value) {
   return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
 }
 
+export function formatThroughputBPS(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return 'Unavailable';
+  const number = Number(value);
+  const abs = Math.abs(number);
+  if (abs >= 1_000_000_000) return `${(number / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })} Gb/s`;
+  if (abs >= 1_000_000) return `${(number / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })} Mb/s`;
+  if (abs >= 1_000) return `${(number / 1_000).toLocaleString(undefined, { maximumFractionDigits: 1 })} Kb/s`;
+  return `${number.toLocaleString(undefined, { maximumFractionDigits: 1 })} b/s`;
+}
+
 export function resourceStatusLabel(status) {
   const labels = {
     critical: 'Critical',
     warning: 'Warning',
     degraded: 'Degraded',
     ok: 'OK',
+    configured: 'Configured',
     unmonitored: 'Unmonitored',
     unavailable: 'Unavailable',
     unconfigured: 'Unconfigured',
@@ -32,7 +43,7 @@ export function resourceStatusTone(status) {
   if (normalized === 'critical') return 'critical';
   if (normalized === 'warning') return 'warning';
   if (normalized === 'degraded') return 'degraded';
-  if (normalized === 'ok') return 'ok';
+  if (normalized === 'ok' || normalized === 'configured') return 'ok';
   if (normalized === 'unmonitored' || normalized === 'unavailable' || normalized === 'unconfigured') return 'unavailable';
   return 'unknown';
 }

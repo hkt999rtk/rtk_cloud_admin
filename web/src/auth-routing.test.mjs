@@ -6,6 +6,7 @@ import {
   loginNextFromLocation,
   loginPathFor,
   normalizeLoginNext,
+  passwordLoginOrderForNext,
 } from './auth-routing.mjs';
 
 test('login next accepts only admin and console paths', () => {
@@ -42,4 +43,11 @@ test('session destination respects session kind and next path', () => {
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/console/devices'), '/console/devices');
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/admin'), '/console/overview');
   assert.equal(destinationForSession({ authenticated: false }, '/admin'), '/login?next=%2Fadmin');
+});
+
+test('password login prefers the destination view', () => {
+  assert.deepEqual(passwordLoginOrderForNext('/admin'), ['platform', 'customer']);
+  assert.deepEqual(passwordLoginOrderForNext('/admin/resources'), ['platform', 'customer']);
+  assert.deepEqual(passwordLoginOrderForNext('/console/devices'), ['customer', 'platform']);
+  assert.deepEqual(passwordLoginOrderForNext('/signup'), ['customer', 'platform']);
 });

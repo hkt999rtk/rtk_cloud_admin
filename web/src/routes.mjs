@@ -7,6 +7,7 @@ export const customerNavItems = [
 
 export const platformNavItems = [
   { id: 'platform-dashboard', label: 'Platform Dashboard', path: '/admin' },
+  { id: 'platform-resources', label: 'Resource Trends', path: '/admin/resources' },
   { id: 'platform-health', label: 'Service Health', path: '/admin/health' },
   { id: 'platform-sso', label: 'SSO Providers', path: '/admin/sso' },
   { id: 'platform-logs', label: 'Service Logs', path: '/admin/logs' },
@@ -40,6 +41,7 @@ export function titleFor(active) {
     'firmware-ota': 'Firmware & OTA',
     'stream-health': 'Stream Health',
     'platform-dashboard': 'Platform Dashboard',
+    'platform-resources': 'Resource Trends',
     'platform-health': 'Service Health',
     'platform-sso': 'SSO Providers',
     'platform-logs': 'Service Logs',
@@ -54,6 +56,7 @@ export function routeFromPath(path) {
   if (path === '/signup/check-email' || path.startsWith('/signup/check-email/')) return 'signup-check-email';
   if (path === '/verify' || path.startsWith('/verify/')) return 'verify';
   if (path === '/admin' || path === '/admin/') return 'platform-dashboard';
+  if (path === '/admin/resources' || path.startsWith('/admin/resources/')) return 'platform-resources';
   if (path === '/admin/health' || path.startsWith('/admin/health/')) return 'platform-health';
   if (path === '/admin/sso' || path.startsWith('/admin/sso/')) return 'platform-sso';
   if (path === '/admin/logs' || path.startsWith('/admin/logs/')) return 'platform-logs';
