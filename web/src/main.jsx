@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   customerNavItems,
@@ -14,10 +14,23 @@ import {
   postJSON,
   putJSON,
   startSSOLogin,
+  userFacingLoginActivationError,
+  userFacingPasswordResetError,
   userFacingSignupError,
   userFacingSSOError,
   userFacingVerificationError,
 } from './http.mjs';
+import {
+  brandCloudKPIs,
+  brandCloudOwner,
+  brandCloudQuotaLabel,
+  brandCloudRegion,
+  brandCloudStatusKey,
+  brandCloudStatusLabel,
+  brandCloudTier,
+  brandCloudUserStatus,
+  userFacingBrandCloudError,
+} from './brand-clouds.mjs';
 import {
   destinationForSession,
   loginNextFromLocation,
@@ -25,7 +38,7 @@ import {
   passwordLoginOrderForNext,
   protectedPathFromLocation,
 } from './auth-routing.mjs';
-import { quotaRaiseErrorMessage, quotaUsageLabel, shouldShowBreakGlass } from './auth-state.mjs';
+import { quotaRaiseErrorMessage, quotaUsageLabel } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
 import { auditCoverageCopy, formatResourcePercent, formatThroughputBPS, resourceStatusLabel, resourceStatusTone, ssoProtocolLabel } from './platform-view.mjs';
@@ -37,9 +50,20 @@ import {
   telemetrySourceState,
 } from './source-state.mjs';
 import { streamAttentionRows, streamModeRows, streamWorstDeviceRows } from './stream.mjs';
+import '@fortawesome/fontawesome-free/css/all.min.css';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
+
+function brandCloudsURL({ query, status, tier, limit, offset }) {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit || 25));
+  params.set('offset', String(offset || 0));
+  if (String(query || '').trim()) params.set('q', String(query).trim());
+  if (status && status !== 'all') params.set('status', status);
+  if (tier && tier !== 'all') params.set('tier', tier);
+  return `/api/admin/brand-clouds?${params.toString()}`;
+}
 
 function App() {
   const [active, setActive] = useState(routeFromLocation());
@@ -56,6 +80,14 @@ function App() {
   const [audit, setAudit] = useState([]);
   const [platformDashboard, setPlatformDashboard] = useState(null);
   const [platformResourceTrends, setPlatformResourceTrends] = useState(null);
+  const [brandClouds, setBrandClouds] = useState([]);
+  const [brandCloudPagination, setBrandCloudPagination] = useState({ limit: 25, offset: 0, total: 0 });
+  const [brandCloudQuery, setBrandCloudQuery] = useState('');
+  const [brandCloudStatus, setBrandCloudStatus] = useState('all');
+  const [brandCloudTierFilter, setBrandCloudTierFilter] = useState('all');
+  const [brandCloudSource, setBrandCloudSource] = useState({ status: 'idle', message: '' });
+  const [selectedBrandCloudId, setSelectedBrandCloudId] = useState('');
+  const [brandCloudDrawerMode, setBrandCloudDrawerMode] = useState('');
   const [ssoProviders, setSSOProviders] = useState([]);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
@@ -69,14 +101,13 @@ function App() {
   const [loading, setLoading] = useState(true);
   const isPublicRoute = isPublicRouteId(active);
   const isLoginRoute = active === 'login';
+  const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
-  const visibleNavItems = navItemsForRoute(active);
+  const visibleNavItems = navItemsForRoute(active).filter((item) => item.id !== 'platform-brand-clouds' || me?.upstream_account_manager);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
+  const brandCloudsBlocked = active === 'platform-brand-clouds' && me?.kind === 'platform_admin' && !me?.upstream_account_manager;
   const customerViewPending = !isPlatformView && !isPublicRoute && me === null;
   const customerViewBlocked = !isPlatformView && !isPublicRoute && me !== null && (me.authenticated === false || me.kind === 'platform_admin');
-  const activeMembership = getActiveMembership(me);
-  const activeOrgLabel = activeMembership?.organization || me?.active_org_id || 'Acme Smart Camera';
-  const lastUpdatedAt = latestCustomerUpdate(devices, recentAlerts);
 
   function clearDashboardState() {
     setSummary(null);
@@ -91,6 +122,11 @@ function App() {
     setAudit([]);
     setPlatformDashboard(null);
     setPlatformResourceTrends(null);
+    setBrandClouds([]);
+    setBrandCloudPagination({ limit: 25, offset: 0, total: 0 });
+    setBrandCloudSource({ status: 'idle', message: '' });
+    setSelectedBrandCloudId('');
+    setBrandCloudDrawerMode('');
     setSSOProviders([]);
     setFirmwareDistribution(null);
   }
@@ -191,6 +227,41 @@ function App() {
         } else {
           setPlatformResourceTrends(null);
         }
+        if (useAdminApi && active === 'platform-brand-clouds' && nextMe.upstream_account_manager) {
+          try {
+            const result = await fetchJSON(brandCloudsURL({
+              query: brandCloudQuery,
+              status: brandCloudStatus,
+              tier: brandCloudTierFilter,
+              limit: brandCloudPagination.limit,
+              offset: brandCloudPagination.offset,
+            }));
+            if (!alive) return;
+            setBrandClouds(result.brand_clouds || []);
+            setBrandCloudPagination(result.pagination || {
+              limit: brandCloudPagination.limit,
+              offset: brandCloudPagination.offset,
+              total: result.brand_clouds?.length || 0,
+            });
+            setBrandCloudSource({ status: 'ready', message: '' });
+          } catch (err) {
+            if (err.isAuthError) throw err;
+            if (!alive) return;
+            setBrandClouds([]);
+            setBrandCloudPagination((current) => ({ ...current, total: 0 }));
+            setBrandCloudSource({ status: 'unavailable', message: userFacingBrandCloudError(err) });
+          }
+        } else if (active === 'platform-brand-clouds') {
+          setBrandClouds([]);
+          setBrandCloudPagination((current) => ({ ...current, total: 0 }));
+          setBrandCloudSource({ status: 'unavailable', message: 'Brand Clouds requires Account Manager Platform Admin login.' });
+        } else {
+          setBrandClouds([]);
+          setBrandCloudPagination((current) => ({ ...current, offset: 0, total: 0 }));
+          setBrandCloudSource({ status: 'idle', message: '' });
+          setSelectedBrandCloudId('');
+          setBrandCloudDrawerMode('');
+        }
         if (useAdminApi && active === 'platform-sso') {
           const nextSSOProviders = await fetchJSON('/api/admin/sso/providers');
           if (!alive) return;
@@ -258,6 +329,10 @@ function App() {
           setServiceLogs(null);
           setAudit([]);
           setPlatformResourceTrends(null);
+          setBrandClouds([]);
+          setBrandCloudSource({ status: 'idle', message: '' });
+          setSelectedBrandCloudId('');
+          setBrandCloudDrawerMode('');
           setSSOProviders([]);
           setFirmwareDistribution(null);
           setFleetHealth(null);
@@ -273,7 +348,7 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, isLoginRoute, isPublicRoute, overviewWindow, platformResourceRange, refreshTick, streamWindow]);
+  }, [active, brandCloudPagination.limit, brandCloudPagination.offset, brandCloudQuery, brandCloudStatus, brandCloudTierFilter, isLoginRoute, isPublicRoute, overviewWindow, platformResourceRange, refreshTick, streamWindow]);
 
   useEffect(() => {
     if (!isPublicRoute || isLoginRoute) return;
@@ -287,12 +362,25 @@ function App() {
     setServiceLogs(null);
     setAudit([]);
     setPlatformResourceTrends(null);
+    setBrandClouds([]);
+    setBrandCloudPagination({ limit: 25, offset: 0, total: 0 });
+    setBrandCloudSource({ status: 'idle', message: '' });
+    setSelectedBrandCloudId('');
+    setBrandCloudDrawerMode('');
     setSSOProviders([]);
     setFirmwareDistribution(null);
     setFleetHealth(null);
     setStreamStats(null);
     setRecentAlerts([]);
   }, [isLoginRoute, isPublicRoute]);
+
+  useEffect(() => {
+    if (isPublicRoute) return undefined;
+    const timer = window.setInterval(() => {
+      setRefreshTick((tick) => tick + 1);
+    }, 20_000);
+    return () => window.clearInterval(timer);
+  }, [isPublicRoute]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -368,6 +456,103 @@ function App() {
     }
   }
 
+  async function refreshBrandClouds() {
+    const result = await fetchJSON(brandCloudsURL({
+      query: brandCloudQuery,
+      status: brandCloudStatus,
+      tier: brandCloudTierFilter,
+      limit: brandCloudPagination.limit,
+      offset: brandCloudPagination.offset,
+    }));
+    setBrandClouds(result.brand_clouds || []);
+    setBrandCloudPagination(result.pagination || {
+      limit: brandCloudPagination.limit,
+      offset: brandCloudPagination.offset,
+      total: result.brand_clouds?.length || 0,
+    });
+    setBrandCloudSource({ status: 'ready', message: '' });
+    return result.brand_clouds || [];
+  }
+
+  function handleBrandCloudFilters(next) {
+    if (Object.prototype.hasOwnProperty.call(next, 'query')) setBrandCloudQuery(next.query);
+    if (Object.prototype.hasOwnProperty.call(next, 'status')) setBrandCloudStatus(next.status);
+    if (Object.prototype.hasOwnProperty.call(next, 'tier')) setBrandCloudTierFilter(next.tier);
+    setBrandCloudPagination((current) => ({ ...current, offset: 0 }));
+  }
+
+  function handleBrandCloudPage(nextOffset) {
+    setBrandCloudPagination((current) => ({
+      ...current,
+      offset: Math.max(0, Math.min(nextOffset, Math.max(current.total - current.limit, 0))),
+    }));
+  }
+
+  async function handleCreateBrandCloud(payload) {
+    setError('');
+    try {
+      const result = await postJSON('/api/admin/brand-clouds', payload.brandCloud);
+      let memberError = '';
+      if (payload.initialMember?.user_id) {
+        try {
+          await postJSON(`/api/admin/brand-clouds/${encodeURIComponent(result.brand_cloud.id)}/members`, payload.initialMember);
+        } catch (err) {
+          memberError = userFacingBrandCloudError(err);
+        }
+      }
+      if (payload.initialUser?.email) {
+        try {
+          await postJSON(`/api/admin/brand-clouds/${encodeURIComponent(result.brand_cloud.id)}/users`, payload.initialUser);
+        } catch (err) {
+          memberError = userFacingBrandCloudError(err);
+        }
+      }
+      await refreshBrandClouds();
+      setSelectedBrandCloudId(result.brand_cloud.id);
+      setBrandCloudDrawerMode('detail');
+      return { brandCloud: result.brand_cloud, memberError };
+    } catch (err) {
+      const message = userFacingBrandCloudError(err);
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
+  async function handleUpdateBrandCloud(brandCloudID, patch) {
+    setError('');
+    try {
+      const result = await sendJSONWithMethod('PATCH', `/api/admin/brand-clouds/${encodeURIComponent(brandCloudID)}`, patch);
+      setBrandClouds((brands) => brands.map((brand) => brand.id === brandCloudID ? result.brand_cloud : brand));
+      return result.brand_cloud;
+    } catch (err) {
+      const message = userFacingBrandCloudError(err);
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
+  async function handleAssignBrandCloudMember(brandCloudID, payload) {
+    setError('');
+    try {
+      return await postJSON(`/api/admin/brand-clouds/${encodeURIComponent(brandCloudID)}/members`, payload);
+    } catch (err) {
+      const message = userFacingBrandCloudError(err);
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
+  async function handleCreateBrandCloudUser(brandCloudID, payload) {
+    setError('');
+    try {
+      return await postJSON(`/api/admin/brand-clouds/${encodeURIComponent(brandCloudID)}/users`, payload);
+    } catch (err) {
+      const message = userFacingBrandCloudError(err);
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
   async function handleSSOStart(email) {
     setError('');
     try {
@@ -381,21 +566,6 @@ function App() {
       setError(userFacingSSOError(err));
       throw err;
     }
-  }
-
-  async function handleBreakGlassLogin(credentials) {
-    setError('');
-    const response = await fetch('/api/auth/platform/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials),
-    });
-    if (!response.ok) {
-      const details = await response.text().catch(() => '');
-      setError(details || `break-glass login failed with ${response.status}`);
-      return;
-    }
-    window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, loginNextFromLocation(window.location)));
   }
 
   async function handlePasswordLogin(credentials) {
@@ -419,7 +589,7 @@ function App() {
     }
 
     const message = `${errors.customer?.message || ''}\n${errors.platform?.message || ''}`;
-    if (order[0] === 'platform' && message.includes('platform break-glass login is disabled')) {
+    if (order[0] === 'platform' && message.includes('platform password sign-in is disabled')) {
       const nextError = 'Platform password sign-in is not enabled for this environment.';
       setError(nextError);
       throw new Error(nextError);
@@ -439,6 +609,57 @@ function App() {
     const nextError = 'Sign-in is temporarily unavailable. Please try again later.';
     setError(nextError);
     throw new Error(nextError);
+  }
+
+  async function handleEmailSignIn(email) {
+    setError('');
+    try {
+      await postJSON('/api/auth/sign-in', { email });
+      window.history.pushState({}, '', `/login/check-email?email=${encodeURIComponent(email)}`);
+      setActive('login-check-email');
+      return true;
+    } catch (err) {
+      const nextError = userFacingLoginActivationError(err);
+      setError(nextError);
+      throw new Error(nextError);
+    }
+  }
+
+  async function handleLoginActivate(token) {
+    setError('');
+    try {
+      const result = await postJSON('/api/auth/login/activate', { token });
+      window.location.assign(destinationForSession({ authenticated: true, kind: result.kind || 'customer' }, loginNextFromLocation(window.location)));
+      return result;
+    } catch (err) {
+      const nextError = userFacingLoginActivationError(err);
+      setError(nextError);
+      throw new Error(nextError);
+    }
+  }
+
+  async function handleForgotPassword(email) {
+    setError('');
+    try {
+      await postJSON('/api/auth/forgot-password', { email });
+      return true;
+    } catch (err) {
+      const nextError = userFacingPasswordResetError(err);
+      setError(nextError);
+      throw new Error(nextError);
+    }
+  }
+
+  async function handleResetPassword(payload) {
+    setError('');
+    try {
+      await postJSON('/api/auth/reset-password', payload);
+      return true;
+    } catch (err) {
+      const nextError = userFacingPasswordResetError(err);
+      setError(nextError);
+      throw new Error(nextError);
+    }
   }
 
   async function handleSignup(payload) {
@@ -519,14 +740,23 @@ function App() {
     if (!selectedDeviceId) return null;
     return devices.find((device) => device.id === selectedDeviceId) || null;
   }, [devices, selectedDeviceId]);
+  const selectedBrandCloud = useMemo(() => {
+    if (!selectedBrandCloudId) return null;
+    return brandClouds.find((brand) => brand.id === selectedBrandCloudId) || null;
+  }, [brandClouds, selectedBrandCloudId]);
 
   if (isPublicRoute) {
-    if (isLoginRoute) {
+    if (isAuthEntryRoute) {
       return (
         <LoginPage
+          active={active}
           error={error}
           loading={loading}
+          onEmailSignIn={handleEmailSignIn}
+          onLoginActivate={handleLoginActivate}
           onPasswordLogin={handlePasswordLogin}
+          onForgotPassword={handleForgotPassword}
+          onResetPassword={handleResetPassword}
         />
       );
     }
@@ -557,6 +787,7 @@ function App() {
               className={active === item.id ? 'active' : ''}
               onClick={() => navigate(item)}
             >
+              {item.icon ? <Icon name={item.icon} /> : null}
               {item.label}
             </button>
           ))}
@@ -564,15 +795,16 @@ function App() {
         <div className="sidebar-platform-switch">
           <p className="sidebar-section-label">Platform View</p>
           <button type="button" onClick={() => switchView(isPlatformView ? 'customer' : 'platform')}>
+            <Icon name={isPlatformView ? 'user' : 'shield-halved'} />
             {isPlatformView ? 'Switch to Customer View' : 'Switch to Platform View'}
-            <span aria-hidden="true">&gt;</span>
+            <Icon name="chevron-right" />
           </button>
         </div>
         <div className="sidebar-account">
           <span className="avatar">{me?.email ? initialsForEmail(me.email) : 'DM'}</span>
           <div>
             <strong>{sessionLabel(me)}</strong>
-            <small>{me?.authenticated ? me.email : activeOrgLabel}</small>
+            <small>{me?.authenticated ? me.email : 'Sign in required'}</small>
           </div>
         </div>
       </aside>
@@ -594,15 +826,11 @@ function App() {
                   <option key={m.organization_id} value={m.organization_id}>{m.organization}</option>
                 ))}
               </select>
-            ) : (
-              <span className="org-chip">{activeOrgLabel}</span>
-            )}
+            ) : null}
             {active === 'overview' ? <WindowToggle value={overviewWindow} onChange={setOverviewWindow} label="Fleet health window" disabled={!sourceAvailable(fleetHealth)} /> : null}
             {active === 'stream-health' ? <WindowToggle value={streamWindow} onChange={setStreamWindow} label="Stream health window" disabled={!sourceAvailable(streamStats)} /> : null}
             {active === 'firmware-ota' ? <StaticWindowToggle /> : null}
-            <span className="last-updated">Last updated: {lastUpdatedAt ? formatRelativeTime(lastUpdatedAt) : 'just now'}</span>
-            <button type="button" className="icon-button" onClick={() => setRefreshTick((tick) => tick + 1)} aria-label="Refresh dashboard">R</button>
-            {me?.authenticated ? <button type="button" className="ghost-button" onClick={handleLogout}>Logout</button> : null}
+            {me?.authenticated ? <button type="button" className="ghost-button icon-text-button" onClick={handleLogout}><Icon name="right-from-bracket" />Logout</button> : null}
           </div>
         </header>
 
@@ -673,6 +901,45 @@ function App() {
         ) : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
         {!needsPlatformAccess && active === 'platform-logs' ? <PlatformServiceLogs logs={serviceLogs} loading={loading} /> : null}
+        {!needsPlatformAccess && brandCloudsBlocked ? (
+          <section className="panel split-panel">
+            <div>
+              <h2>Brand Clouds requires Account Manager login</h2>
+              <p>Use an Account Manager-backed Platform Admin session to manage brand-cloud organizations and users.</p>
+            </div>
+          </section>
+        ) : null}
+        {!needsPlatformAccess && !brandCloudsBlocked && active === 'platform-brand-clouds' ? (
+          <PlatformBrandClouds
+            brands={brandClouds}
+            pagination={brandCloudPagination}
+            query={brandCloudQuery}
+            status={brandCloudStatus}
+            tier={brandCloudTierFilter}
+            source={brandCloudSource}
+            loading={loading}
+            selectedBrand={selectedBrandCloud}
+            drawerMode={brandCloudDrawerMode}
+            onFilterChange={handleBrandCloudFilters}
+            onPageChange={handleBrandCloudPage}
+            onOpenBrand={(brand) => {
+              setSelectedBrandCloudId(brand.id);
+              setBrandCloudDrawerMode('detail');
+            }}
+            onCreate={() => {
+              setSelectedBrandCloudId('');
+              setBrandCloudDrawerMode('create');
+            }}
+            onCloseDrawer={() => {
+              setSelectedBrandCloudId('');
+              setBrandCloudDrawerMode('');
+            }}
+            onCreateBrand={handleCreateBrandCloud}
+            onUpdateBrand={handleUpdateBrandCloud}
+            onAssignMember={handleAssignBrandCloudMember}
+            onCreateUser={handleCreateBrandCloudUser}
+          />
+        ) : null}
         {!needsPlatformAccess && active === 'platform-sso' ? (
           <PlatformSSOProviders providers={ssoProviders} customers={customers} onSave={handleSSOProviderSave} />
         ) : null}
@@ -683,25 +950,98 @@ function App() {
   );
 }
 
-function LoginPage({ error, loading, onPasswordLogin }) {
+function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get('email') || '';
+  const token = params.get('token') || '';
+  const content = active === 'login-check-email' ? (
+    <LoginCheckEmail email={email} />
+  ) : active === 'login-activate' ? (
+    <LoginActivateView token={token} onLoginActivate={onLoginActivate} />
+  ) : active === 'forgot-password' ? (
+    <ForgotPasswordView email={email} onForgotPassword={onForgotPassword} />
+  ) : active === 'reset-password' ? (
+    <ResetPasswordView token={token} onResetPassword={onResetPassword} />
+  ) : (
+    <LoginEntryForm onEmailSignIn={onEmailSignIn} onPasswordLogin={onPasswordLogin} disabled={loading} />
+  );
   return (
     <div className="login-shell">
-      <header className="login-topbar" aria-label="Connect+ Ops">
-        <a href="mailto:cloud-ops@example.com" className="login-help">Need help?</a>
-      </header>
       <main className="login-layout">
         <section className="login-primary" aria-labelledby="login-title">
           <div className="login-brand">
-            <span className="login-brand-grid" aria-hidden="true"><i /><i /><i /><i /></span>
+            <img src="/assets/realtek-logo.png" alt="Realtek" />
             <strong>Connect+ Ops</strong>
           </div>
-          <h1 id="login-title">Sign in to Admin Console</h1>
-          <p className="login-copy">Use your work email to continue.</p>
-          <LoginPasswordForm onPasswordLogin={onPasswordLogin} disabled={loading} />
+          <h1 id="login-title">Admin Console</h1>
+          <p className="login-copy">Login with your password or sign in with an email activation link.</p>
+          {content}
           {error ? <div className="error">{error}</div> : null}
         </section>
       </main>
     </div>
+  );
+}
+
+function LoginEntryForm({ onEmailSignIn, onPasswordLogin, disabled }) {
+  const [mode, setMode] = useState('login');
+  return (
+    <div className="auth-stack">
+      <div className="auth-mode-tabs" role="tablist" aria-label="Auth mode">
+        <button
+          type="button"
+          className={mode === 'login' ? 'active' : ''}
+          role="tab"
+          aria-selected={mode === 'login'}
+          onClick={() => setMode('login')}
+        >
+          Login
+        </button>
+        <button
+          type="button"
+          className={mode === 'signin' ? 'active' : ''}
+          role="tab"
+          aria-selected={mode === 'signin'}
+          onClick={() => setMode('signin')}
+        >
+          Sign-in
+        </button>
+      </div>
+      {mode === 'signin' ? (
+        <LoginEmailForm onEmailSignIn={onEmailSignIn} disabled={disabled} />
+      ) : (
+        <LoginPasswordForm onPasswordLogin={onPasswordLogin} disabled={disabled} />
+      )}
+    </div>
+  );
+}
+
+function LoginEmailForm({ onEmailSignIn, disabled }) {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState('');
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setLocalError('');
+    try {
+      await onEmailSignIn(email);
+    } catch (err) {
+      setLocalError(err?.message || 'Sign-in is temporarily unavailable. Please try again later.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="login-form" onSubmit={submit}>
+      <p className="auth-status">Send an activation link to continue without a password.</p>
+      <label>
+        Email
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
+      </label>
+      <button type="submit" disabled={busy || disabled}>{busy ? 'Sending' : 'Continue'}</button>
+      {localError ? <p className="error">{localError}</p> : null}
+    </form>
   );
 }
 
@@ -725,15 +1065,141 @@ function LoginPasswordForm({ onPasswordLogin, disabled }) {
   return (
     <form className="login-form" onSubmit={submit}>
       <label>
-        Work email
+        Email
         <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
       </label>
       <label>
         Password
         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required />
       </label>
-      <button type="submit" disabled={busy || disabled}>{busy ? 'Signing in' : 'Sign in'}</button>
+      <button type="submit" disabled={busy || disabled}>{busy ? 'Logging in' : 'Login'}</button>
+      <a className="auth-link" href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}>Forgot password?</a>
       {localError ? <p className="error">{localError}</p> : null}
+    </form>
+  );
+}
+
+function LoginCheckEmail({ email }) {
+  return (
+    <div className="auth-stack">
+      <p>Check your email for a sign-in link.</p>
+      <p className="auth-status">If an eligible account exists, the link will activate this browser session.</p>
+      {email ? <p className="auth-meta">{email}</p> : null}
+      <a className="auth-link" href="/login">Back to sign in</a>
+    </div>
+  );
+}
+
+function LoginActivateView({ token, onLoginActivate }) {
+  const [value, setValue] = useState(token);
+  const [status, setStatus] = useState(token ? 'Activating sign-in link.' : 'Paste the sign-in token from your email.');
+  const [error, setLocalError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [attempted, setAttempted] = useState(false);
+
+  useEffect(() => {
+    if (!value || attempted) return;
+    setAttempted(true);
+    setBusy(true);
+    setLocalError('');
+    onLoginActivate(value)
+      .then(() => setStatus('Sign-in completed. Redirecting.'))
+      .catch((err) => setLocalError(userFacingLoginActivationError(err)))
+      .finally(() => setBusy(false));
+  }, [attempted, onLoginActivate, value]);
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setLocalError('');
+    try {
+      await onLoginActivate(value);
+      setStatus('Sign-in completed. Redirecting.');
+    } catch (err) {
+      setLocalError(userFacingLoginActivationError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="auth-stack">
+      <form className="auth-inline" onSubmit={submit}>
+        <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Sign-in token" required />
+        <button type="submit" disabled={busy}>{busy ? 'Activating' : 'Activate'}</button>
+      </form>
+      <p className="auth-status">{status}</p>
+      {error ? <p className="error">{error}</p> : null}
+      <a className="auth-link" href="/login">Request a new sign-in link</a>
+    </div>
+  );
+}
+
+function ForgotPasswordView({ email, onForgotPassword }) {
+  const [value, setValue] = useState(email);
+  const [status, setStatus] = useState('');
+  const [error, setLocalError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setLocalError('');
+    try {
+      await onForgotPassword(value);
+      setStatus('If an eligible account exists, a reset link has been sent.');
+    } catch (err) {
+      setLocalError(userFacingPasswordResetError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="login-form" onSubmit={submit}>
+      <label>
+        Email
+        <input type="email" value={value} onChange={(event) => setValue(event.target.value)} placeholder="name@company.com" required />
+      </label>
+      <button type="submit" disabled={busy}>{busy ? 'Sending' : 'Send reset link'}</button>
+      {status ? <p className="auth-status">{status}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
+      <a className="auth-link" href="/login">Back to sign in</a>
+    </form>
+  );
+}
+
+function ResetPasswordView({ token, onResetPassword }) {
+  const [tokenValue, setTokenValue] = useState(token);
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState('');
+  const [error, setLocalError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setLocalError('');
+    try {
+      await onResetPassword({ token: tokenValue, new_password: password });
+      setStatus('Password reset completed. You can sign in with the new password.');
+    } catch (err) {
+      setLocalError(userFacingPasswordResetError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="login-form" onSubmit={submit}>
+      <label>
+        Reset token
+        <input value={tokenValue} onChange={(event) => setTokenValue(event.target.value)} placeholder="Reset token" required />
+      </label>
+      <label>
+        New password
+        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
+      </label>
+      <button type="submit" disabled={busy}>{busy ? 'Resetting' : 'Reset password'}</button>
+      {status ? <p className="auth-status">{status}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
+      <a className="auth-link" href="/login">Back to sign in</a>
     </form>
   );
 }
@@ -1048,10 +1514,10 @@ function Overview({
   return (
     <div className="overview-layout">
       <section className="metrics overview-metrics">
-        <MetricCard icon="ON" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
-        <MetricCard icon="%" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
-        <MetricCard icon="!" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : telemetryReason} tone={needsAttention === 0 ? 'good' : 'warn'} />
-        <MetricCard icon="ST" label="Active Streams" value={activeStreams} hint={streamAvailable ? `of ${summary?.total_devices ?? 0} devices` : streamReason} tone="info" />
+        <MetricCard icon="video" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
+        <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
+        <MetricCard icon="triangle-exclamation" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : telemetryReason} tone={needsAttention === 0 ? 'good' : 'warn'} />
+        <MetricCard icon="tower-broadcast" label="Active Streams" value={activeStreams} hint={streamAvailable ? `of ${summary?.total_devices ?? 0} devices` : streamReason} tone="info" />
       </section>
 
       {!telemetryAvailable ? <SourceBlockedState title={telemetryState.title} message={telemetryReason} /> : null}
@@ -1130,10 +1596,10 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
       </div>
 
       <section className="metrics firmware-page-metrics">
-        <MetricCard icon="FW" label="Latest Version" value={available ? latestVersion : 'Unavailable'} hint={available ? 'Current target release' : unavailableText} tone="info" />
-        <MetricCard icon="OK" label="Devices Current" value={available ? currentDevices : 'Unavailable'} hint={available ? `${formatPercent(latestVersionRow?.pct || 0)} of fleet` : unavailableText} tone="good" />
-        <MetricCard icon="UP" label="Pending Update" value={available ? pendingUpdate : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? pendingUpdate / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone="info" />
-        <MetricCard icon="!" label="Failed Rollout" value={available ? failedRollout : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone={failedRollout ? 'danger' : 'good'} />
+        <MetricCard icon="microchip" label="Latest Version" value={available ? latestVersion : 'Unavailable'} hint={available ? 'Current target release' : unavailableText} tone="info" />
+        <MetricCard icon="circle-check" label="Devices Current" value={available ? currentDevices : 'Unavailable'} hint={available ? `${formatPercent(latestVersionRow?.pct || 0)} of fleet` : unavailableText} tone="good" />
+        <MetricCard icon="cloud-arrow-up" label="Pending Update" value={available ? pendingUpdate : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? pendingUpdate / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone="info" />
+        <MetricCard icon="circle-exclamation" label="Failed Rollout" value={available ? failedRollout : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone={failedRollout ? 'danger' : 'good'} />
       </section>
 
       {loading && !distribution ? <p className="empty-state">Loading firmware distribution.</p> : null}
@@ -1393,24 +1859,28 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
   const kpis = [
     {
       key: 'success-rate',
+      icon: 'signal',
       label: `Stream Success Rate (${windowLabel})`,
       value: available ? formatPercent(stats?.success_rate_pct ?? 0) : 'Unavailable',
       hint: available ? 'Percent of stream requests that succeeded in the selected window' : unavailableText,
     },
     {
       key: 'avg-duration',
+      icon: 'clock',
       label: 'Avg Stream Duration',
       value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'Unavailable',
       hint: available ? 'Average session length across observed requests' : unavailableText,
     },
     {
       key: 'active-sessions',
+      icon: 'tower-broadcast',
       label: 'Active Sessions Now',
       value: available ? (stats?.active_sessions ?? 0) : 'Unavailable',
       hint: available ? 'Count of currently open stream sessions' : unavailableText,
     },
     {
       key: 'never-streamed',
+      icon: 'circle-question',
       label: 'Devices Never Streamed',
       value: available ? (stats?.never_streamed_count ?? 0) : 'Unavailable',
       hint: available ? 'Online devices that have no stream history' : unavailableText,
@@ -1427,9 +1897,10 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
       </div>
 
       <section className="metrics stream-health-metrics">
-        {kpis.map(({ key, label, value, hint }) => (
+        {kpis.map(({ key, icon, label, value, hint }) => (
           <MetricCard
             key={key}
+            icon={icon}
             label={label}
             value={value}
             hint={hint}
@@ -1653,7 +2124,6 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
           <h2>Platform Dashboard</h2>
           <p>Cross-tenant operating status for Platform Admins.</p>
         </div>
-        <SourceStatusPill source={source} />
       </div>
 
       <section className="platform-kpi-strip">
@@ -1677,7 +2147,6 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
               <h2>Service & Scrape Health</h2>
               <p>Grouped target health from the admin Prometheus boundary.</p>
             </div>
-            <SourceStatusPill source={dashboard?.panel_sources?.service_scrape_health || source} />
           </div>
           <div className="scrape-group-list">
             {serviceGroups.map((group) => (
@@ -1699,7 +2168,6 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
               <h2>Tenant & Device Footprint</h2>
               <p>Admin read-model totals across customer organizations.</p>
             </div>
-            <StatusBadge value="ok" label="Configured" />
           </div>
           <div className="footprint-list">
             {footprintRows.map(([label, value]) => (
@@ -1711,29 +2179,39 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
           </div>
         </article>
 
-        <article className="panel platform-dashboard-panel">
+        <article className="panel platform-dashboard-panel operation-risk-panel">
           <div className="panel-head">
             <div>
               <h2>Operation Risk</h2>
-              <p>Lifecycle activity that may need operator attention.</p>
+              <p>{risk.failed_operations || risk.dead_lettered_operations ? 'Failures need operator attention.' : 'No failed lifecycle work currently reported.'}</p>
             </div>
-            <StatusBadge value={risk.failed_operations || risk.dead_lettered_operations ? 'degraded' : 'ok'} />
           </div>
-          <div className="risk-strip">
-            <div><strong>{risk.open_operations}</strong><span>Open</span></div>
-            <div><strong>{risk.failed_operations}</strong><span>Failed</span></div>
-            <div><strong>{risk.dead_lettered_operations}</strong><span>Dead letters</span></div>
+          <div className="risk-strip" aria-label="Operation risk counts">
+            <div className="risk-metric">
+              <Icon name="clock" />
+              <span>Open</span>
+              <strong>{risk.open_operations}</strong>
+            </div>
+            <div className={`risk-metric ${risk.failed_operations ? 'risk-hot' : ''}`}>
+              <Icon name="circle-exclamation" />
+              <span>Failed</span>
+              <strong>{risk.failed_operations}</strong>
+            </div>
+            <div className={`risk-metric ${risk.dead_lettered_operations ? 'risk-hot' : ''}`}>
+              <Icon name="box-archive" />
+              <span>Dead letters</span>
+              <strong>{risk.dead_lettered_operations}</strong>
+            </div>
           </div>
           <OperationList operations={openOps} detailed />
         </article>
 
-        <article className="panel platform-dashboard-panel">
+        <article className="panel platform-dashboard-panel platform-activity-panel">
           <div className="panel-head">
             <div>
               <h2>Platform Activity</h2>
-              <p>Current service checks and recent operations summary.</p>
+              <p>{health.filter((item) => item.status === 'ok').length} of {health.length} services healthy.</p>
             </div>
-            <StatusBadge value={health.some((item) => item.status === 'unavailable' || item.status === 'degraded') ? 'degraded' : 'ok'} />
           </div>
           <ServiceHealth health={health} compact />
         </article>
@@ -1755,7 +2233,6 @@ function ServiceExporterStatus({ exporters, source }) {
           <h2>Service Exporter Status</h2>
           <p>Application and service-owned exporters published into the admin Prometheus boundary.</p>
         </div>
-        <SourceStatusPill source={source} />
       </div>
       <div className="server-resource-table-wrap">
         <table className="server-resource-table service-exporter-table">
@@ -1765,7 +2242,6 @@ function ServiceExporterStatus({ exporters, source }) {
               <th>Exporter role</th>
               <th>Targets</th>
               <th>Status</th>
-              <th>Last checked</th>
             </tr>
           </thead>
           <tbody>
@@ -1773,14 +2249,13 @@ function ServiceExporterStatus({ exporters, source }) {
               <tr key={exporter.id}>
                 <td><strong>{exporter.label || exporter.id}</strong></td>
                 <td>{exporter.role || '-'}</td>
-                <td>{exporter.targets_total ? `${exporter.targets_up} up / ${exporter.targets_down} down` : 'Unavailable'}</td>
+                <td>{exporter.source_status === 'configured' || exporter.source_status === 'stale' || exporter.targets_total ? `${exporter.targets_up} up / ${exporter.targets_down} down` : 'Unavailable'}</td>
                 <td><StatusBadge value={resourceStatusTone(exporter.status)} label={resourceStatusLabel(exporter.status)} /></td>
-                <td>{exporter.checked_at ? formatRelativeTime(exporter.checked_at) : '-'}</td>
               </tr>
             ))}
             {!exporters.length ? (
               <tr>
-                <td colSpan="5" className="empty-state">No service exporter data available.</td>
+                <td colSpan="4" className="empty-state">No service exporter data available.</td>
               </tr>
             ) : null}
           </tbody>
@@ -1798,7 +2273,6 @@ function ServerResourceStatus({ resources, source }) {
           <h2>Server Resource Status</h2>
           <p>Per-server CPU, memory, root disk, and network throughput from the admin Prometheus boundary.</p>
         </div>
-        <SourceStatusPill source={source} />
       </div>
       <div className="server-resource-table-wrap">
         <table className="server-resource-table">
@@ -1811,7 +2285,6 @@ function ServerResourceStatus({ resources, source }) {
               <th>Disk</th>
               <th>Network</th>
               <th>Status</th>
-              <th>Last checked</th>
             </tr>
           </thead>
           <tbody>
@@ -1829,12 +2302,11 @@ function ServerResourceStatus({ resources, source }) {
                   </span>
                 </td>
                 <td><StatusBadge value={resourceStatusTone(resource.status)} label={resourceStatusLabel(resource.status)} /></td>
-                <td>{resource.checked_at ? formatRelativeTime(resource.checked_at) : '-'}</td>
               </tr>
             ))}
             {!resources.length ? (
               <tr>
-                <td colSpan="8" className="empty-state">No server resource data available.</td>
+                <td colSpan="7" className="empty-state">No server resource data available.</td>
               </tr>
             ) : null}
           </tbody>
@@ -1851,7 +2323,6 @@ function PlatformMetricPanel({ title, rows, secondary = false }) {
         <div>
           <h2>{title}</h2>
         </div>
-        <StatusBadge value={rows.some((row) => row.status === 'configured') ? 'ok' : 'empty'} label={rows.some((row) => row.status === 'configured') ? 'Configured' : 'Empty'} />
       </div>
       <div className="metric-row-list">
         {rows.map((row) => (
@@ -1876,7 +2347,6 @@ function PlatformResourceTrends({ trends, range, setRange, metric, setMetric, lo
           <h2>Resource Trends</h2>
           <p>Historical server CPU, memory, disk, and network usage for Platform Admins.</p>
         </div>
-        <SourceStatusPill source={source} />
       </div>
 
       <section className="resource-trends-controls">
@@ -1896,10 +2366,9 @@ function PlatformResourceTrends({ trends, range, setRange, metric, setMetric, lo
             <h2>{resourceTrendMetricTitle(metric)}</h2>
             <p>{resourceTrendMetricSubtitle(metric, trends?.range || range)}</p>
           </div>
-          <StatusBadge value={resourceStatusTone(source.source_status)} label={resourceStatusLabel(source.source_status)} />
         </div>
         {chart.series.length ? (
-          <ResourceTrendThreeChart chart={chart} metric={metric} title={resourceTrendMetricTitle(metric)} />
+          <ResourceTrendLineChart chart={chart} metric={metric} title={resourceTrendMetricTitle(metric)} />
         ) : (
           <p className="empty-state">{source.source_message || 'No resource trend data available for this range.'}</p>
         )}
@@ -1922,7 +2391,6 @@ function PlatformResourceTrends({ trends, range, setRange, metric, setMetric, lo
                 <th>Avg</th>
                 <th>P95</th>
                 <th>Max</th>
-                <th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -1936,13 +2404,12 @@ function PlatformResourceTrends({ trends, range, setRange, metric, setMetric, lo
                     <td>{formatResourceTrendValue(metricSummary.avg, metric)}</td>
                     <td>{formatResourceTrendValue(metricSummary.p95, metric)}</td>
                     <td>{formatResourceTrendValue(metricSummary.max, metric)}</td>
-                    <td><StatusBadge value={resourceStatusTone(row.source_status)} label={resourceStatusLabel(row.source_status)} /></td>
                   </tr>
                 );
               })}
               {!summaryRows.length ? (
                 <tr>
-                  <td colSpan="7" className="empty-state">No server trend summary available.</td>
+                  <td colSpan="6" className="empty-state">No server trend summary available.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -1953,11 +2420,15 @@ function PlatformResourceTrends({ trends, range, setRange, metric, setMetric, lo
   );
 }
 
-function ResourceTrendThreeChart({ chart, metric, title }) {
-  const mountRef = useRef(null);
-  const maxLabel = chart?.maxLabel || '0';
-  const labels = chart?.labels || [];
+function ResourceTrendLineChart({ chart, metric, title }) {
+  const width = 920;
+  const height = 340;
+  const padding = { top: 28, right: 28, bottom: 58, left: 78 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
   const series = chart?.series || [];
+  const labels = chart?.labels || [];
+  const yTicks = buildResourceTrendYTicks(chart?.maxValue || 0, metric);
   const latestValues = series.map((item) => {
     const latest = item.samples.at(-1);
     return {
@@ -1967,197 +2438,28 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
       value: formatResourceTrendValue(latest?.value, metric),
     };
   });
-
-  useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount || !series.length) return undefined;
-
-    let disposed = false;
-    let cleanup = () => {};
-    (async () => {
-      const THREE = await import('three');
-      if (disposed) return;
-
-      const scene = new THREE.Scene();
-      const renderer = new THREE.WebGLRenderer({
-        alpha: true,
-        antialias: true,
-        preserveDrawingBuffer: true,
-      });
-      renderer.setClearColor(0xf8fafc, 0);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      mount.appendChild(renderer.domElement);
-
-      const camera = new THREE.OrthographicCamera(-4.4, 4.4, 2.15, -1.75, 0.1, 100);
-      camera.position.set(0, 0, 8);
-      camera.lookAt(0, 0, 0);
-
-      const ambient = new THREE.AmbientLight(0xffffff, 0.72);
-      const key = new THREE.DirectionalLight(0xffffff, 0.74);
-      key.position.set(-2, 5, 4);
-      scene.add(ambient, key);
-
-      const plane = new THREE.Mesh(
-        new THREE.PlaneGeometry(7.25, 2.8),
-        new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0.58,
-        }),
-      );
-      plane.position.set(0, 0.28, -0.04);
-      scene.add(plane);
-
-      const grid = buildResourceTrendGrid(THREE);
-      scene.add(grid);
-
-      const latestMarkers = [];
-      series.forEach((item, index) => {
-        const depth = index * 0.035;
-        const points = item.samples.map((point, pointIndex) => {
-          const x = -3.35 + (pointIndex / Math.max(item.samples.length - 1, 1)) * 6.7;
-          const y = -0.95 + (Number(point.value || 0) / Math.max(chart.maxValue || 1, 1)) * 2.45;
-          const z = depth;
-          return new THREE.Vector3(x, y, z);
-        });
-        if (points.length < 2) return;
-
-        const color = new THREE.Color(item.color);
-        const curve = new THREE.CatmullRomCurve3(points);
-        const glow = new THREE.Mesh(
-          new THREE.TubeGeometry(curve, Math.max(48, points.length * 12), 0.105, 14, false),
-          new THREE.MeshBasicMaterial({
-            color,
-            transparent: true,
-            opacity: 0.13,
-            depthWrite: false,
-          }),
-        );
-        scene.add(glow);
-
-        const line = new THREE.Mesh(
-          new THREE.TubeGeometry(curve, Math.max(48, points.length * 12), 0.032, 12, false),
-          new THREE.MeshStandardMaterial({
-            color,
-            emissive: color.clone().multiplyScalar(0.18),
-            metalness: 0.05,
-            roughness: 0.26,
-          }),
-        );
-        scene.add(line);
-
-        const ribbonShape = buildResourceTrendRibbon(THREE, points);
-        const ribbon = new THREE.Mesh(
-          ribbonShape,
-          new THREE.MeshBasicMaterial({
-            color,
-            transparent: true,
-            opacity: 0.14,
-            side: THREE.DoubleSide,
-            depthWrite: false,
-          }),
-        );
-        scene.add(ribbon);
-
-        const markerStep = Math.max(1, Math.floor(points.length / 6));
-        points.forEach((point, pointIndex) => {
-          if (pointIndex !== points.length - 1 && pointIndex % markerStep !== 0) return;
-          const marker = new THREE.Mesh(
-            new THREE.SphereGeometry(pointIndex === points.length - 1 ? 0.082 : 0.042, 14, 14),
-            new THREE.MeshStandardMaterial({
-              color,
-              emissive: color.clone().multiplyScalar(0.16),
-              roughness: 0.28,
-            }),
-          );
-          marker.position.copy(point);
-          scene.add(marker);
-          if (pointIndex === points.length - 1) latestMarkers.push(marker);
-        });
-
-        const latest = points[points.length - 1];
-        const dropLine = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(latest.x, -0.95, latest.z),
-            new THREE.Vector3(latest.x, latest.y, latest.z),
-          ]),
-          new THREE.LineBasicMaterial({
-            color,
-            transparent: true,
-            opacity: 0.38,
-          }),
-        );
-        scene.add(dropLine);
-      });
-
-      let frame = 0;
-      let animation = 0;
-      const resize = () => {
-        const bounds = mount.getBoundingClientRect();
-        const width = Math.max(320, Math.floor(bounds.width));
-        const height = Math.max(280, Math.floor(bounds.height));
-        renderer.setSize(width, height, false);
-        const aspect = width / height;
-        camera.left = -4.15 * Math.max(1, aspect / 1.8);
-        camera.right = 4.15 * Math.max(1, aspect / 1.8);
-        camera.top = 1.95;
-        camera.bottom = -1.55;
-        camera.updateProjectionMatrix();
-      };
-      const observer = new ResizeObserver(resize);
-      observer.observe(mount);
-      resize();
-
-      const animate = () => {
-        frame += 1;
-        const pulse = Math.sin(frame / 42) * 0.035;
-        latestMarkers.forEach((marker) => {
-          marker.scale.setScalar(1 + pulse);
-        });
-        camera.position.x = Math.sin(frame / 160) * 0.018;
-        camera.lookAt(0, 0, 0);
-        renderer.render(scene, camera);
-        animation = requestAnimationFrame(animate);
-      };
-      animate();
-
-      cleanup = () => {
-        cancelAnimationFrame(animation);
-        observer.disconnect();
-        scene.traverse((object) => {
-          if (object.geometry) object.geometry.dispose();
-          if (object.material) {
-            if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose());
-            else object.material.dispose();
-          }
-        });
-        renderer.dispose();
-        renderer.domElement.remove();
-      };
-    })();
-
-    return () => {
-      disposed = true;
-      cleanup();
-    };
-  }, [chart, series]);
+  const seriesPaths = series.map((item) => {
+    const points = item.samples.map((sample, index) => {
+      const x = padding.left + (index / Math.max(item.samples.length - 1, 1)) * plotWidth;
+      const y = padding.top + (1 - Number(sample.value || 0) / Math.max(chart.maxValue || 1, 1)) * plotHeight;
+      return { x, y, sample };
+    });
+    const line = points.map((point, index) => `${index ? 'L' : 'M'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
+    const area = points.length
+      ? `${line} L ${points.at(-1).x.toFixed(2)} ${(padding.top + plotHeight).toFixed(2)} L ${points[0].x.toFixed(2)} ${(padding.top + plotHeight).toFixed(2)} Z`
+      : '';
+    return { ...item, points, line, area };
+  });
 
   return (
-    <div className="resource-three-chart-shell">
-      <div className="resource-three-chart" ref={mountRef} role="img" aria-label={`${title} WebGL trend chart`}>
-        <div className="resource-three-chart-overlay">
-          <span>{maxLabel}</span>
-          <span>0</span>
-        </div>
-        <div className="resource-three-chart-axis">
-          {labels.map((label) => (
-            <span key={`${label.primary}-${label.positionPercent}`} style={{ left: `${label.positionPercent}%` }}>
-              <strong>{label.primary}</strong>
-              <small>{label.secondary}</small>
-            </span>
+    <div className="resource-line-chart-shell">
+      <div className="resource-line-chart-head">
+        <div className="chart-legend resource-line-legend">
+          {latestValues.map((item) => (
+            <span key={item.key}><i className="legend-line" style={{ background: item.color }} />{item.label}</span>
           ))}
         </div>
-        <div className="resource-three-callouts">
+        <div className="resource-line-latest">
           {latestValues.map((item) => (
             <span key={item.key}>
               <i style={{ background: item.color }} />
@@ -2167,58 +2469,52 @@ function ResourceTrendThreeChart({ chart, metric, title }) {
           ))}
         </div>
       </div>
-      <div className="chart-legend resource-three-legend">
-        {series.map((item) => (
-          <span key={item.key}><i className="legend-line" style={{ background: item.color }} />{item.label}</span>
-        ))}
-      </div>
+      <svg className="resource-line-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title} trend chart`} preserveAspectRatio="none">
+        <rect className="resource-line-chart-bg" x={padding.left} y={padding.top} width={plotWidth} height={plotHeight} rx="4" />
+        {yTicks.map((tick) => {
+          const y = padding.top + (1 - tick.value / Math.max(chart.maxValue || 1, 1)) * plotHeight;
+          return (
+            <g key={tick.value}>
+              <line className="resource-grid-line" x1={padding.left} x2={padding.left + plotWidth} y1={y} y2={y} />
+              <text className="resource-y-label" x={padding.left - 12} y={y + 4} textAnchor="end">{tick.label}</text>
+            </g>
+          );
+        })}
+        {labels.map((label) => {
+          const x = padding.left + (label.positionPercent / 100) * plotWidth;
+          return <line key={`grid-${label.primary}-${label.positionPercent}`} className="resource-grid-line vertical" x1={x} x2={x} y1={padding.top} y2={padding.top + plotHeight} />;
+        })}
+        {seriesPaths.map((item) => item.area ? <path key={`${item.key}-area`} className="resource-area" d={item.area} fill={item.color} /> : null)}
+        {seriesPaths.map((item) => <path key={`${item.key}-line`} className="resource-line" d={item.line} stroke={item.color} />)}
+        {seriesPaths.map((item) => {
+          const latest = item.points.at(-1);
+          if (!latest) return null;
+          return <circle key={`${item.key}-latest`} className="resource-latest-dot" cx={latest.x} cy={latest.y} r="4.5" fill={item.color} />;
+        })}
+        {labels.map((label) => {
+          const x = padding.left + (label.positionPercent / 100) * plotWidth;
+          return (
+            <text key={`label-${label.primary}-${label.positionPercent}`} className="resource-x-label" x={x} y={height - 28} textAnchor="middle">
+              <tspan x={x}>{label.primary}</tspan>
+              <tspan x={x} dy="15">{label.secondary}</tspan>
+            </text>
+          );
+        })}
+      </svg>
       <div className="resource-chart-note">{resourceTrendChartCaption(metric)}</div>
     </div>
   );
 }
 
-function buildResourceTrendGrid(THREE) {
-  const material = new THREE.LineBasicMaterial({
-    color: 0x99a7b6,
-    transparent: true,
-    opacity: 0.26,
+function buildResourceTrendYTicks(maxValue, metric) {
+  const max = Math.max(Number(maxValue || 0), 1);
+  return [1, 0.75, 0.5, 0.25, 0].map((ratio) => {
+    const value = max * ratio;
+    return {
+      value,
+      label: metric === 'network' ? formatThroughputBPS(value) : formatResourcePercent(value),
+    };
   });
-  const points = [];
-  for (let i = 0; i <= 6; i += 1) {
-    const x = -3.35 + i * (6.7 / 6);
-    points.push(new THREE.Vector3(x, -0.95, -0.02), new THREE.Vector3(x, 1.5, -0.02));
-  }
-  for (let i = 0; i <= 4; i += 1) {
-    const y = -0.95 + i * (2.45 / 4);
-    points.push(new THREE.Vector3(-3.35, y, -0.02), new THREE.Vector3(3.35, y, -0.02));
-  }
-  return new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points), material);
-}
-
-function buildResourceTrendRibbon(THREE, points) {
-  const vertices = [];
-  const indices = [];
-  for (const point of points) {
-    vertices.push(point.x, -0.95, point.z - 0.01, point.x, point.y, point.z - 0.01);
-  }
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const base = index * 2;
-    indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
-function SourceStatusPill({ source }) {
-  const status = source?.source_status || 'unconfigured';
-  return (
-    <span className={`source-pill source-pill-${normalizeStatusKey(status)}`}>
-      {toTitleCase(status)}
-    </span>
-  );
 }
 
 function fallbackPlatformKPIs(summary) {
@@ -2386,6 +2682,481 @@ function PlatformServiceLogs({ logs, loading }) {
   );
 }
 
+function PlatformBrandClouds({
+  brands,
+  pagination,
+  query,
+  status,
+  tier,
+  source,
+  loading,
+  selectedBrand,
+  drawerMode,
+  onFilterChange,
+  onPageChange,
+  onOpenBrand,
+  onCreate,
+  onCloseDrawer,
+  onCreateBrand,
+  onUpdateBrand,
+  onAssignMember,
+  onCreateUser,
+}) {
+  const kpis = brandCloudKPIs(brands);
+  const tierOptions = useMemo(() => Array.from(new Set(['Evaluation', 'Commercial', ...brands.map((brand) => brandCloudTier(brand)).filter(Boolean)])).sort(), [brands]);
+  const unavailable = source?.status === 'unavailable';
+  const page = pagination || { limit: 25, offset: 0, total: brands.length };
+  const pageStart = page.total ? page.offset + 1 : 0;
+  const pageEnd = Math.min(page.offset + brands.length, page.total);
+  const canPrevious = page.offset > 0;
+  const canNext = page.offset + page.limit < page.total;
+
+  return (
+    <section className="platform-brand-clouds">
+      <div className="brand-cloud-kpis">
+        <MetricCard icon="cloud" label="Total Brand Clouds" value={kpis.total} hint="Account Manager records" tone="info" />
+        <MetricCard icon="circle-check" label="Active" value={kpis.active} hint="Ready tenant organizations" tone="good" />
+        <MetricCard icon="screwdriver-wrench" label="Setup Required" value={kpis.setupRequired} hint="Owner, SSO, or quota pending" tone={kpis.setupRequired ? 'warn' : 'good'} />
+        <MetricCard icon="ban" label="Disabled" value={kpis.disabled} hint="Tenant access blocked" tone={kpis.disabled ? 'warn' : 'neutral'} />
+      </div>
+
+      <section className="panel platform-dashboard-panel brand-cloud-list-panel">
+        <div className="panel-head">
+          <div>
+            <h2>Brand Clouds</h2>
+            <p>Licensed brand operators backed by Account Manager.</p>
+          </div>
+          <button type="button" className="primary-button" onClick={onCreate}>Create Brand Cloud</button>
+        </div>
+        <div className="table-toolbar">
+          <input className="input" value={query} onChange={(event) => onFilterChange({ query: event.target.value })} placeholder="Search brand, org id, owner" aria-label="Search Brand Clouds" />
+          <select className="input" value={status} onChange={(event) => onFilterChange({ status: event.target.value })} aria-label="Filter Brand Clouds status">
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="setup_required">Setup Required</option>
+            <option value="disabled">Disabled</option>
+            <option value="error">Error</option>
+          </select>
+          <select className="input" value={tier} onChange={(event) => onFilterChange({ tier: event.target.value })} aria-label="Filter Brand Clouds tier">
+            <option value="all">All tiers</option>
+            {tierOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </div>
+        {unavailable ? <div className="error">Brand Clouds unavailable: {source.message}</div> : null}
+        {!unavailable && loading ? <p className="empty-state">Loading Brand Clouds...</p> : null}
+        {!unavailable && !loading && !brands.length ? <p className="empty-state">No Brand Clouds have been created.</p> : null}
+        {!unavailable && !loading && brands.length ? (
+          <div className="table-wrap">
+            <table className="brand-cloud-table">
+              <thead>
+                <tr>
+                  <th>Brand</th>
+                  <th>Status</th>
+                  <th>Tier</th>
+                  <th>Owner/Admin</th>
+                  <th>Region</th>
+                  <th>Devices</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {brands.map((brand) => (
+                  <tr key={brand.id}>
+                    <td className="brand-cloud-primary">
+                      <strong>{brand.name || brand.metadata?.brandname || brand.id}</strong>
+                      <small className="brand-cloud-id">{brand.id}</small>
+                    </td>
+                    <td><StatusBadge value={brandCloudStatusKey(brand)} label={brandCloudStatusLabel(brand)} /></td>
+                    <td>{brandCloudTier(brand)}</td>
+                    <td>{brandCloudOwner(brand) || 'Unassigned'}</td>
+                    <td>{brandCloudRegion(brand)}</td>
+                    <td>{brandCloudQuotaLabel(brand)}</td>
+                    <td><button type="button" className="inline-action compact-action" onClick={() => onOpenBrand(brand)}><i className="fa-solid fa-eye" aria-hidden="true" /> View</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="pagination-bar" aria-label="Brand Clouds pagination">
+              <span>{pageStart}-{pageEnd} of {page.total}</span>
+              <div className="pagination-controls">
+                <button type="button" onClick={() => onPageChange(page.offset - page.limit)} disabled={!canPrevious}>
+                  <i className="fa-solid fa-chevron-left" aria-hidden="true" /> Previous
+                </button>
+                <button type="button" onClick={() => onPageChange(page.offset + page.limit)} disabled={!canNext}>
+                  Next <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      {drawerMode === 'create' ? (
+        <BrandCloudCreateDrawer onClose={onCloseDrawer} onCreateBrand={onCreateBrand} />
+      ) : null}
+      {drawerMode === 'detail' && selectedBrand ? (
+        <BrandCloudDetailDrawer
+          brand={selectedBrand}
+          onClose={onCloseDrawer}
+          onUpdateBrand={onUpdateBrand}
+          onAssignMember={onAssignMember}
+          onCreateUser={onCreateUser}
+        />
+      ) : null}
+    </section>
+  );
+}
+
+function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
+  const [form, setForm] = useState({
+    name: '',
+    region: '',
+    tier: 'Evaluation',
+    initialMode: 'none',
+    userId: '',
+    email: '',
+    password: '',
+    displayName: '',
+    role: 'owner',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+
+  function update(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    setMessage('');
+    if (!form.name.trim()) {
+      setMessage('Brand display name is required.');
+      return;
+    }
+    if (form.initialMode === 'existing' && !form.userId.trim()) {
+      setMessage('Existing Account Manager user id is required.');
+      return;
+    }
+    if (form.initialMode === 'create' && (!form.email.trim() || !form.password.trim())) {
+      setMessage('Initial admin email and password are required.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload = {
+        brandCloud: {
+          name: form.name.trim(),
+          metadata: {
+            region: form.region.trim() || undefined,
+            tier: form.tier,
+          },
+        },
+        initialMember: form.initialMode === 'existing' ? { user_id: form.userId.trim(), role: form.role } : null,
+        initialUser: form.initialMode === 'create' ? {
+          email: form.email.trim(),
+          password: form.password,
+          display_name: form.displayName.trim() || undefined,
+          role: form.role,
+          rotate_password: true,
+        } : null,
+      };
+      const result = await onCreateBrand(payload);
+      setMessage(result.memberError ? `Brand Cloud created. ${result.memberError}` : 'Brand Cloud created.');
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside className="drawer-panel brand-cloud-drawer" role="dialog" aria-modal="true" aria-label="Create Brand Cloud" onClick={(event) => event.stopPropagation()}>
+        <div className="drawer-header">
+          <div>
+            <h2>Create Brand Cloud</h2>
+            <p>Creates an Account Manager `organization_kind=brand_cloud` record.</p>
+          </div>
+          <button type="button" className="drawer-close" onClick={onClose} aria-label="Close Brand Cloud drawer">x</button>
+        </div>
+        <form className="drawer-form" onSubmit={submit}>
+          <label>Brand display name<input className="input" value={form.name} onChange={(event) => update('name', event.target.value)} /></label>
+          <div className="form-grid">
+            <label>Region<input className="input" value={form.region} onChange={(event) => update('region', event.target.value)} placeholder="Optional" /></label>
+            <label>Tier<select className="input" value={form.tier} onChange={(event) => update('tier', event.target.value)}><option>Evaluation</option><option>Commercial</option></select></label>
+          </div>
+          <label>Initial admin mode<select className="input" value={form.initialMode} onChange={(event) => update('initialMode', event.target.value)}>
+            <option value="none">Assign later</option>
+            <option value="existing">Assign existing user id</option>
+            <option value="create">Create or reactivate brand user</option>
+          </select></label>
+          {form.initialMode === 'existing' ? <label>Account Manager user id<input className="input" value={form.userId} onChange={(event) => update('userId', event.target.value)} /></label> : null}
+          {form.initialMode === 'create' ? (
+            <>
+              <label>Email<input className="input" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
+              <label>Temporary password<input className="input" type="password" value={form.password} onChange={(event) => update('password', event.target.value)} /></label>
+              <label>Display name<input className="input" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} /></label>
+            </>
+          ) : null}
+          {form.initialMode !== 'none' ? <label>Role<select className="input" value={form.role} onChange={(event) => update('role', event.target.value)}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label> : null}
+          {message ? <p className="form-message">{message}</p> : null}
+          <div className="drawer-actions">
+            <button type="button" className="ghost-button" onClick={onClose}>Cancel</button>
+            <button type="submit" className="primary-button" disabled={submitting}>{submitting ? 'Creating...' : 'Create Brand Cloud'}</button>
+          </div>
+        </form>
+      </aside>
+    </div>
+  );
+}
+
+function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember, onCreateUser }) {
+  const [member, setMember] = useState({ user_id: '', role: 'owner' });
+  const [user, setUser] = useState({ email: '', password: '', display_name: '', role: 'admin' });
+  const [users, setUsers] = useState([]);
+  const [userFilter, setUserFilter] = useState('all');
+  const [usersSource, setUsersSource] = useState({ status: 'loading', message: '' });
+  const [message, setMessage] = useState('');
+  const disabled = brandCloudStatusKey(brand) === 'disabled';
+  const owner = brandCloudOwner(brand);
+  const pendingUsers = users.filter((row) => brandCloudUserStatus(row).key === 'pending_verification').length;
+  const disabledUsers = users.filter((row) => brandCloudUserStatus(row).key === 'disabled').length;
+  const activeUsers = users.filter((row) => brandCloudUserStatus(row).key === 'active').length;
+
+  async function loadUsers(nextFilter = userFilter) {
+    setUsersSource({ status: 'loading', message: '' });
+    try {
+      const params = new URLSearchParams();
+      if (nextFilter !== 'all') params.set('status', nextFilter);
+      const suffix = params.toString() ? `?${params.toString()}` : '';
+      const result = await fetchJSON(`/api/admin/brand-clouds/${encodeURIComponent(brand.id)}/users${suffix}`);
+      setUsers(result.brand_cloud_users || []);
+      setUsersSource({ status: 'ready', message: '' });
+    } catch (err) {
+      setUsers([]);
+      setUsersSource({ status: 'unavailable', message: userFacingBrandCloudError(err) });
+    }
+  }
+
+  useEffect(() => {
+    loadUsers('all');
+  }, [brand.id]);
+
+  async function changeUserFilter(nextFilter) {
+    setUserFilter(nextFilter);
+    await loadUsers(nextFilter);
+  }
+
+  async function updateStatus(nextStatus) {
+    setMessage('');
+    try {
+      await onUpdateBrand(brand.id, { name: brand.name, status: nextStatus });
+      setMessage(nextStatus === 'disabled' ? 'Brand Cloud disabled.' : 'Brand Cloud enabled.');
+    } catch (err) {
+      setMessage(err.message);
+    }
+  }
+
+  async function submitMember(event) {
+    event.preventDefault();
+    setMessage('');
+    if (!member.user_id.trim()) {
+      setMessage('Account Manager user id is required.');
+      return;
+    }
+    try {
+      await onAssignMember(brand.id, { user_id: member.user_id.trim(), role: member.role });
+      setMessage('Member assigned.');
+      setMember({ user_id: '', role: 'owner' });
+    } catch (err) {
+      setMessage(err.message);
+    }
+  }
+
+  async function submitUser(event) {
+    event.preventDefault();
+    setMessage('');
+    if (!user.email.trim() || !user.password.trim()) {
+      setMessage('Email and password are required.');
+      return;
+    }
+    try {
+      const result = await onCreateUser(brand.id, {
+        email: user.email.trim(),
+        password: user.password,
+        display_name: user.display_name.trim() || undefined,
+        role: user.role,
+        rotate_password: true,
+      });
+      setMessage(result.action === 'created' ? 'Brand user created and assigned.' : 'Brand user reactivated or assigned.');
+      setUser({ email: '', password: '', display_name: '', role: 'admin' });
+      await loadUsers(userFilter);
+    } catch (err) {
+      setMessage(err.message);
+    }
+  }
+
+  async function updateBrandUser(row, action) {
+    setMessage('');
+    try {
+      if (action === 'delete' && !window.confirm(`Remove Brand Cloud access for ${row.email}?`)) return;
+      const path = `/api/admin/brand-clouds/${encodeURIComponent(brand.id)}/users/${encodeURIComponent(row.id)}`;
+      if (action === 'delete') {
+        await sendJSONWithMethod('DELETE', path);
+        setMessage('Brand user removed.');
+      } else {
+        await sendJSONWithMethod('POST', `${path}/${action}`, {});
+        if (action === 'approve') {
+          setMessage('Brand user approved.');
+        } else {
+          setMessage(action === 'disable' ? 'Brand user disabled.' : 'Brand user enabled.');
+        }
+      }
+      await loadUsers(userFilter);
+    } catch (err) {
+      setMessage(userFacingBrandCloudError(err));
+    }
+  }
+
+  return (
+    <div className="drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside className="drawer-panel brand-cloud-drawer" role="dialog" aria-modal="true" aria-label="Brand Cloud detail" onClick={(event) => event.stopPropagation()}>
+        <div className="drawer-header">
+          <div>
+            <h2>{brand.name || brand.id}</h2>
+            <p>{brand.id} / {brand.organization_kind || 'brand_cloud'}</p>
+          </div>
+          <button type="button" className="drawer-close" onClick={onClose} aria-label="Close Brand Cloud drawer">x</button>
+        </div>
+        <section className={`brand-cloud-detail-hero brand-cloud-detail-${brandCloudStatusKey(brand)}`}>
+          <div className="brand-cloud-status-block">
+            <StatusBadge value={brandCloudStatusKey(brand)} label={brandCloudStatusLabel(brand)} />
+            <strong>{brand.name || brand.metadata?.brandname || brand.id}</strong>
+            <small>{brand.id}</small>
+          </div>
+          <div className="brand-cloud-fact-grid">
+            <div><Icon name="location-dot" /><span>Region</span><strong>{brandCloudRegion(brand)}</strong></div>
+            <div><Icon name="layer-group" /><span>Tier</span><strong>{brandCloudTier(brand)}</strong></div>
+            <div><Icon name="user-shield" /><span>Owner/Admin</span><strong>{owner || 'Unassigned'}</strong></div>
+            <div><Icon name="video" /><span>Devices</span><strong>{brandCloudQuotaLabel(brand)}</strong></div>
+          </div>
+        </section>
+        <section className="setup-list brand-cloud-setup-list" aria-label="Brand Cloud setup state">
+          <span className="ok"><Icon name="circle-check" />Created</span>
+          <span className={owner ? 'ok' : 'warn'}><Icon name={owner ? 'user-check' : 'user-clock'} />{owner ? 'Owner assigned' : 'Owner pending'}</span>
+          <span className="neutral"><Icon name="key" />SSO unavailable</span>
+          <span className="neutral"><Icon name="database" />{brand.updated_at ? `Updated ${formatRelativeTime(brand.updated_at)}` : 'No update time'}</span>
+        </section>
+        <section className="drawer-summary brand-cloud-summary">
+          <article>
+            <Icon name="users" />
+            <strong>{users.length}</strong>
+            <span>Total users</span>
+          </article>
+          <article>
+            <Icon name="circle-check" />
+            <strong>{activeUsers}</strong>
+            <span>Active</span>
+          </article>
+          <article className={pendingUsers ? 'attention' : ''}>
+            <Icon name="envelope-circle-check" />
+            <strong>{pendingUsers}</strong>
+            <span>Pending activation</span>
+          </article>
+          <article className={disabledUsers ? 'attention' : ''}>
+            <Icon name="ban" />
+            <strong>{disabledUsers}</strong>
+            <span>Disabled</span>
+          </article>
+        </section>
+        <div className="drawer-actions">
+          <button type="button" className="ghost-button" onClick={() => updateStatus(disabled ? 'active' : 'disabled')}>
+            <Icon name={disabled ? 'rotate-right' : 'ban'} />{disabled ? 'Re-enable Brand Cloud' : 'Disable Brand Cloud'}
+          </button>
+          <a className="inline-action action-link" href={`/admin/sso?org=${encodeURIComponent(brand.id)}`}>
+            <Icon name="key" />Open SSO Providers
+          </a>
+        </div>
+        <section className="brand-cloud-users">
+          <div className="panel-head compact-head">
+            <div>
+              <h3>Brand Users</h3>
+              <p>Review activation state and manage brand-scoped access.</p>
+            </div>
+            <select className="input small-input" value={userFilter} onChange={(event) => changeUserFilter(event.target.value)} aria-label="Filter Brand Cloud users">
+              <option value="all">All users</option>
+              <option value="active">Active</option>
+              <option value="pending_verification">Pending activation</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </div>
+          {usersSource.status === 'loading' ? <p className="empty-state">Loading Brand Cloud users...</p> : null}
+          {usersSource.status === 'unavailable' ? <p className="form-message">{usersSource.message}</p> : null}
+          {usersSource.status === 'ready' && !users.length ? <p className="empty-state">No Brand Cloud users match this view.</p> : null}
+          {usersSource.status === 'ready' && users.length ? (
+            <div className="table-wrap mini-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((row) => {
+                    const status = brandCloudUserStatus(row);
+                    return (
+                      <tr key={row.id}>
+                        <td><strong>{row.email}</strong><small>{row.display_name || row.id}</small></td>
+                        <td><StatusBadge value={status.key === 'pending_verification' ? 'setup_required' : status.key} label={status.label} /></td>
+                        <td>{row.updated_at ? formatRelativeTime(row.updated_at) : '-'}</td>
+                        <td>
+                          <div className="row-actions">
+                            {status.key === 'disabled' ? (
+                              <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'enable')}><Icon name="rotate-right" />Enable</button>
+                            ) : status.key === 'pending_verification' ? (
+                              <>
+                                <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'approve')}><Icon name="circle-check" />Approve</button>
+                                <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'disable')}><Icon name="ban" />Disable</button>
+                              </>
+                            ) : (
+                              <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'disable')}><Icon name="ban" />Disable</button>
+                            )}
+                            <button type="button" className="inline-action danger-link" onClick={() => updateBrandUser(row, 'delete')}><Icon name="trash" />Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+        <section className="brand-cloud-form-grid">
+          <form className="drawer-form compact" onSubmit={submitMember}>
+            <h3><Icon name="user-plus" />Assign Existing User</h3>
+            <label>User id<input className="input" value={member.user_id} onChange={(event) => setMember((current) => ({ ...current, user_id: event.target.value }))} /></label>
+            <label>Role<select className="input" value={member.role} onChange={(event) => setMember((current) => ({ ...current, role: event.target.value }))}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label>
+            <button type="submit" className="primary-button"><Icon name="user-check" />Assign Existing User</button>
+          </form>
+          <form className="drawer-form compact" onSubmit={submitUser}>
+            <h3><Icon name="envelope-circle-check" />Create Or Reactivate Brand User</h3>
+            <label>Email<input className="input" type="email" value={user.email} onChange={(event) => setUser((current) => ({ ...current, email: event.target.value }))} /></label>
+            <label>Temporary password<input className="input" type="password" value={user.password} onChange={(event) => setUser((current) => ({ ...current, password: event.target.value }))} /></label>
+            <label>Display name<input className="input" value={user.display_name} onChange={(event) => setUser((current) => ({ ...current, display_name: event.target.value }))} /></label>
+            <label>Role<select className="input" value={user.role} onChange={(event) => setUser((current) => ({ ...current, role: event.target.value }))}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label>
+            <button type="submit" className="primary-button"><Icon name="plus" />Create Or Reactivate User</button>
+          </form>
+        </section>
+        {message ? <p className="form-message">{message}</p> : null}
+      </aside>
+    </div>
+  );
+}
+
 function PlatformSSOProviders({ providers, customers, onSave }) {
   const providerByOrg = useMemo(() => {
     const byOrg = new Map();
@@ -2542,7 +3313,7 @@ function MetricGrid({ summary }) {
 function MetricCard({ icon, label, value, hint, tone = 'neutral' }) {
   return (
     <div className={`metric-card tone-${tone}`}>
-      {icon ? <span className="metric-icon" aria-hidden="true">{icon}</span> : null}
+      {icon ? <span className="metric-icon" aria-hidden="true"><Icon name={icon} /></span> : null}
       <div>
         <span>{label}</span>
         <strong>{value}</strong>
@@ -3520,19 +4291,23 @@ function Operations({ operations }) {
 }
 
 function OperationList({ operations, detailed = false }) {
-  if (!operations.length) return <p>No operations.</p>;
+  if (!operations.length) return <p className="empty-state compact-empty">No operations need attention.</p>;
   return (
-    <div className="operation-list">
-      {operations.map((operation) => (
-        <article key={operation.id} className="operation">
-          <div>
-            <strong>{operation.type}</strong>
-            <span>{operation.organization} / {operation.device_name}</span>
-            {detailed ? <p>{operation.message}</p> : null}
-          </div>
-          <StatusBadge value={operation.state} />
-        </article>
-      ))}
+    <div className={`operation-list ${detailed ? 'operation-list-detailed' : ''}`}>
+      {operations.map((operation) => {
+        const state = normalizeStatusKey(operation.state);
+        return (
+          <article key={operation.id} className={`operation operation-${state}`}>
+            <div className="operation-row-icon"><Icon name={operationIconName(state)} /></div>
+            <div className="operation-main">
+              <strong>{operationSummary(operation)}</strong>
+              <span>{operation.organization || 'Unknown tenant'} / {operation.device_name || operation.device_id || 'Unknown device'}</span>
+              {detailed ? <p>{operation.message}</p> : null}
+            </div>
+            <StatusBadge value={operation.state} />
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -3726,9 +4501,29 @@ function displayValue(value) {
 }
 
 function ServiceHealth({ health, compact = false }) {
+  if (compact) {
+    if (!health.length) return <p className="empty-state compact-empty">No service checks reported.</p>;
+    return (
+      <section className="health compact">
+        {health.map((item) => (
+          <div className={`health-row health-row-${normalizeStatusKey(item.status)}`} key={item.name}>
+            <div className="health-row-icon"><Icon name={serviceHealthIconName(item.name, item.status)} /></div>
+            <div className="health-service">
+              <strong>{item.name}</strong>
+              <span>{item.detail}</span>
+            </div>
+            <div className="health-meta">
+              {item.latency_ms ? <small>{item.latency_ms} ms</small> : null}
+              <StatusBadge value={item.status} />
+            </div>
+          </div>
+        ))}
+      </section>
+    );
+  }
   return (
-    <section className={compact ? 'health compact' : 'panel health'}>
-      {!compact ? <h2>Service health</h2> : null}
+    <section className="panel health">
+      <h2>Service health</h2>
       {health.map((item) => (
         <div className="health-row" key={item.name}>
           <strong>{item.name}</strong>
@@ -3742,9 +4537,45 @@ function ServiceHealth({ health, compact = false }) {
   );
 }
 
+function serviceHealthIconName(name, status) {
+  const normalized = normalizeStatusKey(status);
+  if (normalized !== 'ok') return 'triangle-exclamation';
+  const service = String(name || '').toLowerCase();
+  if (service.includes('account')) return 'users-gear';
+  if (service.includes('video')) return 'video';
+  if (service.includes('sqlite')) return 'database';
+  return 'server';
+}
+
 function StatusBadge({ value, label }) {
-  const text = label ?? value;
-  return <span className={`status status-${String(value).replaceAll('_', '-')}`}>{text}</span>;
+  const text = label ?? statusDisplayText(value);
+  const icon = statusIconName(value);
+  return (
+    <span className={`status status-${String(value).replaceAll('_', '-')}`}>
+      {icon ? <Icon name={icon} /> : null}
+      {text}
+    </span>
+  );
+}
+
+function statusDisplayText(value) {
+  const normalized = normalizeStatusKey(value);
+  if (normalized === 'ok') return 'OK';
+  return toTitleCase(String(value || 'unknown').replaceAll('_', ' '));
+}
+
+function Icon({ name }) {
+  return <i className={`fa-solid fa-${name}`} aria-hidden="true" />;
+}
+
+function statusIconName(value) {
+  const normalized = normalizeStatusKey(value);
+  if (['ok', 'online', 'healthy', 'succeeded', 'present', 'configured', 'active'].includes(normalized)) return 'circle-check';
+  if (['activated', 'published', 'demo'].includes(normalized)) return 'circle-dot';
+  if (['warning', 'cloud-activation-pending', 'pending', 'retrying', 'stale', 'missing', 'degraded'].includes(normalized)) return 'triangle-exclamation';
+  if (['critical', 'failed', 'dead-lettered', 'down'].includes(normalized)) return 'circle-exclamation';
+  if (['unavailable', 'unmonitored', 'unconfigured', 'unknown', 'inactive'].includes(normalized)) return 'circle-minus';
+  return 'circle-info';
 }
 
 function formatReadinessLabel(readiness) {
@@ -3790,19 +4621,11 @@ function initialsForEmail(email) {
   return (parts[0]?.[0] || 'F').toUpperCase() + (parts[1]?.[0] || parts[0]?.[1] || 'M').toUpperCase();
 }
 
-function latestCustomerUpdate(devices, alerts) {
-  const values = [
-    ...devices.map((device) => device.updated_at || device.last_seen_at).filter(Boolean),
-    ...alerts.map((alert) => alert.occurred_at).filter(Boolean),
-  ];
-  return values.sort().at(-1) || '';
-}
-
 function sessionLabel(me) {
   if (!me?.authenticated) return 'Not signed in';
   if (me.kind === 'platform_admin') return 'Platform Admin · All tenants';
   const membership = getActiveMembership(me);
-  return `${roleLabel(membership?.role)} · ${membership?.organization || me.active_org_id || 'Active organization'}`;
+  return roleLabel(membership?.role);
 }
 
 function roleLabel(role) {
@@ -3921,6 +4744,13 @@ function operationSummary(operation) {
   return stateSummary ? `${typeSummary} — ${stateSummary}` : typeSummary;
 }
 
+function operationIconName(state) {
+  if (['failed', 'dead-lettered', 'critical'].includes(state)) return 'triangle-exclamation';
+  if (['published', 'pending', 'retrying', 'open'].includes(state)) return 'clock-rotate-left';
+  if (['succeeded', 'ok', 'active'].includes(state)) return 'circle-check';
+  return 'circle-info';
+}
+
 function operationTypeSummary(type) {
   const map = {
     DeviceProvisionRequested: 'Provisioning requested',
@@ -3960,6 +4790,24 @@ async function fetchJSON(url) {
   if (response.status === 403) throw new AuthError(403, 'Access denied.');
   if (!response.ok) throw new Error(`${url} failed with ${response.status}`);
   return response.json();
+}
+
+async function sendJSONWithMethod(method, url, body) {
+  const response = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (response.status === 401) throw new AuthError(401, 'Session expired; please sign in again.');
+  if (response.status === 403) throw new AuthError(403, 'Access denied.');
+  if (!response.ok) {
+    const details = await response.text().catch(() => '');
+    const error = new Error(details || `${url} failed with ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }
 
 async function fetchRecentAlerts(devices) {

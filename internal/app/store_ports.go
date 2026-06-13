@@ -15,10 +15,6 @@ type sessionStore interface {
 	DeleteSession(id string) error
 }
 
-type platformAdminStore interface {
-	VerifyPlatformAdmin(email, password string) (store.PlatformAdmin, error)
-}
-
 type auditStore interface {
 	ListAuditEvents() ([]contracts.AuditEvent, error)
 	CreateAuditEvent(actor, action, target string) error
@@ -42,7 +38,6 @@ type lifecycleOperationStore interface {
 
 var (
 	_ sessionStore            = (*store.Store)(nil)
-	_ platformAdminStore      = (*store.Store)(nil)
 	_ auditStore              = (*store.Store)(nil)
 	_ projectionStore         = (*store.Store)(nil)
 	_ lifecycleOperationStore = (*store.Store)(nil)

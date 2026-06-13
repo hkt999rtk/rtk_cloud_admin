@@ -18,13 +18,13 @@ Recommended production layout:
 - keep admin bootstrap secrets out of source control and inject them at deploy
   time
 
-The app is not a stateless frontend. Local SQLite holds sessions, platform
-admins, audit metadata, settings, and upstream cache projections. Treat the
+The app is not a stateless frontend. Local SQLite holds sessions, audit
+metadata, settings, and upstream cache projections. Treat the
 database file as production state and back it up accordingly.
 
 The Go application now accesses this local state through narrow app-level
-interfaces for sessions, break-glass platform admin verification, audit,
-projection reads, and lifecycle operations. SQLite remains the implementation
+interfaces for sessions, audit, projection reads, and lifecycle operations.
+SQLite remains the implementation
 for this deployment profile; no Redis-compatible session or projection cache is
 required or configured by this release.
 
@@ -74,8 +74,8 @@ Required or recommended environment variables:
   stream queries
 - `VIDEO_CLOUD_PROMETHEUS_BASE_URL`: private Prometheus query endpoint, for
   example `http://10.42.1.30:9090`
-- `ADMIN_BOOTSTRAP_EMAIL`: local platform admin bootstrap email
-- `ADMIN_BOOTSTRAP_PASSWORD`: local platform admin bootstrap password
+- Platform admin login is backed by Account Manager; Cloud Admin does not
+  require local bootstrap admin credentials.
 
 Production mode should set all upstream variables. Demo or cache-only mode is
 only appropriate for local development or isolated validation.
@@ -143,8 +143,8 @@ checks after startup:
 
 - `GET /healthz` returns `ok`
 - `GET /api/service-health` returns the upstream status summary
-- `POST /api/auth/platform/login` accepts the bootstrap admin credentials only
-  when `ADMIN_BREAK_GLASS_ENABLED=true`
+- `POST /api/auth/platform/login` accepts Account Manager platform-admin
+  credentials and creates a platform session only after upstream authorization
 - `GET /api/me` succeeds when the login cookie is replayed
 - `GET /api/summary` returns the dashboard summary payload
 - `GET /console` renders the dashboard shell

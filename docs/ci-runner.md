@@ -40,9 +40,7 @@ If smoke checks fail, reproduce locally:
 go build -o /tmp/rtk-cloud-admin ./cmd/server
 PORT=18080 \
   DATABASE_PATH=/tmp/ci.db \
-  ADMIN_BOOTSTRAP_EMAIL=admin@example.com \
-  ADMIN_BOOTSTRAP_PASSWORD=secret \
-  ADMIN_BREAK_GLASS_ENABLED=true \
+  ACCOUNT_MANAGER_BASE_URL=http://127.0.0.1:18081 \
   /tmp/rtk-cloud-admin
 curl http://127.0.0.1:18080/healthz
 curl http://127.0.0.1:18080/api/service-health

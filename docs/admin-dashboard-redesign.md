@@ -401,8 +401,12 @@ Required layout:
 Required behavior:
 
 - Daily customer login uses Account Manager-backed email and password
-  authentication. Local platform password login is a secondary break-glass path
-  only when enabled by deployment configuration.
+  authentication for customer organization members. Platform password login may
+  authenticate Account Manager platform-admin credentials during migration and
+  must create a platform session only after an upstream platform-admin
+  authorization check. Admin Console must not provide a separate local
+  break-glass administrator account; emergency control is handled through
+  Linode, SSH, and deployment tooling.
 - Provider secrets are never displayed and are never stored in Admin Console
   SQLite.
 - Raw IdP claims are not shown as product authorization facts. Display resolved

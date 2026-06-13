@@ -156,7 +156,7 @@ func TestAdminPlatformDashboardAllTargetsUpFixture(t *testing.T) {
 		switch query := r.URL.Query().Get("query"); {
 		case query == `sum by(job, service, role) (up)`:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"2"]},{"metric":{"job":"node","role":"api"},"value":[1780369304,"1"]},{"metric":{"job":"postgres","role":"infra"},"value":[1780369304,"1"]},{"metric":{"job":"emqx","role":"mqtt"},"value":[1780369304,"1"]},{"metric":{"job":"nginx","role":"gateway"},"value":[1780369304,"1"]}]}}`))
-		case query == `sum by(job, service, role) (up == 0)`:
+		case query == `sum by(job, service, role) (up == bool 0)`:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"0"]},{"metric":{"job":"node","role":"api"},"value":[1780369304,"0"]},{"metric":{"job":"postgres","role":"infra"},"value":[1780369304,"0"]},{"metric":{"job":"emqx","role":"mqtt"},"value":[1780369304,"0"]},{"metric":{"job":"nginx","role":"gateway"},"value":[1780369304,"0"]}]}}`))
 		default:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"metricsexporter"},"value":[1780369304,"60"]}]}}`))
@@ -189,7 +189,7 @@ func TestAdminPlatformDashboardOneTargetDownFixture(t *testing.T) {
 		switch query := r.URL.Query().Get("query"); {
 		case query == `sum by(job, service, role) (up)`:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"1"]},{"metric":{"job":"nginx","role":"gateway"},"value":[1780369304,"1"]}]}}`))
-		case query == `sum by(job, service, role) (up == 0)`:
+		case query == `sum by(job, service, role) (up == bool 0)`:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"1"]},{"metric":{"job":"nginx","role":"gateway"},"value":[1780369304,"0"]}]}}`))
 		default:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"metricsexporter"},"value":[1780369304,"60"]}]}}`))
@@ -218,7 +218,7 @@ func TestAdminPlatformDashboardMissingSeriesFixture(t *testing.T) {
 		switch query := r.URL.Query().Get("query"); {
 		case query == `sum by(job, service, role) (up)`:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"1"]}]}}`))
-		case query == `sum by(job, service, role) (up == 0)`:
+		case query == `sum by(job, service, role) (up == bool 0)`:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"video_cloud_app","service":"api","role":"app"},"value":[1780369304,"0"]}]}}`))
 		default:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"metricsexporter"},"value":[1780369304,"60"]}]}}`))
@@ -388,7 +388,7 @@ func TestAdminPlatformDashboardBuildsServiceExporterStatus(t *testing.T) {
 		switch query := r.URL.Query().Get("query"); {
 		case query == `sum by(job, service, role) (up)`:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"account_manager_app","service":"account-manager","instance":"10.42.1.50:18081"},"value":[1780369304,"1"]},{"metric":{"job":"cloud_admin_app","service":"cloud-admin","instance":"10.42.1.60:8080"},"value":[1780369304,"1"]},{"metric":{"job":"cloud_logger_app","service":"cloud-logger","instance":"10.42.1.90:18090"},"value":[1780369304,"1"]},{"metric":{"job":"coturn_node","service":"coturn-node","role":"coturn","instance":"10.42.1.80:9100"},"value":[1780369304,"1"]}]}}`))
-		case query == `sum by(job, service, role) (up == 0)`:
+		case query == `sum by(job, service, role) (up == bool 0)`:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"account_manager_app","service":"account-manager","instance":"10.42.1.50:18081"},"value":[1780369304,"0"]},{"metric":{"job":"cloud_admin_app","service":"cloud-admin","instance":"10.42.1.60:8080"},"value":[1780369304,"0"]},{"metric":{"job":"cloud_logger_app","service":"cloud-logger","instance":"10.42.1.90:18090"},"value":[1780369304,"0"]},{"metric":{"job":"coturn_node","service":"coturn-node","role":"coturn","instance":"10.42.1.80:9100"},"value":[1780369304,"0"]}]}}`))
 		default:
 			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"node","role":"infra","instance":"10.42.1.30:9100"},"value":[1780369304,"1"]}]}}`))
@@ -411,6 +411,31 @@ func TestAdminPlatformDashboardBuildsServiceExporterStatus(t *testing.T) {
 		if strings.Contains(string(body), leaked) {
 			t.Fatalf("payload leaked disallowed label %q: %s", leaked, body)
 		}
+	}
+}
+
+func TestAdminPlatformDashboardServiceExporterCountsDownOnlyTarget(t *testing.T) {
+	t.Parallel()
+
+	prometheus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch query := r.URL.Query().Get("query"); {
+		case query == `sum by(job, service, role) (up)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"cloud_logger_app","service":"cloud-logger","instance":"10.42.1.90:18090"},"value":[1780369304,"0"]}]}}`))
+		case query == `sum by(job, service, role) (up == bool 0)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"cloud_logger_app","service":"cloud-logger","instance":"10.42.1.90:18090"},"value":[1780369304,"1"]}]}}`))
+		default:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[]}}`))
+		}
+	}))
+	defer prometheus.Close()
+
+	payload := getPlatformDashboardForPrometheus(t, prometheus.URL)
+	exporter := serviceExporter(payload.ServiceExporters, "cloud-logger")
+	if exporter.Status != "degraded" || exporter.TargetsUp != 0 || exporter.TargetsDown != 1 || exporter.TargetsTotal != 1 {
+		t.Fatalf("cloud logger exporter = %+v, want degraded 0 up / 1 down / 1 total", exporter)
+	}
+	if kpiValue(payload.KPIs, "scrape_targets_down") != 1 {
+		t.Fatalf("scrape_targets_down KPI = %v, want 1", kpiValue(payload.KPIs, "scrape_targets_down"))
 	}
 }
 
@@ -559,7 +584,7 @@ func TestAdminPlatformDashboardPrometheusConfiguredAndStale(t *testing.T) {
 	}
 	for _, want := range []string{
 		`sum by(job, service, role) (up)`,
-		`sum by(job, service, role) (up == 0)`,
+		`sum by(job, service, role) (up == bool 0)`,
 		`time() - video_cloud_exporter_last_collect_timestamp_seconds`,
 	} {
 		if !seenQueries[want] {

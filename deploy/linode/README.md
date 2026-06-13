@@ -147,7 +147,7 @@ The verifier checks:
 - `/healthz`
 - `/api/service-health`
 - `/console`
-- platform break-glass login when bootstrap credentials are supplied
+- Account Manager-backed platform admin login
 
 Artifacts are written to `.artifacts/linode-admin-verify/` and are not tracked.
 
@@ -171,5 +171,5 @@ The backup script pulls `rtk-cloud-admin.db` and any SQLite WAL/SHM files into
 - The Admin VM joins the Video Cloud VPC only for private operator/runtime
   dependencies such as Prometheus. Do not expose Prometheus on the public
   network.
-- `ADMIN_BREAK_GLASS_ENABLED=true` is acceptable for staging bootstrap. The
-  production direction remains Account Manager-backed customer password login.
+- Local Cloud Admin break-glass login is not used. Operator rescue and service
+  control should happen through Linode, SSH, and the deployment tooling.

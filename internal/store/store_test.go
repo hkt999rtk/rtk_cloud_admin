@@ -175,7 +175,7 @@ VALUES ('operator@example.com', 'DeviceProvisionRequested', 'dev-upgrade', '2026
 	assertTableExists(t, st, "readiness_facts")
 }
 
-func TestPlatformAdminAndSessions(t *testing.T) {
+func TestSessions(t *testing.T) {
 	t.Parallel()
 
 	st, err := Open(t.TempDir() + "/admin.db")
@@ -186,21 +186,8 @@ func TestPlatformAdminAndSessions(t *testing.T) {
 	if err := st.Migrate(); err != nil {
 		t.Fatalf("Migrate returned error: %v", err)
 	}
-	if err := st.BootstrapPlatformAdmin("admin@example.com", "secret"); err != nil {
-		t.Fatalf("BootstrapPlatformAdmin returned error: %v", err)
-	}
-	if _, err := st.VerifyPlatformAdmin("admin@example.com", "wrong"); err == nil {
-		t.Fatalf("VerifyPlatformAdmin with wrong password unexpectedly succeeded")
-	}
-	admin, err := st.VerifyPlatformAdmin("admin@example.com", "secret")
-	if err != nil {
-		t.Fatalf("VerifyPlatformAdmin returned error: %v", err)
-	}
-	if admin.Email != "admin@example.com" {
-		t.Fatalf("admin email = %q", admin.Email)
-	}
 
-	session, err := st.CreateSession("platform_admin", admin.ID, admin.Email, "", "", "", time.Hour)
+	session, err := st.CreateSession("platform_admin", "admin-1", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
@@ -208,7 +195,7 @@ func TestPlatformAdminAndSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSession returned error: %v", err)
 	}
-	if got.Email != admin.Email || got.Kind != "platform_admin" {
+	if got.Email != "admin@example.com" || got.Kind != "platform_admin" || got.AccessToken != "admin-access" {
 		t.Fatalf("session = %#v", got)
 	}
 
