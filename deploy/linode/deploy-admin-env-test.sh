@@ -59,6 +59,9 @@ VIDEO_CLOUD_ADMIN_TOKEN="video-admin-token" \
 VIDEO_CLOUD_PROMETHEUS_BASE_URL="http://10.42.1.30:9090" \
 ADMIN_BOOTSTRAP_EMAIL="admin@example.test" \
 ADMIN_BOOTSTRAP_PASSWORD="admin-password" \
+GODADDY_KEY="fake-godaddy-key" \
+GODADDY_SECRET="fake-godaddy-secret" \
+CLOUD_DNS_ROOT_DOMAIN="example.test" \
   "$repo_root/deploy/linode/deploy-admin.sh" >/tmp/deploy-admin-env-test.out
 
 grep -q '^VIDEO_CLOUD_PROMETHEUS_BASE_URL=http://10.42.1.30:9090$' "$capture/admin.env"
@@ -69,5 +72,9 @@ grep -q '10.42.1.60:9113' "$capture/remote-install-args.txt"
 grep -q 'systemctl enable --now prometheus-nginx-exporter' "$capture/remote-install.sh"
 grep -q '\[admin-deploy\] waiting for rtk-cloud-admin local health on 127.0.0.1:8080' "$capture/remote-install.sh"
 grep -q 'curl -fsS http://127.0.0.1:8080/healthz 2>/dev/null' "$capture/remote-install.sh"
+grep -q -- '--manual-auth-hook /usr/local/libexec/rtk-cloud-certbot-dns-auth' "$capture/remote-install.sh"
+! grep -q 'certbot --nginx' "$capture/remote-install.sh"
+! grep -q 'listen 80' "$capture/remote-install.sh"
+! grep -q '/.well-known/acme-challenge' "$capture/remote-install.sh"
 
 printf 'deploy-admin env test passed\n'

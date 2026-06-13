@@ -107,6 +107,11 @@ jq -e '
   $rules[0].addresses.ipv4 == ["10.42.1.0/24"]
 ' "$capture/firewall-create.json" >/dev/null
 
+jq -e '
+  ([.rules.inbound[] | select((.ports | split(",")) | index("80"))] | length) == 0 and
+  ([.rules.inbound[] | select(.label == "https" and .protocol == "TCP" and .ports == "443")] | length) == 1
+' "$capture/firewall-create.json" >/dev/null
+
 grep -q '^ADMIN_LINODE_PRIVATE_IPV4=10.42.1.60$' "$state"
 
 printf 'provision-admin-vm VPC test passed\n'
