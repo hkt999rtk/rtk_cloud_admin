@@ -60,7 +60,8 @@ Remote Admin VM:
 - Ubuntu 24.04 image
 - public IPv4 plus one Video Cloud VPC interface
 - inbound `22/tcp` limited to operator CIDRs
-- inbound `80/tcp` and `443/tcp` public for certbot and dashboard HTTPS
+- inbound `443/tcp` public for dashboard HTTPS; Let's Encrypt uses GoDaddy
+  DNS-01, so public `80/tcp` is not required
 - outbound private VPC access to Prometheus on the Video Cloud infra VM
 - inbound private VPC access to Admin app/exporter metrics ports `8080`,
   `9100`, and `9113`
@@ -114,7 +115,7 @@ The deploy script:
 4. writes `/etc/rtk_cloud_admin/admin.env`
 5. stores SQLite data under `/var/lib/rtk_cloud_admin`
 6. starts `rtk-cloud-admin.service`
-7. optionally obtains a Let's Encrypt certificate and redirects HTTP to HTTPS
+7. optionally obtains a Let's Encrypt certificate through GoDaddy DNS-01
 
 The nginx exporter listens on the Admin private IP by default when
 `ADMIN_LINODE_PRIVATE_IPV4` is set. It scrapes nginx `stub_status` through
