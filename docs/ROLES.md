@@ -88,7 +88,7 @@ Tier 2 customers.
 - Platform-side admin actions: customer session refresh and invalidation (existing in `internal/app/app.go`).
 - Brand-cloud backend actions when authenticated through Account Manager as
   `platform_admin`: create/list/read/update brand clouds and assign existing
-  Account Manager users to a brand cloud.
+  brand-scoped users to a brand cloud.
 - Tenant lifecycle actions (provisioning, deactivation, firmware campaign control on behalf of a tenant): not supported. Tenant-side write actions remain with Tier 2 Fleet Managers.
 
 **Current Admin Console capabilities:**

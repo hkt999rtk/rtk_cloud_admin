@@ -47,8 +47,8 @@ type BrandCloudRequest struct {
 }
 
 type BrandCloudMemberRequest struct {
-	UserID string `json:"user_id"`
-	Role   string `json:"role"`
+	BrandCloudUserID string `json:"brand_cloud_user_id"`
+	Role             string `json:"role"`
 }
 
 type BrandCloudUserRequest struct {
@@ -82,8 +82,6 @@ type Member struct {
 
 type BrandCloudUserResult struct {
 	Action           string         `json:"action"`
-	User             User           `json:"user"`
-	Member           Member         `json:"member"`
 	BrandCloudUser   BrandCloudUser `json:"brand_cloud_user"`
 	BrandCloudMember Member         `json:"brand_cloud_member"`
 }

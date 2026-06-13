@@ -2337,8 +2337,12 @@ func (s *Server) apiAdminBrandCloudMember(w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid brand cloud member request", http.StatusBadRequest)
 		return
 	}
-	body.UserID = strings.TrimSpace(body.UserID)
+	body.BrandCloudUserID = strings.TrimSpace(body.BrandCloudUserID)
 	body.Role = strings.TrimSpace(body.Role)
+	if body.BrandCloudUserID == "" {
+		http.Error(w, "brand_cloud_user_id is required", http.StatusBadRequest)
+		return
+	}
 	member, err := s.accountClient.AssignBrandCloudMember(r.Context(), session.AccessToken, brandCloudID, body)
 	if err != nil {
 		s.writeUpstreamReadErrorForSession(w, session.ID, err)
