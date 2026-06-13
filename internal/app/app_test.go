@@ -3805,11 +3805,11 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatal(err)
 			}
-			if body.UserID != "user-1" || body.Role != "owner" {
+			if body.BrandCloudUserID != "brand-user-1" || body.Role != "owner" {
 				t.Fatalf("member request = %#v", body)
 			}
 			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"organization_id": "brand-1", "user_id": "user-1", "role": "owner"}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"brand_cloud_id": "brand-1", "brand_cloud_user_id": "brand-user-1", "role": "owner"}})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users":
 			var body accountclient.BrandCloudUserRequest
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -3821,8 +3821,6 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"action":             "created",
-				"user":               map[string]any{"id": "user-2", "email": "owner@example.com", "name": "Owner"},
-				"member":             map[string]any{"organization_id": "brand-1", "user_id": "user-2", "role": "owner"},
 				"brand_cloud_user":   map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "email_verified": true, "signup_pending_verification": false},
 				"brand_cloud_member": map[string]any{"brand_cloud_id": "brand-1", "brand_cloud_user_id": "brand-user-1", "email": "owner@example.com", "role": "owner"},
 			})
@@ -3913,7 +3911,7 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 	}
 
 	member := httptest.NewRecorder()
-	memberReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/members", strings.NewReader(`{"user_id":" user-1 ","role":" owner "}`))
+	memberReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/members", strings.NewReader(`{"brand_cloud_user_id":" brand-user-1 ","role":" owner "}`))
 	memberReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
 	srv.ServeHTTP(member, memberReq)
 	if member.Code != http.StatusCreated {

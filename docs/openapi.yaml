@@ -2451,19 +2451,20 @@ components:
           additionalProperties: true
     BrandCloudMemberRequest:
       type: object
-      required: [user_id, role]
+      required: [brand_cloud_user_id, role]
       properties:
-        user_id:
+        brand_cloud_user_id:
           type: string
+          description: Brand-scoped user id. Platform Account Manager user ids are not accepted.
         role:
           type: string
     Member:
       type: object
-      required: [organization_id, user_id, role]
+      required: [brand_cloud_id, brand_cloud_user_id, role]
       properties:
-        organization_id:
+        brand_cloud_id:
           type: string
-        user_id:
+        brand_cloud_user_id:
           type: string
         email:
           type: string

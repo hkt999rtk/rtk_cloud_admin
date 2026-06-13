@@ -493,7 +493,7 @@ function App() {
     try {
       const result = await postJSON('/api/admin/brand-clouds', payload.brandCloud);
       let memberError = '';
-      if (payload.initialMember?.user_id) {
+      if (payload.initialMember?.brand_cloud_user_id) {
         try {
           await postJSON(`/api/admin/brand-clouds/${encodeURIComponent(result.brand_cloud.id)}/members`, payload.initialMember);
         } catch (err) {
@@ -2834,7 +2834,7 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
       return;
     }
     if (form.initialMode === 'existing' && !form.userId.trim()) {
-      setMessage('Existing Account Manager user id is required.');
+      setMessage('Existing Brand User id is required.');
       return;
     }
     if (form.initialMode === 'create' && (!form.email.trim() || !form.password.trim())) {
@@ -2851,7 +2851,7 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
             tier: form.tier,
           },
         },
-        initialMember: form.initialMode === 'existing' ? { user_id: form.userId.trim(), role: form.role } : null,
+        initialMember: form.initialMode === 'existing' ? { brand_cloud_user_id: form.userId.trim(), role: form.role } : null,
         initialUser: form.initialMode === 'create' ? {
           email: form.email.trim(),
           password: form.password,
@@ -2887,10 +2887,10 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
           </div>
           <label>Initial admin mode<select className="input" value={form.initialMode} onChange={(event) => update('initialMode', event.target.value)}>
             <option value="none">Assign later</option>
-            <option value="existing">Assign existing user id</option>
+            <option value="existing">Assign existing Brand User id</option>
             <option value="create">Create or reactivate brand user</option>
           </select></label>
-          {form.initialMode === 'existing' ? <label>Account Manager user id<input className="input" value={form.userId} onChange={(event) => update('userId', event.target.value)} /></label> : null}
+          {form.initialMode === 'existing' ? <label>Brand User id<input className="input" value={form.userId} onChange={(event) => update('userId', event.target.value)} /></label> : null}
           {form.initialMode === 'create' ? (
             <>
               <label>Email<input className="input" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
@@ -2911,7 +2911,7 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
 }
 
 function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember, onCreateUser }) {
-  const [member, setMember] = useState({ user_id: '', role: 'owner' });
+  const [member, setMember] = useState({ brand_cloud_user_id: '', role: 'owner' });
   const [user, setUser] = useState({ email: '', password: '', display_name: '', role: 'admin' });
   const [users, setUsers] = useState([]);
   const [userFilter, setUserFilter] = useState('all');
@@ -2960,14 +2960,14 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
   async function submitMember(event) {
     event.preventDefault();
     setMessage('');
-    if (!member.user_id.trim()) {
-      setMessage('Account Manager user id is required.');
+    if (!member.brand_cloud_user_id.trim()) {
+      setMessage('Brand User id is required.');
       return;
     }
     try {
-      await onAssignMember(brand.id, { user_id: member.user_id.trim(), role: member.role });
+      await onAssignMember(brand.id, { brand_cloud_user_id: member.brand_cloud_user_id.trim(), role: member.role });
       setMessage('Member assigned.');
-      setMember({ user_id: '', role: 'owner' });
+      setMember({ brand_cloud_user_id: '', role: 'owner' });
     } catch (err) {
       setMessage(err.message);
     }
@@ -3137,10 +3137,10 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
         </section>
         <section className="brand-cloud-form-grid">
           <form className="drawer-form compact" onSubmit={submitMember}>
-            <h3><Icon name="user-plus" />Assign Existing User</h3>
-            <label>User id<input className="input" value={member.user_id} onChange={(event) => setMember((current) => ({ ...current, user_id: event.target.value }))} /></label>
+            <h3><Icon name="user-plus" />Assign Existing Brand User</h3>
+            <label>Brand User id<input className="input" value={member.brand_cloud_user_id} onChange={(event) => setMember((current) => ({ ...current, brand_cloud_user_id: event.target.value }))} /></label>
             <label>Role<select className="input" value={member.role} onChange={(event) => setMember((current) => ({ ...current, role: event.target.value }))}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label>
-            <button type="submit" className="primary-button"><Icon name="user-check" />Assign Existing User</button>
+            <button type="submit" className="primary-button"><Icon name="user-check" />Assign Existing Brand User</button>
           </form>
           <form className="drawer-form compact" onSubmit={submitUser}>
             <h3><Icon name="envelope-circle-check" />Create Or Reactivate Brand User</h3>

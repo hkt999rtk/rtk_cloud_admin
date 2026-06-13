@@ -34,9 +34,9 @@ management in `rtk_cloud_admin`.
 organizations, membership, status, audit, entitlement, and user identity.
 `rtk_cloud_admin` owns the Platform Admin WebUI and BFF surface. The WebUI
 therefore provides a controlled operational workspace for Platform Admins to
-list, create, inspect, update, and assign existing Account Manager users to
-brand-cloud organizations without storing authoritative brand-cloud records in
-Admin Console SQLite.
+list, create, inspect, update, and assign brand-scoped users to brand-cloud
+organizations without storing authoritative brand-cloud records in Admin
+Console SQLite.
 
 The working product name in the UI is **Brand Clouds**. It represents
 `organization_kind=brand_cloud` records and should not be presented as a
@@ -217,17 +217,18 @@ Validation:
 - slug/code must be unique when provided
 - region must be one of the Account Manager-supported values
 
-### Step 2: Initial Admin
+### Step 2: Initial Brand Admin
 
 Fields:
 
-- Existing Account Manager user email or user id
+- Existing Brand User id, when the brand-scoped user already exists
 - Initial role, default `owner`
 - Optional note for audit/support context, only if Account Manager accepts it
 
-The UI must make it clear that this flow assigns an existing Account Manager
-user. Inviting or creating a new user is out of scope for the first pass unless
-Account Manager exposes a supported API.
+The UI must make it clear that this flow assigns an existing brand-scoped user.
+Platform Account Manager user ids are not valid for brand-cloud membership.
+Creating or reactivating a brand-scoped user uses the Brand User form and then
+assigns membership by `brand_cloud_user_id`.
 
 ### Step 3: Entitlement Snapshot
 
@@ -304,7 +305,7 @@ Created             2026-05-02
 
 Members
 Owner               ops@example.com
-[Assign Existing User]
+[Assign Existing Brand User]
 
 SSO
 Status              Ready
@@ -335,8 +336,8 @@ Recent Activity
   - status
   - created/updated timestamps when available
 - Members:
-  - assigned owner/admin users exposed by Account Manager
-  - `Assign Existing User` action when capability is present
+  - assigned owner/admin brand-scoped users exposed by Account Manager
+  - `Assign Existing Brand User` action when capability is present
 - SSO:
   - SSO status summary
   - link to SSO Providers filtered to this organization
@@ -362,13 +363,13 @@ Use a small drawer section or modal launched from the detail drawer.
 
 Fields:
 
-- Account Manager user email or user id
+- Brand User id
 - Role, default `owner` or `admin` depending on Account Manager contract
 
 Behavior:
 
 - validate required input locally
-- submit to `POST /api/admin/brand-clouds/{id}/members`
+- submit `brand_cloud_user_id` to `POST /api/admin/brand-clouds/{id}/members`
 - show success inline in the Members panel
 - show duplicate member as a non-destructive warning
 - preserve Account Manager authorization and validation messages in user-safe

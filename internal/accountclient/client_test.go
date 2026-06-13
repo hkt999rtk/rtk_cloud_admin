@@ -169,7 +169,7 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"organization_id": "brand-1", "user_id": "user-1", "role": "owner"}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"brand_cloud_id": "brand-1", "brand_cloud_user_id": "brand-user-1", "role": "owner"}})
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users":
 			if r.URL.Query().Get("status") != "pending_verification" {
 				t.Fatalf("brand user status query = %q", r.URL.Query().Get("status"))
@@ -218,11 +218,11 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 	if updated.Status != "disabled" || patchBody["status"] != "disabled" {
 		t.Fatalf("updated brand cloud = %#v body=%#v", updated, patchBody)
 	}
-	member, err := client.AssignBrandCloudMember(t.Context(), "admin-access", "brand-1", BrandCloudMemberRequest{UserID: "user-1", Role: "owner"})
+	member, err := client.AssignBrandCloudMember(t.Context(), "admin-access", "brand-1", BrandCloudMemberRequest{BrandCloudUserID: "brand-user-1", Role: "owner"})
 	if err != nil {
 		t.Fatalf("AssignBrandCloudMember returned error: %v", err)
 	}
-	if member.UserID != "user-1" || memberBody["user_id"] != "user-1" {
+	if member.BrandCloudUserID != "brand-user-1" || memberBody["brand_cloud_user_id"] != "brand-user-1" {
 		t.Fatalf("member = %#v body=%#v", member, memberBody)
 	}
 	users, err := client.BrandCloudUsers(t.Context(), "admin-access", "brand-1", url.Values{"status": []string{"pending_verification"}})
