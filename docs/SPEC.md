@@ -158,10 +158,12 @@ Public and shared routes:
 - `POST /api/me/active-org`: switches active organization for the current session.
 - `GET /api/summary`: customer and platform dashboard summary.
 - `GET /api/admin/platform-dashboard`: platform-admin protected Platform
-  Dashboard BFF contract with server-side allowlisted Prometheus queries.
-- `GET /api/admin/platform-resource-trends`: platform-admin protected rolling
-  24h, 7d, and 90d server resource trend contract with sanitized Prometheus
-  query_range output.
+  Dashboard BFF contract with server-side allowlisted Prometheus queries for
+  service metrics, k8s workload health, cluster node snapshots, scrape health,
+  and operation risk.
+- `GET /api/admin/platform-resource-trends`: deprecated compatibility route for
+  older Resource Trends clients. The WebUI no longer links to or calls this
+  endpoint; long-term metrics and trend analysis belong in Grafana.
 - `GET /api/devices`: device list from cache/demo or upstream aggregation.
 - `GET /api/devices/{id}`: device detail.
 - `POST /api/devices/{id}/provision`: starts or simulates provisioning.

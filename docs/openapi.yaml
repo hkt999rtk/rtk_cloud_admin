@@ -504,14 +504,15 @@ paths:
   /api/admin/platform-resource-trends:
     get:
       tags: [Platform Admin]
-      summary: Platform server resource trend payload
+      summary: Deprecated platform server resource trend payload
+      deprecated: true
       description: |
-        Platform-admin protected historical resource view. The BFF queries
-        Prometheus query_range server-side for CPU, memory, root disk, and
-        network throughput over 24h, 7d, or rolling 90d ranges. Browser clients
-        receive only normalized server ids, labels, roles, values, and source
-        states; raw Prometheus labels, instance addresses, and IP addresses are
-        not exposed.
+        Deprecated compatibility route for older Resource Trends clients. The
+        Admin WebUI no longer links to or calls this endpoint; long-term
+        metrics, resource trends, and deep observability belong in Grafana.
+        Browser clients receive only normalized server ids, labels, roles,
+        values, and source states; raw Prometheus labels, instance addresses,
+        and IP addresses are not exposed.
       parameters:
         - in: query
           name: range
@@ -1720,7 +1721,7 @@ components:
           format: date-time
     PlatformDashboard:
       type: object
-      required: [summary, kpis, service_scrape_health, service_exporters, server_resources, operation_risk, sources, panel_sources, prometheus]
+      required: [summary, kpis, service_scrape_health, service_exporters, service_metrics, workload_health, cluster_nodes, server_resources, operation_risk, sources, panel_sources, prometheus]
       properties:
         summary:
           $ref: "#/components/schemas/Summary"
@@ -1737,9 +1738,24 @@ components:
           description: Sanitized service-owned exporter scrape status for adjacent platform services. Raw Prometheus instance labels and IP addresses are not exposed.
           items:
             $ref: "#/components/schemas/PlatformDashboardServiceExporter"
+        service_metrics:
+          type: array
+          description: Sanitized k8s service target and basic runtime metrics. Long-term trends belong in Grafana.
+          items:
+            $ref: "#/components/schemas/PlatformDashboardServiceMetric"
+        workload_health:
+          type: array
+          description: Sanitized k8s workload replica, pod readiness, restart, and crashloop summary.
+          items:
+            $ref: "#/components/schemas/PlatformDashboardWorkloadHealth"
+        cluster_nodes:
+          type: array
+          description: Sanitized k8s cluster node readiness and current resource snapshot.
+          items:
+            $ref: "#/components/schemas/PlatformDashboardClusterNode"
         server_resources:
           type: array
-          description: Sanitized per-server CPU, memory, root-disk, and network status. Raw Prometheus instance labels and IP addresses are not exposed.
+          description: Deprecated transition fallback for sanitized per-server CPU, memory, root-disk, and network status. K8s fields are the primary dashboard contract.
           items:
             $ref: "#/components/schemas/PlatformDashboardServerResource"
         operation_risk:
@@ -1835,6 +1851,95 @@ components:
         checked_at:
           type: string
           format: date-time
+    PlatformDashboardServiceMetric:
+      type: object
+      required: [id, service, status, targets_up, targets_down, targets_total, source_status]
+      properties:
+        id:
+          type: string
+        service:
+          type: string
+        namespace:
+          type: string
+        status:
+          type: string
+          enum: [ok, warning, degraded, unconfigured, unavailable, unmonitored]
+        targets_up:
+          type: integer
+        targets_down:
+          type: integer
+        targets_total:
+          type: integer
+        request_rate:
+          type: number
+          format: double
+          nullable: true
+        error_rate_5xx:
+          type: number
+          format: double
+          nullable: true
+        avg_latency_seconds:
+          type: number
+          format: double
+          nullable: true
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
+    PlatformDashboardWorkloadHealth:
+      type: object
+      required: [id, namespace, name, kind, desired_replicas, available_replicas, ready_pods, restart_count, crashloop_pods, pending_pods, status, source_status]
+      properties:
+        id:
+          type: string
+        namespace:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [Deployment]
+        desired_replicas:
+          type: integer
+        available_replicas:
+          type: integer
+        ready_pods:
+          type: integer
+        restart_count:
+          type: integer
+        crashloop_pods:
+          type: integer
+        pending_pods:
+          type: integer
+        status:
+          type: string
+          enum: [ok, pending, degraded, crashloop, unconfigured, unavailable, unmonitored]
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
+    PlatformDashboardClusterNode:
+      type: object
+      required: [id, name, ready, status, source_status]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ready:
+          type: boolean
+        cpu_percent:
+          type: number
+          format: double
+          nullable: true
+        memory_percent:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [ok, warning, critical, degraded, unconfigured, unavailable, unmonitored]
+        source_status:
+          type: string
+          enum: [configured, unconfigured, unavailable, empty, stale, unmonitored]
     PlatformDashboardServerResource:
       type: object
       required: [id, label, role, status, source_status]
