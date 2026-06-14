@@ -107,8 +107,7 @@ Runtime components:
 - `cmd/server`: process entry point, configuration, server startup, graceful shutdown.
 - `internal/app`: application wiring, route registration, JSON API handlers, static frontend serving, health endpoint.
 - `internal/app/store_ports.go`: narrow local-store interfaces for sessions,
-  break-glass platform admin verification, audit events, projection reads, and
-  lifecycle operations.
+  audit events, projection reads, and lifecycle operations.
 - `internal/store`: SQLite schema, repository methods, seed data, migrations,
   and the current implementation of the app-local store interfaces.
 - `internal/contracts`: Go vocabulary for readiness states, operation states, roles, and DTOs used by the UI.
@@ -117,7 +116,8 @@ Runtime components:
 
 Data ownership:
 
-- SQLite is authoritative only for console-local data: platform admins, sessions, audit, settings, preferences, and demo projections.
+- SQLite is authoritative only for console-local data: sessions, audit,
+  settings, preferences, and demo projections.
 - SQLite cache tables for upstream organizations, devices, operations, and readiness facts are non-authoritative mirrors that can be refreshed from Account Manager and Video Cloud.
 - Application handlers depend on narrow local-store interfaces where practical;
   this is a boundary for future cache/session backends, not a change in source
@@ -130,8 +130,8 @@ Data ownership:
 
 Future Redis-compatible session or projection cache support must start by
 extracting narrow ports from the current SQLite `internal/store.Store`. SQLite
-remains authoritative only for console-local data such as platform break-glass
-users, sessions, audit, settings, preferences, and demo data. Upstream
+remains authoritative only for console-local data such as sessions, audit,
+settings, preferences, and demo data. Upstream
 organization, device, operation, readiness, firmware, telemetry, and stream
 facts remain non-authoritative projections or proxy results from Account Manager
 and Video Cloud. The cross-repository roadmap is maintained in
@@ -146,8 +146,13 @@ renaming, or changing JSON API routes registered by `internal/app`.
 Public and shared routes:
 
 - `GET /healthz`: plain health check.
-- `POST /api/auth/customer/login`: customer password login through Account Manager when configured.
-- `POST /api/auth/platform/login`: legacy local SQLite platform admin login for controlled break-glass access.
+- `POST /api/auth/customer/login`: customer password login through Account
+  Manager when configured. The resolved Account Manager profile must include at
+  least one customer organization; platform-admin-only accounts must not create
+  Customer View sessions.
+- `POST /api/auth/platform/login`: Account Manager-backed platform-admin
+  password login for the migration period; the returned upstream token must
+  pass a platform-admin authorization check before a local session is created.
 - `POST /api/auth/logout`: deletes local session metadata.
 - `GET /api/me`: current user, memberships, active organization, and demo/auth state.
 - `POST /api/me/active-org`: switches active organization for the current session.
@@ -184,6 +189,17 @@ proxy mode and preserve the frontend DTO shape. When `VIDEO_CLOUD_BASE_URL` and
 readiness enrichment paths use Video Cloud proxy mode; failures return gateway
 errors instead of silently falling back.
 
+Platform Admin read models prefer Account Manager admin inventory when the
+platform session has an upstream token. During the migration period,
+Account Manager may not expose every cross-tenant inventory route yet; 404 from
+`/v1/admin/orgs`, `/v1/admin/devices`, or `/v1/admin/operations` is treated as
+"optional inventory route not available" and falls back to the Admin BFF
+projection cache so Platform Dashboard remains usable. Other Account Manager
+errors remain gateway errors. Prometheus-backed Platform Dashboard panels also
+degrade independently: unavailable or unconfigured Prometheus returns stable
+source-unavailable states and the known staging server/resource rows instead
+of hiding the entire dashboard.
+
 ## Authentication And Sessions
 
 Production Customer authentication uses email and password credentials verified
@@ -196,6 +212,8 @@ Customer sessions:
 
 - customer password login is enabled by default
 - customer credentials are posted only to Account Manager login
+- customer login rejects accounts without customer organization membership so
+  platform-admin credentials can fall through to Platform Admin login
 - the BFF stores session metadata plus upstream access/refresh tokens
 - plaintext passwords are never stored
 - `/api/me` returns user, memberships, active organization, and auth state
@@ -205,12 +223,16 @@ Customer sessions:
 
 Platform admin sessions:
 
-- Platform Admin daily login should use Account Manager-backed SSO
-- local platform admin users are stored in SQLite only for controlled break-glass access
-- break-glass login is disabled by default and must be explicitly enabled by deployment configuration
-- `ADMIN_BOOTSTRAP_EMAIL` and `ADMIN_BOOTSTRAP_PASSWORD` create the first break-glass admin on startup
-- passwords are bcrypt hashed
+- Platform Admin daily login should use Account Manager-backed SSO or the
+  migration-period Account Manager platform password login.
+- Cloud Admin does not provide a local break-glass administrator account.
+- Emergency operator control is handled through Linode, SSH, and deployment
+  tooling.
 - platform-only API routes require a `platform_admin` session
+- Account Manager upstream `401 Unauthorized` for Platform Admin routes means
+  the upstream platform token is expired or invalid. The BFF must delete the
+  local `rtk_admin_session` and clear the cookie before returning 401, so the
+  browser cannot bounce between `/login` and the protected Platform View route.
 
 ## Upstream Integration
 
@@ -309,9 +331,8 @@ Environment variables:
 - `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL.
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL.
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token.
-- `ADMIN_BOOTSTRAP_EMAIL`: optional first local platform admin break-glass email.
-- `ADMIN_BOOTSTRAP_PASSWORD`: optional first local platform admin break-glass password for development.
-- `ADMIN_BREAK_GLASS_ENABLED`: enables local Platform Admin break-glass login when set to `true`; default `false`.
+- `ADMIN_BREAK_GLASS_ENABLED`: deprecated compatibility flag; local
+  break-glass login is not supported and deployments should set it to `false`.
 - `CUSTOMER_PASSWORD_LOGIN_ENABLED`: disables customer password login when set to `false`; default `true`.
 
 ## Test Plan

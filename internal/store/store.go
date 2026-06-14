@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 
 	"rtk_cloud_admin/internal/contracts"
@@ -28,13 +27,6 @@ type Session struct {
 	ActiveOrgID  string
 	ExpiresAt    string
 	CreatedAt    string
-}
-
-type PlatformAdmin struct {
-	ID        string
-	Email     string
-	Role      string
-	CreatedAt string
 }
 
 type AuditEventInput struct {
@@ -493,47 +485,6 @@ INSERT INTO audit_events (actor, actor_kind, action, target, organization_id, re
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		input.Actor, input.ActorKind, input.Action, input.Target, input.OrganizationID, input.Result, input.RequestID, input.UpstreamOperationID, input.CreatedAt)
 	return err
-}
-
-func (s *Store) BootstrapPlatformAdmin(email, password string) error {
-	if email == "" || password == "" {
-		return nil
-	}
-	var count int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM platform_admins WHERE email = ?`, email).Scan(&count); err != nil {
-		return err
-	}
-	if count > 0 {
-		return nil
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err = s.db.Exec(`
-INSERT INTO platform_admins (id, email, password_hash, role, created_at)
-VALUES (?, ?, ?, ?, ?)`, "admin-"+randomHex(12), email, string(hash), "platform_admin", now)
-	return err
-}
-
-func (s *Store) VerifyPlatformAdmin(email, password string) (PlatformAdmin, error) {
-	var admin PlatformAdmin
-	var hash string
-	err := s.db.QueryRow(`
-SELECT id, email, password_hash, role, created_at
-FROM platform_admins
-WHERE email = ?`, email).Scan(&admin.ID, &admin.Email, &hash, &admin.Role, &admin.CreatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			_ = bcrypt.CompareHashAndPassword([]byte("$2a$10$000000000000000000000O4vRLXwD8C6VJpygDgMMtFdQFb7MCcfu"), []byte(password))
-		}
-		return PlatformAdmin{}, err
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
-		return PlatformAdmin{}, err
-	}
-	return admin, nil
 }
 
 func (s *Store) CreateSession(kind, subject, email, accessToken, refreshToken, activeOrgID string, ttl time.Duration) (Session, error) {

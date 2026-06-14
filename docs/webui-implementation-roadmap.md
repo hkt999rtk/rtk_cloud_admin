@@ -419,8 +419,8 @@ sign-in path.
 
 - Polish email/password login states: idle, submitting, denied access,
   unavailable source, and retry.
-- Keep local platform break-glass visually secondary and available only when
-  enabled by deployment configuration.
+- Route platform password login through Account Manager platform-admin
+  authorization during migration.
 - Complete `/signup`, `/signup/check-email`, and `/verify` states for public
   evaluation-tier onboarding.
 - Cover success, pending verification, expired token, invalid token, already

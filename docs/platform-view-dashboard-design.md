@@ -86,7 +86,7 @@ Cross-tenant operating status for Realtek Platform Admins.
 [Tenants] [Devices Online] [Open Operations] [Scrape Targets Down]
 
 Server Resource Status
-| Server | Role / Service | CPU | memory | disk | network in/out | status | last checked |
+| Server | Role / Service | CPU | memory | disk | network in/out | status |
 
 Service & Scrape Health
 | Account Manager | Video Cloud API | Cloud Admin | Prometheus | SQLite |
@@ -104,6 +104,30 @@ Business Signals                                  Recent Platform Activity
 The page should use the existing Realtek Ops Console visual system:
 compact KPI strip, dense tables, restrained status labels, and right-side
 drill-down links. Do not use marketing hero sections or decorative charts.
+
+Operation Risk and Platform Activity must be scan-first dashboard panels, not
+large card stacks. Operation Risk uses a compact three-metric strip for Open,
+Failed, and Dead letters, followed by an incident queue with tenant/device,
+short operation summary, concise message, and a small right-aligned status
+badge. Platform Activity uses a compact service checklist with service name,
+short health detail, optional latency, and a small status badge. These panels do
+not show raw ISO timestamps; freshness is handled by the global 20-second
+auto-refresh cadence and by detail pages where exact timestamps are useful.
+Do not use oversized circular status blobs, oversized pill buttons, or
+timestamp strings as primary visual content. Each row should have a small
+Font Awesome icon, a colored left accent or compact badge, and readable
+metadata columns.
+
+The shell refreshes dashboard data automatically every 20 seconds while the
+user is on an authenticated route. Do not show a manual refresh button in the
+topbar. If a user action mutates data, it may still trigger an immediate
+background refresh through the same loading path.
+
+Use Font Awesome icons from `@fortawesome/fontawesome-free` for recognisable
+navigation, topbar actions, KPI tiles, table row state, and common action
+buttons. Icons are decorative unless they are the only visible affordance; in
+that case the control must have an accessible label. Avoid letter-only glyphs
+such as `R`, `OK`, `BC`, or `FW` as visual icons.
 
 ## Data Sources
 
@@ -170,14 +194,14 @@ aggregated health groups and drill-down rows.
 | Tenants | `/api/admin/summary.customers` | Cross-tenant count. |
 | Devices Online | `/api/admin/summary.online_devices / total_devices` | Show count and rate. |
 | Open Operations | `/api/admin/summary.open_operations` | Link to Operations Log filtered to non-succeeded states. |
-| Scrape Targets Down | Prometheus `up == 0` by allowlisted jobs | Link to Service Health / Prometheus status panel. |
+| Scrape Targets Down | Prometheus `up == bool 0` by allowlisted jobs | Link to Service Health / Prometheus status panel. |
 
 ### Service And Scrape Health
 
 | Metric | Prometheus query shape | UI treatment |
 | --- | --- | --- |
 | Target availability | `sum by(job, service, role) (up)` | Group into App, Host, Data, Broker, Gateway. |
-| Targets down | `sum by(job, service, role) (up == 0)` | Red/yellow count with affected group names. |
+| Targets down | `sum by(job, service, role) (up == bool 0)` | Red/yellow count with affected group names. |
 | Scrape duration | `scrape_duration_seconds` | Warning only when unusually high. |
 | Samples scraped | `scrape_samples_scraped` | Support detail; not a primary KPI. |
 
@@ -200,8 +224,20 @@ Rows are always rendered for the known server inventory. Servers without
 resource metrics, such as coturn until private node-exporter scraping is added,
 are shown as `Unmonitored` instead of being hidden. The browser receives only
 sanitized server ids, labels, roles, percentages, network throughput, status,
-source status, and checked timestamp; raw Prometheus `instance` labels,
+and source status; raw Prometheus `instance` labels,
 interface labels, and IP addresses are not part of the UI contract.
+
+Server resource status badges use traffic-light treatment. `OK` must render as
+a green filled badge with white text. Warning/degraded states use amber/orange
+filled badges, critical/down states use red filled badges, and unavailable or
+unmonitored states use neutral gray filled badges. The visible status text
+remains present so the state is not communicated by color alone.
+
+Do not show panel-level source status pills such as `Configured` beside
+dashboard section headings. Operators should read the resource/exporter status
+from the row-level table badges and empty/unavailable panel messages. Do not
+show a `Last checked` column in Server Resource Status or Service Exporter
+Status; the 20-second automatic refresh cadence is the freshness signal.
 
 ### Resource Trends
 
@@ -220,17 +256,22 @@ The Resource Trends BFF uses Prometheus `query_range` server-side for CPU,
 memory, root disk, network inbound, and network outbound series. The UI shows
 top servers for CPU/memory/disk and total inbound/outbound for network, with
 per-server current, average, p95, and max summaries below the chart. Missing
-metrics keep the server row visible as `Unmonitored`.
+source/status fields are handled as panel-level empty/unavailable messages; the
+Server Trend Summary table does not show a `Status` column because that state is
+data-source freshness, not server health.
+Missing metrics keep the server row visible as `Unmonitored`.
 
-The chart surface uses a Three.js WebGL canvas instead of SVG polylines. The
-visual treatment stays operational rather than decorative: a light plot plane,
-subtle depth grid, low-perspective metric ribbons, and compact legend chips.
-CPU, memory, and disk show the top worst server series; network shows total
-inbound and outbound. The chart is full-width within the
+The chart surface uses a conventional 2D time-series chart. Do not use 3D,
+perspective, ribbon geometry, animated camera movement, or decorative depth
+effects for operational metrics. The visual treatment follows normal dashboard
+chart practice: flat grid, y-axis value ticks, x-axis time ticks, thin lines,
+subtle area fill, latest-point markers, compact inline legend, and latest-value
+chips above the plot. CPU, memory, and disk show the top worst server series;
+network shows total inbound and outbound. The chart is full-width within the
 Resource Trends page content, with the summary table remaining the accessible
 numeric fallback. The x-axis keeps range-specific time units visible: `24h`
 shows hour/minute ticks, `7d` shows weekday ticks, and `90d` shows date ticks.
-Mobile uses the same canvas with a taller aspect ratio and no horizontal
+Mobile uses the same 2D SVG chart with a taller fixed height and no horizontal
 overflow.
 
 ### Runtime Health
@@ -292,11 +333,21 @@ overflow.
 - Loading: skeleton KPI cards and panel-level loading rows.
 - Prometheus not configured: show the BFF/admin read-model sections and a
   "Prometheus source unavailable" panel. Do not hide the whole dashboard.
+- Server Resource Status still renders the known staging server/resource rows
+  when Prometheus is unconfigured or unavailable. Metrics remain blank, each row
+  is marked `unmonitored`, and the panel source explains the Prometheus state.
 - Prometheus query failed: show a retryable source-unavailable state with the
   source category, not raw upstream payloads.
 - No series returned: show "No metrics reported for this query window" and keep
   the relevant BFF data visible.
 - Partial source unavailable: degrade only the affected panel.
+- Account Manager admin inventory routes are optional during the migration
+  period. If `/v1/admin/orgs`, `/v1/admin/devices`, or
+  `/v1/admin/operations` return 404, Platform Dashboard and the related
+  `/api/admin/summary`, `/api/admin/customers`, `/api/admin/devices`, and
+  `/api/admin/operations` routes fall back to Admin BFF read-model projections
+  instead of returning 502. Non-404 upstream failures still surface as gateway
+  errors.
 - Wrong role: show Platform View access gate; never render Customer View data as
   fallback.
 
@@ -313,8 +364,8 @@ Prometheus directly:
 
 Implementation requirements:
 
-- Require Account Manager-backed or break-glass Platform Admin session according
-  to the existing Platform View guard rules.
+- Require an Account Manager-backed Platform Admin session according to the
+  Platform View guard rules.
 - Query only configured Prometheus base URL from `VIDEO_CLOUD_PROMETHEUS_BASE_URL`.
 - Use short timeouts and return stable source-unavailable states.
 - Keep PromQL definitions server-side and allowlisted.
@@ -328,10 +379,15 @@ Implementation requirements:
 - Customer users cannot see Platform Dashboard data or nav.
 - The first viewport shows tenant/device footprint, open operation risk, and
   scrape health.
-- Prometheus-backed panels clearly distinguish configured, unavailable, stale,
-  empty, and unmonitored states.
+- Prometheus-backed panels clearly distinguish unavailable, stale, empty, and
+  unmonitored states without showing a redundant `Configured` source pill.
 - The first viewport includes Server Resource Status with one row for every
   known server and clear warning/critical/unmonitored treatment.
+- Server Resource Status and Service Exporter Status do not show `Last checked`
+  columns.
+- The shell auto-refreshes every 20 seconds and has no manual refresh button.
+- Font Awesome icons are used for navigation, topbar actions, KPIs, status
+  badges, and common action buttons.
 - Prometheus data is grouped into product/SRE-friendly panels, not shown as raw
   target or series dumps.
 - No browser code calls Prometheus directly.
@@ -363,9 +419,7 @@ Manual QA should verify:
 
 1. Should the visible page label be `Platform Dashboard`, `Platform Overview`,
    or `Operations Dashboard`?
-2. Should break-glass Platform Admin sessions see Prometheus-backed panels, or
-   only Account Manager-backed Platform Admin sessions?
-3. Which source should win when Admin BFF readiness counts and
+2. Which source should win when Admin BFF readiness counts and
    `video_cloud_devices_*` aggregate metrics disagree?
 4. Should SRE-only host detail links point to a future Grafana URL when Grafana
    exists, or remain text-only in this product UI?

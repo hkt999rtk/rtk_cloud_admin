@@ -111,9 +111,6 @@ jobs:
 
           PORT=18080 \
             DATABASE_PATH="$smoke_dir/ci.db" \
-            ADMIN_BOOTSTRAP_EMAIL=admin@example.com \
-            ADMIN_BOOTSTRAP_PASSWORD=secret \
-            ADMIN_BREAK_GLASS_ENABLED=true \
             .artifacts/rtk-cloud-admin > "$smoke_dir/server.log" 2>&1 &
           server_pid="$!"
 
@@ -137,22 +134,6 @@ jobs:
 
           curl -fsS http://127.0.0.1:18080/healthz | grep -qx 'ok'
           curl -fsS http://127.0.0.1:18080/api/service-health | grep -q '"status":"demo"'
-
-          printf '%s' '{"email":"admin@example.com","password":"secret"}' > "$smoke_dir/login.json"
-          curl -fsS -D "$smoke_dir/login.headers" -o "$smoke_dir/login.body" \
-            -H 'Content-Type: application/json' \
-            --data-binary @"$smoke_dir/login.json" \
-            http://127.0.0.1:18080/api/auth/platform/login
-          session_id="$(sed -n 's/.*rtk_admin_session=\([^;[:space:]]*\).*/\1/p' "$smoke_dir/login.headers" | head -n1)"
-          if [ -z "$session_id" ]; then
-            echo "platform login did not return an rtk_admin_session cookie" >&2
-            cat "$smoke_dir/login.body" >&2 || true
-            cat "$smoke_dir/login.headers" >&2 || true
-            exit 1
-          fi
-          grep -q '"status":"ok"' "$smoke_dir/login.body"
-          curl -fsS --cookie "rtk_admin_session=${session_id}" http://127.0.0.1:18080/api/me | grep -q '"kind":"platform_admin"'
-
           curl -fsS http://127.0.0.1:18080/api/summary | grep -q '"total_devices"'
           curl -fsS http://127.0.0.1:18080/console | grep -q 'id="root"'
           echo PASS > .artifacts/logs/native-smoke.status

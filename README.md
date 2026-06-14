@@ -40,16 +40,14 @@ Implemented in this first version:
 - audit log for local lifecycle actions
 - service health summary
 - customer login/session endpoint backed by Account Manager when configured
-- legacy local platform admin login/session endpoint backed by SQLite for controlled break-glass access
+- platform admin login/session endpoint backed by Account Manager when configured
 - SSO/OIDC architecture documented for the next authentication milestone
 - Account Manager proxy mode for organizations, devices, provision, and deactivate
 - Platform Dashboard BFF and React landing page with curated Prometheus-backed
   operational panels, source states, and no browser-side Prometheus or Grafana
   access
-- Account Manager-backed brand-cloud admin BFF routes for future Platform View
-  UI implementation
-- narrow application store interfaces for sessions, break-glass platform
-  admins, audit events, projection reads, and lifecycle operations; the current
+- Account Manager-backed brand-cloud admin BFF routes and Platform View UI
+- narrow application store interfaces for sessions, audit events, projection reads, and lifecycle operations; the current
   implementation remains SQLite-backed and does not add Redis
 - explicit SQLite schema migrations tracked in `schema_migrations`
 - URL routes for `/console`, `/console/customers`, `/console/devices`,
@@ -62,12 +60,13 @@ When `ACCOUNT_MANAGER_BASE_URL` is unset, the app runs from SQLite demo/cache
 data. When it is set and a customer signs in, customer, device, and lifecycle
 actions proxy through Account Manager while preserving the current frontend DTOs.
 
-The planned production authentication direction is SSO-only daily login for both
-Customer users and Platform Admins, with Account Manager acting as the OIDC
-identity broker and authorization source. See
+The planned production authentication direction is Account Manager-backed
+login/SSO for both Customer users and Platform Admins, with Account Manager
+acting as the OIDC identity broker and authorization source. See
 [`docs/sso-oidc-design.md`](docs/sso-oidc-design.md). Existing password login
-paths are legacy compatibility or controlled break-glass surfaces, not the
-long-term production target.
+paths are migration compatibility surfaces. Cloud Admin does not provide a
+local break-glass administrator account; operator recovery is handled through
+Linode, SSH, and deployment tooling.
 
 Recent completion status:
 
@@ -230,20 +229,16 @@ Environment variables:
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token
 - `VIDEO_CLOUD_PROMETHEUS_BASE_URL`: optional private Prometheus query endpoint
-- `ADMIN_BOOTSTRAP_EMAIL`: optional local platform admin break-glass email
-- `ADMIN_BOOTSTRAP_PASSWORD`: optional local platform admin break-glass password
-- `ADMIN_BREAK_GLASS_ENABLED`: set to `true` to enable local Platform Admin break-glass login; default `false`
 - `CUSTOMER_PASSWORD_LOGIN_ENABLED`: set to `false` to disable customer password login; default `true`
 
-If both admin bootstrap variables are set, startup creates the first local
-platform admin break-glass account if it does not already exist. Passwords are
-stored as bcrypt hashes. Session rows store metadata and upstream
-bearer/refresh tokens, never plaintext credentials.
+Platform Admin password login posts credentials to Account Manager and creates a
+local session only after Account Manager authorizes the upstream platform-admin
+token. Session rows store metadata and upstream bearer/refresh tokens, never
+plaintext credentials.
 
 Linode Admin deployments install node and nginx Prometheus exporters for
 private Prometheus scraping. The nginx exporter uses local nginx `stub_status`
 on `127.0.0.1:8081` so the Admin service remains bound to `127.0.0.1:8080`.
-Break-glass login is rejected unless `ADMIN_BREAK_GLASS_ENABLED=true`.
 Customer password login is enabled by default and is rejected only when
 `CUSTOMER_PASSWORD_LOGIN_ENABLED=false`.
 
@@ -264,12 +259,11 @@ deploy/check-release.sh dist/rtk_cloud_admin-dev-local
 ```
 
 The release bundle contains the Go server binary, built frontend assets, a
-manifest, and checksums. The Linode deploy script installs this bundle as a
-native systemd service behind nginx.
+manifest, and checksums. Linode staging runtime is K8s-only and is operated
+from the workspace; see [`docs/linode-staging-k8s.md`](docs/linode-staging-k8s.md).
 
 For a production private-cloud deployment, see
-[`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md). For the
-Linode staging scripts, see [`deploy/linode/`](deploy/linode/).
+[`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md).
 
 ## Release Artifacts
 

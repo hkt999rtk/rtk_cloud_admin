@@ -35,7 +35,8 @@ serve the React BFF APIs from that session.
 - Platform Admin permissions are granted by Account Manager, not by directly
   trusting external IdP groups or claims in Admin Console.
 - Daily login is SSO only.
-- Local Platform Admin break-glass access is preserved but disabled by default.
+- Local Platform Admin break-glass access is not supported; operator rescue is
+  handled through Linode, SSH, and deployment tooling.
 
 ## Non-Goals
 
@@ -68,7 +69,7 @@ Admin Console owns:
 - the local `rtk_admin_session` cookie and session row
 - `/api/me` projection for frontend routing and authorization display
 - Platform Admin UI/API surfaces for viewing and managing customer SSO settings
-- audit records for local session and break-glass events
+- audit records for local session and SSO events
 - regression tests for the BFF contract and UI behavior
 
 ## Login Flow
@@ -144,10 +145,10 @@ Daily customer and platform login should move to SSO only. Existing password
 login endpoints are legacy compatibility surfaces and should be disabled by
 default once the SSO flow is implemented.
 
-Local Platform Admin break-glass access remains available for operational
-recovery, but it must be explicitly enabled by deployment configuration. When
-disabled, local platform password login is rejected. When enabled, successful
-and failed break-glass login attempts must be written to audit.
+Local Platform Admin break-glass access is not available. Operational recovery
+is handled through Linode, SSH, and deployment tooling. Platform password login
+may remain during migration only when backed by Account Manager platform-admin
+authorization.
 
 Customer password login should not be used as the long-term production login
 path. Account Manager remains responsible for any migration period or emergency
@@ -160,7 +161,8 @@ issues:
 
 1. Add Account Manager SSO client contract to Admin Console.
 2. Add Console BFF SSO start and callback endpoints.
-3. Enforce SSO-only login with controlled break-glass admin access.
+3. Enforce SSO-first login with Account Manager-backed platform password login
+   only during migration.
 4. Implement email-first SSO login UI.
 5. Add Platform Admin SSO provider settings view.
 6. Add SSO rollout, audit, and regression coverage.

@@ -273,7 +273,7 @@ type Me struct {
 	DemoMode                     bool         `json:"demo_mode"`
 	Authenticated                bool         `json:"authenticated"`
 	Capabilities                 []string     `json:"capabilities,omitempty"`
-	BreakGlassEnabled            bool         `json:"break_glass_enabled"`
+	UpstreamAccountManager       bool         `json:"upstream_account_manager"`
 	CustomerPasswordLoginEnabled bool         `json:"customer_password_login_enabled"`
 }
 

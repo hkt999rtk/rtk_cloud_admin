@@ -62,14 +62,14 @@ The remainder of this document covers only Tier 1 and Tier 2 roles.
 These roles belong to Realtek employees operating the platform. The long-term
 daily authentication path is Account Manager-backed SSO, where Account Manager
 authorizes platform capabilities and Admin Console creates the local
-`rtk_admin_session` cookie. The legacy `/admin` password login is retained only
-as controlled break-glass access when explicitly enabled by deployment
-configuration. Break-glass admins are bootstrapped by `ADMIN_BOOTSTRAP_EMAIL` /
-`ADMIN_BOOTSTRAP_PASSWORD`, stored in SQLite, protected with bcrypt hashes, and
-projected only to local emergency compatibility capabilities.
-Break-glass admins are not Account Manager root users. Brand-cloud management
-requires an Account Manager-backed `platform_admin` session with an upstream
-Bearer token.
+`rtk_admin_session` cookie. During the password-login migration period, the
+Platform Admin login form may also authenticate Account Manager platform-admin
+credentials and create an Account Manager-backed `platform_admin` session when
+the upstream token passes a platform-admin authorization check. Admin Console
+does not provide a local break-glass administrator account; emergency operator
+control is handled through Linode, SSH, and deployment tooling. Brand-cloud
+management requires an Account Manager-backed `platform_admin` session with an
+upstream Bearer token.
 
 ### Platform Admin
 
@@ -88,7 +88,7 @@ Tier 2 customers.
 - Platform-side admin actions: customer session refresh and invalidation (existing in `internal/app/app.go`).
 - Brand-cloud backend actions when authenticated through Account Manager as
   `platform_admin`: create/list/read/update brand clouds and assign existing
-  Account Manager users to a brand cloud.
+  brand-scoped users to a brand cloud.
 - Tenant lifecycle actions (provisioning, deactivation, firmware campaign control on behalf of a tenant): not supported. Tenant-side write actions remain with Tier 2 Fleet Managers.
 
 **Current Admin Console capabilities:**
@@ -199,8 +199,9 @@ Capability checks are enforced in both layers:
   lifecycle APIs.
 - UI actions use `/api/me.capabilities` or active membership capabilities to
   enable or disable controls.
-- Local break-glass `platform_admin` remains an emergency deployment path; it
-  is not the product ACL source of truth.
+- Local Cloud Admin break-glass `platform_admin` is not supported. Emergency
+  deployment control belongs in Linode, SSH, and operator tooling, not in an
+  extra dashboard account.
 
 ---
 

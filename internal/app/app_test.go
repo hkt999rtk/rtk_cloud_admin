@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"rtk_cloud_admin/internal/accountclient"
 	"rtk_cloud_admin/internal/config"
 	"rtk_cloud_admin/internal/contracts"
@@ -480,6 +481,48 @@ func TestCustomerPasswordLoginCanBeDisabled(t *testing.T) {
 	}
 }
 
+func TestCustomerPasswordLoginRejectsAccountsWithoutCustomerOrganizations(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/login":
+			_ = json.NewEncoder(w).Encode(accountclient.LoginResult{
+				User:   accountclient.User{ID: "root-1", Email: "root@example.com", Name: "Root"},
+				Tokens: accountclient.Tokens{AccessToken: "root-access", RefreshToken: "root-refresh", ExpiresIn: 3600},
+			})
+		case "/v1/me":
+			if got := r.Header.Get("Authorization"); got != "Bearer root-access" {
+				t.Fatalf("me Authorization = %q", got)
+			}
+			_ = json.NewEncoder(w).Encode(accountclient.MeResult{
+				User:          accountclient.User{ID: "root-1", Email: "root@example.com", Name: "Root"},
+				Organizations: []accountclient.Organization{},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	srv := NewWithOptions(mustOpenStore(t), Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL, CustomerPasswordLoginEnabled: true},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"root@example.com","password":"secret"}`)))
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("customer login status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "active organization is not part of the current customer memberships") {
+		t.Fatalf("customer login body = %s", rec.Body.String())
+	}
+	if len(rec.Result().Cookies()) != 0 {
+		t.Fatalf("customer login should not set session cookie")
+	}
+}
+
 func TestSSOCustomerMeAllowsMissingMemberships(t *testing.T) {
 	t.Parallel()
 
@@ -709,59 +752,100 @@ func TestAdminSSOProviderRoutesProxyAndRedactSecrets(t *testing.T) {
 	}
 }
 
-func TestPlatformBreakGlassLoginPolicyAndAudit(t *testing.T) {
+func TestPlatformLoginRejectsLocalBreakGlassCredentials(t *testing.T) {
 	t.Parallel()
 
 	st := mustOpenStore(t)
-	if err := st.BootstrapPlatformAdmin("admin@example.com", "secret"); err != nil {
-		t.Fatalf("BootstrapPlatformAdmin returned error: %v", err)
+	srv := New(st)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("local platform login status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
 	}
+}
 
-	disabledSrv := NewWithOptions(st, Options{Config: config.Config{}})
-	disabled := httptest.NewRecorder()
-	disabledSrv.ServeHTTP(disabled, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
-	if disabled.Code != http.StatusForbidden {
-		t.Fatalf("disabled break-glass status = %d, body=%s", disabled.Code, disabled.Body.String())
-	}
+func TestEmailActivationAuthBFFSetsCustomerSessionCookie(t *testing.T) {
+	t.Parallel()
 
-	failed := httptest.NewRecorder()
-	enabledSrv := NewWithOptions(st, Options{Config: config.Config{AdminBreakGlassEnabled: true}})
-	enabledSrv.ServeHTTP(failed, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"wrong"}`)))
-	if failed.Code != http.StatusUnauthorized {
-		t.Fatalf("failed break-glass status = %d, body=%s", failed.Code, failed.Body.String())
-	}
-
-	success := httptest.NewRecorder()
-	enabledSrv.ServeHTTP(success, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
-	if success.Code != http.StatusOK {
-		t.Fatalf("break-glass success status = %d, body=%s", success.Code, success.Body.String())
-	}
-	if len(success.Result().Cookies()) == 0 {
-		t.Fatalf("break-glass success did not set session cookie")
-	}
-	session, err := st.GetSession(success.Result().Cookies()[0].Value)
-	if err != nil {
-		t.Fatalf("GetSession returned error: %v", err)
-	}
-	if session.Kind != "platform_admin" {
-		t.Fatalf("session kind = %q, want platform_admin", session.Kind)
-	}
-
-	events, err := st.ListAuditEvents()
-	if err != nil {
-		t.Fatalf("ListAuditEvents returned error: %v", err)
-	}
-	results := map[string]bool{}
-	for _, event := range events {
-		if event.Action == "PlatformBreakGlassLogin" && event.Actor == "admin@example.com" && event.ActorKind == "platform_admin" {
-			results[event.Result] = true
+	var signInCalls, forgotCalls, resetCalls int
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/sign-in":
+			signInCalls++
+			w.WriteHeader(http.StatusAccepted)
+		case "/v1/auth/login/activate":
+			if strings.Contains(readBody(t, r), "invalid-token") {
+				http.Error(w, "invalid token", http.StatusBadRequest)
+				return
+			}
+			_, _ = w.Write([]byte(`{"user":{"id":"u-email","email":"user@example.com","name":"User"},"tokens":{"access_token":"customer-access","refresh_token":"customer-refresh","expires_in":3600}}`))
+		case "/v1/admin/brand-clouds":
+			http.Error(w, "forbidden", http.StatusForbidden)
+		case "/v1/me":
+			if r.Header.Get("Authorization") != "Bearer customer-access" {
+				http.Error(w, "unexpected bearer token", http.StatusUnauthorized)
+				return
+			}
+			_, _ = w.Write([]byte(`{"user":{"id":"u-email","email":"user@example.com","name":"User"},"organizations":[{"id":"org-email","name":"Email Org","role":"owner"}]}`))
+		case "/v1/auth/forgot-password":
+			forgotCalls++
+			w.WriteHeader(http.StatusAccepted)
+		case "/v1/auth/reset-password":
+			resetCalls++
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
 		}
+	}))
+	defer upstream.Close()
+
+	srv := NewWithOptions(mustOpenStore(t), Options{Config: customerPasswordLoginConfig(upstream.URL)})
+	signIn := httptest.NewRecorder()
+	srv.ServeHTTP(signIn, httptest.NewRequest(http.MethodPost, "/api/auth/sign-in", strings.NewReader(`{"email":"user@example.com"}`)))
+	if signIn.Code != http.StatusAccepted || signInCalls != 1 {
+		t.Fatalf("sign-in status=%d calls=%d body=%s", signIn.Code, signInCalls, signIn.Body.String())
 	}
-	for _, want := range []string{"disabled", "failed", "accepted"} {
-		if !results[want] {
-			t.Fatalf("missing break-glass audit result %q in %#v", want, events)
-		}
+
+	activate := httptest.NewRecorder()
+	srv.ServeHTTP(activate, httptest.NewRequest(http.MethodPost, "/api/auth/login/activate", strings.NewReader(`{"token":"valid-token"}`)))
+	if activate.Code != http.StatusOK {
+		t.Fatalf("activate status = %d, body=%s", activate.Code, activate.Body.String())
 	}
+	if got := activate.Header().Values("Set-Cookie"); !strings.Contains(strings.Join(got, ";"), "rtk_admin_session=") {
+		t.Fatalf("activation did not set session cookie: %v", got)
+	}
+	if !strings.Contains(activate.Body.String(), `"kind":"customer"`) {
+		t.Fatalf("activation body missing customer kind: %s", activate.Body.String())
+	}
+
+	invalid := httptest.NewRecorder()
+	srv.ServeHTTP(invalid, httptest.NewRequest(http.MethodPost, "/api/auth/login/activate", strings.NewReader(`{"token":"invalid-token"}`)))
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid activation status = %d, body=%s", invalid.Code, invalid.Body.String())
+	}
+	if got := invalid.Header().Values("Set-Cookie"); strings.Contains(strings.Join(got, ";"), "rtk_admin_session=") {
+		t.Fatalf("invalid activation set session cookie: %v", got)
+	}
+
+	forgot := httptest.NewRecorder()
+	srv.ServeHTTP(forgot, httptest.NewRequest(http.MethodPost, "/api/auth/forgot-password", strings.NewReader(`{"email":"user@example.com"}`)))
+	if forgot.Code != http.StatusAccepted || forgotCalls != 1 {
+		t.Fatalf("forgot status=%d calls=%d body=%s", forgot.Code, forgotCalls, forgot.Body.String())
+	}
+	reset := httptest.NewRecorder()
+	srv.ServeHTTP(reset, httptest.NewRequest(http.MethodPost, "/api/auth/reset-password", strings.NewReader(`{"token":"reset-token","new_password":"new-password123"}`)))
+	if reset.Code != http.StatusNoContent || resetCalls != 1 {
+		t.Fatalf("reset status=%d calls=%d body=%s", reset.Code, resetCalls, reset.Body.String())
+	}
+}
+
+func readBody(t *testing.T, r *http.Request) string {
+	t.Helper()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		t.Fatalf("read request body: %v", err)
+	}
+	return string(body)
 }
 
 func mustOpenStore(t *testing.T) *store.Store {
@@ -3388,10 +3472,7 @@ func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 	if err := st.CreateAuditEvent("demo-platform-operator", "DeviceProvisionRequested", "dev-001"); err != nil {
 		t.Fatalf("CreateAuditEvent returned error: %v", err)
 	}
-	if err := st.BootstrapPlatformAdmin("admin@example.com", "secret"); err != nil {
-		t.Fatalf("BootstrapPlatformAdmin returned error: %v", err)
-	}
-	srv := NewWithOptions(st, Options{Config: config.Config{AdminBreakGlassEnabled: true}})
+	srv := New(st)
 
 	adminPaths := []string{
 		"/api/admin/summary",
@@ -3425,19 +3506,15 @@ func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 		}
 	}
 
-	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("platform login status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-	if len(rec.Result().Cookies()) == 0 {
-		t.Fatalf("platform login did not set session cookie")
+	platformSession, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession platform_admin returned error: %v", err)
 	}
 
 	for _, path := range adminPaths {
 		admin := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, path, nil)
-		req.AddCookie(rec.Result().Cookies()[0])
+		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: platformSession.ID})
 		srv.ServeHTTP(admin, req)
 		if admin.Code != http.StatusOK {
 			t.Fatalf("%s with session status = %d, want %d", path, admin.Code, http.StatusOK)
@@ -3446,7 +3523,7 @@ func TestAdminRoutesRequirePlatformAdmin(t *testing.T) {
 
 	audit := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/audit", nil)
-	req.AddCookie(rec.Result().Cookies()[0])
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: platformSession.ID})
 	srv.ServeHTTP(audit, req)
 	if !strings.Contains(audit.Body.String(), "DeviceProvisionRequested") {
 		t.Fatalf("admin audit body does not contain demo audit events: %s", audit.Body.String())
@@ -3614,6 +3691,90 @@ func TestPlatformAdminReadModelsUseAccountManagerAdminInventory(t *testing.T) {
 	}
 }
 
+func TestPlatformAdminReadModelsFallbackWhenAdminInventoryRoutesMissing(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
+			t.Fatalf("%s Authorization = %q, want Bearer admin-access", r.URL.Path, got)
+		}
+		http.NotFound(w, r)
+	}))
+	defer accountUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatalf("SeedDemoData returned error: %v", err)
+	}
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession platform_admin returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: accountUpstream.URL},
+		AccountClient: accountclient.New(accountUpstream.URL),
+	})
+
+	adminGet := func(path string) *httptest.ResponseRecorder {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d; body=%s", path, rec.Code, http.StatusOK, rec.Body.String())
+		}
+		return rec
+	}
+
+	var summary contracts.Summary
+	if err := json.NewDecoder(adminGet("/api/admin/summary").Body).Decode(&summary); err != nil {
+		t.Fatalf("decode summary: %v", err)
+	}
+	if summary.TotalDevices == 0 || summary.Customers == 0 {
+		t.Fatalf("summary did not fall back to local projections: %#v", summary)
+	}
+
+	var customers []contracts.CustomerSummary
+	if err := json.NewDecoder(adminGet("/api/admin/customers").Body).Decode(&customers); err != nil {
+		t.Fatalf("decode customers: %v", err)
+	}
+	if len(customers) == 0 {
+		t.Fatal("customers did not fall back to local projections")
+	}
+
+	var devices []contracts.Device
+	if err := json.NewDecoder(adminGet("/api/admin/devices").Body).Decode(&devices); err != nil {
+		t.Fatalf("decode devices: %v", err)
+	}
+	if len(devices) == 0 {
+		t.Fatal("devices did not fall back to local projections")
+	}
+
+	var ops []contracts.Operation
+	if err := json.NewDecoder(adminGet("/api/admin/operations").Body).Decode(&ops); err != nil {
+		t.Fatalf("decode operations: %v", err)
+	}
+	if len(ops) == 0 {
+		t.Fatal("operations did not fall back to local projections")
+	}
+
+	var dashboard contracts.PlatformDashboard
+	if err := json.NewDecoder(adminGet("/api/admin/platform-dashboard").Body).Decode(&dashboard); err != nil {
+		t.Fatalf("decode platform dashboard: %v", err)
+	}
+	if dashboard.Summary.TotalDevices == 0 || len(dashboard.ServerResources) != len(platformDashboardServerResources) {
+		t.Fatalf("dashboard fallback incomplete: summary=%#v server_resources=%d", dashboard.Summary, len(dashboard.ServerResources))
+	}
+}
+
 func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 	t.Parallel()
 
@@ -3644,11 +3805,38 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatal(err)
 			}
-			if body.UserID != "user-1" || body.Role != "owner" {
+			if body.BrandCloudUserID != "brand-user-1" || body.Role != "owner" {
 				t.Fatalf("member request = %#v", body)
 			}
 			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"organization_id": "brand-1", "user_id": "user-1", "role": "owner"}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"brand_cloud_id": "brand-1", "brand_cloud_user_id": "brand-user-1", "role": "owner"}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users":
+			var body accountclient.BrandCloudUserRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			if body.Email != "owner@example.com" || body.Role != "owner" || body.Password == "" {
+				t.Fatalf("brand cloud user request = %#v", body)
+			}
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"action":             "created",
+				"brand_cloud_user":   map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "email_verified": true, "signup_pending_verification": false},
+				"brand_cloud_member": map[string]any{"brand_cloud_id": "brand-1", "brand_cloud_user_id": "brand-user-1", "email": "owner@example.com", "role": "owner"},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users":
+			if r.URL.Query().Get("status") != "pending_verification" {
+				t.Fatalf("brand cloud users status query = %q", r.URL.Query().Get("status"))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_users": []map[string]any{{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "pending@example.com", "email_verified": false, "signup_pending_verification": true}}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/disable":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "disabled_at": "2026-06-11T00:00:00Z"}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/enable":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com"}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/approve":
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "email_verified": true, "signup_pending_verification": false}})
+		case r.Method == http.MethodDelete && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1":
+			w.WriteHeader(http.StatusNoContent)
 		default:
 			http.NotFound(w, r)
 		}
@@ -3667,9 +3855,9 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateSession platform_admin returned error: %v", err)
 	}
-	breakGlassSession, err := st.CreateSession("platform_admin", "break-glass", "break@example.com", "", "", "", time.Hour)
+	upstreamlessSession, err := st.CreateSession("platform_admin", "upstreamless", "upstreamless@example.com", "", "", "", time.Hour)
 	if err != nil {
-		t.Fatalf("CreateSession break-glass returned error: %v", err)
+		t.Fatalf("CreateSession upstreamless platform admin returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{
 		Config:        config.Config{AccountManagerBaseURL: accountUpstream.URL},
@@ -3691,6 +3879,20 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 	if list.Code != http.StatusOK {
 		t.Fatalf("brand cloud list status = %d, want 200; body=%s", list.Code, list.Body.String())
 	}
+	var listBody struct {
+		BrandClouds []accountclient.BrandCloud `json:"brand_clouds"`
+		Pagination  struct {
+			Limit  int `json:"limit"`
+			Offset int `json:"offset"`
+			Total  int `json:"total"`
+		} `json:"pagination"`
+	}
+	if err := json.NewDecoder(list.Body).Decode(&listBody); err != nil {
+		t.Fatalf("decode brand cloud list: %v", err)
+	}
+	if len(listBody.BrandClouds) != 1 || listBody.Pagination.Limit != 25 || listBody.Pagination.Offset != 0 || listBody.Pagination.Total != 1 {
+		t.Fatalf("brand cloud list pagination = brands=%d pagination=%#v", len(listBody.BrandClouds), listBody.Pagination)
+	}
 
 	getOne := httptest.NewRecorder()
 	getOneReq := httptest.NewRequest(http.MethodGet, "/api/admin/brand-clouds/brand-1", nil)
@@ -3709,19 +3911,79 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 	}
 
 	member := httptest.NewRecorder()
-	memberReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/members", strings.NewReader(`{"user_id":" user-1 ","role":" owner "}`))
+	memberReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/members", strings.NewReader(`{"brand_cloud_user_id":" brand-user-1 ","role":" owner "}`))
 	memberReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
 	srv.ServeHTTP(member, memberReq)
 	if member.Code != http.StatusCreated {
 		t.Fatalf("brand cloud member status = %d, want 201; body=%s", member.Code, member.Body.String())
 	}
 
+	brandUser := httptest.NewRecorder()
+	brandUserReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/users", strings.NewReader(`{"email":" OWNER@example.com ","password":"secret-password","role":" owner "}`))
+	brandUserReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(brandUser, brandUserReq)
+	if brandUser.Code != http.StatusCreated {
+		t.Fatalf("brand cloud user status = %d, want 201; body=%s", brandUser.Code, brandUser.Body.String())
+	}
+	if !strings.Contains(brandUser.Body.String(), `"brand_cloud_user"`) {
+		t.Fatalf("brand cloud user body missing brand_cloud_user: %s", brandUser.Body.String())
+	}
+
+	brandUsers := httptest.NewRecorder()
+	brandUsersReq := httptest.NewRequest(http.MethodGet, "/api/admin/brand-clouds/brand-1/users?status=pending_verification", nil)
+	brandUsersReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(brandUsers, brandUsersReq)
+	if brandUsers.Code != http.StatusOK {
+		t.Fatalf("brand cloud users status = %d, want 200; body=%s", brandUsers.Code, brandUsers.Body.String())
+	}
+	if !strings.Contains(brandUsers.Body.String(), `"signup_pending_verification":true`) {
+		t.Fatalf("brand cloud users body missing pending user: %s", brandUsers.Body.String())
+	}
+
+	disableUser := httptest.NewRecorder()
+	disableUserReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/users/brand-user-1/disable", nil)
+	disableUserReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(disableUser, disableUserReq)
+	if disableUser.Code != http.StatusOK {
+		t.Fatalf("brand cloud user disable status = %d, want 200; body=%s", disableUser.Code, disableUser.Body.String())
+	}
+	if !strings.Contains(disableUser.Body.String(), `"disabled_at"`) {
+		t.Fatalf("brand cloud user disable body missing disabled_at: %s", disableUser.Body.String())
+	}
+
+	enableUser := httptest.NewRecorder()
+	enableUserReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/users/brand-user-1/enable", nil)
+	enableUserReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(enableUser, enableUserReq)
+	if enableUser.Code != http.StatusOK {
+		t.Fatalf("brand cloud user enable status = %d, want 200; body=%s", enableUser.Code, enableUser.Body.String())
+	}
+
+	approveUser := httptest.NewRecorder()
+	approveUserReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/users/brand-user-1/approve", nil)
+	approveUserReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(approveUser, approveUserReq)
+	if approveUser.Code != http.StatusOK {
+		t.Fatalf("brand cloud user approve status = %d, want 200; body=%s", approveUser.Code, approveUser.Body.String())
+	}
+	if !strings.Contains(approveUser.Body.String(), `"email_verified":true`) {
+		t.Fatalf("brand cloud user approve body missing verified state: %s", approveUser.Body.String())
+	}
+
+	deleteUser := httptest.NewRecorder()
+	deleteUserReq := httptest.NewRequest(http.MethodDelete, "/api/admin/brand-clouds/brand-1/users/brand-user-1", nil)
+	deleteUserReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
+	srv.ServeHTTP(deleteUser, deleteUserReq)
+	if deleteUser.Code != http.StatusNoContent {
+		t.Fatalf("brand cloud user delete status = %d, want 204; body=%s", deleteUser.Code, deleteUser.Body.String())
+	}
+
 	blocked := httptest.NewRecorder()
 	blockedReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds", strings.NewReader(`{"name":"Blocked"}`))
-	blockedReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: breakGlassSession.ID})
+	blockedReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamlessSession.ID})
 	srv.ServeHTTP(blocked, blockedReq)
 	if blocked.Code != http.StatusForbidden {
-		t.Fatalf("break-glass brand cloud create status = %d, want 403; body=%s", blocked.Code, blocked.Body.String())
+		t.Fatalf("upstreamless platform brand cloud create status = %d, want 403; body=%s", blocked.Code, blocked.Body.String())
 	}
 
 	notConfiguredStore, err := store.Open(t.TempDir() + "/not-configured.db")
@@ -3743,6 +4005,77 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 	notConfigured.ServeHTTP(missingAccountManager, missingReq)
 	if missingAccountManager.Code != http.StatusServiceUnavailable {
 		t.Fatalf("not configured status = %d, want 503; body=%s", missingAccountManager.Code, missingAccountManager.Body.String())
+	}
+}
+
+func TestBrandCloudListPaginationFilters(t *testing.T) {
+	t.Parallel()
+
+	brands := []accountclient.BrandCloud{
+		{ID: "brand-3", Name: "Zeta Labs", Status: "disabled", Tier: "Evaluation", Metadata: map[string]any{"owner_email": "zeta@example.com"}},
+		{ID: "brand-1", Name: "Acme Vision", Status: "active", Tier: "Commercial", Metadata: map[string]any{"owner_email": "ops@example.com"}},
+		{ID: "brand-2", Name: "Nova Home", Status: "setup_required", Tier: "Commercial", Metadata: map[string]any{"tenant_slug": "nova-home"}},
+	}
+	filtered := filterBrandCloudsForList(brands, url.Values{
+		"q":      {"ops"},
+		"status": {"active"},
+		"tier":   {"commercial"},
+	})
+	if len(filtered) != 1 || filtered[0].ID != "brand-1" {
+		t.Fatalf("filtered brand clouds = %#v, want brand-1", filtered)
+	}
+
+	allCommercial := filterBrandCloudsForList(brands, url.Values{"tier": {"commercial"}})
+	if got := []string{allCommercial[0].ID, allCommercial[1].ID}; got[0] != "brand-1" || got[1] != "brand-2" {
+		t.Fatalf("sorted commercial brand clouds = %#v, want brand-1 brand-2", got)
+	}
+
+	limit, offset := paginationFromQuery(url.Values{"limit": {"500"}, "offset": {"1"}}, 25, 100)
+	if limit != 100 || offset != 1 {
+		t.Fatalf("pagination limit offset = %d %d, want 100 1", limit, offset)
+	}
+}
+
+func TestPlatformAdminUpstreamUnauthorizedInvalidatesSession(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer expired-access" {
+			t.Fatalf("%s Authorization = %q, want Bearer expired-access", r.URL.Path, got)
+		}
+		http.Error(w, "expired token", http.StatusUnauthorized)
+	}))
+	defer accountUpstream.Close()
+
+	st := mustOpenStore(t)
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "expired-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: accountUpstream.URL},
+		AccountClient: accountclient.New(accountUpstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/brand-clouds", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("brand clouds status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	}
+	if _, err := st.GetSession(session.ID); err != sql.ErrNoRows {
+		t.Fatalf("GetSession after upstream 401 err = %v, want sql.ErrNoRows", err)
+	}
+	cookies := rec.Result().Cookies()
+	foundCleared := false
+	for _, cookie := range cookies {
+		if cookie.Name == "rtk_admin_session" && cookie.MaxAge < 0 {
+			foundCleared = true
+		}
+	}
+	if !foundCleared {
+		t.Fatalf("response did not clear rtk_admin_session cookie: %#v", cookies)
 	}
 }
 
@@ -3870,6 +4203,9 @@ func TestMeContractStabilizesMembershipShape(t *testing.T) {
 	if admin.Kind != "platform_admin" || admin.Memberships == nil {
 		t.Fatalf("platform admin me contract is incomplete: %#v", admin)
 	}
+	if admin.UpstreamAccountManager {
+		t.Fatalf("upstreamless platform admin should not report upstream account-manager access: %#v", admin)
+	}
 }
 
 func TestCustomerMeProjectsAccountManagerCapabilities(t *testing.T) {
@@ -3947,7 +4283,7 @@ func TestPlatformAdminMeProjectsBreakGlassCompatibilityCapabilities(t *testing.T
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
-	srv := NewWithOptions(st, Options{Config: config.Config{AdminBreakGlassEnabled: true}})
+	srv := New(st)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
@@ -3957,14 +4293,13 @@ func TestPlatformAdminMeProjectsBreakGlassCompatibilityCapabilities(t *testing.T
 		t.Fatalf("/api/me status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
 	}
 	var body struct {
-		Kind              string   `json:"kind"`
-		Capabilities      []string `json:"capabilities"`
-		BreakGlassEnabled bool     `json:"break_glass_enabled"`
+		Kind         string   `json:"kind"`
+		Capabilities []string `json:"capabilities"`
 	}
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatalf("decode /api/me: %v", err)
 	}
-	if body.Kind != "platform_admin" || !body.BreakGlassEnabled {
+	if body.Kind != "platform_admin" {
 		t.Fatalf("platform me = %#v", body)
 	}
 	if !containsString(body.Capabilities, "platform.audit.read") || !containsString(body.Capabilities, "platform.sso.manage") {
@@ -4454,10 +4789,7 @@ func TestPlatformAdminLogin(t *testing.T) {
 	if err := st.Migrate(); err != nil {
 		t.Fatalf("Migrate returned error: %v", err)
 	}
-	if err := st.BootstrapPlatformAdmin("admin@example.com", "secret"); err != nil {
-		t.Fatalf("BootstrapPlatformAdmin returned error: %v", err)
-	}
-	srv := NewWithOptions(st, Options{Config: config.Config{AdminBreakGlassEnabled: true}})
+	srv := New(st)
 	blocked := httptest.NewRecorder()
 	srv.ServeHTTP(blocked, httptest.NewRequest(http.MethodGet, "/api/admin/audit", nil))
 	if blocked.Code != http.StatusUnauthorized {
@@ -4465,18 +4797,60 @@ func TestPlatformAdminLogin(t *testing.T) {
 	}
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("platform login without Account Manager status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	}
+}
+
+func TestPlatformAdminLoginFallsBackToAccountManagerPlatformAdmin(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/auth/login":
+			var body map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode login: %v", err)
+			}
+			if body["email"] != "root@example.com" || body["password"] != "secret" {
+				http.Error(w, "invalid credentials", http.StatusUnauthorized)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(accountclient.LoginResult{
+				User:   accountclient.User{ID: "root-1", Email: "root@example.com", Name: "Root"},
+				Tokens: accountclient.Tokens{AccessToken: "admin-access", RefreshToken: "admin-refresh", ExpiresIn: 3600},
+			})
+		case "/v1/admin/brand-clouds":
+			if r.Header.Get("Authorization") != "Bearer admin-access" {
+				t.Fatalf("brand clouds Authorization = %q", r.Header.Get("Authorization"))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"brand_clouds": []accountclient.BrandCloud{}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"root@example.com","password":"secret"}`)))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("platform login status = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	if len(rec.Result().Cookies()) == 0 {
 		t.Fatalf("platform login did not set session cookie")
 	}
-	audit := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/audit", nil)
-	req.AddCookie(rec.Result().Cookies()[0])
-	srv.ServeHTTP(audit, req)
-	if audit.Code != http.StatusOK {
-		t.Fatalf("admin audit with session status = %d, want %d", audit.Code, http.StatusOK)
+	session, err := st.GetSession(rec.Result().Cookies()[0].Value)
+	if err != nil {
+		t.Fatalf("GetSession returned error: %v", err)
+	}
+	if session.Kind != "platform_admin" || session.Subject != "root-1" || session.AccessToken != "admin-access" {
+		t.Fatalf("session = %#v", session)
 	}
 }
 

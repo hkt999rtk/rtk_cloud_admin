@@ -11,7 +11,7 @@ info:
     organizations, membership, brand-cloud records, registry devices, quota
     requests, and SSO provider configuration. Video Cloud remains authoritative
     for activation, telemetry, firmware, and streaming facts. Admin Console
-    stores local sessions, break-glass platform admins, audit metadata, and demo
+    stores local sessions, audit metadata, and demo
     projections.
 
     All JSON endpoints may return `text/plain` error responses from Go
@@ -177,6 +177,115 @@ paths:
         "503":
           $ref: "#/components/responses/PlainTextError"
 
+  /api/auth/sign-in:
+    post:
+      tags: [Auth]
+      summary: Request an email sign-in activation token
+      description: Proxies to Account Manager and always returns `202 Accepted` for syntactically valid email requests, including unknown, disabled, and rate-limited accounts. Token delivery is handled by Account Manager's configured server-side sink.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "202":
+          description: Sign-in request accepted when applicable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusAccepted"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/login/activate:
+    post:
+      tags: [Auth]
+      summary: Activate an email sign-in token
+      description: Proxies login activation to Account Manager and sets `rtk_admin_session` only after the one-time token succeeds.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthTokenRequest"
+      responses:
+        "200":
+          description: Login activation succeeded and set `rtk_admin_session`.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: HTTP-only `rtk_admin_session` cookie.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSessionResult"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request an email password-reset activation token
+      description: Proxies to Account Manager and always returns `202 Accepted` for syntactically valid email requests, including unknown, disabled, and rate-limited accounts.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "202":
+          description: Password reset request accepted when applicable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusAccepted"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset a password with an email activation token
+      description: Proxies reset token consumption to Account Manager. Account Manager revokes existing refresh tokens after a successful password reset.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "204":
+          description: Password reset succeeded.
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
   /api/auth/sso/start:
     post:
       tags: [SSO, Auth]
@@ -239,8 +348,8 @@ paths:
   /api/auth/platform/login:
     post:
       tags: [Auth, Platform Admin]
-      summary: Local platform-admin break-glass login
-      description: Disabled unless `ADMIN_BREAK_GLASS_ENABLED=true`; daily admin login should use SSO.
+      summary: Account Manager platform-admin password login
+      description: Authenticates Account Manager platform-admin credentials during the migration period. Local Cloud Admin break-glass login is not supported.
       security: []
       requestBody:
         required: true
@@ -797,7 +906,39 @@ paths:
     get:
       tags: [Platform Admin, Brand Clouds]
       summary: List brand-cloud organizations
-      description: Requires Account Manager-backed platform-admin session.
+      description: Requires Account Manager-backed platform-admin session. Results are filtered and paginated by the Cloud Admin BFF.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 25
+            minimum: 1
+            maximum: 100
+          description: Maximum number of rows to return.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Zero-based row offset.
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search brand name, organization id, owner/admin email, or tenant metadata.
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, setup_required, disabled, error]
+          description: Filter by normalized brand-cloud status.
+        - in: query
+          name: tier
+          schema:
+            type: string
+          description: Filter by commercial/evaluation tier.
       responses:
         "200":
           description: Brand-cloud organizations.
@@ -805,12 +946,22 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [brand_clouds]
+                required: [brand_clouds, pagination]
                 properties:
                   brand_clouds:
                     type: array
                     items:
                       $ref: "#/components/schemas/Organization"
+                  pagination:
+                    type: object
+                    required: [limit, offset, total]
+                    properties:
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+                      total:
+                        type: integer
         "401":
           $ref: "#/components/responses/PlainTextError"
         "403":
@@ -1115,6 +1266,16 @@ components:
         password:
           type: string
           format: password
+    ResetPasswordRequest:
+      type: object
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          format: password
+          minLength: 8
     SignupRequest:
       type: object
       required: [email, password, organization_name]
@@ -1153,6 +1314,16 @@ components:
           $ref: "#/components/schemas/User"
         tokens:
           $ref: "#/components/schemas/Tokens"
+    AuthSessionResult:
+      type: object
+      required: [status, kind]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        kind:
+          type: string
+          enum: [customer, platform_admin]
     EmailRequest:
       type: object
       required: [email]
@@ -1278,7 +1449,6 @@ components:
         - active_org_id
         - demo_mode
         - authenticated
-        - break_glass_enabled
         - customer_password_login_enabled
       properties:
         user_id:
@@ -1304,8 +1474,6 @@ components:
           type: array
           items:
             type: string
-        break_glass_enabled:
-          type: boolean
         customer_password_login_enabled:
           type: boolean
     Summary:
@@ -2283,19 +2451,20 @@ components:
           additionalProperties: true
     BrandCloudMemberRequest:
       type: object
-      required: [user_id, role]
+      required: [brand_cloud_user_id, role]
       properties:
-        user_id:
+        brand_cloud_user_id:
           type: string
+          description: Brand-scoped user id. Platform Account Manager user ids are not accepted.
         role:
           type: string
     Member:
       type: object
-      required: [organization_id, user_id, role]
+      required: [brand_cloud_id, brand_cloud_user_id, role]
       properties:
-        organization_id:
+        brand_cloud_id:
           type: string
-        user_id:
+        brand_cloud_user_id:
           type: string
         email:
           type: string

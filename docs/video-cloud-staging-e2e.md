@@ -49,12 +49,12 @@ E2E_KEEP_TMP=1
 - Builds the WebUI and starts a local Admin BFF with:
   - `VIDEO_CLOUD_BASE_URL`
   - runtime `VIDEO_CLOUD_ADMIN_TOKEN`
-  - local platform break-glass credentials
+  - Account Manager platform-admin credentials
   - temporary SQLite database
 - Verifies:
   - `/healthz`
   - `/api/service-health` reports Video Cloud `ok`
-  - platform break-glass login and `/api/me.kind == platform_admin`
+  - Account Manager-backed platform login and `/api/me.kind == platform_admin`
   - customer-safe `/api/devices`
   - `/api/devices/{id}/telemetry` has `telemetry_status == available`
   - `/api/fleet/firmware-distribution` has `source_status == available`
@@ -94,7 +94,7 @@ Validated before a known-good fixture exists:
 - admin client certificate can bootstrap a `scope=admin` bearer token
 - local Admin BFF starts with the runtime token
 - `/healthz` and `/api/service-health` reach Video Cloud
-- platform break-glass login and local customer session work
+- Account Manager-backed platform login and local customer session work
 - `/api/devices` returns customer-safe fields and omits platform-only ids
 
 Blocked until a known-good provisioned/activated Video Cloud staging device

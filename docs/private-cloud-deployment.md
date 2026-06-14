@@ -4,9 +4,8 @@ Status: draft.
 
 This document describes the supported deployment profile for `rtk_cloud_admin`
 when it is run as the admin dashboard in a private-cloud environment. The
-production migration target is Linode Kubernetes Engine (LKE). The Linode VM
-profile below remains the staging and rollback reference until the workspace
-LKE migration gates are approved.
+production migration target is Linode Kubernetes Engine (LKE). Linode staging is
+K8s-only and is operated from the workspace.
 
 ## LKE Target Shape
 
@@ -19,16 +18,16 @@ Recommended LKE layout:
 - mount a PVC for `DATABASE_PATH` while SQLite remains the selected persistence
   backend
 - configure upstream Account Manager and Video Cloud endpoints explicitly
-- keep admin bootstrap secrets out of source control and inject them from
-  OpenBao or an approved secret-management path
+- keep runtime secrets out of source control and inject them from OpenBao or an
+  approved secret-management path
 
-The app is not a stateless frontend. Local SQLite holds sessions, platform
-admins, audit metadata, settings, and upstream cache projections. Treat the
+The app is not a stateless frontend. Local SQLite holds sessions, audit
+metadata, settings, and upstream cache projections. Treat the
 database file as production state and back it up accordingly.
 
 The Go application now accesses this local state through narrow app-level
-interfaces for sessions, break-glass platform admin verification, audit,
-projection reads, and lifecycle operations. SQLite remains the implementation
+interfaces for sessions, audit, projection reads, and lifecycle operations.
+SQLite remains the implementation
 for this deployment profile; no Redis-compatible session or projection cache is
 required or configured by this release.
 
@@ -39,37 +38,27 @@ Admin Deployment beyond the SQLite-safe topology.
 
 ## Linode Staging Profile
 
-The supported Linode staging shape is a legacy dedicated Admin VM with public
-HTTPS ingress and a Video Cloud VPC interface for private observability access.
-This keeps the dashboard deployment boundary separate from `rtk_video_cloud`
-while avoiding any public exposure of Prometheus.
+Linode staging runtime is K8s-only and is operated from the workspace. The
+previous dedicated Admin VM scripts have been retired. Use
+[`linode-staging-k8s.md`](linode-staging-k8s.md) for the supported staging
+operator entrypoints.
 
 Recommended staging traffic:
 
 ```text
 internet
   -> admin.video-cloud-staging.realtekconnect.com:443
-  -> nginx on the Admin VM
-  -> native rtk_cloud_admin systemd service on 127.0.0.1:8080
+  -> K8s ingress/service path
+  -> rtk_cloud_admin workload
 
 rtk_cloud_admin
-  -> ACCOUNT_MANAGER_BASE_URL over public HTTPS
-  -> VIDEO_CLOUD_BASE_URL over public HTTPS
-  -> VIDEO_CLOUD_PROMETHEUS_BASE_URL over private VPC HTTP
+  -> ACCOUNT_MANAGER_BASE_URL through K8s service discovery
+  -> VIDEO_CLOUD_BASE_URL through K8s service discovery
+  -> observability through the K8s runtime log/query path
 ```
 
-The operator-local scripts live under [`deploy/linode/`](../deploy/linode/):
-
-- `provision-admin-vm.sh` creates the public+VPC Linode VM and firewall,
-  including private metrics access for node and nginx exporters.
-- `deploy-admin.sh` uploads the selected native release bundle, installs nginx,
-  installs node/nginx exporters, writes the systemd unit, and starts the
-  service.
-- `verify-admin.sh` checks the deployed HTTP surface.
-- `backup-admin-db.sh` pulls a timestamped SQLite backup.
-
-The copied `deploy/linode/*.env` and generated state files are local operator
-artifacts and must not be committed.
+Do not add or use staging VM provision/deploy scripts in this repo. Staging
+readiness and E2E verification belong to the workspace K8s flow.
 
 ## Runtime Configuration
 
@@ -83,8 +72,8 @@ Required or recommended environment variables:
   stream queries
 - `VIDEO_CLOUD_PROMETHEUS_BASE_URL`: private Prometheus query endpoint, for
   example `http://10.42.1.30:9090`
-- `ADMIN_BOOTSTRAP_EMAIL`: local platform admin bootstrap email
-- `ADMIN_BOOTSTRAP_PASSWORD`: local platform admin bootstrap password
+- Platform admin login is backed by Account Manager; Cloud Admin does not
+  require local bootstrap admin credentials.
 
 Production mode should set all upstream variables. Demo or cache-only mode is
 only appropriate for local development or isolated validation.
@@ -92,19 +81,18 @@ only appropriate for local development or isolated validation.
 ## Reverse Proxy And TLS
 
 The application itself serves plain HTTP. TLS should be terminated by the
-fronting Ingress/Gateway controller in LKE, or by nginx in the legacy VM bridge.
+fronting Ingress/Gateway controller in LKE or by the workspace K8s ingress path.
 
 Operational expectations:
 
-- expose the app only through its ClusterIP Service or legacy loopback/private
-  interface
+- expose the app only through its ClusterIP Service or approved private service
+  path
 - forward client requests over HTTPS at the edge/Ingress
 - preserve the `Host` header and standard forwarding headers used by the
   operator's proxy stack
 - keep the session cookie `HttpOnly` and treat it as an authenticated browser
   session, not an API token
-- expose metrics only to the observability namespace or private monitoring path;
-  legacy node/nginx exporter ports remain VM-only migration reference
+- expose metrics only to the observability namespace or private monitoring path
 
 ## Data Ownership
 
@@ -158,8 +146,8 @@ checks after startup:
 
 - `GET /healthz` returns `ok`
 - `GET /api/service-health` returns the upstream status summary
-- `POST /api/auth/platform/login` accepts the bootstrap admin credentials only
-  when `ADMIN_BREAK_GLASS_ENABLED=true`
+- `POST /api/auth/platform/login` accepts Account Manager platform-admin
+  credentials and creates a platform session only after upstream authorization
 - `GET /api/me` succeeds when the login cookie is replayed
 - `GET /api/summary` returns the dashboard summary payload
 - `GET /console` renders the dashboard shell

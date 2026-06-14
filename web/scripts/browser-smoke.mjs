@@ -31,12 +31,11 @@ const platformMe = {
   kind: 'platform_admin',
   email: 'platform.admin@example.com',
   capabilities: ['platform.audit.read', 'platform.sso.manage'],
-  break_glass_enabled: true,
+  upstream_account_manager: true,
 };
 
 const anonymousMe = {
   authenticated: false,
-  break_glass_enabled: true,
 };
 
 const devices = [
@@ -378,6 +377,10 @@ const audit = [{
   created_at: '2026-05-13T10:05:00Z',
 }];
 
+assertNoBreakGlassField(customerMe, 'customer /api/me mock');
+assertNoBreakGlassField(platformMe, 'platform /api/me mock');
+assertNoBreakGlassField(anonymousMe, 'anonymous /api/me mock');
+
 await mkdir(artifactsDir, { recursive: true });
 
 const vite = await createViteServer({
@@ -501,6 +504,12 @@ function collectConsoleIssues(page) {
     issues.push(`pageerror: ${error.message}`);
   });
   return issues;
+}
+
+function assertNoBreakGlassField(payload, label) {
+  if (Object.hasOwn(payload, 'break_glass_enabled')) {
+    throw new Error(`${label} must not expose break_glass_enabled`);
+  }
 }
 
 async function runDesktopSmoke(page) {

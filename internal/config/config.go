@@ -16,9 +16,6 @@ type Config struct {
 	CloudLoggerEndpoint          string
 	CloudLoggerToken             string
 	LogLevel                     string
-	AdminBootstrapEmail          string
-	AdminBootstrapPassword       string
-	AdminBreakGlassEnabled       bool
 	CustomerPasswordLoginEnabled bool
 }
 
@@ -33,9 +30,6 @@ func FromEnv() Config {
 		CloudLoggerEndpoint:          os.Getenv("CLOUD_LOGGER_ENDPOINT"),
 		CloudLoggerToken:             os.Getenv("CLOUD_LOGGER_INGEST_TOKEN"),
 		LogLevel:                     getenv("CLOUD_ADMIN_LOG_LEVEL", getenv("LOG_LEVEL", "info")),
-		AdminBootstrapEmail:          os.Getenv("ADMIN_BOOTSTRAP_EMAIL"),
-		AdminBootstrapPassword:       os.Getenv("ADMIN_BOOTSTRAP_PASSWORD"),
-		AdminBreakGlassEnabled:       truthy(os.Getenv("ADMIN_BREAK_GLASS_ENABLED")),
 		CustomerPasswordLoginEnabled: truthy(getenv("CUSTOMER_PASSWORD_LOGIN_ENABLED", "true")),
 	}
 }

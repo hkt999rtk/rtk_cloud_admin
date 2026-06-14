@@ -34,9 +34,9 @@ management in `rtk_cloud_admin`.
 organizations, membership, status, audit, entitlement, and user identity.
 `rtk_cloud_admin` owns the Platform Admin WebUI and BFF surface. The WebUI
 therefore provides a controlled operational workspace for Platform Admins to
-list, create, inspect, update, and assign existing Account Manager users to
-brand-cloud organizations without storing authoritative brand-cloud records in
-Admin Console SQLite.
+list, create, inspect, update, and assign brand-scoped users to brand-cloud
+organizations without storing authoritative brand-cloud records in Admin
+Console SQLite.
 
 The working product name in the UI is **Brand Clouds**. It represents
 `organization_kind=brand_cloud` records and should not be presented as a
@@ -102,17 +102,15 @@ Recommended Platform View nav order:
 
 The Brand Clouds item is hidden from Customer View and from Platform View
 sessions that do not carry an Account Manager-backed `platform_admin` identity.
-Break-glass local admins may see a disabled/gated state only if the product
-team wants an explanatory page; they must not be able to call brand-cloud
-write APIs because they do not have the upstream Bearer token required by
-Account Manager.
+Local Cloud Admin break-glass admins are not supported; rescue operations are
+handled through Linode, SSH, and deployment tooling.
 
 ## Permissions And Route Guards
 
 | Session type | Brand Clouds nav | Read | Create/update/member assign |
 | --- | --- | --- | --- |
 | Account Manager Platform Admin | Visible | Allowed | Allowed when capability is present |
-| Local break-glass admin | Hidden or gated | Blocked | Blocked |
+| Local Cloud Admin break-glass admin | Not supported | Blocked | Blocked |
 | Tier 2 customer user | Hidden | Blocked | Blocked |
 | Unauthenticated user | Hidden | Blocked | Blocked |
 
@@ -219,17 +217,18 @@ Validation:
 - slug/code must be unique when provided
 - region must be one of the Account Manager-supported values
 
-### Step 2: Initial Admin
+### Step 2: Initial Brand Admin
 
 Fields:
 
-- Existing Account Manager user email or user id
+- Existing Brand User id, when the brand-scoped user already exists
 - Initial role, default `owner`
 - Optional note for audit/support context, only if Account Manager accepts it
 
-The UI must make it clear that this flow assigns an existing Account Manager
-user. Inviting or creating a new user is out of scope for the first pass unless
-Account Manager exposes a supported API.
+The UI must make it clear that this flow assigns an existing brand-scoped user.
+Platform Account Manager user ids are not valid for brand-cloud membership.
+Creating or reactivating a brand-scoped user uses the Brand User form and then
+assigns membership by `brand_cloud_user_id`.
 
 ### Step 3: Entitlement Snapshot
 
@@ -306,7 +305,7 @@ Created             2026-05-02
 
 Members
 Owner               ops@example.com
-[Assign Existing User]
+[Assign Existing Brand User]
 
 SSO
 Status              Ready
@@ -337,8 +336,8 @@ Recent Activity
   - status
   - created/updated timestamps when available
 - Members:
-  - assigned owner/admin users exposed by Account Manager
-  - `Assign Existing User` action when capability is present
+  - assigned owner/admin brand-scoped users exposed by Account Manager
+  - `Assign Existing Brand User` action when capability is present
 - SSO:
   - SSO status summary
   - link to SSO Providers filtered to this organization
@@ -364,17 +363,51 @@ Use a small drawer section or modal launched from the detail drawer.
 
 Fields:
 
-- Account Manager user email or user id
+- Brand User id
 - Role, default `owner` or `admin` depending on Account Manager contract
 
 Behavior:
 
 - validate required input locally
-- submit to `POST /api/admin/brand-clouds/{id}/members`
+- submit `brand_cloud_user_id` to `POST /api/admin/brand-clouds/{id}/members`
 - show success inline in the Members panel
 - show duplicate member as a non-destructive warning
 - preserve Account Manager authorization and validation messages in user-safe
   language
+
+## Flow 3: Review And Manage Brand Users
+
+The detail drawer includes a Brand Users section backed by Account Manager,
+not by Admin Console SQLite. It lists brand-scoped users for the selected
+brand cloud and highlights pending activation users so Platform Admins can see
+which email addresses have been created but not activated.
+
+Filters:
+
+- All users
+- Active
+- Pending activation
+- Disabled
+
+Rows show email, display name or user id, activation status, last update time,
+and lifecycle actions. Pending activation rows expose `Approve`, active rows
+expose `Disable`, disabled rows expose `Enable`, and all rows expose `Delete`.
+Delete is a soft-delete operation that removes brand-cloud access by disabling
+the brand-scoped user; it must not hard-delete Account Manager audit history.
+
+Behavior:
+
+- load users from `GET /api/admin/brand-clouds/{id}/users`
+- use `status=pending_verification` for the pending activation dashboard filter
+- submit approve to
+  `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/approve`
+- submit disable to
+  `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/disable`
+- submit enable to
+  `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/enable`
+- submit soft-delete to
+  `DELETE /api/admin/brand-clouds/{id}/users/{brandCloudUserId}`
+- refresh the Brand Users section after each successful lifecycle action
 
 ## Error And Edge States
 
@@ -387,6 +420,8 @@ Behavior:
 | Invalid owner/admin email | Field-level error in initial admin step |
 | Brand created, member failed | Detail drawer stays open with retryable member callout |
 | Stale detail after update | Refresh drawer and show latest Account Manager state |
+| Pending activation users exist | Show count in detail summary and make the pending filter one click away |
+| Brand user lifecycle action fails | Keep drawer open, keep current rows, and show a user-safe upstream error |
 | Unknown upstream status | Show `Error` or `Unknown` only with support metadata in detail drawer |
 
 ## API Mapping
@@ -398,10 +433,52 @@ Behavior:
 | Read detail | `GET /api/admin/brand-clouds/{id}` | Account Manager |
 | Update metadata/status | `PATCH /api/admin/brand-clouds/{id}` | Account Manager |
 | Assign member | `POST /api/admin/brand-clouds/{id}/members` | Account Manager |
+| List brand users | `GET /api/admin/brand-clouds/{id}/users` | Account Manager |
+| Approve pending brand user | `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/approve` | Account Manager |
+| Disable brand user | `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/disable` | Account Manager |
+| Enable brand user | `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/enable` | Account Manager |
+| Soft-delete brand user | `DELETE /api/admin/brand-clouds/{id}/users/{brandCloudUserId}` | Account Manager |
 
 The BFF may normalize response shape for the React UI, but it must not create
 authoritative brand-cloud rows in SQLite. Local audit may record forwarding
 attempts, but authoritative brand-cloud audit remains in Account Manager.
+
+### Brand Clouds List Density And Pagination
+
+The Brand Clouds list is an operational table, not a card list. It must fit many
+tenants without forcing long vertical scrolling.
+
+- `GET /api/admin/brand-clouds` accepts `limit`, `offset`, `q`, `status`, and
+  `tier`.
+- The default page size is 25 rows. The BFF caps `limit` at 100.
+- The response includes:
+  - `brand_clouds`: current page rows only.
+  - `pagination.limit`, `pagination.offset`, and `pagination.total`.
+- Search and filters reset `offset` to `0`.
+- The WebUI renders a compact table with the organization id as secondary text
+  under the Brand column. It does not render separate `Org ID` or `Created`
+  columns in the default list view.
+- The list footer shows the visible range and Previous/Next controls. Detail
+  drawers remain the place for full metadata and lifecycle actions.
+
+### Brand Cloud Detail Drawer Layout
+
+The detail drawer is a management surface. It must not use decorative blobs,
+oversized status shapes, or prose blocks that concatenate labels and values.
+
+- Header: brand name, organization id, organization kind, close button.
+- Hero summary: compact status badge, region, tier, owner/admin, and device
+  quota in a structured grid with Font Awesome icons.
+- Setup checklist: one row of small status chips for created, owner/admin, SSO,
+  and device quota. Use green for complete, amber for attention, and neutral
+  for unavailable/not configured.
+- Primary actions: enable/disable Brand Cloud and open SSO providers as
+  adjacent icon buttons.
+- Brand Users: compact table with Email, Status, Updated, and Actions. Row
+  actions must use icon+text buttons and preserve disabled/pending state
+  contrast.
+- Forms: assign-existing-user and create/reactivate-user forms are separate
+  two-column form blocks below the user table.
 
 ## Visual Consistency Rules
 
@@ -423,7 +500,7 @@ The implementation can be split into developer-ready issues:
 
 1. **Brand Clouds contract and route guard alignment**
    - finalize capability names and DTO fields with Account Manager
-   - confirm break-glass behavior
+   - confirm Account Manager-backed platform-admin route guards
    - update backend route tests for allowed/blocked sessions
 2. **Platform Brand Clouds list**
    - add route and nav item
@@ -435,7 +512,10 @@ The implementation can be split into developer-ready issues:
    - implement status/metadata update when Account Manager supports it
 5. **Assign existing member**
    - implement member assignment UI and retry/error states
-6. **Browser QA and documentation signoff**
+6. **Review and manage brand users**
+   - implement Brand Users list, pending activation filter, approve, disable,
+     enable, and soft-delete actions
+7. **Browser QA and documentation signoff**
    - verify Platform View isolation, source unavailable states, responsive
      layout, and copy consistency
 
@@ -444,13 +524,16 @@ The implementation can be split into developer-ready issues:
 - Brand Clouds is visible only in Platform View for Account Manager-backed
   Platform Admin sessions.
 - Customer View users cannot see or navigate to Brand Clouds routes.
-- Local break-glass sessions cannot call brand-cloud write APIs.
+- Only Account Manager-backed platform-admin sessions can call brand-cloud
+  APIs.
 - List, empty, loading, source unavailable, and missing upstream token states
   are defined and implemented.
 - Create flow supports validation, success, Account Manager failure, and
   created-but-member-failed recovery.
 - Detail drawer exposes identity, status, setup checklist, members, SSO
   handoff, and recent activity/unavailable state.
+- Detail drawer exposes Brand Users with pending activation count, status
+  filter, approve, disable, enable, and soft-delete actions.
 - No authoritative brand-cloud records are stored in Admin Console SQLite.
 - No secrets, upstream tokens, raw IdP claims, or raw private upstream payloads
   are displayed.
@@ -471,7 +554,6 @@ Implementation PRs should include the relevant subset of:
 Manual browser QA should cover:
 
 - Platform Admin with Account Manager token
-- local break-glass admin
 - customer user
 - source unavailable response
 - create success

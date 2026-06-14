@@ -67,7 +67,7 @@ var platformDashboardPrometheusQueries = []prometheusQueryDefinition{
 	{
 		ID:    "scrape_targets_down",
 		Title: "Scrape targets down",
-		Query: `sum by(job, service, role) (up == 0)`,
+		Query: `sum by(job, service, role) (up == bool 0)`,
 	},
 	{
 		ID:           "exporter_freshness_seconds",
