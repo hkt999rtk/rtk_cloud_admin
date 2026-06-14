@@ -259,12 +259,11 @@ deploy/check-release.sh dist/rtk_cloud_admin-dev-local
 ```
 
 The release bundle contains the Go server binary, built frontend assets, a
-manifest, and checksums. The Linode deploy script installs this bundle as a
-native systemd service behind nginx.
+manifest, and checksums. Linode staging runtime is K8s-only and is operated
+from the workspace; see [`docs/linode-staging-k8s.md`](docs/linode-staging-k8s.md).
 
 For a production private-cloud deployment, see
-[`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md). For the
-Linode staging scripts, see [`deploy/linode/`](deploy/linode/).
+[`docs/private-cloud-deployment.md`](docs/private-cloud-deployment.md).
 
 ## Release Artifacts
 

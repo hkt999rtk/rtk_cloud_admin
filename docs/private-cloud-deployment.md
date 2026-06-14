@@ -30,37 +30,27 @@ required or configured by this release.
 
 ## Linode Staging Profile
 
-The supported Linode staging shape is a dedicated Admin VM with public HTTPS
-ingress and a Video Cloud VPC interface for private observability access. This
-keeps the dashboard deployment boundary separate from `rtk_video_cloud` while
-avoiding any public exposure of Prometheus.
+Linode staging runtime is K8s-only and is operated from the workspace. The
+previous dedicated Admin VM scripts have been retired. Use
+[`linode-staging-k8s.md`](linode-staging-k8s.md) for the supported staging
+operator entrypoints.
 
 Recommended staging traffic:
 
 ```text
 internet
   -> admin.video-cloud-staging.realtekconnect.com:443
-  -> nginx on the Admin VM
-  -> native rtk_cloud_admin systemd service on 127.0.0.1:8080
+  -> K8s ingress/service path
+  -> rtk_cloud_admin workload
 
 rtk_cloud_admin
-  -> ACCOUNT_MANAGER_BASE_URL over public HTTPS
-  -> VIDEO_CLOUD_BASE_URL over public HTTPS
-  -> VIDEO_CLOUD_PROMETHEUS_BASE_URL over private VPC HTTP
+  -> ACCOUNT_MANAGER_BASE_URL through K8s service discovery
+  -> VIDEO_CLOUD_BASE_URL through K8s service discovery
+  -> observability through the K8s runtime log/query path
 ```
 
-The operator-local scripts live under [`deploy/linode/`](../deploy/linode/):
-
-- `provision-admin-vm.sh` creates the public+VPC Linode VM and firewall,
-  including private metrics access for node and nginx exporters.
-- `deploy-admin.sh` uploads the selected native release bundle, installs nginx,
-  installs node/nginx exporters, writes the systemd unit, and starts the
-  service.
-- `verify-admin.sh` checks the deployed HTTP surface.
-- `backup-admin-db.sh` pulls a timestamped SQLite backup.
-
-The copied `deploy/linode/*.env` and generated state files are local operator
-artifacts and must not be committed.
+Do not add or use staging VM provision/deploy scripts in this repo. Staging
+readiness and E2E verification belong to the workspace K8s flow.
 
 ## Runtime Configuration
 
