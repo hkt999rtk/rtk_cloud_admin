@@ -25,12 +25,12 @@ Platform Dashboard is the Tier 1 landing page for Realtek Platform Admins. It
 is a productized operations dashboard implemented in `rtk_cloud_admin`, not a
 Grafana replacement and not a public Prometheus browser.
 
-Grafana or Prometheus-native dashboards may still be useful for deep SRE
-debugging, alert authoring, and raw time-series exploration. The Platform
-Dashboard should instead show a curated, role-gated, product-aware overview:
-tenant/device footprint, service status, scrape health, cross-service risk,
-and a small set of infrastructure signals that help Platform Admins decide
-where to investigate next.
+Grafana owns long-term metrics, trend analysis, deep SRE debugging, alert
+authoring, and raw time-series exploration. The Platform Dashboard should
+instead show a curated, role-gated, product-aware overview: tenant/device
+footprint, service status, k8s workload health, cluster node snapshots, scrape
+health, and cross-service risk that help Platform Admins decide where to
+investigate next.
 
 `rtk_cloud_admin` owns the WebUI and BFF. Account Manager, Video Cloud, and
 Prometheus remain the sources of truth for their respective facts.
@@ -52,7 +52,7 @@ Prometheus remain the sources of truth for their respective facts.
 ## Non-Goals
 
 - Replacing Grafana for raw observability, ad hoc PromQL, alert rule authoring,
-  or host-level forensic debugging.
+  long-term trend analysis, or host/container-level forensic debugging.
 - Showing customer-visible Insights from raw Prometheus metrics.
 - Exposing Prometheus publicly or querying Prometheus directly from browser
   JavaScript.
@@ -85,8 +85,14 @@ Cross-tenant operating status for Realtek Platform Admins.
 
 [Tenants] [Devices Online] [Open Operations] [Scrape Targets Down]
 
-Server Resource Status
-| Server | Role / Service | CPU | memory | disk | network in/out | status |
+Service Health
+| Service | Namespace | targets | req/s | 5xx/s | avg latency | status |
+
+K8s Workloads
+| Workload | Namespace | kind | replicas | ready pods | restarts | crashloop | status |
+
+Cluster Nodes
+| Node | ready | CPU | memory | status |
 
 Service & Scrape Health
 | Account Manager | Video Cloud API | Cloud Admin | Prometheus | SQLite |
@@ -94,8 +100,8 @@ Service & Scrape Health
 Tenant & Device Footprint                         Operation Risk
 | Readiness distribution | top customer risks |    | open ops | failed ops | dead letters |
 
-Runtime Health                                    Infrastructure Health
-| request rate / 5xx / latency by service |       | CPU | memory | disk | network | nginx | postgres | redis | emqx |
+Cross-Service Risk                               Infrastructure Health
+| consumer backlog | dead letters | errors |       | gateway | broker | data targets |
 
 Business Signals                                  Recent Platform Activity
 | quota requests | eval signups | blob use |       | audit + ops links |
@@ -205,74 +211,27 @@ aggregated health groups and drill-down rows.
 | Scrape duration | `scrape_duration_seconds` | Warning only when unusually high. |
 | Samples scraped | `scrape_samples_scraped` | Support detail; not a primary KPI. |
 
-### Server Resource Status
+### K8s Service, Workload, And Node Health
 
-The first dashboard viewport includes a per-server table for the current
-staging/server VM inventory:
+The first dashboard viewport is k8s-native. It does not present long-term trend
+charts; Grafana owns trend analysis and detailed capacity exploration.
 
-`edge`, `api`, `infra`, `mqtt`, `coturn`, `account-manager`, `cloud-admin`, and
-`cloud-logger`.
-
-| Metric | Prometheus query shape | UI treatment |
+| Surface | Prometheus query shape | UI treatment |
 | --- | --- | --- |
-| CPU | Node exporter idle rate converted to utilization by sanitized `role` | Show percent per server. Warning at 70%, critical at 85%. |
-| Memory | `1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes` by sanitized `role` | Show percent per server. Warning at 75%, critical at 90%. |
-| Disk | Root filesystem utilization by sanitized `role` | Show percent per server. Warning at 75%, critical at 90%. |
-| Network | Node exporter receive/transmit byte counters filtered to physical host interfaces and converted to bits/sec by sanitized `role` | Show inbound/outbound throughput per server. v1 is observational and does not drive warning/critical status. |
+| Service targets | `sum by(job, service, namespace) (up)` and `up == bool 0` | Compact service table with up/down targets and row status. |
+| Service runtime | request rate, 5xx rate, and average latency by service | Current values only; non-zero 5xx marks warning. |
+| Workload replicas | `kube_deployment_spec_replicas` and `kube_deployment_status_replicas_available` | Desired/available replica comparison. |
+| Pod readiness | `kube_pod_status_ready{condition="true"}` | Ready pod count by workload. |
+| Restarts and crashloops | `kube_pod_container_status_restarts_total` and `kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"}` | Restart count and crashloop count with warning/critical row status. |
+| Cluster nodes | `kube_node_status_condition`, container CPU, and container memory summaries by node | Current node readiness/resource snapshot only. |
 
-Rows are always rendered for the known server inventory. Servers without
-resource metrics, such as coturn until private node-exporter scraping is added,
-are shown as `Unmonitored` instead of being hidden. The browser receives only
-sanitized server ids, labels, roles, percentages, network throughput, status,
-and source status; raw Prometheus `instance` labels,
-interface labels, and IP addresses are not part of the UI contract.
+The browser receives only sanitized service, namespace, workload, and node
+summaries. Raw Prometheus `instance`, UID, container, device, IP address, and
+other high-cardinality labels are not part of the UI contract.
 
-Server resource status badges use traffic-light treatment. `OK` must render as
-a green filled badge with white text. Warning/degraded states use amber/orange
-filled badges, critical/down states use red filled badges, and unavailable or
-unmonitored states use neutral gray filled badges. The visible status text
-remains present so the state is not communicated by color alone.
-
-Do not show panel-level source status pills such as `Configured` beside
-dashboard section headings. Operators should read the resource/exporter status
-from the row-level table badges and empty/unavailable panel messages. Do not
-show a `Last checked` column in Server Resource Status or Service Exporter
-Status; the 20-second automatic refresh cadence is the freshness signal.
-
-### Resource Trends
-
-Platform View also includes a dedicated Resource Trends page at
-`/admin/resources`. The main dashboard remains a current-state command center;
-historical charting lives on this separate page to avoid turning the landing
-view into a chart wall.
-
-| Range | Step | Treatment |
-| --- | --- | --- |
-| `24h` | 5 minutes | Short-term incident and deployment validation window. |
-| `7d` | 1 hour | Weekly capacity and recurring spike review. |
-| `90d` | 1 day | Rolling 90-day quarter view for long-term trends. |
-
-The Resource Trends BFF uses Prometheus `query_range` server-side for CPU,
-memory, root disk, network inbound, and network outbound series. The UI shows
-top servers for CPU/memory/disk and total inbound/outbound for network, with
-per-server current, average, p95, and max summaries below the chart. Missing
-source/status fields are handled as panel-level empty/unavailable messages; the
-Server Trend Summary table does not show a `Status` column because that state is
-data-source freshness, not server health.
-Missing metrics keep the server row visible as `Unmonitored`.
-
-The chart surface uses a conventional 2D time-series chart. Do not use 3D,
-perspective, ribbon geometry, animated camera movement, or decorative depth
-effects for operational metrics. The visual treatment follows normal dashboard
-chart practice: flat grid, y-axis value ticks, x-axis time ticks, thin lines,
-subtle area fill, latest-point markers, compact inline legend, and latest-value
-chips above the plot. CPU, memory, and disk show the top worst server series;
-network shows total inbound and outbound. The chart is full-width within the
-Resource Trends page content, with the summary table remaining the accessible
-numeric fallback. The x-axis keeps range-specific time units visible: `24h`
-shows hour/minute ticks, `7d` shows weekday ticks, and `90d` shows date ticks.
-Mobile uses the same 2D SVG chart with a taller fixed height and no horizontal
-overflow.
+Legacy `server_resources` may remain in the BFF payload for one transition
+cycle, but the WebUI treats it as a lower-priority fallback and k8s health is
+the primary dashboard contract.
 
 ### Runtime Health
 
@@ -309,10 +268,9 @@ overflow.
 
 | Metric group | Query approach | UI treatment |
 | --- | --- | --- |
-| CPU | Node exporter `node_cpu_*` aggregated by `role` | Summarize the Server Resource Status table. |
-| Memory | Node exporter memory available/total by `role` | Summarize the Server Resource Status table. |
-| Disk | Node filesystem utilization by `role` and mount | Summarize the Server Resource Status table. |
-| Network | Node exporter receive/transmit counters aggregated by `role` | Summarize current throughput; historical charting is on Resource Trends. |
+| Cluster node readiness | `kube_node_status_condition{condition="Ready"}` | Current node health summary. |
+| Cluster node CPU | container CPU aggregate by node | Snapshot only; use Grafana for trends. |
+| Cluster node memory | container working-set aggregate by node | Snapshot only; use Grafana for trends. |
 | nginx | `nginx_up`, `nginx_connections_*`, `nginx_http_requests_total` | Gateway status summary. |
 | PostgreSQL | `up{job="postgres"}` plus exporter-specific `pg_*` detail | Primary card is availability; deep DB charts remain Grafana/SRE. |
 | Redis | `up{job="redis"}` plus exporter-specific `redis_*` detail | Primary card is availability. |
@@ -333,9 +291,9 @@ overflow.
 - Loading: skeleton KPI cards and panel-level loading rows.
 - Prometheus not configured: show the BFF/admin read-model sections and a
   "Prometheus source unavailable" panel. Do not hide the whole dashboard.
-- Server Resource Status still renders the known staging server/resource rows
-  when Prometheus is unconfigured or unavailable. Metrics remain blank, each row
-  is marked `unmonitored`, and the panel source explains the Prometheus state.
+- K8s Service Health, K8s Workloads, and Cluster Nodes render clear empty or
+  unavailable states when Prometheus or kube metrics are unavailable. Legacy
+  server resource rows may remain as transition fallback only.
 - Prometheus query failed: show a retryable source-unavailable state with the
   source category, not raw upstream payloads.
 - No series returned: show "No metrics reported for this query window" and keep
@@ -357,8 +315,8 @@ Add a small, allowlisted Platform metrics BFF surface instead of exposing
 Prometheus directly:
 
 - `GET /api/admin/platform-dashboard`: composed dashboard payload for the page.
-- `GET /api/admin/platform-resource-trends?range=24h|7d|90d`: sanitized
-  query_range payload for the Resource Trends page.
+- `GET /api/admin/platform-resource-trends?range=24h|7d|90d`: deprecated
+  compatibility route for older clients; the WebUI no longer calls it.
 - Optional `GET /api/admin/platform-dashboard/prometheus-status`: scrape target
   health summary for service-health drill-downs.
 
@@ -381,10 +339,10 @@ Implementation requirements:
   scrape health.
 - Prometheus-backed panels clearly distinguish unavailable, stale, empty, and
   unmonitored states without showing a redundant `Configured` source pill.
-- The first viewport includes Server Resource Status with one row for every
-  known server and clear warning/critical/unmonitored treatment.
-- Server Resource Status and Service Exporter Status do not show `Last checked`
-  columns.
+- The first viewport includes Service Health, K8s Workloads, and Cluster Nodes
+  with clear ok/warning/degraded/critical/unmonitored treatment.
+- Service Health, K8s Workloads, Cluster Nodes, and Service Exporter Status do
+  not show `Last checked` columns.
 - The shell auto-refreshes every 20 seconds and has no manual refresh button.
 - Font Awesome icons are used for navigation, topbar actions, KPIs, status
   badges, and common action buttons.

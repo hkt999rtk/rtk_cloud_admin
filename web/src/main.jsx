@@ -41,7 +41,16 @@ import {
 import { quotaRaiseErrorMessage, quotaUsageLabel } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
-import { auditCoverageCopy, formatResourcePercent, formatThroughputBPS, resourceStatusLabel, resourceStatusTone, ssoProtocolLabel } from './platform-view.mjs';
+import {
+  auditCoverageCopy,
+  formatResourcePercent,
+  formatThroughputBPS,
+  resourceStatusLabel,
+  resourceStatusTone,
+  ssoProtocolLabel,
+  workloadStatusLabel,
+  workloadStatusTone,
+} from './platform-view.mjs';
 import {
   sourceAvailable,
   sourceMessage,
@@ -79,7 +88,6 @@ function App() {
   const [serviceLogs, setServiceLogs] = useState(null);
   const [audit, setAudit] = useState([]);
   const [platformDashboard, setPlatformDashboard] = useState(null);
-  const [platformResourceTrends, setPlatformResourceTrends] = useState(null);
   const [brandClouds, setBrandClouds] = useState([]);
   const [brandCloudPagination, setBrandCloudPagination] = useState({ limit: 25, offset: 0, total: 0 });
   const [brandCloudQuery, setBrandCloudQuery] = useState('');
@@ -94,8 +102,6 @@ function App() {
   const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
   const [overviewWindow, setOverviewWindow] = useState('7d');
   const [streamWindow, setStreamWindow] = useState('7d');
-  const [platformResourceRange, setPlatformResourceRange] = useState('24h');
-  const [platformResourceMetric, setPlatformResourceMetric] = useState('network');
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -121,7 +127,6 @@ function App() {
     setServiceLogs(null);
     setAudit([]);
     setPlatformDashboard(null);
-    setPlatformResourceTrends(null);
     setBrandClouds([]);
     setBrandCloudPagination({ limit: 25, offset: 0, total: 0 });
     setBrandCloudSource({ status: 'idle', message: '' });
@@ -211,22 +216,6 @@ function App() {
         }
         setAudit(nextAudit);
         setPlatformDashboard(nextPlatformDashboard);
-        if (useAdminApi && active === 'platform-resources') {
-          const nextResourceTrends = await fetchJSON(`/api/admin/platform-resource-trends?range=${platformResourceRange}`)
-            .catch((err) => {
-              if (err.isAuthError) throw err;
-              return {
-                range: platformResourceRange,
-                source: { source_status: 'unavailable', source_message: err.message || 'Resource trends are unavailable.' },
-                series: [],
-                summaries: [],
-              };
-            });
-          if (!alive) return;
-          setPlatformResourceTrends(nextResourceTrends);
-        } else {
-          setPlatformResourceTrends(null);
-        }
         if (useAdminApi && active === 'platform-brand-clouds' && nextMe.upstream_account_manager) {
           try {
             const result = await fetchJSON(brandCloudsURL({
@@ -328,7 +317,6 @@ function App() {
           setHealth([]);
           setServiceLogs(null);
           setAudit([]);
-          setPlatformResourceTrends(null);
           setBrandClouds([]);
           setBrandCloudSource({ status: 'idle', message: '' });
           setSelectedBrandCloudId('');
@@ -348,7 +336,7 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, brandCloudPagination.limit, brandCloudPagination.offset, brandCloudQuery, brandCloudStatus, brandCloudTierFilter, isLoginRoute, isPublicRoute, overviewWindow, platformResourceRange, refreshTick, streamWindow]);
+  }, [active, brandCloudPagination.limit, brandCloudPagination.offset, brandCloudQuery, brandCloudStatus, brandCloudTierFilter, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
 
   useEffect(() => {
     if (!isPublicRoute || isLoginRoute) return;
@@ -361,7 +349,6 @@ function App() {
     setHealth([]);
     setServiceLogs(null);
     setAudit([]);
-    setPlatformResourceTrends(null);
     setBrandClouds([]);
     setBrandCloudPagination({ limit: 25, offset: 0, total: 0 });
     setBrandCloudSource({ status: 'idle', message: '' });
@@ -772,11 +759,11 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isPlatformView ? 'platform-shell' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">C+</span>
-          <strong>Connect+ Ops</strong>
+          <span className="brand-mark" aria-hidden="true">{isPlatformView ? <Icon name="cloud" /> : 'C+'}</span>
+          <strong>{isPlatformView ? 'RTK cloud' : 'Connect+ Ops'}</strong>
         </div>
         <p className="sidebar-section-label">{isPlatformView ? 'Platform View' : 'Customer View'}</p>
         <nav>
@@ -889,16 +876,6 @@ function App() {
           />
         ) : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} /> : null}
-        {!needsPlatformAccess && active === 'platform-resources' ? (
-          <PlatformResourceTrends
-            trends={platformResourceTrends}
-            range={platformResourceRange}
-            setRange={setPlatformResourceRange}
-            metric={platformResourceMetric}
-            setMetric={setPlatformResourceMetric}
-            loading={loading}
-          />
-        ) : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
         {!needsPlatformAccess && active === 'platform-logs' ? <PlatformServiceLogs logs={serviceLogs} loading={loading} /> : null}
         {!needsPlatformAccess && brandCloudsBlocked ? (
@@ -2072,9 +2049,11 @@ function PlatformAccessGate({ active, me }) {
 
 function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
   const source = dashboard?.sources?.prometheus || null;
-  const kpis = dashboard?.kpis?.length ? dashboard.kpis : fallbackPlatformKPIs(summary);
   const serviceGroups = dashboard?.service_scrape_health || [];
   const serviceExporters = dashboard?.service_exporters || [];
+  const serviceMetrics = dashboard?.service_metrics || [];
+  const workloadHealth = dashboard?.workload_health || [];
+  const clusterNodes = dashboard?.cluster_nodes || [];
   const serverResources = dashboard?.server_resources || [];
   const risk = dashboard?.operation_risk || {
     open_operations: summary?.open_operations ?? 0,
@@ -2091,12 +2070,6 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
   ];
   const openOps = operations.filter((operation) => operation.state !== 'succeeded').slice(0, 5);
   const queries = dashboardQueriesByID(dashboard);
-  const runtimeRows = [
-    metricPanelRow('Request rate', queries.runtime_request_rate, { suffix: '/s' }),
-    metricPanelRow('5xx rate', queries.runtime_5xx_rate, { suffix: '/s' }),
-    metricPanelRow('Avg latency', queries.runtime_avg_latency_seconds, { suffix: 's' }),
-    metricPanelRow('App up', queries.app_up),
-  ];
   const crossServiceRows = [
     metricPanelRow('Consumer backlog', queries.crossservice_consumer_backlog),
     metricPanelRow('Dead letters', queries.crossservice_dead_letters),
@@ -2117,111 +2090,291 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
     metricPanelRow('Gateway targets', dashboardGroup(serviceGroups, 'gateway')),
     metricPanelRow('Broker targets', dashboardGroup(serviceGroups, 'broker')),
   ];
+  const servicesUp = serviceMetrics.filter((metric) => ['ok', 'warning'].includes(normalizeStatusKey(metric.status))).length;
+  const targetsDown = serviceMetrics.reduce((total, metric) => total + (metric.targets_down || 0), 0);
+  const targetsTotal = serviceMetrics.reduce((total, metric) => total + (metric.targets_total || 0), 0);
+  const workloadsDegraded = workloadHealth.filter((workload) => !['ok', 'unmonitored', 'unconfigured'].includes(normalizeStatusKey(workload.status))).length;
+  const nodesReady = clusterNodes.filter((node) => node.ready).length;
+  const dashboardKpis = [
+    { id: 'services-up', label: 'Services Up', value: servicesUp || serviceMetrics.length, detail: serviceMetrics.length ? `/ ${serviceMetrics.length}` : '', icon: 'circle-check', tone: 'good' },
+    { id: 'targets-down', label: 'Targets Down', value: targetsDown, detail: targetsTotal ? `/ ${targetsTotal}` : '', icon: 'circle-minus', tone: targetsDown ? 'danger' : 'good' },
+    { id: 'workloads-degraded', label: 'Workloads Degraded', value: workloadsDegraded, detail: workloadHealth.length ? `/ ${workloadHealth.length}` : '', icon: 'triangle-exclamation', tone: workloadsDegraded ? 'warn' : 'good' },
+    { id: 'nodes-ready', label: 'Nodes Ready', value: nodesReady, detail: clusterNodes.length ? `/ ${clusterNodes.length}` : '', icon: 'circle', tone: nodesReady === clusterNodes.length ? 'good' : 'warn' },
+    { id: 'failed-ops', label: 'Failed Ops', value: risk.failed_operations || 0, detail: 'Open', icon: 'circle-minus', tone: risk.failed_operations ? 'danger' : 'good' },
+  ];
   return (
     <section className="platform-dashboard">
       <div className="platform-dashboard-head">
-        <div>
-          <h2>Platform Dashboard</h2>
-          <p>Cross-tenant operating status for Platform Admins.</p>
+        <div className="platform-context-controls" aria-label="Platform dashboard context">
+          <span>Environment <strong>Production</strong></span>
+          <span>Cluster <strong>rtk-prod-eu1</strong></span>
+          <span className="platform-health-chip"><StatusDot value={targetsDown || workloadsDegraded ? 'warning' : 'ok'} />{targetsDown || workloadsDegraded ? 'Attention' : 'Healthy'}</span>
         </div>
+        <span className="platform-updated"><Icon name="rotate" /> Last updated: now</span>
       </div>
 
       <section className="platform-kpi-strip">
-        {kpis.map((kpi) => (
-          <article className="platform-kpi" key={kpi.id}>
-            <span>{kpi.label}</span>
-            <strong>{formatPlatformKPIValue(kpi)}</strong>
-            <small>{platformKPIHint(kpi)}</small>
+        {dashboardKpis.map((kpi) => (
+          <article className={`platform-kpi platform-kpi-${kpi.tone}`} key={kpi.id}>
+            <div className="platform-kpi-label">
+              <Icon name={kpi.icon} />
+              <span>{kpi.label}</span>
+            </div>
+            <strong>{formatCompactNumber(kpi.value)} <small>{kpi.detail}</small></strong>
           </article>
         ))}
       </section>
 
-      <ServerResourceStatus resources={serverResources} source={dashboard?.panel_sources?.server_resources || source} />
+      <section className="platform-primary-grid">
+        <ServiceMetricsTable metrics={serviceMetrics} source={dashboard?.panel_sources?.service_metrics || source} />
+        <WorkloadHealthTable workloads={workloadHealth} source={dashboard?.panel_sources?.workload_health || source} />
+      </section>
 
-      <ServiceExporterStatus exporters={serviceExporters} source={dashboard?.panel_sources?.service_exporters || source} />
+      <section className="platform-secondary-grid">
+        <ClusterNodeSummary nodes={clusterNodes} source={dashboard?.panel_sources?.cluster_nodes || source} />
+        <OperationRiskPanel risk={risk} operations={openOps} />
+      </section>
 
-      <section className="platform-dashboard-grid">
-        <article className="panel platform-dashboard-panel">
-          <div className="panel-head">
-            <div>
-              <h2>Service & Scrape Health</h2>
-              <p>Grouped target health from the admin Prometheus boundary.</p>
-            </div>
-          </div>
-          <div className="scrape-group-list">
-            {serviceGroups.map((group) => (
-              <div className="scrape-group-row" key={group.id}>
-                <div>
-                  <strong>{group.name}</strong>
-                  <small>{group.targets_up} up / {group.targets_down} down</small>
-                </div>
-                <StatusBadge value={normalizeStatusKey(group.status)} label={toTitleCase(group.status)} />
-              </div>
-            ))}
-            {!serviceGroups.length ? <p className="empty-state">No scrape group data available.</p> : null}
-          </div>
-        </article>
-
-        <article className="panel platform-dashboard-panel">
-          <div className="panel-head">
-            <div>
-              <h2>Tenant & Device Footprint</h2>
-              <p>Admin read-model totals across customer organizations.</p>
-            </div>
-          </div>
-          <div className="footprint-list">
-            {footprintRows.map(([label, value]) => (
-              <div key={label}>
-                <span>{label}</span>
-                <strong>{value}</strong>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="panel platform-dashboard-panel operation-risk-panel">
-          <div className="panel-head">
-            <div>
-              <h2>Operation Risk</h2>
-              <p>{risk.failed_operations || risk.dead_lettered_operations ? 'Failures need operator attention.' : 'No failed lifecycle work currently reported.'}</p>
-            </div>
-          </div>
-          <div className="risk-strip" aria-label="Operation risk counts">
-            <div className="risk-metric">
-              <Icon name="clock" />
-              <span>Open</span>
-              <strong>{risk.open_operations}</strong>
-            </div>
-            <div className={`risk-metric ${risk.failed_operations ? 'risk-hot' : ''}`}>
-              <Icon name="circle-exclamation" />
-              <span>Failed</span>
-              <strong>{risk.failed_operations}</strong>
-            </div>
-            <div className={`risk-metric ${risk.dead_lettered_operations ? 'risk-hot' : ''}`}>
-              <Icon name="box-archive" />
-              <span>Dead letters</span>
-              <strong>{risk.dead_lettered_operations}</strong>
-            </div>
-          </div>
-          <OperationList operations={openOps} detailed />
-        </article>
-
-        <article className="panel platform-dashboard-panel platform-activity-panel">
-          <div className="panel-head">
-            <div>
-              <h2>Platform Activity</h2>
-              <p>{health.filter((item) => item.status === 'ok').length} of {health.length} services healthy.</p>
-            </div>
-          </div>
-          <ServiceHealth health={health} compact />
-        </article>
-
-        <PlatformMetricPanel title="Runtime Health" rows={runtimeRows} />
+      <section className="platform-dashboard-grid platform-support-grid">
+        <ServiceExporterStatus exporters={serviceExporters} source={dashboard?.panel_sources?.service_exporters || source} />
+        <ScrapeHealthPanel groups={serviceGroups} />
+        <FootprintPanel rows={footprintRows} />
+        <PlatformActivityPanel health={health} />
         <PlatformMetricPanel title="Cross-Service Risk" rows={crossServiceRows} />
         <PlatformMetricPanel title="Business Signals" rows={businessRows} secondary />
         <PlatformMetricPanel title="Infrastructure Health" rows={infrastructureRows} />
+        {serverResources.length ? <ServerResourceStatus resources={serverResources} source={dashboard?.panel_sources?.server_resources || source} legacy /> : null}
       </section>
     </section>
+  );
+}
+
+function ScrapeHealthPanel({ groups }) {
+  return (
+    <article className="panel platform-dashboard-panel platform-compact-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Scrape Health</h2>
+          <p>Grouped Prometheus target status.</p>
+        </div>
+      </div>
+      <div className="scrape-group-list">
+        {groups.map((group) => (
+          <div className="scrape-group-row" key={group.id}>
+            <div>
+              <strong>{group.name}</strong>
+              <small>{group.targets_up} up / {group.targets_down} down</small>
+            </div>
+            <CompactStatus value={group.status} label={toTitleCase(group.status)} />
+          </div>
+        ))}
+        {!groups.length ? <p className="empty-state">No scrape group data available.</p> : null}
+      </div>
+    </article>
+  );
+}
+
+function FootprintPanel({ rows }) {
+  return (
+    <article className="panel platform-dashboard-panel platform-compact-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Tenant & Device Footprint</h2>
+          <p>Admin read-model totals.</p>
+        </div>
+      </div>
+      <div className="footprint-list">
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function OperationRiskPanel({ risk, operations }) {
+  return (
+    <article className="panel platform-dashboard-panel operation-risk-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Operation Risk</h2>
+          <p>{risk.failed_operations || risk.dead_lettered_operations ? 'Failures need operator attention.' : 'No failed lifecycle work currently reported.'}</p>
+        </div>
+        <div className="operation-risk-legend" aria-label="Operation risk legend">
+          <span><StatusDot value="open" />Open</span>
+          <span><StatusDot value="warning" />Failed</span>
+          <span><StatusDot value="dead_lettered" />Dead-letter</span>
+        </div>
+      </div>
+      <div className="risk-strip" aria-label="Operation risk counts">
+        <div className="risk-metric">
+          <span>Open</span>
+          <strong>{risk.open_operations}</strong>
+        </div>
+        <div className={`risk-metric ${risk.failed_operations ? 'risk-hot' : ''}`}>
+          <span>Failed</span>
+          <strong>{risk.failed_operations}</strong>
+        </div>
+        <div className={`risk-metric ${risk.dead_lettered_operations ? 'risk-hot' : ''}`}>
+          <span>Dead letters</span>
+          <strong>{risk.dead_lettered_operations}</strong>
+        </div>
+      </div>
+      <OperationList operations={operations} detailed />
+    </article>
+  );
+}
+
+function PlatformActivityPanel({ health }) {
+  return (
+    <article className="panel platform-dashboard-panel platform-activity-panel platform-compact-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Platform Activity</h2>
+          <p>{health.filter((item) => item.status === 'ok').length} of {health.length} services healthy.</p>
+        </div>
+      </div>
+      <ServiceHealth health={health} compact />
+    </article>
+  );
+}
+
+function ServiceMetricsTable({ metrics, source }) {
+  return (
+    <article className="panel platform-dashboard-panel server-resource-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Service Health</h2>
+          <p>Current k8s service target health and basic runtime metrics. Long-term trends live in Grafana.</p>
+        </div>
+      </div>
+      <div className="server-resource-table-wrap">
+        <table className="server-resource-table service-metrics-table">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Namespace</th>
+              <th>Targets</th>
+              <th>Req/s</th>
+              <th>5xx/s</th>
+              <th>Avg latency</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {metrics.map((metric) => (
+              <tr key={metric.id}>
+                <td><strong>{metric.service || metric.id}</strong></td>
+                <td>{metric.namespace || '-'}</td>
+                <td>{metric.source_status === 'configured' || metric.source_status === 'stale' || metric.targets_total ? `${metric.targets_up} up / ${metric.targets_down} down` : 'Unavailable'}</td>
+                <td>{formatCompactNumber(metric.request_rate ?? 0)}</td>
+                <td>{formatCompactNumber(metric.error_rate_5xx ?? 0)}</td>
+                <td>{metric.avg_latency_seconds === undefined || metric.avg_latency_seconds === null ? 'Unavailable' : `${formatCompactNumber(metric.avg_latency_seconds)}s`}</td>
+                <td><CompactStatus value={resourceStatusTone(metric.status)} label={resourceStatusLabel(metric.status)} /></td>
+              </tr>
+            ))}
+            {!metrics.length ? (
+              <tr>
+                <td colSpan="7" className="empty-state">{source?.source_message || 'No k8s service metrics available.'}</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  );
+}
+
+function WorkloadHealthTable({ workloads, source }) {
+  return (
+    <article className="panel platform-dashboard-panel server-resource-panel">
+      <div className="panel-head">
+        <div>
+          <h2>K8s Workloads</h2>
+          <p>Deployment replica, pod readiness, restart, and crashloop status.</p>
+        </div>
+      </div>
+      <div className="server-resource-table-wrap">
+        <table className="server-resource-table workload-health-table">
+          <thead>
+            <tr>
+              <th>Workload</th>
+              <th>Namespace</th>
+              <th>Kind</th>
+              <th>Replicas</th>
+              <th>Ready pods</th>
+              <th>Restarts</th>
+              <th>Crashloop</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {workloads.map((workload) => (
+              <tr key={workload.id}>
+                <td><strong>{workload.name || workload.id}</strong></td>
+                <td>{workload.namespace || '-'}</td>
+                <td>{workload.kind || '-'}</td>
+                <td>{workload.available_replicas ?? 0} / {workload.desired_replicas ?? 0}</td>
+                <td>{workload.ready_pods ?? 0}</td>
+                <td>{workload.restart_count ?? 0}</td>
+                <td>{workload.crashloop_pods ?? 0}</td>
+                <td><CompactStatus value={workloadStatusTone(workload.status)} label={workloadStatusLabel(workload.status)} /></td>
+              </tr>
+            ))}
+            {!workloads.length ? (
+              <tr>
+                <td colSpan="8" className="empty-state">{source?.source_message || 'No k8s workload health data available.'}</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  );
+}
+
+function ClusterNodeSummary({ nodes, source }) {
+  return (
+    <article className="panel platform-dashboard-panel server-resource-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Cluster Nodes</h2>
+          <p>Current k8s node readiness and resource snapshot.</p>
+        </div>
+      </div>
+      <div className="server-resource-table-wrap">
+        <table className="server-resource-table cluster-node-table">
+          <thead>
+            <tr>
+              <th>Node</th>
+              <th>Ready</th>
+              <th>CPU</th>
+              <th>Memory</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {nodes.map((node) => (
+              <tr key={node.id}>
+                <td><strong>{node.name || node.id}</strong></td>
+                <td>{node.ready ? 'Ready' : 'Not ready'}</td>
+                <td>{formatResourcePercent(node.cpu_percent)}</td>
+                <td>{formatResourcePercent(node.memory_percent)}</td>
+                <td><CompactStatus value={resourceStatusTone(node.status)} label={resourceStatusLabel(node.status)} /></td>
+              </tr>
+            ))}
+            {!nodes.length ? (
+              <tr>
+                <td colSpan="5" className="empty-state">{source?.source_message || 'No k8s node metrics available.'}</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </article>
   );
 }
 
@@ -2250,7 +2403,7 @@ function ServiceExporterStatus({ exporters, source }) {
                 <td><strong>{exporter.label || exporter.id}</strong></td>
                 <td>{exporter.role || '-'}</td>
                 <td>{exporter.source_status === 'configured' || exporter.source_status === 'stale' || exporter.targets_total ? `${exporter.targets_up} up / ${exporter.targets_down} down` : 'Unavailable'}</td>
-                <td><StatusBadge value={resourceStatusTone(exporter.status)} label={resourceStatusLabel(exporter.status)} /></td>
+                <td><CompactStatus value={resourceStatusTone(exporter.status)} label={resourceStatusLabel(exporter.status)} /></td>
               </tr>
             ))}
             {!exporters.length ? (
@@ -2265,13 +2418,13 @@ function ServiceExporterStatus({ exporters, source }) {
   );
 }
 
-function ServerResourceStatus({ resources, source }) {
+function ServerResourceStatus({ resources, source, legacy = false }) {
   return (
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2>Server Resource Status</h2>
-          <p>Per-server CPU, memory, root disk, and network throughput from the admin Prometheus boundary.</p>
+          <h2>{legacy ? 'Legacy Server Resource Status' : 'Server Resource Status'}</h2>
+          <p>{legacy ? 'Transition-only VM/server fallback while k8s metrics become the primary dashboard source.' : 'Per-server CPU, memory, root disk, and network throughput from the admin Prometheus boundary.'}</p>
         </div>
       </div>
       <div className="server-resource-table-wrap">
@@ -2336,216 +2489,6 @@ function PlatformMetricPanel({ title, rows, secondary = false }) {
   );
 }
 
-function PlatformResourceTrends({ trends, range, setRange, metric, setMetric, loading }) {
-  const source = trends?.source || { source_status: loading ? 'empty' : 'unconfigured' };
-  const chart = useMemo(() => buildPlatformResourceTrendChart(trends, metric), [trends, metric]);
-  const summaryRows = trends?.summaries || [];
-  return (
-    <section className="platform-dashboard resource-trends-page">
-      <div className="platform-dashboard-head">
-        <div>
-          <h2>Resource Trends</h2>
-          <p>Historical server CPU, memory, disk, and network usage for Platform Admins.</p>
-        </div>
-      </div>
-
-      <section className="resource-trends-controls">
-        <div>
-          <span className="control-label">Range</span>
-          <WindowToggle value={range} onChange={setRange} label="Resource trend range" options={['24h', '7d', '90d']} disabled={loading} />
-        </div>
-        <div>
-          <span className="control-label">Metric</span>
-          <WindowToggle value={metric} onChange={setMetric} label="Resource trend metric" options={['cpu', 'memory', 'disk', 'network']} disabled={loading} />
-        </div>
-      </section>
-
-      <article className="panel platform-dashboard-panel resource-trend-chart-panel">
-        <div className="panel-head">
-          <div>
-            <h2>{resourceTrendMetricTitle(metric)}</h2>
-            <p>{resourceTrendMetricSubtitle(metric, trends?.range || range)}</p>
-          </div>
-        </div>
-        {chart.series.length ? (
-          <ResourceTrendLineChart chart={chart} metric={metric} title={resourceTrendMetricTitle(metric)} />
-        ) : (
-          <p className="empty-state">{source.source_message || 'No resource trend data available for this range.'}</p>
-        )}
-      </article>
-
-      <article className="panel platform-dashboard-panel server-resource-panel">
-        <div className="panel-head">
-          <div>
-            <h2>Server Trend Summary</h2>
-            <p>Current, average, p95, and max values for the selected range.</p>
-          </div>
-        </div>
-        <div className="server-resource-table-wrap">
-          <table className="server-resource-table resource-summary-table">
-            <thead>
-              <tr>
-                <th>Server</th>
-                <th>Role / Service</th>
-                <th>Current</th>
-                <th>Avg</th>
-                <th>P95</th>
-                <th>Max</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summaryRows.map((row) => {
-                const metricSummary = resourceTrendSummaryForMetric(row, metric);
-                return (
-                  <tr key={row.server_id}>
-                    <td><strong>{row.label || row.server_id}</strong></td>
-                    <td>{row.role || '-'}</td>
-                    <td>{formatResourceTrendValue(metricSummary.current, metric)}</td>
-                    <td>{formatResourceTrendValue(metricSummary.avg, metric)}</td>
-                    <td>{formatResourceTrendValue(metricSummary.p95, metric)}</td>
-                    <td>{formatResourceTrendValue(metricSummary.max, metric)}</td>
-                  </tr>
-                );
-              })}
-              {!summaryRows.length ? (
-                <tr>
-                  <td colSpan="6" className="empty-state">No server trend summary available.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      </article>
-    </section>
-  );
-}
-
-function ResourceTrendLineChart({ chart, metric, title }) {
-  const width = 920;
-  const height = 340;
-  const padding = { top: 28, right: 28, bottom: 58, left: 78 };
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-  const series = chart?.series || [];
-  const labels = chart?.labels || [];
-  const yTicks = buildResourceTrendYTicks(chart?.maxValue || 0, metric);
-  const latestValues = series.map((item) => {
-    const latest = item.samples.at(-1);
-    return {
-      key: item.key,
-      label: item.label,
-      color: item.color,
-      value: formatResourceTrendValue(latest?.value, metric),
-    };
-  });
-  const seriesPaths = series.map((item) => {
-    const points = item.samples.map((sample, index) => {
-      const x = padding.left + (index / Math.max(item.samples.length - 1, 1)) * plotWidth;
-      const y = padding.top + (1 - Number(sample.value || 0) / Math.max(chart.maxValue || 1, 1)) * plotHeight;
-      return { x, y, sample };
-    });
-    const line = points.map((point, index) => `${index ? 'L' : 'M'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
-    const area = points.length
-      ? `${line} L ${points.at(-1).x.toFixed(2)} ${(padding.top + plotHeight).toFixed(2)} L ${points[0].x.toFixed(2)} ${(padding.top + plotHeight).toFixed(2)} Z`
-      : '';
-    return { ...item, points, line, area };
-  });
-
-  return (
-    <div className="resource-line-chart-shell">
-      <div className="resource-line-chart-head">
-        <div className="chart-legend resource-line-legend">
-          {latestValues.map((item) => (
-            <span key={item.key}><i className="legend-line" style={{ background: item.color }} />{item.label}</span>
-          ))}
-        </div>
-        <div className="resource-line-latest">
-          {latestValues.map((item) => (
-            <span key={item.key}>
-              <i style={{ background: item.color }} />
-              <strong>{item.value}</strong>
-              <small>{item.label}</small>
-            </span>
-          ))}
-        </div>
-      </div>
-      <svg className="resource-line-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title} trend chart`} preserveAspectRatio="none">
-        <rect className="resource-line-chart-bg" x={padding.left} y={padding.top} width={plotWidth} height={plotHeight} rx="4" />
-        {yTicks.map((tick) => {
-          const y = padding.top + (1 - tick.value / Math.max(chart.maxValue || 1, 1)) * plotHeight;
-          return (
-            <g key={tick.value}>
-              <line className="resource-grid-line" x1={padding.left} x2={padding.left + plotWidth} y1={y} y2={y} />
-              <text className="resource-y-label" x={padding.left - 12} y={y + 4} textAnchor="end">{tick.label}</text>
-            </g>
-          );
-        })}
-        {labels.map((label) => {
-          const x = padding.left + (label.positionPercent / 100) * plotWidth;
-          return <line key={`grid-${label.primary}-${label.positionPercent}`} className="resource-grid-line vertical" x1={x} x2={x} y1={padding.top} y2={padding.top + plotHeight} />;
-        })}
-        {seriesPaths.map((item) => item.area ? <path key={`${item.key}-area`} className="resource-area" d={item.area} fill={item.color} /> : null)}
-        {seriesPaths.map((item) => <path key={`${item.key}-line`} className="resource-line" d={item.line} stroke={item.color} />)}
-        {seriesPaths.map((item) => {
-          const latest = item.points.at(-1);
-          if (!latest) return null;
-          return <circle key={`${item.key}-latest`} className="resource-latest-dot" cx={latest.x} cy={latest.y} r="4.5" fill={item.color} />;
-        })}
-        {labels.map((label) => {
-          const x = padding.left + (label.positionPercent / 100) * plotWidth;
-          return (
-            <text key={`label-${label.primary}-${label.positionPercent}`} className="resource-x-label" x={x} y={height - 28} textAnchor="middle">
-              <tspan x={x}>{label.primary}</tspan>
-              <tspan x={x} dy="15">{label.secondary}</tspan>
-            </text>
-          );
-        })}
-      </svg>
-      <div className="resource-chart-note">{resourceTrendChartCaption(metric)}</div>
-    </div>
-  );
-}
-
-function buildResourceTrendYTicks(maxValue, metric) {
-  const max = Math.max(Number(maxValue || 0), 1);
-  return [1, 0.75, 0.5, 0.25, 0].map((ratio) => {
-    const value = max * ratio;
-    return {
-      value,
-      label: metric === 'network' ? formatThroughputBPS(value) : formatResourcePercent(value),
-    };
-  });
-}
-
-function fallbackPlatformKPIs(summary) {
-  return [
-    { id: 'tenants', label: 'Tenants', value: summary?.customers ?? 0, source_status: 'configured' },
-    {
-      id: 'devices_online',
-      label: 'Devices Online',
-      value: summary?.online_devices ?? 0,
-      secondary_label: 'online_rate_pct',
-      secondary_value: summary?.total_devices ? (summary.online_devices / summary.total_devices) * 100 : 0,
-      source_status: 'configured',
-    },
-    { id: 'open_operations', label: 'Open Operations', value: summary?.open_operations ?? 0, source_status: 'configured' },
-    { id: 'scrape_targets_down', label: 'Scrape Targets Down', value: 0, source_status: 'unconfigured' },
-  ];
-}
-
-function formatPlatformKPIValue(kpi) {
-  if (kpi.id === 'devices_online' && kpi.secondary_label === 'online_rate_pct') {
-    return `${Number(kpi.value || 0).toLocaleString()} / ${formatPercent(kpi.secondary_value || 0)}`;
-  }
-  return Number(kpi.value || 0).toLocaleString();
-}
-
-function platformKPIHint(kpi) {
-  if (kpi.id === 'devices_online') return 'count / online rate';
-  if (kpi.source_status && kpi.source_status !== 'configured') return toTitleCase(kpi.source_status);
-  return kpi.unit || 'current';
-}
-
 function dashboardQueriesByID(dashboard) {
   const byID = {};
   for (const query of dashboard?.prometheus?.queries || []) {
@@ -2576,42 +2519,6 @@ function formatCompactNumber(value) {
   if (Math.abs(number) >= 1000) return number.toLocaleString(undefined, { maximumFractionDigits: 0 });
   if (Math.abs(number) >= 10) return number.toLocaleString(undefined, { maximumFractionDigits: 1 });
   return number.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function resourceTrendMetricTitle(metric) {
-  return {
-    cpu: 'CPU Utilization',
-    memory: 'Memory Utilization',
-    disk: 'Root Disk Utilization',
-    network: 'Network Throughput',
-  }[metric] || 'Resource Trend';
-}
-
-function resourceTrendMetricSubtitle(metric, range) {
-  if (metric === 'network') return `Inbound and outbound throughput over ${String(range || '24h').toUpperCase()}.`;
-  return `Top servers by max ${resourceTrendMetricTitle(metric).toLowerCase()} over ${String(range || '24h').toUpperCase()}.`;
-}
-
-function resourceTrendSummaryForMetric(row, metric) {
-  if (metric === 'cpu') return row.cpu_percent || {};
-  if (metric === 'memory') return row.memory_percent || {};
-  if (metric === 'disk') return row.disk_percent || {};
-  if (metric === 'network') {
-    const hasNetwork = row.network_in_bps?.current !== undefined || row.network_out_bps?.current !== undefined;
-    if (!hasNetwork) return {};
-    return {
-      current: Number(row.network_in_bps?.current || 0) + Number(row.network_out_bps?.current || 0),
-      avg: Number(row.network_in_bps?.avg || 0) + Number(row.network_out_bps?.avg || 0),
-      p95: Number(row.network_in_bps?.p95 || 0) + Number(row.network_out_bps?.p95 || 0),
-      max: Number(row.network_in_bps?.max || 0) + Number(row.network_out_bps?.max || 0),
-    };
-  }
-  return {};
-}
-
-function formatResourceTrendValue(value, metric) {
-  if (metric === 'network') return formatThroughputBPS(value);
-  return formatResourcePercent(value);
 }
 
 function PlatformHealth({ summary, health }) {
@@ -4558,6 +4465,19 @@ function StatusBadge({ value, label }) {
   );
 }
 
+function CompactStatus({ value, label }) {
+  return (
+    <span className="compact-status">
+      <StatusDot value={value} />
+      {label ?? statusDisplayText(value)}
+    </span>
+  );
+}
+
+function StatusDot({ value }) {
+  return <span className={`status-dot status-dot-${normalizeStatusKey(value).replaceAll('_', '-')}`} aria-hidden="true" />;
+}
+
 function statusDisplayText(value) {
   const normalized = normalizeStatusKey(value);
   if (normalized === 'ok') return 'OK';
@@ -4874,84 +4794,6 @@ function formatRelativeTime(iso) {
   if (hours < 24) return deltaSeconds >= 0 ? `${hours}h ago` : `in ${hours}h`;
   const days = Math.round(hours / 24);
   return deltaSeconds >= 0 ? `${days}d ago` : `in ${days}d`;
-}
-
-function buildPlatformResourceTrendChart(trends, metric) {
-  const series = trends?.series || [];
-  const selected = resourceTrendChartSeries(series, metric);
-  if (!selected.length) {
-    return { series: [], labels: [], maxLabel: '0', maxValue: 0 };
-  }
-  const allValues = selected.flatMap((item) => item.points.map((point) => Number(point.value || 0)));
-  const maxValue = Math.max(...allValues, 1);
-  const colors = ['#0f9f9a', '#2563eb', '#c88719', '#7a5af8'];
-  const chartSeries = selected.map((item, index) => ({
-    key: item.key,
-    label: item.label,
-    samples: item.points.map((point) => ({
-      timestamp: point.timestamp,
-      value: Number(point.value || 0),
-    })),
-    color: colors[index % colors.length],
-  }));
-  const referencePoints = selected[0]?.points || [];
-  const labelStep = Math.max(1, Math.ceil(referencePoints.length / 6));
-  const labels = referencePoints
-    .map((point, index) => ({ point, index }))
-    .filter(({ index }) => index % labelStep === 0 || index === referencePoints.length - 1)
-    .map(({ point, index }) => ({
-      ...formatTrendAxisLabel(point.timestamp, trends?.range),
-      positionPercent: Math.min(94, Math.max(6, (index / Math.max(referencePoints.length - 1, 1)) * 100)),
-    }));
-  return {
-    series: chartSeries,
-    labels,
-    maxLabel: metric === 'network' ? formatThroughputBPS(maxValue) : formatResourcePercent(maxValue),
-    maxValue,
-  };
-}
-
-function resourceTrendChartSeries(series, metric) {
-  if (metric === 'network') {
-    return [
-      aggregateResourceTrendSeries(series, 'network_in_bps', 'Total inbound'),
-      aggregateResourceTrendSeries(series, 'network_out_bps', 'Total outbound'),
-    ].filter((item) => item.points.length);
-  }
-  const metricID = {
-    cpu: 'cpu_percent',
-    memory: 'memory_percent',
-    disk: 'disk_percent',
-  }[metric];
-  return series
-    .filter((item) => item.metric === metricID && item.points?.length)
-    .map((item) => ({
-      key: `${item.metric}-${item.server_id}`,
-      label: item.label || item.server_id,
-      points: item.points,
-      max: Math.max(...item.points.map((point) => Number(point.value || 0))),
-    }))
-    .sort((a, b) => b.max - a.max)
-    .slice(0, 4);
-}
-
-function aggregateResourceTrendSeries(series, metric, label) {
-  const totals = new Map();
-  for (const item of series) {
-    if (item.metric !== metric || !item.points?.length) continue;
-    for (const point of item.points) {
-      totals.set(point.timestamp, (totals.get(point.timestamp) || 0) + Number(point.value || 0));
-    }
-  }
-  const points = [...totals.entries()]
-    .sort(([a], [b]) => String(a).localeCompare(String(b)))
-    .map(([timestamp, value]) => ({ timestamp, value }));
-  return { key: metric, label, points };
-}
-
-function resourceTrendChartCaption(metric) {
-  if (metric === 'network') return 'Inbound and outbound totals across monitored servers.';
-  return 'Top servers by max value in the selected window.';
 }
 
 function buildFleetTrendChart(trend) {

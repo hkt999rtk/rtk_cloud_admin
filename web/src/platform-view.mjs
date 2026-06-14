@@ -47,3 +47,26 @@ export function resourceStatusTone(status) {
   if (normalized === 'unmonitored' || normalized === 'unavailable' || normalized === 'unconfigured') return 'unavailable';
   return 'unknown';
 }
+
+export function workloadStatusLabel(status) {
+  const labels = {
+    crashloop: 'CrashLoopBackOff',
+    pending: 'Pending',
+    degraded: 'Degraded',
+    ok: 'OK',
+    unmonitored: 'Unmonitored',
+    unavailable: 'Unavailable',
+    unconfigured: 'Unconfigured',
+  };
+  return labels[String(status || '').toLowerCase()] || 'Unknown';
+}
+
+export function workloadStatusTone(status) {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'crashloop' || normalized === 'critical') return 'critical';
+  if (normalized === 'pending' || normalized === 'warning') return 'warning';
+  if (normalized === 'degraded') return 'degraded';
+  if (normalized === 'ok' || normalized === 'configured') return 'ok';
+  if (normalized === 'unmonitored' || normalized === 'unavailable' || normalized === 'unconfigured') return 'unavailable';
+  return 'unknown';
+}

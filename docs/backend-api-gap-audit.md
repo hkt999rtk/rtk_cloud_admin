@@ -42,7 +42,7 @@ from Account Manager or Video Cloud before server validation is complete.
 | Fleet stream | `GET /api/fleet/stream-stats` | implemented / live evidence pending | BFF route proxies Video Cloud WebRTC session stats and handles upstream failures. Production sign-off requires live WebRTC session event aggregation evidence. |
 | Firmware | `GET /api/fleet/firmware-distribution` | implemented / live evidence pending | BFF route proxies firmware endpoints when configured and avoids treating generated fallback versions as production evidence. Production sign-off requires observed firmware and rollout facts. |
 | Platform dashboard | `GET /api/admin/summary` | implemented | Platform-admin protected. Returns cross-tenant customer/device/operation summary. |
-| Platform dashboard | `GET /api/admin/platform-dashboard` | implemented | Platform-admin protected BFF boundary for existing summary data, operation risk, KPI strip, grouped scrape health, and allowlisted server-side Prometheus queries. Returns stable source states instead of leaking raw upstream errors. |
+| Platform dashboard | `GET /api/admin/platform-dashboard` | implemented | Platform-admin protected BFF boundary for summary data, operation risk, KPI strip, grouped scrape health, k8s service metrics, workload health, cluster node snapshots, and allowlisted server-side Prometheus queries. Returns stable source states instead of leaking raw upstream errors. |
 | Platform dashboard | `GET /api/admin/customers` | implemented | Platform-admin protected. Returns organization id/name, totals, readiness buckets, and last seen. |
 | Platform dashboard | `GET /api/admin/devices` | implemented | Platform-admin protected. Returns all device read models with organization, readiness, firmware, health, signal quality, and source facts. |
 | Platform operations | `GET /api/admin/operations` | implemented | Platform-admin protected. |
@@ -88,8 +88,10 @@ rejected and unauthenticated requests return `401`.
 Platform Dashboard. It uses `VIDEO_CLOUD_PROMETHEUS_BASE_URL` from the BFF,
 runs only repo-owned allowlisted query definitions, and returns source states
 `configured`, `unconfigured`, `unavailable`, `empty`, or `stale`. The payload
-also composes deterministic KPI, service/scrape health, and operation-risk
-sections from Admin BFF read models plus those Prometheus results.
+also composes deterministic KPI, service/scrape health, k8s service metrics,
+workload health, cluster node snapshots, and operation-risk sections from Admin
+BFF read models plus those Prometheus results. Long-term trend analysis is left
+to Grafana rather than the Admin WebUI.
 
 The device read model is additive and includes customer organization, readiness,
 firmware version, source facts, health, signal quality, last seen, and updated

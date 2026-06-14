@@ -92,6 +92,56 @@ var platformDashboardPrometheusQueries = []prometheusQueryDefinition{
 		Query: `sum by(service) (rate(http_request_duration_seconds_sum[5m])) / sum by(service) (rate(http_request_duration_seconds_count[5m]))`,
 	},
 	{
+		ID:    "k8s_service_targets_up",
+		Title: "K8s service targets up",
+		Query: `sum by(job, service, namespace) (up)`,
+	},
+	{
+		ID:    "k8s_service_targets_down",
+		Title: "K8s service targets down",
+		Query: `sum by(job, service, namespace) (up == bool 0)`,
+	},
+	{
+		ID:    "k8s_deployment_desired_replicas",
+		Title: "K8s deployment desired replicas",
+		Query: `sum by(namespace, deployment) (kube_deployment_spec_replicas)`,
+	},
+	{
+		ID:    "k8s_deployment_available_replicas",
+		Title: "K8s deployment available replicas",
+		Query: `sum by(namespace, deployment) (kube_deployment_status_replicas_available)`,
+	},
+	{
+		ID:    "k8s_ready_pods",
+		Title: "K8s ready pods",
+		Query: `sum by(namespace, pod) (kube_pod_status_ready{condition="true"})`,
+	},
+	{
+		ID:    "k8s_pod_restarts",
+		Title: "K8s pod restarts",
+		Query: `sum by(namespace, pod) (increase(kube_pod_container_status_restarts_total[1h]))`,
+	},
+	{
+		ID:    "k8s_crashloop_pods",
+		Title: "K8s crashloop pods",
+		Query: `sum by(namespace, pod) (kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"})`,
+	},
+	{
+		ID:    "k8s_node_ready",
+		Title: "K8s node ready",
+		Query: `sum by(node) (kube_node_status_condition{condition="Ready",status="true"})`,
+	},
+	{
+		ID:    "k8s_node_cpu_percent",
+		Title: "K8s node CPU utilization",
+		Query: `sum by(node) (rate(container_cpu_usage_seconds_total{container!="",container!="POD"}[5m])) / sum by(node) (kube_node_status_allocatable{resource="cpu"}) * 100`,
+	},
+	{
+		ID:    "k8s_node_memory_percent",
+		Title: "K8s node memory utilization",
+		Query: `sum by(node) (container_memory_working_set_bytes{container!="",container!="POD"}) / sum by(node) (kube_node_status_allocatable{resource="memory"}) * 100`,
+	},
+	{
 		ID:    "app_up",
 		Title: "Application up",
 		Query: `rtk_account_manager_up or rtk_cloud_admin_up or rtk_cloud_frontend_up or rtk_cloud_logger_up`,
@@ -286,6 +336,9 @@ func (s *Server) platformDashboard(ctx context.Context, summary contracts.Summar
 			}),
 			ServiceScrapeHealth: buildPlatformDashboardServiceScrapeHealth(queries),
 			ServiceExporters:    buildPlatformDashboardServiceExporters(platformDashboardQueriesByID(queries)),
+			ServiceMetrics:      buildPlatformDashboardServiceMetrics(platformDashboardQueriesByID(queries)),
+			WorkloadHealth:      buildPlatformDashboardWorkloadHealth(platformDashboardQueriesByID(queries)),
+			ClusterNodes:        buildPlatformDashboardClusterNodes(platformDashboardQueriesByID(queries)),
 			ServerResources:     buildPlatformDashboardServerResources(platformDashboardQueriesByID(queries)),
 			OperationRisk:       buildPlatformDashboardOperationRisk(summary, operations),
 			Sources: map[string]contracts.PlatformDashboardSource{
@@ -340,6 +393,9 @@ func (s *Server) platformDashboard(ctx context.Context, summary contracts.Summar
 		KPIs:                buildPlatformDashboardKPIs(summary, queriesByID),
 		ServiceScrapeHealth: buildPlatformDashboardServiceScrapeHealth(queries),
 		ServiceExporters:    buildPlatformDashboardServiceExporters(queriesByID),
+		ServiceMetrics:      buildPlatformDashboardServiceMetrics(queriesByID),
+		WorkloadHealth:      buildPlatformDashboardWorkloadHealth(queriesByID),
+		ClusterNodes:        buildPlatformDashboardClusterNodes(queriesByID),
 		ServerResources:     buildPlatformDashboardServerResources(queriesByID),
 		OperationRisk:       buildPlatformDashboardOperationRisk(summary, operations),
 		Sources: map[string]contracts.PlatformDashboardSource{
@@ -356,6 +412,9 @@ func platformDashboardPanelSources(adminSource, prometheusSource contracts.Platf
 		"kpis":                  mixedPanelSource(adminSource, prometheusSource),
 		"service_scrape_health": prometheusSource,
 		"service_exporters":     prometheusSource,
+		"service_metrics":       prometheusSource,
+		"workload_health":       prometheusSource,
+		"cluster_nodes":         prometheusSource,
 		"server_resources":      prometheusSource,
 		"operation_risk":        adminSource,
 	}
@@ -458,6 +517,263 @@ func buildPlatformDashboardServiceExporters(queriesByID map[string]contracts.Pla
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+func buildPlatformDashboardServiceMetrics(queriesByID map[string]contracts.PlatformDashboardPrometheusQuery) []contracts.PlatformDashboardServiceMetric {
+	up := queriesByID["k8s_service_targets_up"]
+	down := queriesByID["k8s_service_targets_down"]
+	requestRate := queriesByID["runtime_request_rate"]
+	errorRate := queriesByID["runtime_5xx_rate"]
+	latency := queriesByID["runtime_avg_latency_seconds"]
+	sourceStatus := combinedPrometheusQueryStatus(up, down, requestRate, errorRate, latency)
+	rowsByID := map[string]*contracts.PlatformDashboardServiceMetric{}
+	ensure := func(service, namespace string) *contracts.PlatformDashboardServiceMetric {
+		service = fallback(strings.TrimSpace(service), "unknown")
+		namespace = strings.TrimSpace(namespace)
+		id := service
+		if namespace != "" {
+			id = namespace + "/" + service
+		}
+		row := rowsByID[id]
+		if row == nil {
+			row = &contracts.PlatformDashboardServiceMetric{
+				ID:           id,
+				Service:      service,
+				Namespace:    namespace,
+				Status:       platformDashboardSourceUnmonitored,
+				SourceStatus: sourceStatus,
+			}
+			rowsByID[id] = row
+		}
+		return row
+	}
+	for _, series := range up.Series {
+		row := ensure(series.Labels["service"], series.Labels["namespace"])
+		row.TargetsUp += int(series.Value)
+	}
+	for _, series := range down.Series {
+		row := ensure(series.Labels["service"], series.Labels["namespace"])
+		row.TargetsDown += int(series.Value)
+	}
+	for _, series := range requestRate.Series {
+		row := ensure(series.Labels["service"], series.Labels["namespace"])
+		value := toTwoDecimal(series.Value)
+		row.RequestRate = &value
+	}
+	for _, series := range errorRate.Series {
+		row := ensure(series.Labels["service"], series.Labels["namespace"])
+		value := toTwoDecimal(series.Value)
+		row.ErrorRate5xx = &value
+	}
+	for _, series := range latency.Series {
+		row := ensure(series.Labels["service"], series.Labels["namespace"])
+		value := toTwoDecimal(series.Value)
+		row.AvgLatencySeconds = &value
+	}
+	rows := make([]contracts.PlatformDashboardServiceMetric, 0, len(rowsByID))
+	for _, row := range rowsByID {
+		row.TargetsTotal = row.TargetsUp + row.TargetsDown
+		row.Status = platformDashboardServiceMetricStatus(*row)
+		rows = append(rows, *row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].ID < rows[j].ID
+	})
+	return rows
+}
+
+func platformDashboardServiceMetricStatus(row contracts.PlatformDashboardServiceMetric) string {
+	switch {
+	case row.SourceStatus == platformDashboardSourceUnconfigured || row.SourceStatus == platformDashboardSourceUnavailable:
+		return row.SourceStatus
+	case row.SourceStatus == platformDashboardSourceEmpty || row.TargetsTotal == 0:
+		return platformDashboardSourceUnmonitored
+	case row.TargetsDown > 0:
+		return "degraded"
+	case row.ErrorRate5xx != nil && *row.ErrorRate5xx > 0:
+		return "warning"
+	default:
+		return "ok"
+	}
+}
+
+func buildPlatformDashboardWorkloadHealth(queriesByID map[string]contracts.PlatformDashboardPrometheusQuery) []contracts.PlatformDashboardWorkloadHealth {
+	desired := queriesByID["k8s_deployment_desired_replicas"]
+	available := queriesByID["k8s_deployment_available_replicas"]
+	readyPods := queriesByID["k8s_ready_pods"]
+	restarts := queriesByID["k8s_pod_restarts"]
+	crashloops := queriesByID["k8s_crashloop_pods"]
+	sourceStatus := combinedPrometheusQueryStatus(desired, available, readyPods, restarts, crashloops)
+	rowsByID := map[string]*contracts.PlatformDashboardWorkloadHealth{}
+	ensure := func(namespace, name string) *contracts.PlatformDashboardWorkloadHealth {
+		namespace = fallback(strings.TrimSpace(namespace), "default")
+		name = fallback(strings.TrimSpace(name), "unknown")
+		id := namespace + "/" + name
+		row := rowsByID[id]
+		if row == nil {
+			row = &contracts.PlatformDashboardWorkloadHealth{
+				ID:           id,
+				Namespace:    namespace,
+				Name:         name,
+				Kind:         "Deployment",
+				Status:       platformDashboardSourceUnmonitored,
+				SourceStatus: sourceStatus,
+			}
+			rowsByID[id] = row
+		}
+		return row
+	}
+	for _, series := range desired.Series {
+		row := ensure(series.Labels["namespace"], series.Labels["deployment"])
+		row.DesiredReplicas = int(series.Value)
+	}
+	for _, series := range available.Series {
+		row := ensure(series.Labels["namespace"], series.Labels["deployment"])
+		row.AvailableReplicas = int(series.Value)
+	}
+	for _, series := range readyPods.Series {
+		addPodMetricToWorkload(rowsByID, series.Labels["namespace"], series.Labels["pod"], int(series.Value), func(row *contracts.PlatformDashboardWorkloadHealth, value int) {
+			row.ReadyPods += value
+		})
+	}
+	for _, series := range restarts.Series {
+		addPodMetricToWorkload(rowsByID, series.Labels["namespace"], series.Labels["pod"], int(series.Value), func(row *contracts.PlatformDashboardWorkloadHealth, value int) {
+			row.RestartCount += value
+		})
+	}
+	for _, series := range crashloops.Series {
+		addPodMetricToWorkload(rowsByID, series.Labels["namespace"], series.Labels["pod"], int(series.Value), func(row *contracts.PlatformDashboardWorkloadHealth, value int) {
+			row.CrashLoopPods += value
+		})
+	}
+	rows := make([]contracts.PlatformDashboardWorkloadHealth, 0, len(rowsByID))
+	for _, row := range rowsByID {
+		if row.DesiredReplicas > row.ReadyPods {
+			row.PendingPods = row.DesiredReplicas - row.ReadyPods
+		}
+		row.Status = platformDashboardWorkloadStatus(*row)
+		rows = append(rows, *row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].ID < rows[j].ID
+	})
+	return rows
+}
+
+func addPodMetricToWorkload(rowsByID map[string]*contracts.PlatformDashboardWorkloadHealth, namespace, pod string, value int, apply func(*contracts.PlatformDashboardWorkloadHealth, int)) {
+	namespace = fallback(strings.TrimSpace(namespace), "default")
+	pod = strings.TrimSpace(pod)
+	if pod == "" {
+		return
+	}
+	for _, row := range rowsByID {
+		if row.Namespace == namespace && (pod == row.Name || strings.HasPrefix(pod, row.Name+"-")) {
+			apply(row, value)
+			return
+		}
+	}
+	name := workloadNameFromPod(pod)
+	row := rowsByID[namespace+"/"+name]
+	if row == nil {
+		row = &contracts.PlatformDashboardWorkloadHealth{
+			ID:           namespace + "/" + name,
+			Namespace:    namespace,
+			Name:         name,
+			Kind:         "Deployment",
+			Status:       platformDashboardSourceUnmonitored,
+			SourceStatus: platformDashboardSourceConfigured,
+		}
+		rowsByID[row.ID] = row
+	}
+	apply(row, value)
+}
+
+func workloadNameFromPod(pod string) string {
+	parts := strings.Split(strings.TrimSpace(pod), "-")
+	if len(parts) > 2 {
+		return strings.Join(parts[:len(parts)-2], "-")
+	}
+	if len(parts) > 1 {
+		return strings.Join(parts[:len(parts)-1], "-")
+	}
+	return pod
+}
+
+func platformDashboardWorkloadStatus(row contracts.PlatformDashboardWorkloadHealth) string {
+	switch {
+	case row.SourceStatus == platformDashboardSourceUnconfigured || row.SourceStatus == platformDashboardSourceUnavailable:
+		return row.SourceStatus
+	case row.CrashLoopPods > 0:
+		return "crashloop"
+	case row.DesiredReplicas > 0 && row.AvailableReplicas < row.DesiredReplicas:
+		return "degraded"
+	case row.PendingPods > 0:
+		return "pending"
+	case row.DesiredReplicas == 0 && row.ReadyPods == 0:
+		return platformDashboardSourceUnmonitored
+	default:
+		return "ok"
+	}
+}
+
+func buildPlatformDashboardClusterNodes(queriesByID map[string]contracts.PlatformDashboardPrometheusQuery) []contracts.PlatformDashboardClusterNode {
+	ready := queriesByID["k8s_node_ready"]
+	cpu := queriesByID["k8s_node_cpu_percent"]
+	memory := queriesByID["k8s_node_memory_percent"]
+	sourceStatus := combinedPrometheusQueryStatus(ready, cpu, memory)
+	rowsByID := map[string]*contracts.PlatformDashboardClusterNode{}
+	ensure := func(name string) *contracts.PlatformDashboardClusterNode {
+		name = fallback(strings.TrimSpace(name), "unknown")
+		row := rowsByID[name]
+		if row == nil {
+			row = &contracts.PlatformDashboardClusterNode{
+				ID:           name,
+				Name:         name,
+				Status:       platformDashboardSourceUnmonitored,
+				SourceStatus: sourceStatus,
+			}
+			rowsByID[name] = row
+		}
+		return row
+	}
+	for _, series := range ready.Series {
+		row := ensure(series.Labels["node"])
+		row.Ready = series.Value > 0
+	}
+	for _, series := range cpu.Series {
+		row := ensure(series.Labels["node"])
+		value := toTwoDecimal(series.Value)
+		row.CPUPercent = &value
+	}
+	for _, series := range memory.Series {
+		row := ensure(series.Labels["node"])
+		value := toTwoDecimal(series.Value)
+		row.MemoryPercent = &value
+	}
+	rows := make([]contracts.PlatformDashboardClusterNode, 0, len(rowsByID))
+	for _, row := range rowsByID {
+		row.Status = platformDashboardClusterNodeStatus(*row)
+		rows = append(rows, *row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].Name < rows[j].Name
+	})
+	return rows
+}
+
+func platformDashboardClusterNodeStatus(row contracts.PlatformDashboardClusterNode) string {
+	switch {
+	case row.SourceStatus == platformDashboardSourceUnconfigured || row.SourceStatus == platformDashboardSourceUnavailable:
+		return row.SourceStatus
+	case !row.Ready:
+		return "degraded"
+	case resourceMetricAtLeast(row.CPUPercent, 85) || resourceMetricAtLeast(row.MemoryPercent, 90):
+		return "critical"
+	case resourceMetricAtLeast(row.CPUPercent, 70) || resourceMetricAtLeast(row.MemoryPercent, 75):
+		return "warning"
+	default:
+		return "ok"
+	}
 }
 
 func buildPlatformDashboardServerResources(queriesByID map[string]contracts.PlatformDashboardPrometheusQuery) []contracts.PlatformDashboardServerResource {
@@ -1056,7 +1372,7 @@ func unavailablePlatformDashboardQuery(def prometheusQueryDefinition, checkedAt 
 
 func allowlistedPrometheusLabels(labels map[string]string) map[string]string {
 	out := map[string]string{}
-	for _, key := range []string{"job", "service", "role"} {
+	for _, key := range []string{"job", "service", "role", "namespace", "deployment", "pod", "node"} {
 		if value := strings.TrimSpace(labels[key]); value != "" {
 			out[key] = value
 		}

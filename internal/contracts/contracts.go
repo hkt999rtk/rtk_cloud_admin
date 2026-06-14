@@ -109,6 +109,9 @@ type PlatformDashboard struct {
 	KPIs                []PlatformDashboardKPI                 `json:"kpis"`
 	ServiceScrapeHealth []PlatformDashboardServiceScrapeHealth `json:"service_scrape_health"`
 	ServiceExporters    []PlatformDashboardServiceExporter     `json:"service_exporters"`
+	ServiceMetrics      []PlatformDashboardServiceMetric       `json:"service_metrics"`
+	WorkloadHealth      []PlatformDashboardWorkloadHealth      `json:"workload_health"`
+	ClusterNodes        []PlatformDashboardClusterNode         `json:"cluster_nodes"`
 	ServerResources     []PlatformDashboardServerResource      `json:"server_resources"`
 	OperationRisk       PlatformDashboardOperationRisk         `json:"operation_risk"`
 	Sources             map[string]PlatformDashboardSource     `json:"sources"`
@@ -152,6 +155,45 @@ type PlatformDashboardServiceExporter struct {
 	TargetsTotal int    `json:"targets_total"`
 	SourceStatus string `json:"source_status"`
 	CheckedAt    string `json:"checked_at,omitempty"`
+}
+
+type PlatformDashboardServiceMetric struct {
+	ID                string   `json:"id"`
+	Service           string   `json:"service"`
+	Namespace         string   `json:"namespace,omitempty"`
+	Status            string   `json:"status"`
+	TargetsUp         int      `json:"targets_up"`
+	TargetsDown       int      `json:"targets_down"`
+	TargetsTotal      int      `json:"targets_total"`
+	RequestRate       *float64 `json:"request_rate,omitempty"`
+	ErrorRate5xx      *float64 `json:"error_rate_5xx,omitempty"`
+	AvgLatencySeconds *float64 `json:"avg_latency_seconds,omitempty"`
+	SourceStatus      string   `json:"source_status"`
+}
+
+type PlatformDashboardWorkloadHealth struct {
+	ID                string `json:"id"`
+	Namespace         string `json:"namespace"`
+	Name              string `json:"name"`
+	Kind              string `json:"kind"`
+	DesiredReplicas   int    `json:"desired_replicas"`
+	AvailableReplicas int    `json:"available_replicas"`
+	ReadyPods         int    `json:"ready_pods"`
+	RestartCount      int    `json:"restart_count"`
+	CrashLoopPods     int    `json:"crashloop_pods"`
+	PendingPods       int    `json:"pending_pods"`
+	Status            string `json:"status"`
+	SourceStatus      string `json:"source_status"`
+}
+
+type PlatformDashboardClusterNode struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Ready         bool     `json:"ready"`
+	CPUPercent    *float64 `json:"cpu_percent,omitempty"`
+	MemoryPercent *float64 `json:"memory_percent,omitempty"`
+	Status        string   `json:"status"`
+	SourceStatus  string   `json:"source_status"`
 }
 
 type PlatformDashboardServerResource struct {

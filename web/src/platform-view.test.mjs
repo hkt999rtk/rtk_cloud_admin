@@ -6,6 +6,8 @@ import {
   formatThroughputBPS,
   resourceStatusLabel,
   resourceStatusTone,
+  workloadStatusLabel,
+  workloadStatusTone,
   ssoProtocolLabel,
 } from './platform-view.mjs';
 
@@ -50,4 +52,16 @@ test('resource helpers map row status to stable labels and tones', () => {
   assert.equal(resourceStatusTone('configured'), 'ok');
   assert.equal(resourceStatusTone('unmonitored'), 'unavailable');
   assert.equal(resourceStatusTone('ok'), 'ok');
+});
+
+test('workload helpers map k8s status to stable labels and tones', () => {
+  assert.equal(workloadStatusLabel('crashloop'), 'CrashLoopBackOff');
+  assert.equal(workloadStatusLabel('pending'), 'Pending');
+  assert.equal(workloadStatusLabel('degraded'), 'Degraded');
+  assert.equal(workloadStatusLabel('ok'), 'OK');
+  assert.equal(workloadStatusTone('crashloop'), 'critical');
+  assert.equal(workloadStatusTone('pending'), 'warning');
+  assert.equal(workloadStatusTone('degraded'), 'degraded');
+  assert.equal(workloadStatusTone('ok'), 'ok');
+  assert.equal(workloadStatusTone('unavailable'), 'unavailable');
 });
