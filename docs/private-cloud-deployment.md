@@ -2,21 +2,25 @@
 
 Status: draft.
 
-This document describes the supported production deployment profile for
-`rtk_cloud_admin` when it is run as the admin dashboard in a private-cloud
-environment.
+This document describes the supported deployment profile for `rtk_cloud_admin`
+when it is run as the admin dashboard in a private-cloud environment. The
+production migration target is Linode Kubernetes Engine (LKE). The Linode VM
+profile below remains the staging and rollback reference until the workspace
+LKE migration gates are approved.
 
-## Target Shape
+## LKE Target Shape
 
-Recommended production layout:
+Recommended LKE layout:
 
-- run the Go server as a native systemd service
-- emit `rtk_cloud_logger` zap JSON logs to stdout/stderr for journald collection
-- place it behind a reverse proxy that terminates TLS
-- mount a persistent SQLite volume for `DATABASE_PATH`
+- run the Go server as a Deployment with readiness/liveness probes
+- emit `rtk_cloud_logger` zap JSON logs to stdout/stderr for Kubernetes log
+  collection
+- expose HTTPS through Linode NodeBalancer plus Ingress or Gateway API
+- mount a PVC for `DATABASE_PATH` while SQLite remains the selected persistence
+  backend
 - configure upstream Account Manager and Video Cloud endpoints explicitly
-- keep admin bootstrap secrets out of source control and inject them at deploy
-  time
+- keep admin bootstrap secrets out of source control and inject them from
+  OpenBao or an approved secret-management path
 
 The app is not a stateless frontend. Local SQLite holds sessions, audit
 metadata, settings, and upstream cache projections. Treat the
@@ -27,6 +31,11 @@ interfaces for sessions, audit, projection reads, and lifecycle operations.
 SQLite remains the implementation
 for this deployment profile; no Redis-compatible session or projection cache is
 required or configured by this release.
+
+TODO: confirm whether production LKE keeps SQLite on a single-writer PVC,
+migrates Admin state to PostgreSQL, or uses another persistence model before
+writing production manifests. Until that decision is approved, do not scale the
+Admin Deployment beyond the SQLite-safe topology.
 
 ## Linode Staging Profile
 
@@ -73,18 +82,19 @@ only appropriate for local development or isolated validation.
 ## Reverse Proxy And TLS
 
 The application itself serves plain HTTP. TLS should be terminated by the
-fronting proxy or ingress controller.
+fronting Ingress/Gateway controller in LKE, or by nginx in the legacy VM bridge.
 
 Operational expectations:
 
-- expose the app only on the private network or loopback interface
-- forward client requests over HTTPS at the edge
+- expose the app only through its ClusterIP Service or legacy loopback/private
+  interface
+- forward client requests over HTTPS at the edge/Ingress
 - preserve the `Host` header and standard forwarding headers used by the
   operator's proxy stack
 - keep the session cookie `HttpOnly` and treat it as an authenticated browser
   session, not an API token
-- expose node and nginx exporter ports only on the Admin private IP; nginx
-  `stub_status` is local-only and uses `127.0.0.1:8081` to avoid the app port
+- expose metrics only to the observability namespace or private monitoring path;
+  legacy node/nginx exporter ports remain VM-only migration reference
 
 ## Data Ownership
 
@@ -112,6 +122,11 @@ directly, and Prometheus must remain private to the VPC.
 
 Back up the SQLite database file together with any `-wal` or `-shm` sidecar
 files when the database is in use.
+
+For LKE, take a storage-level snapshot or quiesced file backup of the PVC before
+upgrades that may alter Admin state. Rollback must pair the known-good release
+with a compatible SQLite/PVC snapshot. If Admin state moves to PostgreSQL later,
+replace this section with the approved database restore procedure.
 
 Practical workflow:
 
