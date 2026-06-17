@@ -41,7 +41,7 @@ import {
 import { quotaRaiseErrorMessage, quotaUsageLabel } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
-import { auditCoverageCopy, formatResourcePercent, formatThroughputBPS, resourceStatusLabel, resourceStatusTone, ssoProtocolLabel } from './platform-view.mjs';
+import { auditCoverageCopy, formatResourcePercent, formatThroughputBPS, grafanaEmbedState, resourceStatusLabel, resourceStatusTone, ssoProtocolLabel } from './platform-view.mjs';
 import {
   sourceAvailable,
   sourceMessage,
@@ -80,6 +80,7 @@ function App() {
   const [audit, setAudit] = useState([]);
   const [platformDashboard, setPlatformDashboard] = useState(null);
   const [platformResourceTrends, setPlatformResourceTrends] = useState(null);
+  const [platformGrafanaStatus, setPlatformGrafanaStatus] = useState(null);
   const [brandClouds, setBrandClouds] = useState([]);
   const [brandCloudPagination, setBrandCloudPagination] = useState({ limit: 25, offset: 0, total: 0 });
   const [brandCloudQuery, setBrandCloudQuery] = useState('');
@@ -122,6 +123,7 @@ function App() {
     setAudit([]);
     setPlatformDashboard(null);
     setPlatformResourceTrends(null);
+    setPlatformGrafanaStatus(null);
     setBrandClouds([]);
     setBrandCloudPagination({ limit: 25, offset: 0, total: 0 });
     setBrandCloudSource({ status: 'idle', message: '' });
@@ -227,6 +229,20 @@ function App() {
         } else {
           setPlatformResourceTrends(null);
         }
+        if (useAdminApi && active === 'platform-grafana') {
+          const nextGrafanaStatus = await fetchJSON('/api/admin/grafana/status').catch((err) => {
+            if (err.isAuthError) throw err;
+            return {
+              enabled: false,
+              source_status: 'unavailable',
+              source_message: err.message || 'Grafana status is unavailable.',
+            };
+          });
+          if (!alive) return;
+          setPlatformGrafanaStatus(nextGrafanaStatus);
+        } else {
+          setPlatformGrafanaStatus(null);
+        }
         if (useAdminApi && active === 'platform-brand-clouds' && nextMe.upstream_account_manager) {
           try {
             const result = await fetchJSON(brandCloudsURL({
@@ -329,6 +345,7 @@ function App() {
           setServiceLogs(null);
           setAudit([]);
           setPlatformResourceTrends(null);
+          setPlatformGrafanaStatus(null);
           setBrandClouds([]);
           setBrandCloudSource({ status: 'idle', message: '' });
           setSelectedBrandCloudId('');
@@ -889,6 +906,7 @@ function App() {
           />
         ) : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} /> : null}
+        {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
         {!needsPlatformAccess && active === 'platform-resources' ? (
           <PlatformResourceTrends
             trends={platformResourceTrends}
@@ -2221,6 +2239,38 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
         <PlatformMetricPanel title="Business Signals" rows={businessRows} secondary />
         <PlatformMetricPanel title="Infrastructure Health" rows={infrastructureRows} />
       </section>
+    </section>
+  );
+}
+
+function PlatformGrafanaView({ status }) {
+  const embed = grafanaEmbedState(status);
+  return (
+    <section className="platform-dashboard grafana-page">
+      <div className="platform-dashboard-head">
+        <div>
+          <h2>Grafana</h2>
+          <p>Private LKE observability dashboard embedded through the Admin Console.</p>
+        </div>
+      </div>
+      {embed.ready ? (
+        <article className="panel grafana-frame-panel">
+          <iframe
+            title="RTK LKE Staging Grafana dashboard"
+            src={embed.iframeURL}
+            className="grafana-frame"
+            loading="lazy"
+            referrerPolicy="same-origin"
+          />
+        </article>
+      ) : (
+        <section className="panel split-panel">
+          <div>
+            <h2>Grafana unavailable</h2>
+            <p>{embed.message}</p>
+          </div>
+        </section>
+      )}
     </section>
   );
 }

@@ -115,6 +115,14 @@ unreachable.
 Platform Dashboard Prometheus panels are sourced through the Admin BFF using
 `VIDEO_CLOUD_PROMETHEUS_BASE_URL`; browser JavaScript must not call Prometheus
 directly, and Prometheus must remain private to the VPC.
+Grafana follows the same boundary. The LKE Grafana Service remains private
+inside the observability namespace; Platform Admins load dashboards through a
+same-origin Admin BFF iframe proxy at `/api/admin/grafana/*`. The backend uses
+`CLOUD_ADMIN_GRAFANA_BASE_URL` for the internal upstream, requires a
+`platform_admin` session on every proxied request, strips browser-supplied
+`X-WEBAUTH-*` headers, and injects trusted Grafana auth-proxy headers itself.
+Cloud Admin must not publish a public Grafana hostname or let browser
+JavaScript call the Grafana Service directly.
 
 ## Backup, Restore, And Rollback
 

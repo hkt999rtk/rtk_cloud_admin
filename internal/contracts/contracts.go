@@ -122,6 +122,14 @@ type PlatformDashboardSource struct {
 	CheckedAt     string `json:"checked_at,omitempty"`
 }
 
+type PlatformGrafanaStatus struct {
+	Enabled       bool   `json:"enabled"`
+	SourceStatus  string `json:"source_status"`
+	SourceMessage string `json:"source_message,omitempty"`
+	IframeURL     string `json:"iframe_url,omitempty"`
+	DashboardPath string `json:"dashboard_path,omitempty"`
+}
+
 type PlatformDashboardKPI struct {
 	ID             string  `json:"id"`
 	Label          string  `json:"label"`

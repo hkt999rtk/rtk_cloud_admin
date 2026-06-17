@@ -9,6 +9,8 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	t.Setenv("VIDEO_CLOUD_BASE_URL", "https://video.example")
 	t.Setenv("VIDEO_CLOUD_ADMIN_TOKEN", "video-admin-token")
 	t.Setenv("VIDEO_CLOUD_PROMETHEUS_BASE_URL", "http://10.42.1.30:9090")
+	t.Setenv("CLOUD_ADMIN_GRAFANA_BASE_URL", "http://grafana.observability.svc.cluster.local:3000")
+	t.Setenv("CLOUD_ADMIN_GRAFANA_DASHBOARD_PATH", "/d/custom/custom-dashboard")
 	t.Setenv("CLOUD_ADMIN_LOG_LEVEL", "warn")
 	t.Setenv("CUSTOMER_PASSWORD_LOGIN_ENABLED", "true")
 
@@ -31,6 +33,12 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	if cfg.VideoCloudPrometheusBaseURL != "http://10.42.1.30:9090" {
 		t.Fatalf("VideoCloudPrometheusBaseURL = %q", cfg.VideoCloudPrometheusBaseURL)
 	}
+	if cfg.GrafanaBaseURL != "http://grafana.observability.svc.cluster.local:3000" {
+		t.Fatalf("GrafanaBaseURL = %q", cfg.GrafanaBaseURL)
+	}
+	if cfg.GrafanaDashboardPath != "/d/custom/custom-dashboard" {
+		t.Fatalf("GrafanaDashboardPath = %q", cfg.GrafanaDashboardPath)
+	}
 	if cfg.LogLevel != "warn" {
 		t.Fatalf("LogLevel = %q, want warn", cfg.LogLevel)
 	}
@@ -52,5 +60,8 @@ func TestFromEnvDefaults(t *testing.T) {
 	}
 	if !cfg.CustomerPasswordLoginEnabled {
 		t.Fatalf("CustomerPasswordLoginEnabled default = false, want true")
+	}
+	if cfg.GrafanaDashboardPath != "/d/rtk-lke-staging/rtk-lke-staging-overview" {
+		t.Fatalf("GrafanaDashboardPath default = %q", cfg.GrafanaDashboardPath)
 	}
 }

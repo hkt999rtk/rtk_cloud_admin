@@ -14,6 +14,7 @@ import {
 test('maps platform shell paths to platform routes', () => {
   assert.equal(routeFromPath('/admin'), 'platform-dashboard');
   assert.equal(routeFromPath('/admin/resources'), 'platform-resources');
+  assert.equal(routeFromPath('/admin/grafana'), 'platform-grafana');
   assert.equal(routeFromPath('/admin/health'), 'platform-health');
   assert.equal(routeFromPath('/admin/brand-clouds'), 'platform-brand-clouds');
   assert.equal(routeFromPath('/admin/brand-clouds/brand-001'), 'platform-brand-clouds');
@@ -72,11 +73,11 @@ test('retired customer pages are not exposed in section navigation', () => {
 test('platform nav follows the Platform Dashboard landing order', () => {
   assert.deepEqual(
     platformNavItems.map((item) => item.label),
-    ['Platform Dashboard', 'Resource Trends', 'Service Health', 'Brand Clouds', 'SSO Providers', 'Service Logs', 'Operations Log', 'Audit Log'],
+    ['Platform Dashboard', 'Grafana', 'Resource Trends', 'Service Health', 'Brand Clouds', 'SSO Providers', 'Service Logs', 'Operations Log', 'Audit Log'],
   );
   assert.deepEqual(
     platformNavItems.map((item) => item.path),
-    ['/admin', '/admin/resources', '/admin/health', '/admin/brand-clouds', '/admin/sso', '/admin/logs', '/admin/ops', '/admin/audit'],
+    ['/admin', '/admin/grafana', '/admin/resources', '/admin/health', '/admin/brand-clouds', '/admin/sso', '/admin/logs', '/admin/ops', '/admin/audit'],
   );
 });
 

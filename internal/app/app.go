@@ -9,6 +9,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -102,6 +103,134 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.handler.ServeHTTP(w, r)
 }
 
+func (s *Server) apiAdminGrafanaStatus(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.requirePlatformAdmin(w, r); !ok {
+		return
+	}
+	status := contracts.PlatformGrafanaStatus{
+		Enabled:       false,
+		SourceStatus:  platformDashboardSourceUnconfigured,
+		SourceMessage: "Grafana is not configured.",
+	}
+	baseURL := strings.TrimSpace(s.cfg.GrafanaBaseURL)
+	if baseURL == "" {
+		writeJSON(w, status)
+		return
+	}
+	status.Enabled = true
+	status.DashboardPath = grafanaDashboardPath(s.cfg.GrafanaDashboardPath)
+	status.IframeURL = grafanaIframeURL(status.DashboardPath)
+	status.SourceStatus = platformDashboardSourceConfigured
+	status.SourceMessage = ""
+	if err := grafanaHealthCheck(r.Context(), baseURL); err != nil {
+		status.SourceStatus = platformDashboardSourceUnavailable
+		status.SourceMessage = "Grafana source is unavailable."
+	}
+	writeJSON(w, status)
+}
+
+func (s *Server) apiAdminGrafanaProxy(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requirePlatformAdmin(w, r)
+	if !ok {
+		return
+	}
+	baseURL := strings.TrimSpace(s.cfg.GrafanaBaseURL)
+	if baseURL == "" {
+		http.Error(w, "Grafana is not configured.", http.StatusServiceUnavailable)
+		return
+	}
+	target, err := url.Parse(baseURL)
+	if err != nil || target.Scheme == "" || target.Host == "" {
+		http.Error(w, "Grafana is not configured.", http.StatusServiceUnavailable)
+		return
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.URL.Scheme = target.Scheme
+		req.URL.Host = target.Host
+		req.URL.Path = singleJoiningSlash(target.Path, strings.TrimPrefix(r.URL.Path, "/api/admin/grafana"))
+		req.URL.RawPath = ""
+		req.URL.RawQuery = r.URL.RawQuery
+		req.Host = target.Host
+		stripGrafanaAuthProxyHeaders(req.Header)
+		req.Header.Set("X-WEBAUTH-USER", session.Subject)
+		req.Header.Set("X-WEBAUTH-EMAIL", session.Email)
+		req.Header.Set("X-WEBAUTH-ROLE", "Viewer")
+	}
+	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) {
+		http.Error(w, "Grafana source is unavailable.", http.StatusServiceUnavailable)
+	}
+	proxy.ServeHTTP(w, r)
+}
+
+func grafanaHealthCheck(ctx context.Context, baseURL string) error {
+	target, err := url.Parse(strings.TrimRight(baseURL, "/") + "/api/health")
+	if err != nil || target.Scheme == "" || target.Host == "" {
+		return errors.New("invalid Grafana base URL")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("Grafana health status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func grafanaDashboardPath(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "/d/rtk-lke-staging/rtk-lke-staging-overview"
+	}
+	if !strings.HasPrefix(trimmed, "/") {
+		return "/" + trimmed
+	}
+	return trimmed
+}
+
+func grafanaIframeURL(path string) string {
+	return "/api/admin/grafana" + grafanaDashboardPath(path) + "?orgId=1&kiosk"
+}
+
+func stripGrafanaAuthProxyHeaders(header http.Header) {
+	for key := range header {
+		if strings.HasPrefix(strings.ToLower(key), "x-webauth-") {
+			header.Del(key)
+		}
+	}
+}
+
+func singleJoiningSlash(base, path string) string {
+	if base == "" || base == "/" {
+		if path == "" {
+			return "/"
+		}
+		if strings.HasPrefix(path, "/") {
+			return path
+		}
+		return "/" + path
+	}
+	baseSlash := strings.HasSuffix(base, "/")
+	pathSlash := strings.HasPrefix(path, "/")
+	switch {
+	case baseSlash && pathSlash:
+		return base + path[1:]
+	case !baseSlash && !pathSlash:
+		return base + "/" + path
+	default:
+		return base + path
+	}
+}
+
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /healthz", s.health)
 	s.mux.HandleFunc("GET /metrics/prometheus", s.metricsPrometheus)
@@ -109,6 +238,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/summary", s.apiAdminSummary)
 	s.mux.HandleFunc("GET /api/admin/platform-dashboard", s.apiAdminPlatformDashboard)
 	s.mux.HandleFunc("GET /api/admin/platform-resource-trends", s.apiAdminPlatformResourceTrends)
+	s.mux.HandleFunc("GET /api/admin/grafana/status", s.apiAdminGrafanaStatus)
+	s.mux.HandleFunc("GET /api/admin/grafana/", s.apiAdminGrafanaProxy)
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)

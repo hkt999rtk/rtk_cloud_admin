@@ -13,6 +13,8 @@ type Config struct {
 	VideoCloudBaseURL            string
 	VideoCloudAdminToken         string
 	VideoCloudPrometheusBaseURL  string
+	GrafanaBaseURL               string
+	GrafanaDashboardPath         string
 	CloudLoggerEndpoint          string
 	CloudLoggerToken             string
 	LogLevel                     string
@@ -27,6 +29,8 @@ func FromEnv() Config {
 		VideoCloudBaseURL:            os.Getenv("VIDEO_CLOUD_BASE_URL"),
 		VideoCloudAdminToken:         os.Getenv("VIDEO_CLOUD_ADMIN_TOKEN"),
 		VideoCloudPrometheusBaseURL:  os.Getenv("VIDEO_CLOUD_PROMETHEUS_BASE_URL"),
+		GrafanaBaseURL:               os.Getenv("CLOUD_ADMIN_GRAFANA_BASE_URL"),
+		GrafanaDashboardPath:         getenv("CLOUD_ADMIN_GRAFANA_DASHBOARD_PATH", "/d/rtk-lke-staging/rtk-lke-staging-overview"),
 		CloudLoggerEndpoint:          os.Getenv("CLOUD_LOGGER_ENDPOINT"),
 		CloudLoggerToken:             os.Getenv("CLOUD_LOGGER_INGEST_TOKEN"),
 		LogLevel:                     getenv("CLOUD_ADMIN_LOG_LEVEL", getenv("LOG_LEVEL", "info")),
