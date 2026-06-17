@@ -549,6 +549,68 @@ func TestAdminPlatformDashboardServiceExporterCountsDownOnlyTarget(t *testing.T)
 	}
 }
 
+func TestAdminPlatformDashboardBuildsK8sServiceWorkloadAndNodeHealth(t *testing.T) {
+	t.Parallel()
+
+	prometheus := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query().Get("query")
+		switch {
+		case query == `sum by(job, service, namespace) (up)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"cloud_admin_app","service":"cloud-admin","namespace":"video-cloud-staging","instance":"10.0.0.1:8080"},"value":[1780369304,"1"]}]}}`))
+		case query == `sum by(job, service, namespace) (up == bool 0)`:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"job":"cloud_admin_app","service":"cloud-admin","namespace":"video-cloud-staging","instance":"10.0.0.1:8080"},"value":[1780369304,"0"]}]}}`))
+		case strings.Contains(query, "http_requests_total"):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"service":"cloud-admin","namespace":"video-cloud-staging","pod":"cloud-admin-abc"},"value":[1780369304,"12.5"]}]}}`))
+		case strings.Contains(query, `http_status_group_total{status="5xx"}`):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"service":"cloud-admin","namespace":"video-cloud-staging","pod":"cloud-admin-abc"},"value":[1780369304,"0.25"]}]}}`))
+		case strings.Contains(query, "http_request_duration_seconds_sum"):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"service":"cloud-admin","namespace":"video-cloud-staging","pod":"cloud-admin-abc"},"value":[1780369304,"0.08"]}]}}`))
+		case strings.Contains(query, "kube_deployment_spec_replicas"):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"namespace":"video-cloud-staging","deployment":"cloud-admin"},"value":[1780369304,"3"]}]}}`))
+		case strings.Contains(query, "kube_deployment_status_replicas_available"):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"namespace":"video-cloud-staging","deployment":"cloud-admin"},"value":[1780369304,"2"]}]}}`))
+		case strings.Contains(query, "kube_pod_status_ready"):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"namespace":"video-cloud-staging","pod":"cloud-admin-abc","condition":"true","uid":"pod-secret"},"value":[1780369304,"2"]}]}}`))
+		case strings.Contains(query, "kube_pod_container_status_restarts_total"):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"namespace":"video-cloud-staging","pod":"cloud-admin-abc","container":"app"},"value":[1780369304,"4"]}]}}`))
+		case strings.Contains(query, `kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"}`):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"namespace":"video-cloud-staging","pod":"cloud-admin-abc","container":"app","reason":"CrashLoopBackOff"},"value":[1780369304,"1"]}]}}`))
+		case strings.Contains(query, "kube_node_status_condition"):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"node":"lke-node-1","condition":"Ready","status":"true","instance":"10.0.0.2"},"value":[1780369304,"1"]}]}}`))
+		case strings.Contains(query, "container_cpu_usage_seconds_total"):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"node":"lke-node-1","container":"app"},"value":[1780369304,"37"]}]}}`))
+		case strings.Contains(query, "container_memory_working_set_bytes"):
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"node":"lke-node-1","container":"app"},"value":[1780369304,"64"]}]}}`))
+		default:
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[]}}`))
+		}
+	}))
+	defer prometheus.Close()
+
+	payload := getPlatformDashboardForPrometheus(t, prometheus.URL)
+	service := serviceMetric(payload.ServiceMetrics, "cloud-admin")
+	if service.Status != "warning" || service.TargetsUp != 1 || service.RequestRate == nil || *service.RequestRate != 12.5 || service.ErrorRate5xx == nil || *service.ErrorRate5xx != 0.25 {
+		t.Fatalf("cloud-admin service metric = %+v, want warning with request and 5xx rates", service)
+	}
+	workload := workloadHealth(payload.WorkloadHealth, "video-cloud-staging", "cloud-admin")
+	if workload.Status != "crashloop" || workload.DesiredReplicas != 3 || workload.AvailableReplicas != 2 || workload.ReadyPods != 2 || workload.RestartCount != 4 || workload.CrashLoopPods != 1 {
+		t.Fatalf("cloud-admin workload = %+v, want degraded crashloop k8s status", workload)
+	}
+	node := clusterNode(payload.ClusterNodes, "lke-node-1")
+	if node.Status != "ok" || node.Ready != true || node.CPUPercent == nil || *node.CPUPercent != 37 || node.MemoryPercent == nil || *node.MemoryPercent != 64 {
+		t.Fatalf("cluster node = %+v, want ready with CPU/memory snapshot", node)
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	for _, leaked := range []string{"instance", "10.0.0.", "uid", "pod-secret", "container"} {
+		if strings.Contains(string(body), leaked) {
+			t.Fatalf("payload leaked disallowed label %q: %s", leaked, body)
+		}
+	}
+}
+
 func TestAdminPlatformDashboardServerResourcesUnavailableWithoutPrometheus(t *testing.T) {
 	t.Parallel()
 
@@ -809,6 +871,33 @@ func serviceExporter(exporters []contracts.PlatformDashboardServiceExporter, id 
 		}
 	}
 	return contracts.PlatformDashboardServiceExporter{}
+}
+
+func serviceMetric(metrics []contracts.PlatformDashboardServiceMetric, service string) contracts.PlatformDashboardServiceMetric {
+	for _, metric := range metrics {
+		if metric.Service == service {
+			return metric
+		}
+	}
+	return contracts.PlatformDashboardServiceMetric{}
+}
+
+func workloadHealth(workloads []contracts.PlatformDashboardWorkloadHealth, namespace string, name string) contracts.PlatformDashboardWorkloadHealth {
+	for _, workload := range workloads {
+		if workload.Namespace == namespace && workload.Name == name {
+			return workload
+		}
+	}
+	return contracts.PlatformDashboardWorkloadHealth{}
+}
+
+func clusterNode(nodes []contracts.PlatformDashboardClusterNode, name string) contracts.PlatformDashboardClusterNode {
+	for _, node := range nodes {
+		if node.Name == name {
+			return node
+		}
+	}
+	return contracts.PlatformDashboardClusterNode{}
 }
 
 func resourceTrendSummary(summaries []contracts.PlatformResourceTrendSummary, id string) contracts.PlatformResourceTrendSummary {

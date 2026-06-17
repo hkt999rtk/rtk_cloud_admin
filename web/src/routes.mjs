@@ -8,7 +8,6 @@ export const customerNavItems = [
 export const platformNavItems = [
   { id: 'platform-dashboard', label: 'Platform Dashboard', path: '/admin', icon: 'gauge-high' },
   { id: 'platform-grafana', label: 'Grafana', path: '/admin/grafana', icon: 'chart-simple' },
-  { id: 'platform-resources', label: 'Resource Trends', path: '/admin/resources', icon: 'chart-line' },
   { id: 'platform-health', label: 'Service Health', path: '/admin/health', icon: 'heart-pulse' },
   { id: 'platform-brand-clouds', label: 'Brand Clouds', path: '/admin/brand-clouds', icon: 'cloud' },
   { id: 'platform-sso', label: 'SSO Providers', path: '/admin/sso', icon: 'key' },
@@ -48,7 +47,6 @@ export function titleFor(active) {
     'stream-health': 'Stream Health',
     'platform-dashboard': 'Platform Dashboard',
     'platform-grafana': 'Grafana',
-    'platform-resources': 'Resource Trends',
     'platform-health': 'Service Health',
     'platform-brand-clouds': 'Brand Clouds',
     'platform-sso': 'SSO Providers',
@@ -69,7 +67,7 @@ export function routeFromPath(path) {
   if (path === '/verify' || path.startsWith('/verify/')) return 'verify';
   if (path === '/admin' || path === '/admin/') return 'platform-dashboard';
   if (path === '/admin/grafana' || path.startsWith('/admin/grafana/')) return 'platform-grafana';
-  if (path === '/admin/resources' || path.startsWith('/admin/resources/')) return 'platform-resources';
+  if (path === '/admin/resources' || path.startsWith('/admin/resources/')) return 'platform-dashboard';
   if (path === '/admin/health' || path.startsWith('/admin/health/')) return 'platform-health';
   if (path === '/admin/brand-clouds' || path.startsWith('/admin/brand-clouds/')) return 'platform-brand-clouds';
   if (path === '/admin/sso' || path.startsWith('/admin/sso/')) return 'platform-sso';

@@ -7,6 +7,8 @@ import {
   grafanaEmbedState,
   resourceStatusLabel,
   resourceStatusTone,
+  workloadStatusLabel,
+  workloadStatusTone,
   ssoProtocolLabel,
 } from './platform-view.mjs';
 
@@ -70,4 +72,16 @@ test('grafanaEmbedState accepts only configured same-origin iframe URLs', () => 
     grafanaEmbedState({ enabled: true, source_status: 'unavailable', source_message: 'Grafana source is unavailable.' }),
     { ready: false, iframeURL: '', message: 'Grafana source is unavailable.' },
   );
+});
+
+test('workload helpers map k8s status to stable labels and tones', () => {
+  assert.equal(workloadStatusLabel('crashloop'), 'CrashLoopBackOff');
+  assert.equal(workloadStatusLabel('pending'), 'Pending');
+  assert.equal(workloadStatusLabel('degraded'), 'Degraded');
+  assert.equal(workloadStatusLabel('ok'), 'OK');
+  assert.equal(workloadStatusTone('crashloop'), 'critical');
+  assert.equal(workloadStatusTone('pending'), 'warning');
+  assert.equal(workloadStatusTone('degraded'), 'degraded');
+  assert.equal(workloadStatusTone('ok'), 'ok');
+  assert.equal(workloadStatusTone('unavailable'), 'unavailable');
 });
