@@ -9,6 +9,20 @@ export function auditCoverageCopy() {
   return 'Local operator actions captured by the Go BFF. Current write coverage includes SSO, session, and lifecycle request records; audit export and full upstream audit mirroring are not implemented.';
 }
 
+export function grafanaEmbedState(status) {
+  if (!status?.enabled) {
+    return { ready: false, iframeURL: '', message: status?.source_message || 'Grafana is not configured.' };
+  }
+  if (status.source_status !== 'configured') {
+    return { ready: false, iframeURL: '', message: status.source_message || 'Grafana is unavailable.' };
+  }
+  const iframeURL = String(status.iframe_url || '');
+  if (!iframeURL.startsWith('/api/admin/grafana/')) {
+    return { ready: false, iframeURL: '', message: 'Grafana iframe URL is not available through the Admin Console.' };
+  }
+  return { ready: true, iframeURL, message: '' };
+}
+
 export function formatResourcePercent(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return 'Unavailable';
   return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;

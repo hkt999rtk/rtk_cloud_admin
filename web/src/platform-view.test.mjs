@@ -4,6 +4,7 @@ import {
   auditCoverageCopy,
   formatResourcePercent,
   formatThroughputBPS,
+  grafanaEmbedState,
   resourceStatusLabel,
   resourceStatusTone,
   workloadStatusLabel,
@@ -52,6 +53,25 @@ test('resource helpers map row status to stable labels and tones', () => {
   assert.equal(resourceStatusTone('configured'), 'ok');
   assert.equal(resourceStatusTone('unmonitored'), 'unavailable');
   assert.equal(resourceStatusTone('ok'), 'ok');
+});
+
+test('grafanaEmbedState accepts only configured same-origin iframe URLs', () => {
+  assert.deepEqual(
+    grafanaEmbedState({ enabled: true, source_status: 'configured', iframe_url: '/api/admin/grafana/d/rtk-lke-staging/overview?orgId=1&kiosk' }),
+    { ready: true, iframeURL: '/api/admin/grafana/d/rtk-lke-staging/overview?orgId=1&kiosk', message: '' },
+  );
+  assert.deepEqual(
+    grafanaEmbedState({ enabled: true, source_status: 'configured', iframe_url: 'https://grafana.example/d/x' }),
+    { ready: false, iframeURL: '', message: 'Grafana iframe URL is not available through the Admin Console.' },
+  );
+  assert.deepEqual(
+    grafanaEmbedState({ enabled: false, source_status: 'unconfigured' }),
+    { ready: false, iframeURL: '', message: 'Grafana is not configured.' },
+  );
+  assert.deepEqual(
+    grafanaEmbedState({ enabled: true, source_status: 'unavailable', source_message: 'Grafana source is unavailable.' }),
+    { ready: false, iframeURL: '', message: 'Grafana source is unavailable.' },
+  );
 });
 
 test('workload helpers map k8s status to stable labels and tones', () => {

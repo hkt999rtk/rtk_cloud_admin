@@ -164,6 +164,12 @@ Public and shared routes:
 - `GET /api/admin/platform-resource-trends`: deprecated compatibility route for
   older Resource Trends clients. The WebUI no longer links to or calls this
   endpoint; long-term metrics and trend analysis belong in Grafana.
+- `GET /api/admin/grafana/status`: platform-admin protected Grafana embed
+  status. Returns whether Grafana is configured and the same-origin iframe URL
+  for the provisioned LKE staging dashboard.
+- `GET /api/admin/grafana/*`: platform-admin protected reverse proxy to the
+  private Grafana Service. The BFF strips inbound `X-WEBAUTH-*` headers and
+  injects trusted Grafana auth-proxy identity headers before forwarding.
 - `GET /api/devices`: device list from cache/demo or upstream aggregation.
 - `GET /api/devices/{id}`: device detail.
 - `POST /api/devices/{id}/provision`: starts or simulates provisioning.

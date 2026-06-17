@@ -39,6 +39,116 @@ func TestAdminPlatformDashboardRequiresPlatformSession(t *testing.T) {
 	}
 }
 
+func TestAdminGrafanaStatusRequiresPlatformSession(t *testing.T) {
+	t.Parallel()
+
+	st := mustOpenStore(t)
+	srv := New(st)
+
+	unauthenticated := httptest.NewRecorder()
+	srv.ServeHTTP(unauthenticated, httptest.NewRequest(http.MethodGet, "/api/admin/grafana/status", nil))
+	if unauthenticated.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated status = %d, want %d", unauthenticated.Code, http.StatusUnauthorized)
+	}
+
+	customer, err := st.CreateSession("customer", "u1", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession customer returned error: %v", err)
+	}
+	customerReq := httptest.NewRequest(http.MethodGet, "/api/admin/grafana/status", nil)
+	customerReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: customer.ID})
+	customerRec := httptest.NewRecorder()
+	srv.ServeHTTP(customerRec, customerReq)
+	if customerRec.Code != http.StatusForbidden {
+		t.Fatalf("customer status = %d, want %d; body=%s", customerRec.Code, http.StatusForbidden, customerRec.Body.String())
+	}
+}
+
+func TestAdminGrafanaStatusReturnsSameOriginIframeURL(t *testing.T) {
+	t.Parallel()
+
+	grafana := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/health" {
+			_, _ = w.Write([]byte(`{"database":"ok"}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer grafana.Close()
+
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{Config: config.Config{
+		GrafanaBaseURL:       grafana.URL,
+		GrafanaDashboardPath: "/d/rtk-lke-staging/rtk-lke-staging-overview",
+	}})
+	session, err := st.CreateSession("platform_admin", "admin", "admin@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/grafana/status", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var status contracts.PlatformGrafanaStatus
+	if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if !status.Enabled || status.SourceStatus != "configured" {
+		t.Fatalf("grafana status = %+v, want enabled configured", status)
+	}
+	if status.IframeURL != "/api/admin/grafana/d/rtk-lke-staging/rtk-lke-staging-overview?orgId=1&kiosk" {
+		t.Fatalf("iframe_url = %q", status.IframeURL)
+	}
+}
+
+func TestAdminGrafanaProxyInjectsTrustedAuthHeaders(t *testing.T) {
+	t.Parallel()
+
+	var upstreamPath string
+	var upstreamQuery string
+	var upstreamUser string
+	var upstreamEmail string
+	var upstreamRole string
+	grafana := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamPath = r.URL.Path
+		upstreamQuery = r.URL.RawQuery
+		upstreamUser = r.Header.Get("X-WEBAUTH-USER")
+		upstreamEmail = r.Header.Get("X-WEBAUTH-EMAIL")
+		upstreamRole = r.Header.Get("X-WEBAUTH-ROLE")
+		_, _ = w.Write([]byte("grafana ok"))
+	}))
+	defer grafana.Close()
+
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{Config: config.Config{GrafanaBaseURL: grafana.URL}})
+	session, err := st.CreateSession("platform_admin", "admin-1", "admin@example.com", "", "", "", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/grafana/d/rtk-lke-staging/overview?orgId=1", nil)
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	req.Header.Set("X-WEBAUTH-USER", "spoofed")
+	req.Header.Set("X-WEBAUTH-EMAIL", "spoofed@example.com")
+	req.Header.Set("X-WEBAUTH-ROLE", "Admin")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != "grafana ok" {
+		t.Fatalf("proxy response = %d %q", rec.Code, rec.Body.String())
+	}
+	if upstreamPath != "/d/rtk-lke-staging/overview" || upstreamQuery != "orgId=1" {
+		t.Fatalf("upstream target = %s?%s", upstreamPath, upstreamQuery)
+	}
+	if upstreamUser != "admin-1" || upstreamEmail != "admin@example.com" || upstreamRole != "Viewer" {
+		t.Fatalf("trusted headers user/email/role = %q/%q/%q", upstreamUser, upstreamEmail, upstreamRole)
+	}
+}
+
 func TestAdminPlatformDashboardUnconfiguredPrometheusReturnsSummary(t *testing.T) {
 	t.Parallel()
 
