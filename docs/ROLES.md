@@ -146,6 +146,25 @@ deactivation, health monitoring, OTA tracking, stream health.
 - `customer.firmware.read`
 - `customer.stream.read`
 
+### Brand Fleet Developer / Release Manager
+
+This is a Tier 2 brand-cloud role focused on product and release configuration.
+It manages SKU and product/device profiles, enabled service capabilities,
+production runs, device and firmware policies, firmware releases, OTA target
+selection, schedules, and release reporting. It may configure SKU policy, but
+it does not receive device access merely because a SKU exists. Release and
+update-plan writes require the corresponding Account Manager-projected
+capabilities.
+
+### Brand Fleet Operations Manager
+
+This is a Tier 2 brand-cloud role focused on large-scale fleet operations. It
+manages server-side device search and filtering, SKU-scoped device access,
+provisioning status review, groups and tags, batch work, health triage, and
+pausing, resuming, cancelling, or retrying existing update plans. It does not
+edit SKU service policy, firmware artifacts, or release metadata unless
+explicitly granted the developer capability.
+
 ---
 
 ### Read-only Observer
@@ -176,10 +195,12 @@ usability affordance.
 
 ## Role-to-View Mapping Summary
 
-| Role | Customer View | Platform View | Can Write |
+| Role | Brand Fleet View | Platform View | Can Write |
 |---|---|---|---|
 | Platform Admin (T1) | — (impersonation deferred) | Full | Platform-side only (session control); no tenant lifecycle actions |
 | Fleet Manager (T2) | Full (own org) | — | Yes (provision, deactivate) |
+| Brand Developer / Release Manager (T2) | Product, release, and update-plan views | — | Release and update-plan actions according to capability |
+| Brand Operations Manager (T2) | Fleet, provisioning status, groups, jobs, health, and update controls | — | Device and batch actions according to capability |
 | Read-only Observer (T2) | Full read-only (own org) | — | No |
 
 ---
@@ -199,6 +220,11 @@ Capability checks are enforced in both layers:
   lifecycle APIs.
 - UI actions use `/api/me.capabilities` or active membership capabilities to
   enable or disable controls.
+
+SKU service capability and human ACL are separate concepts. SKU capability
+answers which services a device may use; ACL answers which user may view or
+operate a SKU, region, group, or device. Runtime Video Cloud token scopes are
+not human roles and must not be displayed as ACL labels.
 - Local Cloud Admin break-glass `platform_admin` is not supported. Emergency
   deployment control belongs in Linode, SSH, and operator tooling, not in an
   extra dashboard account.

@@ -1,6 +1,12 @@
-# Customer View WebUI Design
+# Brand Fleet Management WebUI Design
 
-Status: approved concept with coverage addendum.
+Status: current approved direction for the Brand Fleet Management refresh.
+
+> Supersession note: the earlier small-fleet Customer View concept in this
+> document is retained as historical context only. The current product target
+> is the brand sub-tenant Fleet Management console for Developer / Release
+> Manager and Operations users managing 100K+ devices. The authoritative
+> prototype is `brand-fleet-management-mock.html`.
 
 Date: 2026-05-09
 
@@ -19,24 +25,23 @@ Related documents:
 
 ## Summary
 
-This document records the approved Customer View WebUI design direction for
-RTK Cloud Admin. The visual direction is **Realtek Ops Console**: a dense,
+This document records the approved Brand Fleet Management WebUI design
+direction for RTK Cloud Admin. The visual direction is **Realtek Ops Console**: a dense,
 calm B2B operations console based on the Realtek Connect+ palette from
 `webtest.mgmeet.io`.
 
-The approved Customer View concept batch covers:
+The current Brand Fleet surface covers:
 
-- Fleet Health Overview
-- Devices with Detail Drawer
-- Firmware & OTA
-- Stream Health
+- Fleet Overview, Devices, provisioning status, groups/tags, products/profiles
+- Firmware Releases and full Update Plans
+- Batch Jobs, Reports, and Team/Permission management
 
 Platform View pages, auth pages, and signup pages are required WebUI surfaces,
-but they are not part of the four Customer View PNG concepts. Device Groups are
-deferred and must not appear in the first-batch Customer View sidebar.
+but they are not part of the Brand Fleet HTML mockup. Groups, tags, products,
+batch jobs, and reports are required Brand Fleet surfaces for 100K+ tenants.
 
-The approved images are visual concepts for the Customer View work area, not a
-complete application-state inventory. The implementation must also satisfy the
+The approved HTML mockup is the review reference for the Brand Fleet work
+area, not a complete application-state inventory. The implementation must also satisfy the
 coverage addendum below for auth, quota, capability, error, and source-state
 requirements from `SPEC.md`, `ROLES.md`, and `backend-api-gap-audit.md`.
 
@@ -44,11 +49,11 @@ requirements from `SPEC.md`, `ROLES.md`, and `backend-api-gap-audit.md`.
 
 | Surface | Required for v0.1 | Visual source | Status in this design |
 | --- | --- | --- | --- |
-| Customer View shell | Yes | Customer View concept PNGs plus this document | Approved, with Groups removed from nav |
-| Fleet Health Overview | Yes | `customer-overview.png` | Approved |
-| Devices + Detail Drawer | Yes | `customer-devices.png` | Approved, with unsupported Settings writes removed |
-| Firmware & OTA | Yes | `customer-firmware-ota.png` | Approved, read-only campaign scope |
-| Stream Health | Yes | `customer-stream-health.png` | Approved, source-backed modes only |
+| Brand Fleet shell | Yes | `brand-fleet-management-mock.html` plus this document | Planned, with role-specific navigation |
+| Fleet Overview | Yes | `brand-fleet-management-mock.html` | Approved large-fleet direction |
+| Devices + Detail Drawer | Yes | `brand-fleet-management-mock.html` | Approved server-side query direction |
+| Firmware Releases + Update Plans | Yes | `brand-fleet-management-mock.html` | Approved Developer / Operations workflow |
+| Batch Jobs + Reports | Yes | `brand-fleet-management-mock.html` | Approved asynchronous operations direction |
 | Signup / check-email / verify | Yes | Text requirements in this document and `SPEC.md` | Required, no PNG concept |
 | SSO login and route gates | Yes | Text requirements in this document and `sso-oidc-design.md` | Required, no PNG concept |
 | Platform View: Service Health | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
@@ -56,32 +61,20 @@ requirements from `SPEC.md`, `ROLES.md`, and `backend-api-gap-audit.md`.
 | Platform View: Operations Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Platform View: Audit Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Brand-cloud management UI | No | [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md) plus backend/BFF contract | Platform View draft, outside Customer View |
-| Device Groups | No | None for v0.1 | Deferred and hidden |
+| Groups and Tags | Yes | `brand-fleet-management-mock.html` | Required for large-fleet targeting |
+| Batch Jobs and Reports | Yes | `brand-fleet-management-mock.html` | Required for asynchronous fleet operations |
 
-## Approved Concepts
+## Review Mockup
 
-### Fleet Health Overview
-
-![Fleet Health Overview](assets/webui-design/customer-overview.png)
-
-### Devices + Detail Drawer
-
-![Devices + Detail Drawer](assets/webui-design/customer-devices.png)
-
-### Firmware & OTA
-
-![Firmware & OTA](assets/webui-design/customer-firmware-ota.png)
-
-### Stream Health
-
-![Stream Health](assets/webui-design/customer-stream-health.png)
+Open [`brand-fleet-management-mock.html`](assets/webui-design/brand-fleet-management-mock.html)
+in a browser to review the large-fleet pages, role views, batch interactions,
+OTA workflow, and key non-ideal states.
 
 ### Known Asset Differences
 
-The concept images show a `Groups` sidebar item. This is a stale visual detail.
-`Groups` is deferred for v0.1 and must not appear in the first-batch Customer
-View sidebar, route list, empty placeholder, or mobile navigation until the
-device group API and UI design are approved.
+Earlier visual concepts were small-fleet concepts and are superseded by the
+Brand Fleet mockup. Groups, tags, batch jobs, and reports are part of the new
+large-fleet information architecture.
 
 The concept images also show secondary drawer tabs and stream mode examples.
 Those are treated as layout examples only. The authoritative scope is:
@@ -104,6 +97,99 @@ help users answer operational questions quickly:
 
 The UI must feel like a daily operations tool, not a marketing page. Prioritize
 scan speed, comparison, filtering, and drill-down paths.
+
+## Customer View Refresh Rules
+
+The refresh keeps the existing Realtek Ops Console visual language but changes
+the information hierarchy and wording for everyday fleet operators. The UI is
+Traditional Chinese for the review prototype and should use plain language in
+the production surface.
+
+### Page Names
+
+| Current/design name | Approved display name |
+|---|---|
+| Fleet Health Overview | 設備總覽 |
+| Devices | 我的設備 |
+| Firmware & OTA | 韌體更新 |
+| Stream Health | 影像播放狀況 |
+| Products and Device Profiles | SKU 與服務 |
+
+The English internal names remain valid for routes, code, API fields, and
+documentation references. They are not the primary customer-facing labels.
+
+### Page Priorities
+
+- **設備總覽:** current fleet state, devices needing attention, and the next
+  action. Alerts and attention queue are one list, not two competing lists.
+- **我的設備:** searchable fleet comparison with health, status, firmware,
+  signal, and last seen. Device details open from the row.
+- **韌體更新:** latest version, devices not yet updated, failed devices, and
+  update progress. Campaign implementation details are secondary.
+- **影像播放狀況:** playback success, devices with playback problems, and
+  devices that have never played successfully. Protocol names are secondary.
+- **SKU 與服務:** connect each SKU to its product/device specification,
+  enabled services, user permissions, device policy, and firmware policy.
+  This page is for brand operators, not end users.
+
+### Approved Customer Copy
+
+| Internal field/concept | Customer copy |
+|---|---|
+| `online_rate_7d_pct` | 最近 7 天上線比例 |
+| `active_sessions` | 目前播放中的設備 |
+| `warning` / `critical` | 需要注意 / 嚴重問題 |
+| `pending` firmware | 尚未更新 |
+| `failed` firmware | 更新失敗 |
+| `provision` | 設定設備 |
+| `deactivate` | 停用設備 |
+| `unavailable` | 暫時沒有最新資料 |
+
+Do not require users to understand WebRTC, OTA, readiness, source status,
+campaign, rollout, or raw device identifiers. These values belong in expanded
+details or Platform View diagnostics.
+
+### SKU 與服務
+
+The SKU page follows the shared design defined in
+`admin-dashboard-redesign.md` and must not create a separate product or
+permission vocabulary. Each SKU shows:
+
+- 基本資料：SKU、產品名稱、產品型號、產品線、硬體版本。
+- 可用服務：影像服務、即時觀看、錄影與保存、設備回報、韌體更新。
+- 使用者權限：目前角色可以查看或執行的操作。
+- 設備政策：設定、綁定、啟用與停用規則。
+- 韌體政策：可用版本、硬體相容性、OTA 規則、防止回退與更新計畫。
+
+The device drawer links the device to one SKU and shows the services and
+policies inherited from that SKU. A disabled or unsupported service is shown
+as `未啟用`, `不適用`, or `需要聯絡管理者`; raw `service_options`, runtime
+scopes, and ACL permission names remain detail-only.
+
+SKU editing is a guided flow:
+
+```
+基本資料 → 產品與硬體規格 → 可用服務 → 設備政策 → 韌體政策
+→ ACL 影響預覽 → 關聯設備檢查 → 儲存
+```
+
+The impact preview must show affected SKU/device counts, region/group scope,
+current service state, and whether reprovisioning or firmware update may be
+required.
+
+### Required Non-ideal States
+
+Each page must have a designed state for loading, no data, stale data,
+temporarily unavailable data, device attention, and insufficient permission.
+The primary message must explain what the user can do next. Raw upstream error
+messages are not customer copy.
+
+### Device Drawer
+
+The default drawer view is a short summary: device identity, status, health,
+last seen, main issue, and allowed actions. Signal history, uptime, playback
+details, events, and technical source facts are placed under expandable detail
+sections.
 
 ## Design Tokens
 
@@ -148,8 +234,9 @@ The Customer View shell uses a fixed left sidebar and a full-height work area.
 Sidebar:
 
 - Brand label: `Connect+ Ops`.
-- Customer View nav items: `Overview`, `Devices`, `Firmware & OTA`,
-  `Stream Health`.
+- Brand Fleet nav items are role-aware: `設備總覽`, `設備`,
+  `群組與標籤`, `SKU 與服務`, `韌體版本`, `更新計畫`, `批次工作`,
+  `報表`, and `團隊與權限`.
 - Active nav item uses primary blue fill.
 - Platform View switcher is visually separated from Customer View navigation and
   routes only to role-gated Platform View pages.
@@ -251,27 +338,28 @@ Auth and access states:
   but production/server validation must show source-unavailable states instead
   of silently substituting demo trends.
 
-## Fleet Health Overview
+## 設備總覽
 
 Purpose: give the operator a single-glance answer to whether the fleet is
 healthy now and whether it has been healthy recently.
 
 Required layout:
 
-- KPI strip with `Online`, `Online Rate`, `Needs Attention`, and
-  `Active Streams`.
-- Large fleet health trend chart with online rate plus warning / critical
-  trend lines.
-- Health distribution panel with Healthy, Warning, Critical, Unknown.
-- Recent Alerts table with Time, Device, Signal, Health.
-- Attention Queue panel sorted by operational impact.
+- KPI strip with current online devices, seven-day online ratio, devices needing
+  attention, and devices playing now.
+- Large device-status trend chart with online ratio plus attention trends.
+- Health distribution panel with Normal, Needs attention, Serious problem, and
+  No data.
+- One **Devices that need attention** list with Device, Problem, Time, and one
+  direct action. Do not render separate Recent Alerts and Attention Queue
+  panels.
 
 Behavior notes:
 
 - `7d` is the default time window; `30d` is available.
 - Production data must come from authoritative telemetry/read-model APIs. Do
   not ship demo-derived or readiness-derived trend data for server validation.
-- Health distribution segments and alert rows should navigate to a filtered
+- Health distribution segments and attention rows should navigate to a filtered
   Devices view when the backend/frontend path supports it.
 - Service health, open platform operations, and platform audit content stay out
   of this page.
@@ -503,9 +591,9 @@ before implementation is considered complete:
   for Customer View routes.
 - Do not add a new UI component framework.
 - Preserve URL-backed routes for directly linkable console views.
-- Do not include Groups in the first-batch sidebar or page set.
-- Treat the four approved images in this document as the visual source of truth
-  for Customer View work-area layout, density, and visual hierarchy.
+- Do not use the retired small-fleet PNG concepts as the visual source of truth.
+- Treat `brand-fleet-management-mock.html` as the design reference for large
+  fleet work-area layout, density, role views, and batch interactions.
 - When the images conflict with text requirements, the text requirements in
   this document, `SPEC.md`, `ROLES.md`, and `admin-dashboard-redesign.md` win.
 
@@ -514,7 +602,8 @@ before implementation is considered complete:
 - Customer View pages use the Realtek Ops Console palette and density.
 - All pages keep the left sidebar + main work area structure.
 - Customer View does not contain Platform View content.
-- Customer View navigation does not show Groups.
+- Brand Fleet navigation exposes Groups, Tags, Batch Jobs, and Reports according
+  to role capabilities, without a second device-registration workflow.
 - Auth, signup, verification, and route-gate states are covered.
 - Active organization switching is scoped to `/api/me.memberships`.
 - Evaluation quota display and quota raise request states are covered.
@@ -526,4 +615,5 @@ before implementation is considered complete:
   the React components.
 - The four designed pages map to existing or planned Customer View API
   contracts.
-- No WebUI implementation is included in this design-spec change.
+- Formal React implementation follows only after the Brand Fleet mockup and
+  API/BFF gap audit are reviewed.

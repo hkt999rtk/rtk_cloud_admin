@@ -647,6 +647,493 @@ paths:
         "502":
           $ref: "#/components/responses/PlainTextError"
 
+  /api/fleet/devices:
+    get:
+      tags: [Fleet, Devices]
+      summary: Search a bounded page of customer devices
+      security:
+        - SessionCookie: []
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: sku_id, in: query, schema: { type: string, format: uuid } }
+        - { name: group_id, in: query, schema: { type: string, format: uuid } }
+        - { name: region, in: query, schema: { type: string } }
+        - { name: model, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: readiness, in: query, schema: { type: string } }
+        - { name: firmware, in: query, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200":
+          description: Server-side filtered fleet page.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [devices, pagination, query, source_status]
+                properties:
+                  devices:
+                    type: array
+                    items: { $ref: "#/components/schemas/CustomerDevice" }
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+                  query:
+                    type: object
+                    additionalProperties: true
+                  source_status: { type: string }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "502": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/fleet/summary:
+    get:
+      tags: [Fleet]
+      summary: Get indexed fleet summary
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          description: Fleet aggregate by SKU, model, region, status, and service.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FleetSummary" }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/groups:
+    get:
+      tags: [Fleet]
+      summary: List device groups
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200":
+          description: Customer-scoped device groups.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [groups, source_status]
+                properties:
+                  groups:
+                    type: array
+                    items: { $ref: "#/components/schemas/DeviceGroup" }
+                  allowed_actions:
+                    type: array
+                    items: { type: string }
+                  source_status: { type: string }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+    post:
+      tags: [Fleet]
+      summary: Create a device group
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceGroupRequest"
+      responses:
+        "201": { description: Group created. }
+        "400": { $ref: "#/components/responses/PlainTextError" }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/groups/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Fleet]
+      summary: Get a device group
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Group details. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+    patch:
+      tags: [Fleet]
+      summary: Update a device group
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceGroupRequest" }
+      responses:
+        "200": { description: Group updated. }
+        "400": { $ref: "#/components/responses/PlainTextError" }
+    delete:
+      tags: [Fleet]
+      summary: Delete a device group
+      security: [{ SessionCookie: [] }]
+      responses:
+        "204": { description: Group deleted. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/tags:
+    get:
+      tags: [Fleet]
+      summary: List tag usage
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Customer-scoped tag usage summary. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/roles:
+    get:
+      tags: [Access]
+      summary: List customer roles
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Customer-scoped role catalog. }
+
+  /api/permissions:
+    get:
+      tags: [Access]
+      summary: List customer permissions
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Customer-scoped permission catalog. }
+
+  /api/role-assignments:
+    get:
+      tags: [Access]
+      summary: List scoped role assignments
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Scoped role assignments. }
+    post:
+      tags: [Access]
+      summary: Create a scoped role assignment
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoleAssignmentRequest" }
+      responses:
+        "202": { description: Assignment accepted. }
+        "400": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/role-assignments/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Access]
+      summary: Remove a scoped role assignment
+      security: [{ SessionCookie: [] }]
+      responses:
+        "204": { description: Assignment removed. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/jobs:
+    get:
+      tags: [Fleet, Jobs]
+      summary: List asynchronous fleet jobs
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200":
+          description: Job list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobs, source_status]
+                properties:
+                  jobs: { type: array, items: { $ref: "#/components/schemas/BatchJob" } }
+                  source_status: { type: string }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+    post:
+      tags: [Fleet, Jobs]
+      summary: Create an asynchronous fleet job
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BatchJobRequest" }
+      responses:
+        "202":
+          description: Job accepted.
+          content:
+            application/json:
+              schema: { type: object, properties: { job: { $ref: "#/components/schemas/BatchJob" } } }
+        "400": { $ref: "#/components/responses/PlainTextError" }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/jobs/{id}:
+    get:
+      tags: [Fleet, Jobs]
+      summary: Get an asynchronous fleet job
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200":
+          description: Job status.
+          content:
+            application/json:
+              schema: { type: object, properties: { job: { $ref: "#/components/schemas/BatchJob" } } }
+        "404": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/jobs/{id}/retry:
+    post:
+      tags: [Fleet, Jobs]
+      summary: Retry failed items in a fleet job
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "202": { description: Retry accepted. }
+        "409": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/jobs/{id}/result:
+    get:
+      tags: [Fleet, Jobs]
+      summary: Get fleet job results
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200": { description: Job result. }
+
+  /api/reports:
+    get:
+      tags: [Fleet, Reports]
+      summary: List generated fleet reports
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Report list. }
+    post:
+      tags: [Fleet, Reports]
+      summary: Start an asynchronous fleet report
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [name], properties: { name: { type: string }, scope: { type: object } } }
+      responses:
+        "202": { description: Report accepted. }
+
+  /api/reports/{id}:
+    get:
+      tags: [Fleet, Reports]
+      summary: Get a fleet report
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200": { description: Report status and result. }
+
+  /api/update-plans:
+    get:
+      tags: [Fleet, Firmware]
+      summary: List SKU-scoped firmware update plans
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: sku_id, in: query, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Update plan list. } }
+    post:
+      tags: [Fleet, Firmware]
+      summary: Create a SKU-scoped firmware update plan
+      security: [{ SessionCookie: [] }]
+      responses: { "201": { description: Update plan created. } }
+
+  /api/update-plans/{id}:
+    get:
+      tags: [Fleet, Firmware]
+      summary: Get an update plan
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Update plan. } }
+
+  /api/update-plans/{id}/{action}:
+    post:
+      tags: [Fleet, Firmware]
+      summary: Control an update plan
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [start, pause, resume, cancel, retry] } }
+      responses: { "200": { description: Update plan changed. } }
+
+  /api/skus:
+    get:
+      tags: [Fleet, SKU]
+      summary: List SKU and service capabilities
+      description: Returns customer-safe SKU profiles for the active organization.
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, disabled]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: SKU list and source status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SKUList"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+    post:
+      tags: [Fleet, SKU]
+      summary: Create a SKU and its service policy
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SKUWriteRequest" }
+      responses:
+        "201": { description: SKU created. }
+        "400": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/skus/{id}:
+    get:
+      tags: [Fleet, SKU]
+      summary: Get SKU and service capabilities
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Customer-safe SKU detail and source status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sku, source_status]
+                properties:
+                  sku:
+                    $ref: "#/components/schemas/SKU"
+                  source_status:
+                    type: string
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "404":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+    patch:
+      tags: [Fleet, SKU]
+      summary: Update a SKU and its service policy
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SKUWriteRequest" }
+      responses:
+        "200": { description: SKU updated. }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/skus/{id}/disable:
+    post:
+      tags: [Fleet, SKU]
+      summary: Disable a SKU
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: SKU disabled. } }
+
+  /api/skus/{id}/permissions:
+    get:
+      tags: [Fleet, SKU]
+      summary: Get effective user actions for a SKU
+      security:
+        - SessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Customer-safe effective actions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sku_id, allowed_actions, source_status]
+                properties:
+                  sku_id: { type: string }
+                  allowed_actions: { type: array, items: { type: string } }
+                  source_status: { type: string }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/skus/{id}/impact-preview:
+    post:
+      tags: [Fleet, SKU]
+      summary: Preview the impact of a SKU policy change
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Affected devices, regions, services, and policy actions. }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/skus/{id}/releases:
+    get:
+      tags: [Fleet, Firmware]
+      summary: List firmware releases for a SKU
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: SKU-scoped firmware releases. } }
+    post:
+      tags: [Fleet, Firmware]
+      summary: Create a firmware release upload
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses: { "201": { description: Release upload created. } }
+
+  /api/skus/{id}/releases/{releaseId}:
+    get:
+      tags: [Fleet, Firmware]
+      summary: Get a firmware release
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: releaseId, in: path, required: true, schema: { type: string } }
+      responses: { "200": { description: Firmware release. } }
+
+  /api/skus/{id}/releases/{releaseId}/{action}:
+    post:
+      tags: [Fleet, Firmware]
+      summary: Advance or revoke a firmware release
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: releaseId, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [finalize, publish, revoke] } }
+      responses: { "200": { description: Release action accepted. } }
+
   /api/devices/{id}:
     get:
       tags: [Devices]
@@ -1610,6 +2097,10 @@ components:
           type: string
         organization_id:
           type: string
+        sku_id:
+          type: string
+          format: uuid
+          description: Canonical SKU/device profile identifier.
         organization:
           type: string
         name:
@@ -1664,6 +2155,10 @@ components:
           type: string
         organization_id:
           type: string
+        sku_id:
+          type: string
+          format: uuid
+          description: Canonical SKU/device profile identifier.
         organization:
           type: string
         name:
@@ -1693,7 +2188,160 @@ components:
           format: date-time
         updated_at:
           type: string
-          format: date-time
+
+    SKU:
+      type: object
+      required: [id, name, status, service_capabilities, allowed_actions]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        product_model:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+        service_capabilities:
+          type: array
+          items:
+            type: string
+        device_policy:
+          type: object
+          additionalProperties: true
+        firmware_policy:
+          type: object
+          additionalProperties: true
+        allowed_actions:
+          type: array
+          items:
+            type: string
+        updated_at:
+          type: string
+        device_count:
+          type: integer
+          minimum: 0
+        region_distribution:
+          type: object
+          additionalProperties: { type: integer, minimum: 0 }
+        firmware_distribution:
+          type: object
+          additionalProperties: { type: integer, minimum: 0 }
+        production_run_count:
+          type: integer
+          minimum: 0
+
+    SKUWriteRequest:
+      type: object
+      required: [name, product_model, category, service_capabilities]
+      properties:
+        sku_id: { type: string }
+        name: { type: string }
+        product_model: { type: string }
+        category: { type: string }
+        manufacturer: { type: string }
+        service_capabilities: { type: array, items: { type: string } }
+        device_policy: { type: object, additionalProperties: true }
+        firmware_policy: { type: object, additionalProperties: true }
+
+    Pagination:
+      type: object
+      required: [limit, offset, total]
+      properties:
+        limit: { type: integer, minimum: 1 }
+        offset: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+
+    DeviceGroup:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        device_count: { type: integer, minimum: 0 }
+
+    DeviceGroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+
+    RoleAssignmentRequest:
+      type: object
+      required: [role_name, actor_id, scope_type]
+      properties:
+        role_name: { type: string }
+        actor_id: { type: string }
+        scope_type: { type: string, enum: [organization, sku, region, group, device] }
+        scope_id: { type: string }
+
+    FleetSummary:
+      type: object
+      required: [total, by_status, by_sku, by_model, by_firmware, by_region, service_enabled, updated_at, source_status]
+      properties:
+        total: { type: integer, minimum: 0 }
+        by_status: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        by_sku: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        by_model: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        by_firmware: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        by_region: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        service_enabled: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        by_sku_region:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: integer, minimum: 0 }
+        by_sku_firmware:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: integer, minimum: 0 }
+        updated_at: { type: string, format: date-time }
+        source_status: { type: string }
+        source_message: { type: string }
+
+    BatchJob:
+      type: object
+      required: [id, type, name, organization_id, created_by, scope, state, total, completed, failed, skipped, created_at, updated_at]
+      properties:
+        id: { type: string }
+        type: { type: string }
+        name: { type: string }
+        organization_id: { type: string }
+        created_by: { type: string }
+        scope: { type: object, additionalProperties: true }
+        state: { type: string }
+        total: { type: integer, minimum: 0 }
+        completed: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        result: { type: array, items: { type: object, additionalProperties: true } }
+
+    BatchJobRequest:
+      type: object
+      required: [type, name]
+      properties:
+        type: { type: string }
+        name: { type: string }
+        scope: { type: object, additionalProperties: true }
+        total: { type: integer, minimum: 0 }
+
+    SKUList:
+      type: object
+      required: [skus, source_status]
+      properties:
+        skus:
+          type: array
+          items:
+            $ref: "#/components/schemas/SKU"
+        source_status:
+          type: string
     Operation:
       type: object
       required: [id, type, state, message, updated_at]

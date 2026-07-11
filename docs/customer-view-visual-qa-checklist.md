@@ -1,4 +1,9 @@
-# Customer View Visual QA Checklist
+# Brand Fleet Management Visual QA Checklist
+
+> The detailed checks below are retained for the earlier four-page Customer
+> View batch. For the current 100K+ brand sub-tenant console, use
+> `docs/assets/webui-design/brand-fleet-management-mock.html` and the
+> Brand Fleet requirements in `webui-customer-view-design.md`.
 
 Use this checklist when reviewing the Customer View redesign implementation
 against the approved design assets in `docs/assets/webui-design/`.
@@ -7,9 +12,10 @@ against the approved design assets in `docs/assets/webui-design/`.
 
 - Sidebar uses the Realtek Ops Console navy background and primary blue active
   nav state.
-- Customer View navigation contains Overview, Devices, Firmware & OTA, and
-  Stream Health only. Groups are deferred and must not appear in the first
-  batch sidebar, mobile navigation, route list, or as a placeholder page.
+- The current Brand Fleet navigation contains 設備總覽、設備、設備註冊、群組與
+  標籤、產品與設備規格、韌體版本、更新計畫、批次工作、報表、團隊與權限。
+  The four-page Customer View navigation below is historical and must not be
+  used as the current brand-tenant acceptance target.
 - Platform View switcher is visually separated from Customer View navigation and
   remains role/route gated.
 - Sidebar account summary shows role and email only; it does not repeat the
@@ -35,14 +41,13 @@ against the approved design assets in `docs/assets/webui-design/`.
 
 ## Fleet Health Overview
 
-Reference: `docs/assets/webui-design/customer-overview.png`
+Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 設備總覽
 
-- KPI strip shows Online, Online Rate, Needs Attention, and Active Streams.
+- KPI strip shows current online devices, seven-day online ratio, devices needing attention, and devices playing now.
 - Fleet health trend chart is the primary large panel.
 - Health distribution panel is visible and links to device filtering when
   supported.
-- Recent Alerts table shows Time, Device, Signal, and Health.
-- Attention Queue shows device, issue, since, and action.
+- One Devices that need attention list shows device, problem, time, and action.
 - Service health, platform operations, and platform audit do not appear.
 - Evaluation-tier quota callout appears only when relevant to the active
   organization and includes current usage, quota, requested quota, submit,
@@ -50,7 +55,7 @@ Reference: `docs/assets/webui-design/customer-overview.png`
 
 ## Devices + Detail Drawer
 
-Reference: `docs/assets/webui-design/customer-devices.png`
+Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 我的設備
 
 - Search and filters are visible above the table.
 - Table columns are Device, Organization, Model, Firmware, Health, Status,
@@ -68,7 +73,7 @@ Reference: `docs/assets/webui-design/customer-devices.png`
 
 ## Firmware & OTA
 
-Reference: `docs/assets/webui-design/customer-firmware-ota.png`
+Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 韌體更新
 
 - KPI strip shows Latest Version, Devices Current, Pending Update, and Failed
   Rollout.
@@ -85,7 +90,7 @@ Reference: `docs/assets/webui-design/customer-firmware-ota.png`
 
 ## Stream Health
 
-Reference: `docs/assets/webui-design/customer-stream-health.png`
+Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 影像播放狀況
 
 - KPI strip shows Stream Success Rate, Avg Stream Duration, Active Sessions Now,
   and Devices Never Streamed.

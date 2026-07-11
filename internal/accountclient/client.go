@@ -87,19 +87,153 @@ type BrandCloudUserResult struct {
 }
 
 type Device struct {
-	ID              string         `json:"id"`
-	OrganizationID  string         `json:"organization_id"`
-	Organization    string         `json:"organization"`
-	Name            string         `json:"name"`
-	Category        string         `json:"category"`
-	Model           string         `json:"model"`
-	SerialNumber    string         `json:"serial_number"`
-	VideoCloudDevID string         `json:"video_cloud_devid"`
-	Status          string         `json:"status"`
-	Readiness       string         `json:"readiness"`
-	LastSeenAt      string         `json:"last_seen_at"`
-	UpdatedAt       string         `json:"updated_at"`
-	Metadata        map[string]any `json:"metadata"`
+	ID                  string         `json:"id"`
+	OrganizationID      string         `json:"organization_id"`
+	DeviceItemProfileID string         `json:"device_item_profile_id,omitempty"`
+	Organization        string         `json:"organization"`
+	Name                string         `json:"name"`
+	Category            string         `json:"category"`
+	Model               string         `json:"model"`
+	SerialNumber        string         `json:"serial_number"`
+	VideoCloudDevID     string         `json:"video_cloud_devid"`
+	Status              string         `json:"status"`
+	Readiness           string         `json:"readiness"`
+	LastSeenAt          string         `json:"last_seen_at"`
+	UpdatedAt           string         `json:"updated_at"`
+	Metadata            map[string]any `json:"metadata"`
+}
+
+type Pagination struct {
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
+	Total  int `json:"total"`
+}
+
+type FleetDevicesPage struct {
+	Devices    []Device       `json:"devices"`
+	Pagination Pagination     `json:"pagination"`
+	Query      map[string]any `json:"query,omitempty"`
+}
+
+type FleetSummary struct {
+	Total          int                       `json:"total"`
+	ByStatus       map[string]int            `json:"by_status"`
+	BySKU          map[string]int            `json:"by_sku"`
+	ByModel        map[string]int            `json:"by_model"`
+	ByFirmware     map[string]int            `json:"by_firmware"`
+	ByRegion       map[string]int            `json:"by_region"`
+	ServiceEnabled map[string]int            `json:"service_enabled"`
+	BySKURegion    map[string]map[string]int `json:"by_sku_region"`
+	BySKUFirmware  map[string]map[string]int `json:"by_sku_firmware"`
+	UpdatedAt      string                    `json:"updated_at"`
+}
+
+type DeviceItemProfile struct {
+	ID                 string         `json:"id"`
+	BrandCloudID       string         `json:"brand_cloud_id"`
+	ProfileKey         string         `json:"profile_key"`
+	DisplayName        string         `json:"display_name"`
+	Status             string         `json:"status"`
+	Category           string         `json:"category"`
+	Manufacturer       string         `json:"manufacturer,omitempty"`
+	Model              string         `json:"model,omitempty"`
+	MetadataDefaults   map[string]any `json:"metadata_defaults"`
+	MetadataSchema     map[string]any `json:"metadata_schema"`
+	ServiceOptions     []string       `json:"service_options"`
+	ClaimPolicy        map[string]any `json:"claim_policy"`
+	ProvisioningPolicy map[string]any `json:"provisioning_policy"`
+	CreatedAt          string         `json:"created_at"`
+	UpdatedAt          string         `json:"updated_at"`
+}
+
+type DeviceItemProfileRequest struct {
+	ProfileKey         string         `json:"profile_key,omitempty"`
+	DisplayName        string         `json:"display_name,omitempty"`
+	Status             string         `json:"status,omitempty"`
+	Category           string         `json:"category,omitempty"`
+	Manufacturer       string         `json:"manufacturer,omitempty"`
+	Model              string         `json:"model,omitempty"`
+	MetadataDefaults   map[string]any `json:"metadata_defaults,omitempty"`
+	MetadataSchema     map[string]any `json:"metadata_schema,omitempty"`
+	CAProfile          string         `json:"ca_profile,omitempty"`
+	IssuerProfile      string         `json:"issuer_profile,omitempty"`
+	ServiceOptions     []string       `json:"service_options,omitempty"`
+	ClaimPolicy        map[string]any `json:"claim_policy,omitempty"`
+	ProvisioningPolicy map[string]any `json:"provisioning_policy,omitempty"`
+}
+
+type DeviceGroup struct {
+	ID             string `json:"id"`
+	OrganizationID string `json:"organization_id"`
+	Name           string `json:"name"`
+	Description    string `json:"description,omitempty"`
+	DeviceCount    int    `json:"device_count,omitempty"`
+}
+
+type DeviceGroupRequest struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+}
+
+type DeviceTagSummary struct {
+	Tag         string `json:"tag"`
+	DeviceCount int    `json:"device_count"`
+}
+
+type Role struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	ScopeType   string `json:"scope_type"`
+	Description string `json:"description,omitempty"`
+}
+
+type Permission struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Domain      string `json:"domain"`
+	Action      string `json:"action"`
+	Description string `json:"description,omitempty"`
+}
+
+type RoleAssignment struct {
+	ID             string `json:"id"`
+	RoleID         string `json:"role_id"`
+	RoleName       string `json:"role_name"`
+	ActorType      string `json:"actor_type"`
+	ActorID        string `json:"actor_id"`
+	ScopeType      string `json:"scope_type"`
+	ScopeID        string `json:"scope_id,omitempty"`
+	OrganizationID string `json:"organization_id,omitempty"`
+}
+
+type RoleAssignmentRequest struct {
+	RoleName  string `json:"role_name"`
+	ActorID   string `json:"actor_id"`
+	ScopeType string `json:"scope_type"`
+	ScopeID   string `json:"scope_id,omitempty"`
+}
+
+type AccessCheck struct {
+	Allowed   bool   `json:"allowed"`
+	ScopeType string `json:"scope_type"`
+	ScopeID   string `json:"scope_id"`
+}
+
+type ProductionRun struct {
+	ID                  string `json:"id"`
+	DeviceItemProfileID string `json:"device_item_profile_id"`
+	FactoryID           string `json:"factory_id,omitempty"`
+	BatchID             string `json:"batch_id,omitempty"`
+	Status              string `json:"status"`
+	AllowedQuantity     int    `json:"allowed_quantity"`
+	IssuedQuantity      int    `json:"issued_quantity"`
+}
+
+type DeviceUpdateRequest struct {
+	Name     string         `json:"name"`
+	Category string         `json:"category"`
+	Model    string         `json:"model,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 type Operation struct {
@@ -499,6 +633,278 @@ func (c *Client) Devices(ctx context.Context, accessToken, orgID string) ([]Devi
 		return nil, err
 	}
 	return body.Devices, nil
+}
+
+func (c *Client) Device(ctx context.Context, accessToken, orgID, deviceID string) (Device, error) {
+	var body struct {
+		Device Device `json:"device"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/devices/" + url.PathEscape(deviceID)
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return Device{}, err
+	}
+	return body.Device, nil
+}
+
+func (c *Client) UpdateDevice(ctx context.Context, accessToken, orgID, deviceID string, request DeviceUpdateRequest) (Device, error) {
+	var body struct {
+		Device Device `json:"device"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/devices/" + url.PathEscape(deviceID)
+	if err := c.doJSON(ctx, http.MethodPatch, path, accessToken, request, &body); err != nil {
+		return Device{}, err
+	}
+	return body.Device, nil
+}
+
+func (c *Client) FleetDevices(ctx context.Context, accessToken, orgID string, query url.Values) (FleetDevicesPage, error) {
+	var body FleetDevicesPage
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/fleet/devices"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return FleetDevicesPage{}, err
+	}
+	return body, nil
+}
+
+func (c *Client) FleetSummary(ctx context.Context, accessToken, orgID string) (FleetSummary, error) {
+	var body FleetSummary
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/fleet/summary"
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return FleetSummary{}, err
+	}
+	return body, nil
+}
+
+func (c *Client) DeviceGroups(ctx context.Context, accessToken, orgID string, query url.Values) ([]DeviceGroup, error) {
+	var body struct {
+		DeviceGroups []DeviceGroup `json:"device_groups"`
+		Groups       []DeviceGroup `json:"groups"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-groups"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	if len(body.DeviceGroups) > 0 {
+		return body.DeviceGroups, nil
+	}
+	return body.Groups, nil
+}
+
+func (c *Client) DeviceGroup(ctx context.Context, accessToken, orgID, groupID string) (DeviceGroup, error) {
+	var body struct {
+		Group DeviceGroup `json:"group"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-groups/" + url.PathEscape(groupID)
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return DeviceGroup{}, err
+	}
+	return body.Group, nil
+}
+
+func (c *Client) DeviceTags(ctx context.Context, accessToken, orgID string, query url.Values) ([]DeviceTagSummary, error) {
+	var body struct {
+		Tags []DeviceTagSummary `json:"tags"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/tags"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Tags, nil
+}
+
+func (c *Client) CreateDeviceGroup(ctx context.Context, accessToken, orgID string, request DeviceGroupRequest) (DeviceGroup, error) {
+	var body struct {
+		Group DeviceGroup `json:"group"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-groups"
+	if err := c.doJSON(ctx, http.MethodPost, path, accessToken, request, &body); err != nil {
+		return DeviceGroup{}, err
+	}
+	return body.Group, nil
+}
+
+func (c *Client) UpdateDeviceGroup(ctx context.Context, accessToken, orgID, groupID string, request DeviceGroupRequest) (DeviceGroup, error) {
+	var body struct {
+		Group DeviceGroup `json:"group"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-groups/" + url.PathEscape(groupID)
+	if err := c.doJSON(ctx, http.MethodPatch, path, accessToken, request, &body); err != nil {
+		return DeviceGroup{}, err
+	}
+	return body.Group, nil
+}
+
+func (c *Client) DeleteDeviceGroup(ctx context.Context, accessToken, orgID, groupID string) error {
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-groups/" + url.PathEscape(groupID)
+	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)
+}
+
+func (c *Client) Roles(ctx context.Context, accessToken, orgID string, query url.Values) ([]Role, error) {
+	var body struct {
+		Roles []Role `json:"roles"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/roles"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Roles, nil
+}
+
+func (c *Client) Permissions(ctx context.Context, accessToken, orgID string, query url.Values) ([]Permission, error) {
+	var body struct {
+		Permissions []Permission `json:"permissions"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/permissions"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Permissions, nil
+}
+
+func (c *Client) RoleAssignments(ctx context.Context, accessToken, orgID string, query url.Values) ([]RoleAssignment, error) {
+	var body struct {
+		Assignments []RoleAssignment `json:"role_assignments"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/role-assignments"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Assignments, nil
+}
+
+func (c *Client) CheckAccess(ctx context.Context, accessToken, orgID, permission, scopeType, scopeID string) (bool, error) {
+	var body AccessCheck
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/access/check?permission=" + url.QueryEscape(permission) + "&scope_type=" + url.QueryEscape(scopeType) + "&scope_id=" + url.QueryEscape(scopeID)
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return false, err
+	}
+	return body.Allowed, nil
+}
+
+func (c *Client) CreateRoleAssignment(ctx context.Context, accessToken, orgID string, request RoleAssignmentRequest) (RoleAssignment, error) {
+	var body struct {
+		Assignment RoleAssignment `json:"role_assignment"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/role-assignments"
+	if err := c.doJSON(ctx, http.MethodPost, path, accessToken, request, &body); err != nil {
+		return RoleAssignment{}, err
+	}
+	return body.Assignment, nil
+}
+
+func (c *Client) DeleteRoleAssignment(ctx context.Context, accessToken, orgID, assignmentID string) error {
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/role-assignments/" + url.PathEscape(assignmentID)
+	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)
+}
+
+func (c *Client) ProductionRuns(ctx context.Context, accessToken, orgID, profileID string, query url.Values) ([]ProductionRun, error) {
+	var body struct {
+		Runs []ProductionRun `json:"production_runs"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-item-profiles/" + url.PathEscape(profileID) + "/production-runs"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Runs, nil
+}
+
+func (c *Client) AddDeviceToGroup(ctx context.Context, accessToken, orgID, groupID, deviceID string) error {
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-groups/" + url.PathEscape(groupID) + "/devices/" + url.PathEscape(deviceID)
+	return c.doJSON(ctx, http.MethodPut, path, accessToken, nil, nil)
+}
+
+func (c *Client) RemoveDeviceFromGroup(ctx context.Context, accessToken, orgID, groupID, deviceID string) error {
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-groups/" + url.PathEscape(groupID) + "/devices/" + url.PathEscape(deviceID)
+	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)
+}
+
+func (c *Client) AddDeviceTag(ctx context.Context, accessToken, orgID, deviceID, tag string) error {
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/devices/" + url.PathEscape(deviceID) + "/tags/" + url.PathEscape(tag)
+	return c.doJSON(ctx, http.MethodPut, path, accessToken, nil, nil)
+}
+
+func (c *Client) RemoveDeviceTag(ctx context.Context, accessToken, orgID, deviceID, tag string) error {
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/devices/" + url.PathEscape(deviceID) + "/tags/" + url.PathEscape(tag)
+	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)
+}
+
+func (c *Client) DeviceItemProfiles(ctx context.Context, accessToken, orgID string, query url.Values) ([]DeviceItemProfile, error) {
+	var body struct {
+		DeviceItemProfiles []DeviceItemProfile `json:"device_item_profiles"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-item-profiles"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.DeviceItemProfiles, nil
+}
+
+func (c *Client) DeviceItemProfile(ctx context.Context, accessToken, orgID, profileID string) (DeviceItemProfile, error) {
+	var body struct {
+		DeviceItemProfile DeviceItemProfile `json:"device_item_profile"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-item-profiles/" + url.PathEscape(profileID)
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return DeviceItemProfile{}, err
+	}
+	return body.DeviceItemProfile, nil
+}
+
+func (c *Client) CreateDeviceItemProfile(ctx context.Context, accessToken, orgID string, request DeviceItemProfileRequest) (DeviceItemProfile, error) {
+	var body struct {
+		DeviceItemProfile DeviceItemProfile `json:"device_item_profile"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-item-profiles"
+	if err := c.doJSON(ctx, http.MethodPost, path, accessToken, request, &body); err != nil {
+		return DeviceItemProfile{}, err
+	}
+	return body.DeviceItemProfile, nil
+}
+
+func (c *Client) UpdateDeviceItemProfile(ctx context.Context, accessToken, orgID, profileID string, request DeviceItemProfileRequest) (DeviceItemProfile, error) {
+	var body struct {
+		DeviceItemProfile DeviceItemProfile `json:"device_item_profile"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-item-profiles/" + url.PathEscape(profileID)
+	if err := c.doJSON(ctx, http.MethodPatch, path, accessToken, request, &body); err != nil {
+		return DeviceItemProfile{}, err
+	}
+	return body.DeviceItemProfile, nil
+}
+
+func (c *Client) DisableDeviceItemProfile(ctx context.Context, accessToken, orgID, profileID string) (DeviceItemProfile, error) {
+	var body struct {
+		DeviceItemProfile DeviceItemProfile `json:"device_item_profile"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-item-profiles/" + url.PathEscape(profileID) + "/disable"
+	if err := c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{}, &body); err != nil {
+		return DeviceItemProfile{}, err
+	}
+	return body.DeviceItemProfile, nil
 }
 
 func (c *Client) AdminDevices(ctx context.Context, accessToken string) ([]Device, error) {

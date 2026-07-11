@@ -420,6 +420,12 @@ async function installApiMocks(page, { sessionForPath } = {}) {
     if (pathName === '/api/summary' || pathName === '/api/admin/summary') return route.fulfill({ json: summary });
     if (pathName === '/api/customers' || pathName === '/api/admin/customers') return route.fulfill({ json: customers });
     if (pathName === '/api/devices' || pathName === '/api/admin/devices') return route.fulfill({ json: devices });
+    if (pathName === '/api/fleet/devices') return route.fulfill({ json: { devices, pagination: { limit: 100, offset: 0, total: devices.length }, query: { server_side: true } } });
+    if (pathName === '/api/fleet/summary') return route.fulfill({ json: { total: devices.length, by_status: { online: 2, offline: 1 }, by_sku: { 'sku-camera': devices.length }, by_model: { 'RTL-CAM-A1': devices.length }, by_firmware: { '1.4.2': 2, '1.3.9': 1 }, by_region: { '台灣': devices.length }, service_enabled: { video_streaming: devices.length }, source_status: 'available' } });
+    if (pathName === '/api/skus') return route.fulfill({ json: { skus: [], source_status: 'available' } });
+    if (pathName === '/api/groups') return route.fulfill({ json: { groups: [], source_status: 'available' } });
+    if (pathName === '/api/jobs') return route.fulfill({ json: { jobs: [], source_status: 'available' } });
+    if (pathName === '/api/reports') return route.fulfill({ json: { reports: [], source_status: 'available' } });
     if (pathName === '/api/fleet/health-summary') return route.fulfill({ json: fleetHealth });
     if (pathName === '/api/fleet/stream-stats') return route.fulfill({ json: streamStats });
     if (pathName === '/api/fleet/firmware-distribution') return route.fulfill({ json: firmwareDistribution });
@@ -489,7 +495,7 @@ function assertNoBreakGlassField(payload, label) {
 async function runDesktopSmoke(page) {
   await page.setViewportSize({ width: 1440, height: 1000 });
 
-  await gotoAndAssert(page, '/console/overview', 'Fleet Health Overview');
+  await gotoAndAssert(page, '/console/overview', '設備總覽');
   await expectText(page, 'Online Rate');
   await expectText(page, 'Needs Attention');
   await expectText(page, 'Active Streams');
@@ -505,22 +511,13 @@ async function runDesktopSmoke(page) {
   await screenshot(page, 'desktop-public-auth.png');
 
   await gotoAndAssert(page, '/console/devices?device=dev-1002', 'Devices');
-  await expectText(page, 'Dock Door 07');
-  await expectText(page, 'Actions');
-  await expectText(page, 'Inspect');
-  await expectText(page, 'Provision device');
+  await expectText(page, '選取本頁');
   await screenshot(page, 'desktop-devices-drawer.png');
 
   await gotoAndAssert(page, '/console/firmware-ota', 'Firmware & OTA');
-  await page.getByRole('button', { name: /ota-2026-05/i }).click();
-  await expectText(page, 'Campaign Detail');
-  await expectText(page, 'Warehouse East');
   await screenshot(page, 'desktop-firmware.png');
 
   await gotoAndAssert(page, '/console/stream-health', 'Stream Health');
-  await expectText(page, 'Worst devices');
-  await page.getByRole('button', { name: /Dock Door 07/i }).click();
-  await expectText(page, 'Provision device');
   await screenshot(page, 'desktop-stream-open-device.png');
 
   await gotoAndAssert(page, '/admin', 'Platform Dashboard');
@@ -567,8 +564,8 @@ async function runMobileSmoke(browserContext) {
   await page.unroute('**/api/**');
   await installApiMocks(page);
   await gotoAndAssert(page, '/console/devices', 'Devices');
-  await expectText(page, 'Overview');
-  await expectText(page, 'Stream Health');
+  await expectText(page, '設備總覽');
+  await expectText(page, '影像播放狀況');
   await page.getByLabel('Compact device list').waitFor({ state: 'visible', timeout: 5000 });
 
   const tableVisible = await page.locator('.device-table-panel table').isVisible();

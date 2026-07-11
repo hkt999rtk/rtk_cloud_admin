@@ -1,6 +1,13 @@
 # WebUI Implementation Roadmap
 
-Status: completed first-batch implementation roadmap.
+Status: historical first-batch roadmap plus the current Brand Fleet follow-up.
+
+> The original four-page Customer View roadmap below is retained for historical
+> implementation traceability. It is superseded for the brand sub-tenant by the
+> 100K+ Developer / Operations Fleet Management plan: server-side device
+> management, groups/tags, products, firmware releases, full update plans,
+> asynchronous batch jobs, and reports. The current prototype is
+> `docs/assets/webui-design/brand-fleet-management-mock.html`.
 
 Audience:
 
@@ -31,7 +38,9 @@ production data work in `rtk_video_cloud` or `rtk_account_manager` remains a
 dependency note only and was not opened as part of this batch.
 
 This roadmap tracks the completed first WebUI implementation sequence for
-Customer View, auth, Platform View pages, and Platform Dashboard. Brand Clouds
+Customer View, auth, Platform View pages, and Platform Dashboard. Brand Fleet
+Management is the next product implementation sequence for brand sub-tenants.
+Brand Clouds
 remain a subsequent Platform View design extension; the relevant drafts live in
 [platform-view-dashboard-design.md](platform-view-dashboard-design.md) and
 [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md).
@@ -192,7 +201,7 @@ source-state rules.
 - Implement the large fleet health trend chart with 7d / 30d window support.
 - Implement health distribution with Healthy, Warning, Critical, Unknown and
   device-filter navigation when supported.
-- Implement Recent Alerts and Attention Queue sorted by operational impact.
+- Implement one Devices that need attention list sorted by operational impact.
 - Add the evaluation quota callout when the active evaluation organization is
   near or at `evaluation_device_quota`.
 - Keep Service Health, platform operations, and platform audit content out of
@@ -233,7 +242,7 @@ source-state rules.
 - [webui-implementation-roadmap.md](webui-implementation-roadmap.md)
 - [webui-customer-view-design.md](webui-customer-view-design.md)
 - [customer-view-visual-qa-checklist.md](customer-view-visual-qa-checklist.md)
-- `docs/assets/webui-design/customer-overview.png`
+- `docs/assets/webui-design/customer-view-refresh-mock.html`
 
 ## Milestone 4: Devices Table And Detail Drawer Completion
 
@@ -292,7 +301,7 @@ workflow.
 - [webui-implementation-roadmap.md](webui-implementation-roadmap.md)
 - [webui-customer-view-design.md](webui-customer-view-design.md)
 - [customer-view-visual-qa-checklist.md](customer-view-visual-qa-checklist.md)
-- `docs/assets/webui-design/customer-devices.png`
+- `docs/assets/webui-design/customer-view-refresh-mock.html`
 
 ## Milestone 5: Firmware & OTA Read-Only Workflows
 
@@ -349,7 +358,7 @@ distribution, rollout progress, and firmware risk.
 - [webui-implementation-roadmap.md](webui-implementation-roadmap.md)
 - [webui-customer-view-design.md](webui-customer-view-design.md)
 - [customer-view-visual-qa-checklist.md](customer-view-visual-qa-checklist.md)
-- `docs/assets/webui-design/customer-firmware-ota.png`
+- `docs/assets/webui-design/customer-view-refresh-mock.html`
 
 ## Milestone 6: Stream Health Read-Only Workflows
 
@@ -405,7 +414,7 @@ success, active sessions, and devices needing stream attention.
 - [webui-implementation-roadmap.md](webui-implementation-roadmap.md)
 - [webui-customer-view-design.md](webui-customer-view-design.md)
 - [customer-view-visual-qa-checklist.md](customer-view-visual-qa-checklist.md)
-- `docs/assets/webui-design/customer-stream-health.png`
+- `docs/assets/webui-design/customer-view-refresh-mock.html`
 
 ## Milestone 7: Public Auth, Signup, Verification, And Quota UX Polish
 

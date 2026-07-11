@@ -408,6 +408,163 @@ main {
   margin: 0 0 6px;
 }
 
+.region-fleet-panel {
+  margin-top: 18px;
+}
+
+.inline-form,
+.inline-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.inline-form input {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-width: 260px;
+  padding: 9px 11px;
+}
+
+.sku-create-form {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sku-create-form input,
+.sku-create-form select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px 11px;
+}
+
+.service-checks {
+  display: flex;
+  gap: 12px;
+}
+
+.notice {
+  background: #eef7fb;
+  border: 1px solid #b9d8e5;
+  border-radius: 7px;
+  color: var(--navy);
+  margin: 12px 0;
+  padding: 10px 12px;
+}
+
+.danger-button {
+  background: #fff1f0;
+  border: 1px solid #e5a6a2;
+  border-radius: 6px;
+  color: #a52b25;
+  padding: 8px 11px;
+}
+
+.bulk-selection-bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.bulk-selection-bar span {
+  color: var(--navy);
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.link-button {
+  background: none;
+  border: 0;
+  color: var(--brand-dark);
+  cursor: pointer;
+  padding: 7px;
+}
+
+.region-fleet-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.85fr);
+  gap: 18px;
+}
+
+.region-map-vector {
+  background: #f4f8fb;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.region-map-vector svg {
+  display: block;
+  width: 100%;
+  min-height: 220px;
+}
+
+.region-map-vector path {
+  fill: #dcebf3;
+  stroke: #9bbdce;
+  stroke-width: 2;
+}
+
+.region-map-vector circle {
+  fill: var(--brand);
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.region-map-vector text {
+  fill: var(--navy);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.region-map-vector small {
+  color: var(--muted);
+  display: block;
+  padding: 0 8px 5px;
+}
+
+.region-bars {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+}
+
+.region-bar-row > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+
+.region-bar-row span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.region-bar-track {
+  background: #e7eef2;
+  border-radius: 99px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.region-bar-track span {
+  background: var(--brand);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+}
+
+@media (max-width: 920px) {
+  .region-fleet-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 h1,
 h2,
 p {

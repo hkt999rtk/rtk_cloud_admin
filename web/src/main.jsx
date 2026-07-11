@@ -75,15 +75,35 @@ function brandCloudsURL({ query, status, tier, limit, offset }) {
   return `/api/admin/brand-clouds?${params.toString()}`;
 }
 
+function fleetDevicesURL(search = '') {
+  const source = new URLSearchParams(search);
+  const params = new URLSearchParams();
+  for (const key of ['q', 'sku_id', 'category', 'model', 'status', 'readiness', 'firmware', 'sort', 'direction', 'limit', 'offset']) {
+    const value = source.get(key);
+    if (value) params.set(key, value);
+  }
+  const status = source.get('status');
+  const firmware = source.get('firmware');
+  if (status && !params.has('readiness')) {
+    params.set('readiness', status);
+    params.delete('status');
+  }
+  if (firmware) params.set('firmware', firmware);
+  if (!params.has('limit')) params.set('limit', '100');
+  return `/api/fleet/devices?${params.toString()}`;
+}
+
 function App() {
   const [active, setActive] = useState(routeFromLocation());
   const [me, setMe] = useState(null);
   const [summary, setSummary] = useState(null);
+  const [fleetSummary, setFleetSummary] = useState(null);
   const [fleetHealth, setFleetHealth] = useState(null);
   const [streamStats, setStreamStats] = useState(null);
   const [recentAlerts, setRecentAlerts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [devices, setDevices] = useState([]);
+  const [fleetDevices, setFleetDevices] = useState(null);
   const [operations, setOperations] = useState([]);
   const [health, setHealth] = useState([]);
   const [serviceLogs, setServiceLogs] = useState(null);
@@ -100,6 +120,12 @@ function App() {
   const [brandCloudDrawerMode, setBrandCloudDrawerMode] = useState('');
   const [ssoProviders, setSSOProviders] = useState([]);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
+  const [skus, setSKUs] = useState(null);
+  const [releases, setReleases] = useState([]);
+  const [jobs, setJobs] = useState(null);
+  const [reports, setReports] = useState(null);
+  const [groups, setGroups] = useState(null);
+  const [access, setAccess] = useState(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
   const [overviewWindow, setOverviewWindow] = useState('7d');
@@ -119,11 +145,13 @@ function App() {
 
   function clearDashboardState() {
     setSummary(null);
+    setFleetSummary(null);
     setFleetHealth(null);
     setStreamStats(null);
     setRecentAlerts([]);
     setCustomers([]);
     setDevices([]);
+    setFleetDevices(null);
     setOperations([]);
     setHealth([]);
     setServiceLogs(null);
@@ -137,6 +165,10 @@ function App() {
     setBrandCloudDrawerMode('');
     setSSOProviders([]);
     setFirmwareDistribution(null);
+    setSKUs(null);
+    setJobs(null);
+    setReports(null);
+    setGroups(null);
   }
 
   useEffect(() => {
@@ -193,7 +225,7 @@ function App() {
           : [
               fetchJSON(`${prefix}/summary`),
               fetchJSON(`${prefix}/customers`),
-              fetchJSON(`${prefix}/devices`),
+              fetchJSON('/api/fleet/devices?limit=100').then((page) => page.devices || []),
               Promise.resolve([]),
               Promise.resolve([]),
               Promise.resolve([]),
@@ -202,8 +234,28 @@ function App() {
         const [nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit, nextPlatformDashboard] = await Promise.all(baseRequests);
         if (!alive) return;
         setSummary(nextSummary);
+        if (active === 'overview' && nextMe.kind !== 'platform_admin') {
+          const nextFleetSummary = await fetchJSON('/api/fleet/summary').catch((err) => {
+            if (err.isAuthError) throw err;
+            return { source_status: 'unavailable', source_message: err.message || 'Fleet 統計暫時無法取得。' };
+          });
+          if (!alive) return;
+          setFleetSummary(nextFleetSummary);
+        } else {
+          setFleetSummary(null);
+        }
         setCustomers(nextCustomers);
         setDevices(nextDevices);
+        if (active === 'devices' && nextMe.kind !== 'platform_admin') {
+          const nextFleetDevices = await fetchJSON(fleetDevicesURL(window.location.search)).catch((err) => {
+            if (err.isAuthError) throw err;
+            return { devices: [], pagination: { limit: 100, offset: 0, total: 0 }, source_status: 'unavailable', source_message: err.message || '設備查詢服務暫時無法使用。' };
+          });
+          if (!alive) return;
+          setFleetDevices(nextFleetDevices);
+        } else {
+          setFleetDevices(null);
+        }
         setOperations(nextOperations);
         setHealth(nextHealth);
         if (useAdminApi && active === 'platform-logs') {
@@ -287,6 +339,50 @@ function App() {
           setFirmwareDistribution(null);
         }
 
+        if (['sku-services', 'firmware-ota', 'reports'].includes(active) && nextMe.kind !== 'platform_admin') {
+          const nextSKUs = await fetchJSON('/api/skus').catch((err) => {
+            if (err.isAuthError) throw err;
+            return { skus: [], source_status: 'unavailable', source_message: err.message || 'SKU 資料暫時無法取得。' };
+          });
+          if (!alive) return;
+          setSKUs(nextSKUs);
+          if (active === 'firmware-ota' && nextSKUs?.skus?.length) {
+            const releaseResults = await Promise.all(nextSKUs.skus.map(async (sku) => {
+              try {
+                const result = await fetchJSON(`/api/skus/${encodeURIComponent(sku.id)}/releases`);
+                return (result?.items || result?.releases || []).map((release) => ({ ...release, sku_id: sku.id, sku_name: sku.name }));
+              } catch (err) {
+                if (err.isAuthError) throw err;
+                return [];
+              }
+            }));
+            if (!alive) return;
+            setReleases(releaseResults.flat());
+          } else {
+            setReleases([]);
+          }
+        } else {
+          setSKUs(null);
+          setReleases([]);
+        }
+        if (['jobs', 'reports', 'groups', 'access'].includes(active) && nextMe.kind !== 'platform_admin') {
+          const endpoint = active === 'jobs' ? '/api/jobs' : active === 'reports' ? '/api/reports' : active === 'groups' ? '/api/groups' : '/api/role-assignments';
+          const result = await fetchJSON(endpoint).catch((err) => {
+            if (err.isAuthError) throw err;
+            return { [active]: [], source_status: 'unavailable', source_message: err.message || '資料暫時無法取得。' };
+          });
+          if (!alive) return;
+          if (active === 'jobs') setJobs(result);
+          else if (active === 'reports') setReports(result);
+          else if (active === 'groups') setGroups(result);
+          else setAccess(result);
+        } else {
+          setJobs(null);
+          setReports(null);
+          setGroups(null);
+          setAccess(null);
+        }
+
         if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
           const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
           const [nextFleetHealth, nextStreamStats] = await Promise.all([
@@ -341,6 +437,7 @@ function App() {
           setBrandCloudDrawerMode('');
           setSSOProviders([]);
           setFirmwareDistribution(null);
+          setSKUs(null);
           setFleetHealth(null);
           setStreamStats(null);
           setRecentAlerts([]);
@@ -374,6 +471,7 @@ function App() {
     setBrandCloudDrawerMode('');
     setSSOProviders([]);
     setFirmwareDistribution(null);
+    setSKUs(null);
     setFleetHealth(null);
     setStreamStats(null);
     setRecentAlerts([]);
@@ -389,10 +487,12 @@ function App() {
 
   useEffect(() => {
     const onPopState = () => {
-      setActive(routeFromLocation());
+      const nextRoute = routeFromLocation();
+      setActive(nextRoute);
       const deviceId = deviceIdFromLocation();
       setSelectedDeviceId(deviceId);
       setDeviceDrawerOpen(Boolean(deviceId));
+      if (nextRoute === 'devices') setRefreshTick((tick) => tick + 1);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -448,6 +548,20 @@ function App() {
     setRefreshTick((tick) => tick + 1);
     updateDevicesLocation({ deviceId });
     setActive('devices');
+  }
+
+  async function runUpdatePlanAction(campaignId, action) {
+    setError('');
+    const response = await fetch(`/api/update-plans/${encodeURIComponent(campaignId)}/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `ui-${campaignId}-${action}-${Date.now()}` },
+      body: JSON.stringify({ reason: '由營運人員在 Fleet Management 執行' }),
+    });
+    if (!response.ok) {
+      setError(`${action} failed with ${response.status}`);
+      return;
+    }
+    setRefreshTick((tick) => tick + 1);
   }
 
   async function handleSSOProviderSave(orgID, config) {
@@ -852,6 +966,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'overview' ? (
           <Overview
             summary={summary}
+            fleetSummary={fleetSummary}
             fleetHealth={fleetHealth}
             streamStats={streamStats}
             recentAlerts={recentAlerts}
@@ -867,7 +982,9 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'devices' ? (
           <Devices
             active={active}
-            devices={devices}
+            devices={fleetDevices?.devices || devices}
+            serverPage={fleetDevices?.pagination}
+            serverSource={fleetDevices}
             selectedDevice={selectedDevice}
             deviceDrawerOpen={deviceDrawerOpen}
             me={me}
@@ -876,11 +993,18 @@ function App() {
             onAction={runDeviceAction}
           />
         ) : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'sku-services' ? (
+          <SKUsPage loading={loading} data={skus} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
+        ) : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'firmware-ota' ? (
           <FirmwareOTAPage
             loading={loading}
             distribution={firmwareDistribution}
+            skus={skus?.skus || []}
+            releases={releases}
             onViewDevices={openDevicesForFirmware}
+            onCampaignAction={runUpdatePlanAction}
+            onRefresh={() => setRefreshTick((tick) => tick + 1)}
           />
         ) : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'stream-health' ? (
@@ -893,6 +1017,10 @@ function App() {
             onOpenDevice={selectDevice}
           />
         ) : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'jobs' ? <BatchJobsPage data={jobs} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} skus={skus?.skus || []} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'access' ? <AccessPage data={access} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
@@ -1462,6 +1590,7 @@ function QuotaRaiseForm({ organizationId, organizationName, currentUsage, curren
 
 function Overview({
   summary,
+  fleetSummary,
   fleetHealth,
   streamStats,
   recentAlerts,
@@ -1534,6 +1663,8 @@ function Overview({
         />
       </section>
 
+      <RegionFleetPanel summary={fleetSummary} loading={loading} />
+
       <section className="overview-lower-grid">
         <RecentAlertsPanel loading={loading} alerts={recentAlerts} source={fleetHealth} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
         <AttentionQueuePanel loading={loading} items={attentionDevices} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
@@ -1558,10 +1689,273 @@ function Overview({
   );
 }
 
-function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
+function RegionFleetPanel({ summary, loading }) {
+  const regions = Object.entries(summary?.by_region || {}).sort((left, right) => right[1] - left[1]);
+  const max = Math.max(...regions.map(([, count]) => count), 1);
+  const unavailable = !summary || summary.source_status !== 'available';
+  return (
+    <section className="panel region-fleet-panel">
+      <div className="panel-head">
+        <div>
+          <h2>各區域設備狀況</h2>
+          <p>用地圖快速定位，再用數量比較各區域的設備規模。</p>
+        </div>
+      </div>
+      {loading ? <p className="empty-state">正在取得區域資料。</p> : null}
+      {!loading && unavailable ? <p className="empty-state">區域資料暫時無法取得。</p> : null}
+      {!loading && !unavailable ? (
+        <div className="region-fleet-grid">
+          <div className="region-map-vector" aria-label="區域設備分布圖">
+            <svg viewBox="0 0 520 260" role="img" aria-label="設備區域分布">
+              <path d="M38 150 92 118 138 128 166 92 230 106 274 78 334 96 390 72 476 112 450 178 390 184 350 220 275 202 220 232 164 214 100 232 52 202Z" />
+              {regions.slice(0, 8).map(([region, count], index) => {
+                const x = 70 + ((index * 71) % 390);
+                const y = 112 + ((index * 43) % 100);
+                return <g key={region}><circle cx={x} cy={y} r={Math.max(5, Math.min(14, 5 + count / max * 10))} /><text x={x + 10} y={y + 4}>{region}</text></g>;
+              })}
+            </svg>
+            <small>區域示意圖 · 資料依設備回報的區域分類</small>
+          </div>
+          <div className="region-bars">
+            {regions.slice(0, 8).map(([region, count]) => <div className="region-bar-row" key={region}>
+              <div><strong>{region}</strong><span>{count.toLocaleString()} 台</span></div>
+              <div className="region-bar-track"><span style={{ width: `${Math.max(4, count / max * 100)}%` }} /></div>
+            </div>)}
+            {!regions.length ? <p className="empty-state">目前沒有區域資料。</p> : null}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SKUsPage({ loading, data, onRefresh }) {
+  const items = data?.skus || [];
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingSKU, setEditingSKU] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [form, setForm] = useState({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['即時觀看'] });
+  const [message, setMessage] = useState('');
+  const canManage = data?.can_manage || items.some((sku) => sku.allowed_actions?.includes('manage_devices'));
+  async function createSKU(event) {
+    event.preventDefault();
+    const response = await fetch(editingSKU ? `/api/skus/${encodeURIComponent(editingSKU.id)}` : '/api/skus', { method: editingSKU ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    setMessage(response.ok ? (editingSKU ? 'SKU 已更新。' : 'SKU 已建立。') : 'SKU 目前無法儲存。');
+    if (response.ok) { setShowCreate(false); setEditingSKU(null); setPreview(null); onRefresh(); }
+  }
+  async function previewSKU() {
+    if (!editingSKU) return;
+    const response = await fetch(`/api/skus/${encodeURIComponent(editingSKU.id)}/impact-preview`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    setPreview(response.ok ? await response.json() : { source_status: 'unavailable' });
+  }
+  const unavailable = data?.source_status === 'unavailable' || data?.source_status === 'unconfigured';
+  return (
+    <section className="page-content">
+      <div className="page-intro">
+        <div>
+          <p className="eyebrow">Brand Fleet</p>
+          <h2>SKU 與服務</h2>
+          <p>查看每種產品可以使用哪些服務，以及目前角色可以管理哪些內容。</p>
+        </div>
+        {canManage ? <button type="button" className="primary" onClick={() => { setEditingSKU(null); setPreview(null); setShowCreate((value) => !value); }}>＋ 新增 SKU</button> : null}
+      </div>
+      {message ? <div className="notice">{message}</div> : null}
+      {showCreate ? <section className="panel"><form className="sku-create-form" onSubmit={createSKU}><input required placeholder="SKU 名稱" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input required placeholder="產品型號" value={form.product_model} onChange={(event) => setForm({ ...form, product_model: event.target.value })} /><select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="ip_camera">影像設備</option><option value="mqtt_device">回報設備</option><option value="generic">一般設備</option></select><div className="service-checks">{['即時觀看', '錄影與保存', '設備回報'].map((service) => <label key={service}><input type="checkbox" checked={form.service_capabilities.includes(service)} onChange={(event) => setForm({ ...form, service_capabilities: event.target.checked ? [...form.service_capabilities, service] : form.service_capabilities.filter((item) => item !== service) })} />{service}</label>)}</div>{editingSKU ? <button type="button" className="ghost-button" onClick={previewSKU}>先看變更影響</button> : null}<button type="submit" className="primary">{editingSKU ? '儲存變更' : '儲存 SKU'}</button>{preview ? <p className="notice">{preview.source_status === 'available' ? `會影響 ${(preview.affected_devices || 0).toLocaleString()} 台設備；${preview.requires_reprovision ? '可能需要重新設定。' : '不需要重新設定。'}` : '影響預覽目前無法取得。'}</p> : null}</form></section> : null}
+      {loading ? <section className="panel split-panel"><div><h3>正在載入 SKU</h3><p>正在取得產品與服務設定。</p></div></section> : null}
+      {!loading && unavailable ? <section className="panel split-panel"><div><h3>SKU 資料暫時無法取得</h3><p>{data?.source_message || '請稍後再試，或確認品牌帳號已完成產品設定。'}</p></div></section> : null}
+      {!loading && !unavailable && items.length === 0 ? <section className="panel split-panel"><div><h3>目前沒有 SKU</h3><p>完成產品設定後，SKU 與可用服務會顯示在這裡。</p></div></section> : null}
+      {!loading && !unavailable && items.length > 0 ? (
+        <section className="panel">
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead><tr><th>SKU</th><th>產品型號</th><th>設備數量</th><th>生產批次</th><th>可用服務</th><th>設備政策</th><th>韌體政策</th><th>可執行操作</th><th>狀態</th></tr></thead>
+              <tbody>{items.map((sku) => <tr key={sku.id}>
+                <td><strong>{sku.name}</strong><small>{sku.id}</small></td>
+                <td>{sku.product_model || sku.category || '—'}</td>
+                <td>{sku.device_count?.toLocaleString?.() || '0'}</td>
+                <td>{(sku.production_run_count || 0).toLocaleString()} 批</td>
+                <td>{sku.service_capabilities?.length ? sku.service_capabilities.join('、') : '未啟用'}</td>
+                <td>{sku.device_policy?.setup_available || sku.device_policy?.binding_available ? '已設定' : '未設定'}</td>
+                <td>{sku.firmware_policy?.ota_enabled ? '允許韌體更新' : '未啟用'}</td>
+                <td>{sku.allowed_actions?.length ? sku.allowed_actions.map((action) => action === 'manage_devices' ? '管理設備' : action === 'manage_updates' ? '管理更新' : action === 'view_reports' ? '查看報表' : '查看').join('、') : '需要聯絡管理者'}{canManage ? <button type="button" className="link-button" onClick={() => { setEditingSKU(sku); setForm({ name: sku.name, product_model: sku.product_model || '', category: sku.category || 'generic', service_capabilities: sku.service_capabilities || [] }); setPreview(null); setShowCreate(true); }}>編輯</button> : null}</td>
+                <td><span className={sku.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{sku.status === 'active' ? '啟用' : '停用'}</span>{sku.status === 'active' && canManage ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/skus/${encodeURIComponent(sku.id)}/disable`, { method: 'POST' }); onRefresh(); }}>停用</button> : null}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+    </section>
+  );
+}
+
+function BatchJobsPage({ data, loading, onRefresh }) {
+  const jobs = data?.jobs || [];
+  const [message, setMessage] = useState('');
+  async function retry(job) {
+    const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/retry`, { method: 'POST' });
+    setMessage(response.ok ? '已送出重試工作。' : '目前無法重試這項工作。');
+    if (response.ok) onRefresh();
+  }
+  return <section className="page-content">
+    <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>批次工作</h2><p>大量設備操作會在這裡執行與追蹤，不需要停在目前頁面等待。</p></div></div>
+    {message ? <div className="notice">{message}</div> : null}
+    {loading ? <section className="panel split-panel"><div><h3>正在載入批次工作</h3></div></section> : null}
+    {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>批次工作暫時無法取得</h3><p>{data?.source_message || '請稍後再試。'}</p></div></section> : null}
+    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>工作</th><th>範圍</th><th>進度</th><th>狀態</th><th>建立者</th><th>操作</th></tr></thead><tbody>{jobs.map((job) => <tr key={job.id}><td><strong>{job.name}</strong><small>{job.type}</small></td><td>{job.total.toLocaleString()} 台</td><td>{job.completed.toLocaleString()} / {job.total.toLocaleString()}<small>失敗 {job.failed} · 跳過 {job.skipped}</small></td><td><span className="status-badge neutral">{job.state === 'queued' ? '等待處理' : job.state}</span></td><td>{job.created_by}</td><td>{job.failed > 0 ? <button type="button" className="ghost-button" onClick={() => retry(job)}>重試失敗項目</button> : '—'}</td></tr>)}</tbody></table>{!jobs.length ? <p className="empty-state">目前沒有批次工作。</p> : null}</div></section> : null}
+  </section>;
+}
+
+function GroupsPage({ data, loading, onRefresh }) {
+  const groups = data?.groups || [];
+  const tags = data?.tags || [];
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ name: '', description: '' });
+  const [message, setMessage] = useState('');
+  const canManage = data?.allowed_actions?.includes('manage');
+  async function createGroup(event) {
+    event.preventDefault();
+    const response = await fetch('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    setMessage(response.ok ? '群組已建立。' : '群組目前無法建立。');
+    if (response.ok) { setForm({ name: '', description: '' }); setShowCreate(false); onRefresh(); }
+  }
+  async function deleteGroup(group) {
+    if (!window.confirm(`確定要刪除「${group.name}」嗎？`)) return;
+    const response = await fetch(`/api/groups/${encodeURIComponent(group.id)}`, { method: 'DELETE' });
+    setMessage(response.ok ? '群組已刪除。' : '群組目前無法刪除。');
+    if (response.ok) onRefresh();
+  }
+  return <section className="page-content">
+    <div className="page-intro"><div><p className="eyebrow">Fleet Organization</p><h2>群組與標籤</h2><p>用群組把設備整理成更新、批次工作和報表的管理範圍。</p></div>{canManage ? <button type="button" className="primary" onClick={() => setShowCreate((value) => !value)}>＋ 新增群組</button> : null}</div>
+    {message ? <div className="notice">{message}</div> : null}
+    {showCreate ? <section className="panel"><form className="inline-form" onSubmit={createGroup}><input required placeholder="群組名稱" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input placeholder="說明（選填）" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /><button type="submit" className="primary">儲存群組</button></form></section> : null}
+    {loading ? <section className="panel split-panel"><div><h3>正在載入群組</h3></div></section> : null}
+    {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>群組資料暫時無法取得</h3><p>{data?.source_message || '請稍後再試。'}</p></div></section> : null}
+    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>群組</th><th>說明</th><th>設備數量</th>{canManage ? <th>操作</th> : null}</tr></thead><tbody>{groups.map((group) => <tr key={group.id}><td><strong>{group.name}</strong><small>{group.id}</small></td><td>{group.description || '—'}</td><td>{(group.device_count || 0).toLocaleString()} 台</td>{canManage ? <td><button type="button" className="link-button" onClick={() => deleteGroup(group)}>刪除</button></td> : null}</tr>)}</tbody></table>{!groups.length ? <p className="empty-state">目前沒有群組。</p> : null}</div></section> : null}
+    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="panel-head"><div><h3>標籤</h3><p>標籤可用來搜尋設備與設定批次工作範圍。</p></div></div><div className="chip-list">{tags.map((tag) => <span className="status-badge neutral" key={tag.tag}>{tag.tag} · {tag.device_count.toLocaleString()} 台</span>)}</div>{!tags.length ? <p className="empty-state">目前沒有標籤。</p> : null}</section> : null}
+  </section>;
+}
+
+function AccessPage({ data, loading }) {
+  const assignments = data?.role_assignments || [];
+  const roles = data?.roles || [];
+  const scopeLabel = (assignment) => {
+    if (assignment.scope_type === 'organization') return '整個品牌帳號';
+    if (assignment.scope_type === 'sku') return `SKU：${assignment.scope_id}`;
+    if (assignment.scope_type === 'region') return `區域：${assignment.scope_id}`;
+    if (assignment.scope_type === 'group') return `群組：${assignment.scope_id}`;
+    if (assignment.scope_type === 'device') return '指定設備';
+    return '指定範圍';
+  };
+  return <section className="page-content">
+    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>團隊與權限</h2><p>角色決定可以做什麼，範圍決定可以管理哪些 SKU、區域、群組或設備。</p></div></div>
+    {loading ? <section className="panel split-panel"><div><h3>正在載入權限</h3></div></section> : null}
+    {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>權限資料暫時無法取得</h3><p>{data?.source_message || '請稍後再試。'}</p></div></section> : null}
+    {!loading && data?.source_status === 'available' ? <>
+      <section className="panel"><div className="panel-head"><div><h3>可用角色</h3><p>Developer、Operations 等角色的可用操作由平台設定。</p></div></div><div className="chip-list">{roles.map((role) => <span className="status-badge neutral" key={role.id}>{role.name}</span>)}</div></section>
+      <section className="panel"><div className="panel-head"><div><h3>目前的權限範圍</h3><p>這裡只顯示管理範圍，不顯示內部權限代碼。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>角色</th><th>管理範圍</th><th>狀態</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{assignment.role_name}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good">啟用</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">目前沒有額外的範圍指派。</p> : null}</div></section>
+    </> : null}
+  </section>;
+}
+
+function ReportsPage({ data, skus, loading, onRefresh }) {
+  const reports = data?.reports || [];
+  const [name, setName] = useState('設備狀況報表');
+  const [filters, setFilters] = useState({ sku_id: '', region: '', group_id: '', firmware: '', status: '', start_at: '', end_at: '' });
+  const [message, setMessage] = useState('');
+  async function createReport(event) {
+    event.preventDefault();
+    const scope = Object.fromEntries(Object.entries(filters).filter(([, value]) => value.trim()));
+    const response = await fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, scope }) });
+    setMessage(response.ok ? '報表已建立，完成後可查看結果。' : '報表目前無法建立。');
+    if (response.ok) { onRefresh(); }
+  }
+    return <section className="page-content">
+    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>報表</h2><p>用產品、區域、群組、韌體和時間範圍整理營運結果。</p></div></div>
+    <section className="panel"><form className="inline-form" onSubmit={createReport}><input value={name} onChange={(event) => setName(event.target.value)} aria-label="報表名稱" /><select aria-label="SKU 篩選" value={filters.sku_id} onChange={(event) => setFilters({ ...filters, sku_id: event.target.value })}><option value="">全部 SKU</option>{skus.map((sku) => <option key={sku.id} value={sku.id}>{sku.name}</option>)}</select><input placeholder="區域" value={filters.region} onChange={(event) => setFilters({ ...filters, region: event.target.value })} /><input placeholder="群組 ID" value={filters.group_id} onChange={(event) => setFilters({ ...filters, group_id: event.target.value })} /><input placeholder="韌體版本" value={filters.firmware} onChange={(event) => setFilters({ ...filters, firmware: event.target.value })} /><select aria-label="設備狀態" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">全部狀態</option><option value="online">在線</option><option value="offline">離線</option></select><label>從 <input type="date" aria-label="報表開始日期" value={filters.start_at} onChange={(event) => setFilters({ ...filters, start_at: event.target.value })} /></label><label>到 <input type="date" aria-label="報表結束日期" value={filters.end_at} onChange={(event) => setFilters({ ...filters, end_at: event.target.value })} /></label><button type="submit" className="primary">建立報表</button></form>{message ? <p className="notice">{message}</p> : null}</section>
+    {loading ? <section className="panel split-panel"><div><h3>正在載入報表</h3></div></section> : null}
+        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>報表</th><th>狀態</th><th>建立者</th><th>建立時間</th><th>結果</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{report.state === 'queued' ? '等待處理' : report.state}</td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={`/api/reports/${encodeURIComponent(report.id)}`}>查看結果</a>{report.state === 'completed' ? <>　<a href={`/api/reports/${encodeURIComponent(report.id)}?format=csv`}>下載 CSV</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">目前沒有報表。</p> : null}</div></section> : null}
+  </section>;
+}
+
+function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices, onCampaignAction, onRefresh }) {
   const versions = distribution?.versions || [];
   const campaigns = distribution?.campaigns || [];
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [releaseSKU, setReleaseSKU] = useState('');
+  const [releaseVersion, setReleaseVersion] = useState('');
+  const [releaseBuild, setReleaseBuild] = useState('');
+  const [releaseSize, setReleaseSize] = useState('');
+  const [releaseSHA, setReleaseSHA] = useState('');
+  const [releaseHardware, setReleaseHardware] = useState('');
+  const [releaseSigningKey, setReleaseSigningKey] = useState('');
+  const [releaseSignature, setReleaseSignature] = useState('');
+  const [releaseMessage, setReleaseMessage] = useState('');
+  const [planRelease, setPlanRelease] = useState('');
+  const [planName, setPlanName] = useState('');
+  const [planMessage, setPlanMessage] = useState('');
+  async function publishRelease(event) {
+    event.preventDefault();
+    if (!releaseSKU || !releaseVersion.trim()) return;
+    const file = event.currentTarget.elements.artifact?.files?.[0];
+    let artifactSize = Number(releaseSize);
+    let artifactSHA = releaseSHA.trim();
+    if (file) {
+      artifactSize = file.size;
+      const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+      artifactSHA = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+    if (!file && (!artifactSize || !artifactSHA)) {
+      setReleaseMessage('請上傳韌體檔案，或填寫檔案大小與 SHA-256。');
+      return;
+    }
+    const response = await fetch(`/api/skus/${encodeURIComponent(releaseSKU)}/releases`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-${releaseSKU}-${releaseVersion.trim()}` },
+      body: JSON.stringify({ version: releaseVersion.trim(), build_number: releaseBuild.trim(), artifact_size: artifactSize, artifact_sha256: artifactSHA, hardware_revisions: releaseHardware.split(',').map((item) => item.trim()).filter(Boolean), content_type: file?.type || 'application/octet-stream' }),
+    });
+    if (response.ok && file) {
+      const result = await response.json();
+      if (result.upload?.url) {
+        const upload = await fetch(result.upload.url, { method: 'PUT', body: file });
+        if (!upload.ok) {
+          setReleaseMessage('版本已建立，但檔案上傳失敗，請從發布流程重試。');
+          return;
+        }
+      }
+      if (result.release?.release_id && releaseSigningKey.trim() && releaseSignature.trim()) {
+        const finalize = await fetch(`/api/skus/${encodeURIComponent(releaseSKU)}/releases/${encodeURIComponent(result.release.release_id)}/finalize`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `finalize-${result.release.release_id}` },
+          body: JSON.stringify({ signing_algorithm: 'ed25519', signing_key_id: releaseSigningKey.trim(), signature: releaseSignature.trim() }),
+        });
+        if (!finalize.ok) {
+          setReleaseMessage('版本已建立，但簽章檢查未完成，請稍後重試。');
+          onRefresh();
+          return;
+        }
+      }
+    }
+    setReleaseMessage(response.ok ? '韌體版本已建立；完成檔案檢查後即可發布。' : '韌體版本目前無法建立。');
+    if (response.ok) { setReleaseVersion(''); setReleaseBuild(''); setReleaseSize(''); setReleaseSHA(''); setReleaseHardware(''); setReleaseSigningKey(''); setReleaseSignature(''); onRefresh(); }
+  }
+  async function createUpdatePlan(event) {
+    event.preventDefault();
+    const release = releases.find((item) => item.id === planRelease || item.release_id === planRelease);
+    if (!release) return;
+    const response = await fetch('/api/update-plans', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `plan-${release.sku_id}-${release.id || release.release_id}-${Date.now()}` },
+      body: JSON.stringify({ sku_id: release.sku_id, release_id: release.id || release.release_id, name: planName.trim() || `更新 ${release.version}`, selector: { all_devices: true }, phases: [{ phase: 0, cumulative_percentage: 100, soak_seconds: 0 }], failure_policy: { minimum_sample_size: 10, failure_percentage: 10, timeout_percentage: 10 } }),
+    });
+    setPlanMessage(response.ok ? '更新計畫已建立，請在下方啟動。' : '更新計畫目前無法建立。');
+    if (response.ok) { setPlanName(''); setPlanRelease(''); onRefresh(); }
+  }
+  async function releaseAction(release, action) {
+    const id = release.id || release.release_id;
+    const response = await fetch(`/api/skus/${encodeURIComponent(release.sku_id)}/releases/${encodeURIComponent(id)}/${action}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-action-${id}-${action}-${Date.now()}` },
+      body: JSON.stringify(action === 'revoke' ? { reason: '由品牌營運人員撤回' } : {}),
+    });
+    setReleaseMessage(response.ok ? `版本已${action === 'publish' ? '發布' : '更新'}。` : '版本狀態目前無法更新。');
+    if (response.ok) onRefresh();
+  }
   const available = sourceAvailable(distribution);
   const pageState = sourceStateForPanel({
     loading,
@@ -1597,6 +1991,10 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
         <MetricCard icon="cloud-arrow-up" label="Pending Update" value={available ? pendingUpdate : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? pendingUpdate / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone="info" />
         <MetricCard icon="circle-exclamation" label="Failed Rollout" value={available ? failedRollout : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone={failedRollout ? 'danger' : 'good'} />
       </section>
+
+      {skus.some((sku) => sku.allowed_actions?.includes('manage_updates')) ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>新增韌體版本</h3><p>先把版本登記到指定 SKU，再建立更新計畫。檔案上傳與簽章仍依品牌的發布流程完成。</p></div></div><form className="inline-form" onSubmit={publishRelease}><select required value={releaseSKU} onChange={(event) => setReleaseSKU(event.target.value)}><option value="">選擇 SKU</option>{skus.filter((sku) => sku.allowed_actions?.includes('manage_updates')).map((sku) => <option value={sku.id} key={sku.id}>{sku.name}</option>)}</select><input required placeholder="版本，例如 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input required placeholder="Build 編號" value={releaseBuild} onChange={(event) => setReleaseBuild(event.target.value)} /><input name="artifact" type="file" accept="application/octet-stream,.bin" aria-label="韌體檔案（可選）" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setReleaseSize(String(file.size)); } }} /><input type="number" min="1" placeholder="檔案大小（沒有檔案時填寫）" value={releaseSize} onChange={(event) => setReleaseSize(event.target.value)} /><input pattern="[a-fA-F0-9]{64}" placeholder="SHA-256（沒有檔案時填寫）" value={releaseSHA} onChange={(event) => setReleaseSHA(event.target.value)} /><input required placeholder="硬體版本（逗號分隔）" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} /><details><summary>簽章設定（進階）</summary><input placeholder="簽章金鑰名稱" value={releaseSigningKey} onChange={(event) => setReleaseSigningKey(event.target.value)} /><input placeholder="簽章內容" value={releaseSignature} onChange={(event) => setReleaseSignature(event.target.value)} /></details><button type="submit" className="primary">建立版本</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
+      {releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>建立更新計畫</h3><p>選擇已發布的版本，先建立全 fleet 計畫；啟動前仍可檢查範圍。</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select required value={planRelease} onChange={(event) => setPlanRelease(event.target.value)}><option value="">選擇韌體版本</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.sku_name || release.sku_id} · {release.version}</option>)}</select><input placeholder="計畫名稱（選填）" value={planName} onChange={(event) => setPlanName(event.target.value)} /><button type="submit" className="primary">建立更新計畫</button></form>{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
+      {releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>韌體版本</h3><p>版本必須先完成上傳與檢查，才能發布給更新計畫使用。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>SKU</th><th>版本</th><th>狀態</th><th>操作</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.sku_id}:${release.id || release.release_id}`}><td>{release.sku_name || release.sku_id}</td><td>{release.version}</td><td>{release.state}</td><td>{String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>發布</button> : null}{String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>撤回</button> : null}</td></tr>)}</tbody></table></div></section> : null}
 
       {loading && !distribution ? <p className="empty-state">Loading firmware distribution.</p> : null}
       {distribution && !available ? <SourceBlockedState title={pageState.title} message={unavailableText} /> : null}
@@ -1646,8 +2044,8 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
           <section className="panel firmware-panel">
             <div className="panel-head">
               <div>
-                <h3>Rollout Campaigns <span>(Read-only)</span></h3>
-                <p>Campaign status is displayed for visibility only; create/edit flows are out of scope.</p>
+                <h3>更新計畫</h3>
+                <p>查看更新進度，並依權限暫停、恢復、取消或重試失敗項目。</p>
               </div>
             </div>
             {campaigns.length ? (
@@ -1687,7 +2085,7 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
             )}
           </section>
 
-          <FirmwareCampaignDetail campaign={selectedCampaign} />
+          <FirmwareCampaignDetail campaign={selectedCampaign} onAction={onCampaignAction} />
           <FirmwareRiskQueue campaigns={campaigns} onViewDevices={onViewDevices} />
         </div>
         </>
@@ -1700,7 +2098,7 @@ function FirmwareOTAPage({ loading, distribution, onViewDevices }) {
   );
 }
 
-function FirmwareCampaignDetail({ campaign }) {
+function FirmwareCampaignDetail({ campaign, onAction }) {
   const rows = firmwareCampaignDetailRows(campaign || {});
   return (
     <section className="panel firmware-panel firmware-campaign-detail">
@@ -1709,6 +2107,12 @@ function FirmwareCampaignDetail({ campaign }) {
           <h3>Campaign Detail</h3>
           <p>{campaign ? `${campaign.campaign_id} device rollout status` : 'Select a rollout campaign to inspect device-level status.'}</p>
         </div>
+        {campaign && ['active', 'scheduled', 'paused', 'completed'].includes(String(campaign.state || '').toLowerCase()) ? (
+          <div className="inline-actions">
+            {campaign.state === 'paused' ? <button type="button" className="ghost-button" onClick={() => onAction?.(campaign.campaign_id, 'resume')}>恢復</button> : campaign.state === 'completed' && campaign.failed > 0 ? <button type="button" className="ghost-button" onClick={() => onAction?.(campaign.campaign_id, 'retry')}>重試失敗項目</button> : <button type="button" className="ghost-button" onClick={() => onAction?.(campaign.campaign_id, 'pause')}>暫停</button>}
+            <button type="button" className="danger-button" onClick={() => onAction?.(campaign.campaign_id, 'cancel')}>取消</button>
+          </div>
+        ) : null}
       </div>
       {campaign && rows.length ? (
         <div className="firmware-rollout-table">
@@ -3538,7 +3942,7 @@ function StreamAttentionPanel({ stats, onOpenDevice }) {
   );
 }
 
-function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSelectedDeviceId, closeDeviceDrawer, onAction }) {
+function Devices({ active, devices, serverPage, serverSource, selectedDevice, deviceDrawerOpen, me, setSelectedDeviceId, closeDeviceDrawer, onAction }) {
   const [readinessFilter, setReadinessFilter] = useState('All');
   const [healthFilter, setHealthFilter] = useState('All');
   const [signalFilter, setSignalFilter] = useState('All');
@@ -3546,6 +3950,9 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
   const [telemetryById, setTelemetryById] = useState({});
   const [telemetryLoadingId, setTelemetryLoadingId] = useState('');
   const [telemetryError, setTelemetryError] = useState('');
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [allFilteredSelected, setAllFilteredSelected] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -3653,7 +4060,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
   const columns = useMemo(() => [
     {
       key: 'name',
-      label: 'Device',
+      label: '設備',
       value: (device) => device.name,
       render: (device) => (
         <>
@@ -3662,41 +4069,42 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
         </>
       ),
     },
-    { key: 'organization', label: 'Organization', value: (device) => device.organization },
-    { key: 'model', label: 'Model', value: (device) => device.model },
+    { key: 'sku', label: 'SKU', value: (device) => device.sku_id || '未設定', render: (device) => device.sku_id || '未設定' },
+    { key: 'organization', label: '區域／組織', value: (device) => device.organization },
+    { key: 'model', label: '產品型號', value: (device) => device.model },
     {
       key: 'firmware',
-      label: 'Firmware',
+      label: '韌體版本',
       value: (device) => device.firmware_version_display,
       render: (device) => device.firmware_version_display,
     },
     {
       key: 'health',
-      label: 'Health',
+      label: '設備狀況',
       value: (device) => device.health_display,
       render: (device) => <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />,
     },
     {
       key: 'signal',
-      label: 'Signal',
+      label: '訊號',
       value: (device) => device.signal_display,
       render: (device) => <StatusBadge value={normalizeStatusKey(device.signal_display)} label={device.signal_display} />,
     },
     {
       key: 'readiness',
-      label: 'Status',
+      label: '設備狀態',
       value: (device) => device.readiness_display,
       render: (device) => <StatusBadge value={normalizeStatusKey(device.readiness)} label={device.readiness_display} />,
     },
     {
       key: 'last_seen_at',
-      label: 'Last seen',
+      label: '最後回報',
       value: (device) => device.last_seen_at,
       render: (device) => device.last_seen_at ? <time title={device.last_seen_at}>{formatRelativeTime(device.last_seen_at)}</time> : 'No transport evidence',
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: '操作',
       sortable: false,
       value: () => '',
       render: (device) => (
@@ -3708,7 +4116,7 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
             setSelectedDeviceId(device.id);
           }}
         >
-          Inspect
+          查看
         </button>
       ),
     },
@@ -3736,6 +4144,53 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
       signal: filterQueryValue(nextSignal),
       firmware: nextFirmware === 'All' ? '' : nextFirmware,
     });
+  }
+
+  function updateServerQuery(next = {}) {
+    const current = new URLSearchParams(window.location.search);
+    const query = {
+      q: next.q === undefined ? current.get('q') || '' : next.q,
+      sort: next.sort === undefined ? current.get('sort') || '' : next.sort,
+      direction: next.direction === undefined ? current.get('direction') || '' : next.direction,
+      offset: next.offset === undefined ? current.get('offset') || '' : next.offset,
+    };
+    updateDevicesLocation(query);
+  }
+
+  const excludedIds = allFilteredSelected ? selectedIds : new Set();
+  const selectionCount = allFilteredSelected
+    ? Math.max((serverPage?.total || 0) - excludedIds.size, 0)
+    : selectedIds.size;
+
+  function selectCurrentPage() {
+    setSelectedIds((current) => new Set([...current, ...tableRows.map((device) => device.id)]));
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setAllFilteredSelected(false);
+  }
+
+  function toggleDeviceSelection(deviceID, checked) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (allFilteredSelected) {
+        if (checked) next.delete(deviceID); else next.add(deviceID);
+      } else if (checked) next.add(deviceID); else next.delete(deviceID);
+      return next;
+    });
+  }
+
+  async function createBulkJob(type) {
+    const current = new URLSearchParams(window.location.search);
+    const query = {};
+    for (const key of ['q', 'sku_id', 'category', 'model', 'status', 'readiness', 'firmware', 'sort', 'direction']) {
+      if (current.get(key)) query[key] = current.get(key);
+    }
+    const scope = allFilteredSelected ? { query, exclude_ids: [...excludedIds] } : { device_ids: [...selectedIds] };
+    const response = await fetch('/api/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, name: type === 'device_deactivation' ? '停用設備' : '設定設備', scope, total: selectionCount }) });
+    setBulkMessage(response.ok ? '批次工作已建立，請到「批次工作」查看進度。' : '批次工作目前無法建立。');
+    if (response.ok) clearSelection();
   }
 
   return (
@@ -3794,8 +4249,16 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
             Clear filters
           </button>
         </div>
+        {bulkMessage ? <div className="notice">{bulkMessage}</div> : null}
+        <div className="bulk-selection-bar">
+          <button type="button" className="ghost-button" onClick={selectCurrentPage}>選取本頁</button>
+          <button type="button" className="ghost-button" onClick={() => { setAllFilteredSelected(true); setSelectedIds(new Set()); }}>選取全部 {serverPage?.total || tableRows.length} 台</button>
+          {selectionCount ? <><span>已選 {selectionCount.toLocaleString()} 台</span><button type="button" className="ghost-button" onClick={() => createBulkJob('device_settings')}>批次設定</button><button type="button" className="danger-button" onClick={() => createBulkJob('device_deactivation')}>批次停用</button><button type="button" className="link-button" onClick={clearSelection}>清除選取</button></> : null}
+        </div>
         <DataTable
-          columns={columns}
+          columns={[{
+            key: 'selection', label: '', sortable: false, value: () => '', render: (device) => <input type="checkbox" aria-label={`選取 ${device.name}`} checked={allFilteredSelected ? !excludedIds.has(device.id) : selectedIds.has(device.id)} onChange={(event) => toggleDeviceSelection(device.id, event.target.checked)} onClick={(event) => event.stopPropagation()} />,
+          }, ...columns]}
           rows={tableRows}
           rowKey={(device) => device.id}
           initialSortKey="name"
@@ -3803,6 +4266,13 @@ function Devices({ active, devices, selectedDevice, deviceDrawerOpen, me, setSel
           emptyLabel="No devices match the current filter."
           rowClassName={(device) => deviceDrawerOpen && selectedDevice?.id === device.id ? 'selected-row' : ''}
           onRowClick={(device) => setSelectedDeviceId(device.id)}
+          serverMode={Boolean(serverPage)}
+          serverTotal={serverPage?.total || 0}
+          serverOffset={serverPage?.offset || 0}
+          serverPageSize={serverPage?.limit || 100}
+          onServerSearch={(value) => updateServerQuery({ q: value, offset: 0 })}
+          onServerSort={(key, direction) => updateServerQuery({ sort: key, direction, offset: 0 })}
+          onServerPage={(offset) => updateServerQuery({ offset })}
         />
         <div className="mobile-device-list" aria-label="Compact device list">
           {tableRows.length ? tableRows.map((device) => (
@@ -3896,7 +4366,6 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
   const telemetryUnavailableText = telemetryState.message || 'Telemetry source is unavailable for this device.';
   const streamStatus = deriveStreamStatus(telemetry);
   const actionContext = { readOnly, capabilities, telemetryStatus: telemetry?.telemetry_status };
-  const provisionState = deviceActionState(device, 'provision', actionContext);
   const deactivateState = deviceActionState(device, 'deactivate', actionContext);
   function runDrawerAction(action) {
     const label = action === 'deactivate' ? 'deactivate this device' : 'provision this device';
@@ -4018,9 +4487,8 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             </section>
 
             <div className="drawer-actions">
-              <button type="button" disabled={!provisionState.enabled} title={provisionState.reason} onClick={() => runDrawerAction('provision')}>Provision device</button>
               <button type="button" className="destructive" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}>Deactivate device</button>
-              <small>{!provisionState.enabled ? provisionState.reason : !deactivateState.enabled ? deactivateState.reason : 'Actions are queued through lifecycle orchestration.'}</small>
+              <small>{!deactivateState.enabled ? deactivateState.reason : '設備設定與註冊由既有流程處理；這裡只顯示狀態並提供停用操作。'}</small>
             </div>
           </>
         )}
@@ -4333,7 +4801,15 @@ function DataTable({
   onRowClick,
   tableClassName = '',
   pageSize = DEFAULT_PAGE_SIZE,
+  serverMode = false,
+  serverTotal = 0,
+  serverOffset = 0,
+  serverPageSize = 100,
+  onServerSearch,
+  onServerSort,
+  onServerPage,
 }) {
+  const [serverFilter, setServerFilter] = useState('');
   const {
     filter,
     setFilter,
@@ -4349,8 +4825,15 @@ function DataTable({
   return (
     <>
       <div className="table-toolbar">
-        <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={searchPlaceholder} />
-        <span>{totalRows} of {rows.length}</span>
+        <input value={serverMode ? serverFilter : filter} onChange={(event) => {
+          if (serverMode) {
+            setServerFilter(event.target.value);
+            onServerSearch?.(event.target.value);
+          } else {
+            setFilter(event.target.value);
+          }
+        }} placeholder={searchPlaceholder} />
+        <span>{serverMode ? `${serverTotal} 台設備` : `${totalRows} of ${rows.length}`}</span>
       </div>
       <table className={tableClassName}>
         <thead>
@@ -4360,7 +4843,14 @@ function DataTable({
                 {column.sortable === false ? (
                   column.label
                 ) : (
-                  <button className="sort-button" onClick={() => requestSort(column.key)}>
+                    <button className="sort-button" onClick={() => {
+                      if (serverMode) {
+                        const nextDirection = sort.key === column.key && sort.direction === 'asc' ? 'desc' : 'asc';
+                        onServerSort?.(column.key, nextDirection);
+                      } else {
+                        requestSort(column.key);
+                      }
+                    }}>
                     <span>{column.label}</span>
                     <span aria-hidden="true">{sort.key === column.key ? (sort.direction === 'asc' ? '^' : 'v') : '-'}</span>
                   </button>
@@ -4370,7 +4860,7 @@ function DataTable({
           </tr>
         </thead>
         <tbody>
-          {visibleRows.map((row) => (
+          {(serverMode ? rows : visibleRows).map((row) => (
             <tr
               key={rowKey(row)}
               className={[onRowClick ? 'clickable-row' : '', rowClassName ? rowClassName(row) : ''].filter(Boolean).join(' ')}
@@ -4383,11 +4873,21 @@ function DataTable({
           ))}
         </tbody>
       </table>
-      {!visibleRows.length ? <p className="empty-table">{emptyLabel}</p> : null}
+      {!(serverMode ? rows : visibleRows).length ? <p className="empty-table">{emptyLabel}</p> : null}
       <div className="pagination">
-        <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
-        <span>Page {page} of {maxPage}</span>
-        <button disabled={page >= maxPage} onClick={() => setPage(page + 1)}>Next</button>
+        {serverMode ? (() => {
+          const currentPage = Math.floor(serverOffset / serverPageSize) + 1;
+          const maxServerPage = Math.max(1, Math.ceil(serverTotal / serverPageSize));
+          return <>
+            <button disabled={currentPage <= 1} onClick={() => onServerPage?.(Math.max(0, serverOffset - serverPageSize))}>上一頁</button>
+            <span>第 {currentPage} / {maxServerPage} 頁</span>
+            <button disabled={currentPage >= maxServerPage} onClick={() => onServerPage?.(serverOffset + serverPageSize)}>下一頁</button>
+          </>;
+        })() : <>
+          <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
+          <span>Page {page} of {maxPage}</span>
+          <button disabled={page >= maxPage} onClick={() => setPage(page + 1)}>Next</button>
+        </>}
       </div>
     </>
   );
@@ -5001,7 +5501,7 @@ function filterQueryValue(value) {
   return String(value).toLowerCase().replaceAll(/\s+/g, '_');
 }
 
-function updateDevicesLocation({ deviceId, health, status, signal, firmware } = {}) {
+function updateDevicesLocation({ deviceId, health, status, signal, firmware, q, sort, direction, offset } = {}) {
   const current = new URLSearchParams(window.location.search);
   const path = devicesPathWithFilters({
     deviceId: deviceId === undefined ? current.get('device') || '' : deviceId,
@@ -5009,6 +5509,10 @@ function updateDevicesLocation({ deviceId, health, status, signal, firmware } = 
     status: status === undefined ? current.get('status') || '' : status,
     signal: signal === undefined ? current.get('signal') || '' : signal,
     firmware: firmware === undefined ? current.get('firmware') || '' : firmware,
+    q: q === undefined ? current.get('q') || '' : q,
+    sort: sort === undefined ? current.get('sort') || '' : sort,
+    direction: direction === undefined ? current.get('direction') || '' : direction,
+    offset: offset === undefined ? current.get('offset') || '' : offset,
   });
   window.history.pushState({}, '', path);
   window.dispatchEvent(new PopStateEvent('popstate'));
