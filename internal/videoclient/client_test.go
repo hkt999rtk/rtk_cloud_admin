@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -394,6 +395,28 @@ func TestFirmwareDistributionQueries(t *testing.T) {
 	}
 	if len(campaigns) != 1 || campaigns[0].ID != "campaign-1" {
 		t.Fatalf("QueryFirmwareCampaigns = %+v, want campaign-1", campaigns)
+	}
+}
+
+func TestDoOTAInjectsTrustedBrandAndIdempotencyHeaders(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/ota/skus/sku-1/releases" || r.Method != http.MethodPost {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer admin-token" || r.Header.Get("X-Brand-Cloud-ID") != "brand-1" || r.Header.Get("Idempotency-Key") != "idem-key" {
+			t.Fatalf("headers = %#v", r.Header)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"release_id":"rel-1"}`))
+	}))
+	defer upstream.Close()
+	response, err := New(upstream.URL).DoOTA(t.Context(), http.MethodPost, "/v1/ota/skus/sku-1/releases", "admin-token", "brand-1", "idem-key", []byte(`{"version":"1"}`))
+	if err != nil || response.StatusCode != http.StatusCreated || !strings.Contains(string(response.Body), "rel-1") {
+		t.Fatalf("DoOTA = %#v, %v", response, err)
+	}
+	if _, err := New(upstream.URL).DoOTA(t.Context(), http.MethodPost, "/download_firmware", "admin-token", "brand-1", "idem", nil); err == nil {
+		t.Fatal("expected non-canonical path rejection")
 	}
 }
 
