@@ -2659,6 +2659,59 @@ func TestFleetFirmwareDistributionRequiresCustomerSession(t *testing.T) {
 	}
 }
 
+func TestSKUOTAProxyInjectsActiveOrganizationAndAudits(t *testing.T) {
+	t.Parallel()
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/ota/skus/sku-1/releases" || r.Method != http.MethodPost {
+			t.Fatalf("upstream request=%s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer vc-secret" || r.Header.Get("X-Brand-Cloud-ID") != "org-acme" || r.Header.Get("Idempotency-Key") != "release-key" {
+			t.Fatalf("upstream headers=%#v", r.Header)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"release_id":"rel-1"}`))
+	}))
+	defer videoUpstream.Close()
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SeedDemoData(); err != nil {
+		t.Fatal(err)
+	}
+	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := NewWithOptions(st, Options{Config: config.Config{VideoCloudBaseURL: videoUpstream.URL, VideoCloudAdminToken: "vc-secret"}, VideoClient: videoclient.New(videoUpstream.URL)})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/ota/skus/sku-1/releases", strings.NewReader(`{"version":"1"}`))
+	req.Header.Set("Idempotency-Key", "release-key")
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), "rel-1") {
+		t.Fatalf("proxy status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	events, err := st.ListAuditEvents()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Action == "sku_ota.post" && event.OrganizationID == "org-acme" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing SKU OTA audit event: %+v", events)
+	}
+}
+
 func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 	t.Parallel()
 

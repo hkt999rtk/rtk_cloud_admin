@@ -24,6 +24,12 @@ type HTTPStatusError struct {
 	Body       string
 }
 
+type OTAResponse struct {
+	StatusCode int
+	Body       []byte
+	Header     http.Header
+}
+
 func (e HTTPStatusError) Error() string {
 	if strings.TrimSpace(e.Body) != "" {
 		return fmt.Sprintf("status %d: %s", e.StatusCode, strings.TrimSpace(e.Body))
@@ -237,6 +243,44 @@ func (c *Client) doJSON(ctx context.Context, method, path, adminToken string, in
 		return err
 	}
 	return nil
+}
+
+// DoOTA forwards one canonical operator OTA request while preserving the typed
+// upstream response. brandCloudID is resolved by the BFF from the active
+// Account Manager organization; it is never copied from the browser body.
+func (c *Client) DoOTA(ctx context.Context, method, path, adminToken, brandCloudID, idempotencyKey string, body []byte) (OTAResponse, error) {
+	if !c.Enabled() {
+		return OTAResponse{}, fmt.Errorf("video cloud base URL is not configured")
+	}
+	if !strings.HasPrefix(path, "/v1/ota/") {
+		return OTAResponse{}, fmt.Errorf("invalid OTA path")
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return OTAResponse{}, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if len(body) > 0 {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if adminToken != "" {
+		req.Header.Set("Authorization", "Bearer "+adminToken)
+	}
+	req.Header.Set("X-Brand-Cloud-ID", strings.TrimSpace(brandCloudID))
+	if strings.TrimSpace(idempotencyKey) != "" {
+		req.Header.Set("Idempotency-Key", strings.TrimSpace(idempotencyKey))
+	}
+	correlation.ApplyHeaders(ctx, req)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return OTAResponse{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	if err != nil {
+		return OTAResponse{}, err
+	}
+	return OTAResponse{StatusCode: resp.StatusCode, Body: raw, Header: resp.Header.Clone()}, nil
 }
 
 func (c *Client) Health(ctx context.Context) error {

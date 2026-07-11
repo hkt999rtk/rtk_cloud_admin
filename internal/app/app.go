@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"net/http"
@@ -278,6 +279,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/fleet/health-summary", s.apiFleetHealthSummary)
 	s.mux.HandleFunc("GET /api/fleet/stream-stats", s.apiFleetStreamStats)
 	s.mux.HandleFunc("GET /api/fleet/firmware-distribution", s.apiFleetFirmwareDistribution)
+	s.mux.HandleFunc("GET /api/ota/", s.apiSKUOTA)
+	s.mux.HandleFunc("POST /api/ota/", s.apiSKUOTA)
 	s.mux.HandleFunc("GET /api/operations", s.apiOperations)
 	s.mux.HandleFunc("GET /api/admin/operations", s.apiAdminOperations)
 	s.mux.HandleFunc("GET /api/service-health", s.apiServiceHealth)
@@ -330,6 +333,7 @@ const (
 	capabilityCustomerDevicesProvision  = "customer.devices.provision"
 	capabilityCustomerDevicesDeactivate = "customer.devices.deactivate"
 	capabilityCustomerFirmwareRead      = "customer.firmware.read"
+	capabilityCustomerFirmwareManage    = "customer.firmware.manage"
 	capabilityCustomerStreamRead        = "customer.stream.read"
 	capabilityPlatformAuditRead         = "platform.audit.read"
 	capabilityPlatformSSOManage         = "platform.sso.manage"
@@ -1086,6 +1090,61 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 	}
 	status, message := s.customerFirmwareSourceStatus(devices)
 	writeJSON(w, unavailableFirmwareDistribution(orgID, status, message))
+}
+
+func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	orgID := strings.TrimSpace(session.ActiveOrgID)
+	capabilities := fleetManagerCapabilities()
+	if s.accountClient.Enabled() {
+		org, _, err := s.activeCustomerOrg(r.Context(), session)
+		if err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		orgID = org.ID
+		capabilities = capabilitiesForOrganization(org)
+	}
+	required := capabilityCustomerFirmwareRead
+	if r.Method != http.MethodGet {
+		required = capabilityCustomerFirmwareManage
+	}
+	if !hasCapability(capabilities, required) {
+		http.Error(w, "missing required capability: "+required, http.StatusForbidden)
+		return
+	}
+	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"status": "fail", "code": "OTA_UNAVAILABLE", "reason": "Video Cloud OTA source is unavailable."})
+		return
+	}
+	upstreamPath := "/v1/ota/" + strings.TrimPrefix(r.URL.Path, "/api/ota/")
+	body, err := io.ReadAll(io.LimitReader(r.Body, 2<<20))
+	if err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	response, err := s.videoClient.DoOTA(r.Context(), r.Method, upstreamPath, s.cfg.VideoCloudAdminToken, orgID, r.Header.Get("Idempotency-Key"), body)
+	result := "succeeded"
+	if err != nil {
+		result = "failed"
+		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"status": "fail", "code": "OTA_UPSTREAM_ERROR", "reason": "Video Cloud OTA request failed."})
+	} else {
+		contentType := response.Header.Get("Content-Type")
+		if contentType == "" {
+			contentType = "application/json"
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.WriteHeader(response.StatusCode)
+		_, _ = w.Write(response.Body)
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			result = "rejected"
+		}
+	}
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "sku_ota." + strings.ToLower(r.Method), Target: upstreamPath, OrganizationID: orgID, Result: result})
 }
 
 func (s *Server) firmwareDistributionDevices(ctx context.Context, session store.Session, orgID string) ([]contracts.Device, error) {
@@ -3597,6 +3656,7 @@ func fleetManagerCapabilities() []string {
 		capabilityCustomerDevicesProvision,
 		capabilityCustomerDevicesDeactivate,
 		capabilityCustomerFirmwareRead,
+		capabilityCustomerFirmwareManage,
 		capabilityCustomerStreamRead,
 	}
 }
