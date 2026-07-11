@@ -23,25 +23,26 @@ func main() {
 		Service: "rtk-cloud-admin",
 		Env:     getenv("ENV", "unknown"),
 		Version: getenv("VERSION", "dev"),
+		Unit:    "rtk-cloud-admin.service",
 		Level:   cfg.LogLevel,
 	})
 	defer logger.Sync()
 
 	if err := os.MkdirAll(filepath.Dir(cfg.DatabasePath), 0o755); err != nil {
-		logger.Fatal("create data dir", zap.Error(err))
+		exitWithError(logger, "create data dir", err)
 	}
 
 	st, err := store.Open(cfg.DatabasePath)
 	if err != nil {
-		logger.Fatal("open store", zap.Error(err))
+		exitWithError(logger, "open store", err)
 	}
 	defer st.Close()
 
 	if err := st.Migrate(); err != nil {
-		logger.Fatal("migrate store", zap.Error(err))
+		exitWithError(logger, "migrate store", err)
 	}
 	if err := st.SeedDemoData(); err != nil {
-		logger.Fatal("seed demo data", zap.Error(err))
+		exitWithError(logger, "seed demo data", err)
 	}
 	handler := app.NewWithOptions(st, app.Options{Config: cfg, Logger: logger})
 	server := &http.Server{
@@ -56,7 +57,7 @@ func main() {
 	go func() {
 		logger.Info("starting service", zap.String("addr", ":"+cfg.Port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("serve", zap.Error(err))
+			exitWithError(logger, "serve", err)
 		}
 	}()
 
@@ -69,6 +70,12 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Warn("shutdown", zap.Error(err))
 	}
+}
+
+func exitWithError(logger *zap.Logger, message string, err error) {
+	logger.Error(message, zap.Error(err))
+	_ = logger.Sync()
+	os.Exit(1)
 }
 
 func getenv(name string, fallback string) string {

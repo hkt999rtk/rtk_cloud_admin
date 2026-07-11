@@ -101,7 +101,7 @@ func TestAdminServiceLogsProxyFiltersAndRedacts(t *testing.T) {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
 	srv := NewWithOptions(st, Options{Config: config.Config{CloudLoggerEndpoint: logger.URL, CloudLoggerToken: "logger-token"}})
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/service-logs?service=account-manager&trace_id=trace-1&ignored=secret", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/service-logs?service=account-manager&trace_id=trace-1&error_category=upstream_unavailable&outcome=failure&limit=1000&ignored=secret", nil)
 	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -111,7 +111,7 @@ func TestAdminServiceLogsProxyFiltersAndRedacts(t *testing.T) {
 	if gotAuth != "Bearer logger-token" {
 		t.Fatalf("Authorization = %q", gotAuth)
 	}
-	if !strings.Contains(gotQuery, "service=account-manager") || !strings.Contains(gotQuery, "trace_id=trace-1") || strings.Contains(gotQuery, "ignored") {
+	if !strings.Contains(gotQuery, "service=account-manager") || !strings.Contains(gotQuery, "trace_id=trace-1") || !strings.Contains(gotQuery, "error_category=upstream_unavailable") || !strings.Contains(gotQuery, "outcome=failure") || !strings.Contains(gotQuery, "limit=1000") || strings.Contains(gotQuery, "ignored") {
 		t.Fatalf("query = %q", gotQuery)
 	}
 	body := rec.Body.String()
