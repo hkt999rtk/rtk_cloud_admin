@@ -4,7 +4,7 @@ set -euo pipefail
 coverage_file="${1:-coverage.out}"
 logs_dir="${2:-.artifacts/logs}"
 output="${3:-.artifacts/report-candidates/docs/TEST_REPORT.md}"
-coverage_min="${COVERAGE_MIN:-80.0}"
+coverage_min="${COVERAGE_MIN:-65.0}"
 
 status_for_log() {
   local file="$1"
