@@ -3,9 +3,8 @@ module rtk_cloud_admin
 go 1.26.3
 
 require (
-	github.com/hkt999rtk/rtk_cloud_logger v0.0.0-20260601031801-bb087feb69a6
+	github.com/hkt999rtk/rtk_cloud_logger v0.0.0-20260711233953-e13e79782aa8
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.52.0
 	modernc.org/sqlite v1.51.0
 )
 
