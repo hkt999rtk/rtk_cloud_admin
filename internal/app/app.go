@@ -1,8 +1,10 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,6 +39,7 @@ type Server struct {
 	audit               auditStore
 	projections         projectionStore
 	lifecycleOperations lifecycleOperationStore
+	jobs                batchJobStore
 	mux                 *http.ServeMux
 	handler             http.Handler
 	cfg                 config.Config
@@ -89,6 +92,7 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 		audit:               st,
 		projections:         st,
 		lifecycleOperations: st,
+		jobs:                st,
 		mux:                 http.NewServeMux(),
 		cfg:                 opts.Config,
 		accountClient:       opts.AccountClient,
@@ -259,6 +263,38 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
+	s.mux.HandleFunc("GET /api/fleet/devices", s.apiFleetDevices)
+	s.mux.HandleFunc("GET /api/fleet/summary", s.apiFleetSummary)
+	s.mux.HandleFunc("GET /api/groups", s.apiGroups)
+	s.mux.HandleFunc("POST /api/groups", s.apiGroups)
+	s.mux.HandleFunc("GET /api/groups/{id}", s.apiGroup)
+	s.mux.HandleFunc("PATCH /api/groups/{id}", s.apiGroup)
+	s.mux.HandleFunc("DELETE /api/groups/{id}", s.apiGroup)
+	s.mux.HandleFunc("GET /api/tags", s.apiTags)
+	s.mux.HandleFunc("GET /api/roles", s.apiRoles)
+	s.mux.HandleFunc("GET /api/permissions", s.apiPermissions)
+	s.mux.HandleFunc("GET /api/role-assignments", s.apiRoleAssignments)
+	s.mux.HandleFunc("POST /api/role-assignments", s.apiRoleAssignments)
+	s.mux.HandleFunc("DELETE /api/role-assignments/{id}", s.apiRoleAssignment)
+	s.mux.HandleFunc("GET /api/jobs", s.apiJobs)
+	s.mux.HandleFunc("POST /api/jobs", s.apiJobs)
+	s.mux.HandleFunc("GET /api/jobs/{id}", s.apiJob)
+	s.mux.HandleFunc("POST /api/jobs/{id}/retry", s.apiJobRetry)
+	s.mux.HandleFunc("GET /api/jobs/{id}/result", s.apiJobResult)
+	s.mux.HandleFunc("GET /api/reports", s.apiReports)
+	s.mux.HandleFunc("POST /api/reports", s.apiReports)
+	s.mux.HandleFunc("GET /api/reports/{id}", s.apiReport)
+	s.mux.HandleFunc("GET /api/skus", s.apiSKUs)
+	s.mux.HandleFunc("POST /api/skus", s.apiSKUWrite)
+	s.mux.HandleFunc("GET /api/skus/{id}", s.apiSKU)
+	s.mux.HandleFunc("PATCH /api/skus/{id}", s.apiSKUWrite)
+	s.mux.HandleFunc("GET /api/skus/{id}/releases", s.apiSKUReleases)
+	s.mux.HandleFunc("POST /api/skus/{id}/releases", s.apiSKUReleases)
+	s.mux.HandleFunc("GET /api/skus/{id}/releases/{releaseId}", s.apiSKURelease)
+	s.mux.HandleFunc("POST /api/skus/{id}/releases/{releaseId}/{action}", s.apiSKURelease)
+	s.mux.HandleFunc("POST /api/skus/{id}/disable", s.apiSKUWrite)
+	s.mux.HandleFunc("GET /api/skus/{id}/permissions", s.apiSKUPermissions)
+	s.mux.HandleFunc("POST /api/skus/{id}/impact-preview", s.apiSKUImpactPreview)
 	s.mux.HandleFunc("GET /api/admin/devices", s.apiAdminDevices)
 	s.mux.HandleFunc("GET /api/admin/brand-clouds", s.apiAdminBrandClouds)
 	s.mux.HandleFunc("POST /api/admin/brand-clouds", s.apiAdminBrandClouds)
@@ -281,6 +317,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/fleet/firmware-distribution", s.apiFleetFirmwareDistribution)
 	s.mux.HandleFunc("GET /api/ota/", s.apiSKUOTA)
 	s.mux.HandleFunc("POST /api/ota/", s.apiSKUOTA)
+	s.mux.HandleFunc("GET /api/update-plans", s.apiUpdatePlans)
+	s.mux.HandleFunc("POST /api/update-plans", s.apiUpdatePlans)
+	s.mux.HandleFunc("GET /api/update-plans/{id}", s.apiUpdatePlans)
+	s.mux.HandleFunc("POST /api/update-plans/{id}/{action}", s.apiUpdatePlans)
 	s.mux.HandleFunc("GET /api/operations", s.apiOperations)
 	s.mux.HandleFunc("GET /api/admin/operations", s.apiAdminOperations)
 	s.mux.HandleFunc("GET /api/service-health", s.apiServiceHealth)
@@ -306,6 +346,9 @@ func (s *Server) routes() {
 		"/console/devices",
 		"/console/firmware-ota",
 		"/console/stream-health",
+		"/console/sku-services",
+		"/console/jobs",
+		"/console/reports",
 		"/console/groups",
 		"/console/customers",
 		"/console/operations",
@@ -957,6 +1000,1222 @@ func (s *Server) apiDevices(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, devicesWithFirmwareVersion(devices))
 }
 
+func (s *Server) apiFleetDevices(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"source_status": "unconfigured", "source_message": "設備查詢服務尚未設定。"})
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	query := fleetDeviceQuery(r.URL.Query())
+	var page accountclient.FleetDevicesPage
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		page, callErr = s.accountClient.FleetDevices(r.Context(), token, org.ID, query)
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+	}
+	devices := make([]contracts.Device, 0, len(page.Devices))
+	for _, device := range page.Devices {
+		devices = append(devices, mapUpstreamDevice(org, device, nil))
+	}
+	writeJSON(w, map[string]any{
+		"devices":       customerSafeDevices(devicesWithFirmwareVersion(devices)),
+		"pagination":    page.Pagination,
+		"query":         query,
+		"source_status": "available",
+	})
+}
+
+func (s *Server) apiFleetSummary(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		writeJSON(w, contracts.FleetSummary{ByStatus: map[string]int{}, BySKU: map[string]int{}, ByModel: map[string]int{}, ByFirmware: map[string]int{}, ByRegion: map[string]int{}, ServiceEnabled: map[string]int{}, SourceStatus: "unconfigured", SourceMessage: "Fleet 資料來源尚未設定。"})
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	var summary accountclient.FleetSummary
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		summary, callErr = s.accountClient.FleetSummary(r.Context(), token, org.ID)
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+	}
+	writeJSON(w, contracts.FleetSummary{
+		Total: summary.Total, ByStatus: summary.ByStatus, BySKU: summary.BySKU, ByModel: summary.ByModel, ByFirmware: summary.ByFirmware, ByRegion: summary.ByRegion,
+		ServiceEnabled: summary.ServiceEnabled, BySKURegion: summary.BySKURegion, BySKUFirmware: summary.BySKUFirmware, UpdatedAt: summary.UpdatedAt, SourceStatus: "available",
+	})
+}
+
+func (s *Server) apiGroups(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		writeJSON(w, map[string]any{"groups": []accountclient.DeviceGroup{}, "source_status": "unconfigured"})
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if r.Method == http.MethodGet {
+		var groups []accountclient.DeviceGroup
+		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+			var callErr error
+			groups, callErr = s.accountClient.DeviceGroups(r.Context(), token, org.ID, r.URL.Query())
+			return callErr
+		})
+		if err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+			_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+		}
+		tags, _ := s.accountClient.DeviceTags(r.Context(), tokens.AccessToken, org.ID, url.Values{"limit": []string{"250"}})
+		writeJSON(w, map[string]any{"groups": groups, "tags": tags, "allowed_actions": groupAllowedActions(capabilitiesForOrganization(org)), "source_status": "available"})
+		return
+	}
+	var request accountclient.DeviceGroupRequest
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.Name) == "" {
+		http.Error(w, "群組資料格式不正確。", http.StatusBadRequest)
+		return
+	}
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		_, callErr = s.accountClient.CreateDeviceGroup(r.Context(), token, org.ID, request)
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusCreated, map[string]any{"source_status": "available"})
+}
+
+func (s *Server) apiTags(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	tags, err := s.accountClient.DeviceTags(r.Context(), tokens.AccessToken, org.ID, r.URL.Query())
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"tags": tags, "source_status": "available"})
+}
+
+func groupAllowedActions(capabilities []string) []string {
+	actions := []string{"view"}
+	if hasCapability(capabilities, "device_group.manage") {
+		actions = append(actions, "manage")
+	}
+	return actions
+}
+
+func (s *Server) apiGroup(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"source_status": "unconfigured", "source_message": "群組服務尚未設定。"})
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	id := r.PathValue("id")
+	switch r.Method {
+	case http.MethodGet:
+		var group accountclient.DeviceGroup
+		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+			var callErr error
+			group, callErr = s.accountClient.DeviceGroup(r.Context(), token, org.ID, id)
+			return callErr
+		})
+		if err == nil {
+			writeJSON(w, map[string]any{"group": group, "source_status": "available"})
+		}
+	case http.MethodPatch:
+		var request accountclient.DeviceGroupRequest
+		if decodeErr := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); decodeErr != nil || strings.TrimSpace(request.Name) == "" {
+			http.Error(w, "群組資料格式不正確。", http.StatusBadRequest)
+			return
+		}
+		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+			_, callErr := s.accountClient.UpdateDeviceGroup(r.Context(), token, org.ID, id, request)
+			return callErr
+		})
+		if err == nil {
+			writeJSON(w, map[string]any{"source_status": "available"})
+		}
+	case http.MethodDelete:
+		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+			return s.accountClient.DeleteDeviceGroup(r.Context(), token, org.ID, id)
+		})
+		if err == nil {
+			w.WriteHeader(http.StatusNoContent)
+		}
+	}
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+	}
+}
+
+func (s *Server) apiRoles(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	roles, err := s.accountClient.Roles(r.Context(), tokens.AccessToken, org.ID, r.URL.Query())
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"roles": roles, "source_status": "available"})
+}
+
+func (s *Server) apiPermissions(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	permissions, err := s.accountClient.Permissions(r.Context(), tokens.AccessToken, org.ID, r.URL.Query())
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"permissions": permissions, "source_status": "available"})
+}
+
+func (s *Server) apiRoleAssignments(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if r.Method == http.MethodGet {
+		assignments, callErr := s.accountClient.RoleAssignments(r.Context(), tokens.AccessToken, org.ID, r.URL.Query())
+		if callErr != nil {
+			s.writeCustomerErrorForSession(w, session.ID, callErr)
+			return
+		}
+		roles, roleErr := s.accountClient.Roles(r.Context(), tokens.AccessToken, org.ID, r.URL.Query())
+		if roleErr != nil {
+			s.writeCustomerErrorForSession(w, session.ID, roleErr)
+			return
+		}
+		writeJSON(w, map[string]any{"role_assignments": assignments, "roles": roles, "source_status": "available"})
+		return
+	}
+	var request accountclient.RoleAssignmentRequest
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.RoleName) == "" || strings.TrimSpace(request.ActorID) == "" || strings.TrimSpace(request.ScopeType) == "" {
+		http.Error(w, "權限指派資料格式不正確。", http.StatusBadRequest)
+		return
+	}
+	assignment, err := s.accountClient.CreateRoleAssignment(r.Context(), tokens.AccessToken, org.ID, request)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusAccepted, map[string]any{"role_assignment": assignment, "source_status": "available"})
+}
+
+func (s *Server) apiRoleAssignment(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if err := s.accountClient.DeleteRoleAssignment(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id")); err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) apiJobs(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if r.Method == http.MethodGet {
+		jobs, err := s.jobs.ListBatchJobs(org.ID, 250)
+		if err != nil {
+			http.Error(w, "批次工作暫時無法取得。", http.StatusServiceUnavailable)
+			return
+		}
+		writeJSON(w, map[string]any{"jobs": jobs, "source_status": "available"})
+		return
+	}
+	var request struct {
+		Type  string         `json:"type"`
+		Name  string         `json:"name"`
+		Scope map[string]any `json:"scope"`
+		Total int            `json:"total"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
+		http.Error(w, "批次工作資料格式不正確。", http.StatusBadRequest)
+		return
+	}
+	allowed := map[string]bool{"device_settings": true, "device_provision": true, "device_deactivation": true, "tag_update": true, "group_update": true, "firmware_retry": true, "report_export": true}
+	if !allowed[strings.TrimSpace(request.Type)] || strings.TrimSpace(request.Name) == "" {
+		http.Error(w, "批次工作類型或名稱不正確。", http.StatusBadRequest)
+		return
+	}
+	if request.Total < 0 {
+		http.Error(w, "批次工作範圍不正確。", http.StatusBadRequest)
+		return
+	}
+	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: strings.TrimSpace(request.Type), Name: strings.TrimSpace(request.Name), OrganizationID: org.ID, CreatedBy: session.Email, Scope: request.Scope, State: "queued", Total: request.Total})
+	if err != nil {
+		http.Error(w, "批次工作無法建立。", http.StatusServiceUnavailable)
+		return
+	}
+	go s.runBatchJob(job, tokens.AccessToken)
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "fleet.batch_job.create", Target: job.ID, OrganizationID: org.ID, Result: "accepted"})
+	writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": job, "source_status": "available"})
+}
+
+func (s *Server) apiJob(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, _, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	job, err := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
+	if errors.Is(err, sql.ErrNoRows) {
+		http.Error(w, "找不到這個批次工作。", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "批次工作暫時無法取得。", http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, map[string]any{"job": job, "source_status": "available"})
+}
+
+func (s *Server) apiJobRetry(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	job, err := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
+	if errors.Is(err, sql.ErrNoRows) {
+		http.Error(w, "找不到這個批次工作。", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "批次工作暫時無法取得。", http.StatusServiceUnavailable)
+		return
+	}
+	if job.Failed == 0 {
+		http.Error(w, "目前沒有可重試的失敗項目。", http.StatusConflict)
+		return
+	}
+	job, err = s.jobs.UpdateBatchJobState(org.ID, job.ID, "queued")
+	if err != nil {
+		http.Error(w, "批次工作無法重試。", http.StatusServiceUnavailable)
+		return
+	}
+	go s.runBatchJob(job, tokens.AccessToken)
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "fleet.batch_job.retry", Target: job.ID, OrganizationID: org.ID, Result: "accepted"})
+	writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": job, "source_status": "available"})
+}
+
+func (s *Server) apiJobResult(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, _, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	job, err := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
+	if errors.Is(err, sql.ErrNoRows) {
+		http.Error(w, "找不到這個批次工作。", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "批次結果暫時無法取得。", http.StatusServiceUnavailable)
+		return
+	}
+	if strings.EqualFold(r.URL.Query().Get("format"), "csv") {
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="fleet-job-`+job.ID+`.csv"`)
+		writer := csv.NewWriter(w)
+		_ = writer.Write([]string{"項目", "名稱", "數量"})
+		for _, item := range job.Result {
+			metric, _ := item["metric"].(string)
+			name, _ := item["name"].(string)
+			value := fmt.Sprint(item["value"])
+			_ = writer.Write([]string{metric, name, value})
+		}
+		writer.Flush()
+		return
+	}
+	writeJSON(w, map[string]any{"job": job, "items": job.Result, "source_status": "available"})
+}
+
+func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	if s.accountClient == nil || !s.accountClient.Enabled() {
+		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, job.Total, 0)
+		return
+	}
+	if job.Type == "report_export" {
+		if s.accountClient == nil || !s.accountClient.Enabled() {
+			_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, 1, 0)
+			return
+		}
+		query := make(url.Values)
+		queryScope := job.Scope
+		if nested, ok := job.Scope["query"].(map[string]any); ok {
+			queryScope = nested
+		}
+		for key, value := range queryScope {
+			if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+				query.Set(key, text)
+			}
+		}
+		query.Set("limit", "250")
+		byDimension := map[string]map[string]int{"sku": {}, "model": {}, "status": {}, "region": {}}
+		total, offset := 0, 0
+		for {
+			query.Set("offset", strconv.Itoa(offset))
+			page, err := s.accountClient.FleetDevices(ctx, accessToken, job.OrganizationID, query)
+			if err != nil {
+				_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, 1, 0)
+				return
+			}
+			for _, device := range page.Devices {
+				if !reportDeviceInTimeRange(device, queryScope) {
+					continue
+				}
+				total++
+				byDimension["sku"][device.DeviceItemProfileID]++
+				byDimension["model"][device.Model]++
+				byDimension["status"][device.Status]++
+				region := "未提供"
+				if value, ok := device.Metadata["region"].(string); ok && strings.TrimSpace(value) != "" {
+					region = value
+				}
+				byDimension["region"][region]++
+			}
+			offset += len(page.Devices)
+			if len(page.Devices) == 0 || offset >= page.Pagination.Total || len(page.Devices) < 250 {
+				break
+			}
+		}
+		result := []map[string]any{{"metric": "設備總數", "value": total}}
+		for dimension, values := range byDimension {
+			for name, count := range values {
+				if strings.TrimSpace(name) == "" {
+					name = "未設定"
+				}
+				result = append(result, map[string]any{"dimension": dimension, "name": name, "value": count})
+			}
+		}
+		if _, err := s.jobs.UpdateBatchJobResult(job.OrganizationID, job.ID, result); err != nil {
+			_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, 1, 0)
+			return
+		}
+		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "completed", 1, 0, 0)
+		return
+	}
+	if job.Type == "firmware_retry" {
+		planID, _ := job.Scope["update_plan_id"].(string)
+		if strings.TrimSpace(planID) == "" || !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+			_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, 1, 0)
+			return
+		}
+		response, err := s.videoClient.DoOTA(ctx, http.MethodPost, "/v1/ota/campaigns/"+url.PathEscape(planID)+":retry", s.cfg.VideoCloudAdminToken, job.OrganizationID, "batch-retry-"+job.ID, nil)
+		if err != nil || response.StatusCode < 200 || response.StatusCode >= 300 {
+			_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, 1, 0)
+			return
+		}
+		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "completed", 1, 0, 0)
+		return
+	}
+	if job.Type != "device_deactivation" && job.Type != "device_provision" && job.Type != "device_settings" && job.Type != "group_update" && job.Type != "tag_update" {
+		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, job.Total, 0)
+		return
+	}
+	if _, hasSnapshot := job.Scope["snapshot_ids"]; !hasSnapshot {
+		if _, hasQuery := job.Scope["query"]; hasQuery {
+			ids, err := s.snapshotBatchScope(ctx, accessToken, job)
+			if err != nil {
+				_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, job.Total, 0)
+				return
+			}
+			if job.Scope == nil {
+				job.Scope = map[string]any{}
+			}
+			job.Scope["snapshot_ids"] = ids
+			job.Scope["snapshot_at"] = time.Now().UTC().Format(time.RFC3339)
+			if updated, err := s.jobs.UpdateBatchJobScope(job.OrganizationID, job.ID, job.Scope); err == nil {
+				job = updated
+			} else {
+				_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, job.Total, 0)
+				return
+			}
+		}
+	}
+	query := make(url.Values)
+	queryScope := job.Scope
+	if nested, ok := job.Scope["query"].(map[string]any); ok {
+		queryScope = nested
+	}
+	for key, value := range queryScope {
+		if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+			query.Set(key, text)
+		}
+	}
+	excluded := map[string]bool{}
+	if raw, ok := job.Scope["exclude_ids"].([]any); ok {
+		for _, value := range raw {
+			if text, ok := value.(string); ok {
+				excluded[text] = true
+			}
+		}
+	}
+	var explicitIDs []string
+	if raw, ok := job.Scope["snapshot_ids"].([]any); ok {
+		for _, value := range raw {
+			if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+				explicitIDs = append(explicitIDs, text)
+			}
+		}
+	}
+	if len(explicitIDs) == 0 {
+		if raw, ok := job.Scope["device_ids"].([]any); ok {
+			for _, value := range raw {
+				if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+					explicitIDs = append(explicitIDs, text)
+				}
+			}
+		}
+	}
+	query.Set("limit", "250")
+	offset, completed, failed := 0, 0, 0
+	groupID, _ := queryScope["group_id"].(string)
+	tag, _ := queryScope["tag"].(string)
+	action, _ := queryScope["action"].(string)
+	settings, _ := queryScope["settings"].(map[string]any)
+	process := func(device accountclient.Device) {
+		if excluded[device.ID] {
+			return
+		}
+		var actionErr error
+		switch job.Type {
+		case "device_deactivation":
+			_, actionErr = s.accountClient.Deactivate(ctx, accessToken, job.OrganizationID, device.ID)
+		case "device_provision":
+			_, actionErr = s.accountClient.Provision(ctx, accessToken, job.OrganizationID, device.ID)
+		case "device_settings":
+			metadata := device.Metadata
+			if metadata == nil {
+				metadata = map[string]any{}
+			}
+			for key, value := range settings {
+				metadata[key] = value
+			}
+			_, actionErr = s.accountClient.UpdateDevice(ctx, accessToken, job.OrganizationID, device.ID, accountclient.DeviceUpdateRequest{
+				Name: device.Name, Category: device.Category, Model: device.Model, Metadata: metadata,
+			})
+		case "group_update":
+			if strings.TrimSpace(groupID) == "" || (action != "add" && action != "remove") {
+				actionErr = errors.New("group update scope is incomplete")
+			} else if action == "add" {
+				actionErr = s.accountClient.AddDeviceToGroup(ctx, accessToken, job.OrganizationID, groupID, device.ID)
+			} else {
+				actionErr = s.accountClient.RemoveDeviceFromGroup(ctx, accessToken, job.OrganizationID, groupID, device.ID)
+			}
+		case "tag_update":
+			if strings.TrimSpace(tag) == "" || (action != "add" && action != "remove") {
+				actionErr = errors.New("tag update scope is incomplete")
+			} else if action == "add" {
+				actionErr = s.accountClient.AddDeviceTag(ctx, accessToken, job.OrganizationID, device.ID, tag)
+			} else {
+				actionErr = s.accountClient.RemoveDeviceTag(ctx, accessToken, job.OrganizationID, device.ID, tag)
+			}
+		}
+		if actionErr != nil {
+			failed++
+		} else {
+			completed++
+		}
+		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "running", completed, failed, 0)
+	}
+	if len(explicitIDs) > 0 {
+		for _, deviceID := range explicitIDs {
+			device, err := s.accountClient.Device(ctx, accessToken, job.OrganizationID, deviceID)
+			if err != nil {
+				failed++
+				continue
+			}
+			process(device)
+		}
+		state := "completed"
+		if failed > 0 {
+			state = "partially_failed"
+		}
+		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, state, completed, failed, 0)
+		return
+	}
+	for {
+		query.Set("offset", strconv.Itoa(offset))
+		page, err := s.accountClient.FleetDevices(ctx, accessToken, job.OrganizationID, query)
+		if err != nil {
+			failed += maxInt(job.Total-completed-failed, 1)
+			break
+		}
+		if len(page.Devices) == 0 {
+			break
+		}
+		for _, device := range page.Devices {
+			process(device)
+		}
+		offset += len(page.Devices)
+		if offset >= page.Pagination.Total || len(page.Devices) < 250 {
+			break
+		}
+	}
+	state := "completed"
+	if failed > 0 {
+		state = "partially_failed"
+	}
+	_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, state, completed, failed, 0)
+}
+
+func maxInt(left, right int) int {
+	if left > right {
+		return left
+	}
+	return right
+}
+
+func (s *Server) snapshotBatchScope(ctx context.Context, accessToken string, job contracts.BatchJob) ([]string, error) {
+	queryScope, ok := job.Scope["query"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("batch scope query is missing")
+	}
+	query := make(url.Values)
+	for key, value := range queryScope {
+		if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+			query.Set(key, text)
+		}
+	}
+	query.Set("limit", "250")
+	excluded := map[string]bool{}
+	if raw, ok := job.Scope["exclude_ids"].([]any); ok {
+		for _, value := range raw {
+			if text, ok := value.(string); ok {
+				excluded[text] = true
+			}
+		}
+	}
+	ids := make([]string, 0)
+	for offset := 0; ; offset += 250 {
+		query.Set("offset", strconv.Itoa(offset))
+		page, err := s.accountClient.FleetDevices(ctx, accessToken, job.OrganizationID, query)
+		if err != nil {
+			return nil, err
+		}
+		for _, device := range page.Devices {
+			if !excluded[device.ID] {
+				ids = append(ids, device.ID)
+			}
+		}
+		if len(page.Devices) == 0 || offset+len(page.Devices) >= page.Pagination.Total || len(page.Devices) < 250 {
+			break
+		}
+	}
+	return ids, nil
+}
+
+func reportDeviceInTimeRange(device accountclient.Device, scope map[string]any) bool {
+	startText, _ := scope["start_at"].(string)
+	endText, _ := scope["end_at"].(string)
+	var start, end time.Time
+	var err error
+	if strings.TrimSpace(startText) != "" {
+		start, err = time.Parse("2006-01-02", startText)
+		if err != nil {
+			return false
+		}
+	}
+	if strings.TrimSpace(endText) != "" {
+		end, err = time.Parse("2006-01-02", endText)
+		if err != nil {
+			return false
+		}
+		end = end.Add(24 * time.Hour)
+	}
+	if start.IsZero() && end.IsZero() {
+		return true
+	}
+	updatedAt, updatedErr := time.Parse(time.RFC3339, device.UpdatedAt)
+	lastSeenAt, lastSeenErr := time.Parse(time.RFC3339, device.LastSeenAt)
+	if updatedErr != nil && lastSeenErr != nil {
+		return false
+	}
+	observedAt := updatedAt
+	if observedAt.IsZero() || (lastSeenErr == nil && lastSeenAt.After(observedAt)) {
+		observedAt = lastSeenAt
+	}
+	return (start.IsZero() || !observedAt.Before(start)) && (end.IsZero() || observedAt.Before(end))
+}
+
+func (s *Server) apiReports(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if r.Method == http.MethodGet {
+		jobs, err := s.jobs.ListBatchJobs(org.ID, 250)
+		if err != nil {
+			http.Error(w, "報表暫時無法取得。", http.StatusServiceUnavailable)
+			return
+		}
+		reports := make([]contracts.BatchJob, 0)
+		for _, job := range jobs {
+			if job.Type == "report_export" {
+				reports = append(reports, job)
+			}
+		}
+		writeJSON(w, map[string]any{"reports": reports, "source_status": "available"})
+		return
+	}
+	var request struct {
+		Name  string         `json:"name"`
+		Scope map[string]any `json:"scope"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.Name) == "" {
+		http.Error(w, "報表條件不正確。", http.StatusBadRequest)
+		return
+	}
+	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: "report_export", Name: strings.TrimSpace(request.Name), OrganizationID: org.ID, CreatedBy: session.Email, Scope: request.Scope, State: "queued"})
+	if err != nil {
+		http.Error(w, "報表無法建立。", http.StatusServiceUnavailable)
+		return
+	}
+	go s.runBatchJob(job, tokens.AccessToken)
+	writeJSONStatus(w, http.StatusAccepted, map[string]any{"report": job, "source_status": "available"})
+}
+
+func (s *Server) apiReport(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, _, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	job, err := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
+	if errors.Is(err, sql.ErrNoRows) {
+		http.Error(w, "找不到這份報表。", http.StatusNotFound)
+		return
+	}
+	if err != nil || job.Type != "report_export" {
+		http.Error(w, "報表暫時無法取得。", http.StatusServiceUnavailable)
+		return
+	}
+	if strings.EqualFold(r.URL.Query().Get("format"), "csv") {
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="fleet-report-`+job.ID+`.csv"`)
+		writer := csv.NewWriter(w)
+		_ = writer.Write([]string{"項目", "名稱", "數量"})
+		for _, item := range job.Result {
+			metric, _ := item["metric"].(string)
+			name, _ := item["name"].(string)
+			_ = writer.Write([]string{metric, name, fmt.Sprint(item["value"])})
+		}
+		writer.Flush()
+		return
+	}
+	writeJSON(w, map[string]any{"report": job, "items": job.Result, "source_status": "available"})
+}
+
+func fleetDeviceQuery(values url.Values) url.Values {
+	query := make(url.Values)
+	for _, key := range []string{"q", "sku_id", "group_id", "region", "category", "model", "status", "readiness", "firmware", "sort", "direction", "limit", "offset"} {
+		if value := strings.TrimSpace(values.Get(key)); value != "" {
+			query.Set(key, value)
+		}
+	}
+	if query.Get("limit") == "" {
+		query.Set("limit", "100")
+	}
+	return query
+}
+
+func (s *Server) apiSKUs(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		writeJSON(w, map[string]any{"skus": []contracts.SKU{}, "source_status": "unconfigured"})
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	var profiles []accountclient.DeviceItemProfile
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		profiles, callErr = s.accountClient.DeviceItemProfiles(r.Context(), token, org.ID, r.URL.Query())
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	var fleetSummary accountclient.FleetSummary
+	tokens, summaryErr := s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		fleetSummary, callErr = s.accountClient.FleetSummary(r.Context(), token, org.ID)
+		return callErr
+	})
+	if summaryErr != nil {
+		fleetSummary = accountclient.FleetSummary{}
+	}
+	items := make([]contracts.SKU, 0, len(profiles))
+	capabilities := capabilitiesForOrganization(org)
+	for _, profile := range profiles {
+		item := customerSKUWithActionsAndSummary(profile, capabilities, &fleetSummary)
+		var runs []accountclient.ProductionRun
+		var runErr error
+		tokens, runErr = s.customerCall(r.Context(), tokens, func(token string) error {
+			runs, runErr = s.accountClient.ProductionRuns(r.Context(), token, org.ID, profile.ID, url.Values{"limit": []string{"250"}})
+			return runErr
+		})
+		if runErr == nil {
+			item.ProductionRunCount = len(runs)
+		}
+		items = append(items, item)
+	}
+	writeJSON(w, map[string]any{"skus": items, "can_manage": hasCapability(capabilities, "registry_device.manage") || hasCapability(capabilities, capabilityCustomerFirmwareManage), "source_status": "available"})
+}
+
+func (s *Server) apiSKU(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		writeJSON(w, map[string]any{"source_status": "unconfigured"})
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	var profile accountclient.DeviceItemProfile
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		profile, callErr = s.accountClient.DeviceItemProfile(r.Context(), token, org.ID, r.PathValue("id"))
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	_ = tokens
+	writeJSON(w, map[string]any{"sku": customerSKUWithActions(profile, capabilitiesForOrganization(org)), "source_status": "available"})
+}
+
+func (s *Server) apiSKUReleases(w http.ResponseWriter, r *http.Request) {
+	clone := r.Clone(r.Context())
+	clone.URL.Path = "/api/ota/skus/" + url.PathEscape(r.PathValue("id")) + "/releases"
+	s.apiSKUOTA(w, clone)
+}
+
+func (s *Server) apiSKURelease(w http.ResponseWriter, r *http.Request) {
+	clone := r.Clone(r.Context())
+	upstreamPath := "/api/ota/skus/" + url.PathEscape(r.PathValue("id")) + "/releases/" + url.PathEscape(r.PathValue("releaseId"))
+	if action := strings.TrimSpace(r.PathValue("action")); action != "" {
+		upstreamPath += ":" + url.PathEscape(action)
+	}
+	clone.URL.Path = upstreamPath
+	s.apiSKUOTA(w, clone)
+}
+
+func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		http.Error(w, "SKU 服務尚未設定。", http.StatusServiceUnavailable)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if !hasCapability(capabilitiesForOrganization(org), "registry_device.manage") && !hasCapability(capabilitiesForOrganization(org), capabilityCustomerFirmwareManage) {
+		http.Error(w, "目前角色沒有管理 SKU 的權限。", http.StatusForbidden)
+		return
+	}
+	var input struct {
+		ProfileKey          string         `json:"sku_id,omitempty"`
+		Name                string         `json:"name,omitempty"`
+		ProductModel        string         `json:"product_model,omitempty"`
+		Category            string         `json:"category,omitempty"`
+		Manufacturer        string         `json:"manufacturer,omitempty"`
+		ServiceCapabilities []string       `json:"service_capabilities,omitempty"`
+		DevicePolicy        map[string]any `json:"device_policy,omitempty"`
+		FirmwarePolicy      map[string]any `json:"firmware_policy,omitempty"`
+	}
+	if strings.HasSuffix(r.URL.Path, "/disable") {
+		input = struct {
+			ProfileKey          string         `json:"sku_id,omitempty"`
+			Name                string         `json:"name,omitempty"`
+			ProductModel        string         `json:"product_model,omitempty"`
+			Category            string         `json:"category,omitempty"`
+			Manufacturer        string         `json:"manufacturer,omitempty"`
+			ServiceCapabilities []string       `json:"service_capabilities,omitempty"`
+			DevicePolicy        map[string]any `json:"device_policy,omitempty"`
+			FirmwarePolicy      map[string]any `json:"firmware_policy,omitempty"`
+		}{}
+	} else if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&input); err != nil {
+		http.Error(w, "SKU 資料格式不正確。", http.StatusBadRequest)
+		return
+	}
+	request := accountclient.DeviceItemProfileRequest{ProfileKey: strings.TrimSpace(input.ProfileKey), DisplayName: strings.TrimSpace(input.Name), Category: strings.TrimSpace(input.Category), Manufacturer: strings.TrimSpace(input.Manufacturer), Model: strings.TrimSpace(input.ProductModel), ServiceOptions: customerServiceOptions(input.ServiceCapabilities), ClaimPolicy: input.DevicePolicy, ProvisioningPolicy: input.DevicePolicy}
+	if request.ProfileKey == "" && request.DisplayName != "" {
+		request.ProfileKey = "sku-" + strings.ToLower(strings.NewReplacer(" ", "-", "/", "-", "_", "-").Replace(request.DisplayName))
+	}
+	if r.Method == http.MethodPost {
+		request.CAProfile = "brand-default"
+		request.IssuerProfile = "brand-default"
+	}
+	var profile accountclient.DeviceItemProfile
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		if r.PathValue("id") == "" {
+			profile, callErr = s.accountClient.CreateDeviceItemProfile(r.Context(), token, org.ID, request)
+		} else if strings.HasSuffix(r.URL.Path, "/disable") {
+			profile, callErr = s.accountClient.DisableDeviceItemProfile(r.Context(), token, org.ID, r.PathValue("id"))
+		} else {
+			profile, callErr = s.accountClient.UpdateDeviceItemProfile(r.Context(), token, org.ID, r.PathValue("id"), request)
+		}
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	_ = tokens
+	status := http.StatusOK
+	if r.Method == http.MethodPost && r.PathValue("id") == "" {
+		status = http.StatusCreated
+	}
+	writeJSONStatus(w, status, map[string]any{"sku": customerSKUWithActions(profile, capabilitiesForOrganization(org)), "source_status": "available"})
+}
+
+func customerServiceOptions(labels []string) []string {
+	options := make([]string, 0, len(labels))
+	for _, label := range labels {
+		switch strings.TrimSpace(label) {
+		case "影像服務":
+			options = append(options, "video_streaming")
+		case "即時觀看":
+			options = append(options, "video_streaming")
+		case "錄影與保存":
+			options = append(options, "video_storage")
+		case "設備回報":
+			options = append(options, "mqtt")
+		}
+	}
+	return normalizeCapabilities(options)
+}
+
+func (s *Server) apiSKUPermissions(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		writeJSON(w, map[string]any{"source_status": "unconfigured", "allowed_actions": []string{}})
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	var profile accountclient.DeviceItemProfile
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		profile, callErr = s.accountClient.DeviceItemProfile(r.Context(), token, org.ID, r.PathValue("id"))
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	_ = tokens
+	writeJSON(w, map[string]any{"sku_id": profile.ID, "allowed_actions": skuAllowedActions(capabilitiesForOrganization(org)), "source_status": "available"})
+}
+
+func (s *Server) apiSKUImpactPreview(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if !hasCapability(capabilitiesForOrganization(org), "registry_device.manage") && !hasCapability(capabilitiesForOrganization(org), capabilityCustomerFirmwareManage) {
+		http.Error(w, "目前角色沒有預覽 SKU 變更的權限。", http.StatusForbidden)
+		return
+	}
+	var proposed struct {
+		ServiceCapabilities []string       `json:"service_capabilities"`
+		DevicePolicy        map[string]any `json:"device_policy"`
+		FirmwarePolicy      map[string]any `json:"firmware_policy"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&proposed); err != nil {
+		http.Error(w, "SKU 變更資料格式不正確。", http.StatusBadRequest)
+		return
+	}
+	var profile accountclient.DeviceItemProfile
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		profile, callErr = s.accountClient.DeviceItemProfile(r.Context(), token, org.ID, r.PathValue("id"))
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	var summary accountclient.FleetSummary
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		summary, callErr = s.accountClient.FleetSummary(r.Context(), token, org.ID)
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	currentServices := customerServiceOptions(profile.ServiceOptions)
+	proposedServices := customerServiceOptions(proposed.ServiceCapabilities)
+	added, removed := stringSetDiff(proposedServices, currentServices), stringSetDiff(currentServices, proposedServices)
+	writeJSON(w, map[string]any{
+		"sku_id":                   r.PathValue("id"),
+		"affected_devices":         summary.BySKU[r.PathValue("id")],
+		"affected_regions":         summary.BySKURegion[r.PathValue("id")],
+		"current_services":         currentServices,
+		"proposed_services":        proposedServices,
+		"added_services":           added,
+		"removed_services":         removed,
+		"requires_reprovision":     len(removed) > 0 || len(proposed.DevicePolicy) > 0,
+		"requires_firmware_update": len(proposed.FirmwarePolicy) > 0,
+		"source_status":            "available",
+	})
+}
+
+func stringSetDiff(left, right []string) []string {
+	rightSet := make(map[string]bool, len(right))
+	for _, value := range right {
+		rightSet[value] = true
+	}
+	result := make([]string, 0)
+	for _, value := range left {
+		if !rightSet[value] {
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
+func customerSKU(profile accountclient.DeviceItemProfile) contracts.SKU {
+	return customerSKUWithActions(profile, nil)
+}
+
+func customerSKUWithActions(profile accountclient.DeviceItemProfile, capabilities []string) contracts.SKU {
+	return customerSKUWithActionsAndSummary(profile, capabilities, nil)
+}
+
+func customerSKUWithActionsAndSummary(profile accountclient.DeviceItemProfile, capabilities []string, summary *accountclient.FleetSummary) contracts.SKU {
+	services := make([]string, 0, len(profile.ServiceOptions))
+	hasOTA := false
+	for _, option := range profile.ServiceOptions {
+		switch strings.TrimSpace(option) {
+		case "video", "video_cloud", "camera":
+			services = append(services, "影像服務")
+		case "streaming", "webrtc", "stream":
+			services = append(services, "即時觀看")
+		case "recording", "clips", "media":
+			services = append(services, "錄影與保存")
+		case "telemetry", "device_health", "mqtt":
+			services = append(services, "設備回報")
+		case "firmware", "ota":
+			services = append(services, "韌體更新")
+			hasOTA = true
+		}
+	}
+	deviceCount := 0
+	var regionDistribution map[string]int
+	if summary != nil {
+		deviceCount = summary.BySKU[profile.ID]
+		regionDistribution = summary.BySKURegion[profile.ID]
+	}
+	return contracts.SKU{
+		ID:                  profile.ID,
+		Name:                profile.DisplayName,
+		ProductModel:        profile.Model,
+		Category:            profile.Category,
+		Status:              profile.Status,
+		ServiceCapabilities: services,
+		DevicePolicy: map[string]any{
+			"setup_available":   len(profile.ProvisioningPolicy) > 0,
+			"binding_available": len(profile.ClaimPolicy) > 0,
+		},
+		FirmwarePolicy: map[string]any{
+			"ota_enabled": hasOTA,
+		},
+		AllowedActions:     skuAllowedActions(capabilities),
+		UpdatedAt:          profile.UpdatedAt,
+		DeviceCount:        deviceCount,
+		RegionDistribution: regionDistribution,
+		FirmwareDistribution: func() map[string]int {
+			if summary == nil {
+				return nil
+			}
+			return summary.BySKUFirmware[profile.ID]
+		}(),
+	}
+}
+
+func skuAllowedActions(capabilities []string) []string {
+	actions := []string{"read"}
+	if hasCapability(capabilities, "registry_device.manage") || hasCapability(capabilities, "customer.devices.provision") {
+		actions = append(actions, "manage_devices")
+	}
+	if hasCapability(capabilities, "ota_campaign:create") || hasCapability(capabilities, capabilityCustomerFirmwareManage) {
+		actions = append(actions, "manage_updates")
+	}
+	if hasCapability(capabilities, "report.read") || hasCapability(capabilities, "customer.reports.read") {
+		actions = append(actions, "view_reports")
+	}
+	return actions
+}
+
 func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.requirePlatformAdmin(w, r)
 	if !ok {
@@ -1101,13 +2360,29 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 	orgID := strings.TrimSpace(session.ActiveOrgID)
 	capabilities := fleetManagerCapabilities()
 	if s.accountClient.Enabled() {
-		org, _, err := s.activeCustomerOrg(r.Context(), session)
+		org, tokens, err := s.activeCustomerOrg(r.Context(), session)
 		if err != nil {
 			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
 		orgID = org.ID
 		capabilities = capabilitiesForOrganization(org)
+		otaParts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/ota/"), "/"), "/")
+		if len(otaParts) >= 2 && otaParts[0] == "skus" && strings.TrimSpace(otaParts[1]) != "" {
+			permission := "registry_device.read"
+			if r.Method != http.MethodGet {
+				permission = "registry_device.manage"
+			}
+			allowed, checkErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, permission, "sku", otaParts[1])
+			if checkErr != nil {
+				s.writeCustomerErrorForSession(w, session.ID, checkErr)
+				return
+			}
+			if !allowed {
+				http.Error(w, "目前角色沒有管理此 SKU 的權限。", http.StatusForbidden)
+				return
+			}
+		}
 	}
 	required := capabilityCustomerFirmwareRead
 	if r.Method != http.MethodGet {
@@ -1145,6 +2420,53 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "sku_ota." + strings.ToLower(r.Method), Target: upstreamPath, OrganizationID: orgID, Result: result})
+}
+
+func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
+	upstreamPath := ""
+	var body []byte
+	if r.Method == http.MethodGet && r.PathValue("id") == "" {
+		skuID := strings.TrimSpace(r.URL.Query().Get("sku_id"))
+		if skuID == "" {
+			http.Error(w, "請先選擇 SKU。", http.StatusBadRequest)
+			return
+		}
+		upstreamPath = "/api/ota/skus/" + url.PathEscape(skuID) + "/campaigns"
+	} else if r.PathValue("id") == "" {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(io.LimitReader(r.Body, 2<<20)).Decode(&payload); err != nil {
+			http.Error(w, "更新計畫資料格式不正確。", http.StatusBadRequest)
+			return
+		}
+		skuID, _ := payload["sku_id"].(string)
+		if strings.TrimSpace(skuID) == "" {
+			http.Error(w, "更新計畫必須指定 SKU。", http.StatusBadRequest)
+			return
+		}
+		delete(payload, "sku_id")
+		body, _ = json.Marshal(payload)
+		upstreamPath = "/api/ota/skus/" + url.PathEscape(strings.TrimSpace(skuID)) + "/campaigns"
+	} else {
+		id := url.PathEscape(r.PathValue("id"))
+		upstreamPath = "/api/ota/campaigns/" + id
+		if action := strings.TrimSpace(r.PathValue("action")); action != "" {
+			if action == "start" {
+				action = "activate"
+			}
+			upstreamPath += ":" + url.PathEscape(action)
+		}
+		if r.Method == http.MethodPost {
+			body, _ = io.ReadAll(io.LimitReader(r.Body, 2<<20))
+		}
+	}
+	clone := r.Clone(r.Context())
+	clone.URL.Path = upstreamPath
+	clone.Body = io.NopCloser(bytes.NewReader(body))
+	s.apiSKUOTA(w, clone)
 }
 
 func (s *Server) firmwareDistributionDevices(ctx context.Context, session store.Session, orgID string) ([]contracts.Device, error) {
@@ -2282,6 +3604,7 @@ func customerSafeDevice(device contracts.Device) contracts.CustomerDevice {
 	return contracts.CustomerDevice{
 		ID:              device.ID,
 		OrganizationID:  device.OrganizationID,
+		SKU:             device.SKU,
 		Organization:    device.Organization,
 		Name:            device.Name,
 		Category:        device.Category,
@@ -4052,6 +5375,7 @@ func mapUpstreamDevice(org accountclient.Organization, device accountclient.Devi
 	mapped := contracts.Device{
 		ID:              device.ID,
 		OrganizationID:  fallback(device.OrganizationID, org.ID),
+		SKU:             device.DeviceItemProfileID,
 		Organization:    fallback(device.Organization, org.Name),
 		Name:            fallback(device.Name, device.ID),
 		Category:        fallback(device.Category, metadataString(device.Metadata, "category", "device")),

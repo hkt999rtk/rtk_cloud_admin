@@ -1,6 +1,12 @@
 # Admin Dashboard Redesign Spec
 
-Status: draft.
+Status: approved direction for the Brand Fleet Management refresh.
+
+> Current direction: this document's earlier small-fleet Customer View sections
+> are historical context. The brand sub-tenant console is now designed for
+> Developer / Release Manager and Operations users managing 100K+ devices.
+> Use `docs/assets/webui-design/brand-fleet-management-mock.html` and the
+> 100K+ requirements below as the current design reference.
 
 Author: Kevin Huang
 
@@ -59,11 +65,82 @@ operators while preserving a clean internal view for Tier 1 roles.
 4. Ground all new data surfaces in existing contracts (TELEMETRY_INSIGHTS,
    FIRMWARE_CAMPAIGN) to avoid inventing new vocabulary.
 
+## Brand Fleet UX Language And Information Hierarchy
+
+Brand Fleet Management is written for a fleet operator who may not know cloud,
+streaming, or provisioning terminology. The first screen must answer three
+questions in order:
+
+1. Is the fleet okay now?
+2. Which devices need attention?
+3. What can I do next?
+
+The current Brand Fleet pages use these customer-facing names:
+
+| Internal concept | Customer-facing label |
+|---|---|
+| Fleet Overview | 設備總覽 |
+| Device Inventory | 設備 |
+| Provisioning Status | 設備設定狀態 |
+| Firmware Release | 韌體版本 |
+| OTA Campaign | 更新計畫 |
+| Batch Job | 批次工作 |
+| Report | 報表 |
+| SKU | SKU 與服務 |
+| Service Capability | 可用服務 |
+| Product Policy | 設備政策 |
+| Firmware Policy | 韌體政策 |
+| Online Rate | 最近 7 天上線比例 |
+| Active Streams | 目前播放中的設備 |
+| Needs Attention | 需要處理的設備 |
+| Rollout Campaigns | 更新進度 |
+| Provision | 設定設備 |
+| Deactivate | 停用設備 |
+
+The following terms are detail-only or Platform View vocabulary and must not
+appear as primary Customer View labels: `WebRTC`, `RTSP`, `HLS`, `OTA`,
+`readiness`, `source status`, `campaign policy`, `rollout`, `dead_lettered`,
+`video_cloud_devid`, `operation_id`, and raw service names. Technical values
+may appear in an expanded diagnostics section when they are useful for support.
+
+Customer View must contain one actionable attention list. `Recent Alerts` and
+`Attention Queue` are not separate primary sections; they are combined as
+**Devices that need attention**, with device, problem, time, and one direct
+action.
+
+### Customer View State Copy
+
+| Technical condition | Customer-facing message |
+|---|---|
+| Loading | Loading your device information… |
+| No records | No devices to show yet. |
+| Data temporarily unavailable | We do not have the latest information yet. Try again shortly. |
+| Source not configured | This information is not available for this account yet. |
+| Stale data | Last updated {time}. Some information may be out of date. |
+| Permission denied | You do not have access to this information. |
+| Device attention | This device needs attention. |
+
+Cards must not display `Unavailable`, `source not configured`, or raw upstream
+error text as the primary message. The technical reason may be retained in a
+support-only detail or Platform View diagnostic.
+
+### Device Detail Hierarchy
+
+The device drawer has two layers:
+
+- **Summary:** name, current status, health, last seen, main problem, and
+  permitted actions.
+- **Details:** signal history, uptime, playback details, recent events, and
+  technical diagnostics.
+
+The summary is the default view. Technical source facts are collapsed and are
+never required to complete normal customer operations.
+
 ---
 
 ## Information Architecture
 
-### Current Navigation (4 sections)
+### Historical Navigation (superseded)
 
 ```
 Customer Fleet   →  summary metrics + service health + recent ops
@@ -72,19 +149,78 @@ Provisioning     →  operations log
 Platform Admin   →  customer count + service health
 ```
 
-### Proposed Navigation (2 top-level views)
+### Current Brand Fleet Navigation
 
-**Customer View** — default landing for Tier 2 roles (Fleet Manager, Read-only Observer):
+**Brand Fleet View** — default landing for brand sub-tenant Developer and
+Operations roles:
 
 ```
-Overview         →  fleet health summary (new)
-Devices          →  improved device table
-Firmware & OTA   →  new section
-Stream Health    →  new section
+設備總覽
+設備
+群組與標籤
+SKU 與服務
+韌體版本
+更新計畫
+批次工作
+報表
+團隊與權限
 ```
 
-Device Groups are deferred and must not appear in the first-batch Customer View
-sidebar.
+Device Groups, Tags, Products, Device Profiles, Batch Jobs, and Reports are
+required Brand Fleet surfaces because the target tenant manages 100K+ devices.
+
+`團隊與權限` uses the same scope model as the backend: a role assignment can
+cover the whole organization, one SKU, a region, a device group, or a single
+device. The page shows role names and readable scope labels; raw permission
+names and internal actor identifiers stay out of the primary workflow.
+
+The `SKU 與服務` surface is the source of truth for the operator-facing
+relationship between a SKU, its product/device specification, enabled service
+capabilities, user permissions, device policy, and firmware policy. A SKU is
+not a human role: it defines what the device can use, while ACL defines what a
+person may view or operate within the permitted SKU, region, group, or device
+scope.
+
+Device registration and claim/bind remain part of the provision flow, not a
+Dashboard workflow. Brand Fleet may show setup status, last operation result,
+and a link or instruction to use the approved provisioning path, but it must
+not present a second device-registration form.
+
+### SKU 與服務 UI 設計
+
+The SKU detail view is organized into five operator-facing sections:
+
+1. **基本資料** — SKU name and ID, product name, model, product line, and
+   hardware revision.
+2. **可用服務** — 影像服務、即時觀看、錄影與保存、設備回報、韌體更新。
+3. **使用者權限** — what the current role may view or operate for this SKU,
+   including device settings, update plans, and reports.
+4. **設備政策** — provision/setup rules, claim/bind rules, supported device
+   types, activation conditions, and deactivation conditions.
+5. **韌體政策** — eligible versions, hardware compatibility, OTA availability,
+   update restrictions, anti-rollback policy, and current update plans.
+
+The device detail view must link each device back to its SKU and show the
+enabled services, applied device policy, applied firmware policy, and the
+actions allowed by the current user's ACL. The device table adds SKU, product
+line, service summary, and firmware-policy status where the backend provides
+them.
+
+Creating or editing a SKU follows this sequence:
+
+```
+基本資料 → 產品與硬體規格 → 選擇可用服務 → 設定設備政策
+→ 設定韌體政策 → 預覽 ACL 影響 → 檢查關聯設備 → 儲存
+```
+
+Any change that can affect existing devices or OTA scope must preview the
+affected SKU, device count, region/group scope, current service state, and
+whether reprovisioning or firmware update may be required.
+
+The UI must not expose `service_options`, runtime token scopes, raw ACL
+permission names, `video_cloud`, or other internal service identifiers as
+primary customer copy. Unsupported services are shown as `未啟用`, `不適用`,
+or `需要聯絡管理者`.
 
 **Platform View** — Tier 1 Platform Admin only:
 
@@ -334,14 +470,13 @@ Data source: new backend aggregation endpoint. See Section 7.
 
 ---
 
-## Section 5: Device Groups (deferred)
+## Section 5: Groups, Tags, And Batch Scope
 
-Blocked on the device group feature described in the device-group-firmware-campaign
-issue set. This section is outside the first Customer View batch and must not be
-shown as a sidebar item or placeholder page until the group CRUD API is designed
-and implemented.
+Groups, tags, and production-run scopes are required for large fleet
+operations. They define search scopes, OTA targets, batch operation ranges, and
+reporting boundaries.
 
-When available, the Groups section provides:
+The Groups section provides:
 
 - Group list with device count, online rate, firmware distribution per group
 - Ability to view Fleet Health / Firmware / Stream metrics scoped to one group

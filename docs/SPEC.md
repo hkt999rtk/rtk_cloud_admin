@@ -38,12 +38,14 @@ Included in v0.1:
 - Local Realtek logo asset under `web/public/assets/realtek-logo.png`, sourced
   from the Realtek Connect+ marketing site and served locally by the app.
 - Customer console pages:
-  - Fleet Health Overview
-  - Devices with detail drawer
-  - Firmware & OTA
-  - Stream Health
-  - provisioning/deactivation actions in the device drawer
-  - readiness, health, firmware, telemetry, and stream status displays
+  - Brand Fleet Overview for 100K+ devices
+  - server-side Devices table with detail drawer and batch actions
+  - Groups and Tags
+  - SKU and Services, including product/device specifications and policies
+  - Firmware Releases and full OTA Update Plans
+  - Batch Jobs and Reports
+  - read-only provisioning status and deactivation actions where permitted
+  - customer-readable health, firmware, and connectivity summaries
 - Platform admin pages:
   - Platform Dashboard with cross-tenant summary and curated Prometheus-backed
     operational metrics
@@ -62,12 +64,11 @@ Included in v0.1:
 Out of scope for v0.1:
 
 - Replacing Account Manager or Video Cloud as source of truth.
-- Full OTA campaign engine.
+- End-user consumer app dashboard.
 - Telemetry ingestion pipeline.
 - WebRTC player, clip library, or media download manager.
-- Device Groups in the first Customer View batch.
 - Smart-home schedules, scenes, Matter, Alexa, or Google Assistant runtime features.
-- Multi-language UI. Console UI is English-first.
+- Platform-wide cross-tenant fleet control from a brand session.
 
 ## Self-Service Signup Ownership
 
@@ -172,8 +173,20 @@ Public and shared routes:
   injects trusted Grafana auth-proxy identity headers before forwarding.
 - `GET /api/devices`: device list from cache/demo or upstream aggregation.
 - `GET /api/devices/{id}`: device detail.
+- `GET /api/skus`: SKU list with enabled services, policies, counts, and
+  current-user allowed actions.
+- `GET /api/skus/{id}`: SKU detail and affected device/firmware summaries.
+- `GET /api/fleet/summary`: server-side fleet, SKU, service, region, firmware,
+  and batch-job aggregates.
 - `POST /api/devices/{id}/provision`: starts or simulates provisioning.
 - `POST /api/devices/{id}/deactivate`: starts or simulates deactivation.
+
+SKU service capabilities and human ACL are separate. Account Manager owns SKU
+profiles, device-to-SKU membership, service capability policy, and product
+authorization facts. Video Cloud owns firmware releases, OTA campaigns, and
+deployment results. Cloud Admin presents the effective result and must not
+infer service entitlement or user permissions from model names or runtime
+token scopes.
 - `GET /api/operations`: lifecycle operation list.
 - `GET /api/service-health`: configured upstream service health.
 - `GET /api/audit`: audit log.

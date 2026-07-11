@@ -70,6 +70,16 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 	}
 }
 
+func TestReportDeviceInTimeRangeUsesLatestObservedTimestamp(t *testing.T) {
+	device := accountclient.Device{UpdatedAt: "2026-07-10T08:00:00Z", LastSeenAt: "2026-07-11T08:00:00Z"}
+	if !reportDeviceInTimeRange(device, map[string]any{"start_at": "2026-07-11", "end_at": "2026-07-11"}) {
+		t.Fatal("device should be included when its latest observation is in range")
+	}
+	if reportDeviceInTimeRange(device, map[string]any{"start_at": "2026-07-12"}) {
+		t.Fatal("device should be excluded when its latest observation is before the range")
+	}
+}
+
 func TestAdminServiceLogsProxyFiltersAndRedacts(t *testing.T) {
 	t.Parallel()
 

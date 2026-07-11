@@ -36,9 +36,20 @@ type lifecycleOperationStore interface {
 	GetOpenLifecycleOperation(deviceID, operationType string) (contracts.Operation, bool, error)
 }
 
+type batchJobStore interface {
+	CreateBatchJob(job contracts.BatchJob) (contracts.BatchJob, error)
+	ListBatchJobs(organizationID string, limit int) ([]contracts.BatchJob, error)
+	GetBatchJob(organizationID, id string) (contracts.BatchJob, error)
+	UpdateBatchJobState(organizationID, id, state string) (contracts.BatchJob, error)
+	UpdateBatchJobProgress(organizationID, id, state string, completed, failed, skipped int) (contracts.BatchJob, error)
+	UpdateBatchJobScope(organizationID, id string, scope map[string]any) (contracts.BatchJob, error)
+	UpdateBatchJobResult(organizationID, id string, result []map[string]any) (contracts.BatchJob, error)
+}
+
 var (
 	_ sessionStore            = (*store.Store)(nil)
 	_ auditStore              = (*store.Store)(nil)
 	_ projectionStore         = (*store.Store)(nil)
 	_ lifecycleOperationStore = (*store.Store)(nil)
+	_ batchJobStore           = (*store.Store)(nil)
 )

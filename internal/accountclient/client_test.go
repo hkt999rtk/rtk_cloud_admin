@@ -730,3 +730,31 @@ func TestClientPropagatesTimeoutAndStatusMatrix(t *testing.T) {
 		t.Fatal("expected Refresh timeout error")
 	}
 }
+
+func TestClientFleetBatchMutationMethods(t *testing.T) {
+	var methods []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods = append(methods, r.Method+" "+r.URL.Path)
+		if r.Method == http.MethodPatch && strings.HasSuffix(r.URL.Path, "/devices/device-1") {
+			_, _ = w.Write([]byte(`{"device":{"id":"device-1","name":"Camera","category":"ip_camera"}}`))
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer upstream.Close()
+	c := New(upstream.URL)
+	ctx := t.Context()
+	if _, err := c.UpdateDevice(ctx, "token", "org-1", "device-1", DeviceUpdateRequest{Name: "Camera", Category: "ip_camera"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.AddDeviceToGroup(ctx, "token", "org-1", "group-1", "device-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.RemoveDeviceTag(ctx, "token", "org-1", "device-1", "legacy"); err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(methods, ",")
+	if !strings.Contains(joined, "PATCH /v1/orgs/org-1/devices/device-1") || !strings.Contains(joined, "PUT /v1/orgs/org-1/device-groups/group-1/devices/device-1") || !strings.Contains(joined, "DELETE /v1/orgs/org-1/devices/device-1/tags/legacy") {
+		t.Fatalf("unexpected requests: %s", joined)
+	}
+}

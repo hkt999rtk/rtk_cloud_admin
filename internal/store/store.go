@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -236,7 +237,34 @@ ALTER TABLE audit_events ADD COLUMN request_id TEXT NOT NULL DEFAULT '';
 ALTER TABLE audit_events ADD COLUMN upstream_operation_id TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_audit_events_org_created ON audit_events (organization_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_events_upstream_operation ON audit_events (upstream_operation_id);
+		`,
+	},
+	{
+		version: 5,
+		name:    "brand_fleet_batch_jobs",
+		sql: `
+CREATE TABLE IF NOT EXISTS batch_jobs (
+	id TEXT PRIMARY KEY,
+	organization_id TEXT NOT NULL,
+	type TEXT NOT NULL,
+	name TEXT NOT NULL,
+	created_by TEXT NOT NULL,
+	scope_json TEXT NOT NULL,
+	state TEXT NOT NULL,
+	total INTEGER NOT NULL DEFAULT 0,
+	completed INTEGER NOT NULL DEFAULT 0,
+	failed INTEGER NOT NULL DEFAULT 0,
+	skipped INTEGER NOT NULL DEFAULT 0,
+	created_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_batch_jobs_org_updated ON batch_jobs (organization_id, updated_at DESC);
 `,
+	},
+	{
+		version: 6,
+		name:    "batch_job_result",
+		sql:     `ALTER TABLE batch_jobs ADD COLUMN result_json TEXT NOT NULL DEFAULT '[]';`,
 	},
 }
 
@@ -541,6 +569,107 @@ func (s *Store) UpdateSessionTokens(id, accessToken, refreshToken string, ttl ti
 func (s *Store) DeleteSession(id string) error {
 	_, err := s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id)
 	return err
+}
+
+func (s *Store) CreateBatchJob(job contracts.BatchJob) (contracts.BatchJob, error) {
+	if job.ID == "" {
+		job.ID = "job-" + randomHex(12)
+	}
+	if job.State == "" {
+		job.State = "queued"
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	if job.CreatedAt == "" {
+		job.CreatedAt = now
+	}
+	job.UpdatedAt = now
+	scope, err := json.Marshal(job.Scope)
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	result, err := json.Marshal(job.Result)
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	_, err = s.db.Exec(`INSERT INTO batch_jobs (id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.ID, job.OrganizationID, job.Type, job.Name, job.CreatedBy, scope, job.State, job.Total, job.Completed, job.Failed, job.Skipped, job.CreatedAt, job.UpdatedAt, result)
+	return job, err
+}
+
+func (s *Store) ListBatchJobs(organizationID string, limit int) ([]contracts.BatchJob, error) {
+	if limit <= 0 || limit > 250 {
+		limit = 100
+	}
+	rows, err := s.db.Query(`SELECT id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json FROM batch_jobs WHERE organization_id = ? ORDER BY updated_at DESC, id DESC LIMIT ?`, organizationID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	jobs := []contracts.BatchJob{}
+	for rows.Next() {
+		job, err := scanBatchJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
+}
+
+func (s *Store) GetBatchJob(organizationID, id string) (contracts.BatchJob, error) {
+	return scanBatchJob(s.db.QueryRow(`SELECT id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json FROM batch_jobs WHERE organization_id = ? AND id = ?`, organizationID, id))
+}
+
+func (s *Store) UpdateBatchJobState(organizationID, id, state string) (contracts.BatchJob, error) {
+	if _, err := s.db.Exec(`UPDATE batch_jobs SET state = ?, updated_at = ? WHERE organization_id = ? AND id = ?`, state, time.Now().UTC().Format(time.RFC3339), organizationID, id); err != nil {
+		return contracts.BatchJob{}, err
+	}
+	return s.GetBatchJob(organizationID, id)
+}
+
+func (s *Store) UpdateBatchJobProgress(organizationID, id, state string, completed, failed, skipped int) (contracts.BatchJob, error) {
+	if _, err := s.db.Exec(`UPDATE batch_jobs SET state = ?, completed = ?, failed = ?, skipped = ?, updated_at = ? WHERE organization_id = ? AND id = ?`, state, completed, failed, skipped, time.Now().UTC().Format(time.RFC3339), organizationID, id); err != nil {
+		return contracts.BatchJob{}, err
+	}
+	return s.GetBatchJob(organizationID, id)
+}
+
+func (s *Store) UpdateBatchJobScope(organizationID, id string, scope map[string]any) (contracts.BatchJob, error) {
+	raw, err := json.Marshal(scope)
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	if _, err := s.db.Exec(`UPDATE batch_jobs SET scope_json = ?, updated_at = ? WHERE organization_id = ? AND id = ?`, string(raw), time.Now().UTC().Format(time.RFC3339), organizationID, id); err != nil {
+		return contracts.BatchJob{}, err
+	}
+	return s.GetBatchJob(organizationID, id)
+}
+
+func (s *Store) UpdateBatchJobResult(organizationID, id string, result []map[string]any) (contracts.BatchJob, error) {
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	if _, err := s.db.Exec(`UPDATE batch_jobs SET result_json = ?, updated_at = ? WHERE organization_id = ? AND id = ?`, raw, time.Now().UTC().Format(time.RFC3339), organizationID, id); err != nil {
+		return contracts.BatchJob{}, err
+	}
+	return s.GetBatchJob(organizationID, id)
+}
+
+type rowScannerSQL interface{ Scan(...any) error }
+
+func scanBatchJob(row rowScannerSQL) (contracts.BatchJob, error) {
+	var job contracts.BatchJob
+	var rawScope, rawResult string
+	if err := row.Scan(&job.ID, &job.OrganizationID, &job.Type, &job.Name, &job.CreatedBy, &rawScope, &job.State, &job.Total, &job.Completed, &job.Failed, &job.Skipped, &job.CreatedAt, &job.UpdatedAt, &rawResult); err != nil {
+		return contracts.BatchJob{}, err
+	}
+	if err := json.Unmarshal([]byte(rawScope), &job.Scope); err != nil {
+		return contracts.BatchJob{}, err
+	}
+	if err := json.Unmarshal([]byte(rawResult), &job.Result); err != nil {
+		return contracts.BatchJob{}, err
+	}
+	return job, nil
 }
 
 func randomHex(bytesLen int) string {

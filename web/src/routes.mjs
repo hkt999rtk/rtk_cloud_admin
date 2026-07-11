@@ -1,8 +1,13 @@
 export const customerNavItems = [
-  { id: 'overview', label: 'Overview', path: '/console/overview', icon: 'gauge-high' },
-  { id: 'devices', label: 'Devices', path: '/console/devices', icon: 'video' },
-  { id: 'firmware-ota', label: 'Firmware & OTA', path: '/console/firmware-ota', icon: 'microchip' },
-  { id: 'stream-health', label: 'Stream Health', path: '/console/stream-health', icon: 'tower-broadcast' },
+  { id: 'overview', label: '設備總覽', path: '/console/overview', icon: 'gauge-high' },
+  { id: 'devices', label: '設備', path: '/console/devices', icon: 'video' },
+  { id: 'sku-services', label: 'SKU 與服務', path: '/console/sku-services', icon: 'boxes-stacked' },
+  { id: 'groups', label: '群組與標籤', path: '/console/groups', icon: 'layer-group' },
+  { id: 'access', label: '團隊與權限', path: '/console/access', icon: 'user-shield' },
+  { id: 'firmware-ota', label: '韌體更新', path: '/console/firmware-ota', icon: 'microchip' },
+  { id: 'stream-health', label: '影像播放狀況', path: '/console/stream-health', icon: 'tower-broadcast' },
+  { id: 'jobs', label: '批次工作', path: '/console/jobs', icon: 'list-check' },
+  { id: 'reports', label: '報表', path: '/console/reports', icon: 'chart-column' },
 ];
 
 export const platformNavItems = [
@@ -41,10 +46,15 @@ export function titleFor(active) {
     signup: 'Sign up',
     'signup-check-email': 'Check your email',
     verify: 'Verify email',
-    overview: 'Fleet Health Overview',
-    devices: 'Devices',
-    'firmware-ota': 'Firmware & OTA',
-    'stream-health': 'Stream Health',
+    overview: '設備總覽',
+    devices: '設備',
+    'sku-services': 'SKU 與服務',
+    groups: '群組與標籤',
+    access: '團隊與權限',
+    'firmware-ota': '韌體更新',
+    'stream-health': '影像播放狀況',
+    jobs: '批次工作',
+    reports: '報表',
     'platform-dashboard': 'Platform Dashboard',
     'platform-grafana': 'Grafana',
     'platform-health': 'Service Health',
@@ -78,8 +88,13 @@ export function routeFromPath(path) {
   if (path.startsWith('/admin/')) return 'platform-dashboard';
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
+  if (path === '/console/sku-services' || path.startsWith('/console/sku-services/')) return 'sku-services';
+  if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
+  if (path === '/console/access' || path.startsWith('/console/access/')) return 'access';
   if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';
   if (path === '/console/stream-health' || path.startsWith('/console/stream-health/')) return 'stream-health';
+  if (path === '/console/jobs' || path.startsWith('/console/jobs/')) return 'jobs';
+  if (path === '/console/reports' || path.startsWith('/console/reports/')) return 'reports';
   if (
     path === '/console/customers' ||
     path === '/console/audit' ||
@@ -95,13 +110,17 @@ export function routeFromLocation() {
   return routeFromPath(window.location.pathname);
 }
 
-export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '' } = {}) {
+export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '', q = '', sort = '', direction = '', offset = '' } = {}) {
   const params = new URLSearchParams();
   if (deviceId) params.set('device', deviceId);
   if (health) params.set('health', health);
   if (status) params.set('status', status);
   if (signal) params.set('signal', signal);
   if (firmware) params.set('firmware', firmware);
+  if (q) params.set('q', q);
+  if (sort) params.set('sort', sort);
+  if (direction) params.set('direction', direction);
+  if (offset) params.set('offset', String(offset));
   const query = params.toString();
   return query ? `/console/devices?${query}` : '/console/devices';
 }
