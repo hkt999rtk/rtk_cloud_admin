@@ -4055,7 +4055,7 @@ func (s *Server) apiAdminServiceLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	query := url.Values{}
-	for _, key := range []string{"since", "until", "service", "host", "unit", "level", "trace_id", "request_id", "operation_id", "device_id", "org_id", "user_id"} {
+	for _, key := range []string{"since", "until", "limit", "order", "event_id", "service", "host", "unit", "level", "source", "trace_id", "request_id", "operation_id", "device_id", "org_id", "user_id", "component", "error_category", "actor_id", "actor_type", "outcome", "status_code", "status_class"} {
 		if value := strings.TrimSpace(r.URL.Query().Get(key)); value != "" {
 			query.Set(key, value)
 		}
