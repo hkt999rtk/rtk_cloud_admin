@@ -28,6 +28,7 @@ const (
 type Device struct {
 	ID              string         `json:"id"`
 	OrganizationID  string         `json:"organization_id"`
+	SKU             string         `json:"sku_id,omitempty"`
 	Organization    string         `json:"organization"`
 	Name            string         `json:"name"`
 	Category        string         `json:"category"`
@@ -47,6 +48,7 @@ type Device struct {
 type CustomerDevice struct {
 	ID              string               `json:"id"`
 	OrganizationID  string               `json:"organization_id"`
+	SKU             string               `json:"sku_id,omitempty"`
 	Organization    string               `json:"organization"`
 	Name            string               `json:"name"`
 	Category        string               `json:"category"`
@@ -60,6 +62,55 @@ type CustomerDevice struct {
 	SourceFacts     []CustomerSourceFact `json:"source_facts"`
 	LastSeenAt      string               `json:"last_seen_at"`
 	UpdatedAt       string               `json:"updated_at"`
+}
+
+type SKU struct {
+	ID                   string         `json:"id"`
+	Name                 string         `json:"name"`
+	ProductModel         string         `json:"product_model,omitempty"`
+	Category             string         `json:"category,omitempty"`
+	Status               string         `json:"status"`
+	ServiceCapabilities  []string       `json:"service_capabilities"`
+	DevicePolicy         map[string]any `json:"device_policy,omitempty"`
+	FirmwarePolicy       map[string]any `json:"firmware_policy,omitempty"`
+	AllowedActions       []string       `json:"allowed_actions"`
+	UpdatedAt            string         `json:"updated_at,omitempty"`
+	DeviceCount          int            `json:"device_count"`
+	RegionDistribution   map[string]int `json:"region_distribution,omitempty"`
+	FirmwareDistribution map[string]int `json:"firmware_distribution,omitempty"`
+	ProductionRunCount   int            `json:"production_run_count"`
+}
+
+type FleetSummary struct {
+	Total          int                       `json:"total"`
+	ByStatus       map[string]int            `json:"by_status"`
+	BySKU          map[string]int            `json:"by_sku"`
+	ByModel        map[string]int            `json:"by_model"`
+	ByFirmware     map[string]int            `json:"by_firmware"`
+	ByRegion       map[string]int            `json:"by_region"`
+	ServiceEnabled map[string]int            `json:"service_enabled"`
+	BySKURegion    map[string]map[string]int `json:"by_sku_region,omitempty"`
+	BySKUFirmware  map[string]map[string]int `json:"by_sku_firmware,omitempty"`
+	UpdatedAt      string                    `json:"updated_at"`
+	SourceStatus   string                    `json:"source_status"`
+	SourceMessage  string                    `json:"source_message,omitempty"`
+}
+
+type BatchJob struct {
+	ID             string           `json:"id"`
+	Type           string           `json:"type"`
+	Name           string           `json:"name"`
+	OrganizationID string           `json:"organization_id"`
+	CreatedBy      string           `json:"created_by"`
+	Scope          map[string]any   `json:"scope"`
+	State          string           `json:"state"`
+	Total          int              `json:"total"`
+	Completed      int              `json:"completed"`
+	Failed         int              `json:"failed"`
+	Skipped        int              `json:"skipped"`
+	CreatedAt      string           `json:"created_at"`
+	UpdatedAt      string           `json:"updated_at"`
+	Result         []map[string]any `json:"result,omitempty"`
 }
 
 type SourceFact struct {

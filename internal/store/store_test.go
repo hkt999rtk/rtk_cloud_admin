@@ -91,6 +91,38 @@ func TestStoreInitializesWithSeedData(t *testing.T) {
 	}
 }
 
+func TestBatchJobsPersistByOrganizationAndCanRetry(t *testing.T) {
+	st, err := Open(t.TempDir() + "/jobs.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	job, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "org-a", Type: "report_export", Name: "設備報表", CreatedBy: "ops@example.com", Scope: map[string]any{"sku_id": "sku-1"}, Total: 42})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.State != "queued" || job.ID == "" {
+		t.Fatalf("unexpected created job: %+v", job)
+	}
+	listed, err := st.ListBatchJobs("org-a", 10)
+	if err != nil || len(listed) != 1 || listed[0].Scope["sku_id"] != "sku-1" {
+		t.Fatalf("unexpected job list: %+v, %v", listed, err)
+	}
+	if _, err := st.UpdateBatchJobState("org-a", job.ID, "running"); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := st.UpdateBatchJobScope("org-a", job.ID, map[string]any{"snapshot_ids": []string{"device-1", "device-2"}, "snapshot_at": "2026-07-11T00:00:00Z"})
+	if err != nil || len(updated.Scope["snapshot_ids"].([]any)) != 2 {
+		t.Fatalf("unexpected immutable scope update: %+v, %v", updated.Scope, err)
+	}
+	if _, err := st.GetBatchJob("org-b", job.ID); err == nil {
+		t.Fatal("expected cross-organization job lookup to fail")
+	}
+}
+
 func TestMigrateTracksVersionsAndIsIdempotent(t *testing.T) {
 	t.Parallel()
 

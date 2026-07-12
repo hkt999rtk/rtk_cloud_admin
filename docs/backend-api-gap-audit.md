@@ -41,6 +41,9 @@ from Account Manager or Video Cloud before server validation is complete.
 | Fleet health | `GET /api/fleet/health-summary` | implemented / live evidence pending | BFF route and unavailable states exist. Production sign-off requires live `device.health.summary` aggregation or equivalent authoritative telemetry read model evidence, not demo data. |
 | Fleet stream | `GET /api/fleet/stream-stats` | implemented / live evidence pending | BFF route proxies Video Cloud WebRTC session stats and handles upstream failures. Production sign-off requires live WebRTC session event aggregation evidence. |
 | Firmware | `GET /api/fleet/firmware-distribution` | implemented / live evidence pending | BFF route proxies firmware endpoints when configured and avoids treating generated fallback versions as production evidence. Production sign-off requires observed firmware and rollout facts. |
+| SKU and services | `GET /api/skus`, `GET /api/skus/{id}` | implemented / live evidence pending | Account Manager exposes brand-scoped profile reads and Cloud Admin returns customer-safe SKU/service DTOs with device counts plus per-SKU region and firmware distributions. Impact previews and production-run counts remain separate policy data. |
+| Effective SKU ACL | `GET /api/skus/{id}/permissions`, `/api/role-assignments` | implemented / live evidence pending | Account Manager supports organization, SKU, region, group, and device assignment scopes; fleet list, summary, and device routes enforce the effective resource scope; Cloud Admin exposes customer-safe role/assignment views. Production validation still needs live evidence. |
+| Fleet summary | `GET /api/fleet/summary` | implemented / live evidence pending | Account Manager aggregates status, SKU, model, firmware, region, enabled services, and per-SKU region/firmware distributions in the database. Group/job/authoritative health dimensions remain separate indexed sources. |
 | Platform dashboard | `GET /api/admin/summary` | implemented | Platform-admin protected. Returns cross-tenant customer/device/operation summary. |
 | Platform dashboard | `GET /api/admin/platform-dashboard` | implemented | Platform-admin protected BFF boundary for summary data, operation risk, KPI strip, grouped scrape health, k8s service metrics, workload health, cluster node snapshots, and allowlisted server-side Prometheus queries. Returns stable source states instead of leaking raw upstream errors. |
 | Platform dashboard | `GET /api/admin/customers` | implemented | Platform-admin protected. Returns organization id/name, totals, readiness buckets, and last seen. |
@@ -168,8 +171,8 @@ source of truth for upstream facts. The completed milestone sequence covered:
 2. Customer View source-aware page states.
 3. Fleet Health Overview completion.
 4. Devices table and detail drawer completion.
-5. Firmware & OTA read-only workflows.
-6. Stream Health read-only workflows.
+5. Firmware & OTA release and update-plan workflows.
+6. Stream Health operational workflows.
 7. Public auth, signup, verification, and quota UX polish.
 8. Platform View polish.
 9. Final WebUI browser QA and documentation signoff.
@@ -205,3 +208,61 @@ These are intentionally not part of the v0.1 backend API batch:
 - Device groups API.
 - WebUI redesign or design artifacts.
 - Tenant write actions from platform admin endpoints.
+
+## Brand Fleet 100K+ Follow-up Audit
+
+Status: required for the Brand Fleet redesign; existing v0.1 routes are not
+treated as sufficient just because they can render a small demo fleet.
+
+The Brand Fleet UI must use server-side queries and asynchronous jobs for
+100K+ devices. The following interface areas need explicit BFF contracts or
+upstream confirmation before formal React implementation:
+
+| Area | Required behavior | Current assessment |
+| --- | --- | --- |
+| Device inventory | Paginated, searchable, sortable, multi-filter query scoped to the active brand organization | Implemented through Account Manager `/fleet/devices` and Cloud Admin `/api/fleet/devices`; maximum page size is 250 and filters are server-side |
+| Cross-page selection | Select a filtered result set without loading every device into the browser | Implemented as an immutable job scope containing the filter query plus exclusions, or explicit device IDs |
+| Groups and tags | List, create, update, member counts, and use as batch/OTA scope | Account Manager primitives and Cloud Admin group create/update/delete/read UI now exist; tags are listed and applied through asynchronous batch jobs. Per-group aggregate indexes and a dedicated tag editor remain follow-up work |
+| Products and profiles | SKU/device profile, enabled services, policy summaries, and production-run counts | Brand-scoped SKU list/detail BFF and UI now include per-SKU region/firmware summaries, production-run counts, scoped ACL data, and an affected-device policy impact preview |
+| Batch jobs | Create, progress, partial failure, retry, result download, and audit | Cloud Admin job store and customer-safe routes implemented; provision/deactivate/settings/group/tag jobs execute asynchronously, with JSON and CSV result downloads. Firmware retry still belongs to the OTA plan lifecycle |
+| OTA plans | Create, schedule, start, pause, resume, cancel, retry, and summary reporting | Cloud Admin update-plan aliases now enforce active-organization authorization and proxy the SKU-scoped Video Cloud lifecycle; retry resumes paused/completed campaigns as a new deployment attempt |
+| Fleet summaries | Aggregate by region, product, group, firmware, health, and job state | Summary respects ACL scope and now includes status, SKU, model, firmware, region metadata, enabled services, and per-SKU region/firmware dimensions. Group/job/authoritative health data still need indexed source fields |
+| Reports | Filtered report generation and asynchronous export | Customer-safe asynchronous report jobs now apply fleet query filters and return dimension rows with durable job results plus JSON/CSV download; object-storage delivery and richer report templates remain follow-up work |
+
+### SKU → Service → ACL → Policy Contract
+
+The Brand Fleet UI must model this relationship explicitly:
+
+```
+SKU
+  → product/device specification
+  → enabled service capabilities
+  → user ACL and scope
+  → device policy
+  → firmware policy and OTA plans
+```
+
+Account Manager is the source of truth for SKU profiles, device-to-SKU
+membership, service capability policy, and human authorization. Video Cloud is
+the source of truth for SKU-scoped firmware releases, campaigns, deployments,
+and rollout events. Cloud Admin must expose a customer-safe effective DTO and
+must not let React infer the relationship from `model`, raw
+`service_options`, or runtime token scopes.
+
+Required BFF data for the SKU page:
+
+- SKU identity and product/device specification.
+- Enabled service labels and machine-readable capability flags.
+- Device count, region distribution, and firmware distribution.
+- Device and firmware policy summaries.
+- Current-user allowed actions for the SKU and its device scopes.
+- Impact preview before changing a policy or service capability.
+
+Implementation rule: do not work around these gaps by fetching the entire fleet
+into React. Each gap must either be backed by an existing indexed upstream
+query or be recorded as a separate contract/API implementation item.
+
+Provisioning boundary: device registration and claim/bind are owned by the
+approved provisioning flow. The Brand Fleet Dashboard is read-only for this
+area: it can show setup status, latest result, retryability, and the next
+provisioning instruction, but it must not create a parallel registration form.

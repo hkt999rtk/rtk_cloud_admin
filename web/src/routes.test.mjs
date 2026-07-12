@@ -43,19 +43,23 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console'), 'overview');
   assert.equal(routeFromPath('/console/overview'), 'overview');
   assert.equal(routeFromPath('/console/devices'), 'devices');
+  assert.equal(routeFromPath('/console/sku-services'), 'sku-services');
   assert.equal(routeFromPath('/console/customers'), 'overview');
   assert.equal(routeFromPath('/console/operations'), 'overview');
   assert.equal(routeFromPath('/console/operations/history'), 'overview');
   assert.equal(routeFromPath('/console/firmware-ota'), 'firmware-ota');
   assert.equal(routeFromPath('/console/stream-health'), 'stream-health');
-  assert.equal(routeFromPath('/console/groups'), 'overview');
-  assert.equal(routeFromPath('/console/groups/legacy'), 'overview');
+  assert.equal(routeFromPath('/console/jobs'), 'jobs');
+  assert.equal(routeFromPath('/console/reports'), 'reports');
+  assert.equal(routeFromPath('/console/groups'), 'groups');
+  assert.equal(routeFromPath('/console/groups/legacy'), 'groups');
+  assert.equal(routeFromPath('/console/access'), 'access');
 });
 
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['Overview', 'Devices', 'Firmware & OTA', 'Stream Health'],
+    ['設備總覽', '設備', 'SKU 與服務', '群組與標籤', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表'],
   );
 });
 
@@ -109,7 +113,7 @@ test('builds devices URLs with supported filters only', () => {
 });
 
 test('uses fleet health overview title for the customer landing page', () => {
-  assert.equal(titleFor('overview'), 'Fleet Health Overview');
+  assert.equal(titleFor('overview'), '設備總覽');
 });
 
 test('falls back unknown paths to the customer overview route', () => {
@@ -134,8 +138,11 @@ test('provides titles for all public shell routes', () => {
     'reset-password',
     'overview',
     'devices',
+    'sku-services',
     'firmware-ota',
     'stream-health',
+    'jobs',
+    'reports',
     'platform-dashboard',
     'platform-grafana',
     'platform-health',
