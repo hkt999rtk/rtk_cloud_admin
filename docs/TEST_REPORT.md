@@ -4,7 +4,7 @@
 
 | Item | Result |
 |---|---|
-| Go total coverage | 65.3% |
+| Go total coverage | 65.2% |
 | Go coverage gate | >= 65.0% |
 | Raw logs | GitHub Actions artifact only |
 | Coverage profile | GitHub Actions artifact only |
