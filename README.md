@@ -189,6 +189,19 @@ npm test
 npm run build
 ```
 
+Browser E2E:
+
+```sh
+cd web
+npm run e2e:install
+npm run build
+npm run e2e:generate-fixture
+npm run e2e:smoke
+```
+
+See [`docs/cloud-admin-e2e.md`](docs/cloud-admin-e2e.md) for the local
+load-test-backed fixture harness, full Playwright suite, and staging flow.
+
 Testing policy:
 
 - API handler behavior changes need focused Go tests with `httptest`.

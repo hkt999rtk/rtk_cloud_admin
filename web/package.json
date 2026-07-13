@@ -3,6 +3,13 @@
     "dev": "vite --host 127.0.0.1",
     "test": "node --test src/*.test.mjs",
     "browser:smoke": "node scripts/browser-smoke.mjs",
+    "e2e:generate-fixture": "node scripts/generate-e2e-fixture.mjs",
+    "e2e": "playwright test",
+    "e2e:smoke": "playwright test --grep @smoke",
+    "e2e:staging": "playwright test --project=staging",
+    "e2e:headed": "playwright test --headed",
+    "e2e:report": "playwright show-report",
+    "e2e:install": "playwright install chromium",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
@@ -14,6 +21,7 @@
     "vite": "^8.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "playwright": "^1.60.0"
   }
 }
