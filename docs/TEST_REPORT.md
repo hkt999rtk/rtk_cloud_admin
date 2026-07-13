@@ -6,6 +6,7 @@
 |---|---|
 | Go total coverage | 65.3% |
 | Go coverage gate | >= 65.0% |
+| Report source | CI-generated canonical candidate |
 | Raw logs | GitHub Actions artifact only |
 | Coverage profile | GitHub Actions artifact only |
 

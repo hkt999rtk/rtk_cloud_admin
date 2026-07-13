@@ -33,6 +33,7 @@ cat > "$output" <<EOF
 |---|---|
 | Go total coverage | ${total_coverage} |
 | Go coverage gate | >= ${coverage_min}% |
+| Report source | CI-generated canonical candidate |
 | Raw logs | GitHub Actions artifact only |
 | Coverage profile | GitHub Actions artifact only |
 
