@@ -246,3 +246,7 @@ traceable detail page without reading SQLite or constructing PromQL manually.
   Grafana proxy health, and audit correlation.
 - Regression: customer sessions cannot access `/api/admin/*` or receive
   cross-tenant data.
+
+The canonical `docs/TEST_REPORT.md` is refreshed from the CI report generator
+when backend coverage changes; it is kept in sync with the tracked test and
+coverage evidence for each implementation branch.
