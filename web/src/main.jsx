@@ -442,7 +442,7 @@ function App() {
           setStreamStats(null);
           setRecentAlerts([]);
         }
-        if (alive) setError(err.message);
+        if (alive) setError(active === 'platform-brand-clouds' ? userFacingBrandCloudError(err) : err.message);
       } finally {
         if (alive) setLoading(false);
       }

@@ -33,6 +33,20 @@ E2E_PROMETHEUS_MODE=unavailable \
   npx playwright test e2e/platform-dashboard.spec.mjs --grep unavailable
 ```
 
+The other deterministic source states and mutation failure path are available
+through the same harness:
+
+```sh
+E2E_PROMETHEUS_MODE=empty npx playwright test e2e/platform-dashboard.spec.mjs --grep "empty and stale"
+E2E_PROMETHEUS_MODE=stale npx playwright test e2e/platform-dashboard.spec.mjs --grep "empty and stale"
+E2E_PROMETHEUS_MODE=unconfigured npx playwright test e2e/platform-dashboard.spec.mjs --grep "empty and stale"
+E2E_FAIL_ACTION=member-assign npx playwright test e2e/brand-cloud.spec.mjs --grep "partial owner"
+E2E_SCENARIO_MODE=unavailable npx playwright test e2e/brand-cloud.spec.mjs --grep "upstream failures"
+```
+
+Each local run starts a fresh fixture-backed Go BFF and temporary database, so
+mutating tests do not reuse state from an earlier run.
+
 Playwright retains failure screenshots, videos, traces, and the HTML report
 under `.artifacts/playwright-results/` and `.artifacts/playwright-report/`.
 

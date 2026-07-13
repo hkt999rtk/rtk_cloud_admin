@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: process.env.CI ? [['html', { outputFolder: '../.artifacts/playwright-report', open: 'never' }], ['line']] : [['html', { outputFolder: '../.artifacts/playwright-report', open: 'never' }], ['list']],
   outputDir: '../.artifacts/playwright-results',
   use: { baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:18082', trace: 'retain-on-failure', screenshot: 'only-on-failure', video: 'retain-on-failure', viewport: { width: 1440, height: 1000 } },
-  webServer: process.env.E2E_BASE_URL ? undefined : { command: 'node scripts/e2e-server.mjs', cwd: '.', url: 'http://127.0.0.1:18082/healthz', reuseExistingServer: !process.env.CI, timeout: 120_000 },
+  webServer: process.env.E2E_BASE_URL ? undefined : { command: 'node scripts/e2e-server.mjs', cwd: '.', url: 'http://127.0.0.1:18082/healthz', reuseExistingServer: false, timeout: 120_000 },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile', grep: /@smoke/, use: { ...devices['Pixel 7'] } },

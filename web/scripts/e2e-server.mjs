@@ -10,7 +10,8 @@ const fixtureDir = process.env.E2E_FIXTURE_DIR || path.join(repoRoot, '.artifact
 const databaseDir = await mkdtemp(path.join(os.tmpdir(), 'rtk-cloud-admin-e2e-'));
 const fixture = spawn(process.execPath, [path.join(webRoot, 'scripts', 'e2e-fixture-server.mjs')], { env: { ...process.env, E2E_FIXTURE_DIR: fixtureDir, E2E_FIXTURE_PORT: '0' }, stdio: ['ignore', 'pipe', 'inherit'] });
 const fixturePort = Number(await firstLine(fixture.stdout));
-const server = spawn('go', ['run', './cmd/server'], { cwd: repoRoot, env: { ...process.env, GOWORK: 'off', PORT: process.env.E2E_APP_PORT || '18082', DATABASE_PATH: path.join(databaseDir, 'e2e.db'), ACCOUNT_MANAGER_BASE_URL: `http://127.0.0.1:${fixturePort}`, VIDEO_CLOUD_PROMETHEUS_BASE_URL: `http://127.0.0.1:${fixturePort}`, CLOUD_LOGGER_ENDPOINT: `http://127.0.0.1:${fixturePort}`, CLOUD_LOGGER_INGEST_TOKEN: 'e2e-log-token', CUSTOMER_PASSWORD_LOGIN_ENABLED: 'true' }, stdio: 'inherit' });
+const prometheusBaseURL = process.env.E2E_PROMETHEUS_MODE === 'unconfigured' ? '' : `http://127.0.0.1:${fixturePort}`;
+const server = spawn('go', ['run', './cmd/server'], { cwd: repoRoot, env: { ...process.env, GOWORK: 'off', PORT: process.env.E2E_APP_PORT || '18082', DATABASE_PATH: path.join(databaseDir, 'e2e.db'), ACCOUNT_MANAGER_BASE_URL: `http://127.0.0.1:${fixturePort}`, VIDEO_CLOUD_PROMETHEUS_BASE_URL: prometheusBaseURL, CLOUD_LOGGER_ENDPOINT: `http://127.0.0.1:${fixturePort}`, CLOUD_LOGGER_INGEST_TOKEN: 'e2e-log-token', CUSTOMER_PASSWORD_LOGIN_ENABLED: 'true' }, stdio: 'inherit' });
 
 const cleanup = async () => {
   server.kill('SIGTERM');

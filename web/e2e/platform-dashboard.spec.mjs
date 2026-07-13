@@ -22,3 +22,11 @@ test('dashboard shows degraded state when Prometheus fixture is unavailable', as
   await expect(page.getByText(/Source: unavailable|Source: unconfigured/i)).toBeVisible();
   await expect(page.getByText('Healthy', { exact: true })).toHaveCount(0);
 });
+
+test('dashboard exposes empty and stale Prometheus source states', async ({ page }) => {
+  const mode = process.env.E2E_PROMETHEUS_MODE;
+  test.skip(!['empty', 'stale', 'unconfigured'].includes(mode), 'run with E2E_PROMETHEUS_MODE=empty, stale, or unconfigured');
+  await login(page, 'platform_admin');
+  await enterPlatform(page);
+  await expect(page.getByText(`Source: ${mode}`, { exact: true })).toBeVisible();
+});

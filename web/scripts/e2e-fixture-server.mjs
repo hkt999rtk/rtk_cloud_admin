@@ -14,23 +14,30 @@ const [brandClouds, users, members, devices, operations, logs, sessions, prometh
   load('operations.json'), load('service-logs.json'), load('sessions.json'), load('prometheus-series.json'),
 ]);
 const state = { brandClouds, users, members, devices, operations, logs, sessions, prometheus };
+let platformValidationAllowed = true;
 
 const server = createServer(async (req, res) => {
   try {
-    if (mode === 'unavailable') return send(res, 503, { error: 'fixture unavailable' });
-    if (mode === 'unauthorized') return send(res, 401, { error: 'unauthorized' });
-    if (mode === 'forbidden') return send(res, 403, { error: 'forbidden' });
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (url.pathname === '/api/v1/query' || url.pathname === '/api/v1/query_range') return prometheusResponse(res);
     if (url.pathname === '/v1/logs') return send(res, 200, { events: state.logs.map((event) => ({ event_id: `${event.operation_id}-${event.request_id}`, service: event.service, level: event.level, ts: event.timestamp, msg: event.message, trace_id: event.trace_id, request_id: event.request_id, operation_id: event.operation_id })) });
     if (url.pathname === '/v1/auth/login' && req.method === 'POST') return login(req, res);
+    if (url.pathname === '/v1/me') return send(res, 200, { user: { id: 'customer-user', email: 'customer@example.com', name: 'E2E Customer' }, organizations: state.brandClouds.map((brand) => ({ id: brand.id, name: brand.name, role: 'owner', tier: brand.tier })) });
+    const authenticatedUpstreamRequest = Boolean(req.headers.authorization);
+    const platformValidationRequest = url.pathname === '/v1/admin/brand-clouds'
+      && req.method === 'GET'
+      && String(req.headers.authorization || '').includes('e2e-platform_admin-token');
+    if (platformValidationRequest && platformValidationAllowed) platformValidationAllowed = false;
+    const shouldFailAuthenticatedRequest = authenticatedUpstreamRequest && !(platformValidationRequest && !platformValidationAllowed);
+    if (shouldFailAuthenticatedRequest && mode === 'unavailable') return send(res, 503, { error: 'fixture unavailable' });
+    if (shouldFailAuthenticatedRequest && mode === 'unauthorized') return send(res, 401, { error: 'unauthorized' });
+    if (shouldFailAuthenticatedRequest && mode === 'forbidden') return send(res, 403, { error: 'forbidden' });
     if (url.pathname === '/v1/admin/brand-clouds' && req.method === 'GET') return send(res, 200, { brand_clouds: state.brandClouds });
     if (url.pathname === '/v1/admin/brand-clouds' && req.method === 'POST') return createBrandCloud(req, res);
     if (url.pathname === '/v1/admin/devices' && req.method === 'GET') return send(res, 200, { devices: state.devices });
     if (url.pathname === '/v1/admin/operations' && req.method === 'GET') return send(res, 200, { operations: state.operations || [] });
     if (url.pathname === '/v1/admin/sso/providers/status' && req.method === 'GET') return send(res, 200, { providers: state.brandClouds.map((brand) => ssoFor(brand.id)) });
     if (url.pathname === '/v1/health') return send(res, 200, { status: 'ok' });
-    if (url.pathname === '/v1/me') return send(res, 200, { user: { id: 'customer-user', email: 'customer@example.com', name: 'E2E Customer' }, organizations: state.brandClouds.map((brand) => ({ id: brand.id, name: brand.name, role: 'owner', tier: brand.tier })) });
     const match = url.pathname.match(/^\/v1\/admin\/(brand-clouds|orgs)\/([^/]+)(.*)$/);
     if (match) return handleResource(req, res, match[1], decodeURIComponent(match[2]), match[3]);
     return send(res, 404, { error: 'not found' });
@@ -109,7 +116,7 @@ function ssoFor(id) {
 
 function prometheusResponse(res) {
   if (prometheusMode === 'unavailable') return send(res, 503, { error: 'prometheus unavailable' });
-  const value = prometheusMode === 'empty' ? [] : [{ metric: { job: 'e2e', service: 'cloud-admin', namespace: 'e2e', role: 'api' }, value: [String(Date.now() / 1000), prometheusMode === 'stale' ? '0' : '1'] }];
+  const value = prometheusMode === 'empty' ? [] : [{ metric: { job: 'e2e', service: 'cloud-admin', namespace: 'e2e', role: 'api' }, value: [String(Date.now() / 1000), prometheusMode === 'stale' ? '999999' : '1'] }];
   return send(res, 200, { status: 'success', data: { resultType: 'vector', result: value } });
 }
 
