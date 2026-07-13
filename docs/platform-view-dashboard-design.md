@@ -1,6 +1,7 @@
 # Platform View Dashboard Design
 
-Status: draft for product, UX, SRE, and developer review.
+Status: implemented baseline; design-parity follow-up is tracked in
+`platform-admin-implementation-plan.md`.
 
 Date: 2026-06-02
 
@@ -35,6 +36,23 @@ investigate next.
 `rtk_cloud_admin` owns the WebUI and BFF. Account Manager, Video Cloud, and
 Prometheus remain the sources of truth for their respective facts.
 
+## Management-First Scope
+
+The first Platform Dashboard viewport is optimized for decisions and actions,
+not for displaying every available metric. The required management information
+is:
+
+- overall platform/service/workload/node health;
+- open, failed, and dead-lettered operation risk;
+- enough tenant/device footprint to understand impact;
+- source freshness and unavailable/degraded state;
+- links to the existing Service Health, Operations, and Grafana surfaces.
+
+Environment selectors, extra business signals, historical charts, detailed
+resource drill-downs, and rich log/audit exploration are optional follow-up
+surfaces. Their absence must not block the management dashboard or require new
+backend APIs in the first release.
+
 ## Product Goals
 
 - Give Tier 1 Platform Admins a first-screen answer to whether the platform is
@@ -64,18 +82,23 @@ Prometheus remain the sources of truth for their respective facts.
 
 ## Navigation Placement
 
-Recommended Platform View nav order:
+Current Platform View nav order:
 
 1. Platform Dashboard
-2. Service Health
-3. Brand Clouds
-4. SSO Providers
-5. Operations Log
-6. Audit Log
+2. Grafana
+3. Service Health
+4. Brand Clouds
+5. SSO Providers
+6. Service Logs
+7. Operations Log
+8. Audit Log
 
 `Service Health` remains a dedicated drill-down page. `Platform Dashboard`
-summarizes service and metrics health at a higher level and links to deeper
-surfaces.
+summarizes service and metrics health at a higher level. The current React
+implementation has the management summary panels, source-state rendering,
+recent incident context, and links to existing management pages.
+Environment/cluster selectors and deep resource detail remain deferred; see
+`platform-admin-implementation-plan.md`.
 
 ## Page Layout
 
@@ -110,6 +133,10 @@ Business Signals                                  Recent Platform Activity
 The page should use the existing Realtek Ops Console visual system:
 compact KPI strip, dense tables, restrained status labels, and right-side
 drill-down links. Do not use marketing hero sections or decorative charts.
+The primary viewport must keep Service Health, K8s Workloads, Cluster Nodes,
+and Operation Risk visible. Cross-Service Risk, Business Signals,
+Infrastructure Health, and historical/deep diagnostic panels are secondary and
+may be hidden or deferred when their source/API is not available.
 
 Operation Risk and Platform Activity must be scan-first dashboard panels, not
 large card stacks. Operation Risk uses a compact three-metric strip for Open,

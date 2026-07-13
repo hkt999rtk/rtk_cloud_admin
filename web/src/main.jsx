@@ -258,7 +258,7 @@ function App() {
         }
         setOperations(nextOperations);
         setHealth(nextHealth);
-        if (useAdminApi && active === 'platform-logs') {
+        if (useAdminApi && ['platform-dashboard', 'platform-logs'].includes(active)) {
           const logs = await fetchJSON('/api/admin/service-logs?service=workspace-readiness').catch((err) => ({
             status: 'degraded',
             message: err.message || 'Central service logging is unavailable.',
@@ -627,6 +627,7 @@ function App() {
         }
       }
       await refreshBrandClouds();
+      if (memberError) setError(`Brand Cloud created, but initial admin setup needs attention: ${memberError}`);
       setSelectedBrandCloudId(result.brand_cloud.id);
       setBrandCloudDrawerMode('detail');
       return { brandCloud: result.brand_cloud, memberError };
@@ -1021,7 +1022,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} skus={skus?.skus || []} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'access' ? <AccessPage data={access} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
-        {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} /> : null}
+        {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
         {!needsPlatformAccess && active === 'platform-logs' ? <PlatformServiceLogs logs={serviceLogs} loading={loading} /> : null}
@@ -2470,7 +2471,37 @@ function PlatformAccessGate({ active, me }) {
   );
 }
 
-function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
+function platformSourceLabel(status) {
+  const labels = {
+    configured: 'configured',
+    stale: 'stale',
+    empty: 'empty',
+    unavailable: 'unavailable',
+    unconfigured: 'unconfigured',
+  };
+  return labels[String(status || '').toLowerCase()] || 'unknown';
+}
+
+function dashboardSourceStatus(dashboard) {
+  return dashboard?.sources?.prometheus?.source_status || dashboard?.prometheus?.queries?.find((query) => query.source_status)?.source_status || 'unconfigured';
+}
+
+function platformCheckedAt(dashboard) {
+  return dashboard?.sources?.prometheus?.checked_at
+    || dashboard?.panel_sources?.service_metrics?.checked_at
+    || dashboard?.prometheus?.queries?.find((query) => query.checked_at)?.checked_at
+    || '';
+}
+
+function ssoStatusLabel(provider) {
+  if (!provider) return 'SSO unavailable';
+  if (provider.status === 'disabled' || provider.enabled === false && provider.configured) return 'SSO disabled';
+  if (provider.enabled) return 'SSO enabled';
+  if (provider.configured) return 'SSO configured';
+  return 'SSO not configured';
+}
+
+function PlatformDashboardLanding({ dashboard, summary, health, operations, logs }) {
   const source = dashboard?.sources?.prometheus || null;
   const serviceGroups = dashboard?.service_scrape_health || [];
   const serviceExporters = dashboard?.service_exporters || [];
@@ -2528,12 +2559,11 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
   return (
     <section className="platform-dashboard">
       <div className="platform-dashboard-head">
-        <div className="platform-context-controls" aria-label="Platform dashboard context">
-          <span>Environment <strong>Production</strong></span>
-          <span>Cluster <strong>rtk-prod-eu1</strong></span>
-          <span className="platform-health-chip"><StatusDot value={targetsDown || workloadsDegraded ? 'warning' : 'ok'} />{targetsDown || workloadsDegraded ? 'Attention' : 'Healthy'}</span>
+        <div className="platform-context-controls" aria-label="Platform dashboard status">
+          <span className="platform-health-chip"><StatusDot value={targetsDown || workloadsDegraded || risk.failed_operations ? 'warning' : 'ok'} />{targetsDown || workloadsDegraded || risk.failed_operations ? 'Attention' : 'Healthy'}</span>
+          <span className="platform-source-state">Source: {platformSourceLabel(dashboardSourceStatus(dashboard))}</span>
         </div>
-        <span className="platform-updated"><Icon name="rotate" /> Last updated: now</span>
+        <span className="platform-updated"><Icon name="rotate" /> {platformCheckedAt(dashboard) ? `Checked ${formatRelativeTime(platformCheckedAt(dashboard))}` : 'Source freshness unavailable'}</span>
       </div>
 
       <section className="platform-kpi-strip">
@@ -2563,6 +2593,7 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations }) {
         <ScrapeHealthPanel groups={serviceGroups} />
         <FootprintPanel rows={footprintRows} />
         <PlatformActivityPanel health={health} />
+        <PlatformIncidentContext logs={logs} />
         <PlatformMetricPanel title="Cross-Service Risk" rows={crossServiceRows} />
         <PlatformMetricPanel title="Business Signals" rows={businessRows} secondary />
         <PlatformMetricPanel title="Infrastructure Health" rows={infrastructureRows} />
@@ -2678,6 +2709,7 @@ function OperationRiskPanel({ risk, operations }) {
           <strong>{risk.dead_lettered_operations}</strong>
         </div>
       </div>
+      <div className="panel-action-row"><a className="inline-action" href="/admin/ops">View all operations <Icon name="arrow-right" /></a></div>
       <OperationList operations={operations} detailed />
     </article>
   );
@@ -2697,6 +2729,38 @@ function PlatformActivityPanel({ health }) {
   );
 }
 
+function PlatformIncidentContext({ logs }) {
+  const events = (logs?.events || []).filter((event) => ['error', 'fatal', 'warn', 'warning'].includes(String(event.level || '').toLowerCase())).slice(0, 5);
+  return (
+    <article className="panel platform-dashboard-panel platform-compact-panel platform-incident-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Recent Incident Context</h2>
+          <p>Recent log events that help explain degraded platform state.</p>
+        </div>
+        <a className="inline-action" href="/admin/logs">View service logs <Icon name="arrow-up-right-from-square" /></a>
+      </div>
+      {logs?.message ? <p className="source-note">{logs.message}</p> : null}
+      {events.length ? (
+        <div className="incident-list">
+          {events.map((event) => (
+            <article className="incident-row" key={event.event_id || `${event.ts}-${event.msg}`}>
+              <StatusDot value="warning" />
+              <div>
+                <strong>{event.msg || 'Service event'}</strong>
+                <span>{[event.service, event.level, event.trace_id || event.request_id].filter(Boolean).join(' · ')}</span>
+              </div>
+              <time>{event.ts ? formatRelativeTime(event.ts) : '-'}</time>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="empty-state compact-empty">No recent warning or error log events.</p>
+      )}
+    </article>
+  );
+}
+
 function ServiceMetricsTable({ metrics, source }) {
   return (
     <article className="panel platform-dashboard-panel server-resource-panel">
@@ -2705,6 +2769,7 @@ function ServiceMetricsTable({ metrics, source }) {
           <h2>Service Health</h2>
           <p>Current k8s service target health and basic runtime metrics. Long-term trends live in Grafana.</p>
         </div>
+        <a className="inline-action" href="/admin/health">View service health <Icon name="arrow-right" /></a>
       </div>
       <div className="server-resource-table-wrap">
         <table className="server-resource-table service-metrics-table">
@@ -2751,6 +2816,7 @@ function WorkloadHealthTable({ workloads, source }) {
           <h2>K8s Workloads</h2>
           <p>Deployment replica, pod readiness, restart, and crashloop status.</p>
         </div>
+        <a className="inline-action" href="/admin/health">View workload health <Icon name="arrow-right" /></a>
       </div>
       <div className="server-resource-table-wrap">
         <table className="server-resource-table workload-health-table">
@@ -2799,6 +2865,7 @@ function ClusterNodeSummary({ nodes, source }) {
           <h2>Cluster Nodes</h2>
           <p>Current k8s node readiness and resource snapshot.</p>
         </div>
+        <a className="inline-action" href="/admin/health">View service health <Icon name="arrow-right" /></a>
       </div>
       <div className="server-resource-table-wrap">
         <table className="server-resource-table cluster-node-table">
@@ -3181,6 +3248,7 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
     displayName: '',
     role: 'owner',
   });
+  const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -3193,6 +3261,18 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
     setMessage('');
     if (!form.name.trim()) {
       setMessage('Brand display name is required.');
+      return;
+    }
+    if (step < 3) {
+      if (step === 2 && form.initialMode === 'existing' && !form.userId.trim()) {
+        setMessage('Existing Brand User id is required.');
+        return;
+      }
+      if (step === 2 && form.initialMode === 'create' && (!form.email.trim() || !form.password.trim())) {
+        setMessage('Initial admin email and password are required.');
+        return;
+      }
+      setStep((current) => current + 1);
       return;
     }
     if (form.initialMode === 'existing' && !form.userId.trim()) {
@@ -3241,30 +3321,52 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
           </div>
           <button type="button" className="drawer-close" onClick={onClose} aria-label="Close Brand Cloud drawer">x</button>
         </div>
+        <div className="brand-cloud-stepper" aria-label="Create Brand Cloud steps">
+          {['Identity', 'Initial Admin', 'Review'].map((label, index) => <span className={step === index + 1 ? 'active' : step > index + 1 ? 'complete' : ''} key={label}>{index + 1}. {label}</span>)}
+        </div>
         <form className="drawer-form" onSubmit={submit}>
-          <label>Brand display name<input className="input" value={form.name} onChange={(event) => update('name', event.target.value)} /></label>
-          <div className="form-grid">
-            <label>Region<input className="input" value={form.region} onChange={(event) => update('region', event.target.value)} placeholder="Optional" /></label>
-            <label>Tier<select className="input" value={form.tier} onChange={(event) => update('tier', event.target.value)}><option>Evaluation</option><option>Commercial</option></select></label>
-          </div>
-          <label>Initial admin mode<select className="input" value={form.initialMode} onChange={(event) => update('initialMode', event.target.value)}>
-            <option value="none">Assign later</option>
-            <option value="existing">Assign existing Brand User id</option>
-            <option value="create">Create or reactivate brand user</option>
-          </select></label>
-          {form.initialMode === 'existing' ? <label>Brand User id<input className="input" value={form.userId} onChange={(event) => update('userId', event.target.value)} /></label> : null}
-          {form.initialMode === 'create' ? (
+          {step === 1 ? (
             <>
-              <label>Email<input className="input" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
-              <label>Temporary password<input className="input" type="password" value={form.password} onChange={(event) => update('password', event.target.value)} /></label>
-              <label>Display name<input className="input" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} /></label>
+              <label>Brand display name<input className="input" value={form.name} onChange={(event) => update('name', event.target.value)} /></label>
+              <div className="form-grid">
+                <label>Region<input className="input" value={form.region} onChange={(event) => update('region', event.target.value)} placeholder="Optional" /></label>
+                <label>Tier<select className="input" value={form.tier} onChange={(event) => update('tier', event.target.value)}><option>Evaluation</option><option>Commercial</option></select></label>
+              </div>
+              <p className="source-note">Organization kind is fixed as <code>brand_cloud</code>.</p>
             </>
           ) : null}
-          {form.initialMode !== 'none' ? <label>Role<select className="input" value={form.role} onChange={(event) => update('role', event.target.value)}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label> : null}
+          {step === 2 ? (
+            <>
+              <label>Initial admin mode<select className="input" value={form.initialMode} onChange={(event) => update('initialMode', event.target.value)}>
+                <option value="none">Assign later</option>
+                <option value="existing">Assign existing Brand User id</option>
+                <option value="create">Create or reactivate brand user</option>
+              </select></label>
+              {form.initialMode === 'existing' ? <label>Brand User id<input className="input" value={form.userId} onChange={(event) => update('userId', event.target.value)} /></label> : null}
+              {form.initialMode === 'create' ? (
+                <>
+                  <label>Email<input className="input" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
+                  <label>Temporary password<input className="input" type="password" value={form.password} onChange={(event) => update('password', event.target.value)} /></label>
+                  <label>Display name<input className="input" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} /></label>
+                </>
+              ) : null}
+              {form.initialMode !== 'none' ? <label>Role<select className="input" value={form.role} onChange={(event) => update('role', event.target.value)}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label> : null}
+            </>
+          ) : null}
+          {step === 3 ? (
+            <section className="drawer-summary create-review-summary">
+              <h3>Review</h3>
+              <div><span>Brand</span><strong>{form.name}</strong></div>
+              <div><span>Tier</span><strong>{form.tier}</strong></div>
+              <div><span>Initial admin</span><strong>{form.initialMode === 'none' ? 'Assign later' : form.initialMode === 'existing' ? form.userId : form.email}</strong></div>
+              <p className="source-note">Quota and SSO setup can be completed after creation.</p>
+            </section>
+          ) : null}
           {message ? <p className="form-message">{message}</p> : null}
           <div className="drawer-actions">
             <button type="button" className="ghost-button" onClick={onClose}>Cancel</button>
-            <button type="submit" className="primary-button" disabled={submitting}>{submitting ? 'Creating...' : 'Create Brand Cloud'}</button>
+            {step > 1 ? <button type="button" className="ghost-button" onClick={() => setStep((current) => current - 1)} disabled={submitting}>Back</button> : null}
+            <button type="submit" className="primary-button" disabled={submitting}>{submitting ? 'Creating...' : step < 3 ? 'Continue' : 'Create Brand Cloud'}</button>
           </div>
         </form>
       </aside>
@@ -3273,17 +3375,36 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
 }
 
 function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember, onCreateUser }) {
+  const [detailBrand, setDetailBrand] = useState(brand);
+  const [ssoProvider, setSSOProvider] = useState(null);
+  const [detailSource, setDetailSource] = useState({ status: 'loading', message: '' });
   const [member, setMember] = useState({ brand_cloud_user_id: '', role: 'owner' });
   const [user, setUser] = useState({ email: '', password: '', display_name: '', role: 'admin' });
   const [users, setUsers] = useState([]);
   const [userFilter, setUserFilter] = useState('all');
   const [usersSource, setUsersSource] = useState({ status: 'loading', message: '' });
   const [message, setMessage] = useState('');
-  const disabled = brandCloudStatusKey(brand) === 'disabled';
-  const owner = brandCloudOwner(brand);
+  const disabled = brandCloudStatusKey(detailBrand) === 'disabled';
+  const owner = brandCloudOwner(detailBrand);
   const pendingUsers = users.filter((row) => brandCloudUserStatus(row).key === 'pending_verification').length;
   const disabledUsers = users.filter((row) => brandCloudUserStatus(row).key === 'disabled').length;
   const activeUsers = users.filter((row) => brandCloudUserStatus(row).key === 'active').length;
+
+  async function loadDetail() {
+    setDetailSource({ status: 'loading', message: '' });
+    try {
+      const [detailResult, ssoResult] = await Promise.all([
+        fetchJSON(`/api/admin/brand-clouds/${encodeURIComponent(brand.id)}`),
+        fetchJSON(`/api/admin/orgs/${encodeURIComponent(brand.id)}/sso-provider`).catch(() => ({ provider: null })),
+      ]);
+      setDetailBrand(detailResult.brand_cloud || brand);
+      setSSOProvider(ssoResult.provider || null);
+      setDetailSource({ status: 'ready', message: '' });
+    } catch (err) {
+      setDetailBrand(brand);
+      setDetailSource({ status: 'unavailable', message: userFacingBrandCloudError(err) });
+    }
+  }
 
   async function loadUsers(nextFilter = userFilter) {
     setUsersSource({ status: 'loading', message: '' });
@@ -3301,6 +3422,7 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
   }
 
   useEffect(() => {
+    loadDetail();
     loadUsers('all');
   }, [brand.id]);
 
@@ -3312,7 +3434,8 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
   async function updateStatus(nextStatus) {
     setMessage('');
     try {
-      await onUpdateBrand(brand.id, { name: brand.name, status: nextStatus });
+      const updated = await onUpdateBrand(brand.id, { name: detailBrand.name, status: nextStatus });
+      setDetailBrand(updated || { ...detailBrand, status: nextStatus });
       setMessage(nextStatus === 'disabled' ? 'Brand Cloud disabled.' : 'Brand Cloud enabled.');
     } catch (err) {
       setMessage(err.message);
@@ -3385,29 +3508,30 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
       <aside className="drawer-panel brand-cloud-drawer" role="dialog" aria-modal="true" aria-label="Brand Cloud detail" onClick={(event) => event.stopPropagation()}>
         <div className="drawer-header">
           <div>
-            <h2>{brand.name || brand.id}</h2>
-            <p>{brand.id} / {brand.organization_kind || 'brand_cloud'}</p>
+            <h2>{detailBrand.name || detailBrand.id}</h2>
+            <p>{detailBrand.id} / {detailBrand.organization_kind || 'brand_cloud'}</p>
           </div>
           <button type="button" className="drawer-close" onClick={onClose} aria-label="Close Brand Cloud drawer">x</button>
         </div>
-        <section className={`brand-cloud-detail-hero brand-cloud-detail-${brandCloudStatusKey(brand)}`}>
+        {detailSource.status === 'unavailable' ? <p className="form-message">{detailSource.message}</p> : null}
+        <section className={`brand-cloud-detail-hero brand-cloud-detail-${brandCloudStatusKey(detailBrand)}`}>
           <div className="brand-cloud-status-block">
             <StatusBadge value={brandCloudStatusKey(brand)} label={brandCloudStatusLabel(brand)} />
-            <strong>{brand.name || brand.metadata?.brandname || brand.id}</strong>
-            <small>{brand.id}</small>
+            <strong>{detailBrand.name || detailBrand.metadata?.brandname || detailBrand.id}</strong>
+            <small>{detailBrand.id}</small>
           </div>
           <div className="brand-cloud-fact-grid">
-            <div><Icon name="location-dot" /><span>Region</span><strong>{brandCloudRegion(brand)}</strong></div>
-            <div><Icon name="layer-group" /><span>Tier</span><strong>{brandCloudTier(brand)}</strong></div>
+            <div><Icon name="location-dot" /><span>Region</span><strong>{brandCloudRegion(detailBrand)}</strong></div>
+            <div><Icon name="layer-group" /><span>Tier</span><strong>{brandCloudTier(detailBrand)}</strong></div>
             <div><Icon name="user-shield" /><span>Owner/Admin</span><strong>{owner || 'Unassigned'}</strong></div>
-            <div><Icon name="video" /><span>Devices</span><strong>{brandCloudQuotaLabel(brand)}</strong></div>
+            <div><Icon name="video" /><span>Devices</span><strong>{brandCloudQuotaLabel(detailBrand)}</strong></div>
           </div>
         </section>
         <section className="setup-list brand-cloud-setup-list" aria-label="Brand Cloud setup state">
           <span className="ok"><Icon name="circle-check" />Created</span>
           <span className={owner ? 'ok' : 'warn'}><Icon name={owner ? 'user-check' : 'user-clock'} />{owner ? 'Owner assigned' : 'Owner pending'}</span>
-          <span className="neutral"><Icon name="key" />SSO unavailable</span>
-          <span className="neutral"><Icon name="database" />{brand.updated_at ? `Updated ${formatRelativeTime(brand.updated_at)}` : 'No update time'}</span>
+          <span className={ssoProvider?.configured || ssoProvider?.enabled ? 'ok' : 'warn'}><Icon name="key" />{ssoStatusLabel(ssoProvider)}</span>
+          <span className="neutral"><Icon name="database" />{detailBrand.updated_at ? `Updated ${formatRelativeTime(detailBrand.updated_at)}` : 'No update time'}</span>
         </section>
         <section className="drawer-summary brand-cloud-summary">
           <article>
@@ -3435,7 +3559,7 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
           <button type="button" className="ghost-button" onClick={() => updateStatus(disabled ? 'active' : 'disabled')}>
             <Icon name={disabled ? 'rotate-right' : 'ban'} />{disabled ? 'Re-enable Brand Cloud' : 'Disable Brand Cloud'}
           </button>
-          <a className="inline-action action-link" href={`/admin/sso?org=${encodeURIComponent(brand.id)}`}>
+            <a className="inline-action action-link" href={`/admin/sso?org=${encodeURIComponent(detailBrand.id)}`}>
             <Icon name="key" />Open SSO Providers
           </a>
         </div>

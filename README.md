@@ -89,8 +89,11 @@ Go BFF:
   Customer-facing pages must not expose platform-only audit, customer browsing,
   raw upstream payloads, or cross-tenant facts.
 - **Platform View** is for Tier 1 Platform Admins. It covers Platform
-  Dashboard, Service Health, SSO Providers, Operations Log, Audit Log, and the
-  planned Brand Clouds management UI. Platform View data and navigation are
+  Dashboard, Grafana, Service Health, Brand Clouds, SSO Providers, Service
+  Logs, Operations Log, and Audit Log. Brand Clouds has an implemented baseline;
+  remaining design/API parity work is tracked in
+  [`docs/platform-admin-implementation-plan.md`](docs/platform-admin-implementation-plan.md).
+  Platform View data and navigation are
   role-gated away from Customer View.
 
 The design and implementation context is split across these documents:
@@ -106,7 +109,9 @@ The design and implementation context is split across these documents:
 - [`docs/platform-view-dashboard-design.md`](docs/platform-view-dashboard-design.md):
   Platform Dashboard metrics, Prometheus source mapping, and BFF boundary.
 - [`docs/platform-brand-cloud-management-design.md`](docs/platform-brand-cloud-management-design.md):
-  draft Platform View Brand Clouds GUI and workflow design.
+  Brand Clouds design, source ownership, and current implementation boundary.
+- [`docs/platform-admin-implementation-plan.md`](docs/platform-admin-implementation-plan.md):
+  design-to-code gap matrix and phased frontend/BFF/upstream implementation plan.
 - [`docs/webui-implementation-roadmap.md`](docs/webui-implementation-roadmap.md):
   developer-ready issue roadmap for implementing the WebUI milestones.
 - [`docs/customer-view-visual-qa-checklist.md`](docs/customer-view-visual-qa-checklist.md)

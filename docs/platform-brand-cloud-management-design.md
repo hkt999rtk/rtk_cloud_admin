@@ -1,6 +1,7 @@
 # Platform Brand Cloud Management Design
 
-Status: draft for product, UX, and developer review.
+Status: implemented baseline; design-parity and upstream-contract follow-up is
+tracked in `platform-admin-implementation-plan.md`.
 
 Date: 2026-06-01
 
@@ -42,11 +43,30 @@ The working product name in the UI is **Brand Clouds**. It represents
 `organization_kind=brand_cloud` records and should not be presented as a
 generic customer organization table.
 
+## Management-First Scope
+
+The minimum information required to manage a Brand Cloud is:
+
+- brand name and organization id;
+- tier and normalized status;
+- owner/admin assignment;
+- SSO setup state;
+- the setup blocker, if any;
+- actions to create, assign a member, enable, or disable the Brand Cloud.
+
+Region, brand code, created-at, historical device usage, and rich entitlement
+analytics are useful display fields but are not required to make the first
+management actions safe. They may remain optional until Account Manager
+provides authoritative fields without adding a new local source of truth.
+
 ## GUI Draft
 
-The GUI draft is a code-native static mock so table labels, form fields,
-drawer copy, and state language remain readable during review. It is not an
-implementation of the React application.
+The PNG/HTML assets are the approved visual reference. The React application
+now implements the list, create drawer, detail drawer, member assignment, and
+brand-user lifecycle baseline. The implementation now includes the
+management-first create stepper, fresh detail reads, SSO setup state, and
+partial-failure handling. Entitlement analytics, region/created-at display
+fields, and deep setup workflows remain follow-up items.
 
 ### Brand Clouds List
 
@@ -158,7 +178,8 @@ Manage licensed brand operators backed by Account Manager.
   - text search across brand name, organization id, and owner/admin email
   - status filter
   - tier filter
-  - region filter when Account Manager exposes region metadata
+  - region filter when Account Manager exposes region metadata; this is an
+    optional enhancement and not a first-release backend blocker
   - primary `Create Brand Cloud` button
 - Table columns:
   - Brand
@@ -167,8 +188,8 @@ Manage licensed brand operators backed by Account Manager.
   - Status
   - Owner/Admin
   - SSO
-  - Device Quota or Device Usage
-  - Created
+  - Device Quota or Device Usage when available
+  - Created when available
   - Actions
 
 ### Status Labels
@@ -230,7 +251,7 @@ Platform Account Manager user ids are not valid for brand-cloud membership.
 Creating or reactivating a brand-scoped user uses the Brand User form and then
 assigns membership by `brand_cloud_user_id`.
 
-### Step 3: Entitlement Snapshot
+### Step 3: Entitlement Snapshot (optional information)
 
 Fields:
 
@@ -240,7 +261,8 @@ Fields:
 - SSO setup later checkbox or informational state
 
 This step should not imply that billing or contract approval is handled in
-Admin Console.
+Admin Console. If entitlement data is unavailable, creation can still proceed
+with the minimum tier/setup information owned by Account Manager.
 
 ### Step 4: Review And Create
 

@@ -4040,6 +4040,28 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 	if deleteUser.Code != http.StatusNoContent {
 		t.Fatalf("brand cloud user delete status = %d, want 204; body=%s", deleteUser.Code, deleteUser.Body.String())
 	}
+	auditEvents, err := st.ListAuditEvents()
+	if err != nil {
+		t.Fatalf("ListAuditEvents after brand cloud actions: %v", err)
+	}
+	auditActions := map[string]bool{}
+	for _, event := range auditEvents {
+		auditActions[event.Action] = true
+	}
+	for _, action := range []string{
+		"platform.brand_cloud.create",
+		"platform.brand_cloud.update",
+		"platform.brand_cloud.member.assign",
+		"platform.brand_cloud.user.create_or_reactivate",
+		"platform.brand_cloud.user.disable",
+		"platform.brand_cloud.user.enable",
+		"platform.brand_cloud.user.approve",
+		"platform.brand_cloud.user.delete",
+	} {
+		if !auditActions[action] {
+			t.Errorf("audit action %q was not recorded", action)
+		}
+	}
 
 	blocked := httptest.NewRecorder()
 	blockedReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds", strings.NewReader(`{"name":"Blocked"}`))

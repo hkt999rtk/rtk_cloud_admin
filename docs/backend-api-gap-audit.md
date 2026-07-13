@@ -1,6 +1,6 @@
 # Backend API Gap Audit
 
-Date: 2026-06-06
+Date: 2026-07-13
 
 Source documents:
 
@@ -15,6 +15,38 @@ design are called out separately.
 This document distinguishes Admin Console work from upstream blockers. Items
 listed as implemented in `rtk_cloud_admin` can still depend on production data
 from Account Manager or Video Cloud before server validation is complete.
+
+## 2026-07-13 Design-to-Implementation Reconciliation
+
+The current Platform View and Brand Clouds backend baseline exists and supports
+the current React pages. It does not yet support every field and workflow in
+the approved dashboard/Brand Clouds design assets. The detailed execution plan
+is [platform-admin-implementation-plan.md](platform-admin-implementation-plan.md).
+
+Current gaps that are backend or upstream-contract work, rather than merely
+visual work:
+
+- Brand Cloud list filtering is performed in Cloud Admin after a full upstream
+  list fetch; Account Manager needs bounded server-side pagination and filters.
+- Brand Cloud list/detail DTOs do not consistently expose SSO status, region,
+  created-at, brand code, entitlement usage, and freshness as one stable read
+  model.
+- Brand Cloud detail now performs fresh reads through the existing organization
+  and SSO routes; a composed overview endpoint is not required for the first
+  management release.
+- Service Logs, Operations, and Audit need bounded filter/pagination contracts;
+  full cross-service audit history still requires an authoritative upstream
+  source or ingestion contract.
+- Platform Dashboard now uses source-state/freshness data and existing
+  management-page links; environment/cluster context and deep resource detail
+  remain deferred display work.
+
+Priority adjustment: authoritative health, operation risk, Brand Cloud
+identity/status/owner/SSO, member assignment, enable/disable, safe source
+states, and local management audit records are implemented or first-release
+blockers. Region, brand code, created-at, historical quota/device analytics,
+rich Service Logs queries, deep resource detail, and full audit export remain
+design follow-ups, not urgent API work.
 
 ## Status Legend
 

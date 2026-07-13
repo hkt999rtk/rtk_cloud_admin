@@ -26,6 +26,7 @@ import (
 	"rtk_cloud_admin/internal/accountclient"
 	"rtk_cloud_admin/internal/config"
 	"rtk_cloud_admin/internal/contracts"
+	"rtk_cloud_admin/internal/correlation"
 	"rtk_cloud_admin/internal/readinessfacts"
 	"rtk_cloud_admin/internal/store"
 	"rtk_cloud_admin/internal/videoclient"
@@ -3797,6 +3798,7 @@ func (s *Server) apiAdminBrandClouds(w http.ResponseWriter, r *http.Request) {
 		s.writeUpstreamReadErrorForSession(w, session.ID, err)
 		return
 	}
+	s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.create", brandCloud.ID, "", "accepted")
 	writeJSONStatus(w, http.StatusCreated, map[string]accountclient.BrandCloud{"brand_cloud": brandCloud})
 }
 
@@ -3832,6 +3834,7 @@ func (s *Server) apiAdminBrandCloud(w http.ResponseWriter, r *http.Request) {
 		s.writeUpstreamReadErrorForSession(w, session.ID, err)
 		return
 	}
+	s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.update", brandCloudID, "", "accepted")
 	writeJSON(w, map[string]accountclient.BrandCloud{"brand_cloud": brandCloud})
 }
 
@@ -3861,6 +3864,7 @@ func (s *Server) apiAdminBrandCloudMember(w http.ResponseWriter, r *http.Request
 		s.writeUpstreamReadErrorForSession(w, session.ID, err)
 		return
 	}
+	s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.member.assign", brandCloudID, "", "accepted")
 	writeJSONStatus(w, http.StatusCreated, map[string]accountclient.Member{"member": member})
 }
 
@@ -3890,6 +3894,7 @@ func (s *Server) apiAdminBrandCloudUser(w http.ResponseWriter, r *http.Request) 
 	if status != http.StatusCreated {
 		status = http.StatusOK
 	}
+	s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.user.create_or_reactivate", brandCloudID, "", "accepted")
 	writeJSONStatus(w, status, result)
 }
 
@@ -3927,6 +3932,7 @@ func (s *Server) apiAdminBrandCloudUserAction(w http.ResponseWriter, r *http.Req
 			s.writeUpstreamReadErrorForSession(w, session.ID, err)
 			return
 		}
+		s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.user.delete", brandCloudID, brandCloudUserID, "accepted")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -3950,6 +3956,7 @@ func (s *Server) apiAdminBrandCloudUserAction(w http.ResponseWriter, r *http.Req
 		s.writeUpstreamReadErrorForSession(w, session.ID, err)
 		return
 	}
+	s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.user."+action, brandCloudID, brandCloudUserID, "accepted")
 	writeJSON(w, map[string]accountclient.BrandCloudUser{"brand_cloud_user": user})
 }
 
@@ -4886,6 +4893,20 @@ func (s *Server) auditSSOSession(email, kind, orgID, result string) error {
 		Target:         fallback(kind, "sso_session"),
 		OrganizationID: orgID,
 		Result:         result,
+	})
+}
+
+func (s *Server) auditPlatformBrandCloudAction(r *http.Request, session store.Session, action, organizationID, target, result string) {
+	values := correlation.FromContext(r.Context())
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{
+		Actor:               fallback(session.Email, session.Subject),
+		ActorKind:           fallback(session.Kind, "platform_admin"),
+		Action:              action,
+		Target:              fallback(target, organizationID),
+		OrganizationID:      organizationID,
+		Result:              result,
+		RequestID:           values.RequestID,
+		UpstreamOperationID: values.OperationID,
 	})
 }
 
