@@ -1,6 +1,7 @@
 # WebUI Implementation Roadmap
 
-Status: historical first-batch roadmap plus the current Brand Fleet follow-up.
+Status: historical first-batch roadmap plus current Platform Admin and Brand
+Fleet follow-up.
 
 > The original four-page Customer View roadmap below is retained for historical
 > implementation traceability. It is superseded for the brand sub-tenant by the
@@ -39,11 +40,10 @@ dependency note only and was not opened as part of this batch.
 
 This roadmap tracks the completed first WebUI implementation sequence for
 Customer View, auth, Platform View pages, and Platform Dashboard. Brand Fleet
-Management is the next product implementation sequence for brand sub-tenants.
-Brand Clouds
-remain a subsequent Platform View design extension; the relevant drafts live in
-[platform-view-dashboard-design.md](platform-view-dashboard-design.md) and
-[platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md).
+Management remains the next large product sequence for brand sub-tenants.
+Platform Dashboard and Brand Clouds already have an implemented baseline; their
+remaining design/API work is tracked in
+[platform-admin-implementation-plan.md](platform-admin-implementation-plan.md).
 
 ## Issue Body Template
 

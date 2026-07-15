@@ -431,6 +431,7 @@ async function installApiMocks(page, { sessionForPath } = {}) {
     if (pathName === '/api/fleet/firmware-distribution') return route.fulfill({ json: firmwareDistribution });
     if (pathName === '/api/admin/platform-dashboard') return route.fulfill({ json: platformDashboard });
     if (pathName === '/api/admin/service-health') return route.fulfill({ json: platformHealth });
+    if (pathName === '/api/admin/service-logs') return route.fulfill({ json: { status: 'ok', events: [{ event_id: 'log-1', ts: '2026-05-13T11:58:00Z', service: 'video-cloud', level: 'info', msg: 'Platform health sample available.', trace_id: 'trace-1', request_id: 'req-1' }] } });
     if (pathName === '/api/admin/operations') return route.fulfill({ json: platformOperations });
     if (pathName === '/api/admin/audit') return route.fulfill({ json: audit });
     if (pathName === '/api/admin/sso/providers') return route.fulfill({ json: { providers: [] } });
@@ -525,7 +526,7 @@ async function runDesktopSmoke(page) {
   await expectText(page, 'Service Health');
   await expectText(page, 'K8s Workloads');
   await expectText(page, 'Cluster Nodes');
-  await expectText(page, 'Tenant & Device Footprint');
+  await expectText(page, 'Operation Risk');
   await expectText(page, 'Infrastructure Health');
   await screenshot(page, 'desktop-platform-dashboard.png');
 
@@ -576,7 +577,7 @@ async function runMobileSmoke(browserContext) {
   await screenshot(page, 'mobile-devices.png');
 
   await gotoAndAssert(page, '/admin', 'Platform Dashboard');
-  await expectText(page, 'Tenant & Device Footprint');
+  await expectText(page, 'Operation Risk');
   await expectText(page, 'K8s Workloads');
   await screenshot(page, 'mobile-platform-dashboard.png');
 

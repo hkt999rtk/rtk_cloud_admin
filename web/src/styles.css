@@ -970,6 +970,99 @@ p {
   margin: 3px 0 0;
 }
 
+.platform-dashboard-panel .panel-head .inline-action {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.platform-source-state {
+  color: #667085;
+  font-size: 12px;
+}
+
+.platform-incident-panel {
+  grid-column: span 2;
+}
+
+.incident-list {
+  display: grid;
+}
+
+.incident-row {
+  align-items: center;
+  border-bottom: 1px solid #e6e8ec;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 10px 14px;
+}
+
+.incident-row strong,
+.incident-row span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.incident-row strong {
+  color: #1d2939;
+  font-size: 12px;
+}
+
+.incident-row span,
+.incident-row time {
+  color: #667085;
+  font-size: 11px;
+}
+
+.panel-action-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 14px 0;
+}
+
+.brand-cloud-stepper {
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 14px 20px 0;
+}
+
+.brand-cloud-stepper span {
+  border-bottom: 3px solid #d0d5dd;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 0 8px;
+}
+
+.brand-cloud-stepper span.active {
+  border-color: #0674c2;
+  color: #0674c2;
+}
+
+.brand-cloud-stepper span.complete {
+  border-color: #16a34a;
+  color: #15803d;
+}
+
+.create-review-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.create-review-summary h3 {
+  margin: 0;
+}
+
+.create-review-summary div {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
 .server-resource-table-wrap {
   overflow-x: auto;
 }
