@@ -619,3 +619,15 @@ before implementation is considered complete:
   contracts.
 - Formal React implementation follows only after the Brand Fleet mockup and
   API/BFF gap audit are reviewed.
+
+### ChipSet And SDK Resource Center Acceptance
+
+`assets/webui-design/chipset-sdk-information-provider-mock.html#/developer` is
+the visual and interaction source of truth for the Developer Resource Center.
+The production page must include the stale last-known-good banner, client-side
+search, dynamic vendor and Recommended filters, vendor marks, Current/Stale
+state, SDK release hierarchy, supported-model chips, and responsive endpoint
+grid. Loading uses card skeletons; empty, filtered-empty, and unavailable states
+remain inside the customer shell. Provider URLs, manifest hashes, cache
+validators, and validation errors never enter this customer-facing payload.
+Desktop and mobile Playwright screenshots are committed acceptance artifacts.

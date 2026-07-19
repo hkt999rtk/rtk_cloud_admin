@@ -60,6 +60,17 @@ import {
   telemetrySourceState,
 } from './source-state.mjs';
 import { streamAttentionRows, streamModeRows, streamWorstDeviceRows } from './stream.mjs';
+import {
+  chipsetVendors,
+  compactHash,
+  filterChipsets,
+  filterProviders,
+  formatProviderTimestamp,
+  providerEndpointCount,
+  providerKPIs,
+  providerSyncHealth,
+  vendorInitials,
+} from './chipset-sdk.mjs';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import './styles.css';
 
@@ -1761,21 +1772,13 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
   const effectiveCapabilities = data?.capabilities || capabilities;
   const canEdit = effectiveCapabilities.includes('platform.chipset_sdk.edit');
   const canPublish = effectiveCapabilities.includes('platform.chipset_sdk.publish');
-  const [form, setForm] = useState({ name: '', manifest_url: '' });
-  const [editingID, setEditingID] = useState('');
-  const [preview, setPreview] = useState(null);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [drawer, setDrawer] = useState(null);
   const [message, setMessage] = useState('');
-  async function save(event) {
-    event.preventDefault();
-    const response = await fetch(editingID ? `/api/admin/chipset-providers/${encodeURIComponent(editingID)}` : '/api/admin/chipset-providers', {
-      method: editingID ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `chipset-provider-${editingID || form.manifest_url}-${Date.now()}` },
-      body: JSON.stringify(form),
-    });
-    const body = response.ok ? await response.json().catch(() => null) : null;
-    setMessage(response.ok ? (body?.audit_result === 'accepted' ? 'Provider draft 已儲存。' : 'Provider 已儲存，但 audit record 寫入失敗。') : await response.text());
-    if (response.ok) { setForm({ name: '', manifest_url: '' }); setEditingID(''); onRefresh(); }
-  }
+  const kpis = useMemo(() => providerKPIs(providers), [providers]);
+  const visibleProviders = useMemo(() => filterProviders(providers, query, filter), [providers, query, filter]);
+  const staleProviders = providers.filter((provider) => provider.status === 'published' && provider.stale);
   async function act(provider, action) {
     setMessage('');
     const response = await fetch(`/api/admin/chipset-providers/${encodeURIComponent(provider.id)}/${action}`, {
@@ -1785,36 +1788,132 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
     setMessage(response.ok ? (body?.audit_result === 'accepted' ? `Provider ${action} 已完成。` : `Provider ${action} 已完成，但 audit record 寫入失敗。`) : await response.text());
     if (response.ok) onRefresh();
   }
-  async function loadPreview(provider) {
-    const response = await fetch(`/api/admin/chipset-providers/${encodeURIComponent(provider.id)}`);
-    const body = await response.json().catch(() => null);
-    setPreview(response.ok ? body : { provider, chipsets: [], source_message: 'Preview 無法取得。' });
-  }
-  return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Developer Enablement</p><h2>ChipSet &amp; SDK Providers</h2><p>管理外部 JSON manifest、發布狀態與平台解析後的資源快照。</p></div></div>
-    {canEdit ? <section className="panel"><form className="inline-form" onSubmit={save}><input required placeholder="Provider 名稱" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input required className="wide-input" type="url" pattern="https://.*" placeholder="https://provider.example.com/manifest.json" value={form.manifest_url} onChange={(event) => setForm({ ...form, manifest_url: event.target.value })} /><button className="primary" type="submit">{editingID ? '儲存草稿' : '新增 Provider'}</button>{editingID ? <button className="ghost-button" type="button" onClick={() => { setEditingID(''); setForm({ name: '', manifest_url: '' }); }}>取消</button> : null}</form></section> : null}
+  return <section className="page-content chipset-provider-page" data-testid="chipset-provider-page">
+    <div className="page-intro"><div><p className="eyebrow">Developer Enablement</p><h2>ChipSet &amp; SDK Providers</h2><p>上架外部 Information Provider manifest。平台只管理來源、發布狀態與同步健康，不直接修改解析後的 SDK endpoint。</p></div><div className="page-intro-actions"><button type="button" className="ghost-button" onClick={onRefresh}>重新整理狀態</button>{canEdit ? <button type="button" className="primary-button" onClick={() => setDrawer({ mode: 'create', provider: null })}>新增 Provider</button> : null}</div></div>
+    <section className="metrics chipset-provider-kpis" aria-label="ChipSet provider summary">
+      <MetricCard icon="database" label="Providers" value={kpis.total} hint={`${kpis.published} published · ${kpis.total - kpis.published} not published`} tone="info" />
+      <MetricCard icon="microchip" label="Published ChipSets" value={kpis.publishedChipsets} hint={`${kpis.publishedSDKs} SDK releases`} tone="info" />
+      <MetricCard icon="clock-rotate-left" label="Last successful sync" value={kpis.lastSuccess ? formatRelativeTime(kpis.lastSuccess) : '—'} hint={kpis.lastSuccess ? 'background refresh healthy' : 'No successful sync'} tone="good" />
+      <MetricCard icon="triangle-exclamation" label="Needs attention" value={kpis.needsAttention} hint="last-known-good remains available" tone={kpis.needsAttention ? 'warn' : 'good'} />
+    </section>
+    {staleProviders.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>{staleProviders[0].name} manifest 已延遲</strong><span>最後有效資料仍會提供給 Developer；請檢查 provider endpoint。</span></div><button type="button" className="link-button" onClick={() => setDrawer({ mode: 'preview', provider: staleProviders[0] })}>查看錯誤</button></div> : null}
     {message ? <div className="notice">{message}</div> : null}
-    {loading && !data ? <section className="panel"><p>正在載入 providers…</p></section> : null}
+    {loading && !data ? <section className="panel chipset-loading-state"><p>正在載入 providers…</p></section> : null}
     {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Provider catalog unavailable</h3><p>{data.source_message}</p></div></section> : null}
-    {data?.source_status !== 'unavailable' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Provider</th><th>狀態</th><th>內容</th><th>同步</th><th>操作</th></tr></thead><tbody>{providers.map((provider) => <tr key={provider.id}><td><strong>{provider.name}</strong><small>{provider.manifest_url}</small></td><td><span className={`status-badge ${provider.status === 'published' ? 'good' : 'neutral'}`}>{provider.status}</span>{provider.unavailable ? <span className="status-badge danger">unavailable</span> : null}{provider.stale ? <span className="status-badge warning">stale</span> : null}</td><td>{provider.chipset_count || 0} ChipSets · {provider.sdk_release_count || 0} SDKs<small>Manifest v{provider.manifest_version || '—'}</small></td><td>{provider.last_successful_refresh_at || '尚未同步'}{provider.validation_error ? <small className="provider-error">{provider.validation_error}</small> : null}</td><td><button className="link-button" type="button" onClick={() => loadPreview(provider)}>Preview</button>{canEdit && provider.status !== 'published' ? <button className="link-button" type="button" onClick={() => { setEditingID(provider.id); setForm({ name: provider.name, manifest_url: provider.manifest_url }); }}>編輯</button> : null}{canPublish ? <>{provider.status === 'published' ? <button className="link-button" type="button" onClick={() => act(provider, 'unpublish')}>下架</button> : <button className="link-button" type="button" onClick={() => act(provider, 'publish')}>發布</button>}<button className="link-button" type="button" onClick={() => act(provider, 'refresh')}>刷新</button></> : null}</td></tr>)}</tbody></table>{!providers.length ? <p className="empty-state">目前沒有 Information Provider。</p> : null}</div></section> : null}
-    {preview ? <section className="panel"><div className="panel-head"><div><h3>Normalized preview · {preview.provider?.name}</h3><p>{preview.chipsets?.length || 0} 個 ChipSet；發布前請確認版本與 endpoints。</p></div><button className="ghost-button" type="button" onClick={() => setPreview(null)}>關閉</button></div><ChipsetCards chipsets={preview.chipsets || []} showFreshness={false} /></section> : null}
+    {data?.source_status !== 'unavailable' ? <section className="panel chipset-provider-list-panel"><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜尋 provider、ChipSet 或 manifest version" aria-label="搜尋 ChipSet providers" /><div className="chipset-filter-tabs" role="group" aria-label="Provider status filter">{[['all', '全部'], ['published', 'Published'], ['draft', 'Draft'], ['stale', 'Stale']].map(([value, label]) => <button type="button" className={filter === value ? 'active' : ''} aria-pressed={filter === value} onClick={() => setFilter(value)} key={value}>{label}</button>)}</div></div><div className="table-wrap"><table className="data-table chipset-provider-table"><thead><tr><th>Provider</th><th>Status</th><th>Manifest</th><th>Resources</th><th>Last success</th><th>Sync health</th><th>Actions</th></tr></thead><tbody>{visibleProviders.map((provider) => {
+      const health = providerSyncHealth(provider);
+      return <tr key={provider.id}><td><strong>{provider.name}</strong><small>{provider.id} · HTTPS allowlisted</small></td><td><span className={`status-badge ${provider.status === 'published' ? 'good' : 'neutral'}`}>{provider.status}</span></td><td><strong>v{provider.manifest_version || '—'} · {compactHash(provider.manifest_sha256)}</strong><small>{provider.etag ? `ETag ${provider.etag}` : provider.last_modified ? `Last-Modified ${provider.last_modified}` : 'No cache validator'}</small></td><td>{provider.chipset_count || 0} ChipSets · {provider.sdk_release_count || 0} SDKs</td><td>{formatProviderTimestamp(provider.last_successful_refresh_at)}</td><td><span className={`status-badge ${health.key === 'healthy' ? 'good' : health.key === 'stale' ? 'warning' : health.key === 'unavailable' ? 'danger' : 'neutral'}`}>{health.label}</span>{health.detail ? <small className={health.key === 'healthy' ? '' : 'provider-error'}>{health.detail}</small> : null}</td><td><div className="chipset-row-actions"><button className="link-button" type="button" onClick={() => setDrawer({ mode: 'preview', provider })}>預覽</button>{canEdit && provider.status !== 'published' ? <button className="link-button" type="button" onClick={() => setDrawer({ mode: 'edit', provider })}>編輯</button> : null}{canPublish ? <>{provider.status === 'published' ? <button className="link-button" type="button" onClick={() => act(provider, 'unpublish')}>下架</button> : <button className="link-button" type="button" onClick={() => act(provider, 'publish')}>發布</button>}<button className="link-button" type="button" onClick={() => act(provider, 'refresh')}>刷新</button></> : null}</div></td></tr>;
+    })}</tbody></table>{!providers.length ? <p className="empty-state">目前沒有 Information Provider。新增 Provider 後，先完成 validation preview 再發布。</p> : null}{providers.length && !visibleProviders.length ? <p className="empty-state">沒有符合目前搜尋或篩選條件的 Provider。</p> : null}</div></section> : null}
+    {drawer ? <ChipsetProviderDrawer mode={drawer.mode} initialProvider={drawer.provider} canEdit={canEdit} canPublish={canPublish} onClose={() => setDrawer(null)} onRefresh={onRefresh} onMessage={setMessage} /> : null}
   </section>;
 }
 
 function DeveloperChipsetResources({ data, loading }) {
   const chipsets = data?.chipsets || [];
-  return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><h2>ChipSet &amp; SDK</h2><p>瀏覽平台發布的 ChipSet、推薦 SDK、開發文件、範例與技術支援入口。</p></div></div>
-    {loading && !data ? <section className="panel"><p>正在載入開發資源…</p></section> : null}
+  const [query, setQuery] = useState('');
+  const [vendor, setVendor] = useState('all');
+  const [recommendedOnly, setRecommendedOnly] = useState(false);
+  const vendors = useMemo(() => chipsetVendors(chipsets), [chipsets]);
+  const visibleChipsets = useMemo(() => filterChipsets(chipsets, query, vendor, recommendedOnly), [chipsets, query, vendor, recommendedOnly]);
+  const staleChipsets = chipsets.filter((chipset) => chipset.stale);
+  return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
+    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><h2>ChipSet &amp; SDK</h2><p>查看平台已發布的晶片與開發資源。這些資訊由原廠 Information Provider 同步，SDK 與外部連結會在新分頁開啟。</p></div><button type="button" className="ghost-button">開發支援說明</button></div>
+    {staleChipsets.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>部分資訊可能不是最新版本</strong><span>{staleChipsets[0].name} 最後成功同步於 {formatProviderTimestamp(staleChipsets[0].last_successful_refresh_at)}；目前仍顯示最後有效資料。</span></div></div> : null}
+    {loading && !data ? <ChipsetCardSkeletons /> : null}
     {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>資源暫時無法取得</h3><p>{data.source_message}</p></div></section> : null}
     {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>目前沒有已發布資源</h3><p>Platform 發布 Information Provider 後，ChipSet 與 SDK 會顯示在這裡。</p></div></section> : null}
-    <ChipsetCards chipsets={chipsets} showFreshness />
+    {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜尋 ChipSet、vendor、SDK 或 supported model" aria-label="搜尋 ChipSet 與 SDK" /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>全部</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>找不到符合條件的資源</h3><p>請調整搜尋文字或篩選條件。</p></div></section> : null}</> : null}
   </section>;
 }
 
 function ChipsetCards({ chipsets, showFreshness }) {
   const endpointIcons = { github: 'code-branch', sdk: 'download', documentation: 'book', example: 'flask', support: 'headset', information: 'circle-info' };
-  return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id}><div className="panel-head"><div><p className="eyebrow">{chipset.vendor}{chipset.family ? ` · ${chipset.family}` : ''}</p><h3>{chipset.name}</h3><p>{chipset.description || 'ChipSet developer information'}</p></div>{chipset.stale ? <span className="status-badge warning">資訊可能過期</span> : null}</div>{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><strong>{release.name} {release.version}</strong>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div>{release.summary ? <p>{release.summary}</p> : null}{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="status-badge neutral" key={model}>{model}</span>)}</div> : null}<div className="provider-endpoints">{release.endpoints?.map((endpoint) => <a key={`${endpoint.type}:${endpoint.url}`} href={endpoint.url} target="_blank" rel="noreferrer noopener" className="ghost-button icon-text-button"><Icon name={endpointIcons[endpoint.type] || 'arrow-up-right-from-square'} />{endpoint.title}</a>)}</div></section>)}{showFreshness ? <small>Provider: {chipset.provider_name} · Last sync: {chipset.last_successful_refresh_at || 'unknown'}</small> : null}</article>)}</div>;
+  return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id || chipset.chipset_key}><div className="chipset-card-heading"><div className="chipset-vendor-mark" aria-hidden="true">{vendorInitials(chipset)}</div><div><h3>{chipset.name}</h3><p className="chipset-vendor-line">{chipset.vendor}{chipset.family ? ` · ${chipset.family} family` : ''}</p></div><span className={`status-badge ${chipset.stale ? 'warning' : 'good'}`}>{chipset.stale ? 'Stale' : 'Current'}</span></div><p>{chipset.description || 'ChipSet developer information'}</p><div className="chipset-card-meta"><span>{chipset.sdk_releases?.length || 0} SDK releases</span>{showFreshness ? <span>最後同步：{chipset.last_successful_refresh_at ? formatRelativeTime(chipset.last_successful_refresh_at) : 'unknown'}</span> : null}</div>{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{release.summary}</small> : null}</div>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div>{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="chipset-model-chip" key={model}>{model}</span>)}</div> : null}<div className="provider-endpoints">{release.endpoints?.map((endpoint) => <a key={`${endpoint.type}:${endpoint.url}`} href={endpoint.url} target="_blank" rel="noreferrer noopener" className="ghost-button icon-text-button"><Icon name={endpointIcons[endpoint.type] || 'arrow-up-right-from-square'} />{endpoint.title}</a>)}</div></section>)}{showFreshness ? <small className="chipset-provider-attribution">Information provided by {chipset.provider_name}</small> : null}</article>)}</div>;
+}
+
+function ChipsetCardSkeletons() {
+  return <div className="chipset-resource-grid" aria-label="正在載入開發資源">{[0, 1].map((index) => <article className="panel chipset-card chipset-card-skeleton" key={index}><span /><span /><span /><span /></article>)}</div>;
+}
+
+function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onClose, onRefresh, onMessage }) {
+  const [provider, setProvider] = useState(initialProvider);
+  const [form, setForm] = useState({ name: initialProvider?.name || '', manifest_url: initialProvider?.manifest_url || '' });
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const readOnly = mode === 'preview' || !canEdit;
+
+  async function loadPreview(target = provider) {
+    if (!target?.id) return null;
+    const response = await fetch(`/api/admin/chipset-providers/${encodeURIComponent(target.id)}`);
+    const text = await response.text();
+    if (!response.ok) throw new Error(text || 'Preview 無法取得。');
+    const body = text ? JSON.parse(text) : null;
+    setProvider(body?.provider || target);
+    setPreview(body);
+    return body;
+  }
+
+  useEffect(() => {
+    if (initialProvider?.id) loadPreview(initialProvider).catch((err) => setError(err.message));
+  }, [initialProvider?.id]);
+
+  async function saveDraft() {
+    if (!canEdit) return provider;
+    const editing = Boolean(provider?.id);
+    const response = await fetch(editing ? `/api/admin/chipset-providers/${encodeURIComponent(provider.id)}` : '/api/admin/chipset-providers', {
+      method: editing ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `chipset-provider-${provider?.id || form.manifest_url}-${Date.now()}` },
+      body: JSON.stringify(form),
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(text || 'Provider draft 無法儲存。');
+    const body = text ? JSON.parse(text) : null;
+    const saved = body?.provider;
+    setProvider(saved);
+    onMessage(body?.audit_result === 'accepted' ? 'Provider draft 已儲存。' : 'Provider 已儲存，但 audit record 寫入失敗。');
+    onRefresh();
+    return saved;
+  }
+
+  async function runAction(action, target) {
+    const response = await fetch(`/api/admin/chipset-providers/${encodeURIComponent(target.id)}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `chipset-provider-${target.id}-${action}-${Date.now()}` } });
+    const text = await response.text();
+    if (!response.ok) throw new Error(text || `Provider ${action} failed.`);
+    const body = text ? JSON.parse(text) : null;
+    setProvider(body?.provider || target);
+    onRefresh();
+    return body?.provider || target;
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true); setError('');
+    try { await saveDraft(); onClose(); } catch (err) { setError(err.message); } finally { setBusy(false); }
+  }
+
+  async function validatePreview() {
+    setBusy(true); setError('');
+    try {
+      const saved = mode === 'create' || mode === 'edit' ? await saveDraft() : provider;
+      const refreshed = await runAction('refresh', saved);
+      await loadPreview(refreshed);
+      onMessage('Provider validation preview 已更新。');
+    } catch (err) { setError(err.message); } finally { setBusy(false); }
+  }
+
+  async function publish() {
+    setBusy(true); setError('');
+    try {
+      const saved = mode === 'create' || mode === 'edit' ? await saveDraft() : provider;
+      await runAction('publish', saved);
+      onMessage('Provider publish 已完成。'); onClose();
+    } catch (err) { setError(err.message); } finally { setBusy(false); }
+  }
+
+  const detailProvider = preview?.provider || provider;
+  const endpointCount = providerEndpointCount(preview?.chipsets || []);
+  return <div className="drawer-backdrop" role="presentation" onClick={onClose}><aside className="drawer-panel chipset-provider-drawer" role="dialog" aria-modal="true" aria-label="ChipSet provider drawer" onClick={(event) => event.stopPropagation()}><div className="drawer-header"><div><h2>{mode === 'create' ? '新增 Information Provider' : mode === 'edit' ? '編輯 Information Provider' : 'Manifest 解析預覽'}</h2><p>建立 draft，發布前同步抓取並驗證 manifest。</p></div><button type="button" className="drawer-close" onClick={onClose} aria-label="關閉 Provider drawer">×</button></div><form className="drawer-form" onSubmit={submit}><label>Provider display name<input className="input" required disabled={readOnly} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>Manifest URL<input className="input" required disabled={readOnly} type="url" pattern="https://.*" value={form.manifest_url} onChange={(event) => setForm({ ...form, manifest_url: event.target.value })} /></label>{detailProvider ? <section className="chipset-validation-preview"><div className="panel-head"><div><h3>Validation preview</h3><p>{detailProvider.validation_error || '確認 manifest schema 與 normalized resources。'}</p></div></div><div className="chipset-validation-grid"><div><span>Manifest</span><strong className={detailProvider.manifest_version ? 'good' : ''}>Version {detailProvider.manifest_version || '—'}</strong></div><div><span>ChipSets</span><strong>{detailProvider.chipset_count || 0}</strong></div><div><span>SDK releases</span><strong>{detailProvider.sdk_release_count || 0}</strong></div><div><span>Endpoints</span><strong>{endpointCount}</strong></div></div>{detailProvider.validation_error ? <p className="drawer-error">{detailProvider.validation_error}</p> : null}{preview?.chipsets?.length ? <ChipsetCards chipsets={preview.chipsets} showFreshness={false} /> : <p className="empty-state">尚未建立 normalized preview。請執行 Validate Preview。</p>}</section> : null}{error ? <p className="drawer-error">{error}</p> : null}<div className="drawer-actions"><button type="button" className="ghost-button" onClick={onClose}>取消</button>{!readOnly ? <button type="submit" className="ghost-button" disabled={busy}>儲存 Draft</button> : null}{canPublish ? <button type="button" className="ghost-button" disabled={busy || (!provider?.id && readOnly)} onClick={validatePreview}>Validate Preview</button> : null}{canPublish && detailProvider?.status !== 'published' ? <button type="button" className="primary-button" disabled={busy || (!provider?.id && readOnly)} onClick={publish}>Publish</button> : null}</div></form></aside></div>;
 }
 
 function SKUsPage({ loading, data, onRefresh }) {

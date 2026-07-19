@@ -166,7 +166,8 @@ async function handleChipsetProvider(req, res, url) {
   if (req.method !== 'POST' || !action) return send(res, 405, { error: { code: 'method_not_allowed' } });
   if (action === 'publish') {
     provider.status = 'published'; provider.unavailable = false; provider.stale = false;
-    provider.manifest_version = '1'; provider.snapshot_version = '1.0.0'; provider.chipset_count = 1; provider.sdk_release_count = 2;
+    provider.manifest_version = '1'; provider.manifest_sha256 = '98f2d62a5f64a9266301972b173dcda9a8b59962a54be458dd93f13c52d8347d';
+    provider.etag = '"ameba-2026-07"'; provider.snapshot_version = '1.0.0'; provider.chipset_count = 1; provider.sdk_release_count = 2;
     provider.last_successful_refresh_at = new Date().toISOString(); provider.refresh_count = 0;
   } else if (action === 'unpublish') {
     provider.status = 'unpublished';
@@ -176,7 +177,9 @@ async function handleChipsetProvider(req, res, url) {
       provider.stale = true; provider.validation_error = 'provider fetch failed';
       return send(res, 502, { error: { code: 'PROVIDER_FETCH_FAILED' } });
     }
-    provider.snapshot_version = '2.0.0'; provider.stale = false; provider.validation_error = '';
+    provider.manifest_version = '1'; provider.manifest_sha256 = '98f2d62a5f64a9266301972b173dcda9a8b59962a54be458dd93f13c52d8347d';
+    provider.etag = '"ameba-2026-07"'; provider.snapshot_version = provider.status === 'published' ? '2.0.0' : '1.0.0';
+    provider.chipset_count = 1; provider.sdk_release_count = 2; provider.unavailable = false; provider.stale = false; provider.validation_error = '';
     provider.last_successful_refresh_at = new Date().toISOString();
   }
   provider.updated_at = new Date().toISOString();
