@@ -365,3 +365,18 @@ Environment variables:
 - Frontend build verification with `npm run build`.
 - Backend build verification with `go test ./...` and `go build ./cmd/server`.
 - Native server smoke verification for `/healthz`, `/api/service-health`, platform admin login/session, `/api/summary`, and `/console`.
+
+## ChipSet and SDK Resource Catalog
+
+Cloud Admin is a BFF and presentation layer for the Account Manager-owned
+catalog. It does not persist providers, raw manifests, or normalized snapshots
+in SQLite.
+
+- Platform Admin uses `/api/admin/chipset-providers` to create and inspect providers and the `publish`, `unpublish`, and `refresh` actions.
+- Every mutation requires `Idempotency-Key`; the BFF forwards the current Account Manager access token and correlation headers.
+- The BFF enforces the independent `platform.chipset_sdk.read`, `platform.chipset_sdk.edit`, and `platform.chipset_sdk.publish` capabilities.
+- Developers use `/api/developer/chipsets` and `/api/developer/chipsets/{chipsetId}` and can receive only published, normalized resources.
+- The WebUI exposes a Platform provider management page and a developer `ChipSet & SDK` resource center.
+
+The normative contract is
+`rtk_cloud_contracts_doc/CHIPSET_SDK_INFORMATION_PROVIDER.md`.

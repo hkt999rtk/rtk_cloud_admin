@@ -88,10 +88,11 @@ Current Platform View nav order:
 2. Grafana
 3. Service Health
 4. Brand Clouds
-5. SSO Providers
-6. Service Logs
-7. Operations Log
-8. Audit Log
+5. ChipSet & SDK Providers
+6. SSO Providers
+7. Service Logs
+8. Operations Log
+9. Audit Log
 
 `Service Health` remains a dedicated drill-down page. `Platform Dashboard`
 summarizes service and metrics health at a higher level. The current React
@@ -99,6 +100,14 @@ implementation has the management summary panels, source-state rendering,
 recent incident context, and links to existing management pages.
 Environment/cluster selectors and deep resource detail remain deferred; see
 `platform-admin-implementation-plan.md`.
+
+`ChipSet & SDK Providers` is a management surface rather than an observability
+panel. Its approved interactive design is
+[`chipset-sdk-information-provider-mock.html`](assets/webui-design/chipset-sdk-information-provider-mock.html).
+The page displays provider publication state, manifest version/hash, parsed
+resource counts, last successful refresh, stale/unavailable state, validation
+preview, and capability-gated publish/unpublish/refresh actions. It must not
+expose the raw manifest or provider URL to Developer sessions.
 
 ## Page Layout
 

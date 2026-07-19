@@ -40,6 +40,8 @@ tags:
     description: Audit event views.
   - name: Brand Clouds
     description: Account Manager-backed brand-cloud administration.
+  - name: ChipSet SDK
+    description: Account Manager-backed ChipSet and SDK provider administration and developer resources.
   - name: SSO
     description: Account Manager-backed OIDC SSO configuration and flows.
 security:
@@ -458,6 +460,88 @@ paths:
           $ref: "#/components/responses/PlainTextError"
         "502":
           $ref: "#/components/responses/PlainTextError"
+
+  /api/developer/chipsets:
+    get:
+      tags: [ChipSet SDK]
+      summary: List published normalized ChipSet and SDK resources
+      responses:
+        "200": { description: Published resources; provider URLs and raw manifests are never exposed. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "502": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/chipsets/{chipsetId}:
+    get:
+      tags: [ChipSet SDK]
+      summary: Get a published normalized ChipSet and its SDK releases
+      parameters: [{ $ref: "#/components/parameters/ChipsetID" }]
+      responses:
+        "200": { description: Published resource detail. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "404": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/admin/chipset-providers:
+    get:
+      tags: [ChipSet SDK]
+      summary: List Information Providers
+      description: Requires `platform.chipset_sdk.read`.
+      responses:
+        "200": { description: Provider list }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+    post:
+      tags: [ChipSet SDK]
+      summary: Create a draft Information Provider
+      description: Requires `platform.chipset_sdk.edit`.
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/ChipsetProviderRequest" } }
+      responses:
+        "201": { description: Draft provider created }
+        "400": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/admin/chipset-providers/{providerId}:
+    get:
+      tags: [ChipSet SDK]
+      summary: Preview provider metadata and its last normalized snapshot
+      description: Requires `platform.chipset_sdk.read`.
+      parameters: [{ $ref: "#/components/parameters/ProviderID" }]
+      responses:
+        "200": { description: Provider and normalized ChipSet preview }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+        "404": { $ref: "#/components/responses/PlainTextError" }
+    patch:
+      tags: [ChipSet SDK]
+      summary: Update provider name or manifest URL
+      description: Requires `platform.chipset_sdk.edit`.
+      parameters:
+        - $ref: "#/components/parameters/ProviderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: "#/components/schemas/ChipsetProviderRequest" } }
+      responses:
+        "200": { description: Provider updated }
+        "400": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/admin/chipset-providers/{providerId}/{action}:
+    post:
+      tags: [ChipSet SDK]
+      summary: Publish, unpublish, or refresh a provider
+      description: Requires `platform.chipset_sdk.publish`.
+      parameters:
+        - $ref: "#/components/parameters/ProviderID"
+        - { name: action, in: path, required: true, schema: { type: string, enum: [publish, unpublish, refresh] } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { description: Provider action completed }
+        "400": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+        "409": { $ref: "#/components/responses/PlainTextError" }
 
   /api/admin/summary:
     get:
@@ -1678,6 +1762,11 @@ components:
       name: rtk_admin_session
 
   parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1 }
     DeviceID:
       name: id
       in: path
@@ -1719,6 +1808,16 @@ components:
       required: true
       schema:
         type: string
+    ProviderID:
+      name: providerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ChipsetID:
+      name: chipsetId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
 
   responses:
     PlainTextError:
@@ -3224,6 +3323,44 @@ components:
           format: email
         role:
           type: string
+    ChipsetProviderRequest:
+      type: object
+      required: [name, manifest_url]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        manifest_url: { type: string, format: uri }
+    ChipsetEndpoint:
+      type: object
+      required: [type, title, url]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        url: { type: string, format: uri }
+        metadata: { type: object, additionalProperties: true }
+    ChipsetSDKRelease:
+      type: object
+      required: [name, version, recommended, supported_models, endpoints]
+      properties:
+        name: { type: string }
+        version: { type: string }
+        summary: { type: string }
+        recommended: { type: boolean }
+        supported_models: { type: array, items: { type: string } }
+        endpoints: { type: array, items: { $ref: "#/components/schemas/ChipsetEndpoint" } }
+    DeveloperChipset:
+      type: object
+      required: [id, provider_name, chipset_key, vendor, name, sdk_releases, stale]
+      properties:
+        id: { type: string, format: uuid }
+        provider_name: { type: string }
+        chipset_key: { type: string }
+        vendor: { type: string }
+        name: { type: string }
+        family: { type: string }
+        description: { type: string }
+        sdk_releases: { type: array, items: { $ref: "#/components/schemas/ChipsetSDKRelease" } }
+        stale: { type: boolean }
+        last_successful_refresh_at: { type: string, format: date-time }
     SSOProviderStatus:
       type: object
       required: [organization_id, enabled, configured]

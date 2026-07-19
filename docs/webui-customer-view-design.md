@@ -35,6 +35,7 @@ The current Brand Fleet surface covers:
 - Fleet Overview, Devices, provisioning status, groups/tags, products/profiles
 - Firmware Releases and full Update Plans
 - Batch Jobs, Reports, and Team/Permission management
+- A separate global `ChipSet & SDK` resource center for published development resources.
 
 Platform View pages, auth pages, and signup pages are required WebUI surfaces,
 but they are not part of the Brand Fleet HTML mockup. Groups, tags, products,
@@ -61,6 +62,7 @@ requirements from `SPEC.md`, `ROLES.md`, and `backend-api-gap-audit.md`.
 | Platform View: Operations Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Platform View: Audit Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Brand-cloud management UI | No | [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md) plus backend/BFF contract | Platform View draft, outside Customer View |
+| ChipSet & SDK resource center | Yes | [chipset-sdk-information-provider-mock.html](assets/webui-design/chipset-sdk-information-provider-mock.html) | Developer read-only resource center; global published catalog |
 | Groups and Tags | Yes | `brand-fleet-management-mock.html` | Required for large-fleet targeting |
 | Batch Jobs and Reports | Yes | `brand-fleet-management-mock.html` | Required for asynchronous fleet operations |
 

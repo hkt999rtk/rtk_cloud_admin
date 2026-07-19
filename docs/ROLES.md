@@ -266,3 +266,15 @@ The following role-related features are intentionally deferred:
 
 - Tenant impersonation for Tier 1 Platform Admin
 - Role assignment UI
+
+## ChipSet and SDK Catalog Capabilities
+
+The provider catalog uses three independent platform capabilities:
+
+- `platform.chipset_sdk.read`: inspect providers, normalized previews, and synchronization status.
+- `platform.chipset_sdk.edit`: create drafts and update provider names or manifest URLs.
+- `platform.chipset_sdk.publish`: publish, unpublish, and manually refresh a provider; this does not imply edit access.
+
+All authenticated developer sessions may read published normalized ChipSet and
+SDK resources. Developer responses exclude provider URLs, raw manifests,
+validation diagnostics, and administrative audit data.

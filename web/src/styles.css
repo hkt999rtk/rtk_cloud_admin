@@ -20,6 +20,19 @@
   text-rendering: optimizeLegibility;
 }
 
+.chipset-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.chipset-card { min-width: 0; }
+.sdk-release { border-top: 1px solid var(--border, #d9dee7); padding-top: 14px; margin-top: 14px; }
+.sdk-release-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.provider-endpoints { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.provider-endpoints a { text-decoration: none; }
+.provider-error { color: var(--danger, #b42318); }
+
 * {
   box-sizing: border-box;
 }
