@@ -260,6 +260,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/auth/sso/callback", s.apiSSOCallback)
 	s.mux.HandleFunc("POST /api/auth/platform/login", s.apiPlatformLogin)
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
+	s.mux.HandleFunc("GET /api/developer/chipsets", s.apiDeveloperChipsets)
+	s.mux.HandleFunc("GET /api/developer/chipsets/{chipsetId}", s.apiDeveloperChipset)
 	s.mux.HandleFunc("POST /api/orgs/{orgId}/quota-raise-requests", s.apiQuotaRaiseRequest)
 	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
@@ -308,6 +310,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}/enable", s.apiAdminBrandCloudUserAction)
 	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}/approve", s.apiAdminBrandCloudUserAction)
 	s.mux.HandleFunc("DELETE /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}", s.apiAdminBrandCloudUserAction)
+	s.mux.HandleFunc("GET /api/admin/chipset-providers", s.apiAdminChipsetProviders)
+	s.mux.HandleFunc("POST /api/admin/chipset-providers", s.apiAdminChipsetProviders)
+	s.mux.HandleFunc("GET /api/admin/chipset-providers/{providerId}", s.apiAdminChipsetProvider)
+	s.mux.HandleFunc("PATCH /api/admin/chipset-providers/{providerId}", s.apiAdminChipsetProvider)
+	s.mux.HandleFunc("POST /api/admin/chipset-providers/{providerId}/{action}", s.apiAdminChipsetProviderAction)
 	s.mux.HandleFunc("GET /api/admin/sso/providers", s.apiAdminSSOProviders)
 	s.mux.HandleFunc("GET /api/admin/orgs/{orgId}/sso-provider", s.apiAdminSSOProvider)
 	s.mux.HandleFunc("PUT /api/admin/orgs/{orgId}/sso-provider", s.apiAdminSSOProvider)
@@ -348,6 +355,7 @@ func (s *Server) routes() {
 		"/console/firmware-ota",
 		"/console/stream-health",
 		"/console/sku-services",
+		"/console/chipset-sdk",
 		"/console/jobs",
 		"/console/reports",
 		"/console/groups",
@@ -358,6 +366,7 @@ func (s *Server) routes() {
 		"/admin/resources",
 		"/admin/health",
 		"/admin/brand-clouds",
+		"/admin/chipset-providers",
 		"/admin/ops",
 		"/admin/operations",
 		"/admin/audit",
@@ -5012,6 +5021,9 @@ func platformAdminCompatibilityCapabilities() []string {
 		"platform.operations.read",
 		capabilityPlatformAuditRead,
 		capabilityPlatformSSOManage,
+		capabilityChipsetProviderRead,
+		capabilityChipsetProviderEdit,
+		capabilityChipsetProviderPublish,
 	}
 }
 

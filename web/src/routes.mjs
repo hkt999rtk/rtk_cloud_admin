@@ -2,6 +2,7 @@ export const customerNavItems = [
   { id: 'overview', label: '設備總覽', path: '/console/overview', icon: 'gauge-high' },
   { id: 'devices', label: '設備', path: '/console/devices', icon: 'video' },
   { id: 'sku-services', label: 'SKU 與服務', path: '/console/sku-services', icon: 'boxes-stacked' },
+  { id: 'chipset-sdk', label: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch' },
   { id: 'groups', label: '群組與標籤', path: '/console/groups', icon: 'layer-group' },
   { id: 'access', label: '團隊與權限', path: '/console/access', icon: 'user-shield' },
   { id: 'firmware-ota', label: '韌體更新', path: '/console/firmware-ota', icon: 'microchip' },
@@ -15,6 +16,7 @@ export const platformNavItems = [
   { id: 'platform-grafana', label: 'Grafana', path: '/admin/grafana', icon: 'chart-simple' },
   { id: 'platform-health', label: 'Service Health', path: '/admin/health', icon: 'heart-pulse' },
   { id: 'platform-brand-clouds', label: 'Brand Clouds', path: '/admin/brand-clouds', icon: 'cloud' },
+  { id: 'platform-chipset-providers', label: 'ChipSet & SDK Providers', path: '/admin/chipset-providers', icon: 'code-branch' },
   { id: 'platform-sso', label: 'SSO Providers', path: '/admin/sso', icon: 'key' },
   { id: 'platform-logs', label: 'Service Logs', path: '/admin/logs', icon: 'file-lines' },
   { id: 'platform-operations', label: 'Operations Log', path: '/admin/ops', icon: 'list-check' },
@@ -49,6 +51,7 @@ export function titleFor(active) {
     overview: '設備總覽',
     devices: '設備',
     'sku-services': 'SKU 與服務',
+    'chipset-sdk': 'ChipSet & SDK',
     groups: '群組與標籤',
     access: '團隊與權限',
     'firmware-ota': '韌體更新',
@@ -59,6 +62,7 @@ export function titleFor(active) {
     'platform-grafana': 'Grafana',
     'platform-health': 'Service Health',
     'platform-brand-clouds': 'Brand Clouds',
+    'platform-chipset-providers': 'ChipSet & SDK Providers',
     'platform-sso': 'SSO Providers',
     'platform-logs': 'Service Logs',
     'platform-operations': 'Operations',
@@ -80,6 +84,7 @@ export function routeFromPath(path) {
   if (path === '/admin/resources' || path.startsWith('/admin/resources/')) return 'platform-dashboard';
   if (path === '/admin/health' || path.startsWith('/admin/health/')) return 'platform-health';
   if (path === '/admin/brand-clouds' || path.startsWith('/admin/brand-clouds/')) return 'platform-brand-clouds';
+  if (path === '/admin/chipset-providers' || path.startsWith('/admin/chipset-providers/')) return 'platform-chipset-providers';
   if (path === '/admin/sso' || path.startsWith('/admin/sso/')) return 'platform-sso';
   if (path === '/admin/logs' || path.startsWith('/admin/logs/')) return 'platform-logs';
   if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
@@ -89,6 +94,7 @@ export function routeFromPath(path) {
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
   if (path === '/console/sku-services' || path.startsWith('/console/sku-services/')) return 'sku-services';
+  if (path === '/console/chipset-sdk' || path.startsWith('/console/chipset-sdk/')) return 'chipset-sdk';
   if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
   if (path === '/console/access' || path.startsWith('/console/access/')) return 'access';
   if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';

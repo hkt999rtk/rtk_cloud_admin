@@ -758,3 +758,53 @@ func TestClientFleetBatchMutationMethods(t *testing.T) {
 		t.Fatalf("unexpected requests: %s", joined)
 	}
 }
+
+func TestChipsetProviderClientForwardsIdempotencyAndParsesAudit(t *testing.T) {
+	t.Parallel()
+	var requests []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer access" {
+			t.Fatalf("Authorization = %q", got)
+		}
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		if r.Method != http.MethodGet && r.Header.Get("Idempotency-Key") != "provider-key" {
+			t.Fatalf("Idempotency-Key = %q", r.Header.Get("Idempotency-Key"))
+		}
+		switch r.URL.Path {
+		case "/v1/admin/chipset-providers":
+			if r.Method == http.MethodGet {
+				_, _ = w.Write([]byte(`{"providers":[{"id":"provider-1","name":"Ameba","status":"draft","unavailable":true}]}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"provider":{"id":"provider-1","name":"Ameba","status":"draft"},"audit_result":"accepted"}`))
+		case "/v1/admin/chipset-providers/provider-1/publish":
+			_, _ = w.Write([]byte(`{"provider":{"id":"provider-1","name":"Ameba","status":"published"},"audit_result":"accepted"}`))
+		case "/v1/developer/chipsets/chipset-1":
+			_, _ = w.Write([]byte(`{"chipset":{"id":"chipset-1","provider_name":"Ameba","chipset_key":"realtek-amebapro2","vendor":"Realtek","name":"AmebaPro2","sdk_releases":[],"stale":false}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	providers, err := client.ChipsetProviders(t.Context(), "access")
+	if err != nil || len(providers) != 1 || !providers[0].Unavailable {
+		t.Fatalf("ChipsetProviders = %#v, %v", providers, err)
+	}
+	provider, audit, err := client.CreateChipsetProvider(t.Context(), "access", "provider-key", ChipsetProviderRequest{Name: "Ameba", ManifestURL: "https://example.com/manifest.json"})
+	if err != nil || provider.ID != "provider-1" || audit != "accepted" {
+		t.Fatalf("CreateChipsetProvider = %#v, %q, %v", provider, audit, err)
+	}
+	provider, audit, err = client.ActOnChipsetProvider(t.Context(), "access", "provider-1", "publish", "provider-key")
+	if err != nil || provider.Status != "published" || audit != "accepted" {
+		t.Fatalf("ActOnChipsetProvider = %#v, %q, %v", provider, audit, err)
+	}
+	chipset, err := client.DeveloperChipset(t.Context(), "access", "chipset-1")
+	if err != nil || chipset.Name != "AmebaPro2" {
+		t.Fatalf("DeveloperChipset = %#v, %v", chipset, err)
+	}
+	if len(requests) != 4 {
+		t.Fatalf("requests = %#v", requests)
+	}
+}

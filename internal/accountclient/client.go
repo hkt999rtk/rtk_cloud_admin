@@ -19,6 +19,60 @@ type Client struct {
 	httpClient *http.Client
 }
 
+type ChipsetEndpoint struct {
+	Type     string         `json:"type"`
+	Title    string         `json:"title"`
+	URL      string         `json:"url"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+type ChipsetSDKRelease struct {
+	Name            string            `json:"name"`
+	Version         string            `json:"version"`
+	Summary         string            `json:"summary,omitempty"`
+	Recommended     bool              `json:"recommended"`
+	SupportedModels []string          `json:"supported_models"`
+	Endpoints       []ChipsetEndpoint `json:"endpoints"`
+}
+
+type DeveloperChipset struct {
+	ID                      string              `json:"id"`
+	ProviderName            string              `json:"provider_name"`
+	ChipsetKey              string              `json:"chipset_key"`
+	Vendor                  string              `json:"vendor"`
+	Name                    string              `json:"name"`
+	Family                  string              `json:"family,omitempty"`
+	Description             string              `json:"description,omitempty"`
+	SDKReleases             []ChipsetSDKRelease `json:"sdk_releases"`
+	Stale                   bool                `json:"stale"`
+	LastSuccessfulRefreshAt string              `json:"last_successful_refresh_at"`
+}
+
+type ChipsetProvider struct {
+	ID                      string `json:"id"`
+	Name                    string `json:"name"`
+	ManifestURL             string `json:"manifest_url"`
+	Status                  string `json:"status"`
+	ManifestVersion         string `json:"manifest_version,omitempty"`
+	ManifestSHA256          string `json:"manifest_sha256,omitempty"`
+	ETag                    string `json:"etag,omitempty"`
+	LastModified            string `json:"last_modified,omitempty"`
+	ChipsetCount            int    `json:"chipset_count"`
+	SDKReleaseCount         int    `json:"sdk_release_count"`
+	LastRefreshAttemptAt    string `json:"last_refresh_attempt_at,omitempty"`
+	LastSuccessfulRefreshAt string `json:"last_successful_refresh_at,omitempty"`
+	Stale                   bool   `json:"stale"`
+	Unavailable             bool   `json:"unavailable"`
+	ValidationError         string `json:"validation_error,omitempty"`
+	CreatedAt               string `json:"created_at"`
+	UpdatedAt               string `json:"updated_at"`
+}
+
+type ChipsetProviderRequest struct {
+	Name        string `json:"name"`
+	ManifestURL string `json:"manifest_url"`
+}
+
 type User struct {
 	ID    string `json:"id"`
 	Email string `json:"email"`
@@ -269,6 +323,7 @@ type RefreshResult struct {
 type MeResult struct {
 	User          User           `json:"user"`
 	Organizations []Organization `json:"organizations"`
+	Capabilities  []string       `json:"capabilities,omitempty"`
 }
 
 type SSOStartRequest struct {
@@ -467,6 +522,67 @@ func (c *Client) Me(ctx context.Context, accessToken string) (MeResult, error) {
 	var out MeResult
 	err := c.doJSON(ctx, http.MethodGet, "/v1/me", accessToken, nil, &out)
 	return out, err
+}
+
+func (c *Client) ChipsetProviders(ctx context.Context, accessToken string) ([]ChipsetProvider, error) {
+	var body struct {
+		Providers []ChipsetProvider `json:"providers"`
+	}
+	err := c.doJSON(ctx, http.MethodGet, "/v1/admin/chipset-providers", accessToken, nil, &body)
+	return body.Providers, err
+}
+
+func (c *Client) ChipsetProvider(ctx context.Context, accessToken, providerID string) (ChipsetProvider, []DeveloperChipset, error) {
+	var body struct {
+		Provider ChipsetProvider    `json:"provider"`
+		Chipsets []DeveloperChipset `json:"chipsets"`
+	}
+	err := c.doJSON(ctx, http.MethodGet, "/v1/admin/chipset-providers/"+url.PathEscape(providerID), accessToken, nil, &body)
+	return body.Provider, body.Chipsets, err
+}
+
+func (c *Client) CreateChipsetProvider(ctx context.Context, accessToken, idempotencyKey string, request ChipsetProviderRequest) (ChipsetProvider, string, error) {
+	var body struct {
+		Provider    ChipsetProvider `json:"provider"`
+		AuditResult string          `json:"audit_result"`
+	}
+	err := c.doJSONWithIdempotency(ctx, http.MethodPost, "/v1/admin/chipset-providers", accessToken, idempotencyKey, request, &body)
+	return body.Provider, body.AuditResult, err
+}
+
+func (c *Client) UpdateChipsetProvider(ctx context.Context, accessToken, providerID, idempotencyKey string, request ChipsetProviderRequest) (ChipsetProvider, string, error) {
+	var body struct {
+		Provider    ChipsetProvider `json:"provider"`
+		AuditResult string          `json:"audit_result"`
+	}
+	err := c.doJSONWithIdempotency(ctx, http.MethodPatch, "/v1/admin/chipset-providers/"+url.PathEscape(providerID), accessToken, idempotencyKey, request, &body)
+	return body.Provider, body.AuditResult, err
+}
+
+func (c *Client) ActOnChipsetProvider(ctx context.Context, accessToken, providerID, action, idempotencyKey string) (ChipsetProvider, string, error) {
+	var body struct {
+		Provider    ChipsetProvider `json:"provider"`
+		AuditResult string          `json:"audit_result"`
+	}
+	path := "/v1/admin/chipset-providers/" + url.PathEscape(providerID) + "/" + url.PathEscape(action)
+	err := c.doJSONWithIdempotency(ctx, http.MethodPost, path, accessToken, idempotencyKey, nil, &body)
+	return body.Provider, body.AuditResult, err
+}
+
+func (c *Client) DeveloperChipsets(ctx context.Context, accessToken string) ([]DeveloperChipset, error) {
+	var body struct {
+		Chipsets []DeveloperChipset `json:"chipsets"`
+	}
+	err := c.doJSON(ctx, http.MethodGet, "/v1/developer/chipsets", accessToken, nil, &body)
+	return body.Chipsets, err
+}
+
+func (c *Client) DeveloperChipset(ctx context.Context, accessToken, chipsetID string) (DeveloperChipset, error) {
+	var body struct {
+		Chipset DeveloperChipset `json:"chipset"`
+	}
+	err := c.doJSON(ctx, http.MethodGet, "/v1/developer/chipsets/"+url.PathEscape(chipsetID), accessToken, nil, &body)
+	return body.Chipset, err
 }
 
 func (c *Client) StartSSO(ctx context.Context, req SSOStartRequest) (SSOStartResult, error) {
@@ -983,6 +1099,46 @@ func (c *Client) Health(ctx context.Context) error {
 func (c *Client) doJSON(ctx context.Context, method, path, token string, in any, out any) error {
 	_, err := c.doJSONStatus(ctx, method, path, token, in, out)
 	return err
+}
+
+func (c *Client) doJSONWithIdempotency(ctx context.Context, method, path, token, key string, in any, out any) error {
+	if !c.Enabled() {
+		return fmt.Errorf("account manager base URL is not configured")
+	}
+	var body io.Reader
+	if in != nil {
+		data, err := json.Marshal(in)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewReader(data)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	if in != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	req.Header.Set("Idempotency-Key", key)
+	correlation.ApplyHeaders(ctx, req)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		raw, _ := io.ReadAll(resp.Body)
+		return &HTTPError{Method: method, Path: path, StatusCode: resp.StatusCode, Body: strings.TrimSpace(string(raw))}
+	}
+	if out == nil {
+		return nil
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
 }
 
 func (c *Client) doJSONStatus(ctx context.Context, method, path, token string, in any, out any) (int, error) {
