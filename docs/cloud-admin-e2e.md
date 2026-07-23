@@ -14,6 +14,8 @@ npm run e2e:install
 npm run build
 npm run e2e:generate-fixture
 npm run e2e:smoke
+npm run e2e:chipset-sdk
+npm run e2e:chipset-sdk:errors
 npm run e2e
 npm run e2e:report
 npm run e2e:brand-fleet:smoke

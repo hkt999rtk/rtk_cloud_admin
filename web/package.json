@@ -19,6 +19,7 @@
     "e2e:brand-fleet:staging": "playwright test e2e/brand-fleet-*.spec.mjs --project=staging --grep @staging",
     "e2e:chipset-sdk": "playwright test e2e/chipset-sdk.spec.mjs --project=chromium",
     "e2e:chipset-sdk:errors": "E2E_SCENARIO_MODE=unavailable playwright test e2e/chipset-sdk.spec.mjs --project=chromium --grep @errors",
+    "e2e:chipset-sdk:visual": "playwright test e2e/chipset-sdk.visual.spec.mjs --project=chromium --project=mobile",
     "e2e:staging": "playwright test --project=staging",
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report",

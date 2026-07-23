@@ -114,6 +114,41 @@ func TestChipsetDeveloperBFFNormalizesResponsesAndSanitizesUpstreamErrors(t *tes
 	}
 }
 
+func TestChipsetProviderDetailUpdateAndActionRoutes(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/me":
+			_ = json.NewEncoder(w).Encode(map[string]any{"capabilities": []string{capabilityChipsetProviderRead, capabilityChipsetProviderEdit, capabilityChipsetProviderPublish}})
+		case "/v1/admin/chipset-providers/provider-1":
+			_ = json.NewEncoder(w).Encode(map[string]any{"provider": map[string]any{"id": "provider-1", "name": "Ameba", "status": "draft"}, "chipsets": []any{}, "audit_result": "accepted"})
+		case "/v1/admin/chipset-providers/provider-1/publish":
+			_ = json.NewEncoder(w).Encode(map[string]any{"provider": map[string]any{"id": "provider-1", "name": "Ameba", "status": "published"}, "audit_result": "accepted"})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+	st := mustOpenStore(t)
+	session, err := st.CreateSession("platform_admin", "admin-1", "admin@example.com", "admin-access", "admin-refresh", "", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := NewWithOptions(st, Options{AccountClient: accountclient.New(upstream.URL)})
+	if got := authenticatedRequest(srv, session.ID, http.MethodGet, "/api/admin/chipset-providers/provider-1", nil, nil); got.Code != http.StatusOK {
+		t.Fatalf("detail = %d: %s", got.Code, got.Body.String())
+	}
+	headers := http.Header{"Content-Type": {"application/json"}, "Idempotency-Key": {"provider-1"}}
+	if got := authenticatedRequest(srv, session.ID, http.MethodPatch, "/api/admin/chipset-providers/provider-1", strings.NewReader(`{"name":"Ameba","manifest_url":"https://provider.example.com/manifest.json"}`), headers); got.Code != http.StatusOK {
+		t.Fatalf("update = %d: %s", got.Code, got.Body.String())
+	}
+	if got := authenticatedRequest(srv, session.ID, http.MethodPost, "/api/admin/chipset-providers/provider-1/publish", nil, headers); got.Code != http.StatusOK {
+		t.Fatalf("publish = %d: %s", got.Code, got.Body.String())
+	}
+	if got := chipsetProviderErrorMessage("PROVIDER_MANIFEST_INVALID", "fallback"); got != "Provider manifest validation failed" {
+		t.Fatalf("error message = %q", got)
+	}
+}
+
 func authenticatedRequest(handler http.Handler, sessionID, method, path string, body *strings.Reader, headers http.Header) *httptest.ResponseRecorder {
 	var request *http.Request
 	if body == nil {

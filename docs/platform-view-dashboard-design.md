@@ -389,6 +389,19 @@ Implementation requirements:
 - Grafana remains optional deep observability tooling; it is not presented as
   the Platform Admin product UI.
 
+### ChipSet And SDK Provider Acceptance
+
+`assets/webui-design/chipset-sdk-information-provider-mock.html#/platform` is
+the visual and interaction source of truth for this work area. Completion
+requires the four KPI cards, stale last-known-good banner, search and status
+filters, seven-column provider table, and the right-side create/edit/validation
+drawer shown by that mock. Draft validation uses the refresh action and must
+show manifest, ChipSet, SDK, endpoint, and normalized preview results without
+changing publication status. Read-only sessions retain Preview and hide all
+mutations. Desktop and mobile Playwright screenshots are committed acceptance
+artifacts; changes to the mock require corresponding implementation and
+snapshot updates.
+
 ## Required Tests
 
 Implementation PRs should include:

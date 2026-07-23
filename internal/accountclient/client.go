@@ -55,6 +55,8 @@ type ChipsetProvider struct {
 	Status                  string `json:"status"`
 	ManifestVersion         string `json:"manifest_version,omitempty"`
 	ManifestSHA256          string `json:"manifest_sha256,omitempty"`
+	ETag                    string `json:"etag,omitempty"`
+	LastModified            string `json:"last_modified,omitempty"`
 	ChipsetCount            int    `json:"chipset_count"`
 	SDKReleaseCount         int    `json:"sdk_release_count"`
 	LastRefreshAttemptAt    string `json:"last_refresh_attempt_at,omitempty"`
