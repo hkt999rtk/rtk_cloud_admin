@@ -28,6 +28,8 @@ export function sourceMessage(source, fallback) {
       return 'No data in selected window.';
     case 'unavailable':
       return 'Source is unavailable.';
+    case 'stale':
+      return 'Showing the last safe snapshot; source freshness is stale.';
     case 'unauthorized':
       return 'Session expired; please sign in again.';
     default:
@@ -90,6 +92,13 @@ export function sourceStateForPanel({
   }
   if (source?.source_status === 'no_data') {
     return { kind: 'empty', title: 'No data available', message: sourceMessage(source, emptyMessage || 'No data is available for the selected window.') };
+  }
+  if (source?.source_status === 'stale') {
+    return {
+      kind: 'stale',
+      title: 'Source data is stale',
+      message: sourceMessage(source, 'Showing the last safe snapshot; source freshness is stale.'),
+    };
   }
   return {
     kind: 'source-unavailable',

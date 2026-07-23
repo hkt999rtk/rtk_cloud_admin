@@ -44,7 +44,7 @@ Included in v0.1:
   - SKU and Services, including product/device specifications and policies
   - Firmware Releases and full OTA Update Plans
   - Batch Jobs and Reports
-  - read-only provisioning status and deactivation actions where permitted
+  - async provisioning validation, confirmation, execution, and result views
   - customer-readable health, firmware, and connectivity summaries
 - Platform admin pages:
   - Platform Dashboard with cross-tenant summary and curated Prometheus-backed
@@ -365,3 +365,60 @@ Environment variables:
 - Frontend build verification with `npm run build`.
 - Backend build verification with `go test ./...` and `go build ./cmd/server`.
 - Native server smoke verification for `/healthz`, `/api/service-health`, platform admin login/session, `/api/summary`, and `/console`.
+
+## ChipSet and SDK Resource Catalog
+
+Cloud Admin is a BFF and presentation layer for the Account Manager-owned
+catalog. It does not persist providers, raw manifests, or normalized snapshots
+in SQLite.
+
+- Platform Admin uses `/api/admin/chipset-providers` to create and inspect
+  providers and the `publish`, `unpublish`, and `refresh` actions.
+- Every mutation requires `Idempotency-Key`; the BFF forwards the current
+  Account Manager access token and correlation headers.
+- The BFF enforces the independent `platform.chipset_sdk.read`,
+  `platform.chipset_sdk.edit`, and `platform.chipset_sdk.publish`
+  capabilities against Account Manager before proxying an operation.
+- Developers use `/api/developer/chipsets` and
+  `/api/developer/chipsets/{chipsetId}` and can receive only published,
+  normalized resources. Provider URLs and raw manifests are excluded.
+- The WebUI exposes a Platform provider management page and a developer
+  `ChipSet & SDK` resource center with versions, recommendation status,
+  supported models, stale warnings, and HTTPS external resource links.
+
+The normative schema, lifecycle, SSRF controls, error contract, and ownership
+boundary are defined by
+`rtk_cloud_contracts_doc/CHIPSET_SDK_INFORMATION_PROVIDER.md`.
+# Developer Brand Fleet Dashboard contract
+
+The Developer console uses one global developer session and a server-side
+active Brand Cloud scope. `/api/developer/brand-clouds` is the selector source
+of truth; switching validates membership, refreshes capabilities, and clears
+cloud-scoped frontend state. Fleet routes do not trust browser-supplied tenant
+IDs or totals.
+
+Authorization uses explicit capabilities rather than a UI role switch. Jobs,
+reports, and provisioning store immutable server-side scope snapshots and
+bounded pagination metadata. Mutating routes require `Idempotency-Key`, write
+audit actor/cloud/scope/request metadata, and return stable capability errors.
+Provisioning is a validation job followed by a separately confirmed execution
+job; validation and execution history are never overwritten.
+
+### Scope and source contract
+
+OTA plans, batch jobs, reports, and provisioning executions use a server-
+calculated immutable scope. A scope contains the normalized query,
+`excluded_device_ids`, `scope_hash`, source freshness, and expiry. The browser
+may request a preview but cannot provide a trusted target count, organization
+identifier, or cross-cloud object identifier. OTA plan creation revalidates the
+preview scope and rejects an expired or mismatched hash.
+
+Provisioning accepts either compatibility JSON `device_ids` or a server-side
+uploaded device-list source. Uploaded sources are checksum-bound,
+organization-scoped, expiring, and referenced by validation jobs; an unbounded
+100K-device JSON body is not the production upload path.
+
+Reports persist `report_type`, dimensions, time range, timezone, output format,
+scope hash, source freshness, result expiry, download status, and failure
+reason. Team management uses `/api/developer/*`; Platform Admin Brand Cloud
+lifecycle management remains under `/api/admin/*`.

@@ -1,9 +1,36 @@
 import { expect } from '@playwright/test';
 
 export async function login(page, kind) {
-  const endpoint = kind === 'platform_admin' ? '/api/auth/platform/login' : '/api/auth/customer/login';
-  const response = await page.request.post(endpoint, { data: { email: kind === 'platform_admin' ? 'platform.admin@example.com' : 'customer@example.com', password: kind === 'platform_admin' ? 'e2e-platform-password' : 'e2e-customer-password' } });
+  const endpoint = kind.startsWith('platform_') ? '/api/auth/platform/login' : '/api/auth/customer/login';
+  const customerIdentity = {
+    customer: ['customer@example.com', 'e2e-customer-password'],
+    developer: ['developer@example.com', 'e2e-developer-password'],
+    operations: ['operations@example.com', 'e2e-operations-password'],
+    observer: ['observer@example.com', 'e2e-observer-password'],
+    outsider: ['outsider@example.com', 'e2e-outsider-password'],
+  };
+  const platformIdentity = {
+    platform_admin: ['platform.admin@example.com', 'e2e-platform-password'],
+    platform_reader: ['platform.reader@example.com', 'e2e-platform-reader-password'],
+  };
+  const [email, password] = platformIdentity[kind] || customerIdentity[kind] || customerIdentity.customer;
+  const response = await page.request.post(endpoint, { data: { email, password } });
   expect(response.ok()).toBeTruthy();
+}
+
+export async function enterCustomer(page, cloudId = 'brand-e2e-01') {
+  await page.goto(`/console/${encodeURIComponent(cloudId)}/overview`);
+  await expect(page.getByText('Brand Fleet', { exact: true })).toBeVisible();
+}
+
+export async function waitForJobState(page, jobId, states = ['completed'], timeout = 15_000) {
+  const pattern = new RegExp(`^(?:${states.join('|')})$`);
+  await expect.poll(async () => {
+    const response = await page.request.get(`/api/jobs/${encodeURIComponent(jobId)}`);
+    if (!response.ok()) return 'unavailable';
+    const body = await response.json();
+    return body.job?.state || 'unknown';
+  }, { timeout }).toMatch(pattern);
 }
 
 export async function loginWithStagingSession(page, kind = 'platform') {

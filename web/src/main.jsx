@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   customerNavItems,
+  cloudIdFromPath,
+  navItemsForCapabilities,
   devicesPathWithFilters,
   isPlatformRouteId,
   isPublicRouteId,
@@ -111,6 +113,7 @@ function App() {
   const [platformDashboard, setPlatformDashboard] = useState(null);
   const [platformGrafanaStatus, setPlatformGrafanaStatus] = useState(null);
   const [brandClouds, setBrandClouds] = useState([]);
+  const [developerBrandClouds, setDeveloperBrandClouds] = useState([]);
   const [brandCloudPagination, setBrandCloudPagination] = useState({ limit: 25, offset: 0, total: 0 });
   const [brandCloudQuery, setBrandCloudQuery] = useState('');
   const [brandCloudStatus, setBrandCloudStatus] = useState('all');
@@ -121,6 +124,8 @@ function App() {
   const [ssoProviders, setSSOProviders] = useState([]);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [skus, setSKUs] = useState(null);
+  const [chipsets, setChipsets] = useState(null);
+  const [chipsetProviders, setChipsetProviders] = useState(null);
   const [releases, setReleases] = useState([]);
   const [jobs, setJobs] = useState(null);
   const [reports, setReports] = useState(null);
@@ -137,11 +142,12 @@ function App() {
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
-  const visibleNavItems = navItemsForRoute(active).filter((item) => item.id !== 'platform-brand-clouds' || me?.upstream_account_manager);
+  const visibleNavItems = navItemsForCapabilities(active, me?.capabilities).filter((item) => item.id !== 'platform-brand-clouds' || me?.upstream_account_manager);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
   const brandCloudsBlocked = active === 'platform-brand-clouds' && me?.kind === 'platform_admin' && !me?.upstream_account_manager;
   const customerViewPending = !isPlatformView && !isPublicRoute && me === null;
-  const customerViewBlocked = !isPlatformView && !isPublicRoute && me !== null && (me.authenticated === false || me.kind === 'platform_admin');
+  const customerCapabilityBlocked = !isPlatformView && !isPublicRoute && me?.authenticated && me.kind === 'customer' && !navItemsForCapabilities(active, me.capabilities).some((item) => item.id === active);
+  const customerViewBlocked = !isPlatformView && !isPublicRoute && me !== null && (me.authenticated === false || me.kind === 'platform_admin' || customerCapabilityBlocked);
 
   function clearDashboardState() {
     setSummary(null);
@@ -159,6 +165,7 @@ function App() {
     setPlatformDashboard(null);
     setPlatformGrafanaStatus(null);
     setBrandClouds([]);
+    setDeveloperBrandClouds([]);
     setBrandCloudPagination({ limit: 25, offset: 0, total: 0 });
     setBrandCloudSource({ status: 'idle', message: '' });
     setSelectedBrandCloudId('');
@@ -166,6 +173,8 @@ function App() {
     setSSOProviders([]);
     setFirmwareDistribution(null);
     setSKUs(null);
+    setChipsets(null);
+    setChipsetProviders(null);
     setJobs(null);
     setReports(null);
     setGroups(null);
@@ -182,7 +191,29 @@ function App() {
       try {
         const nextMe = await fetchJSON('/api/me');
         if (!alive) return;
+        const requestedCloudId = cloudIdFromPath(window.location.pathname);
+        if (nextMe.authenticated && nextMe.kind === 'customer' && requestedCloudId && requestedCloudId !== nextMe.active_org_id) {
+          const switchResponse = await fetch('/api/me/active-org', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ organization_id: requestedCloudId }) });
+          if (!switchResponse.ok) {
+            setError('This Brand Cloud is not available to the signed-in developer.');
+            setLoading(false);
+            return;
+          }
+          window.location.reload();
+          return;
+        }
         setMe(nextMe);
+
+        if (nextMe.authenticated && nextMe.kind === 'customer') {
+          const developerCloudResult = await fetchJSON('/api/developer/brand-clouds').catch((err) => {
+            if (err.isAuthError) throw err;
+            return { brand_clouds: [] };
+          });
+          if (!alive) return;
+          setDeveloperBrandClouds(developerCloudResult.brand_clouds || []);
+        } else {
+          setDeveloperBrandClouds([]);
+        }
 
         if (isLoginRoute) {
           if (nextMe.authenticated) {
@@ -327,6 +358,26 @@ function App() {
         } else {
           setSSOProviders([]);
         }
+        if (useAdminApi && active === 'platform-chipset-providers') {
+          const result = await fetchJSON('/api/admin/chipset-providers').catch((err) => {
+            if (err.isAuthError) throw err;
+            return { providers: [], source_status: 'unavailable', source_message: err.message || 'Provider catalog is unavailable.' };
+          });
+          if (!alive) return;
+          setChipsetProviders(result);
+        } else {
+          setChipsetProviders(null);
+        }
+        if (!useAdminApi && active === 'chipset-sdk' && nextMe.kind === 'customer') {
+          const result = await fetchJSON('/api/developer/chipsets').catch((err) => {
+            if (err.isAuthError) throw err;
+            return { chipsets: [], source_status: 'unavailable', source_message: err.message || 'ChipSet resources are unavailable.' };
+          });
+          if (!alive) return;
+          setChipsets(result);
+        } else {
+          setChipsets(null);
+        }
         if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin') {
           const nextFirmwareDistribution = await fetchJSON('/api/fleet/firmware-distribution')
             .catch((err) => {
@@ -366,7 +417,7 @@ function App() {
           setReleases([]);
         }
         if (['jobs', 'reports', 'groups', 'access'].includes(active) && nextMe.kind !== 'platform_admin') {
-          const endpoint = active === 'jobs' ? '/api/jobs' : active === 'reports' ? '/api/reports' : active === 'groups' ? '/api/groups' : '/api/role-assignments';
+          const endpoint = active === 'jobs' ? '/api/jobs' : active === 'reports' ? '/api/reports' : active === 'groups' ? '/api/groups' : (developerBrandClouds.length && nextMe.active_org_id ? `/api/developer/brand-clouds/${encodeURIComponent(nextMe.active_org_id)}/members` : '/api/role-assignments');
           const result = await fetchJSON(endpoint).catch((err) => {
             if (err.isAuthError) throw err;
             return { [active]: [], source_status: 'unavailable', source_message: err.message || '資料暫時無法取得。' };
@@ -505,7 +556,9 @@ function App() {
   }, [active]);
 
   function navigate(item) {
-    window.history.pushState({}, '', item.path);
+    const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
+    const path = cloudId && item.path.startsWith('/console/') ? `/console/${encodeURIComponent(cloudId)}/${item.path.slice('/console/'.length)}` : item.path;
+    window.history.pushState({}, '', path);
     setActive(item.id);
   }
 
@@ -540,7 +593,7 @@ function App() {
 
   async function runDeviceAction(deviceId, action) {
     setError('');
-    const response = await fetch(`/api/devices/${deviceId}/${action}`, { method: 'POST' });
+    const response = await fetch(`/api/devices/${deviceId}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `device-${action}-${deviceId}-${Date.now()}` } });
     if (!response.ok) {
       setError(`${action} failed with ${response.status}`);
       return;
@@ -840,9 +893,14 @@ function App() {
       body: JSON.stringify({ organization_id: orgId }),
     });
     if (!response.ok) {
-      setError(`org switch failed with ${response.status}`);
+      setError(`Brand Cloud switch failed with ${response.status}; current Cloud is unchanged.`);
       return;
     }
+    clearDashboardState();
+    setSelectedDeviceId('');
+    setDeviceDrawerOpen(false);
+    const suffix = window.location.pathname.match(/^\/console\/(?:[^/]+\/)?(.+)$/)?.[1] || 'overview';
+    window.history.replaceState({}, '', `/console/${encodeURIComponent(orgId)}/${suffix}`);
     setRefreshTick((tick) => tick + 1);
   }
 
@@ -935,15 +993,15 @@ function App() {
             <h1>{titleFor(active)}</h1>
           </div>
           <div className="topbar-controls">
-            {me?.kind === 'customer' && (me?.memberships?.length ?? 0) > 1 ? (
+            {me?.kind === 'customer' && (developerBrandClouds.length > 1 || (me?.memberships?.length ?? 0) > 1) ? (
               <select
                 className="org-switcher"
                 value={me.active_org_id || ''}
                 onChange={(e) => handleSwitchOrg(e.target.value)}
                 aria-label="Active organization"
               >
-                {(me.memberships || []).map((m) => (
-                  <option key={m.organization_id} value={m.organization_id}>{m.organization}</option>
+                {(developerBrandClouds.length ? developerBrandClouds : (me.memberships || [])).map((m) => (
+                  <option key={m.id || m.organization_id} value={m.id || m.organization_id}>{m.name || m.organization}</option>
                 ))}
               </select>
             ) : null}
@@ -963,7 +1021,7 @@ function App() {
           />
         ) : null}
         {!needsPlatformAccess && customerViewPending ? <section className="panel split-panel"><div><h2>Loading session</h2><p>Checking customer access before loading dashboard data.</p></div></section> : null}
-        {!needsPlatformAccess && !customerViewPending && customerViewBlocked ? <CustomerAccessGate me={me} /> : null}
+        {!needsPlatformAccess && !customerViewPending && customerViewBlocked ? <CustomerAccessGate me={me} active={active} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'overview' ? (
           <Overview
             summary={summary}
@@ -997,6 +1055,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'sku-services' ? (
           <SKUsPage loading={loading} data={skus} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
         ) : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? <DeveloperChipsetResources data={chipsets} loading={loading} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'firmware-ota' ? (
           <FirmwareOTAPage
             loading={loading}
@@ -1005,6 +1064,8 @@ function App() {
             releases={releases}
             onViewDevices={openDevicesForFirmware}
             onCampaignAction={runUpdatePlanAction}
+            canRelease={canUseCapability({ capabilities: me?.capabilities || [] }, 'firmware.release.manage')}
+            canManageOTA={canUseCapability({ capabilities: me?.capabilities || [] }, 'ota.plan.manage')}
             onRefresh={() => setRefreshTick((tick) => tick + 1)}
           />
         ) : null}
@@ -1018,13 +1079,15 @@ function App() {
             onOpenDevice={selectDevice}
           />
         ) : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'jobs' ? <BatchJobsPage data={jobs} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} skus={skus?.skus || []} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'jobs' ? <BatchJobsPage data={jobs} loading={loading} canManage={canUseCapability({ capabilities: me?.capabilities || [] }, 'fleet.batch.manage')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} skus={skus?.skus || []} loading={loading} canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'reports.create')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'provisioning' ? <ProvisioningPage canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'provisioning.create')} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'access' ? <AccessPage data={access} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'access' ? <AccessPage data={access} loading={loading} activeCloudId={me?.active_org_id} canManage={canUseCapability({ capabilities: me?.capabilities || [] }, 'team.manage')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
+        {!needsPlatformAccess && active === 'platform-chipset-providers' ? <PlatformChipsetProviders data={chipsetProviders} loading={loading} capabilities={me?.capabilities || []} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && active === 'platform-logs' ? <PlatformServiceLogs logs={serviceLogs} loading={loading} /> : null}
         {!needsPlatformAccess && brandCloudsBlocked ? (
           <section className="panel split-panel">
@@ -1730,6 +1793,67 @@ function RegionFleetPanel({ summary, loading }) {
   );
 }
 
+function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
+  const providers = data?.providers || [];
+  const effectiveCapabilities = data?.capabilities || capabilities;
+  const canEdit = effectiveCapabilities.includes('platform.chipset_sdk.edit');
+  const canPublish = effectiveCapabilities.includes('platform.chipset_sdk.publish');
+  const [form, setForm] = useState({ name: '', manifest_url: '' });
+  const [editingID, setEditingID] = useState('');
+  const [preview, setPreview] = useState(null);
+  const [message, setMessage] = useState('');
+  async function save(event) {
+    event.preventDefault();
+    const response = await fetch(editingID ? `/api/admin/chipset-providers/${encodeURIComponent(editingID)}` : '/api/admin/chipset-providers', {
+      method: editingID ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `chipset-provider-${editingID || form.manifest_url}-${Date.now()}` },
+      body: JSON.stringify(form),
+    });
+    const body = response.ok ? await response.json().catch(() => null) : null;
+    setMessage(response.ok ? (body?.audit_result === 'accepted' ? 'Provider draft 已儲存。' : 'Provider 已儲存，但 audit record 寫入失敗。') : await response.text());
+    if (response.ok) { setForm({ name: '', manifest_url: '' }); setEditingID(''); onRefresh(); }
+  }
+  async function act(provider, action) {
+    setMessage('');
+    const response = await fetch(`/api/admin/chipset-providers/${encodeURIComponent(provider.id)}/${action}`, {
+      method: 'POST', headers: { 'Idempotency-Key': `chipset-provider-${provider.id}-${action}-${Date.now()}` },
+    });
+    const body = response.ok ? await response.json().catch(() => null) : null;
+    setMessage(response.ok ? (body?.audit_result === 'accepted' ? `Provider ${action} 已完成。` : `Provider ${action} 已完成，但 audit record 寫入失敗。`) : await response.text());
+    if (response.ok) onRefresh();
+  }
+  async function loadPreview(provider) {
+    const response = await fetch(`/api/admin/chipset-providers/${encodeURIComponent(provider.id)}`);
+    const body = await response.json().catch(() => null);
+    setPreview(response.ok ? body : { provider, chipsets: [], source_message: 'Preview 無法取得。' });
+  }
+  return <section className="page-content">
+    <div className="page-intro"><div><p className="eyebrow">Developer Enablement</p><h2>ChipSet &amp; SDK Providers</h2><p>管理外部 JSON manifest、發布狀態與平台解析後的資源快照。</p></div></div>
+    {canEdit ? <section className="panel"><form className="inline-form" onSubmit={save}><input required placeholder="Provider 名稱" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input required className="wide-input" type="url" pattern="https://.*" placeholder="https://provider.example.com/manifest.json" value={form.manifest_url} onChange={(event) => setForm({ ...form, manifest_url: event.target.value })} /><button className="primary" type="submit">{editingID ? '儲存草稿' : '新增 Provider'}</button>{editingID ? <button className="ghost-button" type="button" onClick={() => { setEditingID(''); setForm({ name: '', manifest_url: '' }); }}>取消</button> : null}</form></section> : null}
+    {message ? <div className="notice">{message}</div> : null}
+    {loading && !data ? <section className="panel"><p>正在載入 providers…</p></section> : null}
+    {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Provider catalog unavailable</h3><p>{data.source_message}</p></div></section> : null}
+    {data?.source_status !== 'unavailable' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Provider</th><th>狀態</th><th>內容</th><th>同步</th><th>操作</th></tr></thead><tbody>{providers.map((provider) => <tr key={provider.id}><td><strong>{provider.name}</strong><small>{provider.manifest_url}</small></td><td><span className={`status-badge ${provider.status === 'published' ? 'good' : 'neutral'}`}>{provider.status}</span>{provider.unavailable ? <span className="status-badge danger">unavailable</span> : null}{provider.stale ? <span className="status-badge warning">stale</span> : null}</td><td>{provider.chipset_count || 0} ChipSets · {provider.sdk_release_count || 0} SDKs<small>Manifest v{provider.manifest_version || '—'}</small></td><td>{provider.last_successful_refresh_at || '尚未同步'}{provider.validation_error ? <small className="provider-error">{provider.validation_error}</small> : null}</td><td><button className="link-button" type="button" onClick={() => loadPreview(provider)}>Preview</button>{canEdit && provider.status !== 'published' ? <button className="link-button" type="button" onClick={() => { setEditingID(provider.id); setForm({ name: provider.name, manifest_url: provider.manifest_url }); }}>編輯</button> : null}{canPublish ? <>{provider.status === 'published' ? <button className="link-button" type="button" onClick={() => act(provider, 'unpublish')}>下架</button> : <button className="link-button" type="button" onClick={() => act(provider, 'publish')}>發布</button>}<button className="link-button" type="button" onClick={() => act(provider, 'refresh')}>刷新</button></> : null}</td></tr>)}</tbody></table>{!providers.length ? <p className="empty-state">目前沒有 Information Provider。</p> : null}</div></section> : null}
+    {preview ? <section className="panel"><div className="panel-head"><div><h3>Normalized preview · {preview.provider?.name}</h3><p>{preview.chipsets?.length || 0} 個 ChipSet；發布前請確認版本與 endpoints。</p></div><button className="ghost-button" type="button" onClick={() => setPreview(null)}>關閉</button></div><ChipsetCards chipsets={preview.chipsets || []} showFreshness={false} /></section> : null}
+  </section>;
+}
+
+function DeveloperChipsetResources({ data, loading }) {
+  const chipsets = data?.chipsets || [];
+  return <section className="page-content">
+    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><h2>ChipSet &amp; SDK</h2><p>瀏覽平台發布的 ChipSet、推薦 SDK、開發文件、範例與技術支援入口。</p></div></div>
+    {loading && !data ? <section className="panel"><p>正在載入開發資源…</p></section> : null}
+    {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>資源暫時無法取得</h3><p>{data.source_message}</p></div></section> : null}
+    {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>目前沒有已發布資源</h3><p>Platform 發布 Information Provider 後，ChipSet 與 SDK 會顯示在這裡。</p></div></section> : null}
+    <ChipsetCards chipsets={chipsets} showFreshness />
+  </section>;
+}
+
+function ChipsetCards({ chipsets, showFreshness }) {
+  const endpointIcons = { github: 'code-branch', sdk: 'download', documentation: 'book', example: 'flask', support: 'headset', information: 'circle-info' };
+  return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id}><div className="panel-head"><div><p className="eyebrow">{chipset.vendor}{chipset.family ? ` · ${chipset.family}` : ''}</p><h3>{chipset.name}</h3><p>{chipset.description || 'ChipSet developer information'}</p></div>{chipset.stale ? <span className="status-badge warning">資訊可能過期</span> : null}</div>{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><strong>{release.name} {release.version}</strong>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div>{release.summary ? <p>{release.summary}</p> : null}{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="status-badge neutral" key={model}>{model}</span>)}</div> : null}<div className="provider-endpoints">{release.endpoints?.map((endpoint) => <a key={`${endpoint.type}:${endpoint.url}`} href={endpoint.url} target="_blank" rel="noreferrer noopener" className="ghost-button icon-text-button"><Icon name={endpointIcons[endpoint.type] || 'arrow-up-right-from-square'} />{endpoint.title}</a>)}</div></section>)}{showFreshness ? <small>Provider: {chipset.provider_name} · Last sync: {chipset.last_successful_refresh_at || 'unknown'}</small> : null}</article>)}</div>;
+}
+
 function SKUsPage({ loading, data, onRefresh }) {
   const items = data?.skus || [];
   const [showCreate, setShowCreate] = useState(false);
@@ -1740,13 +1864,13 @@ function SKUsPage({ loading, data, onRefresh }) {
   const canManage = data?.can_manage || items.some((sku) => sku.allowed_actions?.includes('manage_devices'));
   async function createSKU(event) {
     event.preventDefault();
-    const response = await fetch(editingSKU ? `/api/skus/${encodeURIComponent(editingSKU.id)}` : '/api/skus', { method: editingSKU ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    const response = await fetch(editingSKU ? `/api/skus/${encodeURIComponent(editingSKU.id)}` : '/api/skus', { method: editingSKU ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `sku-write-${editingSKU?.id || form.name}` }, body: JSON.stringify(form) });
     setMessage(response.ok ? (editingSKU ? 'SKU 已更新。' : 'SKU 已建立。') : 'SKU 目前無法儲存。');
     if (response.ok) { setShowCreate(false); setEditingSKU(null); setPreview(null); onRefresh(); }
   }
   async function previewSKU() {
     if (!editingSKU) return;
-    const response = await fetch(`/api/skus/${encodeURIComponent(editingSKU.id)}/impact-preview`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    const response = await fetch(`/api/skus/${encodeURIComponent(editingSKU.id)}/impact-preview`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `sku-impact-${editingSKU.id}-${Date.now()}` }, body: JSON.stringify(form) });
     setPreview(response.ok ? await response.json() : { source_status: 'unavailable' });
   }
   const unavailable = data?.source_status === 'unavailable' || data?.source_status === 'unconfigured';
@@ -1779,7 +1903,7 @@ function SKUsPage({ loading, data, onRefresh }) {
                 <td>{sku.device_policy?.setup_available || sku.device_policy?.binding_available ? '已設定' : '未設定'}</td>
                 <td>{sku.firmware_policy?.ota_enabled ? '允許韌體更新' : '未啟用'}</td>
                 <td>{sku.allowed_actions?.length ? sku.allowed_actions.map((action) => action === 'manage_devices' ? '管理設備' : action === 'manage_updates' ? '管理更新' : action === 'view_reports' ? '查看報表' : '查看').join('、') : '需要聯絡管理者'}{canManage ? <button type="button" className="link-button" onClick={() => { setEditingSKU(sku); setForm({ name: sku.name, product_model: sku.product_model || '', category: sku.category || 'generic', service_capabilities: sku.service_capabilities || [] }); setPreview(null); setShowCreate(true); }}>編輯</button> : null}</td>
-                <td><span className={sku.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{sku.status === 'active' ? '啟用' : '停用'}</span>{sku.status === 'active' && canManage ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/skus/${encodeURIComponent(sku.id)}/disable`, { method: 'POST' }); onRefresh(); }}>停用</button> : null}</td>
+                <td><span className={sku.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{sku.status === 'active' ? '啟用' : '停用'}</span>{sku.status === 'active' && canManage ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/skus/${encodeURIComponent(sku.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `sku-disable-${sku.id}` } }); onRefresh(); }}>停用</button> : null}</td>
               </tr>)}</tbody>
             </table>
           </div>
@@ -1789,20 +1913,25 @@ function SKUsPage({ loading, data, onRefresh }) {
   );
 }
 
-function BatchJobsPage({ data, loading, onRefresh }) {
+function BatchJobsPage({ data, loading, canManage, onRefresh }) {
   const jobs = data?.jobs || [];
   const [message, setMessage] = useState('');
   async function retry(job) {
-    const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/retry`, { method: 'POST' });
+    const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/retry`, { method: 'POST', headers: { 'Idempotency-Key': `job-retry-${job.id}` } });
     setMessage(response.ok ? '已送出重試工作。' : '目前無法重試這項工作。');
     if (response.ok) onRefresh();
   }
+  async function action(job, name) {
+    const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/${name}`, { method: 'POST', headers: { 'Idempotency-Key': `job-${name}-${job.id}` } });
+    setMessage(response.ok ? `已送出${name === 'pause' ? '暫停' : name === 'resume' ? '恢復' : '取消'}要求。` : '目前無法更新這項工作。');
+    if (response.ok) onRefresh();
+  }
   return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>批次工作</h2><p>大量設備操作會在這裡執行與追蹤，不需要停在目前頁面等待。</p></div></div>
+    <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>批次工作</h2><p>大量設備操作會在這裡執行與追蹤，不需要停在目前頁面等待。</p></div>{!canManage ? <span className="status-badge neutral">Read-only</span> : null}</div>
     {message ? <div className="notice">{message}</div> : null}
     {loading ? <section className="panel split-panel"><div><h3>正在載入批次工作</h3></div></section> : null}
     {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>批次工作暫時無法取得</h3><p>{data?.source_message || '請稍後再試。'}</p></div></section> : null}
-    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>工作</th><th>範圍</th><th>進度</th><th>狀態</th><th>建立者</th><th>操作</th></tr></thead><tbody>{jobs.map((job) => <tr key={job.id}><td><strong>{job.name}</strong><small>{job.type}</small></td><td>{job.total.toLocaleString()} 台</td><td>{job.completed.toLocaleString()} / {job.total.toLocaleString()}<small>失敗 {job.failed} · 跳過 {job.skipped}</small></td><td><span className="status-badge neutral">{job.state === 'queued' ? '等待處理' : job.state}</span></td><td>{job.created_by}</td><td>{job.failed > 0 ? <button type="button" className="ghost-button" onClick={() => retry(job)}>重試失敗項目</button> : '—'}</td></tr>)}</tbody></table>{!jobs.length ? <p className="empty-state">目前沒有批次工作。</p> : null}</div></section> : null}
+    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>工作</th><th>範圍</th><th>進度</th><th>狀態</th><th>建立者</th><th>操作</th></tr></thead><tbody>{jobs.map((job) => <tr key={job.id}><td><strong>{job.name}</strong><small>{job.type}</small></td><td>{job.total.toLocaleString()} 台</td><td>{job.completed.toLocaleString()} / {job.total.toLocaleString()}<small>失敗 {job.failed} · 跳過 {job.skipped}</small></td><td><span className="status-badge neutral">{job.state === 'queued' ? '等待處理' : job.state}</span></td><td>{job.created_by}</td><td>{canManage && job.failed > 0 ? <button type="button" className="ghost-button" onClick={() => retry(job)}>重試失敗項目</button> : null}{canManage && ['queued', 'running'].includes(job.state) ? <button type="button" className="link-button" onClick={() => action(job, 'pause')}>暫停</button> : null}{canManage && job.state === 'paused' ? <button type="button" className="link-button" onClick={() => action(job, 'resume')}>恢復</button> : null}{canManage && !['completed', 'failed', 'cancelled'].includes(job.state) ? <button type="button" className="link-button" onClick={() => action(job, 'cancel')}>取消</button> : null}{!canManage ? <span className="muted">唯讀</span> : null}</td></tr>)}</tbody></table>{!jobs.length ? <p className="empty-state">目前沒有批次工作。</p> : null}</div></section> : null}
   </section>;
 }
 
@@ -1815,13 +1944,13 @@ function GroupsPage({ data, loading, onRefresh }) {
   const canManage = data?.allowed_actions?.includes('manage');
   async function createGroup(event) {
     event.preventDefault();
-    const response = await fetch('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    const response = await fetch('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `group-create-${form.name}` }, body: JSON.stringify(form) });
     setMessage(response.ok ? '群組已建立。' : '群組目前無法建立。');
     if (response.ok) { setForm({ name: '', description: '' }); setShowCreate(false); onRefresh(); }
   }
   async function deleteGroup(group) {
     if (!window.confirm(`確定要刪除「${group.name}」嗎？`)) return;
-    const response = await fetch(`/api/groups/${encodeURIComponent(group.id)}`, { method: 'DELETE' });
+    const response = await fetch(`/api/groups/${encodeURIComponent(group.id)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `group-delete-${group.id}` } });
     setMessage(response.ok ? '群組已刪除。' : '群組目前無法刪除。');
     if (response.ok) onRefresh();
   }
@@ -1836,9 +1965,16 @@ function GroupsPage({ data, loading, onRefresh }) {
   </section>;
 }
 
-function AccessPage({ data, loading }) {
+function AccessPage({ data, loading, activeCloudId, canManage, onRefresh }) {
+  const members = data?.members || [];
   const assignments = data?.role_assignments || [];
   const roles = data?.roles || [];
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('member');
+  const [transferEmail, setTransferEmail] = useState('');
+  const [transferToken, setTransferToken] = useState('');
+  const [ownerTransfer, setOwnerTransfer] = useState(null);
+  const [message, setMessage] = useState('');
   const scopeLabel = (assignment) => {
     if (assignment.scope_type === 'organization') return '整個品牌帳號';
     if (assignment.scope_type === 'sku') return `SKU：${assignment.scope_id}`;
@@ -1848,37 +1984,128 @@ function AccessPage({ data, loading }) {
     return '指定範圍';
   };
   return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>團隊與權限</h2><p>角色決定可以做什麼，範圍決定可以管理哪些 SKU、區域、群組或設備。</p></div></div>
+    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>團隊與權限</h2><p>角色決定可以做什麼，範圍決定可以管理哪些 SKU、區域、群組或設備。</p></div>{canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setMessage('請使用下方表單邀請成員。')}>＋ 邀請成員</button> : null}</div>
+    {canManage && activeCloudId ? <section className="panel"><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invite-${email}-${role}` }, body: JSON.stringify({ email, role }) }); setMessage(response.ok ? '成員已加入 Brand Cloud。' : '成員目前無法加入。'); if (response.ok) { setEmail(''); onRefresh(); } }}><input required type="email" placeholder="成員 Email" value={email} onChange={(event) => setEmail(event.target.value)} /><select value={role} onChange={(event) => setRole(event.target.value)}><option value="member">Member</option><option value="admin">Admin</option></select><button type="submit" className="primary">送出邀請</button></form></section> : null}
+    {message ? <div className="notice">{message}</div> : null}
+    <section className="panel"><div className="panel-head"><div><h3>Accept owner transfer</h3><p>貼上 owner transfer email 中的 token，完成 ownership 轉移。</p></div></div><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch('/api/developer/brand-cloud-owner-transfers/accept', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-accept-${transferToken}` }, body: JSON.stringify({ token: transferToken }) }); setMessage(response.ok ? 'Owner transfer 已接受。' : 'Owner transfer token 無效或已過期。'); if (response.ok) { setTransferToken(''); onRefresh(); } }}><input required placeholder="Owner transfer token" value={transferToken} onChange={(event) => setTransferToken(event.target.value)} /><button type="submit" className="primary">接受轉移</button></form></section>
+    {canManage && activeCloudId ? <section className="panel"><div className="panel-head"><div><h3>Owner transfer</h3><p>轉移需由目標 developer 使用 email token 接受；pending transfer 可取消。</p></div></div><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-${transferEmail}` }, body: JSON.stringify({ target_email: transferEmail }) }); const body = await response.json().catch(() => ({})); setMessage(response.ok ? 'Owner transfer 已建立。' : 'Owner transfer 目前無法建立。'); if (response.ok) { setOwnerTransfer(body.owner_transfer); setTransferEmail(''); } }}><input required type="email" placeholder="目標 developer Email" value={transferEmail} onChange={(event) => setTransferEmail(event.target.value)} /><button type="submit" className="primary">建立轉移</button></form>{ownerTransfer ? <p className="notice">{ownerTransfer.status} · {ownerTransfer.id} {ownerTransfer.status === 'pending' ? <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/owner-transfer/${encodeURIComponent(ownerTransfer.id)}/cancel`, { method: 'POST', headers: { 'Idempotency-Key': `owner-transfer-cancel-${ownerTransfer.id}` } }); if (response.ok) setOwnerTransfer((current) => ({ ...current, status: 'canceled' })); }}>取消</button> : null}</p> : null}</section> : null}
     {loading ? <section className="panel split-panel"><div><h3>正在載入權限</h3></div></section> : null}
     {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>權限資料暫時無法取得</h3><p>{data?.source_message || '請稍後再試。'}</p></div></section> : null}
     {!loading && data?.source_status === 'available' ? <>
+      <section className="panel"><div className="panel-head"><div><h3>Brand Cloud 成員</h3><p>成員資料與 membership scope 由 Account Manager 提供。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>成員</th><th>角色</th><th>狀態</th>{canManage ? <th>操作</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong><small>{member.email}</small></td><td>{canManage ? <select value={member.role} onChange={async (event) => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-role-${member.user_id}-${event.target.value}` }, body: JSON.stringify({ role: event.target.value }) }); setMessage(response.ok ? '成員角色已更新。' : '成員角色目前無法更新。'); if (response.ok) onRefresh(); }}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select> : member.role}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}>{member.disabled_at ? '停用' : '啟用'}</span></td>{canManage ? <td>{member.disabled_at ? <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}/enable`, { method: 'PATCH', headers: { 'Idempotency-Key': `member-enable-${member.user_id}` } }); setMessage(response.ok ? '成員已啟用。' : '成員目前無法啟用。'); if (response.ok) onRefresh(); }}>啟用</button> : <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}/disable`, { method: 'PATCH', headers: { 'Idempotency-Key': `member-disable-${member.user_id}` } }); setMessage(response.ok ? '成員已停用。' : '成員目前無法停用。'); if (response.ok) onRefresh(); }}>停用</button>} <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `member-remove-${member.user_id}` } }); setMessage(response.ok ? '成員已移除。' : '成員目前無法移除。'); if (response.ok) onRefresh(); }}>移除</button></td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">目前沒有 Brand Cloud 成員。</p> : null}</div></section>
       <section className="panel"><div className="panel-head"><div><h3>可用角色</h3><p>Developer、Operations 等角色的可用操作由平台設定。</p></div></div><div className="chip-list">{roles.map((role) => <span className="status-badge neutral" key={role.id}>{role.name}</span>)}</div></section>
       <section className="panel"><div className="panel-head"><div><h3>目前的權限範圍</h3><p>這裡只顯示管理範圍，不顯示內部權限代碼。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>角色</th><th>管理範圍</th><th>狀態</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{assignment.role_name}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good">啟用</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">目前沒有額外的範圍指派。</p> : null}</div></section>
     </> : null}
   </section>;
 }
 
-function ReportsPage({ data, skus, loading, onRefresh }) {
+function ProvisioningPage({ canCreate }) {
+  const [skuId, setSkuId] = useState('');
+  const [productionRun, setProductionRun] = useState('');
+  const [deviceText, setDeviceText] = useState('');
+  const [deviceFile, setDeviceFile] = useState(null);
+  const [validationJob, setValidationJob] = useState(null);
+  const [executionJob, setExecutionJob] = useState(null);
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    const job = executionJob || validationJob;
+    if (!job || ['completed', 'failed', 'cancelled', 'partial_failed'].includes(job.state)) return undefined;
+    const timer = window.setInterval(async () => {
+      const next = await refreshJob(job);
+      if (executionJob) setExecutionJob(next);
+      else setValidationJob(next);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [validationJob?.id, validationJob?.state, executionJob?.id, executionJob?.state]);
+  async function refreshJob(job) {
+    const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}`);
+    if (!response.ok) return job;
+    const result = await response.json();
+    return result.job || job;
+  }
+  async function validate(event) {
+    event.preventDefault();
+    const deviceIds = deviceFile ? [] : deviceText.split(/[\r\n,\s]+/).map((item) => item.trim().replace(/^"|"$/g, '')).filter((item) => item && !/^device(_| )?id$/i.test(item));
+    if (!skuId.trim() || (!deviceFile && !deviceIds.length)) { setMessage('請填寫 SKU，並提供 CSV 或至少一個設備 ID。'); return; }
+    setLoading(true);
+    let sourceId = '';
+    if (deviceFile) {
+      const sourceForm = new FormData();
+      sourceForm.append('sku_id', skuId.trim());
+      sourceForm.append('production_run', productionRun.trim());
+      sourceForm.append('file', deviceFile);
+      const sourceResponse = await fetch('/api/provisioning/sources', { method: 'POST', headers: { 'Idempotency-Key': `provision-source-${deviceFile.name}-${deviceFile.size}-${deviceFile.lastModified}` }, body: sourceForm });
+      const sourceBody = await sourceResponse.json().catch(() => ({}));
+      if (!sourceResponse.ok) { setLoading(false); setMessage(sourceBody.message || '設備清單 source 無法上傳。'); return; }
+      sourceId = sourceBody.source?.id || '';
+    }
+    const validationPayload = sourceId ? { sku_id: skuId.trim(), production_run: productionRun.trim(), source_id: sourceId } : { sku_id: skuId.trim(), production_run: productionRun.trim(), device_ids: deviceIds };
+    const response = await fetch('/api/provisioning/validate', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `provision-validation-${sourceId || `${skuId.trim()}-${deviceIds.join(',')}`}` }, body: JSON.stringify(validationPayload) });
+    const body = await response.json().catch(() => ({}));
+    setLoading(false);
+    if (!response.ok) { setMessage(body.message || 'Validation job 無法建立。'); return; }
+    setValidationJob(body.validation_job);
+    setExecutionJob(null);
+    setMessage(`Validation job 已建立（${deviceFile ? `${deviceFile.name} upload` : 'JSON device IDs'}），正在等待 immutable validation result。`);
+  }
+  async function confirmProvisioning() {
+    if (!validationJob) return;
+    const current = await refreshJob(validationJob);
+    setValidationJob(current);
+    if (current.state !== 'completed') { setMessage(current.state === 'failed' ? 'Validation 失敗，請修正設備清單後重新驗證。' : 'Validation 尚未完成，請稍後再確認。'); return; }
+    const response = await fetch('/api/provisioning/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `provision-execution-${current.id}` }, body: JSON.stringify({ validation_job_id: current.id }) });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) { setMessage(body.message || 'Provisioning job 無法建立。'); return; }
+    setExecutionJob(body.job);
+    setMessage('Provisioning execution 已建立，可在此查看逐筆結果與重試狀態。');
+  }
+  async function jobAction(job, action) {
+    const endpoint = action === 'retry' ? `/api/jobs/${encodeURIComponent(job.id)}/retry` : `/api/jobs/${encodeURIComponent(job.id)}/${action}`;
+    const response = await fetch(endpoint, { method: 'POST', headers: { 'Idempotency-Key': `provision-${action}-${job.id}` } });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) { setMessage(body.message || `Provisioning ${action} 目前無法執行。`); return; }
+    if (action === 'retry') setExecutionJob(body.job || null);
+    else if (executionJob?.id === job.id) setExecutionJob(body.job || { ...job, state: action === 'cancel' ? 'cancelled' : job.state });
+    else setValidationJob(body.job || { ...job, state: action === 'cancel' ? 'cancelled' : job.state });
+    setMessage(action === 'retry' ? '失敗項目已建立新的 provisioning retry attempt。' : `Provisioning job 已${action === 'cancel' ? '取消' : '更新'}。`);
+  }
+  return <section className="page-content">
+    <div className="page-intro"><div><p className="eyebrow">Fleet Onboarding</p><h2>設備註冊</h2><p>先建立 immutable validation result，再確認並執行 provisioning。預計數量不由 browser 視為真實 target count。</p></div></div>
+    {!canCreate ? <section className="panel split-panel"><div><h3>沒有 provisioning 權限</h3><p>目前 membership 只能查看既有 validation 與 execution 結果。</p></div></section> : <section className="panel"><form className="inline-form provisioning-form" onSubmit={validate}><input required placeholder="SKU ID" value={skuId} onChange={(event) => setSkuId(event.target.value)} /><input placeholder="Production run（選填）" value={productionRun} onChange={(event) => setProductionRun(event.target.value)} /><input type="file" accept=".csv,text/csv" aria-label="設備清單 CSV" onChange={(event) => setDeviceFile(event.target.files?.[0] || null)} /><textarea placeholder="相容模式：設備 ID，一行或以空白分隔" value={deviceText} onChange={(event) => setDeviceText(event.target.value)} /><button type="submit" className="primary" disabled={loading}>{loading ? '驗證中…' : '開始驗證'}</button></form><p className="field-help">CSV upload 與 JSON device IDs 二選一；target count、duplicate 與 validation result 由 server 計算。</p></section>}
+    {message ? <div className="notice">{message}</div> : null}
+    {validationJob ? <section className="panel"><div className="panel-head"><div><h3>Immutable validation result</h3><p>{validationJob.id} · {validationJob.state} · scope hash {validationJob.scope?.scope_hash || '—'}</p></div><div className="inline-actions"><button type="button" className="primary" disabled={!canCreate || validationJob.state !== 'completed' || validationJob.scope?.validation?.valid === false} onClick={confirmProvisioning}>確認並建立 Provisioning job</button>{canCreate && ['queued', 'running'].includes(validationJob.state) ? <button type="button" className="link-button" onClick={() => jobAction(validationJob, 'cancel')}>取消 validation</button> : null}</div></div><div className="status-grid"><div><small>Server target count</small><strong>{validationJob.total?.toLocaleString?.() || 0}</strong></div><div><small>Validated / completed</small><strong>{validationJob.completed?.toLocaleString?.() || 0}</strong></div><div><small>Failed</small><strong>{validationJob.failed?.toLocaleString?.() || 0}</strong></div><div><small>Retryable</small><strong>{validationJob.retryable ? '是' : '否'}</strong></div></div><div className="validation-detail-list"><span>duplicate：{validationJob.scope?.validation?.duplicate_device_ids?.length || 0}</span><span>SKU/hardware mismatch：{validationJob.scope?.validation?.sku_hardware_mismatch || 0}</span><span>existing device：{validationJob.scope?.validation?.existing_device_ids || 0}</span><span>missing field：{validationJob.scope?.validation?.missing_fields || 0}</span></div></section> : null}
+    {executionJob ? <section className="panel"><div className="panel-head"><div><h3>Provisioning execution</h3><p>{executionJob.id} · {executionJob.state} · expires {executionJob.expires_at || '—'}</p></div><div className="inline-actions"><a className="inline-action" href={`/api/jobs/${encodeURIComponent(executionJob.id)}/result`}>查看 JSON</a><a className="inline-action" href={`/api/jobs/${encodeURIComponent(executionJob.id)}/result?format=csv`}>下載 CSV</a>{canCreate && executionJob.failed > 0 ? <button type="button" className="ghost-button" onClick={() => jobAction(executionJob, 'retry')}>重試失敗項目</button> : null}{canCreate && !['completed', 'failed', 'cancelled', 'partial_failed'].includes(executionJob.state) ? <button type="button" className="danger-button" onClick={() => jobAction(executionJob, 'cancel')}>取消 execution</button> : null}</div></div><div className="status-grid"><div><small>Progress</small><strong>{executionJob.completed || 0} / {executionJob.total || 0}</strong></div><div><small>Success</small><strong>{Math.max((executionJob.completed || 0) - (executionJob.failed || 0), 0)}</strong></div><div><small>Failed</small><strong>{executionJob.failed || 0}</strong></div><div><small>Skipped / retryable</small><strong>{executionJob.skipped || 0} / {executionJob.retryable ? '是' : '否'}</strong></div></div><p>逐筆成功、失敗、跳過與 retryability 會保留在 execution job，不會覆寫 validation history。</p></section> : null}
+  </section>;
+}
+
+function ReportsPage({ data, skus, loading, canCreate, onRefresh }) {
   const reports = data?.reports || [];
   const [name, setName] = useState('設備狀況報表');
+  const [reportType, setReportType] = useState('fleet_status');
+  const [format, setFormat] = useState('json');
+  const [timezone, setTimezone] = useState('Asia/Taipei');
+  const [dimensions, setDimensions] = useState(['sku', 'model', 'status', 'region']);
   const [filters, setFilters] = useState({ sku_id: '', region: '', group_id: '', firmware: '', status: '', start_at: '', end_at: '' });
   const [message, setMessage] = useState('');
+  const toggleDimension = (dimension) => setDimensions((current) => current.includes(dimension) ? current.filter((item) => item !== dimension) : [...current, dimension]);
   async function createReport(event) {
     event.preventDefault();
     const scope = Object.fromEntries(Object.entries(filters).filter(([, value]) => value.trim()));
-    const response = await fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, scope }) });
+    const payload = { name, report_type: reportType, dimensions, timezone, time_range: { start_at: filters.start_at, end_at: filters.end_at }, format, scope };
+    const response = await fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `report-${JSON.stringify(payload)}` }, body: JSON.stringify(payload) });
     setMessage(response.ok ? '報表已建立，完成後可查看結果。' : '報表目前無法建立。');
     if (response.ok) { onRefresh(); }
   }
     return <section className="page-content">
     <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>報表</h2><p>用產品、區域、群組、韌體和時間範圍整理營運結果。</p></div></div>
-    <section className="panel"><form className="inline-form" onSubmit={createReport}><input value={name} onChange={(event) => setName(event.target.value)} aria-label="報表名稱" /><select aria-label="SKU 篩選" value={filters.sku_id} onChange={(event) => setFilters({ ...filters, sku_id: event.target.value })}><option value="">全部 SKU</option>{skus.map((sku) => <option key={sku.id} value={sku.id}>{sku.name}</option>)}</select><input placeholder="區域" value={filters.region} onChange={(event) => setFilters({ ...filters, region: event.target.value })} /><input placeholder="群組 ID" value={filters.group_id} onChange={(event) => setFilters({ ...filters, group_id: event.target.value })} /><input placeholder="韌體版本" value={filters.firmware} onChange={(event) => setFilters({ ...filters, firmware: event.target.value })} /><select aria-label="設備狀態" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">全部狀態</option><option value="online">在線</option><option value="offline">離線</option></select><label>從 <input type="date" aria-label="報表開始日期" value={filters.start_at} onChange={(event) => setFilters({ ...filters, start_at: event.target.value })} /></label><label>到 <input type="date" aria-label="報表結束日期" value={filters.end_at} onChange={(event) => setFilters({ ...filters, end_at: event.target.value })} /></label><button type="submit" className="primary">建立報表</button></form>{message ? <p className="notice">{message}</p> : null}</section>
+    {!canCreate ? <section className="panel split-panel"><div><h3>目前沒有 reports.create 權限</h3><p>可查看既有報表，但不能建立新的報表。</p></div></section> : <section className="panel"><form className="inline-form report-builder" onSubmit={createReport}><input value={name} onChange={(event) => setName(event.target.value)} aria-label="報表名稱" /><select aria-label="報表類型" value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">設備狀況</option><option value="firmware_coverage">韌體覆蓋</option><option value="batch_jobs">批次工作</option></select><select aria-label="輸出格式" value={format} onChange={(event) => setFormat(event.target.value)}><option value="json">JSON</option><option value="csv">CSV</option></select><select aria-label="Timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)}><option>Asia/Taipei</option><option>UTC</option><option>America/Los_Angeles</option></select><select aria-label="SKU 篩選" value={filters.sku_id} onChange={(event) => setFilters({ ...filters, sku_id: event.target.value })}><option value="">全部 SKU</option>{skus.map((sku) => <option key={sku.id} value={sku.id}>{sku.name}</option>)}</select><input placeholder="區域" value={filters.region} onChange={(event) => setFilters({ ...filters, region: event.target.value })} /><input placeholder="群組 ID" value={filters.group_id} onChange={(event) => setFilters({ ...filters, group_id: event.target.value })} /><input placeholder="韌體版本" value={filters.firmware} onChange={(event) => setFilters({ ...filters, firmware: event.target.value })} /><select aria-label="設備狀態" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">全部狀態</option><option value="online">在線</option><option value="offline">離線</option></select><label>從 <input type="date" aria-label="報表開始日期" value={filters.start_at} onChange={(event) => setFilters({ ...filters, start_at: event.target.value })} /></label><label>到 <input type="date" aria-label="報表結束日期" value={filters.end_at} onChange={(event) => setFilters({ ...filters, end_at: event.target.value })} /></label><fieldset className="dimension-picker"><legend>Dimensions</legend>{['sku', 'model', 'region', 'group', 'firmware', 'status'].map((dimension) => <label key={dimension}><input type="checkbox" checked={dimensions.includes(dimension)} onChange={() => toggleDimension(dimension)} />{dimension}</label>)}</fieldset><button type="submit" className="primary">建立報表</button></form>{message ? <p className="notice">{message}</p> : null}</section>}
     {loading ? <section className="panel split-panel"><div><h3>正在載入報表</h3></div></section> : null}
-        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>報表</th><th>狀態</th><th>建立者</th><th>建立時間</th><th>結果</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{report.state === 'queued' ? '等待處理' : report.state}</td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={`/api/reports/${encodeURIComponent(report.id)}`}>查看結果</a>{report.state === 'completed' ? <>　<a href={`/api/reports/${encodeURIComponent(report.id)}?format=csv`}>下載 CSV</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">目前沒有報表。</p> : null}</div></section> : null}
+        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>報表</th><th>狀態</th><th>Scope / freshness</th><th>建立者</th><th>建立時間</th><th>結果</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{report.state === 'queued' ? '等待處理' : report.state}{report.failure_reason ? <small className="error-text">{report.failure_reason}</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} · expires {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={`/api/reports/${encodeURIComponent(report.id)}`}>查看結果</a>{report.state === 'completed' ? <>　<a href={`/api/reports/${encodeURIComponent(report.id)}?format=csv`}>下載 CSV</a>　<a href={`/api/reports/${encodeURIComponent(report.id)}?format=json`}>下載 JSON</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">目前沒有報表。</p> : null}</div></section> : null}
   </section>;
 }
 
-function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices, onCampaignAction, onRefresh }) {
+function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices, onCampaignAction, canRelease, canManageOTA, onRefresh }) {
   const versions = distribution?.versions || [];
   const campaigns = distribution?.campaigns || [];
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
@@ -1894,6 +2121,10 @@ function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices,
   const [planRelease, setPlanRelease] = useState('');
   const [planName, setPlanName] = useState('');
   const [planMessage, setPlanMessage] = useState('');
+  const [scopeQuery, setScopeQuery] = useState({ region: '', group_ids: '', firmware: '', health: '' });
+  const [excludedDeviceText, setExcludedDeviceText] = useState('');
+  const [scopePreview, setScopePreview] = useState(null);
+  const [scopeLoading, setScopeLoading] = useState(false);
   async function publishRelease(event) {
     event.preventDefault();
     if (!releaseSKU || !releaseVersion.trim()) return;
@@ -1940,13 +2171,31 @@ function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices,
   async function createUpdatePlan(event) {
     event.preventDefault();
     const release = releases.find((item) => item.id === planRelease || item.release_id === planRelease);
-    if (!release) return;
+    if (!release || !scopePreview?.scope) { setPlanMessage('請先取得有效的 server scope preview。'); return; }
     const response = await fetch('/api/update-plans', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `plan-${release.sku_id}-${release.id || release.release_id}-${Date.now()}` },
-      body: JSON.stringify({ sku_id: release.sku_id, release_id: release.id || release.release_id, name: planName.trim() || `更新 ${release.version}`, selector: { all_devices: true }, phases: [{ phase: 0, cumulative_percentage: 100, soak_seconds: 0 }], failure_policy: { minimum_sample_size: 10, failure_percentage: 10, timeout_percentage: 10 } }),
+      body: JSON.stringify({ sku_id: release.sku_id, release_id: release.id || release.release_id, name: planName.trim() || `更新 ${release.version}`, scope: scopePreview.scope, selector: scopePreview.scope.query, phases: [{ phase: 0, cumulative_percentage: 100, soak_seconds: 0 }], failure_policy: { minimum_sample_size: 10, failure_percentage: 10, timeout_percentage: 10 } }),
     });
     setPlanMessage(response.ok ? '更新計畫已建立，請在下方啟動。' : '更新計畫目前無法建立。');
-    if (response.ok) { setPlanName(''); setPlanRelease(''); onRefresh(); }
+    if (response.ok) { setPlanName(''); setPlanRelease(''); setScopePreview(null); onRefresh(); }
+  }
+  async function previewScope() {
+    const release = releases.find((item) => item.id === planRelease || item.release_id === planRelease);
+    if (!release) { setPlanMessage('請先選擇韌體版本。'); return; }
+    const query = Object.fromEntries(Object.entries(scopeQuery).flatMap(([key, value]) => {
+      const values = String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+      return values.length ? [[key, values]] : [];
+    }));
+    setScopeLoading(true);
+    const response = await fetch('/api/update-plans/scope-preview', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku_id: release.sku_id, query, excluded_device_ids: excludedDeviceText.split(/[,\s]+/).map((item) => item.trim()).filter(Boolean) }),
+    });
+    const body = await response.json().catch(() => ({}));
+    setScopeLoading(false);
+    if (!response.ok) { setScopePreview(null); setPlanMessage(body.message || 'Scope preview 目前無法取得。'); return; }
+    setScopePreview(body);
+    setPlanMessage('Scope preview 已由 server 計算，可建立 immutable OTA plan。');
   }
   async function releaseAction(release, action) {
     const id = release.id || release.release_id;
@@ -1993,9 +2242,9 @@ function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices,
         <MetricCard icon="circle-exclamation" label="Failed Rollout" value={available ? failedRollout : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone={failedRollout ? 'danger' : 'good'} />
       </section>
 
-      {skus.some((sku) => sku.allowed_actions?.includes('manage_updates')) ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>新增韌體版本</h3><p>先把版本登記到指定 SKU，再建立更新計畫。檔案上傳與簽章仍依品牌的發布流程完成。</p></div></div><form className="inline-form" onSubmit={publishRelease}><select required value={releaseSKU} onChange={(event) => setReleaseSKU(event.target.value)}><option value="">選擇 SKU</option>{skus.filter((sku) => sku.allowed_actions?.includes('manage_updates')).map((sku) => <option value={sku.id} key={sku.id}>{sku.name}</option>)}</select><input required placeholder="版本，例如 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input required placeholder="Build 編號" value={releaseBuild} onChange={(event) => setReleaseBuild(event.target.value)} /><input name="artifact" type="file" accept="application/octet-stream,.bin" aria-label="韌體檔案（可選）" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setReleaseSize(String(file.size)); } }} /><input type="number" min="1" placeholder="檔案大小（沒有檔案時填寫）" value={releaseSize} onChange={(event) => setReleaseSize(event.target.value)} /><input pattern="[a-fA-F0-9]{64}" placeholder="SHA-256（沒有檔案時填寫）" value={releaseSHA} onChange={(event) => setReleaseSHA(event.target.value)} /><input required placeholder="硬體版本（逗號分隔）" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} /><details><summary>簽章設定（進階）</summary><input placeholder="簽章金鑰名稱" value={releaseSigningKey} onChange={(event) => setReleaseSigningKey(event.target.value)} /><input placeholder="簽章內容" value={releaseSignature} onChange={(event) => setReleaseSignature(event.target.value)} /></details><button type="submit" className="primary">建立版本</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
-      {releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>建立更新計畫</h3><p>選擇已發布的版本，先建立全 fleet 計畫；啟動前仍可檢查範圍。</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select required value={planRelease} onChange={(event) => setPlanRelease(event.target.value)}><option value="">選擇韌體版本</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.sku_name || release.sku_id} · {release.version}</option>)}</select><input placeholder="計畫名稱（選填）" value={planName} onChange={(event) => setPlanName(event.target.value)} /><button type="submit" className="primary">建立更新計畫</button></form>{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
-      {releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>韌體版本</h3><p>版本必須先完成上傳與檢查，才能發布給更新計畫使用。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>SKU</th><th>版本</th><th>狀態</th><th>操作</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.sku_id}:${release.id || release.release_id}`}><td>{release.sku_name || release.sku_id}</td><td>{release.version}</td><td>{release.state}</td><td>{String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>發布</button> : null}{String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>撤回</button> : null}</td></tr>)}</tbody></table></div></section> : null}
+      {canRelease && skus.some((sku) => sku.allowed_actions?.includes('manage_updates')) ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>新增韌體版本</h3><p>先把版本登記到指定 SKU，再建立更新計畫。檔案上傳與簽章仍依品牌的發布流程完成。</p></div></div><form className="inline-form" onSubmit={publishRelease}><select required value={releaseSKU} onChange={(event) => setReleaseSKU(event.target.value)}><option value="">選擇 SKU</option>{skus.filter((sku) => sku.allowed_actions?.includes('manage_updates')).map((sku) => <option value={sku.id} key={sku.id}>{sku.name}</option>)}</select><input required placeholder="版本，例如 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input required placeholder="Build 編號" value={releaseBuild} onChange={(event) => setReleaseBuild(event.target.value)} /><input name="artifact" type="file" accept="application/octet-stream,.bin" aria-label="韌體檔案（可選）" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setReleaseSize(String(file.size)); } }} /><input type="number" min="1" placeholder="檔案大小（沒有檔案時填寫）" value={releaseSize} onChange={(event) => setReleaseSize(event.target.value)} /><input pattern="[a-fA-F0-9]{64}" placeholder="SHA-256（沒有檔案時填寫）" value={releaseSHA} onChange={(event) => setReleaseSHA(event.target.value)} /><input required placeholder="硬體版本（逗號分隔）" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} /><details><summary>簽章設定（進階）</summary><input placeholder="簽章金鑰名稱" value={releaseSigningKey} onChange={(event) => setReleaseSigningKey(event.target.value)} /><input placeholder="簽章內容" value={releaseSignature} onChange={(event) => setReleaseSignature(event.target.value)} /></details><button type="submit" className="primary">建立版本</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
+      {canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>建立更新計畫</h3><p>先取得 server scope preview，再建立 immutable OTA plan；browser 不決定 target count。</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">選擇韌體版本</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.sku_name || release.sku_id} · {release.version}</option>)}</select><input placeholder="計畫名稱（選填）" value={planName} onChange={(event) => setPlanName(event.target.value)} /><input placeholder="區域（逗號分隔）" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="群組 ID（逗號分隔）" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="韌體版本（逗號分隔）" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="健康狀態（逗號分隔）" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="排除 device IDs（逗號或空白分隔）" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? '計算範圍中…' : 'Preview server scope'}</button><button type="submit" className="primary" disabled={!scopePreview?.scope}>建立更新計畫</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{Number(scopePreview.target_count || 0).toLocaleString()}</strong></span><span>Excluded <strong>{Number(scopePreview.excluded_count || 0).toLocaleString()}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
+      {releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>韌體版本</h3><p>版本必須先完成上傳與檢查，才能發布給更新計畫使用。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>SKU</th><th>版本</th><th>狀態</th><th>操作</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.sku_id}:${release.id || release.release_id}`}><td>{release.sku_name || release.sku_id}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>發布</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>撤回</button> : null}{!canRelease ? <span className="muted">唯讀</span> : null}</td></tr>)}</tbody></table></div></section> : null}
 
       {loading && !distribution ? <p className="empty-state">Loading firmware distribution.</p> : null}
       {distribution && !available ? <SourceBlockedState title={pageState.title} message={unavailableText} /> : null}
@@ -2086,7 +2335,7 @@ function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices,
             )}
           </section>
 
-          <FirmwareCampaignDetail campaign={selectedCampaign} onAction={onCampaignAction} />
+          <FirmwareCampaignDetail campaign={selectedCampaign} onAction={canManageOTA ? onCampaignAction : null} canManage={canManageOTA} />
           <FirmwareRiskQueue campaigns={campaigns} onViewDevices={onViewDevices} />
         </div>
         </>
@@ -2099,7 +2348,7 @@ function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices,
   );
 }
 
-function FirmwareCampaignDetail({ campaign, onAction }) {
+function FirmwareCampaignDetail({ campaign, onAction, canManage }) {
   const rows = firmwareCampaignDetailRows(campaign || {});
   return (
     <section className="panel firmware-panel firmware-campaign-detail">
@@ -2108,12 +2357,12 @@ function FirmwareCampaignDetail({ campaign, onAction }) {
           <h3>Campaign Detail</h3>
           <p>{campaign ? `${campaign.campaign_id} device rollout status` : 'Select a rollout campaign to inspect device-level status.'}</p>
         </div>
-        {campaign && ['active', 'scheduled', 'paused', 'completed'].includes(String(campaign.state || '').toLowerCase()) ? (
+        {campaign && canManage && ['active', 'scheduled', 'paused', 'completed'].includes(String(campaign.state || '').toLowerCase()) ? (
           <div className="inline-actions">
             {campaign.state === 'paused' ? <button type="button" className="ghost-button" onClick={() => onAction?.(campaign.campaign_id, 'resume')}>恢復</button> : campaign.state === 'completed' && campaign.failed > 0 ? <button type="button" className="ghost-button" onClick={() => onAction?.(campaign.campaign_id, 'retry')}>重試失敗項目</button> : <button type="button" className="ghost-button" onClick={() => onAction?.(campaign.campaign_id, 'pause')}>暫停</button>}
             <button type="button" className="danger-button" onClick={() => onAction?.(campaign.campaign_id, 'cancel')}>取消</button>
           </div>
-        ) : null}
+        ) : campaign ? <span className="status-badge neutral">唯讀</span> : null}
       </div>
       {campaign && rows.length ? (
         <div className="firmware-rollout-table">
@@ -2436,7 +2685,17 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
   );
 }
 
-function CustomerAccessGate({ me }) {
+function CustomerAccessGate({ me, active }) {
+  if (me?.authenticated && me.kind === 'customer') {
+    return (
+      <section className="panel split-panel">
+        <div>
+          <h2>Brand Cloud capability required</h2>
+          <p>Your active membership cannot access {titleFor(active)}. The active Cloud was preserved and no write controls were loaded.</p>
+        </div>
+      </section>
+    );
+  }
   if (me?.kind === 'platform_admin') {
     return (
       <section className="panel split-panel">
@@ -4311,8 +4570,8 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
     for (const key of ['q', 'sku_id', 'category', 'model', 'status', 'readiness', 'firmware', 'sort', 'direction']) {
       if (current.get(key)) query[key] = current.get(key);
     }
-    const scope = allFilteredSelected ? { query, exclude_ids: [...excludedIds] } : { device_ids: [...selectedIds] };
-    const response = await fetch('/api/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, name: type === 'device_deactivation' ? '停用設備' : '設定設備', scope, total: selectionCount }) });
+    const scope = allFilteredSelected ? { query, excluded_device_ids: [...excludedIds] } : { device_ids: [...selectedIds] };
+    const response = await fetch('/api/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `fleet-job-${type}-${Date.now()}` }, body: JSON.stringify({ type, name: type === 'device_deactivation' ? '停用設備' : '設定設備', scope }) });
     setBulkMessage(response.ok ? '批次工作已建立，請到「批次工作」查看進度。' : '批次工作目前無法建立。');
     if (response.ok) clearSelection();
   }

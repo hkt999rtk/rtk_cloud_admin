@@ -1,13 +1,15 @@
 export const customerNavItems = [
-  { id: 'overview', label: '設備總覽', path: '/console/overview', icon: 'gauge-high' },
-  { id: 'devices', label: '設備', path: '/console/devices', icon: 'video' },
-  { id: 'sku-services', label: 'SKU 與服務', path: '/console/sku-services', icon: 'boxes-stacked' },
-  { id: 'groups', label: '群組與標籤', path: '/console/groups', icon: 'layer-group' },
-  { id: 'access', label: '團隊與權限', path: '/console/access', icon: 'user-shield' },
-  { id: 'firmware-ota', label: '韌體更新', path: '/console/firmware-ota', icon: 'microchip' },
-  { id: 'stream-health', label: '影像播放狀況', path: '/console/stream-health', icon: 'tower-broadcast' },
-  { id: 'jobs', label: '批次工作', path: '/console/jobs', icon: 'list-check' },
-  { id: 'reports', label: '報表', path: '/console/reports', icon: 'chart-column' },
+  { id: 'overview', label: '設備總覽', path: '/console/overview', icon: 'gauge-high', capabilities: ['fleet.read', 'customer.devices.read'] },
+  { id: 'devices', label: '設備', path: '/console/devices', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
+  { id: 'sku-services', label: 'SKU 與服務', path: '/console/sku-services', icon: 'boxes-stacked', capabilities: ['sku.read', 'registry_device.read'] },
+  { id: 'chipset-sdk', label: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch' },
+  { id: 'groups', label: '群組與標籤', path: '/console/groups', icon: 'layer-group', capabilities: ['fleet.read', 'device_group.read', 'device_group.manage'] },
+  { id: 'access', label: '團隊與權限', path: '/console/access', icon: 'user-shield', capabilities: ['team.read', 'role_assignment.read'] },
+  { id: 'firmware-ota', label: '韌體更新', path: '/console/firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
+  { id: 'stream-health', label: '影像播放狀況', path: '/console/stream-health', icon: 'tower-broadcast', capabilities: ['customer.stream.read'] },
+  { id: 'jobs', label: '批次工作', path: '/console/jobs', icon: 'list-check', capabilities: ['fleet.read', 'fleet.batch.manage', 'fleet.batch.read'] },
+  { id: 'reports', label: '報表', path: '/console/reports', icon: 'chart-column', capabilities: ['reports.read', 'report.read', 'customer.reports.read'] },
+  { id: 'provisioning', label: '設備註冊', path: '/console/provisioning', icon: 'plug-circle-bolt', capabilities: ['provisioning.read', 'provisioning.create'] },
 ];
 
 export const platformNavItems = [
@@ -15,6 +17,7 @@ export const platformNavItems = [
   { id: 'platform-grafana', label: 'Grafana', path: '/admin/grafana', icon: 'chart-simple' },
   { id: 'platform-health', label: 'Service Health', path: '/admin/health', icon: 'heart-pulse' },
   { id: 'platform-brand-clouds', label: 'Brand Clouds', path: '/admin/brand-clouds', icon: 'cloud' },
+  { id: 'platform-chipset-providers', label: 'ChipSet & SDK Providers', path: '/admin/chipset-providers', icon: 'code-branch', capabilities: ['platform.chipset_sdk.read', 'platform.chipset_sdk.edit', 'platform.chipset_sdk.publish'] },
   { id: 'platform-sso', label: 'SSO Providers', path: '/admin/sso', icon: 'key' },
   { id: 'platform-logs', label: 'Service Logs', path: '/admin/logs', icon: 'file-lines' },
   { id: 'platform-operations', label: 'Operations Log', path: '/admin/ops', icon: 'list-check' },
@@ -36,6 +39,12 @@ export function navItemsForRoute(route) {
   return isPlatformRouteId(route) ? platformNavItems : customerNavItems;
 }
 
+export function navItemsForCapabilities(route, capabilities) {
+  const items = navItemsForRoute(route);
+  const values = new Set(Array.isArray(capabilities) ? capabilities : []);
+  return items.filter((item) => !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability)));
+}
+
 export function titleFor(active) {
   return {
     login: 'Sign in',
@@ -49,16 +58,19 @@ export function titleFor(active) {
     overview: '設備總覽',
     devices: '設備',
     'sku-services': 'SKU 與服務',
+    'chipset-sdk': 'ChipSet & SDK',
     groups: '群組與標籤',
     access: '團隊與權限',
     'firmware-ota': '韌體更新',
     'stream-health': '影像播放狀況',
     jobs: '批次工作',
     reports: '報表',
+    provisioning: '設備註冊',
     'platform-dashboard': 'Platform Dashboard',
     'platform-grafana': 'Grafana',
     'platform-health': 'Service Health',
     'platform-brand-clouds': 'Brand Clouds',
+    'platform-chipset-providers': 'ChipSet & SDK Providers',
     'platform-sso': 'SSO Providers',
     'platform-logs': 'Service Logs',
     'platform-operations': 'Operations',
@@ -80,6 +92,7 @@ export function routeFromPath(path) {
   if (path === '/admin/resources' || path.startsWith('/admin/resources/')) return 'platform-dashboard';
   if (path === '/admin/health' || path.startsWith('/admin/health/')) return 'platform-health';
   if (path === '/admin/brand-clouds' || path.startsWith('/admin/brand-clouds/')) return 'platform-brand-clouds';
+  if (path === '/admin/chipset-providers' || path.startsWith('/admin/chipset-providers/')) return 'platform-chipset-providers';
   if (path === '/admin/sso' || path.startsWith('/admin/sso/')) return 'platform-sso';
   if (path === '/admin/logs' || path.startsWith('/admin/logs/')) return 'platform-logs';
   if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
@@ -87,14 +100,18 @@ export function routeFromPath(path) {
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
   if (path.startsWith('/admin/')) return 'platform-dashboard';
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
+  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|sku-services|chipset-sdk|groups|access|firmware-ota|stream-health|jobs|reports|provisioning)(?:\/|$)/);
+  if (scoped) return scoped[2];
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
   if (path === '/console/sku-services' || path.startsWith('/console/sku-services/')) return 'sku-services';
+  if (path === '/console/chipset-sdk' || path.startsWith('/console/chipset-sdk/')) return 'chipset-sdk';
   if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
   if (path === '/console/access' || path.startsWith('/console/access/')) return 'access';
   if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';
   if (path === '/console/stream-health' || path.startsWith('/console/stream-health/')) return 'stream-health';
   if (path === '/console/jobs' || path.startsWith('/console/jobs/')) return 'jobs';
   if (path === '/console/reports' || path.startsWith('/console/reports/')) return 'reports';
+  if (path === '/console/provisioning' || path.startsWith('/console/provisioning/')) return 'provisioning';
   if (
     path === '/console/customers' ||
     path === '/console/audit' ||
@@ -104,6 +121,11 @@ export function routeFromPath(path) {
     path.startsWith('/console/operations/')
   ) return 'overview';
   return 'overview';
+}
+
+export function cloudIdFromPath(path) {
+  const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|sku-services|chipset-sdk|groups|access|firmware-ota|stream-health|jobs|reports|provisioning)(?:\/|$)/);
+  return match ? decodeURIComponent(match[1]) : '';
 }
 
 export function routeFromLocation() {

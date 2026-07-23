@@ -2,6 +2,25 @@
 
 Status: current approved direction for the Brand Fleet Management refresh.
 
+## Runtime Brand Cloud session contract
+
+The production console uses one global developer session and a server-side
+active Brand Cloud scope. The shell displays the signed-in developer identity
+and a selector populated only by `GET /api/developer/brand-clouds`. Switching
+clouds refreshes `/api/me`, capabilities, and every cloud-scoped query; a
+failed switch keeps the previous cloud active. URLs are cloud-scoped and safe
+to deep-link or refresh. A browser-supplied `brand_cloud_id` is never trusted
+for fleet authorization.
+
+Navigation and actions are derived from active-cloud capabilities, not a UI
+role switch. Display roles remain useful for explanation, but authorization
+uses the capability matrix in `ROLES.md`.
+
+Every fleet query is server-side and every batch/report/provisioning operation
+stores an immutable scope snapshot and hash. Jobs expose progress, partial
+failure, retryability, result expiry, and audit metadata. Provisioning is an
+async validation-then-execution workflow.
+
 > Supersession note: the earlier small-fleet Customer View concept in this
 > document is retained as historical context only. The current product target
 > is the brand sub-tenant Fleet Management console for Developer / Release
@@ -35,6 +54,8 @@ The current Brand Fleet surface covers:
 - Fleet Overview, Devices, provisioning status, groups/tags, products/profiles
 - Firmware Releases and full Update Plans
 - Batch Jobs, Reports, and Team/Permission management
+- A separate global `ChipSet & SDK` resource center for published development
+  resources; it is not scoped to the active Brand Cloud in v1.
 
 Platform View pages, auth pages, and signup pages are required WebUI surfaces,
 but they are not part of the Brand Fleet HTML mockup. Groups, tags, products,
@@ -44,6 +65,26 @@ The approved HTML mockup is the review reference for the Brand Fleet work
 area, not a complete application-state inventory. The implementation must also satisfy the
 coverage addendum below for auth, quota, capability, error, and source-state
 requirements from `SPEC.md`, `ROLES.md`, and `backend-api-gap-audit.md`.
+
+### Functional parity checklist
+
+The React application is accepted against this checklist, not against pixel
+identity:
+
+| Surface | Required functional parity |
+| --- | --- |
+| Overview / Devices | Active-cloud scope, server pagination/filtering, cross-page selection, safe source states |
+| SKU | Service/device/firmware policy, ACL impact preview, capability-gated writes |
+| Firmware / OTA | Release lifecycle, artifact validation, server scope preview, immutable plan, lifecycle controls |
+| Jobs | Bounded query, progress, partial failure, per-item result, retry attempt, CSV/JSON download and expiry |
+| Reports | Async builder with type, dimensions, range, timezone, scope, output, freshness and expiry |
+| Team | Backend-defined display roles, capabilities, scope, invitations, member lifecycle and owner transfer |
+| Provisioning | CSV/source or compatibility JSON input, immutable validation, confirmation, execution, retry/cancel/result |
+| ChipSet & SDK | Published ChipSet cards, SDK versions, recommended release, supported models, endpoint links, stale/LKG state |
+
+The mockup's sample counts and state buttons are visual examples only. Every
+production action shown in the mockup must either call a documented API or be
+removed from the production UI.
 
 ## Design Coverage Matrix
 
@@ -61,6 +102,7 @@ requirements from `SPEC.md`, `ROLES.md`, and `backend-api-gap-audit.md`.
 | Platform View: Operations Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Platform View: Audit Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Brand-cloud management UI | No | [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md) plus backend/BFF contract | Platform View draft, outside Customer View |
+| ChipSet & SDK resource center | Yes | [chipset-sdk-information-provider-mock.html](assets/webui-design/chipset-sdk-information-provider-mock.html) | Developer read-only resource center; global published catalog |
 | Groups and Tags | Yes | `brand-fleet-management-mock.html` | Required for large-fleet targeting |
 | Batch Jobs and Reports | Yes | `brand-fleet-management-mock.html` | Required for asynchronous fleet operations |
 
@@ -69,6 +111,10 @@ requirements from `SPEC.md`, `ROLES.md`, and `backend-api-gap-audit.md`.
 Open [`brand-fleet-management-mock.html`](assets/webui-design/brand-fleet-management-mock.html)
 in a browser to review the large-fleet pages, role views, batch interactions,
 OTA workflow, and key non-ideal states.
+
+Open [`chipset-sdk-information-provider-mock.html`](assets/webui-design/chipset-sdk-information-provider-mock.html#%2Fdeveloper)
+to review the global Developer resource center, SDK version hierarchy,
+recommended release treatment, external endpoints, and stale/unavailable states.
 
 ### Known Asset Differences
 
@@ -439,8 +485,9 @@ Behavior notes:
 
 ## Firmware & OTA
 
-Purpose: show firmware distribution, rollout progress, and devices at firmware
-risk without introducing platform-only write workflows.
+Purpose: show firmware distribution, release lifecycle, rollout progress, and
+devices at firmware risk while keeping all writes inside capability-guarded
+Account Manager/Video Cloud contracts.
 
 Required layout:
 
@@ -450,22 +497,25 @@ Required layout:
   latest marker.
 - Rollout Campaign Summary with target version, policy, state, applied,
   pending, failed, skipped, total, and start timestamp.
-- Read-only campaign table.
+- Release and campaign table with capability-derived create, publish, schedule,
+  pause, resume, cancel, and retry actions.
 - Firmware Risk Queue with device, current version, health, and last seen.
 
 Behavior notes:
 
 - Clicking a firmware version should navigate to the Devices page with that
   firmware pre-filtered when supported.
-- Campaign creation, tenant-wide write actions, and policy editing are not part
-  of this Customer View design batch.
+- Campaign creation, tenant-wide write actions, and policy editing are exposed
+  only when the active membership has the corresponding release or OTA
+  capability; Operations and Observer users remain read-only for release
+  metadata and SKU policy.
 - Unknown firmware should be visible and sortable as an operational risk.
 - Production firmware distribution must use observed firmware and rollout facts
   from Video Cloud or the normalized telemetry read model, not generated sample
   versions.
-- Campaign drill-down is read-only. It may show device rollout status, reason,
-  and last updated values from the documented rollout facts, but it must not
-  introduce campaign create, pause, resume, cancel, or policy-edit workflows.
+- Campaign drill-down shows device rollout status, reason, and last updated
+  values from documented rollout facts; lifecycle actions use the async/write
+  contracts and must not be simulated by frontend-only state.
 - Unsupported policy values should be shown explicitly as unsupported rather
   than silently mapped to an implemented policy.
 
@@ -578,6 +628,10 @@ before implementation is considered complete:
   upstream payloads.
 - Gateway error: show a retryable message and keep the last safe context when
   possible.
+- Forbidden: preserve the active cloud and explain the missing capability
+  without exposing upstream authorization details.
+- Partial failure: keep successful rows/results visible and identify retryable
+  failed items.
 - Read-only: expose data normally and remove or disable write controls.
 - Mobile/tablet: keep the sidebar and tables usable; tables may scroll
   horizontally rather than dropping required columns.
@@ -605,7 +659,8 @@ before implementation is considered complete:
 - Brand Fleet navigation exposes Groups, Tags, Batch Jobs, and Reports according
   to role capabilities, without a second device-registration workflow.
 - Auth, signup, verification, and route-gate states are covered.
-- Active organization switching is scoped to `/api/me.memberships`.
+- Active Brand Cloud switching is scoped to `/api/developer/brand-clouds` and
+  committed through the server-side `/api/me/active-org` session endpoint.
 - Evaluation quota display and quota raise request states are covered.
 - Read-only Observer sessions show read-only action behavior.
 - Source-unavailable, loading, empty, filtered-empty, and gateway-error states

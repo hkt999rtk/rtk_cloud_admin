@@ -19,6 +19,58 @@ type Client struct {
 	httpClient *http.Client
 }
 
+type ChipsetEndpoint struct {
+	Type     string         `json:"type"`
+	Title    string         `json:"title"`
+	URL      string         `json:"url"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+type ChipsetSDKRelease struct {
+	Name            string            `json:"name"`
+	Version         string            `json:"version"`
+	Summary         string            `json:"summary,omitempty"`
+	Recommended     bool              `json:"recommended"`
+	SupportedModels []string          `json:"supported_models"`
+	Endpoints       []ChipsetEndpoint `json:"endpoints"`
+}
+
+type DeveloperChipset struct {
+	ID                      string              `json:"id"`
+	ProviderName            string              `json:"provider_name"`
+	ChipsetKey              string              `json:"chipset_key"`
+	Vendor                  string              `json:"vendor"`
+	Name                    string              `json:"name"`
+	Family                  string              `json:"family,omitempty"`
+	Description             string              `json:"description,omitempty"`
+	SDKReleases             []ChipsetSDKRelease `json:"sdk_releases"`
+	Stale                   bool                `json:"stale"`
+	LastSuccessfulRefreshAt string              `json:"last_successful_refresh_at"`
+}
+
+type ChipsetProvider struct {
+	ID                      string `json:"id"`
+	Name                    string `json:"name"`
+	ManifestURL             string `json:"manifest_url"`
+	Status                  string `json:"status"`
+	ManifestVersion         string `json:"manifest_version,omitempty"`
+	ManifestSHA256          string `json:"manifest_sha256,omitempty"`
+	ChipsetCount            int    `json:"chipset_count"`
+	SDKReleaseCount         int    `json:"sdk_release_count"`
+	LastRefreshAttemptAt    string `json:"last_refresh_attempt_at,omitempty"`
+	LastSuccessfulRefreshAt string `json:"last_successful_refresh_at,omitempty"`
+	Stale                   bool   `json:"stale"`
+	Unavailable             bool   `json:"unavailable"`
+	ValidationError         string `json:"validation_error,omitempty"`
+	CreatedAt               string `json:"created_at"`
+	UpdatedAt               string `json:"updated_at"`
+}
+
+type ChipsetProviderRequest struct {
+	Name        string `json:"name"`
+	ManifestURL string `json:"manifest_url"`
+}
+
 type User struct {
 	ID    string `json:"id"`
 	Email string `json:"email"`
@@ -73,11 +125,25 @@ type BrandCloudUser struct {
 }
 
 type Member struct {
-	OrganizationID   string `json:"organization_id"`
-	UserID           string `json:"user_id"`
-	BrandCloudUserID string `json:"brand_cloud_user_id,omitempty"`
-	Email            string `json:"email,omitempty"`
-	Role             string `json:"role"`
+	OrganizationID   string   `json:"organization_id"`
+	UserID           string   `json:"user_id"`
+	BrandCloudUserID string   `json:"brand_cloud_user_id,omitempty"`
+	Email            string   `json:"email,omitempty"`
+	Role             string   `json:"role"`
+	Capabilities     []string `json:"capabilities,omitempty"`
+	DisabledAt       string   `json:"disabled_at,omitempty"`
+}
+
+type OwnerTransfer struct {
+	ID                string `json:"id"`
+	BrandCloudID      string `json:"brand_cloud_id"`
+	RequestedByUserID string `json:"requested_by_user_id"`
+	TargetUserID      string `json:"target_user_id"`
+	TargetEmail       string `json:"target_email,omitempty"`
+	Status            string `json:"status"`
+	ExpiresAt         string `json:"expires_at"`
+	AcceptedAt        string `json:"accepted_at,omitempty"`
+	CanceledAt        string `json:"canceled_at,omitempty"`
 }
 
 type BrandCloudUserResult struct {
@@ -269,6 +335,7 @@ type RefreshResult struct {
 type MeResult struct {
 	User          User           `json:"user"`
 	Organizations []Organization `json:"organizations"`
+	Capabilities  []string       `json:"capabilities,omitempty"`
 }
 
 type SSOStartRequest struct {
@@ -469,6 +536,67 @@ func (c *Client) Me(ctx context.Context, accessToken string) (MeResult, error) {
 	return out, err
 }
 
+func (c *Client) ChipsetProviders(ctx context.Context, accessToken string) ([]ChipsetProvider, error) {
+	var body struct {
+		Providers []ChipsetProvider `json:"providers"`
+	}
+	err := c.doJSON(ctx, http.MethodGet, "/v1/admin/chipset-providers", accessToken, nil, &body)
+	return body.Providers, err
+}
+
+func (c *Client) ChipsetProvider(ctx context.Context, accessToken, providerID string) (ChipsetProvider, []DeveloperChipset, error) {
+	var body struct {
+		Provider ChipsetProvider    `json:"provider"`
+		Chipsets []DeveloperChipset `json:"chipsets"`
+	}
+	err := c.doJSON(ctx, http.MethodGet, "/v1/admin/chipset-providers/"+url.PathEscape(providerID), accessToken, nil, &body)
+	return body.Provider, body.Chipsets, err
+}
+
+func (c *Client) CreateChipsetProvider(ctx context.Context, accessToken, idempotencyKey string, request ChipsetProviderRequest) (ChipsetProvider, string, error) {
+	var body struct {
+		Provider    ChipsetProvider `json:"provider"`
+		AuditResult string          `json:"audit_result"`
+	}
+	err := c.doJSONWithIdempotency(ctx, http.MethodPost, "/v1/admin/chipset-providers", accessToken, idempotencyKey, request, &body)
+	return body.Provider, body.AuditResult, err
+}
+
+func (c *Client) UpdateChipsetProvider(ctx context.Context, accessToken, providerID, idempotencyKey string, request ChipsetProviderRequest) (ChipsetProvider, string, error) {
+	var body struct {
+		Provider    ChipsetProvider `json:"provider"`
+		AuditResult string          `json:"audit_result"`
+	}
+	err := c.doJSONWithIdempotency(ctx, http.MethodPatch, "/v1/admin/chipset-providers/"+url.PathEscape(providerID), accessToken, idempotencyKey, request, &body)
+	return body.Provider, body.AuditResult, err
+}
+
+func (c *Client) ActOnChipsetProvider(ctx context.Context, accessToken, providerID, action, idempotencyKey string) (ChipsetProvider, string, error) {
+	var body struct {
+		Provider    ChipsetProvider `json:"provider"`
+		AuditResult string          `json:"audit_result"`
+	}
+	path := "/v1/admin/chipset-providers/" + url.PathEscape(providerID) + "/" + url.PathEscape(action)
+	err := c.doJSONWithIdempotency(ctx, http.MethodPost, path, accessToken, idempotencyKey, nil, &body)
+	return body.Provider, body.AuditResult, err
+}
+
+func (c *Client) DeveloperChipsets(ctx context.Context, accessToken string) ([]DeveloperChipset, error) {
+	var body struct {
+		Chipsets []DeveloperChipset `json:"chipsets"`
+	}
+	err := c.doJSON(ctx, http.MethodGet, "/v1/developer/chipsets", accessToken, nil, &body)
+	return body.Chipsets, err
+}
+
+func (c *Client) DeveloperChipset(ctx context.Context, accessToken, chipsetID string) (DeveloperChipset, error) {
+	var body struct {
+		Chipset DeveloperChipset `json:"chipset"`
+	}
+	err := c.doJSON(ctx, http.MethodGet, "/v1/developer/chipsets/"+url.PathEscape(chipsetID), accessToken, nil, &body)
+	return body.Chipset, err
+}
+
 func (c *Client) StartSSO(ctx context.Context, req SSOStartRequest) (SSOStartResult, error) {
 	var out SSOStartResult
 	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/sso/start", "", req, &out)
@@ -521,6 +649,120 @@ func (c *Client) Organizations(ctx context.Context, accessToken string) ([]Organ
 		return nil, err
 	}
 	return body.Organizations, nil
+}
+
+func (c *Client) DeveloperBrandClouds(ctx context.Context, accessToken string, query url.Values) ([]BrandCloud, Pagination, int, error) {
+	var body struct {
+		BrandClouds         []BrandCloud `json:"brand_clouds"`
+		Pagination          Pagination   `json:"pagination"`
+		DeveloperCloudLimit int          `json:"developer_cloud_limit"`
+	}
+	path := "/v1/developer/brand-clouds"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, Pagination{}, 0, err
+	}
+	return body.BrandClouds, body.Pagination, body.DeveloperCloudLimit, nil
+}
+
+func (c *Client) DeveloperBrandCloud(ctx context.Context, accessToken, brandCloudID string) (BrandCloud, Member, error) {
+	var body struct {
+		BrandCloud BrandCloud `json:"brand_cloud"`
+		Membership Member     `json:"membership"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID)
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return BrandCloud{}, Member{}, err
+	}
+	return body.BrandCloud, body.Membership, nil
+}
+
+func (c *Client) DeveloperBrandCloudMembers(ctx context.Context, accessToken, brandCloudID string, query url.Values) ([]Member, Pagination, error) {
+	var body struct {
+		Members    []Member   `json:"members"`
+		Pagination Pagination `json:"pagination"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, Pagination{}, err
+	}
+	return body.Members, body.Pagination, nil
+}
+
+func (c *Client) InviteDeveloperBrandCloudMember(ctx context.Context, accessToken, brandCloudID, email, role string) (Member, error) {
+	var body struct {
+		Member Member `json:"member"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/invitations"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{"email": email, "role": role}, &body)
+	return body.Member, err
+}
+
+func (c *Client) UpdateDeveloperBrandCloudMember(ctx context.Context, accessToken, brandCloudID, userID, role string) (Member, error) {
+	var body struct {
+		Member Member `json:"member"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/" + url.PathEscape(userID)
+	err := c.doJSON(ctx, http.MethodPatch, path, accessToken, map[string]string{"role": role}, &body)
+	return body.Member, err
+}
+
+func (c *Client) RemoveDeveloperBrandCloudMember(ctx context.Context, accessToken, brandCloudID, userID string) error {
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/" + url.PathEscape(userID)
+	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)
+}
+
+func (c *Client) SetDeveloperBrandCloudMemberStatus(ctx context.Context, accessToken, brandCloudID, userID string, enabled bool) (Member, error) {
+	var body struct {
+		Member Member `json:"member"`
+	}
+	action := "disable"
+	if enabled {
+		action = "enable"
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/" + url.PathEscape(userID) + "/" + action
+	err := c.doJSON(ctx, http.MethodPatch, path, accessToken, nil, &body)
+	return body.Member, err
+}
+
+func (c *Client) RequestDeveloperOwnerTransfer(ctx context.Context, accessToken, brandCloudID, targetEmail string) (OwnerTransfer, error) {
+	var body struct {
+		OwnerTransfer OwnerTransfer `json:"owner_transfer"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/owner-transfer"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{"target_email": targetEmail}, &body)
+	return body.OwnerTransfer, err
+}
+
+func (c *Client) DeveloperOwnerTransfer(ctx context.Context, accessToken, brandCloudID, transferID string) (OwnerTransfer, error) {
+	var body struct {
+		OwnerTransfer OwnerTransfer `json:"owner_transfer"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/owner-transfer/" + url.PathEscape(transferID)
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body.OwnerTransfer, err
+}
+
+func (c *Client) CancelDeveloperOwnerTransfer(ctx context.Context, accessToken, brandCloudID, transferID string) (OwnerTransfer, error) {
+	var body struct {
+		OwnerTransfer OwnerTransfer `json:"owner_transfer"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/owner-transfer/" + url.PathEscape(transferID) + "/cancel"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, nil, &body)
+	return body.OwnerTransfer, err
+}
+
+func (c *Client) AcceptDeveloperOwnerTransfer(ctx context.Context, accessToken, token string) (OwnerTransfer, error) {
+	var body struct {
+		OwnerTransfer OwnerTransfer `json:"owner_transfer"`
+	}
+	err := c.doJSON(ctx, http.MethodPost, "/v1/developer/brand-cloud-owner-transfers/accept", accessToken, map[string]string{"token": token}, &body)
+	return body.OwnerTransfer, err
 }
 
 func (c *Client) AdminOrganizations(ctx context.Context, accessToken string) ([]Organization, error) {
@@ -983,6 +1225,52 @@ func (c *Client) Health(ctx context.Context) error {
 func (c *Client) doJSON(ctx context.Context, method, path, token string, in any, out any) error {
 	_, err := c.doJSONStatus(ctx, method, path, token, in, out)
 	return err
+}
+
+func (c *Client) doJSONWithIdempotency(ctx context.Context, method, path, token, key string, in any, out any) error {
+	return c.doJSONHeaders(ctx, method, path, token, in, out, map[string]string{"Idempotency-Key": key})
+}
+
+func (c *Client) doJSONHeaders(ctx context.Context, method, path, token string, in any, out any, headers map[string]string) error {
+	if !c.Enabled() {
+		return fmt.Errorf("account manager base URL is not configured")
+	}
+	var body io.Reader
+	if in != nil {
+		data, err := json.Marshal(in)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewReader(data)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	if in != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
+	correlation.ApplyHeaders(ctx, req)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		raw, _ := io.ReadAll(resp.Body)
+		return &HTTPError{Method: method, Path: path, StatusCode: resp.StatusCode, Body: strings.TrimSpace(string(raw))}
+	}
+	if out == nil {
+		return nil
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
 }
 
 func (c *Client) doJSONStatus(ctx context.Context, method, path, token string, in any, out any) (int, error) {

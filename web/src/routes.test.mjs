@@ -5,9 +5,11 @@ import {
   devicesPathWithFilters,
   isPlatformRouteId,
   isPublicRouteId,
+  navItemsForCapabilities,
   navItemsForRoute,
   platformNavItems,
   routeFromPath,
+  cloudIdFromPath,
   titleFor,
 } from './routes.mjs';
 
@@ -18,6 +20,7 @@ test('maps platform shell paths to platform routes', () => {
   assert.equal(routeFromPath('/admin/health'), 'platform-health');
   assert.equal(routeFromPath('/admin/brand-clouds'), 'platform-brand-clouds');
   assert.equal(routeFromPath('/admin/brand-clouds/brand-001'), 'platform-brand-clouds');
+  assert.equal(routeFromPath('/admin/chipset-providers'), 'platform-chipset-providers');
   assert.equal(routeFromPath('/admin/sso'), 'platform-sso');
   assert.equal(routeFromPath('/admin/logs'), 'platform-logs');
   assert.equal(routeFromPath('/admin/ops'), 'platform-operations');
@@ -43,7 +46,10 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console'), 'overview');
   assert.equal(routeFromPath('/console/overview'), 'overview');
   assert.equal(routeFromPath('/console/devices'), 'devices');
+  assert.equal(routeFromPath('/console/cloud-123/devices'), 'devices');
+  assert.equal(cloudIdFromPath('/console/cloud-123/devices'), 'cloud-123');
   assert.equal(routeFromPath('/console/sku-services'), 'sku-services');
+  assert.equal(routeFromPath('/console/chipset-sdk'), 'chipset-sdk');
   assert.equal(routeFromPath('/console/customers'), 'overview');
   assert.equal(routeFromPath('/console/operations'), 'overview');
   assert.equal(routeFromPath('/console/operations/history'), 'overview');
@@ -59,8 +65,19 @@ test('maps customer shell paths to customer routes', () => {
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['設備總覽', '設備', 'SKU 與服務', '群組與標籤', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表'],
+    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '群組與標籤', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表', '設備註冊'],
   );
+});
+
+test('customer nav is derived from active membership capabilities', () => {
+  const labels = navItemsForCapabilities('overview', [
+    'fleet.read',
+    'customer.devices.read',
+    'customer.stream.read',
+  ]).map((item) => item.label);
+  assert.deepEqual(labels, ['設備總覽', '設備', 'ChipSet & SDK', '群組與標籤', '影像播放狀況', '批次工作']);
+  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), true);
+  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'sku-services'), false);
 });
 
 test('retired customer pages are not exposed in section navigation', () => {
@@ -77,11 +94,11 @@ test('retired customer pages are not exposed in section navigation', () => {
 test('platform nav follows the Platform Dashboard landing order', () => {
   assert.deepEqual(
     platformNavItems.map((item) => item.label),
-    ['Platform Dashboard', 'Grafana', 'Service Health', 'Brand Clouds', 'SSO Providers', 'Service Logs', 'Operations Log', 'Audit Log'],
+    ['Platform Dashboard', 'Grafana', 'Service Health', 'Brand Clouds', 'ChipSet & SDK Providers', 'SSO Providers', 'Service Logs', 'Operations Log', 'Audit Log'],
   );
   assert.deepEqual(
     platformNavItems.map((item) => item.path),
-    ['/admin', '/admin/grafana', '/admin/health', '/admin/brand-clouds', '/admin/sso', '/admin/logs', '/admin/ops', '/admin/audit'],
+    ['/admin', '/admin/grafana', '/admin/health', '/admin/brand-clouds', '/admin/chipset-providers', '/admin/sso', '/admin/logs', '/admin/ops', '/admin/audit'],
   );
 });
 

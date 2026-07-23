@@ -98,6 +98,7 @@ type FleetSummary struct {
 
 type BatchJob struct {
 	ID             string           `json:"id"`
+	IdempotencyKey string           `json:"idempotency_key,omitempty"`
 	Type           string           `json:"type"`
 	Name           string           `json:"name"`
 	OrganizationID string           `json:"organization_id"`
@@ -111,6 +112,40 @@ type BatchJob struct {
 	CreatedAt      string           `json:"created_at"`
 	UpdatedAt      string           `json:"updated_at"`
 	Result         []map[string]any `json:"result,omitempty"`
+	Retryable      bool             `json:"retryable"`
+	ResultMetadata map[string]any   `json:"result_metadata,omitempty"`
+	ExpiresAt      string           `json:"expires_at,omitempty"`
+	FailureReason  string           `json:"failure_reason,omitempty"`
+}
+
+type ProvisioningSource struct {
+	ID             string   `json:"id"`
+	OrganizationID string   `json:"organization_id"`
+	SKU            string   `json:"sku_id"`
+	ProductionRun  string   `json:"production_run,omitempty"`
+	Filename       string   `json:"filename"`
+	Checksum       string   `json:"checksum"`
+	RowCount       int      `json:"row_count"`
+	CreatedAt      string   `json:"created_at"`
+	ExpiresAt      string   `json:"expires_at"`
+	DeviceIDs      []string `json:"-"`
+}
+
+type BatchJobQuery struct {
+	Limit     int
+	Offset    int
+	State     string
+	Type      string
+	CreatedBy string
+	From      string
+	To        string
+}
+
+type BatchJobPage struct {
+	Jobs   []BatchJob `json:"jobs"`
+	Total  int        `json:"total"`
+	Limit  int        `json:"limit"`
+	Offset int        `json:"offset"`
 }
 
 type SourceFact struct {
