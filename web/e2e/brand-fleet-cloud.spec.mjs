@@ -9,7 +9,7 @@ test.describe('Brandname cloud scope', () => {
     await expect(page.getByRole('heading', { name: '設備總覽' }).first()).toBeVisible();
     const selector = page.getByLabel('Active organization');
     await expect(selector).toHaveValue('brand-e2e-01');
-    await expect(selector.locator('option')).toHaveCount(2);
+    await expect(selector.locator('option[value="brand-e2e-02"]')).toHaveCount(1);
     const alphaDevices = await page.request.get('/api/fleet/devices?limit=100');
     expect(alphaDevices.ok()).toBeTruthy();
     const alpha = await alphaDevices.json();

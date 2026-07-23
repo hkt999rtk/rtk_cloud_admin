@@ -12,6 +12,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  snapshotPathTemplate: '{testDir}/{testFilePath}-snapshots/{arg}-{projectName}-{platform}{ext}',
   reporter: [
     ['html', { outputFolder: path.join(runDir, 'playwright-report', phase), open: 'never' }],
     ['./scripts/test-evidence-reporter.mjs'],
