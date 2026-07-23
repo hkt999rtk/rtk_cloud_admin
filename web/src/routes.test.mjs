@@ -5,9 +5,11 @@ import {
   devicesPathWithFilters,
   isPlatformRouteId,
   isPublicRouteId,
+  navItemsForCapabilities,
   navItemsForRoute,
   platformNavItems,
   routeFromPath,
+  cloudIdFromPath,
   titleFor,
 } from './routes.mjs';
 
@@ -44,6 +46,8 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console'), 'overview');
   assert.equal(routeFromPath('/console/overview'), 'overview');
   assert.equal(routeFromPath('/console/devices'), 'devices');
+  assert.equal(routeFromPath('/console/cloud-123/devices'), 'devices');
+  assert.equal(cloudIdFromPath('/console/cloud-123/devices'), 'cloud-123');
   assert.equal(routeFromPath('/console/sku-services'), 'sku-services');
   assert.equal(routeFromPath('/console/chipset-sdk'), 'chipset-sdk');
   assert.equal(routeFromPath('/console/customers'), 'overview');
@@ -61,8 +65,19 @@ test('maps customer shell paths to customer routes', () => {
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '群組與標籤', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表'],
+    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '群組與標籤', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表', '設備註冊'],
   );
+});
+
+test('customer nav is derived from active membership capabilities', () => {
+  const labels = navItemsForCapabilities('overview', [
+    'fleet.read',
+    'customer.devices.read',
+    'customer.stream.read',
+  ]).map((item) => item.label);
+  assert.deepEqual(labels, ['設備總覽', '設備', 'ChipSet & SDK', '群組與標籤', '影像播放狀況', '批次工作']);
+  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), true);
+  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'sku-services'), false);
 });
 
 test('retired customer pages are not exposed in section navigation', () => {

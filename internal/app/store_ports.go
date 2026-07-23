@@ -38,12 +38,20 @@ type lifecycleOperationStore interface {
 
 type batchJobStore interface {
 	CreateBatchJob(job contracts.BatchJob) (contracts.BatchJob, error)
+	GetBatchJobByIdempotency(organizationID, key string) (contracts.BatchJob, error)
 	ListBatchJobs(organizationID string, limit int) ([]contracts.BatchJob, error)
+	ListBatchJobsPage(organizationID string, query contracts.BatchJobQuery) (contracts.BatchJobPage, error)
 	GetBatchJob(organizationID, id string) (contracts.BatchJob, error)
 	UpdateBatchJobState(organizationID, id, state string) (contracts.BatchJob, error)
 	UpdateBatchJobProgress(organizationID, id, state string, completed, failed, skipped int) (contracts.BatchJob, error)
 	UpdateBatchJobScope(organizationID, id string, scope map[string]any) (contracts.BatchJob, error)
 	UpdateBatchJobResult(organizationID, id string, result []map[string]any) (contracts.BatchJob, error)
+}
+
+type provisioningSourceStore interface {
+	CreateProvisioningSource(source contracts.ProvisioningSource, idempotencyKey string) (contracts.ProvisioningSource, error)
+	GetProvisioningSource(organizationID, id string) (contracts.ProvisioningSource, error)
+	GetProvisioningSourceByIdempotency(organizationID, key string) (contracts.ProvisioningSource, error)
 }
 
 var (
@@ -52,4 +60,5 @@ var (
 	_ projectionStore         = (*store.Store)(nil)
 	_ lifecycleOperationStore = (*store.Store)(nil)
 	_ batchJobStore           = (*store.Store)(nil)
+	_ provisioningSourceStore = (*store.Store)(nil)
 )

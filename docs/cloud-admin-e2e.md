@@ -18,6 +18,11 @@ npm run e2e:chipset-sdk
 npm run e2e:chipset-sdk:errors
 npm run e2e
 npm run e2e:report
+npm run e2e:brand-fleet:smoke
+npm run e2e:brand-fleet
+npm run e2e:brand-fleet:full
+npm run e2e:brand-fleet:errors
+npm run e2e:brand-fleet:expired
 ```
 
 The fixture generator reuses `loadtests/home-100k`'s `BrandPlan` validation,
@@ -61,3 +66,45 @@ require `E2E_ALLOW_MUTATIONS=true` and a disposable Brand Cloud.
 Large load profiles are not run by PR E2E. Use the existing `video-1k` profile
 before staging Browser validation when real metrics and operation activity are
 required.
+
+## Brandname Developer Fleet
+
+Brandname customer flows use the same real Go BFF harness with customer-role
+fixture identities. The suite covers cloud switching, cross-cloud isolation,
+Developer / Release, Operations and Observer capabilities, server-side device
+pagination, OTA immutable scope preview, batch jobs, reports, provisioning,
+team membership and owner transfer.
+
+Local identities are `developer@example.com`, `operations@example.com`,
+`observer@example.com`, and `customer@example.com`; their passwords are only
+fixture credentials used by Playwright. Run the focused suite with:
+
+```sh
+npm run e2e:brand-fleet:smoke
+npm run e2e:brand-fleet
+```
+
+Staging is read-only and requires `E2E_BRAND_CLOUD_ID` plus
+`E2E_CUSTOMER_SESSION_ID`:
+
+```sh
+npm run e2e:brand-fleet:staging
+```
+
+The local suite never trusts mockup totals or browser-supplied cloud scope; it
+asserts the BFF request/response contract and polls real local job state.
+
+The expanded suite separates deterministic failure modes from the normal run:
+
+```sh
+E2E_SCENARIO_MODE=partial_failure npx playwright test e2e/brand-fleet-lifecycle.spec.mjs --grep @full
+E2E_SCENARIO_MODE=slow npx playwright test e2e/brand-fleet-lifecycle.spec.mjs --grep @full
+E2E_SCENARIO_MODE=unavailable npm run e2e:brand-fleet:errors
+E2E_RESULT_EXPIRED=true npm run e2e:brand-fleet:expired
+```
+
+The fixture exposes an internal `/__e2e__/state` endpoint for request and
+mutation diagnostics only; it is not registered by the Go BFF and is never
+available through a production customer route. `E2E_RESULT_EXPIRED=true` is a
+test-only store switch used to verify the customer-safe `410` expired-result
+contract.

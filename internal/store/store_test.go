@@ -100,16 +100,30 @@ func TestBatchJobsPersistByOrganizationAndCanRetry(t *testing.T) {
 	if err := st.Migrate(); err != nil {
 		t.Fatal(err)
 	}
-	job, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "org-a", Type: "report_export", Name: "設備報表", CreatedBy: "ops@example.com", Scope: map[string]any{"sku_id": "sku-1"}, Total: 42})
+	job, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "org-a", Type: "report_export", Name: "設備報表", CreatedBy: "ops@example.com", Scope: map[string]any{"sku_id": "sku-1"}, Total: 42, IdempotencyKey: "report-key-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if job.State != "queued" || job.ID == "" {
 		t.Fatalf("unexpected created job: %+v", job)
 	}
+	replayed, err := st.GetBatchJobByIdempotency("org-a", "report-key-1")
+	if err != nil || replayed.ID != job.ID {
+		t.Fatalf("unexpected idempotency lookup: %+v, %v", replayed, err)
+	}
+	if _, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "org-a", Type: "report_export", Name: "重複報表", CreatedBy: "ops@example.com", Scope: map[string]any{}, IdempotencyKey: "report-key-1"}); err == nil {
+		t.Fatal("expected duplicate idempotency key to fail")
+	}
 	listed, err := st.ListBatchJobs("org-a", 10)
 	if err != nil || len(listed) != 1 || listed[0].Scope["sku_id"] != "sku-1" {
 		t.Fatalf("unexpected job list: %+v, %v", listed, err)
+	}
+	if _, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "org-a", Type: "device_provision", Name: "Provision", CreatedBy: "release@example.com", Scope: map[string]any{}, State: "failed"}); err != nil {
+		t.Fatal(err)
+	}
+	page, err := st.ListBatchJobsPage("org-a", contracts.BatchJobQuery{Limit: 1, State: "failed", CreatedBy: "release@example.com"})
+	if err != nil || page.Total != 1 || len(page.Jobs) != 1 || page.Jobs[0].Type != "device_provision" {
+		t.Fatalf("unexpected filtered job page: %+v, %v", page, err)
 	}
 	if _, err := st.UpdateBatchJobState("org-a", job.ID, "running"); err != nil {
 		t.Fatal(err)
@@ -562,5 +576,46 @@ func TestCreateUpstreamLifecycleOperationPersistsProjection(t *testing.T) {
 
 	if !strings.Contains(recorded.Message, "accepted") {
 		t.Fatalf("message = %q", recorded.Message)
+	}
+}
+
+func TestProvisioningSourcePersistenceAndIdempotency(t *testing.T) {
+	t.Parallel()
+	st, err := Open(t.TempDir() + "/sources.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	want := contracts.ProvisioningSource{
+		OrganizationID: "org-acme",
+		SKU:            "sku-home-hub",
+		Filename:       "devices.csv",
+		Checksum:       "sha256:abc",
+		RowCount:       2,
+		DeviceIDs:      []string{"dev-001", "dev-002"},
+	}
+	created, err := st.CreateProvisioningSource(want, "source-key-1")
+	if err != nil {
+		t.Fatalf("CreateProvisioningSource returned error: %v", err)
+	}
+	if created.ID == "" || created.ExpiresAt == "" {
+		t.Fatalf("created source missing identity/expiry: %#v", created)
+	}
+	byID, err := st.GetProvisioningSource("org-acme", created.ID)
+	if err != nil {
+		t.Fatalf("GetProvisioningSource returned error: %v", err)
+	}
+	if strings.Join(byID.DeviceIDs, ",") != "dev-001,dev-002" || byID.Checksum != want.Checksum {
+		t.Fatalf("stored source = %#v", byID)
+	}
+	byKey, err := st.GetProvisioningSourceByIdempotency("org-acme", "source-key-1")
+	if err != nil || byKey.ID != created.ID {
+		t.Fatalf("idempotent source lookup = %#v, err=%v", byKey, err)
+	}
+	if _, err := st.CreateProvisioningSource(want, "source-key-1"); err == nil {
+		t.Fatal("expected duplicate source idempotency key to fail")
 	}
 }

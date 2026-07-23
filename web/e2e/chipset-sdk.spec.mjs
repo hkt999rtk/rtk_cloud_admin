@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { login } from './fixtures/session.mjs';
 
-test('provider page exposes loading and validation states @chipset-sdk', async ({ page }) => {
+test('[UI-CA-CHIPSET-001] provider page exposes loading and validation states @chipset-sdk', async ({ page }) => {
   await login(page, 'platform_admin');
   let releaseProviders;
   const providersReady = new Promise((resolve) => { releaseProviders = resolve; });
@@ -23,7 +23,7 @@ test('provider page exposes loading and validation states @chipset-sdk', async (
   await expect(page.getByText('Provider host is not allowed')).toBeVisible();
 });
 
-test('read-only provider capability hides mutation controls @chipset-sdk', async ({ page }) => {
+test('[UI-CA-CHIPSET-002] read-only provider capability hides mutation controls @chipset-sdk', async ({ page }) => {
   await login(page, 'platform_reader');
   await page.route('**/api/admin/chipset-providers', async (route) => {
     if (route.request().method() !== 'GET') return route.continue();
@@ -35,7 +35,7 @@ test('read-only provider capability hides mutation controls @chipset-sdk', async
   await expect(page.getByRole('button', { name: /新增 Provider|編輯|發布|下架|刷新/ })).toHaveCount(0);
 });
 
-test('provider and developer pages expose upstream unavailable states @chipset-sdk @errors', async ({ page }) => {
+test('[UI-CA-CHIPSET-003] provider and developer pages expose upstream unavailable states @chipset-sdk @errors', async ({ page }) => {
   test.skip(process.env.E2E_SCENARIO_MODE !== 'unavailable', 'requires unavailable fixture mode');
   const baseResponses = new Map([
     ['/api/admin/summary', {}], ['/api/admin/customers', []], ['/api/admin/devices', []], ['/api/admin/operations', []],
@@ -57,7 +57,7 @@ test('provider and developer pages expose upstream unavailable states @chipset-s
   await expect(page.getByRole('heading', { name: '資源暫時無法取得' })).toBeVisible();
 });
 
-test('provider publish, refresh, stale fallback, and unpublish flow @chipset-sdk @smoke', async ({ page }) => {
+test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpublish flow @chipset-sdk @smoke', async ({ page }) => {
   const shellResponses = new Map([
     ['/api/admin/summary', {}], ['/api/admin/customers', []], ['/api/admin/devices', []],
     ['/api/admin/operations', []], ['/api/admin/service-health', []], ['/api/admin/audit', []],

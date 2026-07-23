@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { enterPlatform, login } from './fixtures/session.mjs';
 
-test('platform admin can inspect recent service-log incident context', async ({ page }) => {
+test('[UI-CA-LOGS-001] platform admin can inspect recent service-log incident context', async ({ page }) => {
   await login(page, 'platform_admin');
   await enterPlatform(page);
   await page.goto('/admin/logs');

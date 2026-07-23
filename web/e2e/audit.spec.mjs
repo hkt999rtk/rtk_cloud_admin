@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { enterPlatform, login } from './fixtures/session.mjs';
 
-test('platform admin can review local audit records after a Brand Cloud action', async ({ page }) => {
+test('[UI-CA-AUDIT-001] platform admin can review local audit records after a Brand Cloud action', async ({ page }) => {
   await login(page, 'platform_admin');
   await enterPlatform(page);
   await page.getByRole('button', { name: 'Brand Clouds', exact: true }).click();

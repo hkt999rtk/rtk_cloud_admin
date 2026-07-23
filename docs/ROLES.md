@@ -148,6 +148,12 @@ deactivation, health monitoring, OTA tracking, stream health.
 
 ### Brand Fleet Developer / Release Manager
 
+The display label is not an authorization primitive. The active Brand Cloud
+membership returns capabilities; a developer may switch among memberships in
+one global session without re-authentication. `team.manage` controls Brand
+Cloud team membership, while Platform Admin Brand Cloud management remains in
+the `/api/admin/*` namespace.
+
 This is a Tier 2 brand-cloud role focused on product and release configuration.
 It manages SKU and product/device profiles, enabled service capabilities,
 production runs, device and firmware policies, firmware releases, OTA target
@@ -164,6 +170,30 @@ provisioning status review, groups and tags, batch work, health triage, and
 pausing, resuming, cancelling, or retrying existing update plans. It does not
 edit SKU service policy, firmware artifacts, or release metadata unless
 explicitly granted the developer capability.
+
+### Capability contract
+
+The active membership must project these machine-readable capabilities. Display
+roles are only labels:
+
+| Surface | Read | Write |
+|---|---|---|
+| Fleet/devices | `fleet.read` | `fleet.device.manage`, `fleet.batch.manage` |
+| SKU | `sku.read` | `sku.manage`, `sku.policy.manage` |
+| Firmware release | `firmware.release.read` | `firmware.release.manage` |
+| OTA plan | `ota.plan.read` | `ota.plan.manage` |
+| Reports | `reports.read` | `reports.create` |
+| Team | `team.read` | `team.manage` |
+| Provisioning | `provisioning.read` | `provisioning.create` |
+
+Every BFF write route checks the smallest applicable capability and then
+enforces the SKU, group, region, or device resource scope. The UI may hide
+actions for usability, but it is never the authorization boundary.
+
+All OTA, batch, report, and provisioning writes also require a server-side
+immutable scope. A client-provided `total`, tenant ID, or scope hash is never
+trusted. OTA preview, provisioning source upload, validation, execution, retry,
+and result download are separate operations and are audited independently.
 
 ---
 
@@ -265,16 +295,22 @@ the distinction is write actions only, not field visibility.
 The following role-related features are intentionally deferred:
 
 - Tenant impersonation for Tier 1 Platform Admin
-- Role assignment UI
+- Platform-wide role-assignment UI; Developer Brand Cloud team/member management
+  is in scope through the `/api/developer/*` namespace.
 
 ## ChipSet and SDK Catalog Capabilities
 
 The provider catalog uses three independent platform capabilities:
 
-- `platform.chipset_sdk.read`: inspect providers, normalized previews, and synchronization status.
-- `platform.chipset_sdk.edit`: create drafts and update provider names or manifest URLs.
-- `platform.chipset_sdk.publish`: publish, unpublish, and manually refresh a provider; this does not imply edit access.
+- `platform.chipset_sdk.read`: inspect providers, normalized previews, and
+  synchronization status.
+- `platform.chipset_sdk.edit`: create drafts and update provider names or
+  manifest URLs.
+- `platform.chipset_sdk.publish`: publish, unpublish, and manually refresh a
+  provider; this does not imply edit access.
 
 All authenticated developer sessions may read published normalized ChipSet and
 SDK resources. Developer responses exclude provider URLs, raw manifests,
-validation diagnostics, and administrative audit data.
+validation diagnostics, and administrative audit data. UI visibility is a
+usability aid; Cloud Admin BFF and Account Manager remain the authorization
+enforcement points.

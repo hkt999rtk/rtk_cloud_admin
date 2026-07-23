@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/csv"
 	"encoding/json"
@@ -41,6 +42,7 @@ type Server struct {
 	projections         projectionStore
 	lifecycleOperations lifecycleOperationStore
 	jobs                batchJobStore
+	sources             provisioningSourceStore
 	mux                 *http.ServeMux
 	handler             http.Handler
 	cfg                 config.Config
@@ -94,6 +96,7 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 		projections:         st,
 		lifecycleOperations: st,
 		jobs:                st,
+		sources:             st,
 		mux:                 http.NewServeMux(),
 		cfg:                 opts.Config,
 		accountClient:       opts.AccountClient,
@@ -248,6 +251,19 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/grafana/", s.apiAdminGrafanaProxy)
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds", s.apiDeveloperBrandClouds)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}", s.apiDeveloperBrandCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members", s.apiDeveloperBrandCloudMembers)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiDeveloperBrandCloudInvitation)
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiDeveloperBrandCloudMember)
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/members/{userID}/{action}", s.apiDeveloperBrandCloudMemberAction)
+	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiDeveloperBrandCloudMember)
+	s.mux.HandleFunc("GET /api/developer/chipsets", s.apiDeveloperChipsets)
+	s.mux.HandleFunc("GET /api/developer/chipsets/{chipsetId}", s.apiDeveloperChipset)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer", s.apiDeveloperOwnerTransfer)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}", s.apiDeveloperOwnerTransfer)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel", s.apiDeveloperOwnerTransfer)
+	s.mux.HandleFunc("POST /api/developer/brand-cloud-owner-transfers/accept", s.apiDeveloperOwnerTransferAccept)
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
 	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
 	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
@@ -260,8 +276,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/auth/sso/callback", s.apiSSOCallback)
 	s.mux.HandleFunc("POST /api/auth/platform/login", s.apiPlatformLogin)
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
-	s.mux.HandleFunc("GET /api/developer/chipsets", s.apiDeveloperChipsets)
-	s.mux.HandleFunc("GET /api/developer/chipsets/{chipsetId}", s.apiDeveloperChipset)
 	s.mux.HandleFunc("POST /api/orgs/{orgId}/quota-raise-requests", s.apiQuotaRaiseRequest)
 	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
@@ -283,7 +297,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/jobs", s.apiJobs)
 	s.mux.HandleFunc("GET /api/jobs/{id}", s.apiJob)
 	s.mux.HandleFunc("POST /api/jobs/{id}/retry", s.apiJobRetry)
+	s.mux.HandleFunc("POST /api/jobs/{id}/{action}", s.apiJobAction)
 	s.mux.HandleFunc("GET /api/jobs/{id}/result", s.apiJobResult)
+	s.mux.HandleFunc("POST /api/provisioning/validate", s.apiProvisioningValidate)
+	s.mux.HandleFunc("POST /api/provisioning/sources", s.apiProvisioningSource)
+	s.mux.HandleFunc("POST /api/provisioning/jobs", s.apiProvisioningJob)
 	s.mux.HandleFunc("GET /api/reports", s.apiReports)
 	s.mux.HandleFunc("POST /api/reports", s.apiReports)
 	s.mux.HandleFunc("GET /api/reports/{id}", s.apiReport)
@@ -327,6 +345,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/ota/", s.apiSKUOTA)
 	s.mux.HandleFunc("GET /api/update-plans", s.apiUpdatePlans)
 	s.mux.HandleFunc("POST /api/update-plans", s.apiUpdatePlans)
+	s.mux.HandleFunc("POST /api/update-plans/scope-preview", s.apiUpdatePlanScopePreview)
 	s.mux.HandleFunc("GET /api/update-plans/{id}", s.apiUpdatePlans)
 	s.mux.HandleFunc("POST /api/update-plans/{id}/{action}", s.apiUpdatePlans)
 	s.mux.HandleFunc("GET /api/operations", s.apiOperations)
@@ -358,6 +377,7 @@ func (s *Server) routes() {
 		"/console/chipset-sdk",
 		"/console/jobs",
 		"/console/reports",
+		"/console/provisioning",
 		"/console/groups",
 		"/console/customers",
 		"/console/operations",
@@ -375,6 +395,7 @@ func (s *Server) routes() {
 	} {
 		s.mux.HandleFunc("GET "+path, s.shell)
 	}
+	s.mux.HandleFunc("GET /console/", s.shell)
 }
 
 const (
@@ -388,6 +409,22 @@ const (
 	capabilityCustomerFirmwareRead      = "customer.firmware.read"
 	capabilityCustomerFirmwareManage    = "customer.firmware.manage"
 	capabilityCustomerStreamRead        = "customer.stream.read"
+	capabilityFleetRead                 = "fleet.read"
+	capabilityFleetDeviceManage         = "fleet.device.manage"
+	capabilityFleetBatchManage          = "fleet.batch.manage"
+	capabilitySKURead                   = "sku.read"
+	capabilitySKUManage                 = "sku.manage"
+	capabilitySKUPolicyManage           = "sku.policy.manage"
+	capabilityFirmwareReleaseRead       = "firmware.release.read"
+	capabilityFirmwareReleaseManage     = "firmware.release.manage"
+	capabilityOTAPlanRead               = "ota.plan.read"
+	capabilityOTAPlanManage             = "ota.plan.manage"
+	capabilityReportsRead               = "reports.read"
+	capabilityReportsCreate             = "reports.create"
+	capabilityTeamRead                  = "team.read"
+	capabilityTeamManage                = "team.manage"
+	capabilityProvisioningRead          = "provisioning.read"
+	capabilityProvisioningCreate        = "provisioning.create"
 	capabilityPlatformAuditRead         = "platform.audit.read"
 	capabilityPlatformSSOManage         = "platform.sso.manage"
 )
@@ -631,6 +668,193 @@ func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"active_org_id": body.OrganizationID})
+}
+
+func (s *Server) apiDeveloperBrandClouds(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "developer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		writeJSON(w, map[string]any{"brand_clouds": []accountclient.BrandCloud{}, "pagination": accountclient.Pagination{}, "source_status": "unconfigured"})
+		return
+	}
+	clouds, page, cloudLimit, err := s.accountClient.DeveloperBrandClouds(r.Context(), session.AccessToken, r.URL.Query())
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"brand_clouds": clouds, "pagination": page, "developer_cloud_limit": cloudLimit, "source_status": "available"})
+}
+
+func (s *Server) apiDeveloperBrandCloud(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "developer authentication required", http.StatusUnauthorized)
+		return
+	}
+	cloud, membership, err := s.accountClient.DeveloperBrandCloud(r.Context(), session.AccessToken, r.PathValue("brandCloudID"))
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"brand_cloud": cloud, "membership": membership, "source_status": "available"})
+}
+
+func (s *Server) apiDeveloperBrandCloudMembers(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "developer authentication required", http.StatusUnauthorized)
+		return
+	}
+	members, page, err := s.accountClient.DeveloperBrandCloudMembers(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.URL.Query())
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"members": members, "pagination": page, "source_status": "available"})
+}
+
+func (s *Server) apiDeveloperBrandCloudInvitation(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "developer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if _, keyOK := requireIdempotencyKey(w, r); !keyOK {
+		return
+	}
+	var body struct {
+		Email string `json:"email"`
+		Role  string `json:"role"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || strings.TrimSpace(body.Email) == "" || strings.TrimSpace(body.Role) == "" {
+		http.Error(w, "invalid invitation request", http.StatusBadRequest)
+		return
+	}
+	member, err := s.accountClient.InviteDeveloperBrandCloudMember(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), strings.TrimSpace(body.Email), strings.TrimSpace(body.Role))
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusAccepted, map[string]any{"member": member, "source_status": "available"})
+}
+
+func (s *Server) apiDeveloperBrandCloudMember(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "developer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if _, keyOK := requireIdempotencyKey(w, r); !keyOK {
+		return
+	}
+	var err error
+	if r.Method == http.MethodPatch {
+		var body struct {
+			Role string `json:"role"`
+		}
+		if decodeErr := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); decodeErr != nil || strings.TrimSpace(body.Role) == "" {
+			http.Error(w, "invalid member request", http.StatusBadRequest)
+			return
+		}
+		var member accountclient.Member
+		member, err = s.accountClient.UpdateDeveloperBrandCloudMember(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.PathValue("userID"), body.Role)
+		if err == nil {
+			writeJSON(w, map[string]any{"member": member, "source_status": "available"})
+		}
+	} else {
+		err = s.accountClient.RemoveDeveloperBrandCloudMember(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.PathValue("userID"))
+		if err == nil {
+			w.WriteHeader(http.StatusNoContent)
+		}
+	}
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+	}
+}
+
+func (s *Server) apiDeveloperBrandCloudMemberAction(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "developer authentication required", http.StatusUnauthorized)
+		return
+	}
+	_, ok = requireIdempotencyKey(w, r)
+	if !ok {
+		return
+	}
+	member, err := s.accountClient.SetDeveloperBrandCloudMemberStatus(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.PathValue("userID"), r.PathValue("action") == "enable")
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"member": member, "source_status": "available"})
+}
+
+func (s *Server) apiDeveloperOwnerTransfer(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "developer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if r.Method != http.MethodGet {
+		if _, ok := requireIdempotencyKey(w, r); !ok {
+			return
+		}
+	}
+	var transfer accountclient.OwnerTransfer
+	var err error
+	cloudID, transferID := r.PathValue("brandCloudID"), r.PathValue("transferID")
+	switch {
+	case r.Method == http.MethodPost && transferID == "":
+		var body struct {
+			TargetEmail string `json:"target_email"`
+		}
+		if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.TargetEmail) == "" {
+			http.Error(w, "target_email is required", http.StatusBadRequest)
+			return
+		}
+		transfer, err = s.accountClient.RequestDeveloperOwnerTransfer(r.Context(), session.AccessToken, cloudID, strings.TrimSpace(body.TargetEmail))
+	case r.Method == http.MethodGet:
+		transfer, err = s.accountClient.DeveloperOwnerTransfer(r.Context(), session.AccessToken, cloudID, transferID)
+	default:
+		transfer, err = s.accountClient.CancelDeveloperOwnerTransfer(r.Context(), session.AccessToken, cloudID, transferID)
+	}
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	status := http.StatusOK
+	if transferID == "" {
+		status = http.StatusAccepted
+	}
+	writeJSONStatus(w, status, map[string]any{"owner_transfer": transfer, "source_status": "available"})
+}
+
+func (s *Server) apiDeveloperOwnerTransferAccept(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "developer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if _, ok := requireIdempotencyKey(w, r); !ok {
+		return
+	}
+	var body struct {
+		Token string `json:"token"`
+	}
+	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.Token) == "" {
+		http.Error(w, "token is required", http.StatusBadRequest)
+		return
+	}
+	transfer, err := s.accountClient.AcceptDeveloperOwnerTransfer(r.Context(), session.AccessToken, strings.TrimSpace(body.Token))
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"owner_transfer": transfer, "source_status": "available"})
 }
 
 func (s *Server) apiCustomerSignup(w http.ResponseWriter, r *http.Request) {
@@ -954,7 +1178,10 @@ func (s *Server) createAccountManagerPlatformSession(ctx context.Context, email,
 		return store.Session{}, errCustomerSessionInvalid
 	}
 	if _, err := s.accountClient.BrandClouds(ctx, login.Tokens.AccessToken); err != nil {
-		return store.Session{}, err
+		me, meErr := s.accountClient.Me(ctx, login.Tokens.AccessToken)
+		if meErr != nil || !hasAnyPlatformCapability(me.Capabilities) {
+			return store.Session{}, err
+		}
 	}
 	return s.sessions.CreateSession("platform_admin", login.User.ID, login.User.Email, login.Tokens.AccessToken, login.Tokens.RefreshToken, "", tokenTTL(login.Tokens))
 }
@@ -963,11 +1190,14 @@ func (s *Server) createSessionFromActivatedLogin(ctx context.Context, login acco
 	if strings.TrimSpace(login.Tokens.AccessToken) == "" {
 		return store.Session{}, "", errCustomerSessionInvalid
 	}
-	if _, err := s.accountClient.BrandClouds(ctx, login.Tokens.AccessToken); err == nil {
+	if _, platformErr := s.accountClient.BrandClouds(ctx, login.Tokens.AccessToken); platformErr == nil {
 		session, sessionErr := s.sessions.CreateSession("platform_admin", login.User.ID, login.User.Email, login.Tokens.AccessToken, login.Tokens.RefreshToken, "", tokenTTL(login.Tokens))
 		return session, "platform_admin", sessionErr
-	} else if !isAccessDeniedHTTPError(err) {
-		return store.Session{}, "", err
+	} else if !isAccessDeniedHTTPError(platformErr) {
+		return store.Session{}, "", platformErr
+	} else if platformMe, meErr := s.accountClient.Me(ctx, login.Tokens.AccessToken); meErr == nil && hasAnyPlatformCapability(platformMe.Capabilities) {
+		session, sessionErr := s.sessions.CreateSession("platform_admin", login.User.ID, login.User.Email, login.Tokens.AccessToken, login.Tokens.RefreshToken, "", tokenTTL(login.Tokens))
+		return session, "platform_admin", sessionErr
 	}
 	me, tokens, err := s.resolveCustomerProfile(ctx, login.Tokens)
 	if err != nil {
@@ -1025,6 +1255,9 @@ func (s *Server) apiFleetDevices(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	if !requireCustomerCapability(w, org, capabilityFleetRead, capabilityCustomerDevicesRead) {
+		return
+	}
 	query := fleetDeviceQuery(r.URL.Query())
 	var page accountclient.FleetDevicesPage
 	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
@@ -1066,6 +1299,9 @@ func (s *Server) apiFleetSummary(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	if !requireCustomerCapability(w, org, capabilityFleetRead, capabilityCustomerDevicesRead) {
+		return
+	}
 	var summary accountclient.FleetSummary
 	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
 		var callErr error
@@ -1099,6 +1335,18 @@ func (s *Server) apiGroups(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
+	}
+	if r.Method == http.MethodGet {
+		if !requireCustomerCapability(w, org, capabilityFleetRead, "device_group.read", capabilityCustomerDevicesRead) {
+			return
+		}
+	} else if !requireCustomerCapability(w, org, "device_group.manage", capabilityFleetDeviceManage) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		if _, ok := requireIdempotencyKey(w, r); !ok {
+			return
+		}
 	}
 	if r.Method == http.MethodGet {
 		var groups []accountclient.DeviceGroup
@@ -1190,6 +1438,9 @@ func (s *Server) apiGroup(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, map[string]any{"group": group, "source_status": "available"})
 		}
 	case http.MethodPatch:
+		if _, ok := requireIdempotencyKey(w, r); !ok {
+			return
+		}
 		var request accountclient.DeviceGroupRequest
 		if decodeErr := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); decodeErr != nil || strings.TrimSpace(request.Name) == "" {
 			http.Error(w, "群組資料格式不正確。", http.StatusBadRequest)
@@ -1203,6 +1454,9 @@ func (s *Server) apiGroup(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, map[string]any{"source_status": "available"})
 		}
 	case http.MethodDelete:
+		if _, ok := requireIdempotencyKey(w, r); !ok {
+			return
+		}
 		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
 			return s.accountClient.DeleteDeviceGroup(r.Context(), token, org.ID, id)
 		})
@@ -1269,6 +1523,18 @@ func (s *Server) apiRoleAssignments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodGet {
+		if !requireCustomerCapability(w, org, capabilityTeamRead, "role_assignment.read") {
+			return
+		}
+	} else if !requireCustomerCapability(w, org, capabilityTeamManage) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		if _, ok := requireIdempotencyKey(w, r); !ok {
+			return
+		}
+	}
+	if r.Method == http.MethodGet {
 		assignments, callErr := s.accountClient.RoleAssignments(r.Context(), tokens.AccessToken, org.ID, r.URL.Query())
 		if callErr != nil {
 			s.writeCustomerErrorForSession(w, session.ID, callErr)
@@ -1306,6 +1572,13 @@ func (s *Server) apiRoleAssignment(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	if !requireCustomerCapability(w, org, capabilityTeamManage) {
+		return
+	}
+	_, ok = requireIdempotencyKey(w, r)
+	if !ok {
+		return
+	}
 	if err := s.accountClient.DeleteRoleAssignment(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id")); err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -1324,20 +1597,25 @@ func (s *Server) apiJobs(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	if r.Method != http.MethodGet && !requireCustomerCapability(w, org, capabilityFleetBatchManage) {
+		return
+	}
+	if r.Method == http.MethodGet && !requireCustomerCapability(w, org, capabilityFleetRead, "fleet.batch.read", "customer.devices.read") {
+		return
+	}
 	if r.Method == http.MethodGet {
-		jobs, err := s.jobs.ListBatchJobs(org.ID, 250)
+		page, err := s.jobs.ListBatchJobsPage(org.ID, batchJobQueryFromRequest(r))
 		if err != nil {
 			http.Error(w, "批次工作暫時無法取得。", http.StatusServiceUnavailable)
 			return
 		}
-		writeJSON(w, map[string]any{"jobs": jobs, "source_status": "available"})
+		writeJSON(w, map[string]any{"jobs": page.Jobs, "pagination": map[string]any{"limit": page.Limit, "offset": page.Offset, "total": page.Total}, "source_status": "available"})
 		return
 	}
 	var request struct {
 		Type  string         `json:"type"`
 		Name  string         `json:"name"`
 		Scope map[string]any `json:"scope"`
-		Total int            `json:"total"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
 		http.Error(w, "批次工作資料格式不正確。", http.StatusBadRequest)
@@ -1348,18 +1626,331 @@ func (s *Server) apiJobs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "批次工作類型或名稱不正確。", http.StatusBadRequest)
 		return
 	}
-	if request.Total < 0 {
+	if request.Scope == nil {
+		request.Scope = map[string]any{}
+	}
+	if legacyExcluded, ok := request.Scope["exclude_ids"]; ok {
+		if _, exists := request.Scope["excluded_device_ids"]; !exists {
+			request.Scope["excluded_device_ids"] = legacyExcluded
+		}
+		delete(request.Scope, "exclude_ids")
+	}
+	if _, hasQuery := request.Scope["query"]; !hasQuery {
+		request.Scope = map[string]any{"query": request.Scope}
+	}
+	if s.accountClient.Enabled() {
+		query := batchScopeQuery(request.Scope)
+		query.Set("limit", "1")
+		page, countErr := s.accountClient.FleetDevices(r.Context(), tokens.AccessToken, org.ID, query)
+		if countErr != nil {
+			s.writeCustomerErrorForSession(w, session.ID, countErr)
+			return
+		}
+		request.Scope["estimated_total"] = page.Pagination.Total
+	}
+	request.Scope["scope_hash"] = batchScopeHash(request.Scope)
+	request.Scope["request_id"] = correlation.FromContext(r.Context()).RequestID
+	key := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+	if key == "" {
+		writeJSONStatus(w, http.StatusPreconditionRequired, map[string]any{"code": "IDEMPOTENCY_KEY_REQUIRED", "message": "Idempotency-Key is required for batch writes."})
+		return
+	}
+	request.Scope["idempotency_key"] = key
+	if existing, lookupErr := s.jobs.GetBatchJobByIdempotency(org.ID, key); lookupErr == nil {
+		if existing.Type != strings.TrimSpace(request.Type) || fmt.Sprint(existing.Scope["scope_hash"]) != fmt.Sprint(request.Scope["scope_hash"]) {
+			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different request data."})
+			return
+		}
+		writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": existing, "source_status": "available", "idempotent_replay": true})
+		return
+	}
+	total, _ := request.Scope["estimated_total"].(int)
+	if total < 0 {
 		http.Error(w, "批次工作範圍不正確。", http.StatusBadRequest)
 		return
 	}
-	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: strings.TrimSpace(request.Type), Name: strings.TrimSpace(request.Name), OrganizationID: org.ID, CreatedBy: session.Email, Scope: request.Scope, State: "queued", Total: request.Total})
+	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: strings.TrimSpace(request.Type), Name: strings.TrimSpace(request.Name), OrganizationID: org.ID, CreatedBy: session.Email, Scope: request.Scope, State: "queued", Total: total, IdempotencyKey: key})
 	if err != nil {
 		http.Error(w, "批次工作無法建立。", http.StatusServiceUnavailable)
 		return
 	}
 	go s.runBatchJob(job, tokens.AccessToken)
-	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "fleet.batch_job.create", Target: job.ID, OrganizationID: org.ID, Result: "accepted"})
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "fleet.batch_job.create", Target: job.ID, OrganizationID: org.ID, Result: "accepted", RequestID: correlation.FromContext(r.Context()).RequestID})
 	writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": job, "source_status": "available"})
+}
+
+func (s *Server) apiProvisioningValidate(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if !requireCustomerCapability(w, org, capabilityProvisioningCreate) {
+		return
+	}
+	key, ok := requireIdempotencyKey(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		SKU           string   `json:"sku_id"`
+		ProductionRun string   `json:"production_run"`
+		SourceID      string   `json:"source_id"`
+		DeviceIDs     []string `json:"device_ids"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.SKU) == "" {
+		http.Error(w, "provisioning validation requires sku_id and device_ids or source_id", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(request.SourceID) != "" {
+		source, sourceErr := s.sources.GetProvisioningSource(org.ID, strings.TrimSpace(request.SourceID))
+		if sourceErr != nil || source.SKU != strings.TrimSpace(request.SKU) {
+			http.Error(w, "provisioning source is not available for this Brand Cloud", http.StatusBadRequest)
+			return
+		}
+		expiresAt, parseErr := time.Parse(time.RFC3339, source.ExpiresAt)
+		if parseErr != nil || !expiresAt.After(time.Now().UTC()) {
+			http.Error(w, "provisioning source has expired", http.StatusGone)
+			return
+		}
+		request.ProductionRun = source.ProductionRun
+		request.DeviceIDs = source.DeviceIDs
+	}
+	if len(request.DeviceIDs) == 0 {
+		http.Error(w, "provisioning validation requires device_ids or source_id", http.StatusBadRequest)
+		return
+	}
+	seen := map[string]bool{}
+	clean := make([]any, 0, len(request.DeviceIDs))
+	duplicates := []string{}
+	for _, id := range request.DeviceIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if seen[id] {
+			duplicates = append(duplicates, id)
+			continue
+		}
+		seen[id] = true
+		clean = append(clean, id)
+	}
+	if len(clean) == 0 {
+		http.Error(w, "device_ids cannot be empty", http.StatusBadRequest)
+		return
+	}
+	scope := map[string]any{"sku_id": strings.TrimSpace(request.SKU), "production_run": strings.TrimSpace(request.ProductionRun), "source_id": strings.TrimSpace(request.SourceID), "device_ids": clean, "validation": map[string]any{"duplicate_device_ids": duplicates, "valid": len(duplicates) == 0}, "scope_hash": batchScopeHash(map[string]any{"sku_id": request.SKU, "production_run": request.ProductionRun, "source_id": request.SourceID, "device_ids": clean}), "idempotency_key": key}
+	if existing, lookupErr := s.jobs.GetBatchJobByIdempotency(org.ID, key); lookupErr == nil {
+		if existing.Type != "provisioning_validation" || fmt.Sprint(existing.Scope["scope_hash"]) != fmt.Sprint(scope["scope_hash"]) {
+			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different request data."})
+			return
+		}
+		writeJSONStatus(w, http.StatusAccepted, map[string]any{"validation_job": existing, "source_status": "available", "idempotent_replay": true})
+		return
+	}
+	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: "provisioning_validation", Name: "Provisioning validation", OrganizationID: org.ID, CreatedBy: session.Email, Scope: scope, State: "queued", Total: len(clean), IdempotencyKey: key})
+	if err != nil {
+		http.Error(w, "validation job unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	go s.runBatchJob(job, tokens.AccessToken)
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "provisioning.validation.create", Target: job.ID, OrganizationID: org.ID, Result: "accepted"})
+	writeJSONStatus(w, http.StatusAccepted, map[string]any{"validation_job": job, "source_status": "available"})
+}
+
+func (s *Server) apiProvisioningSource(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, _, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if !requireCustomerCapability(w, org, capabilityProvisioningCreate) {
+		return
+	}
+	key, ok := requireIdempotencyKey(w, r)
+	if !ok {
+		return
+	}
+	if r.ContentLength > 16<<20 {
+		http.Error(w, "provisioning source exceeds the 16 MiB limit", http.StatusRequestEntityTooLarge)
+		return
+	}
+	if err := r.ParseMultipartForm(16 << 20); err != nil {
+		http.Error(w, "provisioning source upload is invalid", http.StatusBadRequest)
+		return
+	}
+	sku := strings.TrimSpace(r.FormValue("sku_id"))
+	if sku == "" {
+		http.Error(w, "sku_id is required", http.StatusBadRequest)
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "provisioning source file is required", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	raw, err := io.ReadAll(io.LimitReader(file, 16<<20+1))
+	if err != nil || len(raw) > 16<<20 {
+		http.Error(w, "provisioning source exceeds the 16 MiB limit", http.StatusRequestEntityTooLarge)
+		return
+	}
+	reader := csv.NewReader(bytes.NewReader(raw))
+	reader.FieldsPerRecord = -1
+	ids := make([]string, 0, 1024)
+	for len(ids) <= 100000 {
+		record, readErr := reader.Read()
+		if errors.Is(readErr, io.EOF) {
+			break
+		}
+		if readErr != nil || len(record) == 0 {
+			http.Error(w, "provisioning source CSV is invalid", http.StatusBadRequest)
+			return
+		}
+		id := strings.Trim(strings.TrimSpace(record[0]), "\"")
+		if id == "" || strings.EqualFold(id, "device_id") || strings.EqualFold(id, "device id") || strings.EqualFold(id, "id") {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 || len(ids) > 100000 {
+		http.Error(w, "provisioning source must contain between 1 and 100000 device IDs", http.StatusBadRequest)
+		return
+	}
+	digest := sha256.Sum256(raw)
+	checksum := fmt.Sprintf("sha256:%x", digest[:])
+	if existing, lookupErr := s.sources.GetProvisioningSourceByIdempotency(org.ID, key); lookupErr == nil {
+		if existing.Checksum != checksum || existing.SKU != sku {
+			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different source data."})
+			return
+		}
+		writeJSONStatus(w, http.StatusCreated, map[string]any{"source": existing, "source_status": "available", "idempotent_replay": true})
+		return
+	}
+	source, err := s.sources.CreateProvisioningSource(contracts.ProvisioningSource{OrganizationID: org.ID, SKU: sku, ProductionRun: strings.TrimSpace(r.FormValue("production_run")), Filename: header.Filename, Checksum: checksum, RowCount: len(ids), DeviceIDs: ids}, key)
+	if err != nil {
+		http.Error(w, "provisioning source could not be stored", http.StatusServiceUnavailable)
+		return
+	}
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "provisioning.source.create", Target: source.ID, OrganizationID: org.ID, Result: "accepted"})
+	writeJSONStatus(w, http.StatusCreated, map[string]any{"source": source, "source_status": "available"})
+}
+
+func (s *Server) apiProvisioningJob(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if !requireCustomerCapability(w, org, capabilityProvisioningCreate) {
+		return
+	}
+	key, ok := requireIdempotencyKey(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		ValidationJobID string `json:"validation_job_id"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.ValidationJobID) == "" {
+		http.Error(w, "validation_job_id is required", http.StatusBadRequest)
+		return
+	}
+	validation, err := s.jobs.GetBatchJob(org.ID, request.ValidationJobID)
+	if err != nil || validation.Type != "provisioning_validation" {
+		http.Error(w, "validation job not found", http.StatusNotFound)
+		return
+	}
+	valid, _ := validation.Scope["validation"].(map[string]any)
+	if ok, _ := valid["valid"].(bool); !ok || validation.State != "completed" {
+		http.Error(w, "validation must complete successfully before provisioning", http.StatusConflict)
+		return
+	}
+	scope := map[string]any{"query": map[string]any{}, "device_ids": validation.Scope["device_ids"], "sku_id": validation.Scope["sku_id"], "validation_job_id": validation.ID, "scope_hash": batchScopeHash(validation.Scope), "idempotency_key": key}
+	if existing, lookupErr := s.jobs.GetBatchJobByIdempotency(org.ID, key); lookupErr == nil {
+		if existing.Type != "device_provision" || fmt.Sprint(existing.Scope["scope_hash"]) != fmt.Sprint(scope["scope_hash"]) {
+			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different request data."})
+			return
+		}
+		writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": existing, "source_status": "available", "idempotent_replay": true})
+		return
+	}
+	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: "device_provision", Name: "Provisioning execution", OrganizationID: org.ID, CreatedBy: session.Email, Scope: scope, State: "queued", Total: validation.Total, IdempotencyKey: key})
+	if err != nil {
+		http.Error(w, "provisioning job unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	go s.runBatchJob(job, tokens.AccessToken)
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "provisioning.execution.create", Target: job.ID, OrganizationID: org.ID, Result: "accepted"})
+	writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": job, "source_status": "available"})
+}
+
+func batchScopeQuery(scope map[string]any) url.Values {
+	queryScope := scope
+	if nested, ok := scope["query"].(map[string]any); ok {
+		queryScope = nested
+	}
+	query := make(url.Values)
+	for key, value := range queryScope {
+		queryKey := key
+		switch key {
+		case "region":
+			if _, ok := value.([]any); ok {
+				queryKey = "regions"
+			}
+		case "health":
+			queryKey = "statuses"
+		case "firmware":
+			if _, ok := value.([]any); ok {
+				queryKey = "firmwares"
+			}
+		}
+		switch typed := value.(type) {
+		case string:
+			if strings.TrimSpace(typed) != "" {
+				query.Set(queryKey, typed)
+			}
+		case []any:
+			values := make([]string, 0, len(typed))
+			for _, item := range typed {
+				if text, ok := item.(string); ok && strings.TrimSpace(text) != "" {
+					values = append(values, text)
+				}
+			}
+			if len(values) > 0 {
+				query.Set(queryKey, strings.Join(values, ","))
+			}
+		}
+	}
+	return query
+}
+
+func batchJobQueryFromRequest(r *http.Request) contracts.BatchJobQuery {
+	query := r.URL.Query()
+	limit, _ := strconv.Atoi(query.Get("limit"))
+	offset, _ := strconv.Atoi(query.Get("offset"))
+	return contracts.BatchJobQuery{Limit: limit, Offset: offset, State: query.Get("state"), Type: query.Get("type"), CreatedBy: query.Get("created_by"), From: query.Get("from"), To: query.Get("to")}
+}
+
+func batchScopeHash(scope map[string]any) string {
+	payload, _ := json.Marshal(scope)
+	sum := sha256.Sum256(payload)
+	return fmt.Sprintf("sha256:%x", sum[:])
 }
 
 func (s *Server) apiJob(w http.ResponseWriter, r *http.Request) {
@@ -1382,6 +1973,13 @@ func (s *Server) apiJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "批次工作暫時無法取得。", http.StatusServiceUnavailable)
 		return
 	}
+	if job.Type == "provisioning_validation" || job.Type == "device_provision" {
+		if !requireCustomerCapability(w, org, capabilityProvisioningRead, capabilityProvisioningCreate) {
+			return
+		}
+	} else if !requireCustomerCapability(w, org, capabilityFleetRead, "fleet.batch.read", "customer.devices.read") {
+		return
+	}
 	writeJSON(w, map[string]any{"job": job, "source_status": "available"})
 }
 
@@ -1396,7 +1994,19 @@ func (s *Server) apiJobRetry(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	job, err := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
+	retryCapability := capabilityFleetBatchManage
+	job, jobErr := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
+	if jobErr == nil && (job.Type == "provisioning_validation" || job.Type == "device_provision") {
+		retryCapability = capabilityProvisioningCreate
+	}
+	if !requireCustomerCapability(w, org, retryCapability) {
+		return
+	}
+	key, ok := requireIdempotencyKey(w, r)
+	if !ok {
+		return
+	}
+	job, err = s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
 		http.Error(w, "找不到這個批次工作。", http.StatusNotFound)
 		return
@@ -1409,13 +2019,84 @@ func (s *Server) apiJobRetry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "目前沒有可重試的失敗項目。", http.StatusConflict)
 		return
 	}
-	job, err = s.jobs.UpdateBatchJobState(org.ID, job.ID, "queued")
+	if existing, lookupErr := s.jobs.GetBatchJobByIdempotency(org.ID, key); lookupErr == nil {
+		writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": existing, "source_status": "available", "idempotent_replay": true})
+		return
+	}
+	retryScope := make(map[string]any, len(job.Scope)+2)
+	for key, value := range job.Scope {
+		retryScope[key] = value
+	}
+	retryScope["retry_of"] = job.ID
+	if raw, ok := job.Scope["failed_device_ids"].([]any); ok && len(raw) > 0 {
+		retryScope["snapshot_ids"] = raw
+	}
+	attempt := 2
+	if value, ok := job.Scope["attempt"].(float64); ok {
+		attempt = int(value) + 1
+	}
+	retryScope["attempt"] = attempt
+	job, err = s.jobs.CreateBatchJob(contracts.BatchJob{Type: job.Type, Name: job.Name + " (retry)", OrganizationID: org.ID, CreatedBy: session.Email, Scope: retryScope, State: "queued", Total: job.Failed, IdempotencyKey: key})
 	if err != nil {
 		http.Error(w, "批次工作無法重試。", http.StatusServiceUnavailable)
 		return
 	}
 	go s.runBatchJob(job, tokens.AccessToken)
 	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "fleet.batch_job.retry", Target: job.ID, OrganizationID: org.ID, Result: "accepted"})
+	writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": job, "source_status": "available"})
+}
+
+func (s *Server) apiJobAction(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, _, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	job, jobErr := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
+	actionCapability := capabilityFleetBatchManage
+	if jobErr == nil && (job.Type == "provisioning_validation" || job.Type == "device_provision") {
+		actionCapability = capabilityProvisioningCreate
+	}
+	if !requireCustomerCapability(w, org, actionCapability) {
+		return
+	}
+	if _, ok := requireIdempotencyKey(w, r); !ok {
+		return
+	}
+	job, err = s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
+	if errors.Is(err, sql.ErrNoRows) {
+		http.Error(w, "找不到這個批次工作。", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "批次工作暫時無法取得。", http.StatusServiceUnavailable)
+		return
+	}
+	state := map[string]string{"pause": "paused", "resume": "running", "cancel": "cancelled"}[r.PathValue("action")]
+	if state == "" {
+		http.Error(w, "不支援的批次工作操作。", http.StatusBadRequest)
+		return
+	}
+	allowed := map[string]map[string]bool{
+		"paused":    {"queued": true, "running": true},
+		"running":   {"paused": true},
+		"cancelled": {"queued": true, "running": true, "paused": true},
+	}
+	if !allowed[state][job.State] {
+		http.Error(w, "批次工作目前無法執行這個操作。", http.StatusConflict)
+		return
+	}
+	job, err = s.jobs.UpdateBatchJobState(org.ID, job.ID, state)
+	if err != nil {
+		http.Error(w, "批次工作狀態無法更新。", http.StatusServiceUnavailable)
+		return
+	}
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "fleet.batch_job." + r.PathValue("action"), Target: job.ID, OrganizationID: org.ID, Result: "accepted", RequestID: correlation.FromContext(r.Context()).RequestID})
 	writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": job, "source_status": "available"})
 }
 
@@ -1439,16 +2120,41 @@ func (s *Server) apiJobResult(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "批次結果暫時無法取得。", http.StatusServiceUnavailable)
 		return
 	}
+	if job.Type == "provisioning_validation" || job.Type == "device_provision" {
+		if !requireCustomerCapability(w, org, capabilityProvisioningRead, capabilityProvisioningCreate) {
+			return
+		}
+	} else if !requireCustomerCapability(w, org, capabilityFleetRead, "fleet.batch.read", "customer.devices.read") {
+		return
+	}
+	if expiresAt, parseErr := time.Parse(time.RFC3339, job.ExpiresAt); parseErr == nil && !expiresAt.After(time.Now().UTC()) {
+		writeJSONStatus(w, http.StatusGone, map[string]any{"code": "RESULT_EXPIRED", "message": "This job result has expired."})
+		return
+	}
 	if strings.EqualFold(r.URL.Query().Get("format"), "csv") {
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="fleet-job-`+job.ID+`.csv"`)
 		writer := csv.NewWriter(w)
-		_ = writer.Write([]string{"項目", "名稱", "數量"})
+		perItem := len(job.Result) > 0
 		for _, item := range job.Result {
-			metric, _ := item["metric"].(string)
-			name, _ := item["name"].(string)
-			value := fmt.Sprint(item["value"])
-			_ = writer.Write([]string{metric, name, value})
+			if _, ok := item["device_id"]; !ok {
+				perItem = false
+				break
+			}
+		}
+		if perItem {
+			_ = writer.Write([]string{"device_id", "status", "failure_reason", "retryable"})
+			for _, item := range job.Result {
+				_ = writer.Write([]string{fmt.Sprint(item["device_id"]), fmt.Sprint(item["status"]), fmt.Sprint(item["failure_reason"]), fmt.Sprint(item["retryable"])})
+			}
+		} else {
+			_ = writer.Write([]string{"項目", "名稱", "數量"})
+			for _, item := range job.Result {
+				metric, _ := item["metric"].(string)
+				name, _ := item["name"].(string)
+				value := fmt.Sprint(item["value"])
+				_ = writer.Write([]string{metric, name, value})
+			}
 		}
 		writer.Flush()
 		return
@@ -1459,8 +2165,58 @@ func (s *Server) apiJobResult(w http.ResponseWriter, r *http.Request) {
 func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
+	if current, err := s.jobs.GetBatchJob(job.OrganizationID, job.ID); err == nil {
+		if current.State == "paused" || current.State == "cancelled" {
+			return
+		}
+		job = current
+	}
 	if s.accountClient == nil || !s.accountClient.Enabled() {
 		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, job.Total, 0)
+		return
+	}
+	if job.Type == "provisioning_validation" {
+		validation, _ := job.Scope["validation"].(map[string]any)
+		if validation == nil {
+			validation = map[string]any{}
+		}
+		valid, _ := validation["valid"].(bool)
+		result := make([]map[string]any, 0, job.Total+1)
+		if profileID, _ := job.Scope["sku_id"].(string); strings.TrimSpace(profileID) != "" {
+			if _, err := s.accountClient.DeviceItemProfile(ctx, accessToken, job.OrganizationID, profileID); err != nil {
+				validation["sku_error"] = "SKU is unavailable"
+				valid = false
+			}
+		}
+		invalidIDs := make([]string, 0)
+		if raw, ok := job.Scope["device_ids"].([]any); ok {
+			for _, rawID := range raw {
+				deviceID, _ := rawID.(string)
+				if strings.TrimSpace(deviceID) == "" {
+					continue
+				}
+				if _, err := s.accountClient.Device(ctx, accessToken, job.OrganizationID, deviceID); err != nil {
+					invalidIDs = append(invalidIDs, deviceID)
+					result = append(result, map[string]any{"device_id": deviceID, "status": "failed", "failure_reason": "device unavailable", "retryable": false})
+				} else {
+					result = append(result, map[string]any{"device_id": deviceID, "status": "validated", "retryable": false})
+				}
+			}
+		}
+		if len(invalidIDs) > 0 {
+			validation["invalid_device_ids"] = invalidIDs
+			valid = false
+		}
+		validation["valid"] = valid
+		updatedScope := mergeBatchJobScope(job.Scope, map[string]any{"validation": validation})
+		_, _ = s.jobs.UpdateBatchJobScope(job.OrganizationID, job.ID, updatedScope)
+		if !valid {
+			_, _ = s.jobs.UpdateBatchJobResult(job.OrganizationID, job.ID, result)
+			_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", job.Total-len(invalidIDs), len(invalidIDs), 0)
+			return
+		}
+		_, _ = s.jobs.UpdateBatchJobResult(job.OrganizationID, job.ID, result)
+		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "completed", job.Total, 0, 0)
 		return
 	}
 	if job.Type == "report_export" {
@@ -1572,7 +2328,13 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 		}
 	}
 	excluded := map[string]bool{}
-	if raw, ok := job.Scope["exclude_ids"].([]any); ok {
+	if raw, ok := job.Scope["excluded_device_ids"].([]any); ok {
+		for _, value := range raw {
+			if text, ok := value.(string); ok {
+				excluded[text] = true
+			}
+		}
+	} else if raw, ok := job.Scope["exclude_ids"].([]any); ok {
 		for _, value := range raw {
 			if text, ok := value.(string); ok {
 				excluded[text] = true
@@ -1580,6 +2342,7 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 		}
 	}
 	var explicitIDs []string
+	failedIDs := make([]string, 0)
 	if raw, ok := job.Scope["snapshot_ids"].([]any); ok {
 		for _, value := range raw {
 			if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
@@ -1598,6 +2361,7 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 	}
 	query.Set("limit", "250")
 	offset, completed, failed := 0, 0, 0
+	itemResults := make([]map[string]any, 0)
 	groupID, _ := queryScope["group_id"].(string)
 	tag, _ := queryScope["tag"].(string)
 	action, _ := queryScope["action"].(string)
@@ -1642,8 +2406,11 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 		}
 		if actionErr != nil {
 			failed++
+			failedIDs = append(failedIDs, device.ID)
+			itemResults = append(itemResults, map[string]any{"device_id": device.ID, "status": "failed", "failure_reason": "device action failed", "retryable": true})
 		} else {
 			completed++
+			itemResults = append(itemResults, map[string]any{"device_id": device.ID, "status": "completed", "retryable": false})
 		}
 		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "running", completed, failed, 0)
 	}
@@ -1652,13 +2419,19 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 			device, err := s.accountClient.Device(ctx, accessToken, job.OrganizationID, deviceID)
 			if err != nil {
 				failed++
+				failedIDs = append(failedIDs, deviceID)
+				itemResults = append(itemResults, map[string]any{"device_id": deviceID, "status": "failed", "failure_reason": "device unavailable", "retryable": true})
 				continue
 			}
 			process(device)
 		}
+		if len(failedIDs) > 0 {
+			_, _ = s.jobs.UpdateBatchJobScope(job.OrganizationID, job.ID, mergeBatchJobScope(job.Scope, map[string]any{"failed_device_ids": failedIDs}))
+		}
+		_, _ = s.jobs.UpdateBatchJobResult(job.OrganizationID, job.ID, itemResults)
 		state := "completed"
 		if failed > 0 {
-			state = "partially_failed"
+			state = "partial_failed"
 		}
 		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, state, completed, failed, 0)
 		return
@@ -1681,11 +2454,26 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 			break
 		}
 	}
+	if len(failedIDs) > 0 {
+		_, _ = s.jobs.UpdateBatchJobScope(job.OrganizationID, job.ID, mergeBatchJobScope(job.Scope, map[string]any{"failed_device_ids": failedIDs}))
+	}
+	_, _ = s.jobs.UpdateBatchJobResult(job.OrganizationID, job.ID, itemResults)
 	state := "completed"
 	if failed > 0 {
-		state = "partially_failed"
+		state = "partial_failed"
 	}
 	_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, state, completed, failed, 0)
+}
+
+func mergeBatchJobScope(scope, updates map[string]any) map[string]any {
+	merged := make(map[string]any, len(scope)+len(updates))
+	for key, value := range scope {
+		merged[key] = value
+	}
+	for key, value := range updates {
+		merged[key] = value
+	}
+	return merged
 }
 
 func maxInt(left, right int) int {
@@ -1708,7 +2496,13 @@ func (s *Server) snapshotBatchScope(ctx context.Context, accessToken string, job
 	}
 	query.Set("limit", "250")
 	excluded := map[string]bool{}
-	if raw, ok := job.Scope["exclude_ids"].([]any); ok {
+	if raw, ok := job.Scope["excluded_device_ids"].([]any); ok {
+		for _, value := range raw {
+			if text, ok := value.(string); ok {
+				excluded[text] = true
+			}
+		}
+	} else if raw, ok := job.Scope["exclude_ids"].([]any); ok {
 		for _, value := range raw {
 			if text, ok := value.(string); ok {
 				excluded[text] = true
@@ -1778,35 +2572,89 @@ func (s *Server) apiReports(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	requiredReportCapability := capabilityReportsRead
+	if r.Method != http.MethodGet {
+		requiredReportCapability = capabilityReportsCreate
+	}
+	if !requireCustomerCapability(w, org, requiredReportCapability, "report.read", "customer.reports.read") {
+		return
+	}
 	if r.Method == http.MethodGet {
-		jobs, err := s.jobs.ListBatchJobs(org.ID, 250)
+		query := batchJobQueryFromRequest(r)
+		query.Type = "report_export"
+		page, err := s.jobs.ListBatchJobsPage(org.ID, query)
 		if err != nil {
 			http.Error(w, "報表暫時無法取得。", http.StatusServiceUnavailable)
 			return
 		}
 		reports := make([]contracts.BatchJob, 0)
-		for _, job := range jobs {
+		for _, job := range page.Jobs {
 			if job.Type == "report_export" {
 				reports = append(reports, job)
 			}
 		}
-		writeJSON(w, map[string]any{"reports": reports, "source_status": "available"})
+		writeJSON(w, map[string]any{"reports": reports, "pagination": map[string]any{"limit": page.Limit, "offset": page.Offset, "total": page.Total}, "source_status": "available"})
 		return
 	}
 	var request struct {
-		Name  string         `json:"name"`
-		Scope map[string]any `json:"scope"`
+		Name       string         `json:"name"`
+		ReportType string         `json:"report_type"`
+		Dimensions []string       `json:"dimensions"`
+		TimeRange  map[string]any `json:"time_range"`
+		Timezone   string         `json:"timezone"`
+		Format     string         `json:"format"`
+		Scope      map[string]any `json:"scope"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.Name) == "" {
 		http.Error(w, "報表條件不正確。", http.StatusBadRequest)
 		return
 	}
-	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: "report_export", Name: strings.TrimSpace(request.Name), OrganizationID: org.ID, CreatedBy: session.Email, Scope: request.Scope, State: "queued"})
+	if request.ReportType == "" {
+		request.ReportType = "fleet_status"
+	}
+	if request.Format == "" {
+		request.Format = "json"
+	}
+	if request.Format != "json" && request.Format != "csv" {
+		http.Error(w, "報表格式不正確。", http.StatusBadRequest)
+		return
+	}
+	filterScope := request.Scope
+	if filterScope == nil {
+		filterScope = map[string]any{}
+	}
+	request.Scope = map[string]any{
+		"query":            filterScope,
+		"report_type":      request.ReportType,
+		"dimensions":       request.Dimensions,
+		"time_range":       request.TimeRange,
+		"timezone":         request.Timezone,
+		"format":           request.Format,
+		"source_freshness": time.Now().UTC().Format(time.RFC3339),
+	}
+	request.Scope["scope_hash"] = batchScopeHash(request.Scope)
+	request.Scope["request_id"] = correlation.FromContext(r.Context()).RequestID
+	key := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+	if key == "" {
+		writeJSONStatus(w, http.StatusPreconditionRequired, map[string]any{"code": "IDEMPOTENCY_KEY_REQUIRED", "message": "Idempotency-Key is required for report writes."})
+		return
+	}
+	request.Scope["idempotency_key"] = key
+	if existing, lookupErr := s.jobs.GetBatchJobByIdempotency(org.ID, key); lookupErr == nil {
+		if existing.Type != "report_export" || fmt.Sprint(existing.Scope["scope_hash"]) != fmt.Sprint(request.Scope["scope_hash"]) {
+			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different request data."})
+			return
+		}
+		writeJSONStatus(w, http.StatusAccepted, map[string]any{"report": existing, "source_status": "available", "idempotent_replay": true})
+		return
+	}
+	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: "report_export", Name: strings.TrimSpace(request.Name), OrganizationID: org.ID, CreatedBy: session.Email, Scope: request.Scope, State: "queued", IdempotencyKey: key})
 	if err != nil {
 		http.Error(w, "報表無法建立。", http.StatusServiceUnavailable)
 		return
 	}
 	go s.runBatchJob(job, tokens.AccessToken)
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "report.create", Target: job.ID, OrganizationID: org.ID, Result: "accepted", RequestID: correlation.FromContext(r.Context()).RequestID})
 	writeJSONStatus(w, http.StatusAccepted, map[string]any{"report": job, "source_status": "available"})
 }
 
@@ -1821,6 +2669,9 @@ func (s *Server) apiReport(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	if !requireCustomerCapability(w, org, capabilityReportsRead, "report.read", "customer.reports.read") {
+		return
+	}
 	job, err := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
 		http.Error(w, "找不到這份報表。", http.StatusNotFound)
@@ -1828,6 +2679,10 @@ func (s *Server) apiReport(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil || job.Type != "report_export" {
 		http.Error(w, "報表暫時無法取得。", http.StatusServiceUnavailable)
+		return
+	}
+	if expiresAt, parseErr := time.Parse(time.RFC3339, job.ExpiresAt); parseErr == nil && !expiresAt.After(time.Now().UTC()) {
+		writeJSONStatus(w, http.StatusGone, map[string]any{"code": "RESULT_EXPIRED", "message": "This report result has expired."})
 		return
 	}
 	if strings.EqualFold(r.URL.Query().Get("format"), "csv") {
@@ -1872,6 +2727,9 @@ func (s *Server) apiSKUs(w http.ResponseWriter, r *http.Request) {
 	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if !requireCustomerCapability(w, org, capabilitySKURead, "registry_device.read") {
 		return
 	}
 	var profiles []accountclient.DeviceItemProfile
@@ -1926,6 +2784,9 @@ func (s *Server) apiSKU(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	if !requireCustomerCapability(w, org, capabilitySKURead, "registry_device.read") {
+		return
+	}
 	var profile accountclient.DeviceItemProfile
 	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
 		var callErr error
@@ -1971,8 +2832,10 @@ func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	if !hasCapability(capabilitiesForOrganization(org), "registry_device.manage") && !hasCapability(capabilitiesForOrganization(org), capabilityCustomerFirmwareManage) {
-		http.Error(w, "目前角色沒有管理 SKU 的權限。", http.StatusForbidden)
+	if !requireCustomerCapability(w, org, capabilitySKUPolicyManage, "sku.manage", "registry_device.manage") {
+		return
+	}
+	if _, ok := requireIdempotencyKey(w, r); !ok {
 		return
 	}
 	var input struct {
@@ -2001,6 +2864,11 @@ func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	request := accountclient.DeviceItemProfileRequest{ProfileKey: strings.TrimSpace(input.ProfileKey), DisplayName: strings.TrimSpace(input.Name), Category: strings.TrimSpace(input.Category), Manufacturer: strings.TrimSpace(input.Manufacturer), Model: strings.TrimSpace(input.ProductModel), ServiceOptions: customerServiceOptions(input.ServiceCapabilities), ClaimPolicy: input.DevicePolicy, ProvisioningPolicy: input.DevicePolicy}
+	if input.ServiceCapabilities != nil || input.DevicePolicy != nil || input.FirmwarePolicy != nil {
+		if !requireCustomerCapability(w, org, capabilitySKUPolicyManage) {
+			return
+		}
+	}
 	if request.ProfileKey == "" && request.DisplayName != "" {
 		request.ProfileKey = "sku-" + strings.ToLower(strings.NewReplacer(" ", "-", "/", "-", "_", "-").Replace(request.DisplayName))
 	}
@@ -2089,8 +2957,10 @@ func (s *Server) apiSKUImpactPreview(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	if !hasCapability(capabilitiesForOrganization(org), "registry_device.manage") && !hasCapability(capabilitiesForOrganization(org), capabilityCustomerFirmwareManage) {
-		http.Error(w, "目前角色沒有預覽 SKU 變更的權限。", http.StatusForbidden)
+	if !requireCustomerCapability(w, org, capabilitySKUPolicyManage) {
+		return
+	}
+	if _, ok := requireIdempotencyKey(w, r); !ok {
 		return
 	}
 	var proposed struct {
@@ -2389,18 +3259,36 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if !allowed {
-				http.Error(w, "目前角色沒有管理此 SKU 的權限。", http.StatusForbidden)
+				writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "RESOURCE_SCOPE_FORBIDDEN", "resource": "sku", "message": "Current membership does not allow this SKU scope."})
 				return
 			}
 		}
 	}
 	required := capabilityCustomerFirmwareRead
-	if r.Method != http.MethodGet {
-		required = capabilityCustomerFirmwareManage
+	path := strings.TrimSpace(r.URL.Path)
+	if strings.Contains(path, "/releases") {
+		required = capabilityFirmwareReleaseRead
+	} else if strings.HasPrefix(path, "/api/ota/") {
+		required = capabilityOTAPlanRead
 	}
-	if !hasCapability(capabilities, required) {
-		http.Error(w, "missing required capability: "+required, http.StatusForbidden)
+	if r.Method != http.MethodGet {
+		switch {
+		case strings.Contains(path, "/releases"):
+			required = capabilityFirmwareReleaseManage
+		case strings.HasPrefix(path, "/api/ota/"):
+			required = capabilityOTAPlanManage
+		default:
+			required = capabilityCustomerFirmwareManage
+		}
+	}
+	if !hasCapability(capabilities, required) && !(required == capabilityFirmwareReleaseRead && hasCapability(capabilities, capabilityCustomerFirmwareRead)) && !(required == capabilityOTAPlanRead && hasCapability(capabilities, capabilityCustomerFirmwareRead)) {
+		writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "CAPABILITY_REQUIRED", "required_capability": required, "message": "Current membership does not allow this action."})
 		return
+	}
+	if r.Method != http.MethodGet {
+		if _, ok := requireIdempotencyKey(w, r); !ok {
+			return
+		}
 	}
 	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
 		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"status": "fail", "code": "OTA_UNAVAILABLE", "reason": "Video Cloud OTA source is unavailable."})
@@ -2433,6 +3321,32 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	required := capabilityOTAPlanRead
+	if r.Method != http.MethodGet {
+		required = capabilityOTAPlanManage
+	}
+	if r.Method == http.MethodGet {
+		if !requireCustomerCapability(w, org, required, "customer.firmware.read") {
+			return
+		}
+	} else if !requireCustomerCapability(w, org, required) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		if _, ok := requireIdempotencyKey(w, r); !ok {
+			return
+		}
+	}
 	upstreamPath := ""
 	var body []byte
 	if r.Method == http.MethodGet && r.PathValue("id") == "" {
@@ -2457,6 +3371,15 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "更新計畫必須指定 SKU。", http.StatusBadRequest)
 			return
 		}
+		if scope, ok := payload["scope"].(map[string]any); ok {
+			if err := s.validateImmutableOTAScope(r.Context(), tokens.AccessToken, org.ID, scope); err != nil {
+				http.Error(w, err.Error(), http.StatusConflict)
+				return
+			}
+		} else {
+			http.Error(w, "OTA plan requires a server-calculated immutable scope", http.StatusBadRequest)
+			return
+		}
 		delete(payload, "sku_id")
 		body, _ = json.Marshal(payload)
 		upstreamPath = "/api/ota/skus/" + url.PathEscape(strings.TrimSpace(skuID)) + "/campaigns"
@@ -2477,6 +3400,211 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 	clone.URL.Path = upstreamPath
 	clone.Body = io.NopCloser(bytes.NewReader(body))
 	s.apiSKUOTA(w, clone)
+}
+
+func (s *Server) validateImmutableOTAScope(ctx context.Context, accessToken, organizationID string, scope map[string]any) error {
+	expiresText, _ := scope["expires_at"].(string)
+	expiresAt, err := time.Parse(time.RFC3339, expiresText)
+	if err != nil || !expiresAt.After(time.Now().UTC()) {
+		return errors.New("OTA scope preview has expired")
+	}
+	queryScope, _ := scope["query"].(map[string]any)
+	if queryScope == nil {
+		return errors.New("OTA scope query is required")
+	}
+	expectedHash := batchScopeHash(map[string]any{"query": queryScope, "excluded_device_ids": scope["excluded_device_ids"]})
+	if fmt.Sprint(scope["scope_hash"]) != expectedHash {
+		return errors.New("OTA scope hash is invalid")
+	}
+	if !s.accountClient.Enabled() {
+		return nil
+	}
+	query := batchScopeQuery(map[string]any{"query": queryScope})
+	query.Set("limit", "1")
+	page, err := s.accountClient.FleetDevices(ctx, accessToken, organizationID, query)
+	if err != nil {
+		return errors.New("OTA scope could not be revalidated")
+	}
+	excludedIDs := scopeStringSlice(scope["excluded_device_ids"])
+	if len(excludedIDs) > 1000 {
+		return errors.New("OTA scope has too many excluded devices")
+	}
+	if err := s.validateExcludedOTADevices(ctx, accessToken, organizationID, queryScope, excludedIDs); err != nil {
+		return err
+	}
+	excludedCount := len(excludedIDs)
+	serverTarget := maxInt(page.Pagination.Total-excludedCount, 0)
+	if raw, ok := scope["target_count"]; ok && fmt.Sprint(raw) != strconv.Itoa(serverTarget) {
+		return errors.New("OTA scope target count is stale")
+	}
+	return nil
+}
+
+func scopeStringSlice(value any) []string {
+	var values []string
+	switch typed := value.(type) {
+	case []any:
+		for _, item := range typed {
+			if text, ok := item.(string); ok && strings.TrimSpace(text) != "" {
+				values = append(values, strings.TrimSpace(text))
+			}
+		}
+	case []string:
+		for _, item := range typed {
+			if strings.TrimSpace(item) != "" {
+				values = append(values, strings.TrimSpace(item))
+			}
+		}
+	}
+	return values
+}
+
+func (s *Server) validateExcludedOTADevices(ctx context.Context, accessToken, organizationID string, query map[string]any, ids []string) error {
+	for _, id := range ids {
+		deviceQuery := batchScopeQuery(map[string]any{"query": query})
+		deviceQuery.Set("q", id)
+		deviceQuery.Set("limit", "2")
+		page, err := s.accountClient.FleetDevices(ctx, accessToken, organizationID, deviceQuery)
+		if err != nil || len(page.Devices) != 1 || page.Devices[0].ID != id {
+			return errors.New("OTA scope contains a device outside the active cloud or filter")
+		}
+	}
+	return nil
+}
+
+func deviceMatchesScopeQuery(device accountclient.Device, query map[string]any) bool {
+	for key, value := range query {
+		values := scopeStringSlice(value)
+		if len(values) == 0 {
+			if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+				values = []string{strings.TrimSpace(text)}
+			}
+		}
+		if len(values) == 0 {
+			continue
+		}
+		actual := ""
+		switch key {
+		case "sku_id":
+			actual = device.DeviceItemProfileID
+		case "region", "firmware", "group_id", "category", "model", "status", "readiness":
+			if device.Metadata != nil {
+				actual, _ = device.Metadata[key].(string)
+			}
+			if actual == "" {
+				switch key {
+				case "category":
+					actual = device.Category
+				case "model":
+					actual = device.Model
+				case "status":
+					actual = device.Status
+				case "readiness":
+					actual = device.Readiness
+				}
+			}
+		}
+		if actual == "" {
+			return false
+		}
+		matched := false
+		for _, expected := range values {
+			if actual == expected {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if !requireCustomerCapability(w, org, capabilityOTAPlanManage) {
+		return
+	}
+	var request struct {
+		SKU               string         `json:"sku_id"`
+		Query             map[string]any `json:"query"`
+		ExcludedDeviceIDs []string       `json:"excluded_device_ids"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
+		http.Error(w, "scope preview data is invalid", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(request.SKU) == "" {
+		http.Error(w, "sku_id is required", http.StatusBadRequest)
+		return
+	}
+	if len(request.ExcludedDeviceIDs) > 1000 {
+		http.Error(w, "too many excluded_device_ids", http.StatusBadRequest)
+		return
+	}
+	queryScope := request.Query
+	if queryScope == nil {
+		queryScope = map[string]any{}
+	}
+	queryScope["sku_id"] = strings.TrimSpace(request.SKU)
+	uniqueExcluded := make([]string, 0, len(request.ExcludedDeviceIDs))
+	seen := map[string]struct{}{}
+	for _, id := range request.ExcludedDeviceIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniqueExcluded = append(uniqueExcluded, id)
+	}
+	total := 0
+	if s.accountClient.Enabled() {
+		if err := s.validateExcludedOTADevices(r.Context(), tokens.AccessToken, org.ID, queryScope, uniqueExcluded); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		query := batchScopeQuery(map[string]any{"query": queryScope})
+		query.Set("limit", "1")
+		page, countErr := s.accountClient.FleetDevices(r.Context(), tokens.AccessToken, org.ID, query)
+		if countErr != nil {
+			s.writeCustomerErrorForSession(w, session.ID, countErr)
+			return
+		}
+		total = page.Pagination.Total
+	}
+	if len(uniqueExcluded) > total {
+		uniqueExcluded = uniqueExcluded[:total]
+	}
+	scope := map[string]any{
+		"query":               queryScope,
+		"excluded_device_ids": uniqueExcluded,
+	}
+	scope["scope_hash"] = batchScopeHash(scope)
+	scope["target_count"] = maxInt(total-len(uniqueExcluded), 0)
+	scope["expires_at"] = time.Now().UTC().Add(7 * 24 * time.Hour).Format(time.RFC3339)
+	writeJSON(w, map[string]any{
+		"scope":            scope,
+		"target_count":     maxInt(total-len(uniqueExcluded), 0),
+		"matched_count":    total,
+		"excluded_count":   len(uniqueExcluded),
+		"quota_status":     "available",
+		"rollout_guard":    map[string]any{"minimum_sample_size": 10, "failure_percentage": 10},
+		"source_freshness": time.Now().UTC().Format(time.RFC3339),
+		"source_status":    "available",
+	})
 }
 
 func (s *Server) firmwareDistributionDevices(ctx context.Context, session store.Session, orgID string) ([]contracts.Device, error) {
@@ -2927,6 +4055,9 @@ func parseFleetWindow(raw string) (string, int, error) {
 }
 
 func (s *Server) customerFleetSourceStatus() (string, string) {
+	if os.Getenv("E2E_SCENARIO_MODE") == "stale" {
+		return "stale", "Fleet telemetry summary is stale; showing the last safe snapshot."
+	}
 	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
 		return "not_configured", "Telemetry source is not configured."
 	}
@@ -4768,6 +5899,8 @@ func customerUpstreamStatus(err error) (int, bool) {
 		switch httpErr.StatusCode {
 		case http.StatusUnauthorized, http.StatusForbidden:
 			return httpErr.StatusCode, true
+		case http.StatusGone, http.StatusUnprocessableEntity:
+			return httpErr.StatusCode, true
 		case http.StatusNotFound, http.StatusBadRequest, http.StatusConflict, http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable:
 			return http.StatusBadGateway, true
 		}
@@ -4834,6 +5967,10 @@ func (s *Server) writeCustomerError(w http.ResponseWriter, err error) {
 			http.Error(w, "customer session expired; please sign in again", http.StatusUnauthorized)
 		case http.StatusForbidden:
 			http.Error(w, "Account Manager denied access to the requested resource", http.StatusForbidden)
+		case http.StatusGone:
+			http.Error(w, "The requested result or transfer has expired", http.StatusGone)
+		case http.StatusUnprocessableEntity:
+			http.Error(w, "The requested customer operation is invalid", http.StatusUnprocessableEntity)
 		case http.StatusGatewayTimeout:
 			http.Error(w, "Account Manager request timed out", http.StatusGatewayTimeout)
 		default:
@@ -5011,6 +6148,22 @@ func fleetManagerCapabilities() []string {
 		capabilityCustomerFirmwareRead,
 		capabilityCustomerFirmwareManage,
 		capabilityCustomerStreamRead,
+		capabilityFleetRead,
+		capabilityFleetDeviceManage,
+		capabilityFleetBatchManage,
+		capabilitySKURead,
+		capabilitySKUManage,
+		capabilitySKUPolicyManage,
+		capabilityFirmwareReleaseRead,
+		capabilityFirmwareReleaseManage,
+		capabilityOTAPlanRead,
+		capabilityOTAPlanManage,
+		capabilityReportsRead,
+		capabilityReportsCreate,
+		capabilityTeamRead,
+		capabilityTeamManage,
+		capabilityProvisioningRead,
+		capabilityProvisioningCreate,
 	}
 }
 
@@ -5025,6 +6178,15 @@ func platformAdminCompatibilityCapabilities() []string {
 		capabilityChipsetProviderEdit,
 		capabilityChipsetProviderPublish,
 	}
+}
+
+func hasAnyPlatformCapability(capabilities []string) bool {
+	for _, capability := range capabilities {
+		if strings.HasPrefix(strings.TrimSpace(capability), "platform.") || strings.HasPrefix(strings.TrimSpace(capability), "platform_") || capability == "acl.read" || capability == "acl.manage" || strings.HasPrefix(capability, "quota_request.") {
+			return true
+		}
+	}
+	return false
 }
 
 func capabilitiesForOrganization(org accountclient.Organization) []string {
@@ -5080,6 +6242,37 @@ func hasCapability(capabilities []string, required string) bool {
 		}
 	}
 	return false
+}
+
+func hasAnyCapability(capabilities []string, required ...string) bool {
+	for _, capability := range required {
+		if hasCapability(capabilities, capability) {
+			return true
+		}
+	}
+	return false
+}
+
+func requireCustomerCapability(w http.ResponseWriter, org accountclient.Organization, required string, aliases ...string) bool {
+	capabilities := capabilitiesForOrganization(org)
+	if hasAnyCapability(capabilities, append([]string{required}, aliases...)...) {
+		return true
+	}
+	writeJSONStatus(w, http.StatusForbidden, map[string]any{
+		"code":                "CAPABILITY_REQUIRED",
+		"required_capability": required,
+		"message":             "Current membership does not allow this action.",
+	})
+	return false
+}
+
+func requireIdempotencyKey(w http.ResponseWriter, r *http.Request) (string, bool) {
+	key := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+	if key == "" {
+		writeJSONStatus(w, http.StatusPreconditionRequired, map[string]any{"code": "IDEMPOTENCY_KEY_REQUIRED", "message": "Idempotency-Key is required for write requests."})
+		return "", false
+	}
+	return key, true
 }
 
 func (s *Server) demoMemberships() ([]contracts.Membership, error) {

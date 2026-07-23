@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { enterPlatform, login } from './fixtures/session.mjs';
 
-test('platform admin can triage platform dashboard @smoke', async ({ page }) => {
+test('[UI-CA-DASH-001] platform admin can triage platform dashboard @smoke', async ({ page }) => {
   await login(page, 'platform_admin');
   await enterPlatform(page);
   await expect(page.getByText('Services Up', { exact: true })).toBeVisible();
@@ -15,7 +15,7 @@ test('platform admin can triage platform dashboard @smoke', async ({ page }) => 
   await expect(page.getByRole('link', { name: /View all operations/ })).toHaveAttribute('href', '/admin/ops');
 });
 
-test('dashboard shows degraded state when Prometheus fixture is unavailable', async ({ page }) => {
+test('[UI-CA-DASH-002] dashboard shows degraded state when Prometheus fixture is unavailable', async ({ page }) => {
   test.skip(process.env.E2E_PROMETHEUS_MODE !== 'unavailable', 'run with E2E_PROMETHEUS_MODE=unavailable');
   await login(page, 'platform_admin');
   await enterPlatform(page);
@@ -23,7 +23,7 @@ test('dashboard shows degraded state when Prometheus fixture is unavailable', as
   await expect(page.getByText('Healthy', { exact: true })).toHaveCount(0);
 });
 
-test('dashboard exposes empty and stale Prometheus source states', async ({ page }) => {
+test('[UI-CA-DASH-003] dashboard exposes empty and stale Prometheus source states', async ({ page }) => {
   const mode = process.env.E2E_PROMETHEUS_MODE;
   test.skip(!['empty', 'stale', 'unconfigured'].includes(mode), 'run with E2E_PROMETHEUS_MODE=empty, stale, or unconfigured');
   await login(page, 'platform_admin');

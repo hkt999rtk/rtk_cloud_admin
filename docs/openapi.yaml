@@ -40,6 +40,8 @@ tags:
     description: Audit event views.
   - name: Brand Clouds
     description: Account Manager-backed brand-cloud administration.
+  - name: Developer
+    description: Global developer session and active Brand Cloud management.
   - name: ChipSet SDK
     description: Account Manager-backed ChipSet and SDK provider administration and developer resources.
   - name: SSO
@@ -436,8 +438,183 @@ paths:
           $ref: "#/components/responses/PlainTextError"
         "403":
           $ref: "#/components/responses/PlainTextError"
+
+  /api/developer/brand-clouds:
+    get:
+      tags: [Developer]
+      summary: List Brand Clouds available to the signed-in developer
+      responses:
+        "200":
+          description: Developer Brand Cloud memberships.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeveloperBrandCloudList"
+        "401": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/brand-clouds/{brandCloudID}:
+    get:
+      tags: [Developer]
+      summary: Get one Brand Cloud and the current membership
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Brand Cloud detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeveloperBrandCloudDetail"
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/brand-clouds/{brandCloudID}/members:
+    get:
+      tags: [Developer]
+      summary: List Brand Cloud developer members
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Member list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeveloperMemberList"
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/brand-clouds/{brandCloudID}/members/{userID}:
+    patch:
+      tags: [Developer]
+      summary: Update a Brand Cloud member role
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+        - { name: userID, in: path, required: true, schema: { type: string } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [owner, admin, member] }
+      responses:
+        "200": { description: Member updated. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+    delete:
+      tags: [Developer]
+      summary: Remove a Brand Cloud member
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+        - { name: userID, in: path, required: true, schema: { type: string } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204": { description: Member removed. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
         "502":
           $ref: "#/components/responses/PlainTextError"
+  /api/developer/brand-clouds/{brandCloudID}/members/{userID}/{action}:
+    patch:
+      tags: [Developer]
+      summary: Enable or disable a Brand Cloud member
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+        - { name: userID, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [enable, disable] } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { description: Member status updated }
+        "409": { description: Last owner cannot be disabled }
+
+  /api/developer/brand-clouds/{brandCloudID}/members/invitations:
+    post:
+      tags: [Developer]
+      summary: Invite an existing developer account to a Brand Cloud
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email: { type: string, format: email }
+                role: { type: string, enum: [owner, admin, member] }
+      responses:
+        "202": { description: Invitation accepted }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/brand-clouds/{brandCloudID}/owner-transfer:
+    post:
+      tags: [Developer]
+      summary: Request an owner transfer to an existing developer
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_email]
+              properties:
+                target_email: { type: string, format: email }
+      responses:
+        "202": { description: Owner transfer requested }
+        "403": { description: Current member cannot transfer ownership }
+
+  /api/developer/brand-cloud-owner-transfers/accept:
+    post:
+      tags: [Developer]
+      summary: Accept an owner transfer invitation
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        "200": { description: Owner transfer accepted }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "409": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}:
+    get:
+      tags: [Developer]
+      summary: Get owner transfer status
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+        - { name: transferID, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Owner transfer status }
+        "404": { description: Transfer not found }
+
+  /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel:
+    post:
+      tags: [Developer]
+      summary: Cancel a pending owner transfer
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+        - { name: transferID, in: path, required: true, schema: { type: string } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { description: Owner transfer canceled }
+        "404": { description: Transfer not found }
 
   /api/summary:
     get:
@@ -466,7 +643,16 @@ paths:
       tags: [ChipSet SDK]
       summary: List published normalized ChipSet and SDK resources
       responses:
-        "200": { description: Published resources; provider URLs and raw manifests are never exposed. }
+        "200":
+          description: Published resources; provider URLs and raw manifests are never exposed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [chipsets, source_status]
+                properties:
+                  chipsets: { type: array, items: { $ref: "#/components/schemas/DeveloperChipset" } }
+                  source_status: { type: string, enum: [available] }
         "401": { $ref: "#/components/responses/PlainTextError" }
         "502": { $ref: "#/components/responses/PlainTextError" }
 
@@ -474,9 +660,19 @@ paths:
     get:
       tags: [ChipSet SDK]
       summary: Get a published normalized ChipSet and its SDK releases
-      parameters: [{ $ref: "#/components/parameters/ChipsetID" }]
+      parameters:
+        - $ref: "#/components/parameters/ChipsetID"
       responses:
-        "200": { description: Published resource detail. }
+        "200":
+          description: Published resource detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [chipset, source_status]
+                properties:
+                  chipset: { $ref: "#/components/schemas/DeveloperChipset" }
+                  source_status: { type: string, enum: [available] }
         "401": { $ref: "#/components/responses/PlainTextError" }
         "404": { $ref: "#/components/responses/PlainTextError" }
 
@@ -492,7 +688,8 @@ paths:
       tags: [ChipSet SDK]
       summary: Create a draft Information Provider
       description: Requires `platform.chipset_sdk.edit`.
-      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -507,7 +704,8 @@ paths:
       tags: [ChipSet SDK]
       summary: Preview provider metadata and its last normalized snapshot
       description: Requires `platform.chipset_sdk.read`.
-      parameters: [{ $ref: "#/components/parameters/ProviderID" }]
+      parameters:
+        - $ref: "#/components/parameters/ProviderID"
       responses:
         "200": { description: Provider and normalized ChipSet preview }
         "403": { $ref: "#/components/responses/PlainTextError" }
@@ -535,7 +733,10 @@ paths:
       description: Requires `platform.chipset_sdk.publish`.
       parameters:
         - $ref: "#/components/parameters/ProviderID"
-        - { name: action, in: path, required: true, schema: { type: string, enum: [publish, unpublish, refresh] } }
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [publish, unpublish, refresh] }
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "200": { description: Provider action completed }
@@ -908,6 +1109,71 @@ paths:
         "204": { description: Assignment removed. }
         "401": { $ref: "#/components/responses/PlainTextError" }
 
+  /api/provisioning/validate:
+    post:
+      tags: [Customer]
+      summary: Start immutable provisioning validation
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sku_id]
+              properties:
+                sku_id: { type: string }
+                production_run: { type: string }
+                source_id: { type: string, description: Expiring server-side device-list source. }
+                device_ids: { type: array, items: { type: string }, minItems: 1 }
+      responses:
+        "202": { description: Validation job accepted }
+        "403": { description: provisioning.create is required }
+
+  /api/provisioning/sources:
+    post:
+      tags: [Customer]
+      summary: Upload an expiring provisioning device-list source
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [sku_id, file]
+              properties:
+                sku_id: { type: string }
+                production_run: { type: string }
+                file: { type: string, format: binary }
+      responses:
+        "201": { description: Source accepted and checksum-bound. }
+        "403": { description: provisioning.create is required }
+        "413": { description: Source exceeds configured size or row limit. }
+
+  /api/provisioning/jobs:
+    post:
+      tags: [Customer]
+      summary: Create provisioning execution after successful validation
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [validation_job_id]
+              properties:
+                validation_job_id: { type: string }
+      responses:
+        "202": { description: Provisioning job accepted }
+        "409": { description: Validation is incomplete or invalid }
+        "403": { description: provisioning.create is required }
+
   /api/jobs:
     get:
       tags: [Fleet, Jobs]
@@ -962,9 +1228,24 @@ paths:
       tags: [Fleet, Jobs]
       summary: Retry failed items in a fleet job
       security: [{ SessionCookie: [] }]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "202": { description: Retry accepted. }
+        "409": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/jobs/{id}/{action}:
+    post:
+      tags: [Fleet, Jobs]
+      summary: Control a batch job
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [pause, resume, cancel] } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202": { description: Action accepted. }
         "409": { $ref: "#/components/responses/PlainTextError" }
 
   /api/jobs/{id}/result:
@@ -975,6 +1256,7 @@ paths:
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses:
         "200": { description: Job result. }
+        "410": { description: Result expired. }
 
   /api/reports:
     get:
@@ -991,7 +1273,17 @@ paths:
         required: true
         content:
           application/json:
-            schema: { type: object, required: [name], properties: { name: { type: string }, scope: { type: object } } }
+            schema:
+              type: object
+              required: [name, report_type, format]
+              properties:
+                name: { type: string }
+                report_type: { type: string, enum: [fleet_status, firmware_coverage, batch_jobs] }
+                dimensions: { type: array, items: { type: string } }
+                time_range: { type: object, additionalProperties: true }
+                timezone: { type: string }
+                format: { type: string, enum: [json, csv] }
+                scope: { type: object, additionalProperties: true }
       responses:
         "202": { description: Report accepted. }
 
@@ -1003,6 +1295,7 @@ paths:
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses:
         "200": { description: Report status and result. }
+        "410": { description: Report result expired. }
 
   /api/update-plans:
     get:
@@ -1016,6 +1309,41 @@ paths:
       summary: Create a SKU-scoped firmware update plan
       security: [{ SessionCookie: [] }]
       responses: { "201": { description: Update plan created. } }
+
+  /api/update-plans/scope-preview:
+    post:
+      tags: [Fleet, Firmware]
+      summary: Preview immutable OTA target scope
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sku_id]
+              properties:
+                sku_id: { type: string }
+                query: { type: object, additionalProperties: true }
+                excluded_device_ids: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: Server-calculated OTA scope preview.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scope, target_count, excluded_count, source_status]
+                properties:
+                  scope: { type: object, additionalProperties: true }
+                  target_count: { type: integer, minimum: 0 }
+                  matched_count: { type: integer, minimum: 0 }
+                  excluded_count: { type: integer, minimum: 0 }
+                  quota_status: { type: string }
+                  rollout_guard: { type: object, additionalProperties: true }
+                  source_freshness: { type: string, format: date-time }
+                  source_status: { type: string }
+        "403": { description: ota.plan.manage is required. }
 
   /api/update-plans/{id}:
     get:
@@ -1766,7 +2094,10 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      schema: { type: string, minLength: 1 }
+      description: Stable client key used to safely replay a write request.
+      schema:
+        type: string
+        minLength: 1
     DeviceID:
       name: id
       in: path
@@ -2408,12 +2739,13 @@ components:
       required: [id, type, name, organization_id, created_by, scope, state, total, completed, failed, skipped, created_at, updated_at]
       properties:
         id: { type: string }
+        idempotency_key: { type: string }
         type: { type: string }
         name: { type: string }
         organization_id: { type: string }
         created_by: { type: string }
         scope: { type: object, additionalProperties: true }
-        state: { type: string }
+        state: { type: string, enum: [queued, running, paused, completed, partial_failed, failed, cancelled] }
         total: { type: integer, minimum: 0 }
         completed: { type: integer, minimum: 0 }
         failed: { type: integer, minimum: 0 }
@@ -2421,6 +2753,10 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         result: { type: array, items: { type: object, additionalProperties: true } }
+        retryable: { type: boolean }
+        result_metadata: { type: object, additionalProperties: true }
+        expires_at: { type: string, format: date-time }
+        failure_reason: { type: string }
 
     BatchJobRequest:
       type: object
@@ -2429,6 +2765,69 @@ components:
         type: { type: string }
         name: { type: string }
         scope: { type: object, additionalProperties: true }
+
+    DeveloperBrandCloudList:
+      type: object
+      required: [brand_clouds, pagination, source_status]
+      properties:
+        brand_clouds:
+          type: array
+          items: { $ref: "#/components/schemas/DeveloperBrandCloud" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+        developer_cloud_limit: { type: integer, minimum: 1 }
+        source_status: { type: string }
+
+    DeveloperBrandCloudDetail:
+      type: object
+      required: [brand_cloud, membership, source_status]
+      properties:
+        brand_cloud: { $ref: "#/components/schemas/DeveloperBrandCloud" }
+        membership: { $ref: "#/components/schemas/DeveloperMembership" }
+        source_status: { type: string }
+
+    DeveloperMemberList:
+      type: object
+      required: [members, pagination, source_status]
+      properties:
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/DeveloperMembership" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+        source_status: { type: string }
+
+    DeveloperBrandCloud:
+      type: object
+      required: [id, name, organization_kind, status, role]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        tenant_slug: { type: string }
+        organization_kind: { type: string, enum: [brand_cloud] }
+        status: { type: string }
+        tier: { type: string }
+        role: { type: string, enum: [owner, admin, member] }
+        capabilities: { type: array, items: { type: string } }
+        metadata: { type: object, additionalProperties: true }
+
+    DeveloperMembership:
+      type: object
+      required: [organization_id, user_id, role]
+      properties:
+        organization_id: { type: string }
+        user_id: { type: string }
+        email: { type: string, format: email }
+        display_name: { type: string }
+        role: { type: string, enum: [owner, admin, member] }
+        capabilities: { type: array, items: { type: string } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Pagination:
+      type: object
+      required: [limit, offset, total]
+      properties:
+        limit: { type: integer, minimum: 0 }
+        offset: { type: integer, minimum: 0 }
         total: { type: integer, minimum: 0 }
 
     SKUList:
@@ -3323,63 +3722,6 @@ components:
           format: email
         role:
           type: string
-    ChipsetProviderRequest:
-      type: object
-      required: [name, manifest_url]
-      properties:
-        name: { type: string, minLength: 1, maxLength: 200 }
-        manifest_url: { type: string, format: uri }
-    ChipsetProvider:
-      type: object
-      required: [id, name, manifest_url, status, chipset_count, sdk_release_count, stale, unavailable]
-      properties:
-        id: { type: string, format: uuid }
-        name: { type: string }
-        manifest_url: { type: string, format: uri }
-        status: { type: string, enum: [draft, published, unpublished] }
-        manifest_version: { type: string }
-        manifest_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
-        etag: { type: string }
-        last_modified: { type: string }
-        chipset_count: { type: integer, minimum: 0 }
-        sdk_release_count: { type: integer, minimum: 0 }
-        last_refresh_attempt_at: { type: string, format: date-time }
-        last_successful_refresh_at: { type: string, format: date-time }
-        stale: { type: boolean }
-        unavailable: { type: boolean }
-        validation_error: { type: string }
-    ChipsetEndpoint:
-      type: object
-      required: [type, title, url]
-      properties:
-        type: { type: string }
-        title: { type: string }
-        url: { type: string, format: uri }
-        metadata: { type: object, additionalProperties: true }
-    ChipsetSDKRelease:
-      type: object
-      required: [name, version, recommended, supported_models, endpoints]
-      properties:
-        name: { type: string }
-        version: { type: string }
-        summary: { type: string }
-        recommended: { type: boolean }
-        supported_models: { type: array, items: { type: string } }
-        endpoints: { type: array, items: { $ref: "#/components/schemas/ChipsetEndpoint" } }
-    DeveloperChipset:
-      type: object
-      required: [id, provider_name, chipset_key, vendor, name, sdk_releases, stale]
-      properties:
-        id: { type: string, format: uuid }
-        provider_name: { type: string }
-        chipset_key: { type: string }
-        vendor: { type: string }
-        name: { type: string }
-        family: { type: string }
-        description: { type: string }
-        sdk_releases: { type: array, items: { $ref: "#/components/schemas/ChipsetSDKRelease" } }
-        stale: { type: boolean }
-        last_successful_refresh_at: { type: string, format: date-time }
     SSOProviderStatus:
       type: object
       required: [organization_id, enabled, configured]
@@ -3428,3 +3770,41 @@ components:
             type: string
         enabled:
           type: boolean
+    ChipsetProviderRequest:
+      type: object
+      required: [name, manifest_url]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        manifest_url: { type: string, format: uri }
+    ChipsetEndpoint:
+      type: object
+      required: [type, title, url]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        url: { type: string, format: uri }
+        metadata: { type: object, additionalProperties: true }
+    ChipsetSDKRelease:
+      type: object
+      required: [name, version, recommended, supported_models, endpoints]
+      properties:
+        name: { type: string }
+        version: { type: string }
+        summary: { type: string }
+        recommended: { type: boolean }
+        supported_models: { type: array, items: { type: string } }
+        endpoints: { type: array, items: { $ref: "#/components/schemas/ChipsetEndpoint" } }
+    DeveloperChipset:
+      type: object
+      required: [id, provider_name, chipset_key, vendor, name, sdk_releases, stale]
+      properties:
+        id: { type: string, format: uuid }
+        provider_name: { type: string }
+        chipset_key: { type: string }
+        vendor: { type: string }
+        name: { type: string }
+        family: { type: string }
+        description: { type: string }
+        sdk_releases: { type: array, items: { $ref: "#/components/schemas/ChipsetSDKRelease" } }
+        stale: { type: boolean }
+        last_successful_refresh: { type: string, format: date-time }

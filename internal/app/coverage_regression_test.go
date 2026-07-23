@@ -264,6 +264,97 @@ func TestLegacyUpstreamCustomerAndDeviceHelpers(t *testing.T) {
 	}
 }
 
+func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
+	t.Parallel()
+
+	var upstreamPaths []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamPaths = append(upstreamPaths, r.Method+" "+r.URL.RequestURI())
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v1/me" {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"user": map[string]any{"id": "developer-1", "email": "developer@example.com"},
+				"organizations": []map[string]any{{
+					"id": "org-1", "name": "Brand One", "role": "owner",
+					"capabilities": []string{
+						capabilityFleetRead, capabilityFleetDeviceManage, capabilityFleetBatchManage,
+						capabilitySKURead, capabilitySKUManage, capabilitySKUPolicyManage,
+						capabilityFirmwareReleaseRead, capabilityFirmwareReleaseManage,
+						capabilityOTAPlanRead, capabilityOTAPlanManage,
+						capabilityReportsRead, capabilityReportsCreate,
+						capabilityTeamRead, capabilityTeamManage,
+						capabilityProvisioningRead, capabilityProvisioningCreate,
+					},
+				}},
+				"capabilities": []string{capabilityFleetRead},
+			})
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer upstream.Close()
+
+	st := mustOpenStore(t)
+	session, err := st.CreateSession("customer", "developer-1", "developer@example.com", "access", "refresh", "org-1", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := NewWithOptions(st, Options{AccountClient: accountclient.New(upstream.URL)})
+	cookie := &http.Cookie{Name: "rtk_admin_session", Value: session.ID}
+	paths := []string{
+		"/api/developer/brand-clouds?limit=25",
+		"/api/developer/brand-clouds/brand-1",
+		"/api/developer/brand-clouds/brand-1/members?limit=25",
+		"/api/fleet/devices?limit=25&status=online",
+		"/api/fleet/summary",
+		"/api/groups?limit=25",
+		"/api/tags?limit=25",
+		"/api/roles?limit=25",
+		"/api/permissions?limit=25",
+		"/api/role-assignments?limit=25",
+		"/api/jobs?limit=25",
+		"/api/reports?limit=25",
+		"/api/skus?limit=25",
+		"/api/skus/sku-1",
+		"/api/skus/sku-1/releases",
+		"/api/skus/sku-1/releases/release-1",
+		"/api/skus/sku-1/permissions",
+		"/api/update-plans?limit=25",
+		"/api/update-plans/plan-1",
+	}
+	for _, path := range paths {
+		rec := requestWithCookie(t, srv, http.MethodGet, path, nil, cookie)
+		expectedBoundary := (strings.Contains(path, "/releases") && rec.Code == http.StatusForbidden) ||
+			(path == "/api/update-plans/plan-1" && rec.Code == http.StatusServiceUnavailable)
+		if !expectedBoundary && (rec.Code == http.StatusUnauthorized || rec.Code == http.StatusForbidden || rec.Code >= 500) {
+			t.Errorf("%s status = %d, body=%s", path, rec.Code, rec.Body.String())
+		}
+	}
+	writeHeaders := http.Header{"Content-Type": {"application/json"}, "Idempotency-Key": {"coverage-route"}}
+	writes := []struct {
+		method string
+		path   string
+		body   string
+	}{
+		{http.MethodPost, "/api/developer/brand-clouds/brand-1/members/invitations", `{"email":"new@example.com","role":"observer"}`},
+		{http.MethodPatch, "/api/developer/brand-clouds/brand-1/members/user-1", `{"role":"operations"}`},
+		{http.MethodPatch, "/api/developer/brand-clouds/brand-1/members/user-1/disable", `{}`},
+		{http.MethodPatch, "/api/developer/brand-clouds/brand-1/members/user-1/enable", `{}`},
+		{http.MethodPost, "/api/developer/brand-clouds/brand-1/owner-transfer", `{"target_email":"owner@example.com"}`},
+		{http.MethodPost, "/api/developer/brand-clouds/brand-1/owner-transfer/transfer-1/cancel", `{}`},
+		{http.MethodPost, "/api/developer/brand-cloud-owner-transfers/accept", `{"token":"owner-token"}`},
+	}
+	for _, write := range writes {
+		rec := authenticatedRequest(srv, session.ID, write.method, write.path, strings.NewReader(write.body), writeHeaders)
+		if rec.Code == http.StatusUnauthorized || rec.Code == http.StatusForbidden || rec.Code >= 500 {
+			t.Errorf("%s %s status = %d, body=%s", write.method, write.path, rec.Code, rec.Body.String())
+		}
+	}
+	if len(upstreamPaths) < 15 {
+		t.Fatalf("upstream requests = %d, want broad Brand Fleet route coverage", len(upstreamPaths))
+	}
+}
+
 func TestCustomerErrorMappingResponses(t *testing.T) {
 	t.Parallel()
 

@@ -62,6 +62,17 @@ export function resourceStatusTone(status) {
   return 'unknown';
 }
 
+export function platformDashboardHealth({ sourceStatus, targetsDown, workloadsDegraded, failedOperations }) {
+  const sourceConfigured = String(sourceStatus || '').toLowerCase() === 'configured';
+  const needsAttention = !sourceConfigured
+    || Number(targetsDown || 0) > 0
+    || Number(workloadsDegraded || 0) > 0
+    || Number(failedOperations || 0) > 0;
+  return needsAttention
+    ? { label: 'Attention', tone: 'warning' }
+    : { label: 'Healthy', tone: 'ok' };
+}
+
 export function workloadStatusLabel(status) {
   const labels = {
     crashloop: 'CrashLoopBackOff',

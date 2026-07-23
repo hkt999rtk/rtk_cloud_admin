@@ -127,11 +127,25 @@ type BrandCloudUser struct {
 }
 
 type Member struct {
-	OrganizationID   string `json:"organization_id"`
-	UserID           string `json:"user_id"`
-	BrandCloudUserID string `json:"brand_cloud_user_id,omitempty"`
-	Email            string `json:"email,omitempty"`
-	Role             string `json:"role"`
+	OrganizationID   string   `json:"organization_id"`
+	UserID           string   `json:"user_id"`
+	BrandCloudUserID string   `json:"brand_cloud_user_id,omitempty"`
+	Email            string   `json:"email,omitempty"`
+	Role             string   `json:"role"`
+	Capabilities     []string `json:"capabilities,omitempty"`
+	DisabledAt       string   `json:"disabled_at,omitempty"`
+}
+
+type OwnerTransfer struct {
+	ID                string `json:"id"`
+	BrandCloudID      string `json:"brand_cloud_id"`
+	RequestedByUserID string `json:"requested_by_user_id"`
+	TargetUserID      string `json:"target_user_id"`
+	TargetEmail       string `json:"target_email,omitempty"`
+	Status            string `json:"status"`
+	ExpiresAt         string `json:"expires_at"`
+	AcceptedAt        string `json:"accepted_at,omitempty"`
+	CanceledAt        string `json:"canceled_at,omitempty"`
 }
 
 type BrandCloudUserResult struct {
@@ -639,6 +653,120 @@ func (c *Client) Organizations(ctx context.Context, accessToken string) ([]Organ
 	return body.Organizations, nil
 }
 
+func (c *Client) DeveloperBrandClouds(ctx context.Context, accessToken string, query url.Values) ([]BrandCloud, Pagination, int, error) {
+	var body struct {
+		BrandClouds         []BrandCloud `json:"brand_clouds"`
+		Pagination          Pagination   `json:"pagination"`
+		DeveloperCloudLimit int          `json:"developer_cloud_limit"`
+	}
+	path := "/v1/developer/brand-clouds"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, Pagination{}, 0, err
+	}
+	return body.BrandClouds, body.Pagination, body.DeveloperCloudLimit, nil
+}
+
+func (c *Client) DeveloperBrandCloud(ctx context.Context, accessToken, brandCloudID string) (BrandCloud, Member, error) {
+	var body struct {
+		BrandCloud BrandCloud `json:"brand_cloud"`
+		Membership Member     `json:"membership"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID)
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return BrandCloud{}, Member{}, err
+	}
+	return body.BrandCloud, body.Membership, nil
+}
+
+func (c *Client) DeveloperBrandCloudMembers(ctx context.Context, accessToken, brandCloudID string, query url.Values) ([]Member, Pagination, error) {
+	var body struct {
+		Members    []Member   `json:"members"`
+		Pagination Pagination `json:"pagination"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, Pagination{}, err
+	}
+	return body.Members, body.Pagination, nil
+}
+
+func (c *Client) InviteDeveloperBrandCloudMember(ctx context.Context, accessToken, brandCloudID, email, role string) (Member, error) {
+	var body struct {
+		Member Member `json:"member"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/invitations"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{"email": email, "role": role}, &body)
+	return body.Member, err
+}
+
+func (c *Client) UpdateDeveloperBrandCloudMember(ctx context.Context, accessToken, brandCloudID, userID, role string) (Member, error) {
+	var body struct {
+		Member Member `json:"member"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/" + url.PathEscape(userID)
+	err := c.doJSON(ctx, http.MethodPatch, path, accessToken, map[string]string{"role": role}, &body)
+	return body.Member, err
+}
+
+func (c *Client) RemoveDeveloperBrandCloudMember(ctx context.Context, accessToken, brandCloudID, userID string) error {
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/" + url.PathEscape(userID)
+	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)
+}
+
+func (c *Client) SetDeveloperBrandCloudMemberStatus(ctx context.Context, accessToken, brandCloudID, userID string, enabled bool) (Member, error) {
+	var body struct {
+		Member Member `json:"member"`
+	}
+	action := "disable"
+	if enabled {
+		action = "enable"
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/" + url.PathEscape(userID) + "/" + action
+	err := c.doJSON(ctx, http.MethodPatch, path, accessToken, nil, &body)
+	return body.Member, err
+}
+
+func (c *Client) RequestDeveloperOwnerTransfer(ctx context.Context, accessToken, brandCloudID, targetEmail string) (OwnerTransfer, error) {
+	var body struct {
+		OwnerTransfer OwnerTransfer `json:"owner_transfer"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/owner-transfer"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{"target_email": targetEmail}, &body)
+	return body.OwnerTransfer, err
+}
+
+func (c *Client) DeveloperOwnerTransfer(ctx context.Context, accessToken, brandCloudID, transferID string) (OwnerTransfer, error) {
+	var body struct {
+		OwnerTransfer OwnerTransfer `json:"owner_transfer"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/owner-transfer/" + url.PathEscape(transferID)
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body.OwnerTransfer, err
+}
+
+func (c *Client) CancelDeveloperOwnerTransfer(ctx context.Context, accessToken, brandCloudID, transferID string) (OwnerTransfer, error) {
+	var body struct {
+		OwnerTransfer OwnerTransfer `json:"owner_transfer"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/owner-transfer/" + url.PathEscape(transferID) + "/cancel"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, nil, &body)
+	return body.OwnerTransfer, err
+}
+
+func (c *Client) AcceptDeveloperOwnerTransfer(ctx context.Context, accessToken, token string) (OwnerTransfer, error) {
+	var body struct {
+		OwnerTransfer OwnerTransfer `json:"owner_transfer"`
+	}
+	err := c.doJSON(ctx, http.MethodPost, "/v1/developer/brand-cloud-owner-transfers/accept", accessToken, map[string]string{"token": token}, &body)
+	return body.OwnerTransfer, err
+}
+
 func (c *Client) AdminOrganizations(ctx context.Context, accessToken string) ([]Organization, error) {
 	var body struct {
 		Organizations []Organization `json:"organizations"`
@@ -1102,6 +1230,10 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, in any,
 }
 
 func (c *Client) doJSONWithIdempotency(ctx context.Context, method, path, token, key string, in any, out any) error {
+	return c.doJSONHeaders(ctx, method, path, token, in, out, map[string]string{"Idempotency-Key": key})
+}
+
+func (c *Client) doJSONHeaders(ctx context.Context, method, path, token string, in any, out any, headers map[string]string) error {
 	if !c.Enabled() {
 		return fmt.Errorf("account manager base URL is not configured")
 	}
@@ -1124,7 +1256,9 @@ func (c *Client) doJSONWithIdempotency(ctx context.Context, method, path, token,
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	req.Header.Set("Idempotency-Key", key)
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
 	correlation.ApplyHeaders(ctx, req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

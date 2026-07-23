@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -265,6 +267,31 @@ CREATE INDEX IF NOT EXISTS idx_batch_jobs_org_updated ON batch_jobs (organizatio
 		version: 6,
 		name:    "batch_job_result",
 		sql:     `ALTER TABLE batch_jobs ADD COLUMN result_json TEXT NOT NULL DEFAULT '[]';`,
+	},
+	{
+		version: 7,
+		name:    "batch_job_idempotency",
+		sql: `ALTER TABLE batch_jobs ADD COLUMN idempotency_key TEXT NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_batch_jobs_org_idempotency ON batch_jobs (organization_id, idempotency_key) WHERE idempotency_key <> '';`,
+	},
+	{
+		version: 8,
+		name:    "provisioning_sources",
+		sql: `CREATE TABLE IF NOT EXISTS provisioning_sources (
+	id TEXT PRIMARY KEY,
+	organization_id TEXT NOT NULL,
+	sku_id TEXT NOT NULL,
+	production_run TEXT NOT NULL DEFAULT '',
+	filename TEXT NOT NULL,
+	checksum TEXT NOT NULL,
+	row_count INTEGER NOT NULL,
+	device_ids_json TEXT NOT NULL,
+	created_at TEXT NOT NULL,
+	expires_at TEXT NOT NULL,
+	idempotency_key TEXT NOT NULL DEFAULT ''
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_provisioning_sources_org_idempotency ON provisioning_sources (organization_id, idempotency_key) WHERE idempotency_key <> '';
+CREATE INDEX IF NOT EXISTS idx_provisioning_sources_org_expires ON provisioning_sources (organization_id, expires_at);`,
 	},
 }
 
@@ -591,32 +618,103 @@ func (s *Store) CreateBatchJob(job contracts.BatchJob) (contracts.BatchJob, erro
 	if err != nil {
 		return contracts.BatchJob{}, err
 	}
-	_, err = s.db.Exec(`INSERT INTO batch_jobs (id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.ID, job.OrganizationID, job.Type, job.Name, job.CreatedBy, scope, job.State, job.Total, job.Completed, job.Failed, job.Skipped, job.CreatedAt, job.UpdatedAt, result)
+	_, err = s.db.Exec(`INSERT INTO batch_jobs (id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.ID, job.OrganizationID, job.Type, job.Name, job.CreatedBy, scope, job.State, job.Total, job.Completed, job.Failed, job.Skipped, job.CreatedAt, job.UpdatedAt, result, job.IdempotencyKey)
 	return job, err
 }
 
-func (s *Store) ListBatchJobs(organizationID string, limit int) ([]contracts.BatchJob, error) {
-	if limit <= 0 || limit > 250 {
-		limit = 100
+func (s *Store) CreateProvisioningSource(source contracts.ProvisioningSource, idempotencyKey string) (contracts.ProvisioningSource, error) {
+	if source.ID == "" {
+		source.ID = "source-" + randomHex(12)
 	}
-	rows, err := s.db.Query(`SELECT id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json FROM batch_jobs WHERE organization_id = ? ORDER BY updated_at DESC, id DESC LIMIT ?`, organizationID, limit)
+	if source.CreatedAt == "" {
+		source.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	if source.ExpiresAt == "" {
+		source.ExpiresAt = time.Now().UTC().Add(7 * 24 * time.Hour).Format(time.RFC3339)
+	}
+	raw, err := json.Marshal(source.DeviceIDs)
 	if err != nil {
-		return nil, err
+		return contracts.ProvisioningSource{}, err
+	}
+	_, err = s.db.Exec(`INSERT INTO provisioning_sources (id, organization_id, sku_id, production_run, filename, checksum, row_count, device_ids_json, created_at, expires_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, source.ID, source.OrganizationID, source.SKU, source.ProductionRun, source.Filename, source.Checksum, source.RowCount, string(raw), source.CreatedAt, source.ExpiresAt, idempotencyKey)
+	return source, err
+}
+
+func (s *Store) GetProvisioningSource(organizationID, id string) (contracts.ProvisioningSource, error) {
+	return scanProvisioningSource(s.db.QueryRow(`SELECT id, organization_id, sku_id, production_run, filename, checksum, row_count, device_ids_json, created_at, expires_at FROM provisioning_sources WHERE organization_id = ? AND id = ?`, organizationID, id))
+}
+
+func (s *Store) GetProvisioningSourceByIdempotency(organizationID, key string) (contracts.ProvisioningSource, error) {
+	return scanProvisioningSource(s.db.QueryRow(`SELECT id, organization_id, sku_id, production_run, filename, checksum, row_count, device_ids_json, created_at, expires_at FROM provisioning_sources WHERE organization_id = ? AND idempotency_key = ?`, organizationID, key))
+}
+
+func scanProvisioningSource(row rowScannerSQL) (contracts.ProvisioningSource, error) {
+	var source contracts.ProvisioningSource
+	var raw string
+	if err := row.Scan(&source.ID, &source.OrganizationID, &source.SKU, &source.ProductionRun, &source.Filename, &source.Checksum, &source.RowCount, &raw, &source.CreatedAt, &source.ExpiresAt); err != nil {
+		return contracts.ProvisioningSource{}, err
+	}
+	if err := json.Unmarshal([]byte(raw), &source.DeviceIDs); err != nil {
+		return contracts.ProvisioningSource{}, err
+	}
+	return source, nil
+}
+
+func (s *Store) GetBatchJobByIdempotency(organizationID, key string) (contracts.BatchJob, error) {
+	return scanBatchJob(s.db.QueryRow(`SELECT id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json, idempotency_key FROM batch_jobs WHERE organization_id = ? AND idempotency_key = ?`, organizationID, key))
+}
+
+func (s *Store) ListBatchJobs(organizationID string, limit int) ([]contracts.BatchJob, error) {
+	page, err := s.ListBatchJobsPage(organizationID, contracts.BatchJobQuery{Limit: limit})
+	return page.Jobs, err
+}
+
+func (s *Store) ListBatchJobsPage(organizationID string, query contracts.BatchJobQuery) (contracts.BatchJobPage, error) {
+	if query.Limit <= 0 || query.Limit > 250 {
+		query.Limit = 100
+	}
+	if query.Offset < 0 {
+		query.Offset = 0
+	}
+	where := []string{"organization_id = ?"}
+	args := []any{organizationID}
+	for _, filter := range []struct{ column, value string }{{"state", query.State}, {"type", query.Type}, {"created_by", query.CreatedBy}} {
+		if strings.TrimSpace(filter.value) != "" {
+			where = append(where, filter.column+" = ?")
+			args = append(args, strings.TrimSpace(filter.value))
+		}
+	}
+	if query.From != "" {
+		where = append(where, "created_at >= ?")
+		args = append(args, query.From)
+	}
+	if query.To != "" {
+		where = append(where, "created_at <= ?")
+		args = append(args, query.To)
+	}
+	clause := strings.Join(where, " AND ")
+	var total int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM batch_jobs WHERE "+clause, args...).Scan(&total); err != nil {
+		return contracts.BatchJobPage{}, err
+	}
+	rows, err := s.db.Query("SELECT id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json, idempotency_key FROM batch_jobs WHERE "+clause+" ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?", append(args, query.Limit, query.Offset)...)
+	if err != nil {
+		return contracts.BatchJobPage{}, err
 	}
 	defer rows.Close()
 	jobs := []contracts.BatchJob{}
 	for rows.Next() {
 		job, err := scanBatchJob(rows)
 		if err != nil {
-			return nil, err
+			return contracts.BatchJobPage{}, err
 		}
 		jobs = append(jobs, job)
 	}
-	return jobs, rows.Err()
+	return contracts.BatchJobPage{Jobs: jobs, Total: total, Limit: query.Limit, Offset: query.Offset}, rows.Err()
 }
 
 func (s *Store) GetBatchJob(organizationID, id string) (contracts.BatchJob, error) {
-	return scanBatchJob(s.db.QueryRow(`SELECT id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json FROM batch_jobs WHERE organization_id = ? AND id = ?`, organizationID, id))
+	return scanBatchJob(s.db.QueryRow(`SELECT id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json, idempotency_key FROM batch_jobs WHERE organization_id = ? AND id = ?`, organizationID, id))
 }
 
 func (s *Store) UpdateBatchJobState(organizationID, id, state string) (contracts.BatchJob, error) {
@@ -660,7 +758,7 @@ type rowScannerSQL interface{ Scan(...any) error }
 func scanBatchJob(row rowScannerSQL) (contracts.BatchJob, error) {
 	var job contracts.BatchJob
 	var rawScope, rawResult string
-	if err := row.Scan(&job.ID, &job.OrganizationID, &job.Type, &job.Name, &job.CreatedBy, &rawScope, &job.State, &job.Total, &job.Completed, &job.Failed, &job.Skipped, &job.CreatedAt, &job.UpdatedAt, &rawResult); err != nil {
+	if err := row.Scan(&job.ID, &job.OrganizationID, &job.Type, &job.Name, &job.CreatedBy, &rawScope, &job.State, &job.Total, &job.Completed, &job.Failed, &job.Skipped, &job.CreatedAt, &job.UpdatedAt, &rawResult, &job.IdempotencyKey); err != nil {
 		return contracts.BatchJob{}, err
 	}
 	if err := json.Unmarshal([]byte(rawScope), &job.Scope); err != nil {
@@ -668,6 +766,25 @@ func scanBatchJob(row rowScannerSQL) (contracts.BatchJob, error) {
 	}
 	if err := json.Unmarshal([]byte(rawResult), &job.Result); err != nil {
 		return contracts.BatchJob{}, err
+	}
+	job.Retryable = job.State == "failed" || job.State == "partial_failed"
+	if created, err := time.Parse(time.RFC3339, job.CreatedAt); err == nil {
+		if os.Getenv("E2E_RESULT_EXPIRED") == "true" {
+			job.ExpiresAt = created.Add(-time.Hour).Format(time.RFC3339)
+		} else {
+			job.ExpiresAt = created.Add(7 * 24 * time.Hour).Format(time.RFC3339)
+		}
+		downloadStatus := "pending"
+		switch job.State {
+		case "completed", "partial_failed":
+			downloadStatus = "ready"
+		case "failed", "cancelled":
+			downloadStatus = "unavailable"
+		}
+		job.ResultMetadata = map[string]any{"download_status": downloadStatus, "expires_at": job.ExpiresAt}
+	}
+	if value, ok := job.Scope["failure_reason"].(string); ok {
+		job.FailureReason = value
 	}
 	return job, nil
 }

@@ -80,6 +80,125 @@ func TestClientRefresh(t *testing.T) {
 	}
 }
 
+func TestClientFleetAndDeveloperWrappers(t *testing.T) {
+	t.Parallel()
+
+	var requests int
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if strings.HasPrefix(r.URL.Path, "/v1/") && !strings.HasPrefix(r.URL.Path, "/v1/auth/") {
+			if got := r.Header.Get("Authorization"); got != "Bearer access" {
+				t.Errorf("%s Authorization = %q", r.URL.Path, got)
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	check := func(name string, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+	ctx := t.Context()
+	query := url.Values{"limit": {"25"}}
+
+	check("SignIn", client.SignIn(ctx, "user@example.com"))
+	_, err := client.ActivateLogin(ctx, "token")
+	check("ActivateLogin", err)
+	check("ForgotPassword", client.ForgotPassword(ctx, "user@example.com"))
+	check("ResetPassword", client.ResetPassword(ctx, "token", "new-password"))
+
+	_, _, err = client.ChipsetProvider(ctx, "access", "provider/1")
+	check("ChipsetProvider", err)
+	_, _, err = client.UpdateChipsetProvider(ctx, "access", "provider/1", "update-1", ChipsetProviderRequest{})
+	check("UpdateChipsetProvider", err)
+	_, err = client.DeveloperChipsets(ctx, "access")
+	check("DeveloperChipsets", err)
+	_, err = client.DeveloperChipset(ctx, "access", "chipset/1")
+	check("DeveloperChipset", err)
+
+	_, _, _, err = client.DeveloperBrandClouds(ctx, "access", query)
+	check("DeveloperBrandClouds", err)
+	_, _, err = client.DeveloperBrandCloud(ctx, "access", "brand/1")
+	check("DeveloperBrandCloud", err)
+	_, _, err = client.DeveloperBrandCloudMembers(ctx, "access", "brand/1", query)
+	check("DeveloperBrandCloudMembers", err)
+	_, err = client.InviteDeveloperBrandCloudMember(ctx, "access", "brand/1", "member@example.com", "observer")
+	check("InviteDeveloperBrandCloudMember", err)
+	_, err = client.UpdateDeveloperBrandCloudMember(ctx, "access", "brand/1", "user/1", "operations")
+	check("UpdateDeveloperBrandCloudMember", err)
+	check("RemoveDeveloperBrandCloudMember", client.RemoveDeveloperBrandCloudMember(ctx, "access", "brand/1", "user/1"))
+	_, err = client.SetDeveloperBrandCloudMemberStatus(ctx, "access", "brand/1", "user/1", false)
+	check("DisableDeveloperBrandCloudMember", err)
+	_, err = client.SetDeveloperBrandCloudMemberStatus(ctx, "access", "brand/1", "user/1", true)
+	check("EnableDeveloperBrandCloudMember", err)
+	_, err = client.RequestDeveloperOwnerTransfer(ctx, "access", "brand/1", "owner@example.com")
+	check("RequestDeveloperOwnerTransfer", err)
+	_, err = client.DeveloperOwnerTransfer(ctx, "access", "brand/1", "transfer/1")
+	check("DeveloperOwnerTransfer", err)
+	_, err = client.CancelDeveloperOwnerTransfer(ctx, "access", "brand/1", "transfer/1")
+	check("CancelDeveloperOwnerTransfer", err)
+	_, err = client.AcceptDeveloperOwnerTransfer(ctx, "access", "owner-token")
+	check("AcceptDeveloperOwnerTransfer", err)
+
+	_, _, err = client.CreateBrandCloudUser(ctx, "access", "brand/1", BrandCloudUserRequest{})
+	check("CreateBrandCloudUser", err)
+	_, err = client.Device(ctx, "access", "org/1", "device/1")
+	check("Device", err)
+	_, err = client.UpdateDevice(ctx, "access", "org/1", "device/1", DeviceUpdateRequest{})
+	check("UpdateDevice", err)
+	_, err = client.FleetDevices(ctx, "access", "org/1", query)
+	check("FleetDevices", err)
+	_, err = client.FleetSummary(ctx, "access", "org/1")
+	check("FleetSummary", err)
+	_, err = client.DeviceGroups(ctx, "access", "org/1", query)
+	check("DeviceGroups", err)
+	_, err = client.DeviceGroup(ctx, "access", "org/1", "group/1")
+	check("DeviceGroup", err)
+	_, err = client.DeviceTags(ctx, "access", "org/1", query)
+	check("DeviceTags", err)
+	_, err = client.CreateDeviceGroup(ctx, "access", "org/1", DeviceGroupRequest{})
+	check("CreateDeviceGroup", err)
+	_, err = client.UpdateDeviceGroup(ctx, "access", "org/1", "group/1", DeviceGroupRequest{})
+	check("UpdateDeviceGroup", err)
+	check("DeleteDeviceGroup", client.DeleteDeviceGroup(ctx, "access", "org/1", "group/1"))
+	_, err = client.Roles(ctx, "access", "org/1", query)
+	check("Roles", err)
+	_, err = client.Permissions(ctx, "access", "org/1", query)
+	check("Permissions", err)
+	_, err = client.RoleAssignments(ctx, "access", "org/1", query)
+	check("RoleAssignments", err)
+	_, err = client.CheckAccess(ctx, "access", "org/1", "fleet.read", "device", "device/1")
+	check("CheckAccess", err)
+	_, err = client.CreateRoleAssignment(ctx, "access", "org/1", RoleAssignmentRequest{})
+	check("CreateRoleAssignment", err)
+	check("DeleteRoleAssignment", client.DeleteRoleAssignment(ctx, "access", "org/1", "assignment/1"))
+	_, err = client.ProductionRuns(ctx, "access", "org/1", "profile/1", query)
+	check("ProductionRuns", err)
+	check("AddDeviceToGroup", client.AddDeviceToGroup(ctx, "access", "org/1", "group/1", "device/1"))
+	check("RemoveDeviceFromGroup", client.RemoveDeviceFromGroup(ctx, "access", "org/1", "group/1", "device/1"))
+	check("AddDeviceTag", client.AddDeviceTag(ctx, "access", "org/1", "device/1", "critical/tag"))
+	check("RemoveDeviceTag", client.RemoveDeviceTag(ctx, "access", "org/1", "device/1", "critical/tag"))
+	_, err = client.DeviceItemProfiles(ctx, "access", "org/1", query)
+	check("DeviceItemProfiles", err)
+	_, err = client.DeviceItemProfile(ctx, "access", "org/1", "profile/1")
+	check("DeviceItemProfile", err)
+	_, err = client.CreateDeviceItemProfile(ctx, "access", "org/1", DeviceItemProfileRequest{})
+	check("CreateDeviceItemProfile", err)
+	_, err = client.UpdateDeviceItemProfile(ctx, "access", "org/1", "profile/1", DeviceItemProfileRequest{})
+	check("UpdateDeviceItemProfile", err)
+	_, err = client.DisableDeviceItemProfile(ctx, "access", "org/1", "profile/1")
+	check("DisableDeviceItemProfile", err)
+
+	if requests < 45 {
+		t.Fatalf("requests = %d, want broad wrapper coverage", requests)
+	}
+}
+
 func TestClientAdminInventory(t *testing.T) {
 	t.Parallel()
 

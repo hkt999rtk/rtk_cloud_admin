@@ -243,6 +243,13 @@ These are intentionally not part of the v0.1 backend API batch:
 
 ## Brand Fleet 100K+ Follow-up Audit
 
+The implementation contract is now: active cloud is a server-side session
+scope; capability checks are performed by Cloud Admin before upstream writes;
+browser totals and tenant identifiers are untrusted; and jobs/reports use
+immutable scope snapshots with bounded pagination. Provisioning uses separate
+validation and execution jobs. Remaining upstream work must preserve these
+boundaries and must not reintroduce browser-controlled scope or role switching.
+
 Status: required for the Brand Fleet redesign; existing v0.1 routes are not
 treated as sufficient just because they can render a small demo fleet.
 
@@ -294,7 +301,27 @@ Implementation rule: do not work around these gaps by fetching the entire fleet
 into React. Each gap must either be backed by an existing indexed upstream
 query or be recorded as a separate contract/API implementation item.
 
-Provisioning boundary: device registration and claim/bind are owned by the
-approved provisioning flow. The Brand Fleet Dashboard is read-only for this
-area: it can show setup status, latest result, retryability, and the next
-provisioning instruction, but it must not create a parallel registration form.
+Provisioning boundary: device registration and claim/bind remain owned by the
+approved Account Manager provisioning flow. The Brand Fleet Dashboard may
+create only the versioned async validation and execution jobs described in the
+Developer Brand Fleet contract; it must not create a parallel registration
+store or bypass Account Manager. Validation is immutable, execution requires
+explicit confirmation, and both jobs expose per-item results, retryability,
+scope hash, expiry, and audit metadata.
+
+### Developer Brand Fleet hardening follow-up
+
+These are mandatory backend/BFF completion items for design-to-product parity;
+they are not satisfied by a mockup-only control:
+
+| Area | Required contract | Status before hardening |
+| --- | --- | --- |
+| OTA scope preview | Server-calculated target count, exclusions, scope hash, quota/rollout guard, freshness, and expiry | Preview route added; plan-create revalidation and active-cloud exclusion validation still required |
+| Provisioning source | Expiring, checksum-bound, active-cloud device-list source for CSV/import workflows | JSON device IDs only; upload/source persistence still required |
+| Provisioning lifecycle | Separate validation, execution, cancel, retry-attempt, and result-download contracts | Validation/execution exist; source upload and complete cancel/retry/download semantics require completion |
+| Report metadata | Persist and return report type, dimensions, timezone, immutable scope, freshness, expiry, download status, and failure reason | Request fields exist; response metadata and stable UI contract require completion |
+| Direct-route authorization | Missing capability must return customer-safe forbidden state and never expose write controls | Navigation is capability-filtered; page-level write gates require final audit |
+
+The implementation order is documentation/OpenAPI first, then BFF contract and
+storage, then React integration and parity tests. No client-side total or
+browser-held tenant identifier may be introduced as a shortcut.

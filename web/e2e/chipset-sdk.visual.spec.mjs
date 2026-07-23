@@ -42,7 +42,7 @@ async function installShellRoutes(page, role) {
   await login(page, role);
 }
 
-test('Platform provider design matches approved mock @chipset-sdk @visual @smoke', async ({ page }, testInfo) => {
+test('[UI-CA-CHIPSET-005] Platform provider design matches approved mock @chipset-sdk @visual @smoke', async ({ page }, testInfo) => {
   testInfo.snapshotSuffix = '';
   await installShellRoutes(page, 'platform_admin');
   await page.goto('/admin/chipset-providers');
@@ -55,7 +55,7 @@ test('Platform provider design matches approved mock @chipset-sdk @visual @smoke
   }
 });
 
-test('Developer resource design matches approved mock @chipset-sdk @visual @smoke', async ({ page }, testInfo) => {
+test('[UI-CA-CHIPSET-006] Developer resource design matches approved mock @chipset-sdk @visual @smoke', async ({ page }, testInfo) => {
   testInfo.snapshotSuffix = '';
   await installShellRoutes(page, 'developer');
   await page.goto('/console/chipset-sdk');

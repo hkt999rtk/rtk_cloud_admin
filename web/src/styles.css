@@ -696,6 +696,90 @@ main {
   padding: 9px 11px;
 }
 
+.inline-form .wide-input {
+  flex: 1 1 100%;
+}
+
+.provisioning-form {
+  flex-wrap: wrap;
+}
+
+.provisioning-form textarea {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-height: 72px;
+  min-width: 360px;
+  padding: 9px 11px;
+}
+
+.field-help,
+.validation-detail-list {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+
+.report-builder {
+  flex-wrap: wrap;
+}
+
+.dimension-picker {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.dimension-picker legend {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 4px;
+}
+
+.dimension-picker label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.validation-detail-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.validation-detail-list span {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 8px;
+}
+
+.scope-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.scope-preview-grid span {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  padding: 10px;
+  font-size: 12px;
+}
+
+.scope-preview-grid strong,
+.scope-preview-grid code {
+  color: var(--text);
+  display: block;
+  margin-top: 4px;
+}
+
 .sku-create-form {
   align-items: center;
   display: flex;
@@ -4380,3 +4464,15 @@ th {
     grid-template-columns: 1fr;
   }
 }
+.chipset-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.chipset-card { min-width: 0; }
+.sdk-release { border-top: 1px solid var(--border, #d9dee7); padding-top: 14px; margin-top: 14px; }
+.sdk-release-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.provider-endpoints { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.provider-endpoints a { text-decoration: none; }
+.provider-error { color: var(--danger, #b42318); }
