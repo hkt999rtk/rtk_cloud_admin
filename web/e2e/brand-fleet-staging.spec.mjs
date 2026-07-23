@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { loginWithStagingSession } from './fixtures/session.mjs';
 
-test('Brandname staging read-only smoke @staging @brand-fleet', async ({ page }) => {
+test('[UI-CA-STAGING-002] Brandname staging read-only smoke @staging @brand-fleet', async ({ page }) => {
   const cloudId = process.env.E2E_BRAND_CLOUD_ID;
   test.skip(!cloudId, 'E2E_BRAND_CLOUD_ID is required');
   await loginWithStagingSession(page, 'customer');

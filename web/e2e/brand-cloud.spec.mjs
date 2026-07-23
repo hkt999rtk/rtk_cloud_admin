@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { enterPlatform, login } from './fixtures/session.mjs';
 
 test.describe('Brand Clouds', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeEach(async ({ page }) => {
     await login(page, 'platform_admin');
     await enterPlatform(page);
@@ -9,7 +11,7 @@ test.describe('Brand Clouds', () => {
     await expect(page.getByRole('heading', { name: 'Brand Clouds' }).first()).toBeVisible();
   });
 
-  test('list filters and detail reload show Account Manager data @smoke', async ({ page }) => {
+  test('[UI-CA-CLOUD-001] list filters and detail reload show Account Manager data @smoke', async ({ page }) => {
     await expect(page.getByText('Brand Clouds', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('E2E Alpha Cloud', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'View', exact: true }).first().click();
@@ -19,20 +21,20 @@ test.describe('Brand Clouds', () => {
     await expect(page.getByText('trace-e2e-001', { exact: true })).toHaveCount(0);
   });
 
-  test('list status filter selects disabled Brand Clouds', async ({ page }) => {
+  test('[UI-CA-CLOUD-002] list status filter selects disabled Brand Clouds', async ({ page }) => {
     await page.getByLabel('Filter Brand Clouds status').selectOption('disabled');
     await expect(page.getByText('E2E Beta Cloud', { exact: true })).toBeVisible();
     await expect(page.getByText('E2E Alpha Cloud', { exact: true })).toHaveCount(0);
   });
 
-  test('list renders Account Manager upstream failures safely', async ({ page }) => {
+  test('[UI-CA-CLOUD-003] list renders Account Manager upstream failures safely', async ({ page }) => {
     const mode = process.env.E2E_SCENARIO_MODE;
     test.skip(mode !== 'unavailable', 'run with E2E_SCENARIO_MODE=unavailable');
     await expect(page.getByText(/Brand Clouds (?:unavailable|is temporarily unavailable)/i)).toBeVisible();
     await expect(page.getByText(/raw_payload|access_token|password|authorization/i)).toHaveCount(0);
   });
 
-  test('detail supports Brand Cloud and user lifecycle actions', async ({ page }) => {
+  test('[UI-CA-CLOUD-004] detail supports Brand Cloud and user lifecycle actions', async ({ page }) => {
     const betaRow = page.getByRole('row').filter({ hasText: 'E2E Beta Cloud' });
     await betaRow.getByRole('button', { name: 'View', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Brand Cloud detail' });
@@ -52,7 +54,7 @@ test.describe('Brand Clouds', () => {
     await expect(dialog.getByText('Brand user created and assigned.', { exact: true })).toBeVisible();
   });
 
-  test('create stepper completes a Brand Cloud creation', async ({ page }) => {
+  test('[UI-CA-CLOUD-005] create stepper completes a Brand Cloud creation', async ({ page }) => {
     await page.getByRole('button', { name: 'Create Brand Cloud' }).click();
     const dialog = page.getByRole('dialog', { name: 'Create Brand Cloud' });
     await dialog.getByLabel('Brand display name').fill('E2E Created From Browser');
@@ -64,7 +66,7 @@ test.describe('Brand Clouds', () => {
     await expect(page.getByRole('heading', { name: 'E2E Created From Browser' })).toBeVisible();
   });
 
-  test('create stepper surfaces partial owner assignment failure', async ({ page }) => {
+  test('[UI-CA-CLOUD-006] create stepper surfaces partial owner assignment failure', async ({ page }) => {
     test.skip(process.env.E2E_FAIL_ACTION !== 'member-assign', 'run with E2E_FAIL_ACTION=member-assign');
     await page.getByRole('button', { name: 'Create Brand Cloud' }).click();
     const dialog = page.getByRole('dialog', { name: 'Create Brand Cloud' });

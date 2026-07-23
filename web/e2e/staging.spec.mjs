@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { loginWithStagingSession } from './fixtures/session.mjs';
 
-test('staging platform admin can read operations @staging', async ({ page }) => {
+test('[UI-CA-STAGING-001] staging platform admin can read operations @staging', async ({ page }) => {
   test.skip(!process.env.E2E_BASE_URL, 'staging base URL is required');
   await loginWithStagingSession(page);
   await page.goto('/admin/ops');

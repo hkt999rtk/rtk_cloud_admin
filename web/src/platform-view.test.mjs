@@ -5,6 +5,7 @@ import {
   formatResourcePercent,
   formatThroughputBPS,
   grafanaEmbedState,
+  platformDashboardHealth,
   resourceStatusLabel,
   resourceStatusTone,
   workloadStatusLabel,
@@ -53,6 +54,23 @@ test('resource helpers map row status to stable labels and tones', () => {
   assert.equal(resourceStatusTone('configured'), 'ok');
   assert.equal(resourceStatusTone('unmonitored'), 'unavailable');
   assert.equal(resourceStatusTone('ok'), 'ok');
+});
+
+test('platform dashboard health does not report Healthy without a configured metrics source', () => {
+  assert.deepEqual(
+    platformDashboardHealth({ sourceStatus: 'configured', targetsDown: 0, workloadsDegraded: 0, failedOperations: 0 }),
+    { label: 'Healthy', tone: 'ok' },
+  );
+  for (const sourceStatus of ['unavailable', 'unconfigured', 'stale', 'empty', undefined]) {
+    assert.deepEqual(
+      platformDashboardHealth({ sourceStatus, targetsDown: 0, workloadsDegraded: 0, failedOperations: 0 }),
+      { label: 'Attention', tone: 'warning' },
+    );
+  }
+  assert.deepEqual(
+    platformDashboardHealth({ sourceStatus: 'configured', targetsDown: 1, workloadsDegraded: 0, failedOperations: 0 }),
+    { label: 'Attention', tone: 'warning' },
+  );
 });
 
 test('grafanaEmbedState accepts only configured same-origin iframe URLs', () => {

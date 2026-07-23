@@ -12,7 +12,7 @@ async function createBatch(page, key, scope = { device_ids: ['dev-e2e-001', 'dev
 }
 
 test.describe('Brandname job lifecycle', () => {
-  test('partial failure keeps per-item results and creates a new retry attempt @brand-fleet @full', async ({ page }) => {
+  test('[UI-CA-BATCH-001] partial failure keeps per-item results and creates a new retry attempt @brand-fleet @full', async ({ page }) => {
     test.skip(process.env.E2E_SCENARIO_MODE !== 'partial_failure', 'run with E2E_SCENARIO_MODE=partial_failure');
     await login(page, 'operations');
     await page.goto('/console/brand-e2e-01/jobs');
@@ -30,7 +30,7 @@ test.describe('Brandname job lifecycle', () => {
     expect(retryJob.scope.attempt).toBeGreaterThan(1);
   });
 
-  test('pause, resume and cancel are valid state transitions @brand-fleet @full', async ({ page }) => {
+  test('[UI-CA-BATCH-002] pause, resume and cancel are valid state transitions @brand-fleet @full', async ({ page }) => {
     test.skip(process.env.E2E_SCENARIO_MODE !== 'slow', 'run with E2E_SCENARIO_MODE=slow');
     await login(page, 'operations');
     await page.goto('/console/brand-e2e-01/jobs');
@@ -49,7 +49,7 @@ test.describe('Brandname job lifecycle', () => {
     if (cancel.ok()) await assertAsyncJobProgress(page, cancelJob.id, 'cancelled');
   });
 
-  test('completed result supports JSON and CSV download @brand-fleet @full', async ({ page }) => {
+  test('[UI-CA-BATCH-003] completed result supports JSON and CSV download @brand-fleet @full', async ({ page }) => {
     await login(page, 'operations');
     const job = await createBatch(page, `e2e-download-${Date.now()}`, { query: { region: ['na'] }, excluded_device_ids: [] });
     await waitForJob(page, job.id);

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { login } from './fixtures/session.mjs';
 import { waitForJob } from './fixtures/brand-fleet.mjs';
 
-test('batch job uses server scope, idempotency and result lifecycle @brand-fleet', async ({ page }) => {
+test('[UI-CA-JOBS-001] batch job uses server scope, idempotency and result lifecycle @brand-fleet', async ({ page }) => {
   await login(page, 'operations');
   await page.goto('/console/brand-e2e-01/jobs');
   await expect(page.getByRole('heading', { name: '批次工作' }).first()).toBeVisible();

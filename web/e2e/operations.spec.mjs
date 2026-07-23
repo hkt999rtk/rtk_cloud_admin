@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { enterPlatform, login } from './fixtures/session.mjs';
 
-test('platform admin can open operations and service logs', async ({ page }) => {
+test('[UI-CA-OPS-001] platform admin can open operations and service logs', async ({ page }) => {
   await login(page, 'platform_admin');
   await enterPlatform(page);
   await page.getByRole('button', { name: 'Operations Log', exact: true }).click();

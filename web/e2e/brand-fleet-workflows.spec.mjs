@@ -3,7 +3,7 @@ import { login } from './fixtures/session.mjs';
 import { assertServerScope, waitForJob } from './fixtures/brand-fleet.mjs';
 
 test.describe('Brandname async workflows', () => {
-  test('report builder submits complete metadata from the browser @brand-fleet @smoke', async ({ page }) => {
+  test('[UI-CA-REPORT-003] report builder submits complete metadata from the browser @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/reports');
     await page.getByLabel('報表名稱').fill('Browser report');
@@ -16,7 +16,7 @@ test.describe('Brandname async workflows', () => {
     expect((await createResponse).status()).toBe(202);
   });
 
-  test('provisioning CSV upload starts validation from the browser @brand-fleet @smoke', async ({ page }) => {
+  test('[UI-CA-PROV-004] provisioning CSV upload starts validation from the browser @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/provisioning');
     await page.getByPlaceholder('SKU ID').fill('sku-alpha');
@@ -26,7 +26,7 @@ test.describe('Brandname async workflows', () => {
     await expect(page.getByText(/Immutable validation result|validation/i).first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test('OTA scope preview is server calculated and immutable @brand-fleet @smoke', async ({ page }) => {
+  test('[UI-CA-OTA-001] OTA scope preview is server calculated and immutable @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/firmware-ota');
     await expect(page.getByRole('heading', { name: '韌體更新' }).first()).toBeVisible();
@@ -51,7 +51,7 @@ test.describe('Brandname async workflows', () => {
     expect(rejected.status()).toBe(409);
   });
 
-  test('reports preserve scope metadata and expose async result download @brand-fleet', async ({ page }) => {
+  test('[UI-CA-REPORT-004] reports preserve scope metadata and expose async result download @brand-fleet', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/reports');
     await expect(page.getByRole('heading', { name: '報表' }).first()).toBeVisible();
@@ -69,7 +69,7 @@ test.describe('Brandname async workflows', () => {
     expect(csv.headers()['content-type']).toContain('text/csv');
   });
 
-  test('report idempotency replay and conflict preserve the original scope @brand-fleet @full', async ({ page }) => {
+  test('[UI-CA-REPORT-005] report idempotency replay and conflict preserve the original scope @brand-fleet @full', async ({ page }) => {
     await login(page, 'developer');
     const headers = { 'Content-Type': 'application/json', 'Idempotency-Key': `e2e-report-replay-${Date.now()}` };
     const data = { name: 'Replay report', report_type: 'firmware_coverage', dimensions: ['firmware', 'status'], timezone: 'UTC', format: 'json', scope: { query: { region: ['na'] } } };
@@ -82,7 +82,7 @@ test.describe('Brandname async workflows', () => {
     expect(conflict.status()).toBe(409);
   });
 
-  test('provisioning upload validates then creates execution job @brand-fleet', async ({ page }) => {
+  test('[UI-CA-PROV-005] provisioning upload validates then creates execution job @brand-fleet', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/provisioning');
     await expect(page.getByRole('heading', { name: '設備註冊' }).first()).toBeVisible();

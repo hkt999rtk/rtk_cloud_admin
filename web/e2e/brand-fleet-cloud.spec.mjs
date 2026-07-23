@@ -3,7 +3,7 @@ import { login } from './fixtures/session.mjs';
 import { assertForbiddenRoute } from './fixtures/brand-fleet.mjs';
 
 test.describe('Brandname cloud scope', () => {
-  test('developer can switch Brand Clouds and keep URL/data scope aligned @brand-fleet @smoke', async ({ page }) => {
+  test('[UI-CA-SCOPE-001] developer can switch Brand Clouds and keep URL/data scope aligned @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/overview');
     await expect(page.getByRole('heading', { name: '設備總覽' }).first()).toBeVisible();
@@ -25,7 +25,7 @@ test.describe('Brandname cloud scope', () => {
     await expect(page.getByText('E2E Camera 001', { exact: true })).toHaveCount(0);
   });
 
-  test('non-member direct cloud link is forbidden without switching active cloud @brand-fleet', async ({ page }) => {
+  test('[UI-CA-SCOPE-002] non-member direct cloud link is forbidden without switching active cloud @brand-fleet', async ({ page }) => {
     await login(page, 'customer');
     await page.goto('/console/brand-e2e-02/overview');
     await assertForbiddenRoute(page);

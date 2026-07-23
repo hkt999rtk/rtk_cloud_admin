@@ -12,7 +12,7 @@ const pages = [
   ['provisioning', '設備註冊'],
 ];
 
-test('Brandname customer pages load through the real BFF @brand-fleet @smoke', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-001] Brandname customer pages load through the real BFF @brand-fleet @smoke', async ({ page }) => {
   await login(page, 'developer');
   for (const [route, heading] of pages) {
     await page.goto(`/console/brand-e2e-01/${route}`);
@@ -20,7 +20,7 @@ test('Brandname customer pages load through the real BFF @brand-fleet @smoke', a
   }
 });
 
-test('devices remains server paginated instead of loading the whole fleet @brand-fleet', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading the whole fleet @brand-fleet', async ({ page }) => {
   await login(page, 'developer');
   const requests = [];
   page.on('request', (request) => { if (request.url().includes('/api/fleet/devices')) requests.push(request.url()); });

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { login } from './fixtures/session.mjs';
 
 test.describe('Brandname capability matrix', () => {
-  test('developer/release can read and manage release surfaces', async ({ page }) => {
+  test('[UI-CA-ROLE-001] developer/release can read and manage release surfaces', async ({ page }) => {
     await login(page, 'developer');
     const me = await page.request.get('/api/me').then((response) => response.json());
     expect(me.capabilities).toContain('sku.policy.manage');
@@ -12,7 +12,7 @@ test.describe('Brandname capability matrix', () => {
     await expect(page.getByRole('heading', { name: 'SKU 與服務' }).first()).toBeVisible();
   });
 
-  test('operations cannot write SKU policy or release metadata', async ({ page }) => {
+  test('[UI-CA-ROLE-002] operations cannot write SKU policy or release metadata', async ({ page }) => {
     await login(page, 'operations');
     const skuWrite = await page.request.post('/api/skus', { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-operations-sku' }, data: { name: 'forbidden' } });
     expect(skuWrite.status()).toBe(403);
@@ -20,7 +20,7 @@ test.describe('Brandname capability matrix', () => {
     expect(releaseWrite.status()).toBe(403);
   });
 
-  test('observer is read-only through UI and direct API', async ({ page }) => {
+  test('[UI-CA-ROLE-003] observer is read-only through UI and direct API', async ({ page }) => {
     await login(page, 'observer');
     await page.goto('/console/brand-e2e-01/reports');
     await expect(page.getByText(/reports.create/)).toBeVisible();

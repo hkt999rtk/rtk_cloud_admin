@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { login } from './fixtures/session.mjs';
 
-test('developer team management uses developer namespace and is replay-safe @brand-fleet', async ({ page }) => {
+test('[UI-CA-TEAM-001] developer team management uses developer namespace and is replay-safe @brand-fleet', async ({ page }) => {
   await login(page, 'developer');
   await page.goto('/console/brand-e2e-01/access');
   await expect(page.getByRole('heading', { name: '團隊與權限' }).first()).toBeVisible();

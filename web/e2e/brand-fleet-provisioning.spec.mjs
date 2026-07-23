@@ -3,7 +3,7 @@ import { login } from './fixtures/session.mjs';
 import { assertDownloadResult, waitForJob } from './fixtures/brand-fleet.mjs';
 
 test.describe('Brandname provisioning failure paths', () => {
-  test('invalid device validation is immutable and cannot execute @brand-fleet @full', async ({ page }) => {
+  test('[UI-CA-PROV-001] invalid device validation is immutable and cannot execute @brand-fleet @full', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/provisioning');
     const response = await page.request.post('/api/provisioning/validate', {
@@ -24,7 +24,7 @@ test.describe('Brandname provisioning failure paths', () => {
     expect(execution.status()).toBe(409);
   });
 
-  test('CSV upload replay does not create a duplicate source and conflicting replay is rejected @brand-fleet @full', async ({ page }) => {
+  test('[UI-CA-PROV-002] CSV upload replay does not create a duplicate source and conflicting replay is rejected @brand-fleet @full', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/provisioning');
     const headers = { 'Idempotency-Key': 'e2e-source-replay' };
@@ -38,7 +38,7 @@ test.describe('Brandname provisioning failure paths', () => {
     expect(conflict.status()).toBe(409);
   });
 
-  test('observer cannot start provisioning from the browser or API @brand-fleet @full', async ({ page }) => {
+  test('[UI-CA-PROV-003] observer cannot start provisioning from the browser or API @brand-fleet @full', async ({ page }) => {
     await login(page, 'observer');
     await page.goto('/console/brand-e2e-01/provisioning');
     await expect(page.getByText('沒有 provisioning 權限')).toBeVisible();

@@ -48,6 +48,7 @@ import {
   formatResourcePercent,
   formatThroughputBPS,
   grafanaEmbedState,
+  platformDashboardHealth,
   resourceStatusLabel,
   resourceStatusTone,
   ssoProtocolLabel,
@@ -2808,6 +2809,12 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations, logs
   const targetsTotal = serviceMetrics.reduce((total, metric) => total + (metric.targets_total || 0), 0);
   const workloadsDegraded = workloadHealth.filter((workload) => !['ok', 'unmonitored', 'unconfigured'].includes(normalizeStatusKey(workload.status))).length;
   const nodesReady = clusterNodes.filter((node) => node.ready).length;
+  const dashboardHealth = platformDashboardHealth({
+    sourceStatus: dashboardSourceStatus(dashboard),
+    targetsDown,
+    workloadsDegraded,
+    failedOperations: risk.failed_operations,
+  });
   const dashboardKpis = [
     { id: 'services-up', label: 'Services Up', value: servicesUp || serviceMetrics.length, detail: serviceMetrics.length ? `/ ${serviceMetrics.length}` : '', icon: 'circle-check', tone: 'good' },
     { id: 'targets-down', label: 'Targets Down', value: targetsDown, detail: targetsTotal ? `/ ${targetsTotal}` : '', icon: 'circle-minus', tone: targetsDown ? 'danger' : 'good' },
@@ -2819,7 +2826,7 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations, logs
     <section className="platform-dashboard">
       <div className="platform-dashboard-head">
         <div className="platform-context-controls" aria-label="Platform dashboard status">
-          <span className="platform-health-chip"><StatusDot value={targetsDown || workloadsDegraded || risk.failed_operations ? 'warning' : 'ok'} />{targetsDown || workloadsDegraded || risk.failed_operations ? 'Attention' : 'Healthy'}</span>
+          <span className="platform-health-chip"><StatusDot value={dashboardHealth.tone} />{dashboardHealth.label}</span>
           <span className="platform-source-state">Source: {platformSourceLabel(dashboardSourceStatus(dashboard))}</span>
         </div>
         <span className="platform-updated"><Icon name="rotate" /> {platformCheckedAt(dashboard) ? `Checked ${formatRelativeTime(platformCheckedAt(dashboard))}` : 'Source freshness unavailable'}</span>

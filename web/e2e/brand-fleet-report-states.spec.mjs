@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { login } from './fixtures/session.mjs';
 
-test('report failure is customer-safe when upstream is unavailable @brand-fleet @errors', async ({ page }) => {
+test('[UI-CA-REPORT-001] report failure is customer-safe when upstream is unavailable @brand-fleet @errors', async ({ page }) => {
   test.skip(process.env.E2E_SCENARIO_MODE !== 'unavailable', 'run with E2E_SCENARIO_MODE=unavailable');
   await login(page, 'developer');
   await page.goto('/console/brand-e2e-01/reports');
@@ -21,7 +21,7 @@ test('report failure is customer-safe when upstream is unavailable @brand-fleet 
   expect(JSON.stringify(await failed.json())).not.toMatch(/access_token|raw_payload|authorization|tenant_id/i);
 });
 
-test('expired report result returns explicit expired state @brand-fleet @errors', async ({ page }) => {
+test('[UI-CA-REPORT-002] expired report result returns explicit expired state @brand-fleet @errors', async ({ page }) => {
   test.skip(process.env.E2E_RESULT_EXPIRED !== 'true', 'run with E2E_RESULT_EXPIRED=true');
   await login(page, 'developer');
   const response = await page.request.post('/api/reports', {
