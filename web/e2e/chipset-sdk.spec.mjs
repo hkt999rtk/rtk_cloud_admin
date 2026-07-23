@@ -58,6 +58,7 @@ test('[UI-CA-CHIPSET-003] provider and developer pages expose upstream unavailab
 });
 
 test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpublish flow @chipset-sdk @smoke', async ({ page }) => {
+  const providerName = 'Ameba IoT E2E Candidate';
   const shellResponses = new Map([
     ['/api/admin/summary', {}], ['/api/admin/customers', []], ['/api/admin/devices', []],
     ['/api/admin/operations', []], ['/api/admin/service-health', []], ['/api/admin/audit', []],
@@ -78,10 +79,10 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
   await expect(page.getByRole('heading', { level: 2, name: 'ChipSet & SDK Providers' })).toBeVisible();
 
   await page.getByRole('button', { name: '新增 Provider' }).click();
-  await page.getByLabel('Provider display name').fill('Ameba IoT E2E');
+  await page.getByLabel('Provider display name').fill(providerName);
   await page.getByLabel('Manifest URL').fill('https://provider.example.com/amebapro2.json');
   await page.getByRole('button', { name: '儲存 Draft' }).click();
-  const row = page.getByRole('row').filter({ hasText: 'Ameba IoT E2E' });
+  const row = page.getByRole('row').filter({ hasText: providerName });
   await expect(row).toContainText('draft');
   await expect(row).toContainText('Unavailable');
 
@@ -107,7 +108,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
 
   await login(page, 'platform_admin');
   await page.goto('/admin/chipset-providers');
-  const refreshedRow = page.getByRole('row').filter({ hasText: 'Ameba IoT E2E' });
+  const refreshedRow = page.getByRole('row').filter({ hasText: providerName });
   await refreshedRow.getByRole('button', { name: '刷新' }).click();
   await expect(page.getByText('Provider refresh 已完成。')).toBeVisible();
 
@@ -117,7 +118,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
 
   await login(page, 'platform_admin');
   await page.goto('/admin/chipset-providers');
-  const failingRow = page.getByRole('row').filter({ hasText: 'Ameba IoT E2E' });
+  const failingRow = page.getByRole('row').filter({ hasText: providerName });
   await failingRow.getByRole('button', { name: '刷新' }).click();
   await expect(page.getByText('Provider fetch failed')).toBeVisible();
 
@@ -129,7 +130,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
 
   await login(page, 'platform_admin');
   await page.goto('/admin/chipset-providers');
-  const unpublishedRow = page.getByRole('row').filter({ hasText: 'Ameba IoT E2E' });
+  const unpublishedRow = page.getByRole('row').filter({ hasText: providerName });
   await expect(unpublishedRow).toContainText('Stale');
   await unpublishedRow.getByRole('button', { name: '下架' }).click();
   await expect(unpublishedRow).toContainText('unpublished');
