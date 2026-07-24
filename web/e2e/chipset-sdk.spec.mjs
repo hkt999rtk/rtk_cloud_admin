@@ -57,8 +57,8 @@ test('[UI-CA-CHIPSET-003] provider and developer pages expose upstream unavailab
   await expect(page.getByRole('heading', { name: '資源暫時無法取得' })).toBeVisible();
 });
 
-test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpublish flow @chipset-sdk @smoke', async ({ page }) => {
-  const providerName = 'Ameba IoT Qualification Candidate';
+test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpublish flow @chipset-sdk @smoke', async ({ page }, testInfo) => {
+  const providerName = `Ameba IoT Qualification Candidate attempt-${testInfo.retry}`;
   const shellResponses = new Map([
     ['/api/admin/summary', {}], ['/api/admin/customers', []], ['/api/admin/devices', []],
     ['/api/admin/operations', []], ['/api/admin/service-health', []], ['/api/admin/audit', []],
