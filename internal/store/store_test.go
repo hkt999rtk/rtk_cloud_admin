@@ -135,6 +135,14 @@ func TestBatchJobsPersistByOrganizationAndCanRetry(t *testing.T) {
 	if _, err := st.GetBatchJob("org-b", job.ID); err == nil {
 		t.Fatal("expected cross-organization job lookup to fail")
 	}
+	progress, err := st.UpdateBatchJobProgress("org-a", job.ID, "partial_failed", 30, 10, 2)
+	if err != nil || progress.Completed != 30 || progress.Failed != 10 || progress.Skipped != 2 || !progress.Retryable {
+		t.Fatalf("unexpected job progress: %+v, %v", progress, err)
+	}
+	result, err := st.UpdateBatchJobResult("org-a", job.ID, []map[string]any{{"device_id": "device-1", "status": "completed"}})
+	if err != nil || len(result.Result) != 1 || result.Result[0]["device_id"] != "device-1" {
+		t.Fatalf("unexpected job result: %+v, %v", result, err)
+	}
 }
 
 func TestMigrateTracksVersionsAndIsIdempotent(t *testing.T) {

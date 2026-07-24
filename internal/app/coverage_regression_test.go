@@ -15,6 +15,8 @@ import (
 	"rtk_cloud_admin/internal/contracts"
 	"rtk_cloud_admin/internal/store"
 	"rtk_cloud_admin/internal/videoclient"
+
+	cloudlogger "github.com/hkt999rtk/rtk_cloud_logger"
 )
 
 func TestCustomerScopedFallbackEndpointsAndLogout(t *testing.T) {
@@ -199,6 +201,157 @@ func TestMiscHandlerEdgesForCoverageGate(t *testing.T) {
 	}
 }
 
+func TestCoverageGovernancePureHelpers(t *testing.T) {
+	t.Parallel()
+
+	original := map[string]any{"query": "online", "keep": true}
+	merged := mergeBatchJobScope(original, map[string]any{"query": "offline", "added": 2})
+	if merged["query"] != "offline" || merged["keep"] != true || merged["added"] != 2 {
+		t.Fatalf("mergeBatchJobScope = %#v", merged)
+	}
+	if original["query"] != "online" {
+		t.Fatalf("mergeBatchJobScope mutated input: %#v", original)
+	}
+	if maxInt(3, 2) != 3 || maxInt(-1, 0) != 0 {
+		t.Fatal("maxInt returned an unexpected result")
+	}
+
+	if got := stringSetDiff([]string{"mqtt", "video", "ota"}, []string{"video"}); strings.Join(got, ",") != "mqtt,ota" {
+		t.Fatalf("stringSetDiff = %#v", got)
+	}
+	if got := customerServiceOptions([]string{"影像服務", "即時觀看", "錄影與保存", "設備回報", "unknown"}); len(got) != 3 {
+		t.Fatalf("customerServiceOptions = %#v", got)
+	}
+
+	profile := accountclient.DeviceItemProfile{
+		ID:                 "sku-1",
+		DisplayName:        "Camera",
+		Model:              "RTK-CAM",
+		Category:           "camera",
+		Status:             "active",
+		ServiceOptions:     []string{"video", "webrtc", "clips", "mqtt", "ota", "unknown"},
+		ClaimPolicy:        map[string]any{"enabled": true},
+		ProvisioningPolicy: map[string]any{"enabled": true},
+		UpdatedAt:          "2026-07-24T00:00:00Z",
+	}
+	summary := &accountclient.FleetSummary{
+		BySKU:         map[string]int{"sku-1": 7},
+		BySKURegion:   map[string]map[string]int{"sku-1": {"ap-northeast": 7}},
+		BySKUFirmware: map[string]map[string]int{"sku-1": {"1.0.0": 7}},
+	}
+	sku := customerSKUWithActionsAndSummary(profile, []string{
+		"registry_device.manage",
+		"ota_campaign:create",
+		"report.read",
+	}, summary)
+	if sku.ID != "sku-1" || sku.DeviceCount != 7 || len(sku.ServiceCapabilities) != 5 || len(sku.AllowedActions) != 4 {
+		t.Fatalf("customerSKUWithActionsAndSummary = %#v", sku)
+	}
+	if got := customerSKU(profile); got.ID != profile.ID {
+		t.Fatalf("customerSKU = %#v", got)
+	}
+
+	if got := scopeStringSlice([]any{" a ", 1, "", "b"}); strings.Join(got, ",") != "a,b" {
+		t.Fatalf("scopeStringSlice([]any) = %#v", got)
+	}
+	if got := scopeStringSlice([]string{" a ", "", "b"}); strings.Join(got, ",") != "a,b" {
+		t.Fatalf("scopeStringSlice([]string) = %#v", got)
+	}
+	device := accountclient.Device{
+		DeviceItemProfileID: "sku-1",
+		Category:            "camera",
+		Model:               "RTK-CAM",
+		Status:              "online",
+		Readiness:           "ready",
+		Metadata:            map[string]any{"region": "ap-northeast", "firmware": "1.0.0"},
+	}
+	if !deviceMatchesScopeQuery(device, map[string]any{
+		"sku_id": "sku-1", "region": []string{"ap-northeast"}, "status": "online",
+	}) {
+		t.Fatal("deviceMatchesScopeQuery rejected matching device")
+	}
+	if deviceMatchesScopeQuery(device, map[string]any{"model": "other"}) {
+		t.Fatal("deviceMatchesScopeQuery accepted mismatching device")
+	}
+	if deviceMatchesScopeQuery(accountclient.Device{}, map[string]any{"region": "ap-northeast"}) {
+		t.Fatal("deviceMatchesScopeQuery accepted missing device field")
+	}
+
+	orgs := []accountclient.Organization{{ID: "org-1", Role: "owner"}}
+	if role, ok := organizationRole(orgs, "org-1"); !ok || role != "owner" {
+		t.Fatalf("organizationRole found = %q, %v", role, ok)
+	}
+	if _, ok := organizationRole(orgs, "missing"); ok {
+		t.Fatal("organizationRole unexpectedly found missing organization")
+	}
+	if workloadNameFromPod("video-cloud-api-7d6f4c9f8b-abc12") != "video-cloud-api" ||
+		workloadNameFromPod("redis-0") != "redis" ||
+		workloadNameFromPod("postgres") != "postgres" {
+		t.Fatal("workloadNameFromPod returned an unexpected workload")
+	}
+}
+
+func TestImmutableOTAScopeValidationWithoutUpstream(t *testing.T) {
+	t.Parallel()
+
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{AccountClient: accountclient.New("")})
+	query := map[string]any{"sku_id": "sku-1", "region": []any{"ap-northeast"}}
+	scope := map[string]any{
+		"expires_at":          time.Now().UTC().Add(time.Hour).Format(time.RFC3339),
+		"query":               query,
+		"excluded_device_ids": []any{"dev-1"},
+	}
+	scope["scope_hash"] = batchScopeHash(map[string]any{
+		"query": query, "excluded_device_ids": scope["excluded_device_ids"],
+	})
+	if err := srv.validateImmutableOTAScope(t.Context(), "token", "org-1", scope); err != nil {
+		t.Fatalf("validateImmutableOTAScope valid scope: %v", err)
+	}
+
+	for name, mutate := range map[string]func(map[string]any){
+		"expired": func(candidate map[string]any) {
+			candidate["expires_at"] = time.Now().UTC().Add(-time.Minute).Format(time.RFC3339)
+		},
+		"invalid timestamp": func(candidate map[string]any) { candidate["expires_at"] = "not-a-time" },
+		"missing query":     func(candidate map[string]any) { delete(candidate, "query") },
+		"invalid hash":      func(candidate map[string]any) { candidate["scope_hash"] = "sha256:invalid" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := make(map[string]any, len(scope))
+			for key, value := range scope {
+				candidate[key] = value
+			}
+			mutate(candidate)
+			if err := srv.validateImmutableOTAScope(t.Context(), "token", "org-1", candidate); err == nil {
+				t.Fatalf("validateImmutableOTAScope(%s) returned nil", name)
+			}
+		})
+	}
+}
+
+func TestVideoCloudGatewayErrorClassification(t *testing.T) {
+	t.Parallel()
+
+	srv := &Server{logger: cloudlogger.Nop()}
+	for name, test := range map[string]struct {
+		err  error
+		code int
+	}{
+		"timeout": {context.DeadlineExceeded, http.StatusGatewayTimeout},
+		"gateway": {errVideoCloudRequestFailed, http.StatusBadGateway},
+		"generic": {errors.New("unexpected"), http.StatusInternalServerError},
+	} {
+		t.Run(name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			srv.writeVideoCloudGatewayError(rec, test.err)
+			if rec.Code != test.code {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, test.code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestLegacyUpstreamCustomerAndDeviceHelpers(t *testing.T) {
 	t.Parallel()
 
@@ -308,12 +461,16 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		"/api/fleet/devices?limit=25&status=online",
 		"/api/fleet/summary",
 		"/api/groups?limit=25",
+		"/api/groups/group-1",
 		"/api/tags?limit=25",
 		"/api/roles?limit=25",
 		"/api/permissions?limit=25",
 		"/api/role-assignments?limit=25",
+		"/api/jobs/job-1",
+		"/api/jobs/job-1/result",
 		"/api/jobs?limit=25",
 		"/api/reports?limit=25",
+		"/api/reports/report-1",
 		"/api/skus?limit=25",
 		"/api/skus/sku-1",
 		"/api/skus/sku-1/releases",
@@ -343,6 +500,23 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		{http.MethodPost, "/api/developer/brand-clouds/brand-1/owner-transfer", `{"target_email":"owner@example.com"}`},
 		{http.MethodPost, "/api/developer/brand-clouds/brand-1/owner-transfer/transfer-1/cancel", `{}`},
 		{http.MethodPost, "/api/developer/brand-cloud-owner-transfers/accept", `{"token":"owner-token"}`},
+		{http.MethodPost, "/api/groups", `{"name":"Cameras","device_ids":["device-1"]}`},
+		{http.MethodPatch, "/api/groups/group-1", `{"name":"Updated Cameras","device_ids":["device-1"]}`},
+		{http.MethodDelete, "/api/groups/group-1", ``},
+		{http.MethodPost, "/api/role-assignments", `{"principal_id":"user-1","role_id":"operator","scope_type":"organization","scope_id":"org-1"}`},
+		{http.MethodDelete, "/api/role-assignments/assignment-1", ``},
+		{http.MethodPost, "/api/jobs", `{"type":"report_export","name":"Coverage job","scope":{"device_ids":["device-1"]}}`},
+		{http.MethodPost, "/api/jobs/job-1/retry", `{}`},
+		{http.MethodPost, "/api/jobs/job-1/cancel", `{}`},
+		{http.MethodPost, "/api/provisioning/validate", `{"filename":"devices.csv","content":"device_id,sku\ndevice-1,sku-1"}`},
+		{http.MethodPost, "/api/provisioning/sources", `{"sku":"sku-1","filename":"devices.csv","device_ids":["device-1"]}`},
+		{http.MethodPost, "/api/provisioning/jobs", `{"source_id":"source-1","name":"Provision devices"}`},
+		{http.MethodPost, "/api/reports", `{"name":"Coverage report","type":"fleet","scope":{"device_ids":["device-1"]}}`},
+		{http.MethodPost, "/api/skus", `{"id":"sku-coverage","name":"Coverage SKU","service_options":["mqtt"]}`},
+		{http.MethodPatch, "/api/skus/sku-1", `{"name":"Updated SKU","service_options":["mqtt"]}`},
+		{http.MethodPost, "/api/skus/sku-1/disable", `{}`},
+		{http.MethodPost, "/api/skus/sku-1/impact-preview", `{"service_options":["mqtt","video"]}`},
+		{http.MethodPost, "/api/update-plans/scope-preview", `{"sku_id":"sku-1","device_ids":["device-1"]}`},
 	}
 	for _, write := range writes {
 		rec := authenticatedRequest(srv, session.ID, write.method, write.path, strings.NewReader(write.body), writeHeaders)
