@@ -25,5 +25,6 @@ export default defineConfig({
     { name: 'chromium', grepInvert: /@staging/, use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1000 } } },
     { name: 'mobile', grep: /@smoke/, grepInvert: /@staging/, use: { ...devices['Pixel 7'] } },
     { name: 'staging', grep: /@staging/, use: { ...devices['Desktop Chrome'] } },
+    { name: 'staging-mobile', grep: /@staging/, use: { ...devices['Pixel 7'] } },
   ],
 });

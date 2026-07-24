@@ -2624,15 +2624,15 @@ func (s *Server) apiReports(w http.ResponseWriter, r *http.Request) {
 		filterScope = map[string]any{}
 	}
 	request.Scope = map[string]any{
-		"query":            filterScope,
-		"report_type":      request.ReportType,
-		"dimensions":       request.Dimensions,
-		"time_range":       request.TimeRange,
-		"timezone":         request.Timezone,
-		"format":           request.Format,
-		"source_freshness": time.Now().UTC().Format(time.RFC3339),
+		"query":       filterScope,
+		"report_type": request.ReportType,
+		"dimensions":  request.Dimensions,
+		"time_range":  request.TimeRange,
+		"timezone":    request.Timezone,
+		"format":      request.Format,
 	}
 	request.Scope["scope_hash"] = batchScopeHash(request.Scope)
+	request.Scope["source_freshness"] = time.Now().UTC().Format(time.RFC3339)
 	request.Scope["request_id"] = correlation.FromContext(r.Context()).RequestID
 	key := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
 	if key == "" {
