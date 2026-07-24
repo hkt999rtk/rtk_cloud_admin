@@ -419,6 +419,9 @@ func TestBatchProvisioningHTTPWorkflow(t *testing.T) {
 	if report.State != "completed" {
 		t.Fatalf("report job = %+v", report)
 	}
+	// A replay must remain idempotent after the timestamp used for report
+	// freshness changes.
+	time.Sleep(time.Until(time.Now().UTC().Truncate(time.Second).Add(time.Second)) + 10*time.Millisecond)
 	if rec := request(http.MethodPost, "/api/reports", strings.NewReader(reportRequest), "report-1"); rec.Code != http.StatusAccepted {
 		t.Fatalf("report replay status = %d, body=%s", rec.Code, rec.Body.String())
 	}
