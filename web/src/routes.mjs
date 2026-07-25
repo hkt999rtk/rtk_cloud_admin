@@ -86,6 +86,7 @@ export function routeFromPath(path) {
   if (path === '/reset-password' || path.startsWith('/reset-password/')) return 'reset-password';
   if (path === '/signup' || path === '/signup/') return 'signup';
   if (path === '/signup/check-email' || path.startsWith('/signup/check-email/')) return 'signup-check-email';
+  if (path === '/signup/verify' || path.startsWith('/signup/verify/')) return 'verify';
   if (path === '/verify' || path.startsWith('/verify/')) return 'verify';
   if (path === '/admin' || path === '/admin/') return 'platform-dashboard';
   if (path === '/admin/grafana' || path.startsWith('/admin/grafana/')) return 'platform-grafana';

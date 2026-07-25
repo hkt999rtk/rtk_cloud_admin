@@ -142,6 +142,12 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 		case "/v1/auth/signup":
 			_, _ = w.Write([]byte(`{"user":{"id":"u-signup","email":"signup@example.com","name":"Signup User"},"organization":{"id":"org-1","name":"Acme Eval","role":"owner","tier":"evaluation","evaluation_device_quota":5}}`))
 		case "/v1/auth/verify-email":
+			var body accountclient.AuthTokenRequest
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			if body.Token == "consumed-token" {
+				http.Error(w, "Invalid or expired verification token", http.StatusBadRequest)
+				return
+			}
 			_, _ = w.Write([]byte(`{"user":{"id":"u-signup","email":"signup@example.com","name":"Signup User"},"tokens":{"access_token":"access-1","refresh_token":"refresh-1","expires_in":3600}}`))
 		case "/v1/auth/resend-verification":
 			w.WriteHeader(http.StatusAccepted)
@@ -167,7 +173,7 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
-	for _, path := range []string{"/login", "/signup", "/signup/check-email", "/verify"} {
+	for _, path := range []string{"/login", "/signup", "/signup/check-email", "/signup/verify", "/signup/verify/", "/verify"} {
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
 		if rec.Code != http.StatusOK {
@@ -199,6 +205,12 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 		t.Fatalf("verify did not set a session cookie")
 	}
 	sessionCookie := verifyRec.Result().Cookies()[0]
+
+	replayRec := httptest.NewRecorder()
+	srv.ServeHTTP(replayRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verify-email", strings.NewReader(`{"token":"consumed-token"}`)))
+	if replayRec.Code != http.StatusBadRequest {
+		t.Fatalf("replayed verification status = %d, want 400; body=%s", replayRec.Code, replayRec.Body.String())
+	}
 
 	meRec := httptest.NewRecorder()
 	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)

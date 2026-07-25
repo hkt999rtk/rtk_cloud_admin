@@ -38,6 +38,8 @@ test('maps public signup paths to auth routes', () => {
   assert.equal(routeFromPath('/signup'), 'signup');
   assert.equal(routeFromPath('/signup/check-email'), 'signup-check-email');
   assert.equal(routeFromPath('/signup/check-email/inbox'), 'signup-check-email');
+  assert.equal(routeFromPath('/signup/verify'), 'verify');
+  assert.equal(routeFromPath('/signup/verify/'), 'verify');
   assert.equal(routeFromPath('/verify'), 'verify');
   assert.equal(routeFromPath('/verify/token-1'), 'verify');
 });
