@@ -101,7 +101,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
   await expect(page.getByRole('heading', { level: 2, name: 'ChipSet & SDK' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'AmebaPro2' }).first()).toBeVisible();
   await expect(page.getByText('Ameba Arduino Pro2 · 1.0.0')).toBeVisible();
-  await expect(page.getByText('Recommended', { exact: true })).toBeVisible();
+  await expect(page.getByText('Recommended', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('AMB82-Mini')).toBeVisible();
   await expect(page.getByRole('link', { name: /Ameba Arduino Pro2 GitHub/ })).toHaveAttribute('target', '_blank');
   await expect(page.getByRole('link', { name: /Get ambpro2 SDK/ })).toHaveAttribute('href', 'https://github.com/Freertos-kvs-LTS/ambpro2_sdk');
