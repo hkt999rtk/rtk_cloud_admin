@@ -89,7 +89,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
   await row.getByRole('button', { name: '預覽' }).click();
   await page.getByRole('button', { name: 'Validate Preview' }).click();
   await expect(page.getByText('Version 1')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'AmebaPro2' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'AmebaPro2' }).first()).toBeVisible();
   await page.getByRole('button', { name: '關閉 Provider drawer' }).click();
 
   await row.getByRole('button', { name: '發布' }).click();
@@ -99,7 +99,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
   await login(page, 'developer');
   await page.goto('/console/chipset-sdk');
   await expect(page.getByRole('heading', { level: 2, name: 'ChipSet & SDK' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'AmebaPro2' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'AmebaPro2' }).first()).toBeVisible();
   await expect(page.getByText('Ameba Arduino Pro2 · 1.0.0')).toBeVisible();
   await expect(page.getByText('Recommended', { exact: true })).toBeVisible();
   await expect(page.getByText('AMB82-Mini')).toBeVisible();
