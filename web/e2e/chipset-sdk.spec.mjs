@@ -100,7 +100,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
   await page.goto('/console/chipset-sdk');
   await expect(page.getByRole('heading', { level: 2, name: 'ChipSet & SDK' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'AmebaPro2' }).first()).toBeVisible();
-  await expect(page.getByText('Ameba Arduino Pro2 · 1.0.0')).toBeVisible();
+  await expect(page.getByText('Ameba Arduino Pro2 · 1.0.0').first()).toBeVisible();
   await expect(page.getByText('Recommended', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('AMB82-Mini').first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Ameba Arduino Pro2 GitHub/ }).first()).toHaveAttribute('target', '_blank');
@@ -114,7 +114,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
 
   await login(page, 'developer');
   await page.goto('/console/chipset-sdk');
-  await expect(page.getByText('Ameba Arduino Pro2 · 2.0.0')).toBeVisible();
+  await expect(page.getByText('Ameba Arduino Pro2 · 2.0.0').first()).toBeVisible();
 
   await login(page, 'platform_admin');
   await page.goto('/admin/chipset-providers');
@@ -124,7 +124,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
 
   await login(page, 'developer');
   await page.goto('/console/chipset-sdk');
-  await expect(page.getByText('Ameba Arduino Pro2 · 2.0.0')).toBeVisible();
+  await expect(page.getByText('Ameba Arduino Pro2 · 2.0.0').first()).toBeVisible();
   await expect(page.getByText('部分資訊可能不是最新版本')).toBeVisible();
   await expect(page.getByText('Stale')).toBeVisible();
 
