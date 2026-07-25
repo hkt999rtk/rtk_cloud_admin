@@ -6,5 +6,5 @@ test('[UI-CA-STAGING-001] staging platform admin can read operations @staging', 
   await loginWithStagingSession(page);
   await page.goto('/admin/ops');
   await expect(page.getByRole('heading', { name: /Operations/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Dashboard/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Platform Dashboard/i })).toBeVisible();
 });
