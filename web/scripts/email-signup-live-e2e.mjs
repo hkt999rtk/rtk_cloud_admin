@@ -45,7 +45,29 @@ try {
 
   const verifyContext = await browser.newContext();
   const verifyPage = await verifyContext.newPage();
+  let verifyResponse;
+  const verifyResponsePromise = verifyPage.waitForResponse((response) => (
+    response.request().method() === 'POST' &&
+    new URL(response.url()).pathname === '/api/auth/customer/verify-email'
+  ), { timeout: 30_000 }).then((response) => {
+    verifyResponse = response;
+    return response;
+  });
   await verifyPage.goto(delivered.url, { waitUntil: 'networkidle' });
+  await Promise.race([
+    verifyResponsePromise,
+    new Promise((resolve) => setTimeout(resolve, 2_000)),
+  ]);
+  if (!verifyResponse) {
+    const verifyButton = verifyPage.getByRole('button', { name: 'Verify', exact: true });
+    if (await verifyButton.isEnabled()) {
+      await verifyButton.click();
+    }
+  }
+  verifyResponse = await verifyResponsePromise;
+  if (verifyResponse.status() !== 200) {
+    throw new Error(`email verification returned HTTP ${verifyResponse.status()}`);
+  }
   await verifyPage.waitForURL(/\/console\/overview(?:\?|$)/, { timeout: 30_000 });
   const sessionCookies = await verifyContext.cookies(baseURL);
   if (!sessionCookies.some((cookie) => cookie.name === 'rtk_admin_session' && cookie.httpOnly)) {
@@ -113,7 +135,7 @@ if (evidencePath) {
     verification_origin: new URL(delivered.url).origin,
   })}\n`, { encoding: 'utf8', mode: 0o600 });
 }
-console.log(`SMTP + IMAP signup E2E passed (run ${runID}; IMAP UID ${delivered.uid}).`);
+console.log(`Send Mail + IMAP signup E2E passed (run ${runID}; IMAP UID ${delivered.uid}).`);
 
 function requiredEnv(name) {
   const value = process.env[name]?.trim();
