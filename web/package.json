@@ -4,6 +4,7 @@
     "test": "node --test src/*.test.mjs",
     "browser:smoke": "node scripts/browser-smoke.mjs",
     "e2e:email-signup-live": "node scripts/email-signup-live-e2e.mjs",
+    "e2e:load-owner-activation-live": "node scripts/load-owner-activation-live-e2e.mjs",
     "e2e:generate-fixture": "node scripts/generate-e2e-fixture.mjs",
     "e2e": "npm run e2e:desktop && npm run e2e:mobile",
     "e2e:desktop": "E2E_UI_TARGET=desktop playwright test --project=chromium",

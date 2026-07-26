@@ -152,7 +152,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const isPublicRoute = isPublicRouteId(active);
   const isLoginRoute = active === 'login';
-  const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'forgot-password' || active === 'reset-password';
+  const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'brand-cloud-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
   const visibleNavItems = navItemsForCapabilities(active, me?.capabilities).filter((item) => item.id !== 'platform-brand-clouds' || me?.upstream_account_manager);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
@@ -823,6 +823,17 @@ function App() {
     }
   }
 
+  async function handleBrandCloudActivate(payload) {
+    setError('');
+    try {
+      return await postJSON('/api/auth/brand-cloud/activate', payload);
+    } catch (err) {
+      const nextError = userFacingLoginActivationError(err);
+      setError(nextError);
+      throw new Error(nextError);
+    }
+  }
+
   async function handleForgotPassword(email) {
     setError('');
     try {
@@ -944,6 +955,7 @@ function App() {
           loading={loading}
           onEmailSignIn={handleEmailSignIn}
           onLoginActivate={handleLoginActivate}
+          onBrandCloudActivate={handleBrandCloudActivate}
           onPasswordLogin={handlePasswordLogin}
           onForgotPassword={handleForgotPassword}
           onResetPassword={handleResetPassword}
@@ -1150,7 +1162,7 @@ function App() {
   );
 }
 
-function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
+function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onBrandCloudActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
@@ -1158,6 +1170,8 @@ function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onP
     <LoginCheckEmail email={email} />
   ) : active === 'login-activate' ? (
     <LoginActivateView token={token} onLoginActivate={onLoginActivate} />
+  ) : active === 'brand-cloud-activate' ? (
+    <BrandCloudActivateView token={token} tenant={params.get('tenant') || ''} onActivate={onBrandCloudActivate} />
   ) : active === 'forgot-password' ? (
     <ForgotPasswordView email={email} onForgotPassword={onForgotPassword} />
   ) : active === 'reset-password' ? (
@@ -1179,6 +1193,36 @@ function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onP
           {error ? <div className="error">{error}</div> : null}
         </section>
       </main>
+    </div>
+  );
+}
+
+function BrandCloudActivateView({ token, tenant, onActivate }) {
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState('');
+  const [error, setLocalError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setLocalError('');
+    try {
+      const result = await onActivate({ tenant_slug: tenant, token, password });
+      setStatus(`Activated ${result.account?.display_name || result.account?.email || 'account'} for ${result.brand_cloud?.name || tenant}.`);
+    } catch (err) {
+      setLocalError(userFacingLoginActivationError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="auth-stack">
+      <form className="auth-inline" onSubmit={submit}>
+        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="New password" minLength="8" required />
+        <button type="submit" disabled={busy || !token || !tenant}>{busy ? 'Activating' : 'Activate account'}</button>
+      </form>
+      {status ? <p className="auth-status">{status}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
     </div>
   );
 }

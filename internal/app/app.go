@@ -270,6 +270,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/customer/resend-verification", s.apiCustomerResendVerification)
 	s.mux.HandleFunc("POST /api/auth/sign-in", s.apiAuthSignIn)
 	s.mux.HandleFunc("POST /api/auth/login/activate", s.apiAuthLoginActivate)
+	s.mux.HandleFunc("POST /api/auth/brand-cloud/activate", s.apiAuthBrandCloudActivate)
 	s.mux.HandleFunc("POST /api/auth/forgot-password", s.apiAuthForgotPassword)
 	s.mux.HandleFunc("POST /api/auth/reset-password", s.apiAuthResetPassword)
 	s.mux.HandleFunc("POST /api/auth/sso/start", s.apiSSOStart)
@@ -363,6 +364,7 @@ func (s *Server) routes() {
 		"/login",
 		"/login/check-email",
 		"/login/activate",
+		"/brand-cloud/activate",
 		"/forgot-password",
 		"/reset-password",
 		"/signup",
@@ -959,6 +961,55 @@ func (s *Server) apiAuthLoginActivate(w http.ResponseWriter, r *http.Request) {
 	}
 	setSessionCookie(w, session.ID)
 	writeJSON(w, map[string]string{"status": "ok", "kind": kind})
+}
+
+func (s *Server) apiAuthBrandCloudActivate(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body struct {
+		TenantSlug string `json:"tenant_slug"`
+		Token      string `json:"token"`
+		Password   string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil ||
+		strings.TrimSpace(body.TenantSlug) == "" ||
+		strings.TrimSpace(body.Token) == "" ||
+		len(body.Password) < 8 {
+		http.Error(w, "tenant_slug, token, and password are required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.ActivateBrandCloudUser(
+		r.Context(), strings.TrimSpace(body.TenantSlug), strings.TrimSpace(body.Token), body.Password,
+	)
+	if err != nil {
+		s.writeAuthProxyError(w, err)
+		return
+	}
+	session, err := s.sessions.CreateSession(
+		"brand_cloud_user", result.BrandCloudUser.ID, result.BrandCloudUser.Email,
+		result.Tokens.AccessToken, result.Tokens.RefreshToken, result.BrandCloud.ID,
+		tokenTTL(result.Tokens),
+	)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	setSessionCookie(w, session.ID)
+	writeJSON(w, map[string]any{
+		"status": "ok",
+		"brand_cloud": map[string]string{
+			"id":          result.BrandCloud.ID,
+			"name":        result.BrandCloud.Name,
+			"tenant_slug": result.BrandCloud.TenantSlug,
+		},
+		"account": map[string]string{
+			"id":           result.BrandCloudUser.ID,
+			"email":        result.BrandCloudUser.Email,
+			"display_name": result.BrandCloudUser.DisplayName,
+		},
+	})
 }
 
 func (s *Server) apiAuthForgotPassword(w http.ResponseWriter, r *http.Request) {

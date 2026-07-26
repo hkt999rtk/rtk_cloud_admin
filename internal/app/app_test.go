@@ -801,6 +801,18 @@ func TestEmailActivationAuthBFFSetsCustomerSessionCookie(t *testing.T) {
 				return
 			}
 			_, _ = w.Write([]byte(`{"user":{"id":"u-email","email":"user@example.com","name":"User"},"tokens":{"access_token":"customer-access","refresh_token":"customer-refresh","expires_in":3600}}`))
+		case "/v1/brand-clouds/load-run-b01/auth/activate":
+			body := readBody(t, r)
+			if !strings.Contains(body, `"token":"owner-token"`) || !strings.Contains(body, `"password":"owner-password"`) {
+				http.Error(w, "unexpected activation request", http.StatusBadRequest)
+				return
+			}
+			_, _ = w.Write([]byte(`{
+				"brand_cloud":{"id":"brand-1","name":"RTK-LOAD-CANARY-run-b01","tenant_slug":"load-run-b01"},
+				"brand_cloud_user":{"id":"bcu-1","brand_cloud_id":"brand-1","email":"imap-test01+load-run-b01@realtekconnect.com","display_name":"Load Owner","email_verified":true},
+				"user":{"id":"bcu-1","email":"imap-test01+load-run-b01@realtekconnect.com"},
+				"tokens":{"access_token":"brand-access","refresh_token":"brand-refresh","expires_in":3600}
+			}`))
 		case "/v1/admin/brand-clouds":
 			http.Error(w, "forbidden", http.StatusForbidden)
 		case "/v1/me":
@@ -847,6 +859,21 @@ func TestEmailActivationAuthBFFSetsCustomerSessionCookie(t *testing.T) {
 	}
 	if got := invalid.Header().Values("Set-Cookie"); strings.Contains(strings.Join(got, ";"), "rtk_admin_session=") {
 		t.Fatalf("invalid activation set session cookie: %v", got)
+	}
+	brandActivate := httptest.NewRecorder()
+	srv.ServeHTTP(brandActivate, httptest.NewRequest(http.MethodPost, "/api/auth/brand-cloud/activate", strings.NewReader(`{
+		"tenant_slug":"load-run-b01","token":"owner-token","password":"owner-password"
+	}`)))
+	if brandActivate.Code != http.StatusOK {
+		t.Fatalf("brand activation status = %d, body=%s", brandActivate.Code, brandActivate.Body.String())
+	}
+	if got := brandActivate.Header().Values("Set-Cookie"); !strings.Contains(strings.Join(got, ";"), "HttpOnly") {
+		t.Fatalf("brand activation did not set HTTP-only session cookie: %v", got)
+	}
+	if body := brandActivate.Body.String(); !strings.Contains(body, `"name":"RTK-LOAD-CANARY-run-b01"`) ||
+		!strings.Contains(body, `"display_name":"Load Owner"`) ||
+		strings.Contains(body, "brand-access") || strings.Contains(body, "owner-token") || strings.Contains(body, "owner-password") {
+		t.Fatalf("brand activation response is incomplete or leaked credentials: %s", body)
 	}
 
 	forgot := httptest.NewRecorder()
