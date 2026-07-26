@@ -1,13 +1,16 @@
 import { execFile } from 'node:child_process';
+import { writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright';
 
 const execFileAsync = promisify(execFile);
 const baseURL = requiredEnv('EMAIL_E2E_ADMIN_BASE_URL').replace(/\/$/, '');
 const accountManagerBaseURL = requiredEnv('EMAIL_E2E_ACCOUNT_MANAGER_BASE_URL').replace(/\/$/, '');
-const emailAddress = requiredEnv('IMAP_EMAIL_ADDR');
+const emailAddress = optionalEnv('EMAIL_E2E_SIGNUP_EMAIL') || requiredEnv('IMAP_EMAIL_ADDR');
 const password = requiredEnv('EMAIL_E2E_SIGNUP_PASSWORD');
 const imapHelper = requiredEnv('EMAIL_E2E_IMAP_HELPER');
+const runID = optionalEnv('EMAIL_E2E_RUN_ID') || 'local';
+const evidencePath = optionalEnv('EMAIL_E2E_EVIDENCE_PATH');
 const python = process.env.PYTHON || 'python3';
 
 const snapshot = await runIMAP('snapshot');
@@ -23,8 +26,8 @@ try {
   await signupPage.goto(`${baseURL}/signup`, { waitUntil: 'networkidle' });
   await signupPage.getByLabel('Email', { exact: true }).fill(emailAddress);
   await signupPage.getByLabel('Password', { exact: true }).fill(password);
-  await signupPage.getByLabel('Organization name', { exact: true }).fill('Local Email E2E');
-  await signupPage.getByLabel('Display name', { exact: true }).fill('Local Email E2E');
+  await signupPage.getByLabel('Organization name', { exact: true }).fill(`E2E Email Signup ${runID}`);
+  await signupPage.getByLabel('Display name', { exact: true }).fill(`E2E Email Signup ${runID}`);
   await signupPage.getByLabel('I accept the evaluation-tier terms.').check();
   await signupPage.getByRole('button', { name: 'Create account' }).click();
   await signupPage.waitForURL(/\/signup\/check-email(?:\?|$)/, { timeout: 30_000 });
@@ -101,12 +104,25 @@ try {
   await browser.close();
 }
 
-console.log(`Local SMTP + IMAP signup E2E passed (IMAP UID ${delivered.uid}).`);
+if (evidencePath) {
+  await writeFile(evidencePath, `${JSON.stringify({
+    schema: 'rtk.email-signup-e2e.evidence.v1',
+    run_id: runID,
+    status: 'PASS',
+    imap_uid: delivered.uid,
+    verification_origin: new URL(delivered.url).origin,
+  })}\n`, { encoding: 'utf8', mode: 0o600 });
+}
+console.log(`SMTP + IMAP signup E2E passed (run ${runID}; IMAP UID ${delivered.uid}).`);
 
 function requiredEnv(name) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required`);
   return value;
+}
+
+function optionalEnv(name) {
+  return process.env[name]?.trim() || '';
 }
 
 async function runIMAP(...args) {
