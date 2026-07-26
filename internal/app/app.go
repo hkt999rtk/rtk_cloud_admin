@@ -367,6 +367,8 @@ func (s *Server) routes() {
 		"/reset-password",
 		"/signup",
 		"/signup/check-email",
+		"/signup/verify",
+		"/signup/verify/",
 		"/verify",
 		"/console",
 		"/console/overview",
@@ -887,7 +889,7 @@ func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) 
 	}
 	result, err := s.accountClient.VerifyEmail(r.Context(), body.Token)
 	if err != nil {
-		s.writeCustomerError(w, err)
+		s.writeAuthProxyError(w, err)
 		return
 	}
 	if result.Tokens.AccessToken != "" {

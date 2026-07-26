@@ -52,6 +52,8 @@ Implemented in this first version:
 - explicit SQLite schema migrations tracked in `schema_migrations`
 - URL routes for `/console`, `/console/customers`, `/console/devices`,
   `/console/operations`, `/console/audit`, and `/admin`
+- public email verification routes `/verify` and the mail-contract-compatible
+  `/signup/verify` alias
 - native release packaging and GitHub Actions CI
 - shared frontend style contract in `docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md`
 - local Realtek logo asset copied from the Realtek Connect+ marketing site
