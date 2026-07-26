@@ -242,6 +242,37 @@ paths:
         "503":
           $ref: "#/components/responses/PlainTextError"
 
+  /api/auth/brand-cloud/activate:
+    post:
+      tags: [Auth]
+      summary: Set a password and activate a pending Brand Cloud user
+      description: Proxies tenant-scoped one-time activation to Account Manager, establishes an HTTP-only Admin Console session, and returns only redacted Brand/account identity fields.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_slug, token, password]
+              properties:
+                tenant_slug:
+                  type: string
+                token:
+                  type: string
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        "200":
+          description: Brand Cloud account activation succeeded and set `rtk_admin_session`.
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
   /api/auth/forgot-password:
     post:
       tags: [Auth]

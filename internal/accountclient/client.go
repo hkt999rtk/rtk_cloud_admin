@@ -82,6 +82,7 @@ type User struct {
 type Organization struct {
 	ID                    string         `json:"id"`
 	Name                  string         `json:"name"`
+	TenantSlug            string         `json:"tenant_slug,omitempty"`
 	Role                  string         `json:"role"`
 	OrganizationKind      string         `json:"organization_kind,omitempty"`
 	Status                string         `json:"status,omitempty"`
@@ -111,6 +112,7 @@ type BrandCloudUserRequest struct {
 	DisplayName    string `json:"display_name,omitempty"`
 	Role           string `json:"role"`
 	RotatePassword bool   `json:"rotate_password,omitempty"`
+	ActivationMode string `json:"activation_mode,omitempty"`
 }
 
 type BrandCloudUser struct {
@@ -330,6 +332,18 @@ type LoginResult struct {
 	Tokens Tokens `json:"tokens"`
 }
 
+type BrandCloudActivationRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
+
+type BrandCloudActivationResult struct {
+	BrandCloud     BrandCloud     `json:"brand_cloud"`
+	BrandCloudUser BrandCloudUser `json:"brand_cloud_user"`
+	User           User           `json:"user"`
+	Tokens         Tokens         `json:"tokens"`
+}
+
 type RefreshResult struct {
 	Tokens Tokens `json:"tokens"`
 }
@@ -494,6 +508,15 @@ func (c *Client) SignIn(ctx context.Context, email string) error {
 func (c *Client) ActivateLogin(ctx context.Context, token string) (LoginResult, error) {
 	var out LoginResult
 	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/login/activate", "", AuthTokenRequest{Token: token}, &out)
+	return out, err
+}
+
+func (c *Client) ActivateBrandCloudUser(ctx context.Context, tenantSlug, token, password string) (BrandCloudActivationResult, error) {
+	var out BrandCloudActivationResult
+	path := "/v1/brand-clouds/" + url.PathEscape(strings.TrimSpace(tenantSlug)) + "/auth/activate"
+	err := c.doJSON(ctx, http.MethodPost, path, "", BrandCloudActivationRequest{
+		Token: token, Password: password,
+	}, &out)
 	return out, err
 }
 
