@@ -1,3 +1,10 @@
+---
+rtk_spec:
+  id: SPEC-CA-DASHBOARD-DESIGN
+  status: approved
+  owner: rtk_cloud_admin
+---
+
 # Platform View Dashboard Design
 
 Status: implemented baseline; design-parity follow-up is tracked in

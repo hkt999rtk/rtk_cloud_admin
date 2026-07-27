@@ -1,3 +1,10 @@
+---
+rtk_spec:
+  id: SPEC-CA-BRAND-DESIGN
+  status: approved
+  owner: rtk_cloud_admin
+---
+
 # Platform Brand Cloud Management Design
 
 Status: implemented baseline; design-parity and upstream-contract follow-up is
