@@ -1,3 +1,10 @@
+---
+rtk_spec:
+  id: SPEC-CA-ROLES
+  status: draft
+  owner: rtk_cloud_admin
+---
+
 # RTK Cloud Admin — Role Definitions
 
 Status: implementation-aligned draft.

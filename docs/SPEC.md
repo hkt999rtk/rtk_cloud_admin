@@ -1,3 +1,10 @@
+---
+rtk_spec:
+  id: SPEC-CA
+  status: normative
+  owner: rtk_cloud_admin
+---
+
 # RTK Cloud Admin Console Specification
 
 ## Summary
@@ -422,3 +429,450 @@ Reports persist `report_type`, dimensions, time range, timezone, output format,
 scope hash, source freshness, result expiry, download status, and failure
 reason. Team management uses `/api/developer/*`; Platform Admin Brand Cloud
 lifecycle management remains under `/api/admin/*`.
+
+
+## RTK Feature Requirement Inventory
+
+This machine-readable acceptance inventory is normative for feature qualification and cross-references the behavioral sections above.
+
+### [FEAT-CA-AUTHZ-001] Brand Cloud roles, scope, and administration
+
+<!-- rtk-feature
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_cloud_admin/web/e2e/access-control.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-fleet-access.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-fleet-cloud.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-fleet-team.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/access-control.spec.mjs","selector":"[UI-CA-ACCESS-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/access-control.spec.mjs","selector":"[UI-CA-ACCESS-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/access-control.spec.mjs","selector":"[UI-CA-ACCESS-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-access.spec.mjs","selector":"[UI-CA-ROLE-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-access.spec.mjs","selector":"[UI-CA-ROLE-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-access.spec.mjs","selector":"[UI-CA-ROLE-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-cloud.spec.mjs","selector":"[UI-CA-SCOPE-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-cloud.spec.mjs","selector":"[UI-CA-SCOPE-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-team.spec.mjs","selector":"[UI-CA-TEAM-001]"}]}
+-->
+
+#### [REQ-UI-CA-ACCESS-001] Anonymous users cannot read the platform admin API
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Anonymous users cannot read the platform admin API.
+
+#### [REQ-UI-CA-ACCESS-002] Customer users cannot read the platform admin API
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Customer users cannot read the platform admin API.
+
+#### [REQ-UI-CA-ACCESS-003] Customer navigation remains separated from platform navigation
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Customer navigation remains separated from platform navigation.
+
+#### [REQ-UI-CA-ROLE-001] Developer and release roles can manage release surfaces
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Developer and release roles can manage release surfaces.
+
+#### [REQ-UI-CA-ROLE-002] Operations role cannot mutate SKU policy or release metadata
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Operations role cannot mutate SKU policy or release metadata.
+
+#### [REQ-UI-CA-ROLE-003] Observer role is read-only through UI and API
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Observer role is read-only through UI and API.
+
+#### [REQ-UI-CA-SCOPE-001] Brand Cloud switching keeps URL and data scope aligned
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Brand Cloud switching keeps URL and data scope aligned.
+
+#### [REQ-UI-CA-SCOPE-002] Non-member cloud links are forbidden without changing active cloud
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Non-member cloud links are forbidden without changing active cloud.
+
+#### [REQ-UI-CA-TEAM-001] Developer team management uses its namespace and is replay-safe
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Developer team management uses its namespace and is replay-safe.
+
+### [FEAT-CA-BRAND-001] Brand Cloud lifecycle and audit
+
+<!-- rtk-feature
+{"owner":"rtk_cloud_admin","risk":"high","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_cloud_admin/web/e2e/audit.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","repos/rtk_cloud_admin/web/e2e/operations.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/audit.spec.mjs","selector":"[UI-CA-AUDIT-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-004]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-005]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-006]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/operations.spec.mjs","selector":"[UI-CA-OPS-001]"}]}
+-->
+
+#### [REQ-UI-CA-AUDIT-001] Platform admins can review audit records after a Brand Cloud action
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Platform admins can review audit records after a Brand Cloud action.
+
+#### [REQ-UI-CA-CLOUD-001] Brand Cloud filters and detail reload show Account Manager data
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Brand Cloud filters and detail reload show Account Manager data.
+
+#### [REQ-UI-CA-CLOUD-002] Brand Cloud status filter selects disabled clouds
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Brand Cloud status filter selects disabled clouds.
+
+#### [REQ-UI-CA-CLOUD-003] Brand Cloud list renders upstream failures safely
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Brand Cloud list renders upstream failures safely.
+
+#### [REQ-UI-CA-CLOUD-004] Brand Cloud detail supports cloud and user lifecycle actions
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Brand Cloud detail supports cloud and user lifecycle actions.
+
+#### [REQ-UI-CA-CLOUD-005] Brand Cloud creation stepper completes successfully
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Brand Cloud creation stepper completes successfully.
+
+#### [REQ-UI-CA-CLOUD-006] Brand Cloud creation surfaces partial owner-assignment failure
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Brand Cloud creation surfaces partial owner-assignment failure.
+
+#### [REQ-UI-CA-OPS-001] Platform admins can open operations and service logs
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Platform admins can open operations and service logs.
+
+### [FEAT-CA-OBS-001] Platform observability and safe failure states
+
+<!-- rtk-feature
+{"owner":"rtk_cloud_admin","risk":"high","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_cloud_logger/**","repos/rtk_cloud_admin/web/e2e/brand-fleet-errors.spec.mjs","repos/rtk_cloud_admin/web/e2e/platform-dashboard.spec.mjs","repos/rtk_cloud_admin/web/e2e/service-logs.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/platform-dashboard.spec.mjs","selector":"[UI-CA-DASH-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/platform-dashboard.spec.mjs","selector":"[UI-CA-DASH-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/platform-dashboard.spec.mjs","selector":"[UI-CA-DASH-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/service-logs.spec.mjs","selector":"[UI-CA-LOGS-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-errors.spec.mjs","selector":"[UI-CA-SOURCE-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-errors.spec.mjs","selector":"[UI-CA-SOURCE-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-errors.spec.mjs","selector":"[UI-CA-SOURCE-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-errors.spec.mjs","selector":"[UI-CA-SOURCE-004]"}]}
+-->
+
+#### [REQ-UI-CA-DASH-001] Platform admins can triage the platform dashboard
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Platform admins can triage the platform dashboard.
+
+#### [REQ-UI-CA-DASH-002] Dashboard reports degraded state when Prometheus is unavailable
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Dashboard reports degraded state when Prometheus is unavailable.
+
+#### [REQ-UI-CA-DASH-003] Dashboard exposes empty and stale Prometheus states
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Dashboard exposes empty and stale Prometheus states.
+
+#### [REQ-UI-CA-LOGS-001] Platform admins can inspect service-log incident context
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Platform admins can inspect service-log incident context.
+
+#### [REQ-UI-CA-SOURCE-001] Empty upstream source renders an empty state
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Empty upstream source renders an empty state.
+
+#### [REQ-UI-CA-SOURCE-002] Stale upstream source keeps data and exposes freshness
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Stale upstream source keeps data and exposes freshness.
+
+#### [REQ-UI-CA-SOURCE-003] Unavailable source is distinguished from an empty source
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Unavailable source is distinguished from an empty source.
+
+#### [REQ-UI-CA-SOURCE-004] Customer-safe errors do not expose upstream credentials
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Customer-safe errors do not expose upstream credentials.
+
+### [FEAT-CA-OPS-001] Operations, reports, and jobs
+
+<!-- rtk-feature
+{"owner":"rtk_cloud_admin","risk":"high","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_cloud_admin/web/e2e/brand-fleet-jobs.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-fleet-lifecycle.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-fleet-report-states.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-lifecycle.spec.mjs","selector":"[UI-CA-BATCH-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-lifecycle.spec.mjs","selector":"[UI-CA-BATCH-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-lifecycle.spec.mjs","selector":"[UI-CA-BATCH-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-jobs.spec.mjs","selector":"[UI-CA-JOBS-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-report-states.spec.mjs","selector":"[UI-CA-REPORT-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-report-states.spec.mjs","selector":"[UI-CA-REPORT-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","selector":"[UI-CA-REPORT-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","selector":"[UI-CA-REPORT-004]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","selector":"[UI-CA-REPORT-005]"}]}
+-->
+
+#### [REQ-UI-CA-BATCH-001] Partial batch failure preserves item results and supports a new retry attempt
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Partial batch failure preserves item results and supports a new retry attempt.
+
+#### [REQ-UI-CA-BATCH-002] Batch jobs enforce valid pause resume and cancel transitions
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Batch jobs enforce valid pause resume and cancel transitions.
+
+#### [REQ-UI-CA-BATCH-003] Completed batch results can be downloaded as JSON and CSV
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Completed batch results can be downloaded as JSON and CSV.
+
+#### [REQ-UI-CA-JOBS-001] Batch jobs use server scope idempotency and result lifecycle
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Batch jobs use server scope idempotency and result lifecycle.
+
+#### [REQ-UI-CA-REPORT-001] Report failure remains customer-safe when upstream is unavailable
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Report failure remains customer-safe when upstream is unavailable.
+
+#### [REQ-UI-CA-REPORT-002] Expired report results return an explicit expired state
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Expired report results return an explicit expired state.
+
+#### [REQ-UI-CA-REPORT-003] Report builder submits complete metadata from the browser
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Report builder submits complete metadata from the browser.
+
+#### [REQ-UI-CA-REPORT-004] Reports preserve scope metadata and expose async download
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Reports preserve scope metadata and expose async download.
+
+#### [REQ-UI-CA-REPORT-005] Report idempotency replay and conflict preserve original scope
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Report idempotency replay and conflict preserve original scope.
+
+### [FEAT-CA-PROV-001] Fleet provisioning and bulk workflows
+
+<!-- rtk-feature
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**","repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-fleet-provisioning.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs","selector":"[UI-CA-FLEETPAGE-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs","selector":"[UI-CA-FLEETPAGE-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-provisioning.spec.mjs","selector":"[UI-CA-PROV-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-provisioning.spec.mjs","selector":"[UI-CA-PROV-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-provisioning.spec.mjs","selector":"[UI-CA-PROV-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","selector":"[UI-CA-PROV-004]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","selector":"[UI-CA-PROV-005]"}]}
+-->
+
+#### [REQ-UI-CA-FLEETPAGE-001] Customer fleet pages load through the real BFF
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Customer fleet pages load through the real BFF.
+
+#### [REQ-UI-CA-FLEETPAGE-002] Device fleet remains server paginated
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Device fleet remains server paginated.
+
+#### [REQ-UI-CA-PROV-001] Invalid-device validation is immutable and cannot execute
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Invalid-device validation is immutable and cannot execute.
+
+#### [REQ-UI-CA-PROV-002] Provisioning upload replay is idempotent and conflicts are rejected
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Provisioning upload replay is idempotent and conflicts are rejected.
+
+#### [REQ-UI-CA-PROV-003] Observers cannot start provisioning from browser or API
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Observers cannot start provisioning from browser or API.
+
+#### [REQ-UI-CA-PROV-004] Provisioning CSV upload starts browser validation
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Provisioning CSV upload starts browser validation.
+
+#### [REQ-UI-CA-PROV-005] Provisioning upload validates before creating an execution job
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Provisioning upload validates before creating an execution job.
+
+### [FEAT-CA-RELEASE-001] OTA and chipset release administration
+
+<!-- rtk-feature
+{"owner":"rtk_cloud_admin","risk":"high","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","repos/rtk_cloud_admin/web/e2e/chipset-sdk.visual.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","selector":"[UI-CA-CHIPSET-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","selector":"[UI-CA-CHIPSET-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","selector":"[UI-CA-CHIPSET-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","selector":"[UI-CA-CHIPSET-004]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.visual.spec.mjs","selector":"[UI-CA-CHIPSET-005]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.visual.spec.mjs","selector":"[UI-CA-CHIPSET-006]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","selector":"[UI-CA-OTA-001]"}]}
+-->
+
+#### [REQ-UI-CA-CHIPSET-001] Chipset provider page exposes loading and validation states
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Chipset provider page exposes loading and validation states.
+
+#### [REQ-UI-CA-CHIPSET-002] Read-only provider capability hides mutation controls
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Read-only provider capability hides mutation controls.
+
+#### [REQ-UI-CA-CHIPSET-003] Provider and developer pages expose safe upstream-unavailable states
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Provider and developer pages expose safe upstream-unavailable states.
+
+#### [REQ-UI-CA-CHIPSET-004] Provider publish refresh fallback and unpublish lifecycle works
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Provider publish refresh fallback and unpublish lifecycle works.
+
+#### [REQ-UI-CA-CHIPSET-005] Platform provider design matches the approved visual baseline
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Platform provider design matches the approved visual baseline.
+
+#### [REQ-UI-CA-CHIPSET-006] Developer resource design matches the approved visual baseline
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Developer resource design matches the approved visual baseline.
+
+#### [REQ-UI-CA-OTA-001] OTA scope preview is server calculated and immutable
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: OTA scope preview is server calculated and immutable.
+
+### [FEAT-CA-STAGING-001] Deployed Cloud Admin experience
+
+<!-- rtk-feature
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_cloud_admin/web/e2e/brand-fleet-staging.spec.mjs","repos/rtk_cloud_admin/web/e2e/staging.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/staging.spec.mjs","selector":"[UI-CA-STAGING-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-staging.spec.mjs","selector":"[UI-CA-STAGING-002]"}]}
+-->
+
+#### [REQ-UI-CA-STAGING-001] Staging platform admin can read operations
+
+<!-- rtk-requirement
+{"acceptance_layer":"live","gate":"scheduled","environments":["staging"],"targets":["desktop","mobile"],"evidence":["screenshot"],"freshness_hours":36,"required":true,"status":"active"}
+-->
+
+Acceptance: Staging platform admin can read operations.
+
+#### [REQ-UI-CA-STAGING-002] Staging customer can perform the read-only Brand Fleet smoke flow
+
+<!-- rtk-requirement
+{"acceptance_layer":"live","gate":"scheduled","environments":["staging"],"targets":["desktop","mobile"],"evidence":["screenshot"],"freshness_hours":36,"required":true,"status":"active"}
+-->
+
+Acceptance: Staging customer can perform the read-only Brand Fleet smoke flow.

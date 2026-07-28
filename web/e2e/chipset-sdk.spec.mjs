@@ -58,7 +58,7 @@ test('[UI-CA-CHIPSET-003] provider and developer pages expose upstream unavailab
 });
 
 test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpublish flow @chipset-sdk @smoke', async ({ page }, testInfo) => {
-  const providerName = `Ameba IoT Qualification Candidate attempt-${testInfo.retry}`;
+  const providerName = `Ameba IoT Qualification Candidate repeat-${testInfo.repeatEachIndex}-attempt-${testInfo.retry}`;
   const shellResponses = new Map([
     ['/api/admin/summary', {}], ['/api/admin/customers', []], ['/api/admin/devices', []],
     ['/api/admin/operations', []], ['/api/admin/service-health', []], ['/api/admin/audit', []],
@@ -75,6 +75,18 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
     return route.continue();
   });
   await login(page, 'platform_admin');
+  // The fixture server outlives Playwright's retry worker. If an attempt is
+  // interrupted after publish, remove that attempt's published state before
+  // exercising the lifecycle again.
+  const providersResponse = await page.request.get('/api/admin/chipset-providers');
+  expect(providersResponse.ok()).toBeTruthy();
+  const providers = (await providersResponse.json()).providers || [];
+  for (const provider of providers.filter(({ status }) => status === 'published')) {
+    const response = await page.request.post(`/api/admin/chipset-providers/${encodeURIComponent(provider.id)}/unpublish`, {
+      headers: { 'Idempotency-Key': `e2e-retry-cleanup-${provider.id}-${testInfo.retry}` },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
   await page.goto('/admin/chipset-providers');
   await expect(page.getByRole('heading', { level: 2, name: 'ChipSet & SDK Providers' })).toBeVisible();
 
@@ -122,7 +134,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
   await page.goto('/admin/chipset-providers');
   const failingRow = page.getByRole('row').filter({ hasText: providerName });
   await failingRow.getByRole('button', { name: '刷新' }).click();
-  await expect(page.getByText('Provider fetch failed')).toBeVisible();
+  await expect(page.locator('.notice')).toHaveText('Provider fetch failed');
 
   await login(page, 'developer');
   await page.goto('/console/chipset-sdk');

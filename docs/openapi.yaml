@@ -1,4 +1,8 @@
 openapi: 3.0.3
+x-rtk-spec:
+  id: SPEC-CA-OPENAPI
+  status: normative
+  owner: rtk_cloud_admin
 info:
   title: RTK Cloud Admin BFF API
   version: 0.1.0
