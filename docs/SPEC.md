@@ -513,75 +513,13 @@ Acceptance: Non-member cloud links are forbidden without changing active cloud.
 
 Acceptance: Developer team management uses its namespace and is replay-safe.
 
-### [FEAT-CA-BRAND-001] Brand Cloud lifecycle and audit
+### Brand Cloud requirement source
 
-<!-- rtk-feature
-{"owner":"rtk_cloud_admin","risk":"high","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_cloud_admin/web/e2e/audit.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","repos/rtk_cloud_admin/web/e2e/operations.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/audit.spec.mjs","selector":"[UI-CA-AUDIT-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-004]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-005]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-cloud.spec.mjs","selector":"[UI-CA-CLOUD-006]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/operations.spec.mjs","selector":"[UI-CA-OPS-001]"}]}
--->
-
-#### [REQ-UI-CA-AUDIT-001] Platform admins can review audit records after a Brand Cloud action
-
-<!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
--->
-
-Acceptance: Platform admins can review audit records after a Brand Cloud action.
-
-#### [REQ-UI-CA-CLOUD-001] Brand Cloud filters and detail reload show Account Manager data
-
-<!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
--->
-
-Acceptance: Brand Cloud filters and detail reload show Account Manager data.
-
-#### [REQ-UI-CA-CLOUD-002] Brand Cloud status filter selects disabled clouds
-
-<!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
--->
-
-Acceptance: Brand Cloud status filter selects disabled clouds.
-
-#### [REQ-UI-CA-CLOUD-003] Brand Cloud list renders upstream failures safely
-
-<!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
--->
-
-Acceptance: Brand Cloud list renders upstream failures safely.
-
-#### [REQ-UI-CA-CLOUD-004] Brand Cloud detail supports cloud and user lifecycle actions
-
-<!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
--->
-
-Acceptance: Brand Cloud detail supports cloud and user lifecycle actions.
-
-#### [REQ-UI-CA-CLOUD-005] Brand Cloud creation stepper completes successfully
-
-<!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
--->
-
-Acceptance: Brand Cloud creation stepper completes successfully.
-
-#### [REQ-UI-CA-CLOUD-006] Brand Cloud creation surfaces partial owner-assignment failure
-
-<!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
--->
-
-Acceptance: Brand Cloud creation surfaces partial owner-assignment failure.
-
-#### [REQ-UI-CA-OPS-001] Platform admins can open operations and service logs
-
-<!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
--->
-
-Acceptance: Platform admins can open operations and service logs.
+Brand Cloud lifecycle, administration, audit, and the UI acceptance requirements
+implemented by this service are defined canonically in
+`rtk_cloud_contracts_doc/BRAND_CLOUD_ADMIN.md` under
+`FEAT-CA-BRAND-001`. This service specification intentionally does not
+redefine those requirements.
 
 ### [FEAT-CA-OBS-001] Platform observability and safe failure states
 
