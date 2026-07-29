@@ -55,6 +55,10 @@ security:
 paths:
   /healthz:
     get:
+      operationId: getHealthz
+      x-rtk-feature-id: FEAT-CA-OBS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-DASH-002
       tags: [Health]
       summary: Process health check
       security: []
@@ -69,6 +73,10 @@ paths:
 
   /api/auth/customer/signup:
     post:
+      operationId: postApiAuthCustomerSignup
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Start customer self-service signup
       description: Proxies signup to Account Manager. Requires `ACCOUNT_MANAGER_BASE_URL`.
@@ -95,6 +103,10 @@ paths:
 
   /api/auth/customer/login:
     post:
+      operationId: postApiAuthCustomerLogin
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Customer password login
       description: Enabled by default; set `CUSTOMER_PASSWORD_LOGIN_ENABLED=false` to disable.
@@ -130,6 +142,10 @@ paths:
 
   /api/auth/customer/verify-email:
     post:
+      operationId: postApiAuthCustomerVerifyEmail
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Verify a customer signup email token
       description: Proxies token verification to Account Manager and creates a customer session when tokens are returned.
@@ -161,6 +177,10 @@ paths:
 
   /api/auth/customer/resend-verification:
     post:
+      operationId: postApiAuthCustomerResendVerification
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Resend customer email verification
       description: Proxies resend request to Account Manager.
@@ -187,6 +207,10 @@ paths:
 
   /api/auth/sign-in:
     post:
+      operationId: postApiAuthSignIn
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Request an email sign-in activation token
       description: Proxies to Account Manager and always returns `202 Accepted` for syntactically valid email requests, including unknown, disabled, and rate-limited accounts. Token delivery is handled by Account Manager's configured server-side sink.
@@ -213,6 +237,10 @@ paths:
 
   /api/auth/login/activate:
     post:
+      operationId: postApiAuthLoginActivate
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Activate an email sign-in token
       description: Proxies login activation to Account Manager and sets `rtk_admin_session` only after the one-time token succeeds.
@@ -248,6 +276,10 @@ paths:
 
   /api/auth/brand-cloud/activate:
     post:
+      operationId: postApiAuthBrandCloudActivate
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Set a password and activate a pending Brand Cloud user
       description: Proxies tenant-scoped one-time activation to Account Manager, establishes an HTTP-only Admin Console session, and returns only redacted Brand/account identity fields.
@@ -279,6 +311,10 @@ paths:
 
   /api/auth/forgot-password:
     post:
+      operationId: postApiAuthForgotPassword
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Request an email password-reset activation token
       description: Proxies to Account Manager and always returns `202 Accepted` for syntactically valid email requests, including unknown, disabled, and rate-limited accounts.
@@ -305,6 +341,10 @@ paths:
 
   /api/auth/reset-password:
     post:
+      operationId: postApiAuthResetPassword
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Reset a password with an email activation token
       description: Proxies reset token consumption to Account Manager. Account Manager revokes existing refresh tokens after a successful password reset.
@@ -327,6 +367,10 @@ paths:
 
   /api/auth/sso/start:
     post:
+      operationId: postApiAuthSsoStart
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ACCESS-003
       tags: [SSO, Auth]
       summary: Start Account Manager-backed SSO
       security: []
@@ -352,6 +396,10 @@ paths:
 
   /api/auth/sso/callback:
     get:
+      operationId: getApiAuthSsoCallback
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ACCESS-003
       tags: [SSO, Auth]
       summary: Complete Account Manager-backed SSO
       description: Exchanges `code` and `state`, creates a local session, then redirects to `/console` or `/admin`.
@@ -386,6 +434,10 @@ paths:
 
   /api/auth/platform/login:
     post:
+      operationId: postApiAuthPlatformLogin
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth, Platform Admin]
       summary: Account Manager platform-admin password login
       description: Authenticates Account Manager platform-admin credentials during the migration period. Local Cloud Admin break-glass login is not supported.
@@ -417,6 +469,10 @@ paths:
 
   /api/auth/logout:
     post:
+      operationId: postApiAuthLogout
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth, Session]
       summary: Delete the local Admin Console session
       responses:
@@ -434,6 +490,10 @@ paths:
 
   /api/me:
     get:
+      operationId: getApiMe
+      x-rtk-feature-id: FEAT-AM-SIGNUP-001
+      x-rtk-requirement-ids:
+        - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Session]
       summary: Current user, memberships, active organization, and auth settings
       description: Returns demo identity when no session exists.
@@ -452,6 +512,10 @@ paths:
 
   /api/me/active-org:
     post:
+      operationId: postApiMeActiveOrg
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-SCOPE-001
       tags: [Session, Customer]
       summary: Switch active customer organization
       requestBody:
@@ -476,6 +540,10 @@ paths:
 
   /api/developer/brand-clouds:
     get:
+      operationId: getApiDeveloperBrandClouds
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: List Brand Clouds available to the signed-in developer
       responses:
@@ -489,6 +557,10 @@ paths:
 
   /api/developer/brand-clouds/{brandCloudID}:
     get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: Get one Brand Cloud and the current membership
       parameters:
@@ -505,6 +577,10 @@ paths:
 
   /api/developer/brand-clouds/{brandCloudID}/members:
     get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDMembers
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: List Brand Cloud developer members
       parameters:
@@ -521,6 +597,10 @@ paths:
 
   /api/developer/brand-clouds/{brandCloudID}/members/{userID}:
     patch:
+      operationId: patchApiDeveloperBrandCloudsByBrandCloudIDMembersByUserID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: Update a Brand Cloud member role
       parameters:
@@ -541,6 +621,10 @@ paths:
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
     delete:
+      operationId: deleteApiDeveloperBrandCloudsByBrandCloudIDMembersByUserID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: Remove a Brand Cloud member
       parameters:
@@ -555,6 +639,10 @@ paths:
           $ref: "#/components/responses/PlainTextError"
   /api/developer/brand-clouds/{brandCloudID}/members/{userID}/{action}:
     patch:
+      operationId: patchApiDeveloperBrandCloudsByBrandCloudIDMembersByUserIDByAction
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: Enable or disable a Brand Cloud member
       parameters:
@@ -568,6 +656,10 @@ paths:
 
   /api/developer/brand-clouds/{brandCloudID}/members/invitations:
     post:
+      operationId: postApiDeveloperBrandCloudsByBrandCloudIDMembersInvitations
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: Invite an existing developer account to a Brand Cloud
       parameters:
@@ -590,6 +682,10 @@ paths:
 
   /api/developer/brand-clouds/{brandCloudID}/owner-transfer:
     post:
+      operationId: postApiDeveloperBrandCloudsByBrandCloudIDOwnerTransfer
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: Request an owner transfer to an existing developer
       parameters:
@@ -610,6 +706,10 @@ paths:
 
   /api/developer/brand-cloud-owner-transfers/accept:
     post:
+      operationId: postApiDeveloperBrandCloudOwnerTransfersAccept
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: Accept an owner transfer invitation
       parameters:
@@ -630,6 +730,10 @@ paths:
 
   /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}:
     get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDOwnerTransferByTransferID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: Get owner transfer status
       parameters:
@@ -641,6 +745,10 @@ paths:
 
   /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel:
     post:
+      operationId: postApiDeveloperBrandCloudsByBrandCloudIDOwnerTransferByTransferIDCancel
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: Cancel a pending owner transfer
       parameters:
@@ -653,6 +761,10 @@ paths:
 
   /api/summary:
     get:
+      operationId: getApiSummary
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-SCOPE-001
       tags: [Customer]
       summary: Dashboard summary
       description: Returns a customer-scoped summary when a customer session exists; otherwise local/demo summary.
@@ -675,6 +787,10 @@ paths:
 
   /api/developer/chipsets:
     get:
+      operationId: getApiDeveloperChipsets
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CHIPSET-004
       tags: [ChipSet SDK]
       summary: List published normalized ChipSet and SDK resources
       responses:
@@ -693,6 +809,10 @@ paths:
 
   /api/developer/chipsets/{chipsetId}:
     get:
+      operationId: getApiDeveloperChipsetsByChipsetId
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CHIPSET-004
       tags: [ChipSet SDK]
       summary: Get a published normalized ChipSet and its SDK releases
       parameters:
@@ -713,6 +833,10 @@ paths:
 
   /api/admin/chipset-providers:
     get:
+      operationId: getApiAdminChipsetProviders
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CHIPSET-004
       tags: [ChipSet SDK]
       summary: List Information Providers
       description: Requires `platform.chipset_sdk.read`.
@@ -720,6 +844,10 @@ paths:
         "200": { description: Provider list }
         "403": { $ref: "#/components/responses/PlainTextError" }
     post:
+      operationId: postApiAdminChipsetProviders
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CHIPSET-004
       tags: [ChipSet SDK]
       summary: Create a draft Information Provider
       description: Requires `platform.chipset_sdk.edit`.
@@ -736,6 +864,10 @@ paths:
 
   /api/admin/chipset-providers/{providerId}:
     get:
+      operationId: getApiAdminChipsetProvidersByProviderId
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CHIPSET-004
       tags: [ChipSet SDK]
       summary: Preview provider metadata and its last normalized snapshot
       description: Requires `platform.chipset_sdk.read`.
@@ -746,6 +878,10 @@ paths:
         "403": { $ref: "#/components/responses/PlainTextError" }
         "404": { $ref: "#/components/responses/PlainTextError" }
     patch:
+      operationId: patchApiAdminChipsetProvidersByProviderId
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CHIPSET-004
       tags: [ChipSet SDK]
       summary: Update provider name or manifest URL
       description: Requires `platform.chipset_sdk.edit`.
@@ -763,6 +899,10 @@ paths:
 
   /api/admin/chipset-providers/{providerId}/{action}:
     post:
+      operationId: postApiAdminChipsetProvidersByProviderIdByAction
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CHIPSET-004
       tags: [ChipSet SDK]
       summary: Publish, unpublish, or refresh a provider
       description: Requires `platform.chipset_sdk.publish`.
@@ -781,6 +921,10 @@ paths:
 
   /api/admin/summary:
     get:
+      operationId: getApiAdminSummary
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CLOUD-001
       tags: [Platform Admin]
       summary: Platform-wide dashboard summary
       responses:
@@ -799,6 +943,10 @@ paths:
 
   /api/admin/platform-dashboard:
     get:
+      operationId: getApiAdminPlatformDashboard
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CLOUD-001
       tags: [Platform Admin]
       summary: Platform Dashboard BFF payload
       description: |
@@ -823,6 +971,10 @@ paths:
 
   /api/admin/platform-resource-trends:
     get:
+      operationId: getApiAdminPlatformResourceTrends
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CLOUD-001
       tags: [Platform Admin]
       summary: Deprecated platform server resource trend payload
       deprecated: true
@@ -854,6 +1006,10 @@ paths:
 
   /api/customers:
     get:
+      operationId: getApiCustomers
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-SCOPE-001
       tags: [Customer]
       summary: Visible customer organizations
       description: Customer session returns visible Account Manager organizations; unauthenticated local mode returns demo customers.
@@ -874,6 +1030,10 @@ paths:
 
   /api/admin/customers:
     get:
+      operationId: getApiAdminCustomers
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CLOUD-001
       tags: [Platform Admin]
       summary: Platform-visible customer organizations
       responses:
@@ -894,6 +1054,10 @@ paths:
 
   /api/orgs/{orgId}/quota-raise-requests:
     post:
+      operationId: postApiOrgsByOrgIdQuotaRaiseRequests
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-SCOPE-001
       tags: [Customer]
       summary: Create an evaluation quota raise request
       description: Requires an authenticated customer session and active organization matching `orgId`.
@@ -925,6 +1089,10 @@ paths:
 
   /api/devices:
     get:
+      operationId: getApiDevices
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-002
       tags: [Devices]
       summary: List devices
       description: Customer sessions return customer-safe devices; local/demo mode returns full demo devices.
@@ -949,6 +1117,10 @@ paths:
 
   /api/admin/devices:
     get:
+      operationId: getApiAdminDevices
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-002
       tags: [Platform Admin, Devices]
       summary: Platform-wide device list
       responses:
@@ -969,6 +1141,10 @@ paths:
 
   /api/fleet/devices:
     get:
+      operationId: getApiFleetDevices
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-002
       tags: [Fleet, Devices]
       summary: Search a bounded page of customer devices
       security:
@@ -1009,6 +1185,10 @@ paths:
 
   /api/fleet/summary:
     get:
+      operationId: getApiFleetSummary
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Fleet]
       summary: Get indexed fleet summary
       security:
@@ -1023,6 +1203,10 @@ paths:
 
   /api/groups:
     get:
+      operationId: getApiGroups
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Fleet]
       summary: List device groups
       security: [{ SessionCookie: [] }]
@@ -1044,6 +1228,10 @@ paths:
                   source_status: { type: string }
         "401": { $ref: "#/components/responses/PlainTextError" }
     post:
+      operationId: postApiGroups
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Fleet]
       summary: Create a device group
       security: [{ SessionCookie: [] }]
@@ -1062,6 +1250,10 @@ paths:
     parameters:
       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
     get:
+      operationId: getApiGroupsById
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Fleet]
       summary: Get a device group
       security: [{ SessionCookie: [] }]
@@ -1069,6 +1261,10 @@ paths:
         "200": { description: Group details. }
         "401": { $ref: "#/components/responses/PlainTextError" }
     patch:
+      operationId: patchApiGroupsById
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Fleet]
       summary: Update a device group
       security: [{ SessionCookie: [] }]
@@ -1081,6 +1277,10 @@ paths:
         "200": { description: Group updated. }
         "400": { $ref: "#/components/responses/PlainTextError" }
     delete:
+      operationId: deleteApiGroupsById
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Fleet]
       summary: Delete a device group
       security: [{ SessionCookie: [] }]
@@ -1090,6 +1290,10 @@ paths:
 
   /api/tags:
     get:
+      operationId: getApiTags
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Fleet]
       summary: List tag usage
       security: [{ SessionCookie: [] }]
@@ -1099,6 +1303,10 @@ paths:
 
   /api/roles:
     get:
+      operationId: getApiRoles
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ACCESS-001
       tags: [Access]
       summary: List customer roles
       security: [{ SessionCookie: [] }]
@@ -1107,6 +1315,10 @@ paths:
 
   /api/permissions:
     get:
+      operationId: getApiPermissions
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ACCESS-001
       tags: [Access]
       summary: List customer permissions
       security: [{ SessionCookie: [] }]
@@ -1115,12 +1327,20 @@ paths:
 
   /api/role-assignments:
     get:
+      operationId: getApiRoleAssignments
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ACCESS-001
       tags: [Access]
       summary: List scoped role assignments
       security: [{ SessionCookie: [] }]
       responses:
         "200": { description: Scoped role assignments. }
     post:
+      operationId: postApiRoleAssignments
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ACCESS-001
       tags: [Access]
       summary: Create a scoped role assignment
       security: [{ SessionCookie: [] }]
@@ -1137,6 +1357,10 @@ paths:
     parameters:
       - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
     delete:
+      operationId: deleteApiRoleAssignmentsById
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ACCESS-001
       tags: [Access]
       summary: Remove a scoped role assignment
       security: [{ SessionCookie: [] }]
@@ -1146,6 +1370,10 @@ paths:
 
   /api/provisioning/validate:
     post:
+      operationId: postApiProvisioningValidate
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-SCOPE-001
       tags: [Customer]
       summary: Start immutable provisioning validation
       parameters:
@@ -1168,6 +1396,10 @@ paths:
 
   /api/provisioning/sources:
     post:
+      operationId: postApiProvisioningSources
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-SCOPE-001
       tags: [Customer]
       summary: Upload an expiring provisioning device-list source
       security: [{ SessionCookie: [] }]
@@ -1191,6 +1423,10 @@ paths:
 
   /api/provisioning/jobs:
     post:
+      operationId: postApiProvisioningJobs
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-SCOPE-001
       tags: [Customer]
       summary: Create provisioning execution after successful validation
       parameters:
@@ -1211,6 +1447,10 @@ paths:
 
   /api/jobs:
     get:
+      operationId: getApiJobs
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-JOBS-001
       tags: [Fleet, Jobs]
       summary: List asynchronous fleet jobs
       security: [{ SessionCookie: [] }]
@@ -1227,6 +1467,10 @@ paths:
                   source_status: { type: string }
         "401": { $ref: "#/components/responses/PlainTextError" }
     post:
+      operationId: postApiJobs
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-JOBS-001
       tags: [Fleet, Jobs]
       summary: Create an asynchronous fleet job
       security: [{ SessionCookie: [] }]
@@ -1246,6 +1490,10 @@ paths:
 
   /api/jobs/{id}:
     get:
+      operationId: getApiJobsById
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-JOBS-001
       tags: [Fleet, Jobs]
       summary: Get an asynchronous fleet job
       security: [{ SessionCookie: [] }]
@@ -1260,6 +1508,10 @@ paths:
 
   /api/jobs/{id}/retry:
     post:
+      operationId: postApiJobsByIdRetry
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-JOBS-001
       tags: [Fleet, Jobs]
       summary: Retry failed items in a fleet job
       security: [{ SessionCookie: [] }]
@@ -1272,6 +1524,10 @@ paths:
 
   /api/jobs/{id}/{action}:
     post:
+      operationId: postApiJobsByIdByAction
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-JOBS-001
       tags: [Fleet, Jobs]
       summary: Control a batch job
       security: [{ SessionCookie: [] }]
@@ -1285,6 +1541,10 @@ paths:
 
   /api/jobs/{id}/result:
     get:
+      operationId: getApiJobsByIdResult
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-JOBS-001
       tags: [Fleet, Jobs]
       summary: Get fleet job results
       security: [{ SessionCookie: [] }]
@@ -1295,12 +1555,20 @@ paths:
 
   /api/reports:
     get:
+      operationId: getApiReports
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-REPORT-004
       tags: [Fleet, Reports]
       summary: List generated fleet reports
       security: [{ SessionCookie: [] }]
       responses:
         "200": { description: Report list. }
     post:
+      operationId: postApiReports
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-REPORT-004
       tags: [Fleet, Reports]
       summary: Start an asynchronous fleet report
       security: [{ SessionCookie: [] }]
@@ -1324,6 +1592,10 @@ paths:
 
   /api/reports/{id}:
     get:
+      operationId: getApiReportsById
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-REPORT-004
       tags: [Fleet, Reports]
       summary: Get a fleet report
       security: [{ SessionCookie: [] }]
@@ -1334,12 +1606,20 @@ paths:
 
   /api/update-plans:
     get:
+      operationId: getApiUpdatePlans
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, Firmware]
       summary: List SKU-scoped firmware update plans
       security: [{ SessionCookie: [] }]
       parameters: [{ name: sku_id, in: query, required: true, schema: { type: string, format: uuid } }]
       responses: { "200": { description: Update plan list. } }
     post:
+      operationId: postApiUpdatePlans
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, Firmware]
       summary: Create a SKU-scoped firmware update plan
       security: [{ SessionCookie: [] }]
@@ -1347,6 +1627,10 @@ paths:
 
   /api/update-plans/scope-preview:
     post:
+      operationId: postApiUpdatePlansScopePreview
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, Firmware]
       summary: Preview immutable OTA target scope
       security: [{ SessionCookie: [] }]
@@ -1382,6 +1666,10 @@ paths:
 
   /api/update-plans/{id}:
     get:
+      operationId: getApiUpdatePlansById
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, Firmware]
       summary: Get an update plan
       security: [{ SessionCookie: [] }]
@@ -1390,6 +1678,10 @@ paths:
 
   /api/update-plans/{id}/{action}:
     post:
+      operationId: postApiUpdatePlansByIdByAction
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, Firmware]
       summary: Control an update plan
       security: [{ SessionCookie: [] }]
@@ -1400,6 +1692,10 @@ paths:
 
   /api/skus:
     get:
+      operationId: getApiSkus
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, SKU]
       summary: List SKU and service capabilities
       description: Returns customer-safe SKU profiles for the active organization.
@@ -1434,6 +1730,10 @@ paths:
         "502":
           $ref: "#/components/responses/PlainTextError"
     post:
+      operationId: postApiSkus
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, SKU]
       summary: Create a SKU and its service policy
       security: [{ SessionCookie: [] }]
@@ -1449,6 +1749,10 @@ paths:
 
   /api/skus/{id}:
     get:
+      operationId: getApiSkusById
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, SKU]
       summary: Get SKU and service capabilities
       security:
@@ -1479,6 +1783,10 @@ paths:
         "502":
           $ref: "#/components/responses/PlainTextError"
     patch:
+      operationId: patchApiSkusById
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, SKU]
       summary: Update a SKU and its service policy
       security: [{ SessionCookie: [] }]
@@ -1494,6 +1802,10 @@ paths:
 
   /api/skus/{id}/disable:
     post:
+      operationId: postApiSkusByIdDisable
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, SKU]
       summary: Disable a SKU
       security: [{ SessionCookie: [] }]
@@ -1502,6 +1814,10 @@ paths:
 
   /api/skus/{id}/permissions:
     get:
+      operationId: getApiSkusByIdPermissions
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, SKU]
       summary: Get effective user actions for a SKU
       security:
@@ -1528,6 +1844,10 @@ paths:
 
   /api/skus/{id}/impact-preview:
     post:
+      operationId: postApiSkusByIdImpactPreview
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, SKU]
       summary: Preview the impact of a SKU policy change
       security: [{ SessionCookie: [] }]
@@ -1543,12 +1863,20 @@ paths:
 
   /api/skus/{id}/releases:
     get:
+      operationId: getApiSkusByIdReleases
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, Firmware]
       summary: List firmware releases for a SKU
       security: [{ SessionCookie: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { "200": { description: SKU-scoped firmware releases. } }
     post:
+      operationId: postApiSkusByIdReleases
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, Firmware]
       summary: Create a firmware release upload
       security: [{ SessionCookie: [] }]
@@ -1562,6 +1890,10 @@ paths:
 
   /api/skus/{id}/releases/{releaseId}:
     get:
+      operationId: getApiSkusByIdReleasesByReleaseId
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, Firmware]
       summary: Get a firmware release
       security: [{ SessionCookie: [] }]
@@ -1572,6 +1904,10 @@ paths:
 
   /api/skus/{id}/releases/{releaseId}/{action}:
     post:
+      operationId: postApiSkusByIdReleasesByReleaseIdByAction
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-OTA-001
       tags: [Fleet, Firmware]
       summary: Advance or revoke a firmware release
       security: [{ SessionCookie: [] }]
@@ -1583,6 +1919,10 @@ paths:
 
   /api/devices/{id}:
     get:
+      operationId: getApiDevicesById
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-002
       tags: [Devices]
       summary: Get device detail
       security:
@@ -1606,6 +1946,10 @@ paths:
 
   /api/devices/{id}/provision:
     post:
+      operationId: postApiDevicesByIdProvision
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-BATCH-002
       tags: [Devices, Operations]
       summary: Request device provisioning
       parameters:
@@ -1624,6 +1968,10 @@ paths:
 
   /api/devices/{id}/deactivate:
     post:
+      operationId: postApiDevicesByIdDeactivate
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-BATCH-002
       tags: [Devices, Operations]
       summary: Request device deactivation
       parameters:
@@ -1642,6 +1990,10 @@ paths:
 
   /api/devices/{id}/telemetry:
     get:
+      operationId: getApiDevicesByIdTelemetry
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Devices, Fleet]
       summary: Device telemetry projection
       parameters:
@@ -1664,6 +2016,10 @@ paths:
 
   /api/fleet/health-summary:
     get:
+      operationId: getApiFleetHealthSummary
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Fleet]
       summary: Customer fleet health summary
       parameters:
@@ -1686,6 +2042,10 @@ paths:
 
   /api/fleet/stream-stats:
     get:
+      operationId: getApiFleetStreamStats
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Fleet]
       summary: Customer fleet stream statistics
       parameters:
@@ -1708,6 +2068,10 @@ paths:
 
   /api/fleet/firmware-distribution:
     get:
+      operationId: getApiFleetFirmwareDistribution
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-FLEETPAGE-001
       tags: [Fleet]
       summary: Customer fleet firmware distribution
       responses:
@@ -1726,6 +2090,10 @@ paths:
 
   /api/operations:
     get:
+      operationId: getApiOperations
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-BATCH-002
       tags: [Operations]
       summary: List lifecycle operations
       description: Customer sessions return customer-visible upstream operations; local/demo mode returns local operations.
@@ -1746,6 +2114,10 @@ paths:
 
   /api/admin/operations:
     get:
+      operationId: getApiAdminOperations
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-BATCH-002
       tags: [Platform Admin, Operations]
       summary: Platform-wide lifecycle operations
       responses:
@@ -1766,6 +2138,10 @@ paths:
 
   /api/service-health:
     get:
+      operationId: getApiServiceHealth
+      x-rtk-feature-id: FEAT-CA-OBS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-DASH-002
       tags: [Health]
       summary: Upstream service health
       security:
@@ -1783,6 +2159,10 @@ paths:
 
   /api/admin/service-health:
     get:
+      operationId: getApiAdminServiceHealth
+      x-rtk-feature-id: FEAT-CA-OBS-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-DASH-002
       tags: [Platform Admin, Health]
       summary: Platform-admin upstream service health
       responses:
@@ -1801,6 +2181,10 @@ paths:
 
   /api/audit:
     get:
+      operationId: getApiAudit
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-AUDIT-001
       tags: [Audit]
       summary: List audit events
       description: Customer sessions return customer-scoped events; local/demo mode returns local events.
@@ -1821,6 +2205,10 @@ paths:
 
   /api/admin/audit:
     get:
+      operationId: getApiAdminAudit
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-AUDIT-001
       tags: [Platform Admin, Audit]
       summary: Platform-wide audit events
       responses:
@@ -1839,6 +2227,10 @@ paths:
 
   /api/admin/brand-clouds:
     get:
+      operationId: getApiAdminBrandClouds
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CLOUD-004
       tags: [Platform Admin, Brand Clouds]
       summary: List brand-cloud organizations
       description: Requires Account Manager-backed platform-admin session. Results are filtered and paginated by the Cloud Admin BFF.
@@ -1906,6 +2298,10 @@ paths:
         "503":
           $ref: "#/components/responses/PlainTextError"
     post:
+      operationId: postApiAdminBrandClouds
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CLOUD-004
       tags: [Platform Admin, Brand Clouds]
       summary: Create a brand-cloud organization
       description: Requires Account Manager-backed platform-admin session.
@@ -1939,6 +2335,10 @@ paths:
 
   /api/admin/brand-clouds/{brandCloudId}:
     get:
+      operationId: getApiAdminBrandCloudsByBrandCloudId
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CLOUD-004
       tags: [Platform Admin, Brand Clouds]
       summary: Get a brand-cloud organization
       parameters:
@@ -1965,6 +2365,10 @@ paths:
         "503":
           $ref: "#/components/responses/PlainTextError"
     patch:
+      operationId: patchApiAdminBrandCloudsByBrandCloudId
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CLOUD-004
       tags: [Platform Admin, Brand Clouds]
       summary: Update a brand-cloud organization
       parameters:
@@ -1999,6 +2403,10 @@ paths:
 
   /api/admin/brand-clouds/{brandCloudId}/members:
     post:
+      operationId: postApiAdminBrandCloudsByBrandCloudIdMembers
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-CLOUD-004
       tags: [Platform Admin, Brand Clouds]
       summary: Assign a user to a brand cloud
       parameters:
@@ -2033,6 +2441,10 @@ paths:
 
   /api/admin/sso/providers:
     get:
+      operationId: getApiAdminSsoProviders
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ACCESS-003
       tags: [Platform Admin, SSO]
       summary: List SSO provider status for platform-visible organizations
       responses:
@@ -2059,6 +2471,10 @@ paths:
 
   /api/admin/orgs/{orgId}/sso-provider:
     get:
+      operationId: getApiAdminOrgsByOrgIdSsoProvider
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ACCESS-003
       tags: [Platform Admin, SSO]
       summary: Get SSO provider configuration status for an organization
       parameters:
@@ -2085,6 +2501,10 @@ paths:
         "503":
           $ref: "#/components/responses/PlainTextError"
     put:
+      operationId: putApiAdminOrgsByOrgIdSsoProvider
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ACCESS-003
       tags: [Platform Admin, SSO]
       summary: Upsert SSO provider configuration for an organization
       parameters:
