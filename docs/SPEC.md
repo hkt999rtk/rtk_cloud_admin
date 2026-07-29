@@ -444,7 +444,7 @@ This machine-readable acceptance inventory is normative for feature qualificatio
 #### [REQ-UI-CA-ACCESS-001] Anonymous users cannot read the platform admin API
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Anonymous users cannot read the platform admin API.
@@ -460,7 +460,7 @@ Acceptance: Customer users cannot read the platform admin API.
 #### [REQ-UI-CA-ACCESS-003] Customer navigation remains separated from platform navigation
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Customer navigation remains separated from platform navigation.
@@ -468,7 +468,7 @@ Acceptance: Customer navigation remains separated from platform navigation.
 #### [REQ-UI-CA-ROLE-001] Developer and release roles can manage release surfaces
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Developer and release roles can manage release surfaces.
@@ -492,7 +492,7 @@ Acceptance: Observer role is read-only through UI and API.
 #### [REQ-UI-CA-SCOPE-001] Brand Cloud switching keeps URL and data scope aligned
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Brand Cloud switching keeps URL and data scope aligned.
@@ -508,7 +508,7 @@ Acceptance: Non-member cloud links are forbidden without changing active cloud.
 #### [REQ-UI-CA-TEAM-001] Developer team management uses its namespace and is replay-safe
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Developer team management uses its namespace and is replay-safe.
@@ -522,7 +522,7 @@ Acceptance: Developer team management uses its namespace and is replay-safe.
 #### [REQ-UI-CA-AUDIT-001] Platform admins can review audit records after a Brand Cloud action
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Platform admins can review audit records after a Brand Cloud action.
@@ -530,7 +530,7 @@ Acceptance: Platform admins can review audit records after a Brand Cloud action.
 #### [REQ-UI-CA-CLOUD-001] Brand Cloud filters and detail reload show Account Manager data
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Brand Cloud filters and detail reload show Account Manager data.
@@ -554,7 +554,7 @@ Acceptance: Brand Cloud list renders upstream failures safely.
 #### [REQ-UI-CA-CLOUD-004] Brand Cloud detail supports cloud and user lifecycle actions
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Brand Cloud detail supports cloud and user lifecycle actions.
@@ -562,7 +562,7 @@ Acceptance: Brand Cloud detail supports cloud and user lifecycle actions.
 #### [REQ-UI-CA-CLOUD-005] Brand Cloud creation stepper completes successfully
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Brand Cloud creation stepper completes successfully.
@@ -592,7 +592,7 @@ Acceptance: Platform admins can open operations and service logs.
 #### [REQ-UI-CA-DASH-001] Platform admins can triage the platform dashboard
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Platform admins can triage the platform dashboard.
@@ -600,7 +600,7 @@ Acceptance: Platform admins can triage the platform dashboard.
 #### [REQ-UI-CA-DASH-002] Dashboard reports degraded state when Prometheus is unavailable
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Dashboard reports degraded state when Prometheus is unavailable.
@@ -616,7 +616,7 @@ Acceptance: Dashboard exposes empty and stale Prometheus states.
 #### [REQ-UI-CA-LOGS-001] Platform admins can inspect service-log incident context
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Platform admins can inspect service-log incident context.
@@ -670,7 +670,7 @@ Acceptance: Partial batch failure preserves item results and supports a new retr
 #### [REQ-UI-CA-BATCH-002] Batch jobs enforce valid pause resume and cancel transitions
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Batch jobs enforce valid pause resume and cancel transitions.
@@ -686,7 +686,7 @@ Acceptance: Completed batch results can be downloaded as JSON and CSV.
 #### [REQ-UI-CA-JOBS-001] Batch jobs use server scope idempotency and result lifecycle
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Batch jobs use server scope idempotency and result lifecycle.
@@ -718,7 +718,7 @@ Acceptance: Report builder submits complete metadata from the browser.
 #### [REQ-UI-CA-REPORT-004] Reports preserve scope metadata and expose async download
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Reports preserve scope metadata and expose async download.
@@ -740,7 +740,7 @@ Acceptance: Report idempotency replay and conflict preserve original scope.
 #### [REQ-UI-CA-FLEETPAGE-001] Customer fleet pages load through the real BFF
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Customer fleet pages load through the real BFF.
@@ -748,7 +748,7 @@ Acceptance: Customer fleet pages load through the real BFF.
 #### [REQ-UI-CA-FLEETPAGE-002] Device fleet remains server paginated
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Device fleet remains server paginated.
@@ -826,7 +826,7 @@ Acceptance: Provider and developer pages expose safe upstream-unavailable states
 #### [REQ-UI-CA-CHIPSET-004] Provider publish refresh fallback and unpublish lifecycle works
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Provider publish refresh fallback and unpublish lifecycle works.
@@ -850,7 +850,7 @@ Acceptance: Developer resource design matches the approved visual baseline.
 #### [REQ-UI-CA-OTA-001] OTA scope preview is server calculated and immutable
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: OTA scope preview is server calculated and immutable.
