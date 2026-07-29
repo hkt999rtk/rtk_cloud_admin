@@ -138,6 +138,16 @@ if (evidencePath) {
     status: 'PASS',
     imap_uid: delivered.uid,
     verification_origin: new URL(delivered.url).origin,
+    workflow: {
+      workflow_id: 'WF-AM-SIGNUP-001',
+      steps: {
+        submit_signup: 'PASS',
+        verify_email: 'PASS',
+        read_authenticated_user: 'PASS',
+        password_login: 'PASS',
+        reject_token_replay: 'PASS',
+      },
+    },
   })}\n`, { encoding: 'utf8', mode: 0o600 });
 }
 console.log(`Send Mail + IMAP signup E2E passed (run ${runID}; IMAP UID ${delivered.uid}).`);
