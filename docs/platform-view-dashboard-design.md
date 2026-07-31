@@ -63,7 +63,7 @@ Prometheus remain the sources of truth for their respective facts.
 ### [REQ-CA-DASHBOARD-SCOPE-001] First viewport presents the minimum management decision surface
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: The first viewport shows overall service, workload, and node health; operation risk; tenant/device impact; source freshness and degradation; and links to existing drill-downs, while optional selectors, historical charts, and rich diagnostics cannot block the first release.
@@ -115,7 +115,7 @@ backend APIs in the first release.
 ### [REQ-CA-DASHBOARD-NAVIGATION-001] Dashboard navigation preserves Platform View boundaries
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Platform Dashboard is the first Platform View destination, links to the dedicated management drill-downs, keeps Service Health separate, and exposes ChipSet & SDK Provider mutation actions only to capable Platform Admin sessions without revealing raw provider URLs or manifests to Developer sessions.
@@ -152,7 +152,7 @@ expose the raw manifest or provider URL to Developer sessions.
 ### [REQ-CA-DASHBOARD-LAYOUT-001] Dashboard layout is dense scan-first and accessible
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: The first viewport keeps Service Health, K8s Workloads, Cluster Nodes, and Operation Risk visible in the Realtek Ops Console visual system; panels use compact rows, status treatment, Font Awesome affordances with accessible labels, and the authenticated shell refreshes through one background loading path every 20 seconds without a manual topbar refresh action.
@@ -294,7 +294,7 @@ aggregated health groups and drill-down rows.
 ### [REQ-CA-DASHBOARD-METRICS-001] Metrics are grouped into product-operational signals
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: KPI, service/scrape, Kubernetes, runtime, cross-service, domain, and infrastructure metrics are rendered as current product-aware health and risk groups; raw series dumps, sensitive/high-cardinality labels, and misleading long-term trend or percentile claims are excluded.
@@ -397,7 +397,7 @@ the primary dashboard contract.
 ### [REQ-CA-DASHBOARD-STATES-001] Panels degrade independently and preserve safe fallbacks
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Loading, unconfigured, failed, empty, partial, stale, unavailable, and unmonitored sources have distinct panel-level states; optional Account Manager inventory 404s use BFF projections, other upstream failures remain gateway errors, and wrong-role sessions never receive Customer View fallback data.
@@ -458,7 +458,7 @@ Implementation requirements:
 ### [REQ-CA-DASHBOARD-UI-001] Platform dashboard meets role content refresh and privacy acceptance
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Desktop and mobile UI evidence proves Platform Admin-only access, management-first content, automatic 20-second refresh, clear Kubernetes and source states, product-grouped metrics, accessible icons, no direct Prometheus calls, no sensitive labels, and no redundant timestamps or manual refresh affordance.
@@ -488,7 +488,7 @@ Acceptance: Desktop and mobile UI evidence proves Platform Admin-only access, ma
 #### [REQ-CA-DASHBOARD-CHIPSET-001] ChipSet and SDK Provider surface matches its approved interactive design
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Desktop and mobile evidence matches the approved four KPIs, stale last-known-good banner, filters, provider table, create/edit/validation drawer, non-mutating validation preview, and capability-dependent mutation visibility; mock changes require implementation and snapshot updates.
@@ -509,7 +509,7 @@ snapshot updates.
 ### [REQ-CA-DASHBOARD-QUALIFICATION-001] Dashboard qualification covers guards sources states and responsive UI
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","junit","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","junit","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Qualification includes backend role guards, allowlisted Prometheus composition, timeout/unavailable and error-redaction behavior; frontend loading/empty/partial states; production build; and mobile layout without control or table overflow.
@@ -537,7 +537,7 @@ Manual QA should verify:
 ### [REQ-CA-DASHBOARD-DECISIONS-001] Deferred dashboard naming precedence and SRE-link decisions remain planned
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json"],"required":false,"status":"planned"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json"],"required":false,"status":"planned"}
 -->
 
 Planning note: Product and SRE owners will decide the final visible page label, readiness-source precedence, and optional Grafana host-detail linking before those choices become required product behavior.
