@@ -284,7 +284,7 @@ drawer, not as the primary table label.
 ### [REQ-CA-BRAND-CREATE-001] Brand creation validates identity assignment entitlement and partial failure
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: The drawer validates required display identity and upstream-supported code/region, assigns only existing brand-scoped users, keeps entitlement informational and non-billing, omits unsupported drafts, refreshes authoritative success, and recovers member-assignment failure without replaying brand creation.
@@ -488,7 +488,7 @@ Behavior:
 ### [REQ-CA-BRAND-USERS-001] Brand-user lifecycle preserves activation state and audit history
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: The Account Manager-backed user table distinguishes pending, active, and disabled identities; approve/disable/enable/soft-delete refresh current state, and delete removes access without hard-deleting audit history.
