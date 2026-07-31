@@ -70,7 +70,7 @@ generic customer organization table.
 ### [REQ-CA-BRAND-SCOPE-001] First-release management exposes the minimum safe tenant facts and actions
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Brand name/id, tier, normalized status, owner/admin, SSO state, setup blocker, and create/assign/enable/disable actions are available; optional region, code, timestamps, usage, and analytics remain non-authoritative until supplied upstream.
@@ -128,7 +128,7 @@ fields, and deep setup workflows remain follow-up items.
 ### [REQ-CA-BRAND-NONGOALS-001] Brand management excludes impersonation billing SAML device control and deletion
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Platform Brand Clouds cannot replace Account Manager, edit its database directly, impersonate tenants, approve commercial entitlement, configure SAML, manage brand-owned devices, or delete organizations; OIDC handoff and upstream-backed enable/disable remain explicit.
@@ -150,7 +150,7 @@ Acceptance: Platform Brand Clouds cannot replace Account Manager, edit its datab
 ### [REQ-CA-BRAND-NAVIGATION-001] Brand Clouds is isolated to Account Manager-backed Platform View sessions
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Brand Clouds is a first-class Platform View section hidden from Customer View and from sessions without Account Manager-backed platform_admin identity; no local break-glass navigation path exists.
@@ -205,7 +205,7 @@ exist. Until the exact names are finalized, the UI should model these as:
 ### [REQ-CA-BRAND-LIST-001] Brand list exposes operational content states and actions
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: The default table route provides KPI summary, search/filter controls, management columns, normalized status labels, capability-aware create action, loading/empty/read-only/unavailable/missing-token states, and never falls back to SQLite seed data.
@@ -442,7 +442,7 @@ Recent Activity
 #### [REQ-CA-BRAND-UPDATE-001] Tenant-level updates remain upstream-backed confirmed and non-destructive
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: The action menu exposes only Account Manager-backed metadata edit, disable, and re-enable; tenant status changes explain visible and blocked behavior and delete remains absent.
@@ -462,7 +462,7 @@ blocked. Delete is intentionally absent.
 ### [REQ-CA-BRAND-MEMBER-001] Existing brand-user assignment validates and preserves upstream errors safely
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Member assignment validates brand user and role locally, submits brand_cloud_user_id, updates inline on success, treats duplicates non-destructively, and renders Account Manager authorization/validation failures in user-safe language.
@@ -572,7 +572,7 @@ attempts, but authoritative brand-cloud audit remains in Account Manager.
 #### [REQ-CA-BRAND-PAGINATION-001] Brand list pagination remains server-side compact and bounded
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Limit/offset/search/status/tier execute server-side with default 25 and cap 100, filters reset offset, responses carry total and current page only, and compact table/range controls avoid card layout and excess default columns.
@@ -598,7 +598,7 @@ tenants without forcing long vertical scrolling.
 #### [REQ-CA-BRAND-DRAWER-001] Brand detail drawer presents structured actionable management state
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: The drawer uses structured identity, status, quota, setup, action, and brand-user layouts with accessible icon/text controls and preserved disabled/pending contrast, without decorative blobs, oversized shapes, or concatenated prose fields.
@@ -625,7 +625,7 @@ oversized status shapes, or prose blocks that concatenate labels and values.
 ### [REQ-CA-BRAND-VISUAL-001] Brand management matches Platform View density and restraint
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Brand pages reuse the Platform shell, compact radius, neutral background, restrained status badges, accessible actions, and exclude heroes, gradients, marketing panels, decorative illustration, and nested-card composition.
@@ -693,7 +693,7 @@ The implementation can be split into developer-ready issues:
 ### [REQ-CA-BRAND-QUALIFICATION-001] Brand management changes retain deterministic and browser evidence
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Relevant frontend tests/build/smoke, backend route guards and Go tests execute for touched behavior, while browser QA covers platform/customer authorization, unavailable sources, create success/validation/partial failure, and mobile drawer/table layout.
