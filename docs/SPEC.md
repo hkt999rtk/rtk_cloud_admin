@@ -356,7 +356,7 @@ Service health:
 ### [REQ-CA-BFF-UI-001] Console UI follows the canonical operational style and state vocabulary
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshots"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Directly linkable customer and platform routes use compact operational layout, canonical readiness/status vocabulary, source-fact detail, and the shared frontend style contract without marketing heroes or decorative card grids.
