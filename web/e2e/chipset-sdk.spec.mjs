@@ -1,6 +1,21 @@
 import { test, expect } from '@playwright/test';
 import { login } from './fixtures/session.mjs';
 
+async function navigateAfterRoleSwitch(page, pathname) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.goto(pathname);
+      return;
+    } catch (error) {
+      if (!String(error).includes('net::ERR_ABORTED') || attempt === 2) throw error;
+      // Updating the shared session cookie can make Chromium abort an in-flight
+      // SPA navigation. Retry only that browser-level abort; HTTP and assertion
+      // failures still fail immediately.
+      await page.waitForTimeout(50);
+    }
+  }
+}
+
 test('[UI-CA-CHIPSET-001] provider page exposes loading and validation states @chipset-sdk', async ({ page }) => {
   await login(page, 'platform_admin');
   let releaseProviders;
@@ -87,7 +102,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
     });
     expect(response.ok()).toBeTruthy();
   }
-  await page.goto('/admin/chipset-providers');
+  await navigateAfterRoleSwitch(page, '/admin/chipset-providers');
   await expect(page.getByRole('heading', { level: 2, name: 'ChipSet & SDK Providers' })).toBeVisible();
 
   await page.getByRole('button', { name: '新增 Provider' }).click();
@@ -109,7 +124,7 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
   await expect(row).toContainText('1 ChipSets · 2 SDKs');
 
   await login(page, 'developer');
-  await page.goto('/console/chipset-sdk');
+  await navigateAfterRoleSwitch(page, '/console/chipset-sdk');
   await expect(page.getByRole('heading', { level: 2, name: 'ChipSet & SDK' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'AmebaPro2' }).first()).toBeVisible();
   const initialRelease = page.locator('.sdk-release').filter({ hasText: 'Ameba Arduino Pro2 · 1.0.0' }).first();
@@ -121,23 +136,23 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
   await expect(sdkDownloadLink).toHaveAccessibleName(/Get ambpro2 SDK/);
 
   await login(page, 'platform_admin');
-  await page.goto('/admin/chipset-providers');
+  await navigateAfterRoleSwitch(page, '/admin/chipset-providers');
   const refreshedRow = page.getByRole('row').filter({ hasText: providerName });
   await refreshedRow.getByRole('button', { name: '刷新' }).click();
   await expect(page.getByText('Provider refresh 已完成。')).toBeVisible();
 
   await login(page, 'developer');
-  await page.goto('/console/chipset-sdk');
+  await navigateAfterRoleSwitch(page, '/console/chipset-sdk');
   await expect(page.getByText('Ameba Arduino Pro2 · 2.0.0').first()).toBeVisible();
 
   await login(page, 'platform_admin');
-  await page.goto('/admin/chipset-providers');
+  await navigateAfterRoleSwitch(page, '/admin/chipset-providers');
   const failingRow = page.getByRole('row').filter({ hasText: providerName });
   await failingRow.getByRole('button', { name: '刷新' }).click();
   await expect(page.locator('.notice')).toHaveText('Provider fetch failed');
 
   await login(page, 'developer');
-  await page.goto('/console/chipset-sdk');
+  await navigateAfterRoleSwitch(page, '/console/chipset-sdk');
   await expect(page.getByText('Ameba Arduino Pro2 · 2.0.0').first()).toBeVisible();
   await expect(page.getByText('部分資訊可能不是最新版本')).toBeVisible();
   await expect(page.getByText('Stale')).toBeVisible();
