@@ -43,6 +43,13 @@ test.describe('Brand Clouds', () => {
     await expect(dialog.getByText('Pending Activation', { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'Approve' }).click();
     await expect(dialog.getByText('Brand user approved.', { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Disable', exact: true }).first().click();
+    await expect(dialog.getByText('Brand user disabled.', { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Enable', exact: true }).first().click();
+    await expect(dialog.getByText('Brand user enabled.', { exact: true })).toBeVisible();
+    page.once('dialog', (confirmation) => confirmation.accept());
+    await dialog.getByRole('button', { name: 'Delete', exact: true }).first().click();
+    await expect(dialog.getByText('Brand user removed.', { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'Re-enable Brand Cloud' }).click();
     await expect(dialog.getByText('Brand Cloud enabled.', { exact: true })).toBeVisible();
     await dialog.getByLabel('Brand User id').fill('brand-user-beta-owner');
