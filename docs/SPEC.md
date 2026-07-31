@@ -3,17 +3,40 @@ rtk_spec:
   id: SPEC-CA
   status: normative
   owner: rtk_cloud_admin
+  requirement_inventory: complete
 ---
 
 # RTK Cloud Admin Console Specification
 
+## [FEAT-CA-BFF-001] Tenant-aware Cloud Admin BFF and operational console boundary
+
+<!-- rtk-feature
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**"],"commit_anchors":["cloud_admin"],"surfaces":[{"kind":"api-route","source":"repos/rtk_cloud_admin/docs/openapi.yaml","selector":"postApiAuthCustomerLogin"}]}
+-->
+
 ## Summary
+
+### [REQ-CA-BFF-RUNTIME-001] Production backend runtime remains Go-only
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: The deployed BFF and runtime services use Go without requiring Node.js or npm; JavaScript tooling is limited to frontend development and static asset builds.
 
 RTK Cloud Admin Console is a B2B operations console for RTK Cloud device fleet management and provisioning. It is a tenant-first web application: customer users manage their own organization devices, while platform administrators use a separate local-admin entry point to inspect customers, devices, lifecycle operations, service health, and audit activity across tenants.
 
 The first implementation uses a Go backend/BFF, SQLite, and a React JavaScript frontend. Backend code and runtime services must be Go only. Node.js/npm are allowed only for frontend development and static asset builds; they must not be required by the Go backend at runtime.
 
 ## Product Direction
+
+### [REQ-CA-BFF-AUTHORITY-001] Cloud Admin remains a presentation and aggregation boundary
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: The BFF follows canonical account, tenant, device, quota, provisioning, readiness, video, and brand-cloud ownership and cannot turn proxy, cache, or SQLite data into a competing source of truth.
 
 The console follows the contracts in `docs/rtk_cloud_contracts_doc`:
 
@@ -110,6 +133,14 @@ The production deployment profile for the admin dashboard is documented in
 
 ## Architecture
 
+### [REQ-CA-BFF-STORE-001] Local persistence and future caches preserve upstream authority
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: SQLite remains authoritative only for console-local sessions, audit, settings, preferences, and demo data; any future Redis-compatible cache begins behind narrow ports and keeps upstream organization, device, operation, readiness, firmware, telemetry, and stream facts non-authoritative.
+
 Runtime components:
 
 - `cmd/server`: process entry point, configuration, server startup, graceful shutdown.
@@ -153,6 +184,14 @@ renaming, or changing JSON API routes registered by `internal/app`.
 
 Public and shared routes:
 
+### [REQ-CA-BFF-LOGIN-001] Customer and platform login create sessions only for authorized profiles
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","operation_model":"workflow","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: Customer login requires at least one customer organization; platform-only identities cannot create Customer View sessions, and platform password migration login verifies platform-admin authorization before creating local session state.
+
 - `GET /healthz`: plain health check.
 - `POST /api/auth/customer/login`: customer password login through Account
   Manager when configured. The resolved Account Manager profile must include at
@@ -188,6 +227,14 @@ Public and shared routes:
 - `POST /api/devices/{id}/provision`: starts or simulates provisioning.
 - `POST /api/devices/{id}/deactivate`: starts or simulates deactivation.
 
+### [REQ-CA-BFF-ENTITLEMENT-001] Effective SKU actions never infer entitlement from presentation fields
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: Cloud Admin composes Account Manager product authorization with Video Cloud release/deployment facts and never infers service entitlement or human permissions from model names, raw ACL labels, or runtime token scopes.
+
 SKU service capabilities and human ACL are separate. Account Manager owns SKU
 profiles, device-to-SKU membership, service capability policy, and product
 authorization facts. Video Cloud owns firmware releases, OTA campaigns, and
@@ -205,6 +252,14 @@ token scopes.
 - `POST /api/admin/brand-clouds/{id}/members`: Account Manager-backed brand cloud member assignment.
 - `GET /assets/...`: built frontend assets.
 - `GET /*`: React SPA fallback.
+
+### [REQ-CA-BFF-PRODUCTION-SOURCES-001] Server validation uses authenticated upstream facts
+
+<!-- rtk-requirement
+{"acceptance_layer":"live","gate":"main","environments":["staging"],"evidence":["json","junit","logs"],"freshness_hours":168,"required":true,"status":"active"}
+-->
+
+Acceptance: Production and server validation configure upstream services and authenticated customer sessions, reject demo/seed/sample data as evidence, and return gateway errors instead of silently falling back when configured upstream enrichment fails.
 
 The v0.1 implementation may run without configured upstream services for local
 development only. Production/server validation must use configured upstream
@@ -229,6 +284,14 @@ source-unavailable states and the known staging server/resource rows instead
 of hiding the entire dashboard.
 
 ## Authentication And Sessions
+
+### [REQ-CA-BFF-SESSION-001] Upstream authentication and local session revocation stay synchronized
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","operation_model":"workflow","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: Daily platform access uses Account Manager SSO or migration password login, platform routes require platform_admin, expired/invalid upstream platform tokens delete local session metadata and clear the cookie before returning 401, and no local break-glass account exists.
 
 Production Customer authentication uses email and password credentials verified
 by Account Manager. Admin Console remains the BFF and session owner, creating
@@ -264,6 +327,14 @@ Platform admin sessions:
 
 ## Upstream Integration
 
+### [REQ-CA-BFF-UPSTREAM-001] Configured upstream integrations fail explicitly and remain observable
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: Account Manager lifecycle proxy failures return gateway errors with audit correlation, and configured service-health URLs are checked with bounded timeout and report status, latency, and observation time; demo status is local-development-only.
+
 Account Manager proxy mode:
 
 - `GET /api/customers` calls Account Manager organizations
@@ -281,6 +352,14 @@ Service health:
 - responses include status, latency, and last checked timestamp
 
 ## UI Direction
+
+### [REQ-CA-BFF-UI-001] Console UI follows the canonical operational style and state vocabulary
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshots"],"required":true,"status":"active"}
+-->
+
+Acceptance: Directly linkable customer and platform routes use compact operational layout, canonical readiness/status vocabulary, source-fact detail, and the shared frontend style contract without marketing heroes or decorative card grids.
 
 The visual system follows `docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md` and should feel like an operational B2B console:
 
@@ -351,6 +430,14 @@ Production-mode readiness precedence:
   production readiness.
 
 ## Configuration
+
+### [REQ-CA-BFF-BREAK-GLASS-001] Deployment configuration cannot enable a local break-glass login
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: ADMIN_BREAK_GLASS_ENABLED is deprecated compatibility input, local break-glass authentication remains unsupported, and deployments keep the flag false.
 
 Environment variables:
 
