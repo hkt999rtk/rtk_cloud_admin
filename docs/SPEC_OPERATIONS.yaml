@@ -1,0 +1,28 @@
+schema_version: 1
+rtk_spec:
+  id: SPEC-CA-OPERATIONS
+  status: normative
+  owner: rtk_cloud_admin
+
+operations:
+  - id: customer_login
+    feature_id: FEAT-CA-BFF-001
+    requirement_ids: [REQ-CA-BFF-LOGIN-001]
+  - id: customer_read_session
+    feature_id: FEAT-CA-BFF-001
+    requirement_ids: [REQ-CA-BFF-LOGIN-001]
+  - id: customer_reject_platform_only
+    feature_id: FEAT-CA-BFF-001
+    requirement_ids: [REQ-CA-BFF-LOGIN-001]
+  - id: platform_login
+    feature_id: FEAT-CA-BFF-001
+    requirement_ids: [REQ-CA-BFF-SESSION-001]
+  - id: platform_call_upstream
+    feature_id: FEAT-CA-BFF-001
+    requirement_ids: [REQ-CA-BFF-SESSION-001]
+  - id: platform_reject_expired_upstream
+    feature_id: FEAT-CA-BFF-001
+    requirement_ids: [REQ-CA-BFF-SESSION-001]
+  - id: platform_clear_local_session
+    feature_id: FEAT-CA-BFF-001
+    requirement_ids: [REQ-CA-BFF-SESSION-001]
