@@ -13,6 +13,8 @@ test('[UI-CA-DASH-001] platform admin can triage platform dashboard @smoke', asy
   await expect(page.getByText(/Source: configured/i)).toBeVisible();
   await expect(page.getByText('E2E operation failed while calling upstream.', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /View all operations/ })).toHaveAttribute('href', '/admin/ops');
+  await expect(page.getByRole('button', { name: /refresh|重新整理/i })).toHaveCount(0);
+  await expect(page.locator('.fa-solid').first()).toBeVisible();
 });
 
 test('[UI-CA-DASH-002] dashboard shows degraded state when Prometheus fixture is unavailable', async ({ page }) => {
