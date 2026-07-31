@@ -256,7 +256,7 @@ token scopes.
 ### [REQ-CA-BFF-PRODUCTION-SOURCES-001] Server validation uses authenticated upstream facts
 
 <!-- rtk-requirement
-{"acceptance_layer":"live","gate":"main","environments":["staging"],"evidence":["json","junit","logs"],"freshness_hours":168,"required":true,"status":"active"}
+{"acceptance_layer":"live","gate":"operator-release","environments":["staging"],"evidence":["json","junit","logs"],"freshness_hours":168,"required":true,"status":"active"}
 -->
 
 Acceptance: Production and server validation configure upstream services and authenticated customer sessions, reject demo/seed/sample data as evidence, and return gateway errors instead of silently falling back when configured upstream enrichment fails.
@@ -356,7 +356,7 @@ Service health:
 ### [REQ-CA-BFF-UI-001] Console UI follows the canonical operational style and state vocabulary
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["ci"],"evidence":["json","screenshots"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Directly linkable customer and platform routes use compact operational layout, canonical readiness/status vocabulary, source-fact detail, and the shared frontend style contract without marketing heroes or decorative card grids.

@@ -3,9 +3,16 @@ rtk_spec:
   id: SPEC-CA-BRAND-DESIGN
   status: approved
   owner: rtk_cloud_admin
+  requirement_inventory: complete
 ---
 
 # Platform Brand Cloud Management Design
+
+## [FEAT-CA-BRAND-MANAGEMENT-001] Platform Brand Cloud management experience
+
+<!-- rtk-feature
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/internal/app/**","repos/rtk_cloud_admin/web/**"],"commit_anchors":["cloud_admin"],"surfaces":[{"kind":"api-route","source":"repos/rtk_cloud_admin/docs/openapi.yaml","selector":"getApiAdminBrandClouds"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/src/routes.mjs","selector":"platform-brand-clouds"}]}
+-->
 
 Status: implemented baseline; design-parity and upstream-contract follow-up is
 tracked in `platform-admin-implementation-plan.md`.
@@ -35,6 +42,14 @@ GUI draft assets:
 
 ## Summary
 
+### [REQ-CA-BRAND-AUTHORITY-001] Brand Cloud management remains Account Manager-backed
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: Cloud Admin lists, creates, inspects, updates, and assigns brand-scoped users only through Account Manager and never stores authoritative brand-cloud organization, membership, status, audit, entitlement, or identity data in SQLite.
+
 This document defines the first Platform View design for Brand Cloud
 management in `rtk_cloud_admin`.
 
@@ -51,6 +66,14 @@ The working product name in the UI is **Brand Clouds**. It represents
 generic customer organization table.
 
 ## Management-First Scope
+
+### [REQ-CA-BRAND-SCOPE-001] First-release management exposes the minimum safe tenant facts and actions
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Brand name/id, tier, normalized status, owner/admin, SSO state, setup blocker, and create/assign/enable/disable actions are available; optional region, code, timestamps, usage, and analytics remain non-authoritative until supplied upstream.
 
 The minimum information required to manage a Brand Cloud is:
 
@@ -102,6 +125,14 @@ fields, and deep setup workflows remain follow-up items.
 
 ## Non-Goals
 
+### [REQ-CA-BRAND-NONGOALS-001] Brand management excludes impersonation billing SAML device control and deletion
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Platform Brand Clouds cannot replace Account Manager, edit its database directly, impersonate tenants, approve commercial entitlement, configure SAML, manage brand-owned devices, or delete organizations; OIDC handoff and upstream-backed enable/disable remain explicit.
+
 - Replacing Account Manager as source of truth for organizations, users,
   membership, or audit.
 - Directly editing Account Manager database records from this repo.
@@ -115,6 +146,14 @@ fields, and deep setup workflows remain follow-up items.
   backed by Account Manager.
 
 ## Platform View Information Architecture
+
+### [REQ-CA-BRAND-NAVIGATION-001] Brand Clouds is isolated to Account Manager-backed Platform View sessions
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Brand Clouds is a first-class Platform View section hidden from Customer View and from sessions without Account Manager-backed platform_admin identity; no local break-glass navigation path exists.
 
 Brand Clouds should be a first-class Platform View section because it creates
 and administers Tier 2 tenants.
@@ -133,6 +172,14 @@ Local Cloud Admin break-glass admins are not supported; rescue operations are
 handled through Linode, SSH, and deployment tooling.
 
 ## Permissions And Route Guards
+
+### [REQ-CA-BRAND-AUTHZ-001] Backend and frontend enforce the same brand capability boundary
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: Frontend guards improve usability only; every BFF handler enforces platform role and read/create/update/member capabilities and preserves upstream authorization failures using Account Manager capability vocabulary.
 
 | Session type | Brand Clouds nav | Read | Create/update/member assign |
 | --- | --- | --- | --- |
@@ -155,10 +202,18 @@ exist. Until the exact names are finalized, the UI should model these as:
 
 ## Page 1: Brand Clouds List
 
+### [REQ-CA-BRAND-LIST-001] Brand list exposes operational content states and actions
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: The default table route provides KPI summary, search/filter controls, management columns, normalized status labels, capability-aware create action, loading/empty/read-only/unavailable/missing-token states, and never falls back to SQLite seed data.
+
 The list is the default Brand Clouds route. It should feel like the existing
 Platform View tables, not a marketing or onboarding page.
 
-### Layout
+#### Layout
 
 ```
 Platform View / Brand Clouds
@@ -174,7 +229,7 @@ Manage licensed brand operators backed by Account Manager.
 | Demo Disabled      | brand-003  | Commercial | Disabled       | admin@example.com  | Disabled   | 0/500   | 2026-04-20 | View    |
 ```
 
-### Required Content
+#### Required Content
 
 - KPI strip:
   - Total Brand Clouds
@@ -199,7 +254,7 @@ Manage licensed brand operators backed by Account Manager.
   - Created when available
   - Actions
 
-### Status Labels
+#### Status Labels
 
 Use concise labels with direct operational meaning:
 
@@ -213,7 +268,7 @@ If Account Manager returns lower-level status values, map them to these labels
 and show the raw value only in developer/support metadata inside the detail
 drawer, not as the primary table label.
 
-### Source States
+#### Source States
 
 - Loading: skeleton KPI boxes and table rows.
 - Empty: "No brand clouds have been created." Include `Create Brand Cloud`
@@ -226,10 +281,18 @@ drawer, not as the primary table label.
 
 ## Flow 1: Create Brand Cloud
 
+### [REQ-CA-BRAND-CREATE-001] Brand creation validates identity assignment entitlement and partial failure
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: The drawer validates required display identity and upstream-supported code/region, assigns only existing brand-scoped users, keeps entitlement informational and non-billing, omits unsupported drafts, refreshes authoritative success, and recovers member-assignment failure without replaying brand creation.
+
 Use a right-side drawer with a compact stepper. A drawer keeps the operator in
 the list context and matches existing operational UI patterns.
 
-### Step 1: Brand Identity
+#### Step 1: Brand Identity
 
 Fields:
 
@@ -245,7 +308,7 @@ Validation:
 - slug/code must be unique when provided
 - region must be one of the Account Manager-supported values
 
-### Step 2: Initial Brand Admin
+#### Step 2: Initial Brand Admin
 
 Fields:
 
@@ -258,7 +321,7 @@ Platform Account Manager user ids are not valid for brand-cloud membership.
 Creating or reactivating a brand-scoped user uses the Brand User form and then
 assigns membership by `brand_cloud_user_id`.
 
-### Step 3: Entitlement Snapshot (optional information)
+#### Step 3: Entitlement Snapshot (optional information)
 
 Fields:
 
@@ -271,7 +334,7 @@ This step should not imply that billing or contract approval is handled in
 Admin Console. If entitlement data is unavailable, creation can still proceed
 with the minimum tier/setup information owned by Account Manager.
 
-### Step 4: Review And Create
+#### Step 4: Review And Create
 
 Show:
 
@@ -287,7 +350,7 @@ Primary action: `Create Brand Cloud`
 Secondary action: `Save Draft` must not appear unless Account Manager supports
 draft records. The first design assumes no draft support.
 
-### Success State
+#### Success State
 
 After successful create:
 
@@ -299,7 +362,7 @@ After successful create:
   - configure SSO
   - open detail drawer
 
-### Partial Failure
+#### Partial Failure
 
 If the brand cloud is created but member assignment fails:
 
@@ -376,6 +439,14 @@ Recent Activity
 
 ### Update Actions
 
+#### [REQ-CA-BRAND-UPDATE-001] Tenant-level updates remain upstream-backed confirmed and non-destructive
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: The action menu exposes only Account Manager-backed metadata edit, disable, and re-enable; tenant status changes explain visible and blocked behavior and delete remains absent.
+
 The action menu should include only Account Manager-backed actions:
 
 - Edit display name or metadata
@@ -387,6 +458,14 @@ organization. The confirmation copy must say what remains visible and what is
 blocked. Delete is intentionally absent.
 
 ## Flow 2: Assign Existing Member
+
+### [REQ-CA-BRAND-MEMBER-001] Existing brand-user assignment validates and preserves upstream errors safely
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Member assignment validates brand user and role locally, submits brand_cloud_user_id, updates inline on success, treats duplicates non-destructively, and renders Account Manager authorization/validation failures in user-safe language.
 
 Use a small drawer section or modal launched from the detail drawer.
 
@@ -405,6 +484,14 @@ Behavior:
   language
 
 ## Flow 3: Review And Manage Brand Users
+
+### [REQ-CA-BRAND-USERS-001] Brand-user lifecycle preserves activation state and audit history
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: The Account Manager-backed user table distinguishes pending, active, and disabled identities; approve/disable/enable/soft-delete refresh current state, and delete removes access without hard-deleting audit history.
 
 The detail drawer includes a Brand Users section backed by Account Manager,
 not by Admin Console SQLite. It lists brand-scoped users for the selected
@@ -455,6 +542,14 @@ Behavior:
 
 ## API Mapping
 
+### [REQ-CA-BRAND-PROXY-001] BFF normalization cannot create local brand authority
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
+Acceptance: Every Brand Cloud and Brand User UI operation maps to its Account Manager-backed BFF route; response normalization and local forwarding audit cannot create authoritative SQLite rows or replace Account Manager audit.
+
 | UI operation | BFF route | Source of truth |
 | --- | --- | --- |
 | List brand clouds | `GET /api/admin/brand-clouds` | Account Manager |
@@ -474,6 +569,14 @@ attempts, but authoritative brand-cloud audit remains in Account Manager.
 
 ### Brand Clouds List Density And Pagination
 
+#### [REQ-CA-BRAND-PAGINATION-001] Brand list pagination remains server-side compact and bounded
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Limit/offset/search/status/tier execute server-side with default 25 and cap 100, filters reset offset, responses carry total and current page only, and compact table/range controls avoid card layout and excess default columns.
+
 The Brand Clouds list is an operational table, not a card list. It must fit many
 tenants without forcing long vertical scrolling.
 
@@ -491,6 +594,14 @@ tenants without forcing long vertical scrolling.
   drawers remain the place for full metadata and lifecycle actions.
 
 ### Brand Cloud Detail Drawer Layout
+
+#### [REQ-CA-BRAND-DRAWER-001] Brand detail drawer presents structured actionable management state
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: The drawer uses structured identity, status, quota, setup, action, and brand-user layouts with accessible icon/text controls and preserved disabled/pending contrast, without decorative blobs, oversized shapes, or concatenated prose fields.
 
 The detail drawer is a management surface. It must not use decorative blobs,
 oversized status shapes, or prose blocks that concatenate labels and values.
@@ -510,6 +621,14 @@ oversized status shapes, or prose blocks that concatenate labels and values.
   two-column form blocks below the user table.
 
 ## Visual Consistency Rules
+
+### [REQ-CA-BRAND-VISUAL-001] Brand management matches Platform View density and restraint
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Brand pages reuse the Platform shell, compact radius, neutral background, restrained status badges, accessible actions, and exclude heroes, gradients, marketing panels, decorative illustration, and nested-card composition.
 
 - Use the same left sidebar, top context area, page shell, table density, and
   drawer behavior as the existing Platform View.
@@ -571,7 +690,15 @@ The implementation can be split into developer-ready issues:
 
 ## Required Tests
 
-Implementation PRs should include the relevant subset of:
+### [REQ-CA-BRAND-QUALIFICATION-001] Brand management changes retain deterministic and browser evidence
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Relevant frontend tests/build/smoke, backend route guards and Go tests execute for touched behavior, while browser QA covers platform/customer authorization, unavailable sources, create success/validation/partial failure, and mobile drawer/table layout.
+
+Implementation PRs include the relevant subset of:
 
 - `cd web && npm test`
 - `cd web && npm run build`
@@ -580,7 +707,7 @@ Implementation PRs should include the relevant subset of:
   touched
 - `go test ./...` when backend code changes
 
-Manual browser QA should cover:
+Manual browser QA covers:
 
 - Platform Admin with Account Manager token
 - customer user
@@ -592,19 +719,27 @@ Manual browser QA should cover:
 
 ## Open Design Questions
 
-These should be resolved before implementation starts:
+### [REQ-CA-BRAND-DESIGN-HISTORY-001] Historical design decisions remain traceable
 
-1. Should the visible product label be `Brand Clouds`, `Brands`, or
+<!-- rtk-requirement
+{"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json"],"required":false,"status":"planned"}
+-->
+
+Acceptance: Pre-implementation naming, field, assignment, capability, status, audit, and SSO-filter decisions remain recorded for design history and do not redefine the implemented requirements above.
+
+The following historical design questions were resolved before implementation:
+
+1. Visible product label: `Brand Clouds`, `Brands`, or
    `Organizations`?
-2. Which fields are required by Account Manager for `POST /brand-clouds`:
+2. Account Manager fields for `POST /brand-clouds`:
    name only, slug/code, region, tier, quota, or metadata?
-3. Is initial owner/admin assignment required during creation, or can a brand
-   cloud exist in `Setup Required` without an assigned owner?
+3. Initial owner/admin assignment options: assigned during creation or a
+   `Setup Required` state without an assigned owner.
 4. What are the final Account Manager capability names for read, create,
    update, and member assignment?
 5. Which status enum values can Account Manager return, and which ones block
    downstream customer/device operations?
-6. Does Account Manager expose authoritative audit events for brand-cloud
-   changes in a read API, or should the first UI show "activity unavailable"?
-7. Should SSO Providers be filtered by brand-cloud organization id through URL
+6. Account Manager authoritative audit-event availability and the fallback
+   `activity unavailable` presentation.
+7. SSO Provider filtering by brand-cloud organization id through URL
    state, query params, or an in-page filter selection?

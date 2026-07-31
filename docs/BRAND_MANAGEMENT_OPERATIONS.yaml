@@ -1,0 +1,34 @@
+schema_version: 1
+rtk_spec:
+  id: SPEC-CA-BRAND-OPERATIONS
+  status: approved
+  owner: rtk_cloud_admin
+
+operations:
+  - id: validate_brand_create
+    feature_id: FEAT-CA-BRAND-MANAGEMENT-001
+    requirement_ids: [REQ-CA-BRAND-CREATE-001]
+  - id: create_brand_cloud
+    feature_id: FEAT-CA-BRAND-MANAGEMENT-001
+    requirement_ids: [REQ-CA-BRAND-CREATE-001]
+  - id: assign_initial_brand_user
+    feature_id: FEAT-CA-BRAND-MANAGEMENT-001
+    requirement_ids: [REQ-CA-BRAND-CREATE-001]
+  - id: read_created_brand_cloud
+    feature_id: FEAT-CA-BRAND-MANAGEMENT-001
+    requirement_ids: [REQ-CA-BRAND-CREATE-001]
+  - id: list_brand_users
+    feature_id: FEAT-CA-BRAND-MANAGEMENT-001
+    requirement_ids: [REQ-CA-BRAND-USERS-001]
+  - id: approve_brand_user
+    feature_id: FEAT-CA-BRAND-MANAGEMENT-001
+    requirement_ids: [REQ-CA-BRAND-USERS-001]
+  - id: disable_brand_user
+    feature_id: FEAT-CA-BRAND-MANAGEMENT-001
+    requirement_ids: [REQ-CA-BRAND-USERS-001]
+  - id: enable_brand_user
+    feature_id: FEAT-CA-BRAND-MANAGEMENT-001
+    requirement_ids: [REQ-CA-BRAND-USERS-001]
+  - id: soft_delete_brand_user
+    feature_id: FEAT-CA-BRAND-MANAGEMENT-001
+    requirement_ids: [REQ-CA-BRAND-USERS-001]
