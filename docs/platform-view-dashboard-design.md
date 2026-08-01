@@ -11,7 +11,7 @@ rtk_spec:
 ## [FEAT-CA-PLATFORM-DASHBOARD-001] Platform operations dashboard
 
 <!-- rtk-feature
-{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/internal/app/**","repos/rtk_cloud_admin/web/**"],"commit_anchors":["cloud_admin"],"surfaces":[{"kind":"api-route","source":"repos/rtk_cloud_admin/docs/openapi.yaml","selector":"getApiAdminPlatformDashboard"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/src/routes.mjs","selector":"platform-dashboard"}]}
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/internal/app/**","repos/rtk_cloud_admin/web/**","scripts/go/rtk-cloud/**"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"api-route","source":"repos/rtk_cloud_admin/docs/openapi.yaml","selector":"getApiAdminPlatformDashboard"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/src/routes.mjs","selector":"platform-dashboard"}]}
 -->
 
 Status: implemented baseline; design-parity follow-up is tracked in

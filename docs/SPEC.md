@@ -11,7 +11,7 @@ rtk_spec:
 ## [FEAT-CA-BFF-001] Tenant-aware Cloud Admin BFF and operational console boundary
 
 <!-- rtk-feature
-{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**"],"commit_anchors":["cloud_admin"],"surfaces":[{"kind":"api-route","source":"repos/rtk_cloud_admin/docs/openapi.yaml","selector":"postApiAuthCustomerLogin"}]}
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","scripts/go/rtk-cloud/**"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"api-route","source":"repos/rtk_cloud_admin/docs/openapi.yaml","selector":"postApiAuthCustomerLogin"}]}
 -->
 
 ## Summary
