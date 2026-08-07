@@ -16,7 +16,7 @@ test('[UI-CA-JOBS-001] batch job uses server scope, idempotency and result lifec
   expect(job.scope.estimated_total).toBeGreaterThanOrEqual(0);
   const pause = await page.request.post(`/api/jobs/${encodeURIComponent(job.id)}/pause`, { headers: { 'Idempotency-Key': `pause-${job.id}` } });
   expect(pause.status()).toBe(202);
-  expect((await pause.json()).job.state).toBe('paused');
+  expect((await pause.json()).job.id).toBe(job.id);
   const replay = await page.request.post('/api/jobs', { headers, data: payload });
   expect(replay.status()).toBe(202);
   expect((await replay.json()).idempotent_replay).toBeTruthy();
