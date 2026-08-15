@@ -63,12 +63,15 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/groups'), 'groups');
   assert.equal(routeFromPath('/console/groups/legacy'), 'groups');
   assert.equal(routeFromPath('/console/access'), 'access');
+  assert.equal(routeFromPath('/console/billing'), 'billing');
+  assert.equal(routeFromPath('/console/cloud-123/billing'), 'billing');
+  assert.equal(cloudIdFromPath('/console/cloud-123/billing'), 'cloud-123');
 });
 
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '群組與標籤', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表', '設備註冊'],
+    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '群組與標籤', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表', '設備註冊', '帳務與自動加值'],
   );
 });
 
@@ -81,6 +84,7 @@ test('customer nav is derived from active membership capabilities', () => {
   assert.deepEqual(labels, ['設備總覽', '設備', 'ChipSet & SDK', '群組與標籤', '影像播放狀況', '批次工作']);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), true);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'sku-services'), false);
+  assert.equal(navItemsForCapabilities('overview', ['billing_account.read']).some((item) => item.id === 'billing'), true);
 });
 
 test('retired customer pages are not exposed in section navigation', () => {
@@ -158,6 +162,7 @@ test('provides titles for all public shell routes', () => {
     'reset-password',
     'overview',
     'devices',
+    'billing',
     'sku-services',
     'firmware-ota',
     'stream-health',

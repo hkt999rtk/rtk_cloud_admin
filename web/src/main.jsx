@@ -64,6 +64,15 @@ import {
 } from './source-state.mjs';
 import { streamAttentionRows, streamModeRows, streamWorstDeviceRows } from './stream.mjs';
 import {
+  AUTO_TOPUP_CONSENT,
+  AUTO_TOPUP_CONSENT_TEXT,
+  autoTopUpAssessment,
+  billingErrorMessage,
+  formatMinorAmount,
+  paymentIntentState,
+  paymentMethodLabel,
+} from './billing.mjs';
+import {
   chipsetVendors,
   compactHash,
   filterChipsets,
@@ -107,6 +116,29 @@ function fleetDevicesURL(search = '') {
   return `/api/fleet/devices?${params.toString()}`;
 }
 
+async function fetchBillingData() {
+  const [account, methods, intents, ledger, policyResponse] = await Promise.all([
+    fetchJSON('/api/billing/account'),
+    fetchJSON('/api/billing/payment-methods?limit=20'),
+    fetchJSON('/api/billing/payment-intents?limit=20'),
+    fetchJSON('/api/billing/ledger?limit=20'),
+    fetch('/api/billing/auto-topup'),
+  ]);
+  if (policyResponse.status === 401) throw new AuthError(401, 'Session expired; please sign in again.');
+  if (policyResponse.status === 403) throw new AuthError(403, 'Access denied.');
+  if (!policyResponse.ok) throw new Error(`billing policy failed with ${policyResponse.status}`);
+  const policy = await policyResponse.json();
+  return {
+    account,
+    methods,
+    intents,
+    ledger,
+    policy,
+    policyEtag: policyResponse.headers.get('ETag') || `"${policy?.auto_topup?.version || 0}"`,
+    source_status: 'available',
+  };
+}
+
 function App() {
   const [active, setActive] = useState(routeFromLocation());
   const [me, setMe] = useState(null);
@@ -143,6 +175,7 @@ function App() {
   const [reports, setReports] = useState(null);
   const [groups, setGroups] = useState(null);
   const [access, setAccess] = useState(null);
+  const [billing, setBilling] = useState(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
   const [overviewWindow, setOverviewWindow] = useState('7d');
@@ -190,6 +223,7 @@ function App() {
     setJobs(null);
     setReports(null);
     setGroups(null);
+    setBilling(null);
   }
 
   useEffect(() => {
@@ -446,6 +480,17 @@ function App() {
           setAccess(null);
         }
 
+        if (active === 'billing' && nextMe.kind === 'customer') {
+          const nextBilling = await fetchBillingData().catch((err) => {
+            if (err.isAuthError) throw err;
+            return { source_status: 'unavailable', source_message: '帳務資料暫時無法取得，沒有送出任何扣款。' };
+          });
+          if (!alive) return;
+          setBilling(nextBilling);
+        } else {
+          setBilling(null);
+        }
+
         if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
           const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
           const [nextFleetHealth, nextStreamStats] = await Promise.all([
@@ -474,6 +519,7 @@ function App() {
           setFleetHealth(null);
           setStreamStats(null);
           setRecentAlerts([]);
+          setBilling(null);
         }
       } catch (err) {
         if (!alive) return;
@@ -538,6 +584,7 @@ function App() {
     setFleetHealth(null);
     setStreamStats(null);
     setRecentAlerts([]);
+    setBilling(null);
   }, [isLoginRoute, isPublicRoute]);
 
   useEffect(() => {
@@ -1108,6 +1155,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'provisioning' ? <ProvisioningPage canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'provisioning.create')} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'access' ? <AccessPage data={access} loading={loading} activeCloudId={me?.active_org_id} canManage={canUseCapability({ capabilities: me?.capabilities || [] }, 'team.manage')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <BillingPage data={billing} loading={loading} capabilities={me?.capabilities || []} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
@@ -2140,6 +2188,113 @@ function AccessPage({ data, loading, activeCloudId, canManage, onRefresh }) {
       <section className="panel"><div className="panel-head"><div><h3>可用角色</h3><p>Developer、Operations 等角色的可用操作由平台設定。</p></div></div><div className="chip-list">{roles.map((role) => <span className="status-badge neutral" key={role.id}>{role.name}</span>)}</div></section>
       <section className="panel"><div className="panel-head"><div><h3>目前的權限範圍</h3><p>這裡只顯示管理範圍，不顯示內部權限代碼。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>角色</th><th>管理範圍</th><th>狀態</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{assignment.role_name}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good">啟用</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">目前沒有額外的範圍指派。</p> : null}</div></section>
     </> : null}
+  </section>;
+}
+
+function BillingPage({ data, loading, capabilities, onRefresh }) {
+  const account = data?.account?.account;
+  const methods = data?.methods?.payment_methods || [];
+  const intents = data?.intents?.payment_intents || [];
+  const ledger = data?.ledger?.ledger_entries || [];
+  const policy = data?.policy?.auto_topup || data?.account?.auto_topup || null;
+  const policyState = autoTopUpAssessment(policy);
+  const activeMethod = methods.find((method) => method.status === 'active') || methods[0];
+  const canManageMethods = capabilities.includes('payment_method.manage');
+  const canManagePolicy = capabilities.includes('auto_topup.manage');
+  const canCreateIntent = capabilities.includes('payment_intent.create');
+  const chargeQualified = Boolean(activeMethod?.capabilities?.merchant_initiated_charge);
+  const [threshold, setThreshold] = useState(String((policy?.threshold_minor || 50000) / 100));
+  const [topUpAmount, setTopUpAmount] = useState(String((policy?.top_up_amount_minor || 100000) / 100));
+  const [dailyAmount, setDailyAmount] = useState(String((policy?.daily_amount_limit_minor || 300000) / 100));
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setThreshold(String((policy?.threshold_minor || 50000) / 100));
+    setTopUpAmount(String((policy?.top_up_amount_minor || 100000) / 100));
+    setDailyAmount(String((policy?.daily_amount_limit_minor || 300000) / 100));
+  }, [policy?.version]);
+
+  async function mutate(method, path, body, headers = {}) {
+    setBusy(true);
+    setMessage('');
+    try {
+      const response = await fetch(path, {
+        method,
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(result.message || 'billing request failed');
+        error.code = result.code;
+        throw error;
+      }
+      setMessage('帳務設定已更新，系統已保留操作與 consent evidence。');
+      onRefresh();
+      return result;
+    } catch (error) {
+      setMessage(billingErrorMessage(error));
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function savePolicy(event) {
+    event.preventDefault();
+    if (!activeMethod || !chargeQualified) {
+      setMessage(billingErrorMessage({ code: 'PAYMENT_CAPABILITY_UNSUPPORTED' }));
+      return;
+    }
+    mutate('PUT', '/api/billing/auto-topup', {
+      enabled: true,
+      threshold_minor: Math.round(Number(threshold) * 100),
+      top_up_amount_minor: Math.round(Number(topUpAmount) * 100),
+      currency: account?.currency || 'TWD',
+      payment_method_id: activeMethod.id,
+      daily_attempt_limit: policy?.daily_attempt_limit || 3,
+      daily_amount_limit_minor: Math.round(Number(dailyAmount) * 100),
+      cooldown_seconds: policy?.cooldown_seconds || 3600,
+      consent: AUTO_TOPUP_CONSENT,
+    }, { 'If-Match': data?.policyEtag || '"0"' });
+  }
+
+  if (loading && !data) return <section className="panel split-panel"><div><h2>正在載入帳務資料</h2><p>只讀取目前 active Brand Cloud 的安全帳務摘要。</p></div></section>;
+  if (data?.source_status === 'unavailable') return <section className="panel split-panel"><div><h2>帳務資料暫時無法取得</h2><p>{data.source_message}</p></div></section>;
+
+  return <section className="page-content billing-page" data-testid="billing-page">
+    <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>帳務與自動加值</h2><p>餘額嚴格低於門檻時才建立一次加值意圖；金額、次數、冷卻與 consent 均由後端驗證。</p></div></div>
+    <div className="metric-grid billing-metrics">
+      <MetricCard icon="wallet" label="可用餘額" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={`帳戶 ${account?.state || 'unavailable'} · 最後更新 ${formatProviderTimestamp(account?.updated_at)}`} tone="info" />
+      <MetricCard icon="arrows-rotate" label="自動加值" value={policyState.label} hint={policyState.detail} tone={policyState.tone} />
+      <MetricCard icon="credit-card" label="付款方式" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? `狀態：${activeMethod.status}` : '不在本頁輸入卡號或 CVV'} tone={activeMethod?.status === 'active' ? 'good' : 'neutral'} />
+      <MetricCard icon="clock-rotate-left" label="近期意圖" value={String(intents.length)} hint="包含成功、失敗、待對帳與處理中" tone="neutral" />
+    </div>
+
+    <section className="panel billing-safety" data-testid="billing-provider-gate"><div className="panel-head"><div><h3>付款服務資格狀態</h3><p>NewebPay hosted setup 與 unattended merchant-initiated charge 尚未取得書面核准與 sandbox qualification。</p></div><span className="status-badge warning">BLOCKED</span></div><p>目前可以安全檢視帳務與歷史；系統不會把卡號/CVV 傳入 RTK Cloud，也不會在能力未通過時執行扣款。</p><button type="button" className="primary" disabled title="等待 provider capability qualification">新增付款方式（資格驗證中）</button></section>
+
+    <div className="billing-columns">
+      <section className="panel"><div className="panel-head"><div><h3>自動加值政策</h3><p>每日限制以 UTC 計算，下一次重設：{policy?.limit_reset_at ? formatProviderTimestamp(policy.limit_reset_at) : '—'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>
+        <form className="billing-policy-form" onSubmit={savePolicy}>
+          <label>低餘額門檻（TWD）<input type="number" min="1" step="1" value={threshold} onChange={(event) => setThreshold(event.target.value)} /></label>
+          <label>每次加值（TWD）<input type="number" min="1" step="1" value={topUpAmount} onChange={(event) => setTopUpAmount(event.target.value)} /></label>
+          <label>每日金額上限（TWD）<input type="number" min="1" step="1" value={dailyAmount} onChange={(event) => setDailyAmount(event.target.value)} /></label>
+          <label className="billing-consent"><input type="checkbox" checked readOnly />{AUTO_TOPUP_CONSENT_TEXT}</label>
+          <div className="inline-actions"><button type="submit" className="primary" disabled={busy || !canManagePolicy || !chargeQualified}>{busy ? '更新中…' : '儲存並啟用'}</button>{policy?.enabled ? <button type="button" className="ghost-button" disabled={busy || !canManagePolicy} onClick={() => mutate('DELETE', '/api/billing/auto-topup', { reason: 'customer disabled automatic top-up' }, { 'If-Match': data?.policyEtag || `"${policy.version}"` })}>停用自動加值</button> : null}</div>
+        </form>
+        {!chargeQualified ? <p className="notice">付款方式尚未具備 merchant-initiated charge 能力；儲存按鈕保持停用，不會送出扣款。</p> : null}
+        {message ? <p className="notice" role="status">{message}</p> : null}
+      </section>
+
+      <section className="panel"><div className="panel-head"><div><h3>付款方式</h3><p>只保存 provider、品牌、末四碼與到期月份等安全 metadata。</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : '到期日未提供'}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{method.status}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>撤銷</button> : null}</div>)}</div> : <p className="empty-state">目前沒有已驗證的付款方式。</p>}
+        <button type="button" className="ghost-button" disabled={!canCreateIntent || !chargeQualified} title={!chargeQualified ? 'Provider qualification required' : ''}>立即加值（資格驗證中）</button>
+      </section>
+    </div>
+
+    <section className="panel"><div className="panel-head"><div><h3>付款意圖</h3><p>normalized 狀態供客戶追蹤；provider 交易參考與 payload 不會顯示。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>建立時間</th><th>原因</th><th>金額</th><th>狀態</th></tr></thead><tbody>{intents.map((intent) => { const state = paymentIntentState(intent.state); return <tr key={intent.id}><td>{formatProviderTimestamp(intent.created_at)}</td><td>{intent.reason === 'auto_top_up' ? '自動加值' : '手動加值'}</td><td>{formatMinorAmount(intent.amount_minor, intent.currency)}</td><td><span className={`status-badge ${state.tone}`}>{state.label}</span></td></tr>; })}</tbody></table>{!intents.length ? <p className="empty-state">目前沒有付款意圖。</p> : null}</div></section>
+
+    <section className="panel"><div className="panel-head"><div><h3>餘額異動</h3><p>不可覆寫的 ledger，只顯示客戶安全欄位。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>時間</th><th>原因</th><th>異動</th><th>異動後餘額</th></tr></thead><tbody>{ledger.map((entry) => <tr key={entry.id}><td>{formatProviderTimestamp(entry.created_at)}</td><td>{entry.reason}</td><td>{entry.direction === 'debit' ? '−' : '+'}{formatMinorAmount(entry.amount_minor, entry.currency)}</td><td>{formatMinorAmount(entry.balance_after_minor, entry.currency)}</td></tr>)}</tbody></table>{!ledger.length ? <p className="empty-state">目前沒有餘額異動。</p> : null}</div></section>
   </section>;
 }
 

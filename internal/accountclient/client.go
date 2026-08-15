@@ -179,6 +179,125 @@ type Pagination struct {
 	Total  int `json:"total"`
 }
 
+type CommercialAccount struct {
+	ID                    string `json:"id"`
+	OrganizationID        string `json:"organization_id"`
+	Currency              string `json:"currency"`
+	AvailableBalanceMinor int64  `json:"available_balance_minor"`
+	State                 string `json:"state"`
+	Version               int64  `json:"version"`
+	CreatedAt             string `json:"created_at"`
+	UpdatedAt             string `json:"updated_at"`
+}
+
+type BillingAccountResponse struct {
+	Account   CommercialAccount `json:"account"`
+	AutoTopUp *AutoTopUpPolicy  `json:"auto_topup"`
+}
+
+type LedgerEntry struct {
+	ID                string `json:"id"`
+	Direction         string `json:"direction"`
+	AmountMinor       int64  `json:"amount_minor"`
+	Currency          string `json:"currency"`
+	Reason            string `json:"reason"`
+	BalanceAfterMinor int64  `json:"balance_after_minor"`
+	CreatedAt         string `json:"created_at"`
+}
+
+type BillingLedgerResponse struct {
+	LedgerEntries []LedgerEntry `json:"ledger_entries"`
+	Pagination    Pagination    `json:"pagination"`
+}
+
+type ProviderCapabilities struct {
+	HostedSetup             bool `json:"hosted_setup"`
+	MerchantInitiatedCharge bool `json:"merchant_initiated_charge"`
+	Query                   bool `json:"query"`
+	Webhook                 bool `json:"webhook"`
+	Refund                  bool `json:"refund"`
+}
+
+type PaymentMethod struct {
+	ID           string               `json:"id"`
+	Provider     string               `json:"provider"`
+	Status       string               `json:"status"`
+	CardBrand    string               `json:"card_brand,omitempty"`
+	LastFour     string               `json:"last_four,omitempty"`
+	ExpiryMonth  *int                 `json:"expiry_month,omitempty"`
+	ExpiryYear   *int                 `json:"expiry_year,omitempty"`
+	Capabilities ProviderCapabilities `json:"capabilities"`
+	CreatedAt    string               `json:"created_at"`
+	UpdatedAt    string               `json:"updated_at"`
+}
+
+type PaymentMethodsResponse struct {
+	PaymentMethods []PaymentMethod `json:"payment_methods"`
+	Pagination     Pagination      `json:"pagination"`
+}
+
+type AutoTopUpPolicy struct {
+	ID                    string `json:"id"`
+	Enabled               bool   `json:"enabled"`
+	ThresholdMinor        int64  `json:"threshold_minor"`
+	TopUpAmountMinor      int64  `json:"top_up_amount_minor"`
+	Currency              string `json:"currency"`
+	PaymentMethodID       string `json:"payment_method_id"`
+	DailyAttemptLimit     int    `json:"daily_attempt_limit"`
+	DailyAmountLimitMinor int64  `json:"daily_amount_limit_minor"`
+	CooldownSeconds       int64  `json:"cooldown_seconds"`
+	Generation            int64  `json:"generation"`
+	Version               int64  `json:"version"`
+	Armed                 bool   `json:"armed"`
+	LastTriggeredAt       string `json:"last_triggered_at,omitempty"`
+	LastSucceededAt       string `json:"last_succeeded_at,omitempty"`
+	LimitTimezone         string `json:"limit_timezone"`
+	LimitResetAt          string `json:"limit_reset_at"`
+	CreatedAt             string `json:"created_at"`
+	UpdatedAt             string `json:"updated_at"`
+}
+
+type AutoTopUpResponse struct {
+	AutoTopUp *AutoTopUpPolicy `json:"auto_topup"`
+}
+
+type PaymentIntent struct {
+	ID                     string `json:"id"`
+	AmountMinor            int64  `json:"amount_minor"`
+	Currency               string `json:"currency"`
+	Reason                 string `json:"reason"`
+	Provider               string `json:"provider"`
+	PaymentMethodID        string `json:"payment_method_id"`
+	State                  string `json:"state"`
+	RequiresCustomerAction bool   `json:"requires_customer_action"`
+	CorrelationID          string `json:"correlation_id"`
+	CreatedAt              string `json:"created_at"`
+	UpdatedAt              string `json:"updated_at"`
+	CompletedAt            string `json:"completed_at,omitempty"`
+}
+
+type PaymentAttempt struct {
+	ID                   string `json:"id"`
+	Operation            string `json:"operation"`
+	AttemptNumber        int    `json:"attempt_number"`
+	StartedAt            string `json:"started_at"`
+	CompletedAt          string `json:"completed_at,omitempty"`
+	Status               string `json:"status"`
+	ProviderCode         string `json:"provider_code,omitempty"`
+	NextReconciliationAt string `json:"next_reconciliation_at,omitempty"`
+}
+
+type PaymentIntentsResponse struct {
+	PaymentIntents []PaymentIntent `json:"payment_intents"`
+	Pagination     Pagination      `json:"pagination"`
+}
+
+type PaymentIntentResponse struct {
+	PaymentIntent PaymentIntent    `json:"payment_intent"`
+	Attempts      []PaymentAttempt `json:"attempts,omitempty"`
+	Duplicate     bool             `json:"duplicate,omitempty"`
+}
+
 type FleetDevicesPage struct {
 	Devices    []Device       `json:"devices"`
 	Pagination Pagination     `json:"pagination"`
@@ -1227,6 +1346,90 @@ func (c *Client) lifecycle(ctx context.Context, accessToken, orgID, deviceID, ac
 	return Operation{ID: body.ID, State: body.State, Message: body.Message, UpdatedAt: body.UpdatedAt}, nil
 }
 
+func (c *Client) BillingAccount(ctx context.Context, accessToken, orgID string) (BillingAccountResponse, error) {
+	var body BillingAccountResponse
+	err := c.doJSON(ctx, http.MethodGet, paymentOrgPath(orgID, "/billing/account"), accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) BillingLedger(ctx context.Context, accessToken, orgID string, query url.Values) (BillingLedgerResponse, error) {
+	var body BillingLedgerResponse
+	path := paymentOrgPath(orgID, "/billing/ledger")
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) PaymentMethods(ctx context.Context, accessToken, orgID string, query url.Values) (PaymentMethodsResponse, error) {
+	var body PaymentMethodsResponse
+	path := paymentOrgPath(orgID, "/payment-methods")
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) SetupPaymentMethod(ctx context.Context, accessToken, orgID, idempotencyKey string, request any) (map[string]any, error) {
+	var body map[string]any
+	err := c.doJSONHeaders(ctx, http.MethodPost, paymentOrgPath(orgID, "/payment-methods/setup"), accessToken, request, &body, map[string]string{"Idempotency-Key": idempotencyKey})
+	return body, err
+}
+
+func (c *Client) RevokePaymentMethod(ctx context.Context, accessToken, orgID, methodID string, request any) (map[string]any, error) {
+	var body map[string]any
+	path := paymentOrgPath(orgID, "/payment-methods/") + url.PathEscape(methodID)
+	err := c.doJSON(ctx, http.MethodDelete, path, accessToken, request, &body)
+	return body, err
+}
+
+func (c *Client) AutoTopUp(ctx context.Context, accessToken, orgID string) (AutoTopUpResponse, string, error) {
+	var body AutoTopUpResponse
+	responseHeaders, err := c.doJSONResponseHeaders(ctx, http.MethodGet, paymentOrgPath(orgID, "/auto-topup"), accessToken, nil, &body, nil)
+	return body, responseHeaders.Get("ETag"), err
+}
+
+func (c *Client) PutAutoTopUp(ctx context.Context, accessToken, orgID, version string, request any) (AutoTopUpResponse, string, error) {
+	var body AutoTopUpResponse
+	responseHeaders, err := c.doJSONResponseHeaders(ctx, http.MethodPut, paymentOrgPath(orgID, "/auto-topup"), accessToken, request, &body, map[string]string{"If-Match": version})
+	return body, responseHeaders.Get("ETag"), err
+}
+
+func (c *Client) DisableAutoTopUp(ctx context.Context, accessToken, orgID, version string, request any) (AutoTopUpResponse, string, error) {
+	var body AutoTopUpResponse
+	responseHeaders, err := c.doJSONResponseHeaders(ctx, http.MethodDelete, paymentOrgPath(orgID, "/auto-topup"), accessToken, request, &body, map[string]string{"If-Match": version})
+	return body, responseHeaders.Get("ETag"), err
+}
+
+func (c *Client) CreateManualTopUp(ctx context.Context, accessToken, orgID, idempotencyKey string, request any) (PaymentIntentResponse, error) {
+	var body PaymentIntentResponse
+	err := c.doJSONHeaders(ctx, http.MethodPost, paymentOrgPath(orgID, "/topups"), accessToken, request, &body, map[string]string{"Idempotency-Key": idempotencyKey})
+	return body, err
+}
+
+func (c *Client) PaymentIntents(ctx context.Context, accessToken, orgID string, query url.Values) (PaymentIntentsResponse, error) {
+	var body PaymentIntentsResponse
+	path := paymentOrgPath(orgID, "/payment-intents")
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) PaymentIntent(ctx context.Context, accessToken, orgID, intentID string) (PaymentIntentResponse, error) {
+	var body PaymentIntentResponse
+	path := paymentOrgPath(orgID, "/payment-intents/") + url.PathEscape(intentID)
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body, err
+}
+
+func paymentOrgPath(orgID, suffix string) string {
+	return "/v1/orgs/" + url.PathEscape(orgID) + suffix
+}
+
 func (c *Client) Health(ctx context.Context) error {
 	if !c.Enabled() {
 		return fmt.Errorf("account manager base URL is not configured")
@@ -1257,20 +1460,25 @@ func (c *Client) doJSONWithIdempotency(ctx context.Context, method, path, token,
 }
 
 func (c *Client) doJSONHeaders(ctx context.Context, method, path, token string, in any, out any, headers map[string]string) error {
+	_, err := c.doJSONResponseHeaders(ctx, method, path, token, in, out, headers)
+	return err
+}
+
+func (c *Client) doJSONResponseHeaders(ctx context.Context, method, path, token string, in any, out any, headers map[string]string) (http.Header, error) {
 	if !c.Enabled() {
-		return fmt.Errorf("account manager base URL is not configured")
+		return nil, fmt.Errorf("account manager base URL is not configured")
 	}
 	var body io.Reader
 	if in != nil {
 		data, err := json.Marshal(in)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		body = bytes.NewReader(data)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
 	if in != nil {
@@ -1285,17 +1493,17 @@ func (c *Client) doJSONHeaders(ctx context.Context, method, path, token string, 
 	correlation.ApplyHeaders(ctx, req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
-		return &HTTPError{Method: method, Path: path, StatusCode: resp.StatusCode, Body: strings.TrimSpace(string(raw))}
+		return resp.Header.Clone(), &HTTPError{Method: method, Path: path, StatusCode: resp.StatusCode, Body: strings.TrimSpace(string(raw))}
 	}
 	if out == nil {
-		return nil
+		return resp.Header.Clone(), nil
 	}
-	return json.NewDecoder(resp.Body).Decode(out)
+	return resp.Header.Clone(), json.NewDecoder(resp.Body).Decode(out)
 }
 
 func (c *Client) doJSONStatus(ctx context.Context, method, path, token string, in any, out any) (int, error) {

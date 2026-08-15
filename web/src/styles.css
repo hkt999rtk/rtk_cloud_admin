@@ -4476,3 +4476,99 @@ th {
 .provider-endpoints { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .provider-endpoints a { text-decoration: none; }
 .provider-error { color: var(--danger, #b42318); }
+
+.billing-metrics {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metric-card.tone-warning::before {
+  background: #f79009;
+}
+
+.billing-columns {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr);
+}
+
+.billing-safety {
+  border-color: #f2c94c;
+  background: linear-gradient(135deg, rgba(255, 248, 219, .94), rgba(255, 255, 255, .98));
+}
+
+.billing-policy-form,
+.payment-method-list {
+  display: grid;
+  gap: 14px;
+}
+
+.billing-policy-form label:not(.billing-consent) {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.billing-policy-form input[type='number'] {
+  min-width: 0;
+  width: 100%;
+}
+
+.billing-consent {
+  align-items: flex-start;
+  background: var(--surface-subtle, #f7f8fa);
+  border: 1px solid var(--border, #d9dee7);
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+  line-height: 1.55;
+  padding: 12px;
+}
+
+.billing-consent input {
+  margin-top: 4px;
+  min-width: auto;
+}
+
+.payment-method-card {
+  align-items: center;
+  border: 1px solid var(--border, #d9dee7);
+  border-radius: 14px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 14px;
+}
+
+.payment-method-card small {
+  color: var(--muted);
+  display: block;
+  margin-top: 4px;
+}
+
+@media (max-width: 1050px) {
+  .billing-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .billing-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .billing-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-page .inline-actions,
+  .billing-page .panel-head {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .billing-page button {
+    width: 100%;
+  }
+}

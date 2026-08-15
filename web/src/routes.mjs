@@ -10,6 +10,7 @@ export const customerNavItems = [
   { id: 'jobs', label: '批次工作', path: '/console/jobs', icon: 'list-check', capabilities: ['fleet.read', 'fleet.batch.manage', 'fleet.batch.read'] },
   { id: 'reports', label: '報表', path: '/console/reports', icon: 'chart-column', capabilities: ['reports.read', 'report.read', 'customer.reports.read'] },
   { id: 'provisioning', label: '設備註冊', path: '/console/provisioning', icon: 'plug-circle-bolt', capabilities: ['provisioning.read', 'provisioning.create'] },
+  { id: 'billing', label: '帳務與自動加值', path: '/console/billing', icon: 'credit-card', capabilities: ['billing_account.read'] },
 ];
 
 export const platformNavItems = [
@@ -67,6 +68,7 @@ export function titleFor(active) {
     jobs: '批次工作',
     reports: '報表',
     provisioning: '設備註冊',
+    billing: '帳務與自動加值',
     'platform-dashboard': 'Platform Dashboard',
     'platform-grafana': 'Grafana',
     'platform-health': 'Service Health',
@@ -103,7 +105,7 @@ export function routeFromPath(path) {
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
   if (path.startsWith('/admin/')) return 'platform-dashboard';
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
-  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|sku-services|chipset-sdk|groups|access|firmware-ota|stream-health|jobs|reports|provisioning)(?:\/|$)/);
+  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|sku-services|chipset-sdk|groups|access|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
   if (scoped) return scoped[2];
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
   if (path === '/console/sku-services' || path.startsWith('/console/sku-services/')) return 'sku-services';
@@ -115,6 +117,7 @@ export function routeFromPath(path) {
   if (path === '/console/jobs' || path.startsWith('/console/jobs/')) return 'jobs';
   if (path === '/console/reports' || path.startsWith('/console/reports/')) return 'reports';
   if (path === '/console/provisioning' || path.startsWith('/console/provisioning/')) return 'provisioning';
+  if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
   if (
     path === '/console/customers' ||
     path === '/console/audit' ||
@@ -127,7 +130,7 @@ export function routeFromPath(path) {
 }
 
 export function cloudIdFromPath(path) {
-  const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|sku-services|chipset-sdk|groups|access|firmware-ota|stream-health|jobs|reports|provisioning)(?:\/|$)/);
+  const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|sku-services|chipset-sdk|groups|access|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
   return match ? decodeURIComponent(match[1]) : '';
 }
 

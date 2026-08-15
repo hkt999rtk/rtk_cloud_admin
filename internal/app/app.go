@@ -278,6 +278,17 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/platform/login", s.apiPlatformLogin)
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
 	s.mux.HandleFunc("POST /api/orgs/{orgId}/quota-raise-requests", s.apiQuotaRaiseRequest)
+	s.mux.HandleFunc("GET /api/billing/account", s.apiBillingAccount)
+	s.mux.HandleFunc("GET /api/billing/ledger", s.apiBillingLedger)
+	s.mux.HandleFunc("GET /api/billing/payment-methods", s.apiPaymentMethods)
+	s.mux.HandleFunc("POST /api/billing/payment-methods/setup", s.apiPaymentMethods)
+	s.mux.HandleFunc("DELETE /api/billing/payment-methods/{methodId}", s.apiPaymentMethod)
+	s.mux.HandleFunc("GET /api/billing/auto-topup", s.apiAutoTopUp)
+	s.mux.HandleFunc("PUT /api/billing/auto-topup", s.apiAutoTopUp)
+	s.mux.HandleFunc("DELETE /api/billing/auto-topup", s.apiAutoTopUp)
+	s.mux.HandleFunc("POST /api/billing/topups", s.apiManualTopUp)
+	s.mux.HandleFunc("GET /api/billing/payment-intents", s.apiPaymentIntents)
+	s.mux.HandleFunc("GET /api/billing/payment-intents/{intentId}", s.apiPaymentIntent)
 	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
@@ -382,6 +393,7 @@ func (s *Server) routes() {
 		"/console/jobs",
 		"/console/reports",
 		"/console/provisioning",
+		"/console/billing",
 		"/console/groups",
 		"/console/customers",
 		"/console/operations",
@@ -429,6 +441,14 @@ const (
 	capabilityTeamManage                = "team.manage"
 	capabilityProvisioningRead          = "provisioning.read"
 	capabilityProvisioningCreate        = "provisioning.create"
+	capabilityBillingAccountRead        = "billing_account.read"
+	capabilityBillingLedgerRead         = "billing_ledger.read"
+	capabilityPaymentMethodRead         = "payment_method.read"
+	capabilityPaymentMethodManage       = "payment_method.manage"
+	capabilityPaymentIntentRead         = "payment_intent.read"
+	capabilityPaymentIntentCreate       = "payment_intent.create"
+	capabilityAutoTopUpRead             = "auto_topup.read"
+	capabilityAutoTopUpManage           = "auto_topup.manage"
 	capabilityPlatformAuditRead         = "platform.audit.read"
 	capabilityPlatformSSOManage         = "platform.sso.manage"
 )
@@ -6217,6 +6237,14 @@ func fleetManagerCapabilities() []string {
 		capabilityTeamManage,
 		capabilityProvisioningRead,
 		capabilityProvisioningCreate,
+		capabilityBillingAccountRead,
+		capabilityBillingLedgerRead,
+		capabilityPaymentMethodRead,
+		capabilityPaymentMethodManage,
+		capabilityPaymentIntentRead,
+		capabilityPaymentIntentCreate,
+		capabilityAutoTopUpRead,
+		capabilityAutoTopUpManage,
 	}
 }
 

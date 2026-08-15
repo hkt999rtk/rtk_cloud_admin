@@ -93,7 +93,7 @@ function customerProfile(req) {
   const capabilitySets = {
     platform_admin: ['platform.chipset_sdk.read', 'platform.chipset_sdk.edit', 'platform.chipset_sdk.publish'],
     platform_reader: ['platform.chipset_sdk.read'],
-    developer: ['fleet.read', 'sku.read', 'sku.manage', 'sku.policy.manage', 'firmware.release.read', 'firmware.release.manage', 'ota.plan.read', 'ota.plan.manage', 'reports.read', 'reports.create', 'team.read', 'team.manage', 'provisioning.read', 'provisioning.create'],
+    developer: ['fleet.read', 'sku.read', 'sku.manage', 'sku.policy.manage', 'firmware.release.read', 'firmware.release.manage', 'ota.plan.read', 'ota.plan.manage', 'reports.read', 'reports.create', 'team.read', 'team.manage', 'provisioning.read', 'provisioning.create', 'billing_account.read', 'billing_ledger.read', 'payment_method.read', 'payment_method.manage', 'payment_intent.read', 'payment_intent.create', 'auto_topup.read', 'auto_topup.manage'],
     operations: ['fleet.read', 'fleet.device.manage', 'fleet.batch.manage', 'fleet.batch.read', 'ota.plan.read', 'ota.plan.manage', 'reports.read', 'team.read', 'provisioning.read'],
     observer: ['fleet.read', 'sku.read', 'firmware.release.read', 'ota.plan.read', 'reports.read', 'team.read', 'provisioning.read'],
     customer: ['fleet.read', 'sku.read', 'firmware.release.read', 'ota.plan.read', 'reports.read', 'team.read', 'provisioning.read'],
@@ -219,6 +219,28 @@ async function handleCustomerResource(req, res, url) {
   if (!['brand-e2e-01', 'brand-e2e-02'].includes(orgID)) return send(res, 403, { error: 'organization forbidden' });
   const devices = mode === 'empty' ? [] : cloudDevices(orgID);
   if (mode === 'slow' && req.method !== 'GET') await new Promise((resolve) => setTimeout(resolve, 350));
+  const paymentMethod = {
+    id: `method-${orgID}`, provider: 'newebpay', status: 'active', card_brand: 'VISA', last_four: '4242', expiry_month: 12, expiry_year: 2029,
+    capabilities: { hosted_setup: false, merchant_initiated_charge: false, query: true, webhook: true, refund: false },
+    created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-01T08:00:00Z',
+  };
+  const autoTopUp = {
+    id: `policy-${orgID}`, enabled: true, threshold_minor: 50000, top_up_amount_minor: 100000, currency: 'TWD', payment_method_id: paymentMethod.id,
+    daily_attempt_limit: 3, daily_amount_limit_minor: 300000, cooldown_seconds: 3600, generation: 2, version: 4, armed: true,
+    limit_timezone: 'UTC', limit_reset_at: '2026-08-16T00:00:00Z', created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-15T08:00:00Z',
+  };
+  if (suffix === '/billing/account' && req.method === 'GET') return send(res, 200, { account: { id: `account-${orgID}`, organization_id: orgID, currency: 'TWD', available_balance_minor: 125000, state: 'active', version: 8, created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-15T08:00:00Z' }, auto_topup: autoTopUp });
+  if (suffix === '/billing/ledger' && req.method === 'GET') return send(res, 200, { ledger_entries: [
+    { id: 'ledger-2', direction: 'debit', amount_minor: 25000, currency: 'TWD', reason: 'invoice_debit', balance_after_minor: 125000, created_at: '2026-08-15T07:30:00Z' },
+    { id: 'ledger-1', direction: 'credit', amount_minor: 150000, currency: 'TWD', reason: 'payment_top_up_credit', balance_after_minor: 150000, created_at: '2026-08-01T08:00:00Z' },
+  ], pagination: { limit: 20, offset: 0, total: 2 } });
+  if (suffix === '/payment-methods' && req.method === 'GET') return send(res, 200, { payment_methods: [paymentMethod], pagination: { limit: 20, offset: 0, total: 1 } });
+  if (suffix === '/payment-methods/setup' && req.method === 'POST') return send(res, 409, { code: 'PAYMENT_CAPABILITY_UNSUPPORTED', message: 'Provider-hosted payment method setup is not qualified.' });
+  if (suffix === '/auto-topup' && req.method === 'GET') return send(res, 200, { auto_topup: autoTopUp }, { ETag: '"4"' });
+  if (suffix === '/payment-intents' && req.method === 'GET') return send(res, 200, { payment_intents: [
+    { id: 'intent-success', amount_minor: 100000, currency: 'TWD', reason: 'auto_top_up', provider: 'newebpay', payment_method_id: paymentMethod.id, state: 'succeeded', requires_customer_action: false, correlation_id: 'ui-safe-correlation', created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-01T08:01:00Z', completed_at: '2026-08-01T08:01:00Z' },
+    { id: 'intent-unknown', amount_minor: 100000, currency: 'TWD', reason: 'auto_top_up', provider: 'newebpay', payment_method_id: paymentMethod.id, state: 'unknown', requires_customer_action: false, correlation_id: 'ui-safe-reconcile', created_at: '2026-07-15T08:00:00Z', updated_at: '2026-07-15T08:01:00Z' },
+  ], pagination: { limit: 20, offset: 0, total: 2 } });
   if (suffix === '/fleet/devices' && req.method === 'GET') {
     const query = url.searchParams;
     const filtered = devices.filter((device) => !query.get('q') || JSON.stringify(device).toLowerCase().includes(query.get('q').toLowerCase()));
@@ -395,8 +417,8 @@ function readBody(req) {
   return new Promise((resolve, reject) => { let data = ''; req.on('data', (chunk) => { data += chunk; }); req.on('end', () => { try { resolve(data ? JSON.parse(data) : {}); } catch (error) { reject(error); } }); req.on('error', reject); });
 }
 
-function send(res, status, body) {
-  res.writeHead(status, { 'Content-Type': 'application/json' });
+function send(res, status, body, headers = {}) {
+  res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
   res.end(JSON.stringify(body));
 }
 

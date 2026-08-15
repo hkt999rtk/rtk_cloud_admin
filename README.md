@@ -47,11 +47,14 @@ Implemented in this first version:
   operational panels, source states, and no browser-side Prometheus or Grafana
   access
 - Account Manager-backed brand-cloud admin BFF routes and Platform View UI
+- Account Manager-backed Billing BFF and `/console/billing` Customer View for
+  balance, immutable ledger, safe payment-method metadata, payment intents, and
+  guarded automatic top-up policy controls
 - narrow application store interfaces for sessions, audit events, projection reads, and lifecycle operations; the current
   implementation remains SQLite-backed and does not add Redis
 - explicit SQLite schema migrations tracked in `schema_migrations`
 - URL routes for `/console`, `/console/customers`, `/console/devices`,
-  `/console/operations`, `/console/audit`, and `/admin`
+  `/console/billing`, `/console/operations`, `/console/audit`, and `/admin`
 - public email verification routes `/verify` and the mail-contract-compatible
   `/signup/verify` alias
 - native release packaging and GitHub Actions CI
@@ -87,7 +90,8 @@ This server has two WebUI modes that share the same React/Vite application and
 Go BFF:
 
 - **Customer View** is for Tier 2 brand operators. It covers Fleet Health,
-  Devices, Firmware & OTA, and Stream Health for the active organization only.
+  Devices, Firmware & OTA, Stream Health, and Billing for the active
+  organization only.
   Customer-facing pages must not expose platform-only audit, customer browsing,
   raw upstream payloads, or cross-tenant facts.
 - **Platform View** is for Tier 1 Platform Admins. It covers Platform
