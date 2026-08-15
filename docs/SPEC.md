@@ -356,7 +356,7 @@ Service health:
 ### [REQ-CA-BILLING-001] Billing UI is active-organization scoped and provider safe
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: `/console/billing` resolves the organization exclusively from the

@@ -1558,8 +1558,9 @@ paths:
   /api/billing/account:
     get:
       operationId: getApiBillingAccount
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Read the active organization's commercial account.
       responses:
@@ -1572,8 +1573,9 @@ paths:
   /api/billing/ledger:
     get:
       operationId: getApiBillingLedger
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: List customer-safe immutable ledger entries.
       parameters:
@@ -1589,8 +1591,9 @@ paths:
   /api/billing/payment-methods:
     get:
       operationId: getApiBillingPaymentMethods
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: List redacted payment methods.
       responses:
@@ -1603,8 +1606,9 @@ paths:
   /api/billing/payment-methods/setup:
     post:
       operationId: postApiBillingPaymentMethodSetup
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Request provider-hosted method setup without accepting card fields.
       parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
@@ -1625,8 +1629,9 @@ paths:
   /api/billing/payment-methods/{methodId}:
     delete:
       operationId: deleteApiBillingPaymentMethod
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Revoke a payment method.
       parameters: [{ name: methodId, in: path, required: true, schema: { type: string } }]
@@ -1647,8 +1652,9 @@ paths:
   /api/billing/auto-topup:
     get:
       operationId: getApiBillingAutoTopUp
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Read the active automatic top-up policy.
       responses:
@@ -1658,8 +1664,9 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/AutoTopUpResponse" } } }
     put:
       operationId: putApiBillingAutoTopUp
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Replace a policy with explicit versioned consent.
       parameters: [{ $ref: "#/components/parameters/IfMatch" }]
@@ -1673,8 +1680,9 @@ paths:
         "428": { $ref: "#/components/responses/PaymentError" }
     delete:
       operationId: deleteApiBillingAutoTopUp
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Disable the current policy.
       parameters: [{ $ref: "#/components/parameters/IfMatch" }]
@@ -1695,8 +1703,9 @@ paths:
   /api/billing/topups:
     post:
       operationId: postApiBillingTopUp
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Create an idempotent manual top-up intent.
       parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
@@ -1720,8 +1729,9 @@ paths:
   /api/billing/payment-intents:
     get:
       operationId: getApiBillingPaymentIntents
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: List normalized payment intents.
       responses:
@@ -1732,8 +1742,9 @@ paths:
   /api/billing/payment-intents/{intentId}:
     get:
       operationId: getApiBillingPaymentIntent
-      x-rtk-feature-id: FEAT-AM-PAYMENT-001
-      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Read one normalized intent and safe attempts.
       parameters: [{ name: intentId, in: path, required: true, schema: { type: string } }]
