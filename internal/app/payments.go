@@ -91,11 +91,19 @@ func (s *Server) apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 	}
 	var request struct {
 		Provider string `json:"provider"`
+		Consent  struct {
+			Accepted    bool   `json:"accepted"`
+			TextVersion string `json:"text_version"`
+			TextSHA256  string `json:"text_sha256"`
+			Locale      string `json:"locale"`
+		} `json:"consent"`
 	}
 	if !decodePaymentRequest(w, r, &request) {
 		return
 	}
-	if strings.TrimSpace(request.Provider) == "" {
+	if strings.TrimSpace(request.Provider) == "" || !request.Consent.Accepted ||
+		len(strings.TrimSpace(request.Consent.TextVersion)) == 0 || len(strings.TrimSpace(request.Consent.TextVersion)) > 128 ||
+		!validPaymentSHA256(request.Consent.TextSHA256) || len(strings.TrimSpace(request.Consent.Locale)) < 2 || len(strings.TrimSpace(request.Consent.Locale)) > 35 {
 		writeInvalidPaymentRequest(w)
 		return
 	}
@@ -105,6 +113,21 @@ func (s *Server) apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSONStatus(w, http.StatusAccepted, result)
+}
+
+func validPaymentSHA256(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if len(value) != 64 {
+		return false
+	}
+	for _, character := range value {
+		if character < '0' || character > '9' {
+			if character < 'a' || character > 'f' {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (s *Server) apiPaymentMethod(w http.ResponseWriter, r *http.Request) {
@@ -322,7 +345,9 @@ func (s *Server) writePaymentBFFError(w http.ResponseWriter, sessionID string, e
 func paymentErrorCodeAllowed(code string) bool {
 	switch code {
 	case "PAYMENT_PROVIDER_UNAVAILABLE", "PAYMENT_PROVIDER_NOT_CONFIGURED", "PAYMENT_CAPABILITY_UNSUPPORTED",
-		"PAYMENT_METHOD_REQUIRED", "PAYMENT_METHOD_INACTIVE", "PAYMENT_CONSENT_REQUIRED", "PAYMENT_AMOUNT_INVALID",
+		"PAYMENT_METHOD_REQUIRED", "PAYMENT_METHOD_INACTIVE", "PAYMENT_METHOD_SETUP_CONFLICT",
+		"PAYMENT_CONSENT_REQUIRED", "PAYMENT_AMOUNT_INVALID", "PAYMENT_PROVIDER_RESPONSE_INVALID",
+		"PAYMENT_REFERENCE_PROTECTION_UNCONFIGURED", "PAYMENT_REFERENCE_PROTECTION_FAILED",
 		"PAYMENT_CURRENCY_UNSUPPORTED", "PAYMENT_INTENT_CONFLICT", "PAYMENT_STATUS_UNKNOWN",
 		"AUTO_TOPUP_POLICY_CONFLICT", "AUTO_TOPUP_LIMIT_REACHED", "BILLING_ACCOUNT_SUSPENDED",
 		"idempotency_key_required", "invalid_request", "not_found":

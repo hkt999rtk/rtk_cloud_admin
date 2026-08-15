@@ -1619,8 +1619,18 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [provider]
-              properties: { provider: { type: string, enum: [newebpay] } }
+              required: [provider, consent]
+              properties:
+                provider: { type: string, enum: [newebpay] }
+                consent:
+                  type: object
+                  additionalProperties: false
+                  required: [accepted, text_version, text_sha256, locale]
+                  properties:
+                    accepted: { type: boolean, enum: [true] }
+                    text_version: { type: string, minLength: 1, maxLength: 128 }
+                    text_sha256: { type: string, pattern: "^[0-9a-fA-F]{64}$" }
+                    locale: { type: string, minLength: 2, maxLength: 35 }
       responses:
         "202": { description: Hosted setup accepted by a qualified provider. }
         "400": { $ref: "#/components/responses/PaymentError" }
