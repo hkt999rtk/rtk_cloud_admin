@@ -66,6 +66,8 @@ import { streamAttentionRows, streamModeRows, streamWorstDeviceRows } from './st
 import {
   AUTO_TOPUP_CONSENT,
   AUTO_TOPUP_CONSENT_TEXT,
+  PAYMENT_METHOD_CONSENT,
+  PAYMENT_METHOD_CONSENT_TEXT,
   autoTopUpAssessment,
   billingErrorMessage,
   formatMinorAmount,
@@ -2197,22 +2199,26 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   const intents = data?.intents?.payment_intents || [];
   const ledger = data?.ledger?.ledger_entries || [];
   const policy = data?.policy?.auto_topup || data?.account?.auto_topup || null;
+  const providers = data?.account?.payment_providers || [];
+  const setupProvider = providers.find((provider) => provider.capabilities?.hosted_setup);
   const policyState = autoTopUpAssessment(policy);
   const activeMethod = methods.find((method) => method.status === 'active') || methods[0];
   const canManageMethods = capabilities.includes('payment_method.manage');
   const canManagePolicy = capabilities.includes('auto_topup.manage');
-  const canCreateIntent = capabilities.includes('payment_intent.create');
   const chargeQualified = Boolean(activeMethod?.capabilities?.merchant_initiated_charge);
-  const [threshold, setThreshold] = useState(String((policy?.threshold_minor || 50000) / 100));
-  const [topUpAmount, setTopUpAmount] = useState(String((policy?.top_up_amount_minor || 100000) / 100));
-  const [dailyAmount, setDailyAmount] = useState(String((policy?.daily_amount_limit_minor || 300000) / 100));
+  const [threshold, setThreshold] = useState(String(policy?.threshold_minor || 300));
+  const [topUpAmount, setTopUpAmount] = useState(String(policy?.top_up_amount_minor || 300));
+  const [dailyAmount, setDailyAmount] = useState(String(policy?.daily_amount_limit_minor || 1000));
+  const [dailyAttempts, setDailyAttempts] = useState(String(policy?.daily_attempt_limit || 2));
+  const [paymentConsentAccepted, setPaymentConsentAccepted] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setThreshold(String((policy?.threshold_minor || 50000) / 100));
-    setTopUpAmount(String((policy?.top_up_amount_minor || 100000) / 100));
-    setDailyAmount(String((policy?.daily_amount_limit_minor || 300000) / 100));
+    setThreshold(String(policy?.threshold_minor || 300));
+    setTopUpAmount(String(policy?.top_up_amount_minor || 300));
+    setDailyAmount(String(policy?.daily_amount_limit_minor || 1000));
+    setDailyAttempts(String(policy?.daily_attempt_limit || 2));
   }, [policy?.version]);
 
   async function mutate(method, path, body, headers = {}) {
@@ -2249,15 +2255,34 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     }
     mutate('PUT', '/api/billing/auto-topup', {
       enabled: true,
-      threshold_minor: Math.round(Number(threshold) * 100),
-      top_up_amount_minor: Math.round(Number(topUpAmount) * 100),
+      threshold_minor: Math.round(Number(threshold)),
+      top_up_amount_minor: Math.round(Number(topUpAmount)),
       currency: account?.currency || 'TWD',
       payment_method_id: activeMethod.id,
-      daily_attempt_limit: policy?.daily_attempt_limit || 3,
-      daily_amount_limit_minor: Math.round(Number(dailyAmount) * 100),
+      daily_attempt_limit: Math.round(Number(dailyAttempts)),
+      daily_amount_limit_minor: Math.round(Number(dailyAmount)),
       cooldown_seconds: policy?.cooldown_seconds || 3600,
       consent: AUTO_TOPUP_CONSENT,
     }, { 'If-Match': data?.policyEtag || '"0"' });
+  }
+
+  async function setupPaymentMethod() {
+    if (!setupProvider) {
+      setMessage(billingErrorMessage({ code: 'PAYMENT_PROVIDER_NOT_CONFIGURED' }));
+      return;
+    }
+    const popup = window.open('about:blank', '_blank');
+    if (popup) popup.opener = null;
+    const result = await mutate('POST', '/api/billing/payment-methods/setup', {
+      provider: setupProvider.name,
+      consent: PAYMENT_METHOD_CONSENT,
+    }, { 'Idempotency-Key': `payment-setup-${Date.now()}` });
+    if (result?.hosted_url) {
+      if (popup) popup.location.replace(result.hosted_url);
+      else window.location.assign(result.hosted_url);
+    } else if (popup) {
+      popup.close();
+    }
   }
 
   if (loading && !data) return <section className="panel split-panel"><div><h2>正在載入帳務資料</h2><p>只讀取目前 active Brand Cloud 的安全帳務摘要。</p></div></section>;
@@ -2272,14 +2297,15 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       <MetricCard icon="clock-rotate-left" label="近期意圖" value={String(intents.length)} hint="包含成功、失敗、待對帳與處理中" tone="neutral" />
     </div>
 
-    <section className="panel billing-safety" data-testid="billing-provider-gate"><div className="panel-head"><div><h3>付款服務資格狀態</h3><p>NewebPay hosted setup 與 unattended merchant-initiated charge 尚未取得書面核准與 sandbox qualification。</p></div><span className="status-badge warning">BLOCKED</span></div><p>目前可以安全檢視帳務與歷史；系統不會把卡號/CVV 傳入 RTK Cloud，也不會在能力未通過時執行扣款。</p><button type="button" className="primary" disabled title="等待 provider capability qualification">新增付款方式（資格驗證中）</button></section>
+    <section className="panel billing-safety" data-testid="billing-provider-gate"><div className="panel-head"><div><h3>付款服務資格狀態</h3><p>{setupProvider?.environment === 'simulated' ? '目前使用 staging 虛擬金流；不會產生真實扣款。' : '目前未提供已驗證的 hosted payment setup。'}</p></div><span className={`status-badge ${setupProvider ? 'good' : 'warning'}`}>{setupProvider ? 'READY' : 'BLOCKED'}</span></div><p>付款資料只在 provider hosted page 操作；RTK Cloud 不接收卡號或 CVV。</p><label className="billing-consent"><input type="checkbox" checked={paymentConsentAccepted} onChange={(event) => setPaymentConsentAccepted(event.target.checked)} />{PAYMENT_METHOD_CONSENT_TEXT}</label><button type="button" className="primary" disabled={busy || !canManageMethods || !setupProvider || !paymentConsentAccepted} onClick={setupPaymentMethod}>{busy ? '準備中…' : '新增付款方式'}</button></section>
 
     <div className="billing-columns">
-      <section className="panel"><div className="panel-head"><div><h3>自動加值政策</h3><p>每日限制以 UTC 計算，下一次重設：{policy?.limit_reset_at ? formatProviderTimestamp(policy.limit_reset_at) : '—'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>
+      <section className="panel"><div className="panel-head"><div><h3>自動加值政策</h3><p>每日限制以 {policy?.limit_timezone || 'Asia/Taipei'} 計算，下一次重設：{policy?.limit_reset_at ? formatProviderTimestamp(policy.limit_reset_at) : '—'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>
         <form className="billing-policy-form" onSubmit={savePolicy}>
           <label>低餘額門檻（TWD）<input type="number" min="1" step="1" value={threshold} onChange={(event) => setThreshold(event.target.value)} /></label>
           <label>每次加值（TWD）<input type="number" min="1" step="1" value={topUpAmount} onChange={(event) => setTopUpAmount(event.target.value)} /></label>
           <label>每日金額上限（TWD）<input type="number" min="1" step="1" value={dailyAmount} onChange={(event) => setDailyAmount(event.target.value)} /></label>
+          <label>每日扣款最高次數<input type="number" min="1" max="10" step="1" value={dailyAttempts} onChange={(event) => setDailyAttempts(event.target.value)} /></label>
           <label className="billing-consent"><input type="checkbox" checked readOnly />{AUTO_TOPUP_CONSENT_TEXT}</label>
           <div className="inline-actions"><button type="submit" className="primary" disabled={busy || !canManagePolicy || !chargeQualified}>{busy ? '更新中…' : '儲存並啟用'}</button>{policy?.enabled ? <button type="button" className="ghost-button" disabled={busy || !canManagePolicy} onClick={() => mutate('DELETE', '/api/billing/auto-topup', { reason: 'customer disabled automatic top-up' }, { 'If-Match': data?.policyEtag || `"${policy.version}"` })}>停用自動加值</button> : null}</div>
         </form>
@@ -2288,7 +2314,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       </section>
 
       <section className="panel"><div className="panel-head"><div><h3>付款方式</h3><p>只保存 provider、品牌、末四碼與到期月份等安全 metadata。</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : '到期日未提供'}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{method.status}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>撤銷</button> : null}</div>)}</div> : <p className="empty-state">目前沒有已驗證的付款方式。</p>}
-        <button type="button" className="ghost-button" disabled={!canCreateIntent || !chargeQualified} title={!chargeQualified ? 'Provider qualification required' : ''}>立即加值（資格驗證中）</button>
+        <button type="button" className="ghost-button" disabled title="第一階段由自動加值流程建立付款意圖">立即加值（後續開放）</button>
       </section>
     </div>
 

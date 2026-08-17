@@ -191,8 +191,15 @@ type CommercialAccount struct {
 }
 
 type BillingAccountResponse struct {
-	Account   CommercialAccount `json:"account"`
-	AutoTopUp *AutoTopUpPolicy  `json:"auto_topup"`
+	Account          CommercialAccount        `json:"account"`
+	AutoTopUp        *AutoTopUpPolicy         `json:"auto_topup"`
+	PaymentProviders []PaymentProviderSummary `json:"payment_providers"`
+}
+
+type PaymentProviderSummary struct {
+	Name         string               `json:"name"`
+	Environment  string               `json:"environment"`
+	Capabilities ProviderCapabilities `json:"capabilities"`
 }
 
 type LedgerEntry struct {
@@ -213,7 +220,7 @@ type BillingLedgerResponse struct {
 type ProviderCapabilities struct {
 	HostedSetup             bool `json:"hosted_setup"`
 	MerchantInitiatedCharge bool `json:"merchant_initiated_charge"`
-	Query                   bool `json:"query"`
+	StatusQuery             bool `json:"status_query"`
 	Webhook                 bool `json:"webhook"`
 	Refund                  bool `json:"refund"`
 }
@@ -237,24 +244,25 @@ type PaymentMethodsResponse struct {
 }
 
 type AutoTopUpPolicy struct {
-	ID                    string `json:"id"`
-	Enabled               bool   `json:"enabled"`
-	ThresholdMinor        int64  `json:"threshold_minor"`
-	TopUpAmountMinor      int64  `json:"top_up_amount_minor"`
-	Currency              string `json:"currency"`
-	PaymentMethodID       string `json:"payment_method_id"`
-	DailyAttemptLimit     int    `json:"daily_attempt_limit"`
-	DailyAmountLimitMinor int64  `json:"daily_amount_limit_minor"`
-	CooldownSeconds       int64  `json:"cooldown_seconds"`
-	Generation            int64  `json:"generation"`
-	Version               int64  `json:"version"`
-	Armed                 bool   `json:"armed"`
-	LastTriggeredAt       string `json:"last_triggered_at,omitempty"`
-	LastSucceededAt       string `json:"last_succeeded_at,omitempty"`
-	LimitTimezone         string `json:"limit_timezone"`
-	LimitResetAt          string `json:"limit_reset_at"`
-	CreatedAt             string `json:"created_at"`
-	UpdatedAt             string `json:"updated_at"`
+	ID                      string `json:"id"`
+	Enabled                 bool   `json:"enabled"`
+	ThresholdMinor          int64  `json:"threshold_minor"`
+	TopUpAmountMinor        int64  `json:"top_up_amount_minor"`
+	Currency                string `json:"currency"`
+	PaymentMethodID         string `json:"payment_method_id"`
+	DailyAttemptLimit       int    `json:"daily_attempt_limit"`
+	DailyAmountLimitMinor   int64  `json:"daily_amount_limit_minor"`
+	CooldownSeconds         int64  `json:"cooldown_seconds"`
+	Generation              int64  `json:"generation"`
+	Version                 int64  `json:"version"`
+	Armed                   bool   `json:"armed"`
+	ConsecutiveFailureCount int    `json:"consecutive_failure_count"`
+	LastTriggeredAt         string `json:"last_triggered_at,omitempty"`
+	LastSucceededAt         string `json:"last_succeeded_at,omitempty"`
+	LimitTimezone           string `json:"limit_timezone"`
+	LimitResetAt            string `json:"limit_reset_at"`
+	CreatedAt               string `json:"created_at"`
+	UpdatedAt               string `json:"updated_at"`
 }
 
 type AutoTopUpResponse struct {

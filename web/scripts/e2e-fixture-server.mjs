@@ -22,6 +22,10 @@ const server = createServer(async (req, res) => {
     state.requestLog.push({ method: req.method, path: url.pathname, cloud: req.headers['x-brand-cloud-id'] || '' });
     if (url.pathname === '/__e2e__/state' && req.method === 'GET') return send(res, 200, { mode, requests: state.requestLog.slice(-500), jobs: state.jobs, reports: state.reports, sources: state.sources, transfers: state.transfers });
     if (url.pathname === '/__e2e__/state/reset' && req.method === 'POST') { state.jobs = []; state.reports = []; state.sources = []; state.transfers = []; state.chipsetProviders = []; state.idempotency.clear(); state.requestLog = []; return send(res, 200, { reset: true }); }
+    if (url.pathname === '/simulator-setup' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end('<!doctype html><html><body><main><h1>Payment simulator</h1><p>No real charge is performed.</p><button>Connect simulated payment method</button></main></body></html>');
+    }
     if (url.pathname === '/api/v1/query' || url.pathname === '/api/v1/query_range') return prometheusResponse(res);
     if (url.pathname === '/v1/logs') return send(res, 200, { events: state.logs.map((event) => ({ event_id: `${event.operation_id}-${event.request_id}`, service: event.service, level: event.level, ts: event.timestamp, msg: event.message, trace_id: event.trace_id, request_id: event.request_id, operation_id: event.operation_id })) });
     if (url.pathname === '/v1/auth/login' && req.method === 'POST') return login(req, res);
@@ -220,25 +224,32 @@ async function handleCustomerResource(req, res, url) {
   const devices = mode === 'empty' ? [] : cloudDevices(orgID);
   if (mode === 'slow' && req.method !== 'GET') await new Promise((resolve) => setTimeout(resolve, 350));
   const paymentMethod = {
-    id: `method-${orgID}`, provider: 'newebpay', status: 'active', card_brand: 'VISA', last_four: '4242', expiry_month: 12, expiry_year: 2029,
-    capabilities: { hosted_setup: false, merchant_initiated_charge: false, query: true, webhook: true, refund: false },
+    id: `method-${orgID}`, provider: 'simulator', status: 'active', card_brand: 'VISA', last_four: '4242', expiry_month: 12, expiry_year: 2029,
+    capabilities: { hosted_setup: true, merchant_initiated_charge: true, status_query: true, webhook: false, refund: true },
     created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-01T08:00:00Z',
   };
   const autoTopUp = {
-    id: `policy-${orgID}`, enabled: true, threshold_minor: 50000, top_up_amount_minor: 100000, currency: 'TWD', payment_method_id: paymentMethod.id,
-    daily_attempt_limit: 3, daily_amount_limit_minor: 300000, cooldown_seconds: 3600, generation: 2, version: 4, armed: true,
-    limit_timezone: 'UTC', limit_reset_at: '2026-08-16T00:00:00Z', created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-15T08:00:00Z',
+    id: `policy-${orgID}`, enabled: true, threshold_minor: 300, top_up_amount_minor: 300, currency: 'TWD', payment_method_id: paymentMethod.id,
+    daily_attempt_limit: 2, daily_amount_limit_minor: 1000, cooldown_seconds: 3600, generation: 2, version: 4, armed: true, consecutive_failure_count: 0,
+    limit_timezone: 'Asia/Taipei', limit_reset_at: '2026-08-15T16:00:00Z', created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-15T08:00:00Z',
   };
-  if (suffix === '/billing/account' && req.method === 'GET') return send(res, 200, { account: { id: `account-${orgID}`, organization_id: orgID, currency: 'TWD', available_balance_minor: 125000, state: 'active', version: 8, created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-15T08:00:00Z' }, auto_topup: autoTopUp });
+  if (suffix === '/billing/account' && req.method === 'GET') return send(res, 200, { account: { id: `account-${orgID}`, organization_id: orgID, currency: 'TWD', available_balance_minor: 1250, state: 'active', version: 8, created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-15T08:00:00Z' }, auto_topup: autoTopUp, payment_providers: [{ name: 'simulator', environment: 'simulated', capabilities: { hosted_setup: true, merchant_initiated_charge: true } }] });
   if (suffix === '/billing/ledger' && req.method === 'GET') return send(res, 200, { ledger_entries: [
-    { id: 'ledger-2', direction: 'debit', amount_minor: 25000, currency: 'TWD', reason: 'invoice_debit', balance_after_minor: 125000, created_at: '2026-08-15T07:30:00Z' },
-    { id: 'ledger-1', direction: 'credit', amount_minor: 150000, currency: 'TWD', reason: 'payment_top_up_credit', balance_after_minor: 150000, created_at: '2026-08-01T08:00:00Z' },
+    { id: 'ledger-2', direction: 'debit', amount_minor: 250, currency: 'TWD', reason: 'invoice_debit', balance_after_minor: 1250, created_at: '2026-08-15T07:30:00Z' },
+    { id: 'ledger-1', direction: 'credit', amount_minor: 1500, currency: 'TWD', reason: 'payment_top_up_credit', balance_after_minor: 1500, created_at: '2026-08-01T08:00:00Z' },
   ], pagination: { limit: 20, offset: 0, total: 2 } });
   if (suffix === '/payment-methods' && req.method === 'GET') return send(res, 200, { payment_methods: [paymentMethod], pagination: { limit: 20, offset: 0, total: 1 } });
-  if (suffix === '/payment-methods/setup' && req.method === 'POST') return send(res, 409, { code: 'PAYMENT_CAPABILITY_UNSUPPORTED', message: 'Provider-hosted payment method setup is not qualified.' });
+  if (suffix === '/payment-methods/setup' && req.method === 'POST') return send(res, 202, { payment_method: { ...paymentMethod, status: 'pending' }, hosted_url: `http://${req.headers.host}/simulator-setup`, duplicate: false });
+  if (suffix === '/auto-topup' && req.method === 'PUT') {
+    const body = await readBody(req);
+    if (body.threshold_minor !== 300 || body.top_up_amount_minor !== 300 || body.daily_amount_limit_minor !== 1000 || body.daily_attempt_limit !== 2) {
+      return send(res, 400, { code: 'PAYMENT_AMOUNT_INVALID', message: 'Unexpected simulator policy defaults.' });
+    }
+    return send(res, 200, { auto_topup: { ...autoTopUp, ...body, version: 5 } }, { ETag: '"5"' });
+  }
   if (suffix === '/auto-topup' && req.method === 'GET') return send(res, 200, { auto_topup: autoTopUp }, { ETag: '"4"' });
   if (suffix === '/payment-intents' && req.method === 'GET') return send(res, 200, { payment_intents: [
-    { id: 'intent-success', amount_minor: 100000, currency: 'TWD', reason: 'auto_top_up', provider: 'newebpay', payment_method_id: paymentMethod.id, state: 'succeeded', requires_customer_action: false, correlation_id: 'ui-safe-correlation', created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-01T08:01:00Z', completed_at: '2026-08-01T08:01:00Z' },
+    { id: 'intent-success', amount_minor: 300, currency: 'TWD', reason: 'auto_top_up', provider: 'simulator', payment_method_id: paymentMethod.id, state: 'succeeded', requires_customer_action: false, correlation_id: 'ui-safe-correlation', created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-01T08:01:00Z', completed_at: '2026-08-01T08:01:00Z' },
     { id: 'intent-unknown', amount_minor: 100000, currency: 'TWD', reason: 'auto_top_up', provider: 'newebpay', payment_method_id: paymentMethod.id, state: 'unknown', requires_customer_action: false, correlation_id: 'ui-safe-reconcile', created_at: '2026-07-15T08:00:00Z', updated_at: '2026-07-15T08:01:00Z' },
   ], pagination: { limit: 20, offset: 0, total: 2 } });
   if (suffix === '/fleet/devices' && req.method === 'GET') {

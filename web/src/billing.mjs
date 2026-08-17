@@ -7,10 +7,24 @@ export const AUTO_TOPUP_CONSENT = Object.freeze({
   locale: 'zh-TW',
 });
 
+export const PAYMENT_METHOD_CONSENT_TEXT = '我同意由付款服務保存模擬付款方式識別資訊，以供自動加值測試使用；不會輸入或保存真實卡號與 CVV。';
+
+export const PAYMENT_METHOD_CONSENT = Object.freeze({
+  accepted: true,
+  text_version: 'payment-method-simulator-zh-TW-v1',
+  text_sha256: '1ecf8375825a212d476462ebd014197ad5beda7ab744944cc87b8f4a72de3bf0',
+  locale: 'zh-TW',
+});
+
 export function formatMinorAmount(amountMinor, currency = 'TWD', locale = 'zh-TW') {
   const value = Number(amountMinor);
   if (!Number.isFinite(value)) return '—';
-  return new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 2 }).format(value / 100);
+  const zeroDecimal = currency === 'TWD';
+  return new Intl.NumberFormat(locale, {
+    style: 'currency', currency,
+    minimumFractionDigits: zeroDecimal ? 0 : 2,
+    maximumFractionDigits: zeroDecimal ? 0 : 2,
+  }).format(zeroDecimal ? value : value / 100);
 }
 
 export function paymentMethodLabel(method) {
@@ -23,6 +37,7 @@ export function paymentMethodLabel(method) {
 export function autoTopUpAssessment(policy) {
   if (!policy) return { tone: 'neutral', label: '尚未設定', detail: '設定付款方式後才能啟用自動加值。' };
   if (!policy.enabled) return { tone: 'neutral', label: '已停用', detail: '低餘額不會觸發扣款。' };
+  if (Number(policy.consecutive_failure_count) > 0) return { tone: 'warning', label: '扣款重試中', detail: `已連續失敗 ${policy.consecutive_failure_count} 次；第 3 次失敗會自動停用。` };
   if (!policy.armed) return { tone: 'warning', label: '等待重新啟動', detail: '餘額需先回到門檻以上，才會再次監看低餘額 crossing。' };
   return { tone: 'good', label: '監看中', detail: '只有餘額嚴格低於門檻時才建立一次加值意圖。' };
 }
