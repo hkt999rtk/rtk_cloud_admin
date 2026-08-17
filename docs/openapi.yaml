@@ -1555,6 +1555,91 @@ paths:
         "200": { description: Job result. }
         "410": { description: Result expired. }
 
+  /api/billing/summary:
+    get:
+      operationId: getApiBillingSummary
+      tags: [Billing]
+      summary: Read the active tenant billing overview.
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200":
+          description: Balance, current-period estimate, automatic top-up health, and runway.
+          content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingSummaryResponse" } } }
+  /api/billing/usage:
+    get:
+      operationId: getApiBillingUsage
+      tags: [Billing]
+      summary: Read server-priced current-period usage.
+      security: [{ SessionCookie: [] }]
+      responses: { "200": { description: Priced usage lines. } }
+  /api/billing/invoices:
+    get:
+      operationId: getApiBillingInvoices
+      tags: [Billing]
+      summary: List tenant invoices.
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200":
+          description: Invoice page.
+          content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingInvoiceListResponse" } } }
+  /api/billing/invoices/{invoiceId}:
+    get:
+      operationId: getApiBillingInvoice
+      tags: [Billing]
+      summary: Read one invoice and its immutable snapshots.
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: invoiceId, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Invoice detail. }, "404": { $ref: "#/components/responses/PlainTextError" } }
+  /api/billing/invoices/{invoiceId}/pdf:
+    get:
+      operationId: getApiBillingInvoicePdf
+      tags: [Billing]
+      summary: Download the immutable invoice PDF.
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: invoiceId, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200":
+          description: Invoice PDF.
+          content: { application/pdf: { schema: { type: string, format: binary } } }
+  /api/billing/activity:
+    get:
+      operationId: getApiBillingActivity
+      tags: [Billing]
+      summary: List normalized customer-safe billing activity.
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200":
+          description: Activity page.
+          content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingActivityListResponse" } } }
+  /api/billing/activity/{activityId}:
+    get:
+      operationId: getApiBillingActivityDetail
+      tags: [Billing]
+      summary: Read one customer-safe activity timeline.
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: activityId, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Activity detail. }, "404": { $ref: "#/components/responses/PlainTextError" } }
+  /api/billing/profile:
+    get:
+      operationId: getApiBillingProfile
+      tags: [Billing]
+      summary: Read the prospective invoice recipient profile.
+      security: [{ SessionCookie: [] }]
+      responses: { "200": { description: Billing profile. } }
+    put:
+      operationId: putApiBillingProfile
+      tags: [Billing]
+      summary: Update the prospective invoice recipient profile.
+      security: [{ SessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingProfile" } } } }
+      responses: { "200": { description: Updated profile. }, "412": { $ref: "#/components/responses/PlainTextError" } }
+  /api/billing/statements:
+    get:
+      operationId: getApiBillingStatement
+      tags: [Billing]
+      summary: Export a UTF-8 tenant billing statement.
+      security: [{ SessionCookie: [] }]
+      responses: { "200": { description: CSV statement, content: { text/csv: { schema: { type: string } } } } }
   /api/billing/account:
     get:
       operationId: getApiBillingAccount

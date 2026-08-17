@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"rtk_cloud_admin/internal/accountclient"
@@ -52,6 +53,166 @@ func (s *Server) apiBillingAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, result)
+}
+
+func (s *Server) apiBillingSummary(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.paymentContext(w, r, "billing_summary.read")
+	if !ok {
+		return
+	}
+	result, err := s.accountClient.BillingSummary(r.Context(), ctx.token, ctx.org.ID)
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) apiBillingUsage(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.paymentContext(w, r, "billing_usage.read")
+	if !ok {
+		return
+	}
+	result, err := s.accountClient.BillingUsage(r.Context(), ctx.token, ctx.org.ID, boundedBillingQuery(r, "period_start", "period_end"))
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) apiBillingInvoices(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.paymentContext(w, r, "invoice.read")
+	if !ok {
+		return
+	}
+	result, err := s.accountClient.BillingInvoices(r.Context(), ctx.token, ctx.org.ID, boundedBillingQuery(r, "limit", "offset", "state", "invoice_number", "period_start", "period_end"))
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) apiBillingInvoice(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.paymentContext(w, r, "invoice.read")
+	if !ok {
+		return
+	}
+	result, err := s.accountClient.BillingInvoice(r.Context(), ctx.token, ctx.org.ID, r.PathValue("invoiceId"))
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) apiBillingInvoicePDF(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.paymentContext(w, r, "invoice_document.read")
+	if !ok {
+		return
+	}
+	download, err := s.accountClient.BillingDownload(r.Context(), ctx.token, ctx.org.ID, "/billing/invoices/"+url.PathEscape(r.PathValue("invoiceId"))+"/pdf")
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", `attachment; filename="invoice.pdf"`)
+	if download.ETag != "" {
+		w.Header().Set("ETag", download.ETag)
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(download.Body)
+}
+
+func (s *Server) apiBillingActivity(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.paymentContext(w, r, "billing_activity.read")
+	if !ok {
+		return
+	}
+	result, err := s.accountClient.BillingActivity(r.Context(), ctx.token, ctx.org.ID, boundedBillingQuery(r, "limit", "offset", "state", "type", "reference"))
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) apiBillingActivityDetail(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.paymentContext(w, r, "billing_activity.read")
+	if !ok {
+		return
+	}
+	result, err := s.accountClient.BillingActivityDetail(r.Context(), ctx.token, ctx.org.ID, r.PathValue("activityId"))
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) apiBillingProfile(w http.ResponseWriter, r *http.Request) {
+	permission := "billing_profile.read"
+	if r.Method == http.MethodPut {
+		permission = "billing_profile.manage"
+	}
+	ctx, ok := s.paymentContext(w, r, permission)
+	if !ok {
+		return
+	}
+	if r.Method == http.MethodGet {
+		result, err := s.accountClient.BillingProfile(r.Context(), ctx.token, ctx.org.ID)
+		if err != nil {
+			s.writePaymentBFFError(w, ctx.session.ID, err)
+			return
+		}
+		writeJSON(w, result)
+		return
+	}
+	var request struct {
+		LegalName          string `json:"legal_name"`
+		TaxIdentifier      string `json:"tax_identifier"`
+		BillingAddress     string `json:"billing_address"`
+		ContactEmail       string `json:"contact_email"`
+		Locale             string `json:"locale"`
+		Timezone           string `json:"timezone"`
+		DeliveryPreference string `json:"delivery_preference"`
+		Version            int64  `json:"version"`
+	}
+	if !decodePaymentRequest(w, r, &request) {
+		return
+	}
+	if strings.TrimSpace(request.LegalName) == "" || request.Version < 1 {
+		writeInvalidPaymentRequest(w)
+		return
+	}
+	result, err := s.accountClient.PutBillingProfile(r.Context(), ctx.token, ctx.org.ID, `"`+strconv.FormatInt(request.Version, 10)+`"`, request)
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) apiBillingStatement(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.paymentContext(w, r, "billing_statement.export")
+	if !ok {
+		return
+	}
+	suffix := "/billing/statements"
+	if query := boundedBillingQuery(r, "period_start", "period_end"); len(query) > 0 {
+		suffix += "?" + query.Encode()
+	}
+	download, err := s.accountClient.BillingDownload(r.Context(), ctx.token, ctx.org.ID, suffix)
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="billing-statement.csv"`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(download.Body)
 }
 
 func (s *Server) apiBillingLedger(w http.ResponseWriter, r *http.Request) {
@@ -295,6 +456,16 @@ func boundedPaymentQuery(r *http.Request) url.Values {
 	return values
 }
 
+func boundedBillingQuery(r *http.Request, keys ...string) url.Values {
+	values := url.Values{}
+	for _, key := range keys {
+		if value := strings.TrimSpace(r.URL.Query().Get(key)); value != "" {
+			values.Set(key, value)
+		}
+	}
+	return values
+}
+
 func decodePaymentRequest(w http.ResponseWriter, r *http.Request, destination any) bool {
 	decoder := json.NewDecoder(io.LimitReader(r.Body, maxPaymentRequestBytes))
 	decoder.DisallowUnknownFields()
@@ -350,6 +521,7 @@ func paymentErrorCodeAllowed(code string) bool {
 		"PAYMENT_REFERENCE_PROTECTION_UNCONFIGURED", "PAYMENT_REFERENCE_PROTECTION_FAILED",
 		"PAYMENT_CURRENCY_UNSUPPORTED", "PAYMENT_INTENT_CONFLICT", "PAYMENT_STATUS_UNKNOWN",
 		"AUTO_TOPUP_POLICY_CONFLICT", "AUTO_TOPUP_LIMIT_REACHED", "BILLING_ACCOUNT_SUSPENDED",
+		"BILLING_RESOURCE_NOT_FOUND", "BILLING_CONFLICT", "BILLING_INCOMPLETE", "INVOICE_IMMUTABLE",
 		"idempotency_key_required", "invalid_request", "not_found":
 		return true
 	default:

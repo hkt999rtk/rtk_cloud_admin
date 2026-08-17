@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  billingSubpaths,
   customerNavItems,
   devicesPathWithFilters,
   isPlatformRouteId,
@@ -66,6 +67,17 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/billing'), 'billing');
   assert.equal(routeFromPath('/console/cloud-123/billing'), 'billing');
   assert.equal(cloudIdFromPath('/console/cloud-123/billing'), 'cloud-123');
+});
+
+test('billing subpaths remain addressable inside the tenant billing section', () => {
+  assert.deepEqual(Object.values(billingSubpaths), [
+    '/console/billing',
+    '/console/billing/invoices',
+    '/console/billing/activity',
+    '/console/billing/settings',
+    '/console/billing/profile',
+  ]);
+  for (const path of Object.values(billingSubpaths)) assert.equal(routeFromPath(path), 'billing');
 });
 
 test('customer nav follows the approved Customer View design order', () => {

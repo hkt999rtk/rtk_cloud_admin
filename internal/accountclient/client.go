@@ -1360,6 +1360,99 @@ func (c *Client) BillingAccount(ctx context.Context, accessToken, orgID string) 
 	return body, err
 }
 
+func (c *Client) BillingSummary(ctx context.Context, accessToken, orgID string) (map[string]any, error) {
+	var body map[string]any
+	err := c.doJSON(ctx, http.MethodGet, paymentOrgPath(orgID, "/billing/summary"), accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) BillingUsage(ctx context.Context, accessToken, orgID string, query url.Values) (map[string]any, error) {
+	var body map[string]any
+	path := paymentOrgPath(orgID, "/billing/usage")
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) BillingInvoices(ctx context.Context, accessToken, orgID string, query url.Values) (map[string]any, error) {
+	var body map[string]any
+	path := paymentOrgPath(orgID, "/billing/invoices")
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) BillingInvoice(ctx context.Context, accessToken, orgID, invoiceID string) (map[string]any, error) {
+	var body map[string]any
+	err := c.doJSON(ctx, http.MethodGet, paymentOrgPath(orgID, "/billing/invoices/")+url.PathEscape(invoiceID), accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) BillingActivity(ctx context.Context, accessToken, orgID string, query url.Values) (map[string]any, error) {
+	var body map[string]any
+	path := paymentOrgPath(orgID, "/billing/activity")
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) BillingActivityDetail(ctx context.Context, accessToken, orgID, activityID string) (map[string]any, error) {
+	var body map[string]any
+	err := c.doJSON(ctx, http.MethodGet, paymentOrgPath(orgID, "/billing/activity/")+url.PathEscape(activityID), accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) BillingProfile(ctx context.Context, accessToken, orgID string) (map[string]any, error) {
+	var body map[string]any
+	err := c.doJSON(ctx, http.MethodGet, paymentOrgPath(orgID, "/billing/profile"), accessToken, nil, &body)
+	return body, err
+}
+
+func (c *Client) PutBillingProfile(ctx context.Context, accessToken, orgID, version string, request any) (map[string]any, error) {
+	var body map[string]any
+	err := c.doJSONHeaders(ctx, http.MethodPut, paymentOrgPath(orgID, "/billing/profile"), accessToken, request, &body, map[string]string{"If-Match": version})
+	return body, err
+}
+
+type BillingDownload struct {
+	ContentType        string
+	ContentDisposition string
+	ETag               string
+	Body               []byte
+}
+
+func (c *Client) BillingDownload(ctx context.Context, accessToken, orgID, suffix string) (BillingDownload, error) {
+	if !c.Enabled() {
+		return BillingDownload{}, fmt.Errorf("account manager base URL is not configured")
+	}
+	path := paymentOrgPath(orgID, suffix)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return BillingDownload{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	correlation.ApplyHeaders(ctx, req)
+	response, err := c.httpClient.Do(req)
+	if err != nil {
+		return BillingDownload{}, err
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 20<<20))
+	if err != nil {
+		return BillingDownload{}, err
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return BillingDownload{}, &HTTPError{Method: http.MethodGet, Path: path, StatusCode: response.StatusCode, Body: strings.TrimSpace(string(body))}
+	}
+	return BillingDownload{ContentType: response.Header.Get("Content-Type"), ContentDisposition: response.Header.Get("Content-Disposition"), ETag: response.Header.Get("ETag"), Body: body}, nil
+}
+
 func (c *Client) BillingLedger(ctx context.Context, accessToken, orgID string, query url.Values) (BillingLedgerResponse, error) {
 	var body BillingLedgerResponse
 	path := paymentOrgPath(orgID, "/billing/ledger")

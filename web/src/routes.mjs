@@ -13,6 +13,14 @@ export const customerNavItems = [
   { id: 'billing', label: '帳務與自動加值', path: '/console/billing', icon: 'credit-card', capabilities: ['billing_account.read'] },
 ];
 
+export const billingSubpaths = Object.freeze({
+  overview: '/console/billing',
+  invoices: '/console/billing/invoices',
+  activity: '/console/billing/activity',
+  settings: '/console/billing/settings',
+  profile: '/console/billing/profile',
+});
+
 export const platformNavItems = [
   { id: 'platform-dashboard', label: 'Platform Dashboard', path: '/admin', icon: 'gauge-high' },
   { id: 'platform-grafana', label: 'Grafana', path: '/admin/grafana', icon: 'chart-simple' },
