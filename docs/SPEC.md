@@ -372,9 +372,13 @@ The BFF exposes `/api/billing/*` routes and maps them to the Account Manager
 reduced to an allowlist of stable customer-safe codes and messages.
 
 NewebPay hosted setup and merchant-initiated charge controls remain visibly
-`BLOCKED` and disabled until written capability approval and sandbox
-qualification exist. The browser contains no card-entry form and a disabled
-control must not be interpreted as a completed provider integration.
+`BLOCKED` until written capability approval and sandbox qualification exist.
+Local, CI, and staging may instead expose the approved non-production payment
+simulator at `payment-simulator.video-cloud-staging.realtekconnect.com`. The
+simulator UI is explicitly marked as test-only, contains no card-entry form,
+uses TWD integer units where `1 amount_minor = NT$1`, and defaults to NT$300
+threshold/top-up, NT$1,000 daily amount, and 2 daily attempts. Production must
+never expose or enable the simulator.
 
 ## UI Direction
 
