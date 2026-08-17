@@ -1558,6 +1558,8 @@ paths:
   /api/billing/summary:
     get:
       operationId: getApiBillingSummary
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
       tags: [Billing]
       summary: Read the active tenant billing overview.
       security: [{ SessionCookie: [] }]
@@ -1568,6 +1570,8 @@ paths:
   /api/billing/usage:
     get:
       operationId: getApiBillingUsage
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
       tags: [Billing]
       summary: Read server-priced current-period usage.
       security: [{ SessionCookie: [] }]
@@ -1575,6 +1579,8 @@ paths:
   /api/billing/invoices:
     get:
       operationId: getApiBillingInvoices
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
       tags: [Billing]
       summary: List tenant invoices.
       security: [{ SessionCookie: [] }]
@@ -1585,6 +1591,8 @@ paths:
   /api/billing/invoices/{invoiceId}:
     get:
       operationId: getApiBillingInvoice
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
       tags: [Billing]
       summary: Read one invoice and its immutable snapshots.
       security: [{ SessionCookie: [] }]
@@ -1593,6 +1601,8 @@ paths:
   /api/billing/invoices/{invoiceId}/pdf:
     get:
       operationId: getApiBillingInvoicePdf
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
       tags: [Billing]
       summary: Download the immutable invoice PDF.
       security: [{ SessionCookie: [] }]
@@ -1604,6 +1614,8 @@ paths:
   /api/billing/activity:
     get:
       operationId: getApiBillingActivity
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
       tags: [Billing]
       summary: List normalized customer-safe billing activity.
       security: [{ SessionCookie: [] }]
@@ -1614,6 +1626,8 @@ paths:
   /api/billing/activity/{activityId}:
     get:
       operationId: getApiBillingActivityDetail
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
       tags: [Billing]
       summary: Read one customer-safe activity timeline.
       security: [{ SessionCookie: [] }]
@@ -1622,12 +1636,16 @@ paths:
   /api/billing/profile:
     get:
       operationId: getApiBillingProfile
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
       tags: [Billing]
       summary: Read the prospective invoice recipient profile.
       security: [{ SessionCookie: [] }]
       responses: { "200": { description: Billing profile. } }
     put:
       operationId: putApiBillingProfile
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
       tags: [Billing]
       summary: Update the prospective invoice recipient profile.
       security: [{ SessionCookie: [] }]
@@ -1636,6 +1654,8 @@ paths:
   /api/billing/statements:
     get:
       operationId: getApiBillingStatement
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
       tags: [Billing]
       summary: Export a UTF-8 tenant billing statement.
       security: [{ SessionCookie: [] }]
