@@ -6,6 +6,8 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	t.Setenv("PORT", "18081")
 	t.Setenv("DATABASE_PATH", "data/test.db")
 	t.Setenv("ACCOUNT_MANAGER_BASE_URL", "https://account.example")
+	t.Setenv("BILLING_SERVICE_BASE_URL", "https://billing.example")
+	t.Setenv("BILLING_SERVICE_TOKEN", "billing-service-token")
 	t.Setenv("VIDEO_CLOUD_BASE_URL", "https://video.example")
 	t.Setenv("VIDEO_CLOUD_ADMIN_TOKEN", "video-admin-token")
 	t.Setenv("VIDEO_CLOUD_PROMETHEUS_BASE_URL", "http://10.42.1.30:9090")
@@ -23,6 +25,9 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	}
 	if cfg.AccountManagerBaseURL != "https://account.example" {
 		t.Fatalf("AccountManagerBaseURL = %q", cfg.AccountManagerBaseURL)
+	}
+	if cfg.BillingServiceBaseURL != "https://billing.example" || cfg.BillingServiceToken != "billing-service-token" {
+		t.Fatalf("billing service config = %q token=%q", cfg.BillingServiceBaseURL, cfg.BillingServiceToken)
 	}
 	if cfg.VideoCloudBaseURL != "https://video.example" {
 		t.Fatalf("VideoCloudBaseURL = %q", cfg.VideoCloudBaseURL)

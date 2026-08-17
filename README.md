@@ -250,6 +250,8 @@ Environment variables:
 - `PORT`: HTTP port, default `8080`
 - `DATABASE_PATH`: SQLite path, default `data/rtk-cloud-admin.db`
 - `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL
+- `BILLING_SERVICE_BASE_URL`: required upstream RTK Billing URL for tenant billing, payment, invoice, and wallet routes
+- `BILLING_SERVICE_TOKEN`: dedicated service credential (at least 32 characters); customer access tokens are never forwarded to Billing
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token
 - `VIDEO_CLOUD_PROMETHEUS_BASE_URL`: optional private Prometheus query endpoint

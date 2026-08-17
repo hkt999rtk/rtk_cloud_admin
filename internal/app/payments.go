@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"rtk_cloud_admin/internal/accountclient"
+	"rtk_cloud_admin/internal/billingclient"
 	"rtk_cloud_admin/internal/store"
 )
 
@@ -18,7 +19,7 @@ const maxPaymentRequestBytes = 64 * 1024
 type paymentBFFContext struct {
 	session store.Session
 	org     accountclient.Organization
-	token   string
+	actorID string
 }
 
 func (s *Server) paymentContext(w http.ResponseWriter, r *http.Request, permission string) (paymentBFFContext, bool) {
@@ -27,8 +28,8 @@ func (s *Server) paymentContext(w http.ResponseWriter, r *http.Request, permissi
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return paymentBFFContext{}, false
 	}
-	if !s.accountClient.Enabled() {
-		http.Error(w, "Account Manager billing is not configured", http.StatusServiceUnavailable)
+	if s.billingClient == nil || !s.billingClient.Enabled() {
+		http.Error(w, "Billing service is not configured", http.StatusServiceUnavailable)
 		return paymentBFFContext{}, false
 	}
 	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
@@ -39,7 +40,8 @@ func (s *Server) paymentContext(w http.ResponseWriter, r *http.Request, permissi
 	if !requireCustomerCapability(w, org, permission) {
 		return paymentBFFContext{}, false
 	}
-	return paymentBFFContext{session: session, org: org, token: tokens.AccessToken}, true
+	_ = tokens
+	return paymentBFFContext{session: session, org: org, actorID: session.Subject}, true
 }
 
 func (s *Server) apiBillingAccount(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +49,7 @@ func (s *Server) apiBillingAccount(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := s.accountClient.BillingAccount(r.Context(), ctx.token, ctx.org.ID)
+	result, err := s.billingClient.BillingAccount(r.Context(), ctx.actorID, ctx.org.ID)
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -60,7 +62,7 @@ func (s *Server) apiBillingSummary(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := s.accountClient.BillingSummary(r.Context(), ctx.token, ctx.org.ID)
+	result, err := s.billingClient.BillingSummary(r.Context(), ctx.actorID, ctx.org.ID)
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -73,7 +75,7 @@ func (s *Server) apiBillingUsage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := s.accountClient.BillingUsage(r.Context(), ctx.token, ctx.org.ID, boundedBillingQuery(r, "period_start", "period_end"))
+	result, err := s.billingClient.BillingUsage(r.Context(), ctx.actorID, ctx.org.ID, boundedBillingQuery(r, "period_start", "period_end"))
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -86,7 +88,7 @@ func (s *Server) apiBillingInvoices(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := s.accountClient.BillingInvoices(r.Context(), ctx.token, ctx.org.ID, boundedBillingQuery(r, "limit", "offset", "state", "invoice_number", "period_start", "period_end"))
+	result, err := s.billingClient.BillingInvoices(r.Context(), ctx.actorID, ctx.org.ID, boundedBillingQuery(r, "limit", "offset", "state", "invoice_number", "period_start", "period_end"))
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -99,7 +101,7 @@ func (s *Server) apiBillingInvoice(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := s.accountClient.BillingInvoice(r.Context(), ctx.token, ctx.org.ID, r.PathValue("invoiceId"))
+	result, err := s.billingClient.BillingInvoice(r.Context(), ctx.actorID, ctx.org.ID, r.PathValue("invoiceId"))
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -112,7 +114,7 @@ func (s *Server) apiBillingInvoicePDF(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	download, err := s.accountClient.BillingDownload(r.Context(), ctx.token, ctx.org.ID, "/billing/invoices/"+url.PathEscape(r.PathValue("invoiceId"))+"/pdf")
+	download, err := s.billingClient.BillingDownload(r.Context(), ctx.actorID, ctx.org.ID, "/billing/invoices/"+url.PathEscape(r.PathValue("invoiceId"))+"/pdf")
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -131,7 +133,7 @@ func (s *Server) apiBillingActivity(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := s.accountClient.BillingActivity(r.Context(), ctx.token, ctx.org.ID, boundedBillingQuery(r, "limit", "offset", "state", "type", "reference"))
+	result, err := s.billingClient.BillingActivity(r.Context(), ctx.actorID, ctx.org.ID, boundedBillingQuery(r, "limit", "offset", "state", "type", "reference"))
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -144,7 +146,7 @@ func (s *Server) apiBillingActivityDetail(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	result, err := s.accountClient.BillingActivityDetail(r.Context(), ctx.token, ctx.org.ID, r.PathValue("activityId"))
+	result, err := s.billingClient.BillingActivityDetail(r.Context(), ctx.actorID, ctx.org.ID, r.PathValue("activityId"))
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -162,7 +164,7 @@ func (s *Server) apiBillingProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodGet {
-		result, err := s.accountClient.BillingProfile(r.Context(), ctx.token, ctx.org.ID)
+		result, err := s.billingClient.BillingProfile(r.Context(), ctx.actorID, ctx.org.ID)
 		if err != nil {
 			s.writePaymentBFFError(w, ctx.session.ID, err)
 			return
@@ -187,7 +189,7 @@ func (s *Server) apiBillingProfile(w http.ResponseWriter, r *http.Request) {
 		writeInvalidPaymentRequest(w)
 		return
 	}
-	result, err := s.accountClient.PutBillingProfile(r.Context(), ctx.token, ctx.org.ID, `"`+strconv.FormatInt(request.Version, 10)+`"`, request)
+	result, err := s.billingClient.PutBillingProfile(r.Context(), ctx.actorID, ctx.org.ID, `"`+strconv.FormatInt(request.Version, 10)+`"`, request)
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -204,7 +206,7 @@ func (s *Server) apiBillingStatement(w http.ResponseWriter, r *http.Request) {
 	if query := boundedBillingQuery(r, "period_start", "period_end"); len(query) > 0 {
 		suffix += "?" + query.Encode()
 	}
-	download, err := s.accountClient.BillingDownload(r.Context(), ctx.token, ctx.org.ID, suffix)
+	download, err := s.billingClient.BillingDownload(r.Context(), ctx.actorID, ctx.org.ID, suffix)
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -220,7 +222,7 @@ func (s *Server) apiBillingLedger(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := s.accountClient.BillingLedger(r.Context(), ctx.token, ctx.org.ID, boundedPaymentQuery(r))
+	result, err := s.billingClient.BillingLedger(r.Context(), ctx.actorID, ctx.org.ID, boundedPaymentQuery(r))
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -238,7 +240,7 @@ func (s *Server) apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodGet {
-		result, err := s.accountClient.PaymentMethods(r.Context(), ctx.token, ctx.org.ID, boundedPaymentQuery(r))
+		result, err := s.billingClient.PaymentMethods(r.Context(), ctx.actorID, ctx.org.ID, boundedPaymentQuery(r))
 		if err != nil {
 			s.writePaymentBFFError(w, ctx.session.ID, err)
 			return
@@ -268,7 +270,7 @@ func (s *Server) apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 		writeInvalidPaymentRequest(w)
 		return
 	}
-	result, err := s.accountClient.SetupPaymentMethod(r.Context(), ctx.token, ctx.org.ID, idempotencyKey, request)
+	result, err := s.billingClient.SetupPaymentMethod(r.Context(), ctx.actorID, ctx.org.ID, idempotencyKey, request)
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -307,7 +309,7 @@ func (s *Server) apiPaymentMethod(w http.ResponseWriter, r *http.Request) {
 		writeInvalidPaymentRequest(w)
 		return
 	}
-	result, err := s.accountClient.RevokePaymentMethod(r.Context(), ctx.token, ctx.org.ID, methodID, request)
+	result, err := s.billingClient.RevokePaymentMethod(r.Context(), ctx.actorID, ctx.org.ID, methodID, request)
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -325,7 +327,7 @@ func (s *Server) apiAutoTopUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodGet {
-		result, etag, err := s.accountClient.AutoTopUp(r.Context(), ctx.token, ctx.org.ID)
+		result, etag, err := s.billingClient.AutoTopUp(r.Context(), ctx.actorID, ctx.org.ID)
 		if err != nil {
 			s.writePaymentBFFError(w, ctx.session.ID, err)
 			return
@@ -346,7 +348,7 @@ func (s *Server) apiAutoTopUp(w http.ResponseWriter, r *http.Request) {
 		if !decodePaymentRequest(w, r, &request) {
 			return
 		}
-		result, etag, err := s.accountClient.PutAutoTopUp(r.Context(), ctx.token, ctx.org.ID, version, request)
+		result, etag, err := s.billingClient.PutAutoTopUp(r.Context(), ctx.actorID, ctx.org.ID, version, request)
 		if err != nil {
 			s.writePaymentBFFError(w, ctx.session.ID, err)
 			return
@@ -367,7 +369,7 @@ func (s *Server) apiAutoTopUp(w http.ResponseWriter, r *http.Request) {
 		writeInvalidPaymentRequest(w)
 		return
 	}
-	result, etag, err := s.accountClient.DisableAutoTopUp(r.Context(), ctx.token, ctx.org.ID, version, request)
+	result, etag, err := s.billingClient.DisableAutoTopUp(r.Context(), ctx.actorID, ctx.org.ID, version, request)
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -412,7 +414,7 @@ func (s *Server) apiManualTopUp(w http.ResponseWriter, r *http.Request) {
 	if !decodePaymentRequest(w, r, &request) {
 		return
 	}
-	result, err := s.accountClient.CreateManualTopUp(r.Context(), ctx.token, ctx.org.ID, idempotencyKey, request)
+	result, err := s.billingClient.CreateManualTopUp(r.Context(), ctx.actorID, ctx.org.ID, idempotencyKey, request)
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -425,7 +427,7 @@ func (s *Server) apiPaymentIntents(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := s.accountClient.PaymentIntents(r.Context(), ctx.token, ctx.org.ID, boundedPaymentQuery(r))
+	result, err := s.billingClient.PaymentIntents(r.Context(), ctx.actorID, ctx.org.ID, boundedPaymentQuery(r))
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -438,7 +440,7 @@ func (s *Server) apiPaymentIntent(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := s.accountClient.PaymentIntent(r.Context(), ctx.token, ctx.org.ID, r.PathValue("intentId"))
+	result, err := s.billingClient.PaymentIntent(r.Context(), ctx.actorID, ctx.org.ID, r.PathValue("intentId"))
 	if err != nil {
 		s.writePaymentBFFError(w, ctx.session.ID, err)
 		return
@@ -485,7 +487,7 @@ func writeInvalidPaymentRequest(w http.ResponseWriter) {
 }
 
 func (s *Server) writePaymentBFFError(w http.ResponseWriter, sessionID string, err error) {
-	var upstream *accountclient.HTTPError
+	var upstream *billingclient.HTTPError
 	if errors.As(err, &upstream) {
 		var envelope struct {
 			Code    string `json:"code"`

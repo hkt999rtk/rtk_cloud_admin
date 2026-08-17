@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"rtk_cloud_admin/internal/accountclient"
+	"rtk_cloud_admin/internal/billingclient"
 	"rtk_cloud_admin/internal/config"
 )
 
@@ -16,6 +17,11 @@ func TestBillingPortalBFFScopesAndProxiesContractResources(t *testing.T) {
 	permissions := strings.Join([]string{"billing_summary.read", "billing_usage.read", "invoice.read", "invoice_document.read", "billing_activity.read", "billing_profile.read", "billing_profile.manage", "billing_statement.export"}, `","`)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "/billing/") && r.URL.Path != "/v1/me" {
+			if r.Header.Get("Authorization") != "Bearer "+strings.Repeat("b", 32) || r.Header.Get("X-Billing-Actor-ID") != "u1" {
+				t.Fatalf("billing service identity headers are missing")
+			}
+		}
 		switch r.URL.EscapedPath() {
 		case "/v1/me":
 			_, _ = w.Write([]byte(`{"user":{"id":"u1"},"organizations":[{"id":"org-safe","role":"owner","permissions":["` + permissions + `"]}]}`))
@@ -57,7 +63,10 @@ func TestBillingPortalBFFScopesAndProxiesContractResources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := NewWithOptions(st, Options{Config: config.Config{AccountManagerBaseURL: upstream.URL}, AccountClient: accountclient.New(upstream.URL)})
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL, BillingServiceBaseURL: upstream.URL, BillingServiceToken: strings.Repeat("b", 32)},
+		AccountClient: accountclient.New(upstream.URL), BillingClient: billingclient.New(upstream.URL, strings.Repeat("b", 32)),
+	})
 	request := func(method, path, body string) *httptest.ResponseRecorder {
 		var reader io.Reader
 		if body != "" {

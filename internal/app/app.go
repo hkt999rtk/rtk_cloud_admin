@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"rtk_cloud_admin/internal/accountclient"
+	"rtk_cloud_admin/internal/billingclient"
 	"rtk_cloud_admin/internal/config"
 	"rtk_cloud_admin/internal/contracts"
 	"rtk_cloud_admin/internal/correlation"
@@ -47,6 +48,7 @@ type Server struct {
 	handler             http.Handler
 	cfg                 config.Config
 	accountClient       *accountclient.Client
+	billingClient       *billingclient.Client
 	videoClient         *videoclient.Client
 	logger              *zap.Logger
 }
@@ -54,6 +56,7 @@ type Server struct {
 type Options struct {
 	Config        config.Config
 	AccountClient *accountclient.Client
+	BillingClient *billingclient.Client
 	VideoClient   *videoclient.Client
 	Logger        *zap.Logger
 }
@@ -87,6 +90,9 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 	if opts.VideoClient == nil && opts.Config.VideoCloudBaseURL != "" {
 		opts.VideoClient = videoclient.New(opts.Config.VideoCloudBaseURL)
 	}
+	if opts.BillingClient == nil && opts.Config.BillingServiceBaseURL != "" {
+		opts.BillingClient = billingclient.New(opts.Config.BillingServiceBaseURL, opts.Config.BillingServiceToken)
+	}
 	if opts.Logger == nil {
 		opts.Logger = cloudlogger.Nop()
 	}
@@ -100,6 +106,7 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 		mux:                 http.NewServeMux(),
 		cfg:                 opts.Config,
 		accountClient:       opts.AccountClient,
+		billingClient:       opts.BillingClient,
 		videoClient:         opts.VideoClient,
 		logger:              opts.Logger,
 	}

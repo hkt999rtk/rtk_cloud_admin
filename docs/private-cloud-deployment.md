@@ -67,6 +67,8 @@ Required or recommended environment variables:
 - `PORT`: listen port for the HTTP server, default `8080`
 - `DATABASE_PATH`: SQLite file path, typically on a persistent volume
 - `ACCOUNT_MANAGER_BASE_URL`: upstream Account Manager base URL
+- `BILLING_SERVICE_BASE_URL`: internal RTK Billing service URL
+- `BILLING_SERVICE_TOKEN`: dedicated Cloud Admin-to-Billing service credential
 - `VIDEO_CLOUD_BASE_URL`: upstream Video Cloud base URL
 - `VIDEO_CLOUD_ADMIN_TOKEN`: admin token used for telemetry, firmware, and
   stream queries

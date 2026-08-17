@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"rtk_cloud_admin/internal/accountclient"
+	"rtk_cloud_admin/internal/billingclient"
 	"rtk_cloud_admin/internal/config"
 )
 
@@ -88,7 +89,10 @@ func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
-	srv := NewWithOptions(st, Options{Config: config.Config{AccountManagerBaseURL: upstream.URL}, AccountClient: accountclient.New(upstream.URL)})
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL, BillingServiceBaseURL: upstream.URL, BillingServiceToken: strings.Repeat("b", 32)},
+		AccountClient: accountclient.New(upstream.URL), BillingClient: billingclient.New(upstream.URL, strings.Repeat("b", 32)),
+	})
 
 	accountRequest := httptest.NewRequest(http.MethodGet, "/api/billing/account?organization_id=org-other", nil)
 	accountRequest.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
@@ -184,7 +188,10 @@ func TestPaymentBFFRejectsCardFieldsAndRedactsUpstreamFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
-	srv := NewWithOptions(st, Options{Config: config.Config{AccountManagerBaseURL: upstream.URL}, AccountClient: accountclient.New(upstream.URL)})
+	srv := NewWithOptions(st, Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL, BillingServiceBaseURL: upstream.URL, BillingServiceToken: strings.Repeat("b", 32)},
+		AccountClient: accountclient.New(upstream.URL), BillingClient: billingclient.New(upstream.URL, strings.Repeat("b", 32)),
+	})
 
 	missingKeyRequest := httptest.NewRequest(http.MethodPost, "/api/billing/payment-methods/setup", strings.NewReader(`{"provider":"newebpay","consent":{"accepted":true,"text_version":"payment-method-v1","text_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","locale":"zh-TW"}}`))
 	missingKeyRequest.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
@@ -301,7 +308,7 @@ func TestPaymentBFFValidationAndStableErrors(t *testing.T) {
 	}
 
 	response := httptest.NewRecorder()
-	srv.writePaymentBFFError(response, "missing-session", &accountclient.HTTPError{
+	srv.writePaymentBFFError(response, "missing-session", &billingclient.HTTPError{
 		Method:     http.MethodPost,
 		Path:       "/v1/orgs/org-safe/payment-methods/setup",
 		StatusCode: http.StatusServiceUnavailable,

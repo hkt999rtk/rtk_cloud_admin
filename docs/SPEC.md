@@ -473,6 +473,8 @@ Environment variables:
 - `PORT`: HTTP port, default `8080`.
 - `DATABASE_PATH`: SQLite path, default `data/rtk-cloud-admin.db`.
 - `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL.
+- `BILLING_SERVICE_BASE_URL`: RTK Billing upstream for pricing, wallet, payment, invoice, and billing access operations.
+- `BILLING_SERVICE_TOKEN`: dedicated service credential; Cloud Admin sends the resolved actor and one exact billing permission separately.
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL.
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token.
 - `ADMIN_BREAK_GLASS_ENABLED`: deprecated compatibility flag; local
