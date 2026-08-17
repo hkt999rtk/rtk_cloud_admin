@@ -86,10 +86,23 @@ func TestBillingPortalBFFScopesAndProxiesContractResources(t *testing.T) {
 	if response := request(http.MethodPut, "/api/billing/profile", `{"legal_name":"ACME","locale":"zh-TW","timezone":"Asia/Taipei","delivery_preference":"portal","version":3}`); response.Code != http.StatusOK {
 		t.Fatalf("profile: %d %s", response.Code, response.Body.String())
 	}
+	if response := request(http.MethodPut, "/api/billing/profile", `{"legal_name":"","version":0}`); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid profile: %d %s", response.Code, response.Body.String())
+	}
 	if response := request(http.MethodGet, "/api/billing/invoices/invoice%2F1/pdf", ""); response.Code != http.StatusOK || response.Header().Get("Content-Type") != "application/pdf" || !strings.HasPrefix(response.Body.String(), "%PDF") {
 		t.Fatalf("pdf: %d %s", response.Code, response.Body.String())
 	}
 	if response := request(http.MethodGet, "/api/billing/statements", ""); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "INV-1") {
 		t.Fatalf("statement: %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestServerBuildsBillingClientFromConfiguration(t *testing.T) {
+	server := NewWithOptions(mustOpenStore(t), Options{Config: config.Config{
+		BillingServiceBaseURL: "https://billing.example.test",
+		BillingServiceToken:   strings.Repeat("b", 32),
+	}})
+	if server.billingClient == nil || !server.billingClient.Enabled() {
+		t.Fatal("configured Billing service did not create a client")
 	}
 }

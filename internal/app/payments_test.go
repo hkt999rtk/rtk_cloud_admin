@@ -119,6 +119,9 @@ func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T)
 	if response := request(http.MethodGet, "/api/billing/ledger?limit=25&offset=0&ignored=secret", "", nil); response.Code != http.StatusOK {
 		t.Fatalf("ledger status/body=%d/%s", response.Code, response.Body.String())
 	}
+	if response := request(http.MethodGet, "/api/billing/summary", "", nil); response.Code != http.StatusForbidden {
+		t.Fatalf("missing summary capability status/body=%d/%s", response.Code, response.Body.String())
+	}
 	if response := request(http.MethodGet, "/api/billing/payment-methods", "", nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "4242") {
 		t.Fatalf("methods status/body=%d/%s", response.Code, response.Body.String())
 	}
@@ -144,6 +147,15 @@ func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T)
 	}
 	if response := request(http.MethodDelete, "/api/billing/payment-methods/method-1", `{"reason":"customer revoked method"}`, nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"policy_disabled":true`) {
 		t.Fatalf("revoke status/body=%d/%s", response.Code, response.Body.String())
+	}
+	if response := request(http.MethodDelete, "/api/billing/payment-methods/method-1", `{"reason":"x"}`, nil); response.Code != http.StatusBadRequest {
+		t.Fatalf("short revoke reason status/body=%d/%s", response.Code, response.Body.String())
+	}
+	if response := request(http.MethodDelete, "/api/billing/auto-topup", `{"reason":"x"}`, map[string]string{"If-Match": `"5"`}); response.Code != http.StatusBadRequest {
+		t.Fatalf("short disable reason status/body=%d/%s", response.Code, response.Body.String())
+	}
+	if response := request(http.MethodPost, "/api/billing/topups", `{"amount_minor":`, map[string]string{"Idempotency-Key": "topup-malformed"}); response.Code != http.StatusBadRequest {
+		t.Fatalf("malformed topup status/body=%d/%s", response.Code, response.Body.String())
 	}
 	if response := request(http.MethodPost, "/api/billing/topups", `{"amount_minor":10000,"currency":"TWD","payment_method_id":"method-1"}`, map[string]string{"Idempotency-Key": "topup-bff-1"}); response.Code != http.StatusAccepted {
 		t.Fatalf("topup status/body=%d/%s", response.Code, response.Body.String())
