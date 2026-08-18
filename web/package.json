@@ -19,6 +19,7 @@
     "e2e:brand-fleet:source-states": "E2E_SCENARIO_MODE=empty playwright test e2e/brand-fleet-errors.spec.mjs --project=chromium --grep @errors && E2E_SCENARIO_MODE=stale playwright test e2e/brand-fleet-errors.spec.mjs --project=chromium --grep @errors",
     "e2e:brand-fleet:expired": "E2E_RESULT_EXPIRED=true playwright test e2e/brand-fleet-report-states.spec.mjs --project=chromium --grep @errors",
     "e2e:brand-fleet:staging": "playwright test e2e/brand-fleet-*.spec.mjs --project=staging --grep @staging",
+    "e2e:billing:staging": "playwright test e2e/billing-staging.spec.mjs --project=staging --project=staging-mobile",
     "e2e:chipset-sdk": "playwright test e2e/chipset-sdk.spec.mjs --project=chromium",
     "e2e:chipset-sdk:errors": "E2E_SCENARIO_MODE=unavailable playwright test e2e/chipset-sdk.spec.mjs --project=chromium --grep @errors",
     "e2e:chipset-sdk:visual": "playwright test e2e/chipset-sdk.visual.spec.mjs --project=chromium --project=mobile",
