@@ -460,6 +460,14 @@ const (
 	capabilityProvisioningCreate        = "provisioning.create"
 	capabilityBillingAccountRead        = "billing_account.read"
 	capabilityBillingLedgerRead         = "billing_ledger.read"
+	capabilityBillingSummaryRead        = "billing_summary.read"
+	capabilityBillingUsageRead          = "billing_usage.read"
+	capabilityInvoiceRead               = "invoice.read"
+	capabilityInvoiceDocumentRead       = "invoice_document.read"
+	capabilityBillingActivityRead       = "billing_activity.read"
+	capabilityBillingProfileRead        = "billing_profile.read"
+	capabilityBillingProfileManage      = "billing_profile.manage"
+	capabilityBillingStatementExport    = "billing_statement.export"
 	capabilityPaymentMethodRead         = "payment_method.read"
 	capabilityPaymentMethodManage       = "payment_method.manage"
 	capabilityPaymentIntentRead         = "payment_intent.read"
@@ -6256,6 +6264,14 @@ func fleetManagerCapabilities() []string {
 		capabilityProvisioningCreate,
 		capabilityBillingAccountRead,
 		capabilityBillingLedgerRead,
+		capabilityBillingSummaryRead,
+		capabilityBillingUsageRead,
+		capabilityInvoiceRead,
+		capabilityInvoiceDocumentRead,
+		capabilityBillingActivityRead,
+		capabilityBillingProfileRead,
+		capabilityBillingProfileManage,
+		capabilityBillingStatementExport,
 		capabilityPaymentMethodRead,
 		capabilityPaymentMethodManage,
 		capabilityPaymentIntentRead,

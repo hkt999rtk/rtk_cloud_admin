@@ -106,3 +106,28 @@ func TestServerBuildsBillingClientFromConfiguration(t *testing.T) {
 		t.Fatal("configured Billing service did not create a client")
 	}
 }
+
+func TestBillingPortalCapabilitiesCoverOwnerCompatibilityFallback(t *testing.T) {
+	required := []string{
+		capabilityBillingSummaryRead,
+		capabilityBillingUsageRead,
+		capabilityInvoiceRead,
+		capabilityInvoiceDocumentRead,
+		capabilityBillingActivityRead,
+		capabilityBillingProfileRead,
+		capabilityBillingProfileManage,
+		capabilityBillingStatementExport,
+	}
+	ownerCapabilities := capabilitiesForOrganization(accountclient.Organization{Role: "owner"})
+	for _, capability := range required {
+		if !hasCapability(ownerCapabilities, capability) {
+			t.Fatalf("owner compatibility capabilities missing %q", capability)
+		}
+	}
+	viewerCapabilities := capabilitiesForOrganization(accountclient.Organization{Role: "viewer"})
+	for _, capability := range required {
+		if hasCapability(viewerCapabilities, capability) {
+			t.Fatalf("read-only compatibility capabilities unexpectedly include %q", capability)
+		}
+	}
+}
