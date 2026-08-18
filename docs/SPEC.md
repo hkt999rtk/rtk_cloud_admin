@@ -351,6 +351,35 @@ Service health:
 - configured URLs are checked with a timeout
 - responses include status, latency, and last checked timestamp
 
+## Billing BFF And Customer View
+
+### [REQ-CA-BILLING-001] Billing UI is active-organization scoped and provider safe
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: `/console/billing` resolves the organization exclusively from the
+authenticated customer session, displays integer-minor-unit balance and ledger
+facts, safe payment-method metadata, automatic top-up guardrails, and normalized
+intent states; it never accepts or displays PAN, CVV, opaque provider method
+references, provider transaction references, request hashes, or raw provider
+payloads.
+
+The BFF exposes `/api/billing/*` routes and maps them to the Account Manager
+`/v1/orgs/{activeOrgId}/*` contract. `Idempotency-Key`, `If-Match`, and
+`X-Request-Id` are forwarded where applicable. Upstream payment errors are
+reduced to an allowlist of stable customer-safe codes and messages.
+
+NewebPay hosted setup and merchant-initiated charge controls remain visibly
+`BLOCKED` until written capability approval and sandbox qualification exist.
+Local, CI, and staging may instead expose the approved non-production payment
+simulator at `payment-simulator.video-cloud-staging.realtekconnect.com`. The
+simulator UI is explicitly marked as test-only, contains no card-entry form,
+uses TWD integer units where `1 amount_minor = NT$1`, and defaults to NT$300
+threshold/top-up, NT$1,000 daily amount, and 2 daily attempts. Production must
+never expose or enable the simulator.
+
 ## UI Direction
 
 ### [REQ-CA-BFF-UI-001] Console UI follows the canonical operational style and state vocabulary
@@ -444,6 +473,8 @@ Environment variables:
 - `PORT`: HTTP port, default `8080`.
 - `DATABASE_PATH`: SQLite path, default `data/rtk-cloud-admin.db`.
 - `ACCOUNT_MANAGER_BASE_URL`: optional upstream Account Manager URL.
+- `BILLING_SERVICE_BASE_URL`: RTK Billing upstream for pricing, wallet, payment, invoice, and billing access operations.
+- `BILLING_SERVICE_TOKEN`: dedicated service credential; Cloud Admin sends the resolved actor and one exact billing permission separately.
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL.
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token.
 - `ADMIN_BREAK_GLASS_ENABLED`: deprecated compatibility flag; local

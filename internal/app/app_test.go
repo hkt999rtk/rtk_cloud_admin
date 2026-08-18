@@ -51,6 +51,7 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 		"/console/devices",
 		"/console/firmware-ota",
 		"/console/stream-health",
+		"/console/billing",
 		"/console/groups",
 		"/console/customers",
 		"/console/operations",

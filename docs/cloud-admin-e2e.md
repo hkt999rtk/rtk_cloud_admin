@@ -23,6 +23,7 @@ npm run e2e:brand-fleet
 npm run e2e:brand-fleet:full
 npm run e2e:brand-fleet:errors
 npm run e2e:brand-fleet:expired
+npx playwright test e2e/billing.spec.mjs --project=chromium --project=mobile
 ```
 
 The fixture generator reuses `loadtests/home-100k`'s `BrandPlan` validation,
@@ -32,7 +33,9 @@ under `.artifacts/e2e-fixtures/cloud-admin-e2e/` and is never production data.
 ## Scenarios
 
 The default fixture covers Platform Dashboard, Operations, Service Logs,
-Brand Clouds, SSO state, user lifecycle, creation flow, and authorization.
+Brand Clouds, SSO state, user lifecycle, creation flow, authorization, and the
+provider-safe Billing page. `UI-CA-BILLING-001` runs against the real Go BFF on
+desktop and mobile and retains a final screenshot for each target.
 Prometheus failure behavior can be run separately:
 
 ```sh

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
+  billingSubpaths,
   customerNavItems,
   cloudIdFromPath,
   navItemsForCapabilities,
@@ -64,6 +65,17 @@ import {
 } from './source-state.mjs';
 import { streamAttentionRows, streamModeRows, streamWorstDeviceRows } from './stream.mjs';
 import {
+  AUTO_TOPUP_CONSENT,
+  AUTO_TOPUP_CONSENT_TEXT,
+  PAYMENT_METHOD_CONSENT,
+  PAYMENT_METHOD_CONSENT_TEXT,
+  autoTopUpAssessment,
+  billingErrorMessage,
+  formatMinorAmount,
+  paymentIntentState,
+  paymentMethodLabel,
+} from './billing.mjs';
+import {
   chipsetVendors,
   compactHash,
   filterChipsets,
@@ -107,6 +119,39 @@ function fleetDevicesURL(search = '') {
   return `/api/fleet/devices?${params.toString()}`;
 }
 
+async function fetchBillingData() {
+  const [account, methods, intents, ledger, summary, usage, invoices, activity, profile, policyResponse] = await Promise.all([
+    fetchJSON('/api/billing/account'),
+    fetchJSON('/api/billing/payment-methods?limit=20'),
+    fetchJSON('/api/billing/payment-intents?limit=20'),
+    fetchJSON('/api/billing/ledger?limit=20'),
+    fetchJSON('/api/billing/summary'),
+    fetchJSON('/api/billing/usage'),
+    fetchJSON('/api/billing/invoices?limit=20'),
+    fetchJSON('/api/billing/activity?limit=20'),
+    fetchJSON('/api/billing/profile'),
+    fetch('/api/billing/auto-topup'),
+  ]);
+  if (policyResponse.status === 401) throw new AuthError(401, 'Session expired; please sign in again.');
+  if (policyResponse.status === 403) throw new AuthError(403, 'Access denied.');
+  if (!policyResponse.ok) throw new Error(`billing policy failed with ${policyResponse.status}`);
+  const policy = await policyResponse.json();
+  return {
+    account,
+    methods,
+    intents,
+    ledger,
+    summary,
+    usage,
+    invoices,
+    activity,
+    profile,
+    policy,
+    policyEtag: policyResponse.headers.get('ETag') || `"${policy?.auto_topup?.version || 0}"`,
+    source_status: 'available',
+  };
+}
+
 function App() {
   const [active, setActive] = useState(routeFromLocation());
   const [me, setMe] = useState(null);
@@ -143,6 +188,7 @@ function App() {
   const [reports, setReports] = useState(null);
   const [groups, setGroups] = useState(null);
   const [access, setAccess] = useState(null);
+  const [billing, setBilling] = useState(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [deviceDrawerOpen, setDeviceDrawerOpen] = useState(false);
   const [overviewWindow, setOverviewWindow] = useState('7d');
@@ -190,6 +236,7 @@ function App() {
     setJobs(null);
     setReports(null);
     setGroups(null);
+    setBilling(null);
   }
 
   useEffect(() => {
@@ -446,6 +493,17 @@ function App() {
           setAccess(null);
         }
 
+        if (active === 'billing' && nextMe.kind === 'customer') {
+          const nextBilling = await fetchBillingData().catch((err) => {
+            if (err.isAuthError) throw err;
+            return { source_status: 'unavailable', source_message: '帳務資料暫時無法取得，沒有送出任何扣款。' };
+          });
+          if (!alive) return;
+          setBilling(nextBilling);
+        } else {
+          setBilling(null);
+        }
+
         if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
           const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
           const [nextFleetHealth, nextStreamStats] = await Promise.all([
@@ -474,6 +532,7 @@ function App() {
           setFleetHealth(null);
           setStreamStats(null);
           setRecentAlerts([]);
+          setBilling(null);
         }
       } catch (err) {
         if (!alive) return;
@@ -538,6 +597,7 @@ function App() {
     setFleetHealth(null);
     setStreamStats(null);
     setRecentAlerts([]);
+    setBilling(null);
   }, [isLoginRoute, isPublicRoute]);
 
   useEffect(() => {
@@ -1108,6 +1168,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'provisioning' ? <ProvisioningPage canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'provisioning.create')} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'access' ? <AccessPage data={access} loading={loading} activeCloudId={me?.active_org_id} canManage={canUseCapability({ capabilities: me?.capabilities || [] }, 'team.manage')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <BillingPage data={billing} loading={loading} capabilities={me?.capabilities || []} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
@@ -2141,6 +2202,235 @@ function AccessPage({ data, loading, activeCloudId, canManage, onRefresh }) {
       <section className="panel"><div className="panel-head"><div><h3>目前的權限範圍</h3><p>這裡只顯示管理範圍，不顯示內部權限代碼。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>角色</th><th>管理範圍</th><th>狀態</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{assignment.role_name}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good">啟用</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">目前沒有額外的範圍指派。</p> : null}</div></section>
     </> : null}
   </section>;
+}
+
+function BillingPage({ data, loading, capabilities, onRefresh }) {
+  const account = data?.account?.account;
+  const summary = data?.summary || {};
+  const usage = data?.usage || summary?.current_period || {};
+  const invoices = data?.invoices?.invoices || [];
+  const activities = data?.activity?.activities || [];
+  const billingProfile = data?.profile?.billing_profile || data?.profile?.profile || {};
+  const methods = data?.methods?.payment_methods || [];
+  const intents = data?.intents?.payment_intents || [];
+  const ledger = data?.ledger?.ledger_entries || [];
+  const policy = data?.policy?.auto_topup || data?.account?.auto_topup || null;
+  const providers = data?.account?.payment_providers || [];
+  const setupProvider = providers.find((provider) => provider.capabilities?.hosted_setup);
+  const policyState = autoTopUpAssessment(policy);
+  const activeMethod = methods.find((method) => method.status === 'active') || methods[0];
+  const canManageMethods = capabilities.includes('payment_method.manage');
+  const canManagePolicy = capabilities.includes('auto_topup.manage');
+  const chargeQualified = Boolean(activeMethod?.capabilities?.merchant_initiated_charge);
+  const [threshold, setThreshold] = useState(String(policy?.threshold_minor || 300));
+  const [topUpAmount, setTopUpAmount] = useState(String(policy?.top_up_amount_minor || 300));
+  const [dailyAmount, setDailyAmount] = useState(String(policy?.daily_amount_limit_minor || 1000));
+  const [dailyAttempts, setDailyAttempts] = useState(String(policy?.daily_attempt_limit || 2));
+  const [paymentConsentAccepted, setPaymentConsentAccepted] = useState(false);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [billingView, setBillingView] = useState(() => window.location.pathname.match(/\/billing\/(invoices|activity|settings|profile)(?:\/|$)/)?.[1] || 'overview');
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedActivity, setSelectedActivity] = useState(null);
+
+  useEffect(() => {
+    setThreshold(String(policy?.threshold_minor || 300));
+    setTopUpAmount(String(policy?.top_up_amount_minor || 300));
+    setDailyAmount(String(policy?.daily_amount_limit_minor || 1000));
+    setDailyAttempts(String(policy?.daily_attempt_limit || 2));
+  }, [policy?.version]);
+
+  function selectBillingView(view) {
+    const base = window.location.pathname.replace(/\/billing(?:\/.*)?$/, '/billing');
+    const canonical = billingSubpaths[view] || billingSubpaths.overview;
+    const suffix = canonical.slice('/console/billing'.length);
+    window.history.pushState({}, '', base + suffix);
+    setBillingView(view);
+  }
+
+  function openBillingInvoice(invoice) {
+    const base = window.location.pathname.replace(/\/billing(?:\/.*)?$/, '/billing');
+    window.history.pushState({}, '', `${base}/invoices/${encodeURIComponent(invoice.id)}`);
+    setBillingView('invoices');
+    setSelectedInvoice(invoice);
+  }
+
+  function openBillingActivity(activity) {
+    const base = window.location.pathname.replace(/\/billing(?:\/.*)?$/, '/billing');
+    window.history.pushState({}, '', `${base}/activity/${encodeURIComponent(activity.id)}`);
+    setBillingView('activity');
+    setSelectedActivity(activity);
+  }
+
+  useEffect(() => {
+    const invoiceID = window.location.pathname.match(/\/billing\/invoices\/([^/]+)$/)?.[1];
+    const activityID = window.location.pathname.match(/\/billing\/activity\/([^/]+)$/)?.[1];
+    if (invoiceID && invoices.length) setSelectedInvoice(invoices.find((invoice) => invoice.id === decodeURIComponent(invoiceID)) || null);
+    if (activityID && activities.length) setSelectedActivity(activities.find((activity) => activity.id === decodeURIComponent(activityID)) || null);
+  }, [data?.invoices, data?.activity]);
+
+  async function mutate(method, path, body, headers = {}) {
+    setBusy(true);
+    setMessage('');
+    try {
+      const response = await fetch(path, {
+        method,
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(result.message || 'billing request failed');
+        error.code = result.code;
+        throw error;
+      }
+      setMessage('帳務設定已更新，系統已保留操作與 consent evidence。');
+      onRefresh();
+      return result;
+    } catch (error) {
+      setMessage(billingErrorMessage(error));
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function savePolicy(event) {
+    event.preventDefault();
+    if (!activeMethod || !chargeQualified) {
+      setMessage(billingErrorMessage({ code: 'PAYMENT_CAPABILITY_UNSUPPORTED' }));
+      return;
+    }
+    mutate('PUT', '/api/billing/auto-topup', {
+      enabled: true,
+      threshold_minor: Math.round(Number(threshold)),
+      top_up_amount_minor: Math.round(Number(topUpAmount)),
+      currency: account?.currency || 'TWD',
+      payment_method_id: activeMethod.id,
+      daily_attempt_limit: Math.round(Number(dailyAttempts)),
+      daily_amount_limit_minor: Math.round(Number(dailyAmount)),
+      cooldown_seconds: policy?.cooldown_seconds || 3600,
+      consent: AUTO_TOPUP_CONSENT,
+    }, { 'If-Match': data?.policyEtag || '"0"' });
+  }
+
+  async function setupPaymentMethod() {
+    if (!setupProvider) {
+      setMessage(billingErrorMessage({ code: 'PAYMENT_PROVIDER_NOT_CONFIGURED' }));
+      return;
+    }
+    const popup = window.open('about:blank', '_blank');
+    if (popup) popup.opener = null;
+    const result = await mutate('POST', '/api/billing/payment-methods/setup', {
+      provider: setupProvider.name,
+      consent: PAYMENT_METHOD_CONSENT,
+    }, { 'Idempotency-Key': `payment-setup-${Date.now()}` });
+    if (result?.hosted_url) {
+      if (popup) popup.location.replace(result.hosted_url);
+      else window.location.assign(result.hosted_url);
+    } else if (popup) {
+      popup.close();
+    }
+  }
+
+  if (loading && !data) return <section className="panel split-panel"><div><h2>正在載入帳務資料</h2><p>只讀取目前 active Brand Cloud 的安全帳務摘要。</p></div></section>;
+  if (data?.source_status === 'unavailable') return <section className="panel split-panel"><div><h2>帳務資料暫時無法取得</h2><p>{data.source_message}</p></div></section>;
+
+  const billingTabs = <nav className="billing-tabs" aria-label="帳務頁面">
+    {[['overview', '帳務總覽'], ['invoices', '發票'], ['activity', '帳務活動'], ['settings', '付款與自動加值'], ['profile', '帳單資料']].map(([id, label]) => <button key={id} type="button" className={billingView === id ? 'active' : ''} onClick={() => selectBillingView(id)}>{label}</button>)}
+  </nav>;
+
+  if (selectedInvoice) return <BillingInvoiceDetail invoice={selectedInvoice} onBack={() => { setSelectedInvoice(null); selectBillingView('invoices'); }} />;
+  if (selectedActivity) return <BillingActivityDetail activity={selectedActivity} onBack={() => { setSelectedActivity(null); selectBillingView('activity'); }} />;
+
+  if (billingView === 'overview') return <section className="page-content billing-page" data-testid="billing-page">
+    <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>帳務總覽</h2><p>掌握可用餘額、本月估算費用、發票與最近的帳務異動。</p></div><small>更新時間：{formatProviderTimestamp(summary.calculated_at || account?.updated_at)}</small></div>
+    {billingTabs}
+    <div className="metric-grid billing-overview-metrics">
+      <MetricCard icon="wallet" label="可用餘額" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={summary.runway?.state === 'available' ? `預估可用 ${summary.runway.projected_days} 天` : '用量不足，尚無法估算可用天數'} tone="info" />
+      <MetricCard icon="chart-column" label="本月費用" value={formatMinorAmount(usage.total_minor, usage.currency || account?.currency)} hint={`${formatProviderTimestamp(usage.period_start)} 起 · 目前為估算值`} tone="neutral" />
+      <MetricCard icon="credit-card" label="付款方式" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? '狀態正常' : '尚未設定付款方式'} tone={activeMethod?.status === 'active' ? 'good' : 'warning'} />
+    </div>
+    <div className="billing-overview-grid">
+      <section className="panel billing-auto-card"><div className="panel-head"><div><h3>自動加值{policy?.enabled ? '已啟用' : '未啟用'}</h3><p>{policy ? `低於 ${formatMinorAmount(policy.threshold_minor, policy.currency)} 時加值 ${formatMinorAmount(policy.top_up_amount_minor, policy.currency)}` : '設定門檻與付款方式後即可啟用。'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>{policy?.last_succeeded_at ? <p>上次加值 {formatProviderTimestamp(policy.last_succeeded_at)}</p> : null}<button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>管理自動加值</button></section>
+      <section className="panel billing-usage-card"><div className="panel-head"><div><h3>本月費用明細（依服務類別）</h3><p>定價版本鎖定後，結帳結果會成為不可變發票。</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>總計</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
+    </div>
+    <div className="billing-overview-grid lower">
+      <section className="panel"><div className="panel-head"><div><h3>查看發票</h3><p>已開立發票與不可變 PDF 文件。</p></div><button type="button" className="link-button" onClick={() => selectBillingView('invoices')}>全部發票</button></div><BillingInvoiceTable invoices={invoices.slice(0, 3)} onSelect={openBillingInvoice} /></section>
+      <section className="panel"><div className="panel-head"><div><h3>近期帳務活動</h3><p>加值、發票扣款與需要處理的狀態。</p></div><button type="button" className="link-button" onClick={() => selectBillingView('activity')}>全部活動</button></div><BillingActivityTable activities={activities.slice(0, 4)} onSelect={openBillingActivity} /></section>
+    </div>
+  </section>;
+
+  if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page"><div className="page-intro"><div><h2>發票</h2><p>查詢帳期、金額、付款狀態與下載 PDF。</p></div><a className="ghost-button" href="/api/billing/statements">匯出對帳單</a></div>{billingTabs}<section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section></section>;
+  if (billingView === 'activity') return <section className="page-content billing-page" data-testid="billing-activity-page"><div className="page-intro"><div><h2>帳務活動</h2><p>使用一致狀態追蹤加值、發票扣款、重試與對帳。</p></div></div>{billingTabs}<section className="panel"><BillingActivityTable activities={activities} onSelect={openBillingActivity} /></section></section>;
+  if (billingView === 'profile') return <BillingProfilePage profile={billingProfile} tabs={billingTabs} canManage={capabilities.includes('billing_profile.manage')} onRefresh={onRefresh} />;
+
+  return <section className="page-content billing-page" data-testid="billing-page">
+    <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>付款與自動加值</h2><p>餘額嚴格低於門檻時才建立一次加值意圖；金額、次數、冷卻與 consent 均由後端驗證。</p></div></div>
+    {billingTabs}
+    <div className="metric-grid billing-metrics">
+      <MetricCard icon="wallet" label="可用餘額" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={`帳戶 ${account?.state || 'unavailable'} · 最後更新 ${formatProviderTimestamp(account?.updated_at)}`} tone="info" />
+      <MetricCard icon="arrows-rotate" label="自動加值" value={policyState.label} hint={policyState.detail} tone={policyState.tone} />
+      <MetricCard icon="credit-card" label="付款方式" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? `狀態：${activeMethod.status}` : '不在本頁輸入卡號或 CVV'} tone={activeMethod?.status === 'active' ? 'good' : 'neutral'} />
+      <MetricCard icon="clock-rotate-left" label="近期意圖" value={String(intents.length)} hint="包含成功、失敗、待對帳與處理中" tone="neutral" />
+    </div>
+
+    <section className="panel billing-safety" data-testid="billing-provider-gate"><div className="panel-head"><div><h3>付款服務資格狀態</h3><p>{setupProvider?.environment === 'simulated' ? '目前使用 staging 虛擬金流；不會產生真實扣款。' : '目前未提供已驗證的 hosted payment setup。'}</p></div><span className={`status-badge ${setupProvider ? 'good' : 'warning'}`}>{setupProvider ? 'READY' : 'BLOCKED'}</span></div><p>付款資料只在 provider hosted page 操作；RTK Cloud 不接收卡號或 CVV。</p><label className="billing-consent"><input type="checkbox" checked={paymentConsentAccepted} onChange={(event) => setPaymentConsentAccepted(event.target.checked)} />{PAYMENT_METHOD_CONSENT_TEXT}</label><button type="button" className="primary" disabled={busy || !canManageMethods || !setupProvider || !paymentConsentAccepted} onClick={setupPaymentMethod}>{busy ? '準備中…' : '新增付款方式'}</button></section>
+
+    <div className="billing-columns">
+      <section className="panel"><div className="panel-head"><div><h3>自動加值政策</h3><p>每日限制以 {policy?.limit_timezone || 'Asia/Taipei'} 計算，下一次重設：{policy?.limit_reset_at ? formatProviderTimestamp(policy.limit_reset_at) : '—'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>
+        <form className="billing-policy-form" onSubmit={savePolicy}>
+          <label>低餘額門檻（TWD）<input type="number" min="1" step="1" value={threshold} onChange={(event) => setThreshold(event.target.value)} /></label>
+          <label>每次加值（TWD）<input type="number" min="1" step="1" value={topUpAmount} onChange={(event) => setTopUpAmount(event.target.value)} /></label>
+          <label>每日金額上限（TWD）<input type="number" min="1" step="1" value={dailyAmount} onChange={(event) => setDailyAmount(event.target.value)} /></label>
+          <label>每日扣款最高次數<input type="number" min="1" max="10" step="1" value={dailyAttempts} onChange={(event) => setDailyAttempts(event.target.value)} /></label>
+          <label className="billing-consent"><input type="checkbox" checked readOnly />{AUTO_TOPUP_CONSENT_TEXT}</label>
+          <div className="inline-actions"><button type="submit" className="primary" disabled={busy || !canManagePolicy || !chargeQualified}>{busy ? '更新中…' : '儲存並啟用'}</button>{policy?.enabled ? <button type="button" className="ghost-button" disabled={busy || !canManagePolicy} onClick={() => mutate('DELETE', '/api/billing/auto-topup', { reason: 'customer disabled automatic top-up' }, { 'If-Match': data?.policyEtag || `"${policy.version}"` })}>停用自動加值</button> : null}</div>
+        </form>
+        {!chargeQualified ? <p className="notice">付款方式尚未具備 merchant-initiated charge 能力；儲存按鈕保持停用，不會送出扣款。</p> : null}
+        {message ? <p className="notice" role="status">{message}</p> : null}
+      </section>
+
+      <section className="panel"><div className="panel-head"><div><h3>付款方式</h3><p>只保存 provider、品牌、末四碼與到期月份等安全 metadata。</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : '到期日未提供'}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{method.status}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>撤銷</button> : null}</div>)}</div> : <p className="empty-state">目前沒有已驗證的付款方式。</p>}
+        <button type="button" className="ghost-button" disabled title="第一階段由自動加值流程建立付款意圖">立即加值（後續開放）</button>
+      </section>
+    </div>
+
+    <section className="panel"><div className="panel-head"><div><h3>付款意圖</h3><p>normalized 狀態供客戶追蹤；provider 交易參考與 payload 不會顯示。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>建立時間</th><th>原因</th><th>金額</th><th>狀態</th></tr></thead><tbody>{intents.map((intent) => { const state = paymentIntentState(intent.state); return <tr key={intent.id}><td>{formatProviderTimestamp(intent.created_at)}</td><td>{intent.reason === 'auto_top_up' ? '自動加值' : '手動加值'}</td><td>{formatMinorAmount(intent.amount_minor, intent.currency)}</td><td><span className={`status-badge ${state.tone}`}>{state.label}</span></td></tr>; })}</tbody></table>{!intents.length ? <p className="empty-state">目前沒有付款意圖。</p> : null}</div></section>
+
+    <section className="panel"><div className="panel-head"><div><h3>餘額異動</h3><p>不可覆寫的 ledger，只顯示客戶安全欄位。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>時間</th><th>原因</th><th>異動</th><th>異動後餘額</th></tr></thead><tbody>{ledger.map((entry) => <tr key={entry.id}><td>{formatProviderTimestamp(entry.created_at)}</td><td>{entry.reason}</td><td>{entry.direction === 'debit' ? '−' : '+'}{formatMinorAmount(entry.amount_minor, entry.currency)}</td><td>{formatMinorAmount(entry.balance_after_minor, entry.currency)}</td></tr>)}</tbody></table>{!ledger.length ? <p className="empty-state">目前沒有餘額異動。</p> : null}</div></section>
+  </section>;
+}
+
+function BillingInvoiceTable({ invoices, onSelect }) {
+  if (!invoices.length) return <p className="empty-state">目前沒有發票。</p>;
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>發票編號</th><th>帳單期間</th><th>金額</th><th>狀態</th><th>文件</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button type="button" className="link-button" onClick={() => onSelect(invoice)}>{invoice.invoice_number}</button></td><td>{formatProviderTimestamp(invoice.period_start)} ～ {formatProviderTimestamp(invoice.period_end)}</td><td>{formatMinorAmount(invoice.total_minor, invoice.currency)}</td><td><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? '已付款' : invoice.state}</span></td><td>{invoice.document ? <a className="icon-download" aria-label={`下載 ${invoice.invoice_number} PDF`} href={`/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`}><i className="fa-solid fa-download" /></a> : '—'}</td></tr>)}</tbody></table></div>;
+}
+
+function BillingActivityTable({ activities, onSelect }) {
+  if (!activities.length) return <p className="empty-state">目前沒有帳務活動。</p>;
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>時間</th><th>類型</th><th>參考編號</th><th>金額</th><th>狀態</th></tr></thead><tbody>{activities.map((activity) => <tr key={activity.id}><td>{formatProviderTimestamp(activity.occurred_at)}</td><td>{activity.type === 'invoice' ? '發票' : activity.type === 'auto_top_up' ? '自動加值' : activity.type}</td><td><button type="button" className="link-button" onClick={() => onSelect(activity)}>{activity.customer_reference}</button></td><td className={activity.balance_effect === 'credit' ? 'money-credit' : ''}>{activity.balance_effect === 'credit' ? '+' : '−'}{formatMinorAmount(activity.amount_minor, activity.currency)}</td><td><span className={`status-badge ${activity.state === 'completed' ? 'good' : activity.state === 'failed' ? 'danger' : 'warning'}`}>{activity.state === 'completed' ? '成功' : activity.state}</span></td></tr>)}</tbody></table></div>;
+}
+
+function BillingInvoiceDetail({ invoice, onBack }) {
+  return <section className="page-content billing-page" data-testid="billing-invoice-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← 返回發票</button><div className="page-intro"><div><p className="eyebrow">Invoice</p><h2>{invoice.invoice_number}</h2><p>{formatProviderTimestamp(invoice.period_start)} ～ {formatProviderTimestamp(invoice.period_end)}</p></div><div className="inline-actions"><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? '已付款' : invoice.state}</span>{invoice.document ? <a className="primary button-link" href={`/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`}>下載 PDF</a> : null}</div></div><section className="panel invoice-paper"><div className="invoice-parties"><div><small>帳單收件人</small><strong>{invoice.recipient?.legal_name || '—'}</strong><span>{invoice.recipient?.tax_identifier || ''}</span><span>{invoice.recipient?.billing_address || ''}</span></div><div><small>開立日期</small><strong>{formatProviderTimestamp(invoice.issued_at)}</strong><small>總金額</small><strong>{formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>服務</th><th>說明</th><th>用量</th><th>小計</th></tr></thead><tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td>{line.service_code}</td><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{formatMinorAmount(line.total_minor, invoice.currency)}</td></tr>)}</tbody></table></div><div className="invoice-totals"><span>未稅 {formatMinorAmount(invoice.subtotal_minor, invoice.currency)}</span><span>稅額 {formatMinorAmount(invoice.tax_minor, invoice.currency)}</span><strong>總計 {formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div><p className="notice">本發票由預付餘額結算；付款方式加值與發票扣款是兩筆獨立帳務事件。</p></section></section>;
+}
+
+function BillingActivityDetail({ activity, onBack }) {
+  return <section className="page-content billing-page" data-testid="billing-activity-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← 返回帳務活動</button><div className="page-intro"><div><p className="eyebrow">Billing activity</p><h2>{activity.customer_reference}</h2><p>{activity.type === 'invoice' ? '發票扣款' : '自動加值'} · {formatMinorAmount(activity.amount_minor, activity.currency)}</p></div><span className={`status-badge ${activity.state === 'completed' ? 'good' : 'warning'}`}>{activity.state === 'completed' ? '成功' : activity.state}</span></div><section className="panel"><h3>處理時間軸</h3><ol className="billing-timeline">{(activity.steps?.length ? activity.steps : [{ kind: activity.type, state: activity.state, occurred_at: activity.occurred_at, customer_reference: activity.customer_reference }]).map((step, index) => <li key={`${step.kind}-${index}`}><i className="fa-solid fa-circle-check" /><div><strong>{step.kind}</strong><p>{step.state} · {formatProviderTimestamp(step.occurred_at)}</p><small>{step.customer_reference}</small></div></li>)}</ol></section></section>;
+}
+
+function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
+  const [form, setForm] = useState(profile);
+  const [message, setMessage] = useState('');
+  useEffect(() => setForm(profile), [profile.version]);
+  async function submit(event) {
+    event.preventDefault();
+    const response = await fetch('/api/billing/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': `"${form.version}"` }, body: JSON.stringify(form) });
+    setMessage(response.ok ? '帳單資料已更新；既有發票快照不會被改寫。' : '帳單資料更新失敗，請重新整理後再試。');
+    if (response.ok) onRefresh();
+  }
+  return <section className="page-content billing-page" data-testid="billing-profile-page"><div className="page-intro"><div><h2>帳單資料</h2><p>新發票會保存開立當下的收件人快照，後續修改不會改寫既有文件。</p></div></div>{tabs}<section className="panel"><form className="billing-profile-form" onSubmit={submit}><label>公司／法定名稱<input value={form.legal_name || ''} onChange={(event) => setForm({ ...form, legal_name: event.target.value })} required /></label><label>統一編號<input value={form.tax_identifier || ''} onChange={(event) => setForm({ ...form, tax_identifier: event.target.value })} /></label><label>帳單 Email<input type="email" value={form.contact_email || ''} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} /></label><label className="wide">帳單地址<textarea value={form.billing_address || ''} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} /></label><label>語系<input value={form.locale || 'zh-TW'} onChange={(event) => setForm({ ...form, locale: event.target.value })} /></label><label>帳務時區<input value={form.timezone || 'Asia/Taipei'} onChange={(event) => setForm({ ...form, timezone: event.target.value })} /></label><label>交付方式<select value={form.delivery_preference || 'portal'} onChange={(event) => setForm({ ...form, delivery_preference: event.target.value })}><option value="portal">Portal</option><option value="portal_and_email">Portal + Email</option></select></label><div className="wide"><button type="submit" className="primary" disabled={!canManage}>儲存帳單資料</button>{message ? <p className="notice" role="status">{message}</p> : null}</div></form></section></section>;
 }
 
 function ProvisioningPage({ canCreate }) {

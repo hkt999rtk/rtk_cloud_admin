@@ -50,6 +50,8 @@ tags:
     description: Account Manager-backed ChipSet and SDK provider administration and developer resources.
   - name: SSO
     description: Account Manager-backed OIDC SSO configuration and flows.
+  - name: Billing
+    description: Active-organization commercial balance and provider-safe payment workflows.
 security:
   - SessionCookie: []
 paths:
@@ -1553,6 +1555,318 @@ paths:
         "200": { description: Job result. }
         "410": { description: Result expired. }
 
+  /api/billing/summary:
+    get:
+      operationId: getApiBillingSummary
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: Read the active tenant billing overview.
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200":
+          description: Balance, current-period estimate, automatic top-up health, and runway.
+          content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingSummaryResponse" } } }
+  /api/billing/usage:
+    get:
+      operationId: getApiBillingUsage
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: Read server-priced current-period usage.
+      security: [{ SessionCookie: [] }]
+      responses: { "200": { description: Priced usage lines. } }
+  /api/billing/invoices:
+    get:
+      operationId: getApiBillingInvoices
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: List tenant invoices.
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200":
+          description: Invoice page.
+          content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingInvoiceListResponse" } } }
+  /api/billing/invoices/{invoiceId}:
+    get:
+      operationId: getApiBillingInvoice
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: Read one invoice and its immutable snapshots.
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: invoiceId, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Invoice detail. }, "404": { $ref: "#/components/responses/PlainTextError" } }
+  /api/billing/invoices/{invoiceId}/pdf:
+    get:
+      operationId: getApiBillingInvoicePdf
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: Download the immutable invoice PDF.
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: invoiceId, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200":
+          description: Invoice PDF.
+          content: { application/pdf: { schema: { type: string, format: binary } } }
+  /api/billing/activity:
+    get:
+      operationId: getApiBillingActivity
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: List normalized customer-safe billing activity.
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200":
+          description: Activity page.
+          content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingActivityListResponse" } } }
+  /api/billing/activity/{activityId}:
+    get:
+      operationId: getApiBillingActivityDetail
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: Read one customer-safe activity timeline.
+      security: [{ SessionCookie: [] }]
+      parameters: [{ name: activityId, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Activity detail. }, "404": { $ref: "#/components/responses/PlainTextError" } }
+  /api/billing/profile:
+    get:
+      operationId: getApiBillingProfile
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: Read the prospective invoice recipient profile.
+      security: [{ SessionCookie: [] }]
+      responses: { "200": { description: Billing profile. } }
+    put:
+      operationId: putApiBillingProfile
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: Update the prospective invoice recipient profile.
+      security: [{ SessionCookie: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingProfile" } } } }
+      responses: { "200": { description: Updated profile. }, "412": { $ref: "#/components/responses/PlainTextError" } }
+  /api/billing/statements:
+    get:
+      operationId: getApiBillingStatement
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: Export a UTF-8 tenant billing statement.
+      security: [{ SessionCookie: [] }]
+      responses: { "200": { description: CSV statement, content: { text/csv: { schema: { type: string } } } } }
+  /api/billing/account:
+    get:
+      operationId: getApiBillingAccount
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: Read the active organization's commercial account.
+      responses:
+        "200":
+          description: Customer-safe account and automatic top-up summary.
+          content: { application/json: { schema: { $ref: "#/components/schemas/BillingAccountResponse" } } }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/billing/ledger:
+    get:
+      operationId: getApiBillingLedger
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: List customer-safe immutable ledger entries.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200":
+          description: Ledger page.
+          content: { application/json: { schema: { $ref: "#/components/schemas/BillingLedgerResponse" } } }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/billing/payment-methods:
+    get:
+      operationId: getApiBillingPaymentMethods
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: List redacted payment methods.
+      responses:
+        "200":
+          description: Safe payment method list.
+          content: { application/json: { schema: { $ref: "#/components/schemas/PaymentMethodsResponse" } } }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/billing/payment-methods/setup:
+    post:
+      operationId: postApiBillingPaymentMethodSetup
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: Request provider-hosted method setup without accepting card fields.
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [provider, consent]
+              properties:
+                provider: { type: string, enum: [newebpay] }
+                consent:
+                  type: object
+                  additionalProperties: false
+                  required: [accepted, text_version, text_sha256, locale]
+                  properties:
+                    accepted: { type: boolean, enum: [true] }
+                    text_version: { type: string, minLength: 1, maxLength: 128 }
+                    text_sha256: { type: string, pattern: "^[0-9a-fA-F]{64}$" }
+                    locale: { type: string, minLength: 2, maxLength: 35 }
+      responses:
+        "202": { description: Hosted setup accepted by a qualified provider. }
+        "400": { $ref: "#/components/responses/PaymentError" }
+        "409": { $ref: "#/components/responses/PaymentError" }
+
+  /api/billing/payment-methods/{methodId}:
+    delete:
+      operationId: deleteApiBillingPaymentMethod
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: Revoke a payment method.
+      parameters: [{ name: methodId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties: { reason: { type: string, minLength: 3, maxLength: 500 } }
+      responses:
+        "200": { description: Method revoked and dependent policy disabled. }
+        "400": { $ref: "#/components/responses/PaymentError" }
+        "409": { $ref: "#/components/responses/PaymentError" }
+
+  /api/billing/auto-topup:
+    get:
+      operationId: getApiBillingAutoTopUp
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: Read the active automatic top-up policy.
+      responses:
+        "200":
+          description: Policy or null.
+          headers: { ETag: { schema: { type: string } } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/AutoTopUpResponse" } } }
+    put:
+      operationId: putApiBillingAutoTopUp
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: Replace a policy with explicit versioned consent.
+      parameters: [{ $ref: "#/components/parameters/IfMatch" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/AutoTopUpRequest" } } }
+      responses:
+        "200": { description: Policy replaced. }
+        "400": { $ref: "#/components/responses/PaymentError" }
+        "409": { $ref: "#/components/responses/PaymentError" }
+        "428": { $ref: "#/components/responses/PaymentError" }
+    delete:
+      operationId: deleteApiBillingAutoTopUp
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: Disable the current policy.
+      parameters: [{ $ref: "#/components/parameters/IfMatch" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties: { reason: { type: string, minLength: 3, maxLength: 500 } }
+      responses:
+        "200": { description: Policy disabled. }
+        "409": { $ref: "#/components/responses/PaymentError" }
+        "428": { $ref: "#/components/responses/PaymentError" }
+
+  /api/billing/topups:
+    post:
+      operationId: postApiBillingTopUp
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: Create an idempotent manual top-up intent.
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [amount_minor, currency, payment_method_id]
+              properties:
+                amount_minor: { type: integer, minimum: 1, format: int64 }
+                currency: { type: string, enum: [TWD] }
+                payment_method_id: { type: string }
+      responses:
+        "202": { description: Intent accepted. }
+        "400": { $ref: "#/components/responses/PaymentError" }
+        "409": { $ref: "#/components/responses/PaymentError" }
+
+  /api/billing/payment-intents:
+    get:
+      operationId: getApiBillingPaymentIntents
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: List normalized payment intents.
+      responses:
+        "200":
+          description: Intent page without provider transaction references.
+          content: { application/json: { schema: { $ref: "#/components/schemas/PaymentIntentsResponse" } } }
+
+  /api/billing/payment-intents/{intentId}:
+    get:
+      operationId: getApiBillingPaymentIntent
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: Read one normalized intent and safe attempts.
+      parameters: [{ name: intentId, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200": { description: Safe intent detail. }
+        "404": { $ref: "#/components/responses/PaymentError" }
+
   /api/reports:
     get:
       operationId: getApiReports
@@ -2553,6 +2867,12 @@ components:
       schema:
         type: string
         minLength: 1
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Quoted automatic top-up policy version used for optimistic concurrency.
+      schema: { type: string, pattern: '^"?[0-9]+"?$' }
     DeviceID:
       name: id
       in: path
@@ -2613,8 +2933,178 @@ components:
           schema:
             type: string
             example: authentication required
+    PaymentError:
+      description: Stable customer-safe payment error without provider payloads or references.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/PaymentError" }
 
   schemas:
+    PaymentError:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+    BillingAccount:
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, currency, available_balance_minor, state, version, created_at, updated_at]
+      properties:
+        id: { type: string }
+        organization_id: { type: string }
+        currency: { type: string, enum: [TWD] }
+        available_balance_minor: { type: integer, format: int64 }
+        state: { type: string, enum: [active, attention_required, suspended, closed] }
+        version: { type: integer, format: int64, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BillingAccountResponse:
+      type: object
+      additionalProperties: false
+      required: [account, auto_topup]
+      properties:
+        account: { $ref: "#/components/schemas/BillingAccount" }
+        auto_topup:
+          allOf: [{ $ref: "#/components/schemas/AutoTopUpPolicy" }]
+          nullable: true
+    BillingLedgerEntry:
+      type: object
+      additionalProperties: false
+      required: [id, direction, amount_minor, currency, reason, balance_after_minor, created_at]
+      properties:
+        id: { type: string }
+        direction: { type: string, enum: [credit, debit] }
+        amount_minor: { type: integer, format: int64, minimum: 1 }
+        currency: { type: string, enum: [TWD] }
+        reason: { type: string }
+        balance_after_minor: { type: integer, format: int64 }
+        created_at: { type: string, format: date-time }
+    BillingPagination:
+      type: object
+      additionalProperties: false
+      required: [limit, offset, total]
+      properties:
+        limit: { type: integer, minimum: 1 }
+        offset: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+    BillingLedgerResponse:
+      type: object
+      additionalProperties: false
+      required: [ledger_entries, pagination]
+      properties:
+        ledger_entries: { type: array, items: { $ref: "#/components/schemas/BillingLedgerEntry" } }
+        pagination: { $ref: "#/components/schemas/BillingPagination" }
+    PaymentCapabilities:
+      type: object
+      additionalProperties: false
+      required: [hosted_setup, merchant_initiated_charge, query, webhook, refund]
+      properties:
+        hosted_setup: { type: boolean }
+        merchant_initiated_charge: { type: boolean }
+        query: { type: boolean }
+        webhook: { type: boolean }
+        refund: { type: boolean }
+    PaymentMethod:
+      type: object
+      additionalProperties: false
+      required: [id, provider, status, capabilities, created_at, updated_at]
+      properties:
+        id: { type: string }
+        provider: { type: string }
+        status: { type: string, enum: [pending, active, revoked, expired, failed] }
+        card_brand: { type: string }
+        last_four: { type: string, pattern: '^[0-9]{4}$' }
+        expiry_month: { type: integer, minimum: 1, maximum: 12 }
+        expiry_year: { type: integer, minimum: 2026 }
+        capabilities: { $ref: "#/components/schemas/PaymentCapabilities" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    PaymentMethodsResponse:
+      type: object
+      additionalProperties: false
+      required: [payment_methods, pagination]
+      properties:
+        payment_methods: { type: array, items: { $ref: "#/components/schemas/PaymentMethod" } }
+        pagination: { $ref: "#/components/schemas/BillingPagination" }
+    AutoTopUpPolicy:
+      type: object
+      additionalProperties: false
+      required: [id, enabled, threshold_minor, top_up_amount_minor, currency, payment_method_id, daily_attempt_limit, daily_amount_limit_minor, cooldown_seconds, generation, version, armed, limit_timezone, limit_reset_at, created_at, updated_at]
+      properties:
+        id: { type: string }
+        enabled: { type: boolean }
+        threshold_minor: { type: integer, format: int64, minimum: 1 }
+        top_up_amount_minor: { type: integer, format: int64, minimum: 1 }
+        currency: { type: string, enum: [TWD] }
+        payment_method_id: { type: string }
+        daily_attempt_limit: { type: integer, minimum: 1, maximum: 10 }
+        daily_amount_limit_minor: { type: integer, format: int64, minimum: 1 }
+        cooldown_seconds: { type: integer, format: int64, minimum: 300 }
+        generation: { type: integer, format: int64, minimum: 1 }
+        version: { type: integer, format: int64, minimum: 1 }
+        armed: { type: boolean }
+        last_triggered_at: { type: string, format: date-time }
+        last_succeeded_at: { type: string, format: date-time }
+        limit_timezone: { type: string, enum: [UTC] }
+        limit_reset_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AutoTopUpResponse:
+      type: object
+      additionalProperties: false
+      required: [auto_topup]
+      properties:
+        auto_topup:
+          allOf: [{ $ref: "#/components/schemas/AutoTopUpPolicy" }]
+          nullable: true
+    AutoTopUpRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled, threshold_minor, top_up_amount_minor, currency, payment_method_id, daily_attempt_limit, daily_amount_limit_minor, cooldown_seconds, consent]
+      properties:
+        enabled: { type: boolean }
+        threshold_minor: { type: integer, format: int64, minimum: 1 }
+        top_up_amount_minor: { type: integer, format: int64, minimum: 1 }
+        currency: { type: string, enum: [TWD] }
+        payment_method_id: { type: string }
+        daily_attempt_limit: { type: integer, minimum: 1, maximum: 10 }
+        daily_amount_limit_minor: { type: integer, format: int64, minimum: 1 }
+        cooldown_seconds: { type: integer, format: int64, minimum: 300 }
+        consent:
+          type: object
+          additionalProperties: false
+          required: [accepted, text_version, text_sha256, locale]
+          properties:
+            accepted: { type: boolean, enum: [true] }
+            text_version: { type: string }
+            text_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+            locale: { type: string }
+    PaymentIntent:
+      type: object
+      additionalProperties: false
+      required: [id, amount_minor, currency, reason, provider, payment_method_id, state, requires_customer_action, correlation_id, created_at, updated_at]
+      properties:
+        id: { type: string }
+        amount_minor: { type: integer, format: int64, minimum: 1 }
+        currency: { type: string, enum: [TWD] }
+        reason: { type: string, enum: [manual_top_up, auto_top_up] }
+        provider: { type: string }
+        payment_method_id: { type: string }
+        state: { type: string, enum: [created, processing, authorized, requires_action, unknown, succeeded, failed, canceled] }
+        requires_customer_action: { type: boolean }
+        correlation_id: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+    PaymentIntentsResponse:
+      type: object
+      additionalProperties: false
+      required: [payment_intents, pagination]
+      properties:
+        payment_intents: { type: array, items: { $ref: "#/components/schemas/PaymentIntent" } }
+        pagination: { $ref: "#/components/schemas/BillingPagination" }
     StatusOK:
       type: object
       required: [status]

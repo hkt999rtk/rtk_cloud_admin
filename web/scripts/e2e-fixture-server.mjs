@@ -22,6 +22,10 @@ const server = createServer(async (req, res) => {
     state.requestLog.push({ method: req.method, path: url.pathname, cloud: req.headers['x-brand-cloud-id'] || '' });
     if (url.pathname === '/__e2e__/state' && req.method === 'GET') return send(res, 200, { mode, requests: state.requestLog.slice(-500), jobs: state.jobs, reports: state.reports, sources: state.sources, transfers: state.transfers });
     if (url.pathname === '/__e2e__/state/reset' && req.method === 'POST') { state.jobs = []; state.reports = []; state.sources = []; state.transfers = []; state.chipsetProviders = []; state.idempotency.clear(); state.requestLog = []; return send(res, 200, { reset: true }); }
+    if (url.pathname === '/simulator-setup' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end('<!doctype html><html><body><main><h1>Payment simulator</h1><p>No real charge is performed.</p><button>Connect simulated payment method</button></main></body></html>');
+    }
     if (url.pathname === '/api/v1/query' || url.pathname === '/api/v1/query_range') return prometheusResponse(res);
     if (url.pathname === '/v1/logs') return send(res, 200, { events: state.logs.map((event) => ({ event_id: `${event.operation_id}-${event.request_id}`, service: event.service, level: event.level, ts: event.timestamp, msg: event.message, trace_id: event.trace_id, request_id: event.request_id, operation_id: event.operation_id })) });
     if (url.pathname === '/v1/auth/login' && req.method === 'POST') return login(req, res);
@@ -93,7 +97,7 @@ function customerProfile(req) {
   const capabilitySets = {
     platform_admin: ['platform.chipset_sdk.read', 'platform.chipset_sdk.edit', 'platform.chipset_sdk.publish'],
     platform_reader: ['platform.chipset_sdk.read'],
-    developer: ['fleet.read', 'sku.read', 'sku.manage', 'sku.policy.manage', 'firmware.release.read', 'firmware.release.manage', 'ota.plan.read', 'ota.plan.manage', 'reports.read', 'reports.create', 'team.read', 'team.manage', 'provisioning.read', 'provisioning.create'],
+    developer: ['fleet.read', 'sku.read', 'sku.manage', 'sku.policy.manage', 'firmware.release.read', 'firmware.release.manage', 'ota.plan.read', 'ota.plan.manage', 'reports.read', 'reports.create', 'team.read', 'team.manage', 'provisioning.read', 'provisioning.create', 'billing_account.read', 'billing_ledger.read', 'billing_summary.read', 'billing_usage.read', 'invoice.read', 'invoice_document.read', 'billing_activity.read', 'billing_profile.read', 'billing_profile.manage', 'billing_statement.export', 'payment_method.read', 'payment_method.manage', 'payment_intent.read', 'payment_intent.create', 'auto_topup.read', 'auto_topup.manage'],
     operations: ['fleet.read', 'fleet.device.manage', 'fleet.batch.manage', 'fleet.batch.read', 'ota.plan.read', 'ota.plan.manage', 'reports.read', 'team.read', 'provisioning.read'],
     observer: ['fleet.read', 'sku.read', 'firmware.release.read', 'ota.plan.read', 'reports.read', 'team.read', 'provisioning.read'],
     customer: ['fleet.read', 'sku.read', 'firmware.release.read', 'ota.plan.read', 'reports.read', 'team.read', 'provisioning.read'],
@@ -219,6 +223,60 @@ async function handleCustomerResource(req, res, url) {
   if (!['brand-e2e-01', 'brand-e2e-02'].includes(orgID)) return send(res, 403, { error: 'organization forbidden' });
   const devices = mode === 'empty' ? [] : cloudDevices(orgID);
   if (mode === 'slow' && req.method !== 'GET') await new Promise((resolve) => setTimeout(resolve, 350));
+  const paymentMethod = {
+    id: `method-${orgID}`, provider: 'simulator', status: 'active', card_brand: 'VISA', last_four: '4242', expiry_month: 12, expiry_year: 2029,
+    capabilities: { hosted_setup: true, merchant_initiated_charge: true, status_query: true, webhook: false, refund: true },
+    created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-01T08:00:00Z',
+  };
+  const autoTopUp = {
+    id: `policy-${orgID}`, enabled: true, threshold_minor: 300, top_up_amount_minor: 300, currency: 'TWD', payment_method_id: paymentMethod.id,
+    daily_attempt_limit: 2, daily_amount_limit_minor: 1000, cooldown_seconds: 3600, generation: 2, version: 4, armed: true, consecutive_failure_count: 0,
+    limit_timezone: 'Asia/Taipei', limit_reset_at: '2026-08-15T16:00:00Z', created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-15T08:00:00Z',
+  };
+  const invoice = {
+    id: 'invoice-2026-000128', invoice_number: 'INV-2026-000128', organization_id: orgID, pricing_version_id: 'pricing-v1', currency: 'TWD', state: 'settled',
+    period_start: '2026-05-01T00:00:00Z', period_end: '2026-06-01T00:00:00Z', subtotal_minor: 802, tax_minor: 40, total_minor: 842,
+    amount_settled_minor: 842, amount_due_minor: 0, issued_at: '2026-05-23T02:30:00Z', settled_at: '2026-05-23T02:31:00Z', version: 2,
+    recipient: { legal_name: 'ACME Corp.', tax_identifier: '12345678', billing_address: 'Taipei, Taiwan', contact_email: 'billing@example.com', locale: 'zh-TW', timezone: 'Asia/Taipei', delivery_preference: 'portal', version: 1 },
+    lines: [
+      { id: 'line-video', service_code: 'video', metric_code: 'relay_minutes', description: '串流、錄影與頻寬', quantity: 271, unit: 'minute', unit_price_minor: 2, subtotal_minor: 542, tax_minor: 0, total_minor: 542 },
+      { id: 'line-storage', service_code: 'storage', metric_code: 'gb_month', description: '影像儲存與對象儲存', quantity: 105, unit: 'GB-month', unit_price_minor: 2, subtotal_minor: 210, tax_minor: 0, total_minor: 210 },
+      { id: 'line-mqtt', service_code: 'mqtt', metric_code: 'messages', description: '訊息傳輸與連線', quantity: 90, unit: '1000 messages', unit_price_minor: 1, subtotal_minor: 90, tax_minor: 0, total_minor: 90 },
+    ],
+    document: { content_type: 'application/pdf', byte_length: 1024, sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', generated_at: '2026-05-23T02:31:00Z' },
+  };
+  const activities = [
+    { id: 'intent-success', customer_reference: 'TOPUP-20260520', type: 'auto_top_up', state: 'completed', currency: 'TWD', amount_minor: 300, balance_effect: 'credit', action: 'none', occurred_at: '2026-05-20T07:42:00Z', updated_at: '2026-05-20T07:43:00Z', steps: [] },
+    { id: 'activity-invoice', customer_reference: invoice.invoice_number, type: 'invoice', state: 'completed', currency: 'TWD', amount_minor: 842, balance_effect: 'debit', action: 'none', occurred_at: invoice.issued_at, updated_at: invoice.settled_at, steps: [] },
+  ];
+  if (suffix === '/billing/account' && req.method === 'GET') return send(res, 200, { account: { id: `account-${orgID}`, organization_id: orgID, currency: 'TWD', available_balance_minor: 1250, state: 'active', version: 8, created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-15T08:00:00Z' }, auto_topup: autoTopUp, payment_providers: [{ name: 'simulator', environment: 'simulated', capabilities: { hosted_setup: true, merchant_initiated_charge: true } }] });
+  if (suffix === '/billing/summary' && req.method === 'GET') return send(res, 200, { account: { currency: 'TWD', available_balance_minor: 1250, state: 'active' }, current_period: { currency: 'TWD', total_minor: 842, period_start: '2026-05-01T00:00:00Z', period_end: '2026-06-01T00:00:00Z', lines: invoice.lines, estimated: true }, runway: { state: 'available', projected_days: 18, average_daily_cost_minor: 70, lookback_days: 30, confidence: 'estimated', calculated_at: '2026-05-23T02:30:00Z' }, latest_invoice: invoice, calculated_at: '2026-05-23T02:30:00Z' });
+  if (suffix === '/billing/usage' && req.method === 'GET') return send(res, 200, { currency: 'TWD', subtotal_minor: 842, tax_minor: 0, total_minor: 842, period_start: '2026-05-01T00:00:00Z', period_end: '2026-06-01T00:00:00Z', lines: invoice.lines, estimated: true });
+  if (suffix === '/billing/invoices' && req.method === 'GET') return send(res, 200, { invoices: [invoice], pagination: { limit: 20, offset: 0, total: 1 } });
+  if (suffix === `/billing/invoices/${invoice.id}` && req.method === 'GET') return send(res, 200, { invoice });
+  if (suffix === `/billing/invoices/${invoice.id}/pdf` && req.method === 'GET') return send(res, 200, '%PDF-1.7 fixture', { 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="invoice.pdf"' });
+  if (suffix === '/billing/activity' && req.method === 'GET') return send(res, 200, { activities, summary: { action_required: 0, processing: 0, completed: 2 }, pagination: { limit: 20, offset: 0, total: 2 } });
+  if (suffix === '/billing/profile' && req.method === 'GET') return send(res, 200, { profile: invoice.recipient });
+  if (suffix === '/billing/profile' && req.method === 'PUT') return send(res, 200, { profile: { ...invoice.recipient, ...(await readBody(req)), version: 2 } });
+  if (suffix === '/billing/statements' && req.method === 'GET') return send(res, 200, 'invoice_number,total_minor,state\nINV-2026-000128,842,settled\n', { 'Content-Type': 'text/csv' });
+  if (suffix === '/billing/ledger' && req.method === 'GET') return send(res, 200, { ledger_entries: [
+    { id: 'ledger-2', direction: 'debit', amount_minor: 250, currency: 'TWD', reason: 'invoice_debit', balance_after_minor: 1250, created_at: '2026-08-15T07:30:00Z' },
+    { id: 'ledger-1', direction: 'credit', amount_minor: 1500, currency: 'TWD', reason: 'payment_top_up_credit', balance_after_minor: 1500, created_at: '2026-08-01T08:00:00Z' },
+  ], pagination: { limit: 20, offset: 0, total: 2 } });
+  if (suffix === '/payment-methods' && req.method === 'GET') return send(res, 200, { payment_methods: [paymentMethod], pagination: { limit: 20, offset: 0, total: 1 } });
+  if (suffix === '/payment-methods/setup' && req.method === 'POST') return send(res, 202, { payment_method: { ...paymentMethod, status: 'pending' }, hosted_url: `http://${req.headers.host}/simulator-setup`, duplicate: false });
+  if (suffix === '/auto-topup' && req.method === 'PUT') {
+    const body = await readBody(req);
+    if (body.threshold_minor !== 300 || body.top_up_amount_minor !== 300 || body.daily_amount_limit_minor !== 1000 || body.daily_attempt_limit !== 2) {
+      return send(res, 400, { code: 'PAYMENT_AMOUNT_INVALID', message: 'Unexpected simulator policy defaults.' });
+    }
+    return send(res, 200, { auto_topup: { ...autoTopUp, ...body, version: 5 } }, { ETag: '"5"' });
+  }
+  if (suffix === '/auto-topup' && req.method === 'GET') return send(res, 200, { auto_topup: autoTopUp }, { ETag: '"4"' });
+  if (suffix === '/payment-intents' && req.method === 'GET') return send(res, 200, { payment_intents: [
+    { id: 'intent-success', amount_minor: 300, currency: 'TWD', reason: 'auto_top_up', provider: 'simulator', payment_method_id: paymentMethod.id, state: 'succeeded', requires_customer_action: false, correlation_id: 'ui-safe-correlation', created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-01T08:01:00Z', completed_at: '2026-08-01T08:01:00Z' },
+    { id: 'intent-unknown', amount_minor: 100000, currency: 'TWD', reason: 'auto_top_up', provider: 'newebpay', payment_method_id: paymentMethod.id, state: 'unknown', requires_customer_action: false, correlation_id: 'ui-safe-reconcile', created_at: '2026-07-15T08:00:00Z', updated_at: '2026-07-15T08:01:00Z' },
+  ], pagination: { limit: 20, offset: 0, total: 2 } });
   if (suffix === '/fleet/devices' && req.method === 'GET') {
     const query = url.searchParams;
     const filtered = devices.filter((device) => !query.get('q') || JSON.stringify(device).toLowerCase().includes(query.get('q').toLowerCase()));
@@ -395,8 +453,8 @@ function readBody(req) {
   return new Promise((resolve, reject) => { let data = ''; req.on('data', (chunk) => { data += chunk; }); req.on('end', () => { try { resolve(data ? JSON.parse(data) : {}); } catch (error) { reject(error); } }); req.on('error', reject); });
 }
 
-function send(res, status, body) {
-  res.writeHead(status, { 'Content-Type': 'application/json' });
+function send(res, status, body, headers = {}) {
+  res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
   res.end(JSON.stringify(body));
 }
 
