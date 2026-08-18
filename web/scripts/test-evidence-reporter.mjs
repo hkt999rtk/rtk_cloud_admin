@@ -2,7 +2,11 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const TEST_ID = /\[(UI-[A-Z0-9]+-[A-Z0-9]+-\d{3})\]/;
+const TEST_ID = /\[(UI-(?:[A-Z0-9]+-)+\d{3})\]/;
+
+export function extractTestID(title) {
+  return String(title ?? '').match(TEST_ID)?.[1] || '';
+}
 
 function relative(runDir, value) {
   return value ? path.relative(runDir, value).split(path.sep).join('/') : '';
@@ -32,12 +36,11 @@ export default class EvidenceReporter {
   }
 
   onTestEnd(test, result) {
-    const match = test.title.match(TEST_ID);
-    if (!match) {
+    const testID = extractTestID(test.title);
+    if (!testID) {
       this.errors.push(`Playwright test is missing Test ID: ${test.title}`);
       return;
     }
-    const testID = match[1];
     const attempts = this.attempts.get(testID) || [];
     attempts.push({
       title: test.title,
