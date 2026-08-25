@@ -299,6 +299,15 @@ type ProductionRun struct {
 	IssuedQuantity      int    `json:"issued_quantity"`
 }
 
+type ProductionRunIssueResponse struct {
+	ProductionRun ProductionRun `json:"production_run"`
+	FactoryJWT    string        `json:"factory_jwt"`
+	TokenType     string        `json:"token_type"`
+	ExpiresAt     string        `json:"expires_at"`
+}
+
+type CertificateBundle map[string]any
+
 type DeviceUpdateRequest struct {
 	Name     string         `json:"name"`
 	Category string         `json:"category"`
@@ -702,6 +711,25 @@ func (c *Client) DeveloperBrandCloud(ctx context.Context, accessToken, brandClou
 		return BrandCloud{}, Member{}, err
 	}
 	return body.BrandCloud, body.Membership, nil
+}
+
+func (c *Client) IssueDeveloperPKITestAppCertificate(ctx context.Context, accessToken, brandCloudID, idempotencyKey, targetType, targetID, csrPEM string) (CertificateBundle, error) {
+	var body struct {
+		CertificateBundle CertificateBundle `json:"certificate_bundle"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/pki/test-app-certificates"
+	err := c.doJSONWithIdempotency(ctx, http.MethodPost, path, accessToken, idempotencyKey, map[string]string{"target_type": targetType, "target_id": targetID, "csr_pem": csrPEM}, &body)
+	return body.CertificateBundle, err
+}
+
+func (c *Client) CreateDeveloperPKITestProductionRun(ctx context.Context, accessToken, brandCloudID, profileID, idempotencyKey string, validFrom, validUntil time.Time) (ProductionRunIssueResponse, error) {
+	var body ProductionRunIssueResponse
+	path := "/v1/orgs/" + url.PathEscape(brandCloudID) + "/device-item-profiles/" + url.PathEscape(profileID) + "/production-runs"
+	err := c.doJSONWithIdempotency(ctx, http.MethodPost, path, accessToken, idempotencyKey, map[string]any{
+		"factory_id": "developer-console", "batch_id": "pki-test-" + idempotencyKey,
+		"allowed_quantity": 1, "valid_from": validFrom.UTC(), "valid_until": validUntil.UTC(),
+	}, &body)
+	return body, err
 }
 
 func (c *Client) DeveloperBrandCloudMembers(ctx context.Context, accessToken, brandCloudID string, query url.Values) ([]Member, Pagination, error) {

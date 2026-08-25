@@ -13,6 +13,9 @@ type Config struct {
 	BillingServiceBaseURL        string
 	BillingServiceToken          string
 	VideoCloudBaseURL            string
+	FactoryEnrollBaseURL         string
+	Environment                  string
+	DeveloperPKITestToolsEnabled bool
 	VideoCloudAdminToken         string
 	VideoCloudPrometheusBaseURL  string
 	GrafanaBaseURL               string
@@ -31,6 +34,9 @@ func FromEnv() Config {
 		BillingServiceBaseURL:        os.Getenv("BILLING_SERVICE_BASE_URL"),
 		BillingServiceToken:          os.Getenv("BILLING_SERVICE_TOKEN"),
 		VideoCloudBaseURL:            os.Getenv("VIDEO_CLOUD_BASE_URL"),
+		FactoryEnrollBaseURL:         os.Getenv("FACTORY_ENROLL_BASE_URL"),
+		Environment:                  strings.ToLower(getenv("CLOUD_ADMIN_ENV", "local")),
+		DeveloperPKITestToolsEnabled: truthy(os.Getenv("DEVELOPER_PKI_TEST_TOOLS_ENABLED")),
 		VideoCloudAdminToken:         os.Getenv("VIDEO_CLOUD_ADMIN_TOKEN"),
 		VideoCloudPrometheusBaseURL:  os.Getenv("VIDEO_CLOUD_PROMETHEUS_BASE_URL"),
 		GrafanaBaseURL:               os.Getenv("CLOUD_ADMIN_GRAFANA_BASE_URL"),

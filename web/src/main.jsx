@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs';
 import {
   billingSubpaths,
   customerNavItems,
@@ -1167,7 +1168,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} skus={skus?.skus || []} loading={loading} canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'reports.create')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'provisioning' ? <ProvisioningPage canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'provisioning.create')} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'access' ? <AccessPage data={access} loading={loading} activeCloudId={me?.active_org_id} canManage={canUseCapability({ capabilities: me?.capabilities || [] }, 'team.manage')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'access' ? <AccessPage data={access} loading={loading} activeCloudId={me?.active_org_id} canManage={canUseCapability({ capabilities: me?.capabilities || [] }, 'team.manage')} canIssuePKITest={canUseCapability({ capabilities: me?.capabilities || [] }, 'pki.test.issue')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <BillingPage data={billing} loading={loading} capabilities={me?.capabilities || []} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
@@ -2170,7 +2171,7 @@ function GroupsPage({ data, loading, onRefresh }) {
   </section>;
 }
 
-function AccessPage({ data, loading, activeCloudId, canManage, onRefresh }) {
+function AccessPage({ data, loading, activeCloudId, canManage, canIssuePKITest, onRefresh }) {
   const members = data?.members || [];
   const assignments = data?.role_assignments || [];
   const roles = data?.roles || [];
@@ -2192,6 +2193,7 @@ function AccessPage({ data, loading, activeCloudId, canManage, onRefresh }) {
     <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>團隊與權限</h2><p>角色決定可以做什麼，範圍決定可以管理哪些 SKU、區域、群組或設備。</p></div>{canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setMessage('請使用下方表單邀請成員。')}>＋ 邀請成員</button> : null}</div>
     {canManage && activeCloudId ? <section className="panel"><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invite-${email}-${role}` }, body: JSON.stringify({ email, role }) }); setMessage(response.ok ? '成員已加入 Brand Cloud。' : '成員目前無法加入。'); if (response.ok) { setEmail(''); onRefresh(); } }}><input required type="email" placeholder="成員 Email" value={email} onChange={(event) => setEmail(event.target.value)} /><select value={role} onChange={(event) => setRole(event.target.value)}><option value="member">Member</option><option value="admin">Admin</option></select><button type="submit" className="primary">送出邀請</button></form></section> : null}
     {message ? <div className="notice">{message}</div> : null}
+    {canIssuePKITest && activeCloudId ? <PKITestBundleTool activeCloudId={activeCloudId} /> : null}
     <section className="panel"><div className="panel-head"><div><h3>Accept owner transfer</h3><p>貼上 owner transfer email 中的 token，完成 ownership 轉移。</p></div></div><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch('/api/developer/brand-cloud-owner-transfers/accept', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-accept-${transferToken}` }, body: JSON.stringify({ token: transferToken }) }); setMessage(response.ok ? 'Owner transfer 已接受。' : 'Owner transfer token 無效或已過期。'); if (response.ok) { setTransferToken(''); onRefresh(); } }}><input required placeholder="Owner transfer token" value={transferToken} onChange={(event) => setTransferToken(event.target.value)} /><button type="submit" className="primary">接受轉移</button></form></section>
     {canManage && activeCloudId ? <section className="panel"><div className="panel-head"><div><h3>Owner transfer</h3><p>轉移需由目標 developer 使用 email token 接受；pending transfer 可取消。</p></div></div><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-${transferEmail}` }, body: JSON.stringify({ target_email: transferEmail }) }); const body = await response.json().catch(() => ({})); setMessage(response.ok ? 'Owner transfer 已建立。' : 'Owner transfer 目前無法建立。'); if (response.ok) { setOwnerTransfer(body.owner_transfer); setTransferEmail(''); } }}><input required type="email" placeholder="目標 developer Email" value={transferEmail} onChange={(event) => setTransferEmail(event.target.value)} /><button type="submit" className="primary">建立轉移</button></form>{ownerTransfer ? <p className="notice">{ownerTransfer.status} · {ownerTransfer.id} {ownerTransfer.status === 'pending' ? <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/owner-transfer/${encodeURIComponent(ownerTransfer.id)}/cancel`, { method: 'POST', headers: { 'Idempotency-Key': `owner-transfer-cancel-${ownerTransfer.id}` } }); if (response.ok) setOwnerTransfer((current) => ({ ...current, status: 'canceled' })); }}>取消</button> : null}</p> : null}</section> : null}
     {loading ? <section className="panel split-panel"><div><h3>正在載入權限</h3></div></section> : null}
@@ -2431,6 +2433,32 @@ function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
     if (response.ok) onRefresh();
   }
   return <section className="page-content billing-page" data-testid="billing-profile-page"><div className="page-intro"><div><h2>帳單資料</h2><p>新發票會保存開立當下的收件人快照，後續修改不會改寫既有文件。</p></div></div>{tabs}<section className="panel"><form className="billing-profile-form" onSubmit={submit}><label>公司／法定名稱<input value={form.legal_name || ''} onChange={(event) => setForm({ ...form, legal_name: event.target.value })} required /></label><label>統一編號<input value={form.tax_identifier || ''} onChange={(event) => setForm({ ...form, tax_identifier: event.target.value })} /></label><label>帳單 Email<input type="email" value={form.contact_email || ''} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} /></label><label className="wide">帳單地址<textarea value={form.billing_address || ''} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} /></label><label>語系<input value={form.locale || 'zh-TW'} onChange={(event) => setForm({ ...form, locale: event.target.value })} /></label><label>帳務時區<input value={form.timezone || 'Asia/Taipei'} onChange={(event) => setForm({ ...form, timezone: event.target.value })} /></label><label>交付方式<select value={form.delivery_preference || 'portal'} onChange={(event) => setForm({ ...form, delivery_preference: event.target.value })}><option value="portal">Portal</option><option value="portal_and_email">Portal + Email</option></select></label><div className="wide"><button type="submit" className="primary" disabled={!canManage}>儲存帳單資料</button>{message ? <p className="notice" role="status">{message}</p> : null}</div></form></section></section>;
+}
+function PKITestBundleTool({ activeCloudId }) {
+  const [kind, setKind] = useState('app');
+  const [targetType, setTargetType] = useState('brand_cloud_user');
+  const [targetId, setTargetId] = useState('');
+  const [profileId, setProfileId] = useState('');
+  const [serial, setSerial] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  async function issue(event) {
+    event.preventDefault(); setBusy(true); setMessage('Browser 正在產生 P-256 private key 與 CSR…');
+    try {
+      const commonName = kind === 'device' ? targetId : `${targetType === 'end_user' ? 'app-end-user' : 'app-brand-cloud-user'}:${targetId}`;
+      const key = await createP256CSR(commonName);
+      const endpoint = `/api/developer/pki/test-bundles/${kind}`;
+      const requestBody = kind === 'device'
+        ? { brand_cloud_id: activeCloudId, device_item_profile_id: profileId, device_id: targetId, serial_number: serial, csr_pem: key.csrPEM }
+        : { brand_cloud_id: activeCloudId, target_type: targetType, target_id: targetId, csr_pem: key.csrPEM };
+      const response = await fetch(endpoint, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify(requestBody) });
+      if (!response.ok) throw new Error((await response.text()) || 'certificate issuance failed');
+      downloadExportableBundle(await response.json(), key.privateKeyPEM);
+      setMessage('30 天測試 bundle 已下載；private key 未送往 server，也未寫入 localStorage。');
+    } catch (error) { setMessage(error.message || '無法建立測試 bundle。'); }
+    finally { setBusy(false); }
+  }
+  return <section className="panel"><div className="panel-head"><div><h3>PKI Test Bundle</h3><p>本機產生 exportable P-256 key；只將 CSR 送往後端。固定有效期 30 天，僅供 local/staging。</p></div></div><form className="inline-form" onSubmit={issue}><select value={kind} onChange={(event) => setKind(event.target.value)}><option value="app">App mTLS</option><option value="device">Device mTLS</option></select>{kind === 'app' ? <select value={targetType} onChange={(event) => setTargetType(event.target.value)}><option value="brand_cloud_user">Brand Cloud user</option><option value="end_user">End user</option></select> : null}<input required placeholder={kind === 'device' ? 'Device ID' : 'User ID'} value={targetId} onChange={(event) => setTargetId(event.target.value)} />{kind === 'device' ? <><input required placeholder="Device item profile ID" value={profileId} onChange={(event) => setProfileId(event.target.value)} /><input required placeholder="Serial number" value={serial} onChange={(event) => setSerial(event.target.value)} /></> : null}<button type="submit" className="primary" disabled={busy}>{busy ? '建立中…' : '產生並下載'}</button></form>{message ? <p className="notice" role="status">{message}</p> : null}</section>;
 }
 
 function ProvisioningPage({ canCreate }) {
