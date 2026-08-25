@@ -761,6 +761,72 @@ paths:
         "200": { description: Owner transfer canceled }
         "404": { description: Transfer not found }
 
+  /api/developer/pki/test-bundles/app:
+    post:
+      operationId: postApiDeveloperPKITestBundleApp
+      tags: [Developer]
+      summary: Issue a short-lived app certificate bundle for SDK smoke testing
+      description: |
+        Local/staging SDK test utility only. The browser generates an exportable
+        P-256 private key and CSR, sends only the CSR, then locally combines the
+        certificate-only response with the PKCS#8 key. This is not the production
+        app certificate issuance flow; production private keys remain non-exportable.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeveloperPKIAppBundleRequest"
+      responses:
+        "200":
+          description: Certificate-only bundle; the private key remains in the browser.
+          headers:
+            Cache-Control: { schema: { type: string, example: no-store } }
+          content:
+            application/vnd.realtek.rtk-certificate-bundle+json:
+              schema:
+                $ref: "#/components/schemas/RTKCertificateBundleV1"
+        "400": { $ref: "#/components/responses/PlainTextError" }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+        "404": { $ref: "#/components/responses/PlainTextError" }
+        "502": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/pki/test-bundles/device:
+    post:
+      operationId: postApiDeveloperPKITestBundleDevice
+      tags: [Developer]
+      summary: Issue a short-lived device certificate bundle for SDK smoke testing
+      description: |
+        Local/staging SDK test utility only. The browser generates an exportable
+        P-256 private key and CSR, while the BFF constrains issuance to the active
+        Brand Cloud and an active device item profile. This does not replace formal
+        manufacturing enrollment or hardware-backed production device keys.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeveloperPKIDeviceBundleRequest"
+      responses:
+        "200":
+          description: Certificate-only bundle; the private key remains in the browser.
+          headers:
+            Cache-Control: { schema: { type: string, example: no-store } }
+          content:
+            application/vnd.realtek.rtk-certificate-bundle+json:
+              schema:
+                $ref: "#/components/schemas/RTKCertificateBundleV1"
+        "400": { $ref: "#/components/responses/PlainTextError" }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+        "404": { $ref: "#/components/responses/PlainTextError" }
+        "502": { $ref: "#/components/responses/PlainTextError" }
+
   /api/summary:
     get:
       operationId: getApiSummary
@@ -2940,6 +3006,82 @@ components:
           schema: { $ref: "#/components/schemas/PaymentError" }
 
   schemas:
+    DeveloperPKIAppBundleRequest:
+      type: object
+      additionalProperties: false
+      required: [brand_cloud_id, target_type, target_id, csr_pem]
+      properties:
+        brand_cloud_id: { type: string }
+        target_type: { type: string, enum: [brand_cloud_user, end_user] }
+        target_id: { type: string }
+        csr_pem:
+          type: string
+          description: P-256 PKCS#10 CSR. A private key must never be sent.
+    DeveloperPKIDeviceBundleRequest:
+      type: object
+      additionalProperties: false
+      required: [brand_cloud_id, device_item_profile_id, device_id, serial_number, csr_pem]
+      properties:
+        brand_cloud_id: { type: string }
+        device_item_profile_id: { type: string }
+        device_id: { type: string }
+        serial_number: { type: string }
+        csr_pem:
+          type: string
+          description: P-256 PKCS#10 CSR. A private key must never be sent.
+    RTKCertificateBundleV1:
+      type: object
+      additionalProperties: false
+      description: |
+        Shared certificate representation. `test_exportable` is only for simple
+        local/staging SDK tests and is never a production identity.
+      required: [format, version, profile, environment, usage, tenant_id, identity, key, certificate, issuance]
+      properties:
+        format: { type: string, enum: [rtk_certificate_bundle] }
+        version: { type: integer, enum: [1] }
+        profile: { type: string, enum: [certificate_only, test_exportable] }
+        environment: { type: string, enum: [local, staging, production] }
+        usage: { type: string, enum: [device_mtls, app_mtls] }
+        tenant_id: { type: string }
+        identity:
+          type: object
+          required: [kind, id, subject_dn, uri_sans]
+          properties:
+            kind: { type: string, enum: [device, app] }
+            id: { type: string }
+            subject_dn: { type: string }
+            uri_sans: { type: array, items: { type: string, format: uri } }
+        key:
+          type: object
+          required: [algorithm, spki_sha256, material]
+          properties:
+            algorithm: { type: string, enum: [ecdsa_p256, ed25519, rsa_2048] }
+            spki_sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+            material:
+              type: object
+              required: [type]
+              properties:
+                type: { type: string, enum: [caller_managed, key_reference, embedded_pkcs8_pem] }
+                provider: { type: string }
+                reference: { type: string }
+                private_key_pem:
+                  type: string
+                  description: Unencrypted PKCS#8; legal only for test_exportable in local/staging.
+        certificate:
+          type: object
+          required: [chain_pem, serial_number_hex, fingerprint_sha256, not_before, not_after]
+          properties:
+            chain_pem: { type: array, minItems: 1, items: { type: string } }
+            serial_number_hex: { type: string, pattern: "^(?:[0-9a-f]{2})+$" }
+            fingerprint_sha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+            not_before: { type: string, format: date-time }
+            not_after: { type: string, format: date-time }
+        issuance:
+          type: object
+          required: [request_id, issued_at]
+          properties:
+            request_id: { type: string }
+            issued_at: { type: string, format: date-time }
     PaymentError:
       type: object
       additionalProperties: false

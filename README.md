@@ -106,6 +106,8 @@ The design and implementation context is split across these documents:
 
 - [`docs/SPEC.md`](docs/SPEC.md): product scope, source-of-truth ownership,
   HTTP routes, and runtime architecture.
+- [`docs/developer-pki-test-bundles.md`](docs/developer-pki-test-bundles.md):
+  local/staging SDK smoke-test certificate flow and production distinction.
 - [`docs/ROLES.md`](docs/ROLES.md): Tier 1/Tier 2 responsibilities,
   capabilities, and field visibility rules.
 - [`docs/webui-customer-view-design.md`](docs/webui-customer-view-design.md):
