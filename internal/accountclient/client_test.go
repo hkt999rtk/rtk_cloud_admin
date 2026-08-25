@@ -125,6 +125,10 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	check("DeveloperBrandClouds", err)
 	_, _, err = client.DeveloperBrandCloud(ctx, "access", "brand/1")
 	check("DeveloperBrandCloud", err)
+	_, err = client.IssueDeveloperPKITestAppCertificate(ctx, "access", "brand/1", "idem-1", "brand_cloud_user", "user/1", "csr")
+	check("IssueDeveloperPKITestAppCertificate", err)
+	_, err = client.CreateDeveloperPKITestProductionRun(ctx, "access", "brand/1", "profile/1", "idem-2", time.Now(), time.Now().Add(24*time.Hour))
+	check("CreateDeveloperPKITestProductionRun", err)
 	_, _, err = client.DeveloperBrandCloudMembers(ctx, "access", "brand/1", query)
 	check("DeveloperBrandCloudMembers", err)
 	_, err = client.InviteDeveloperBrandCloudMember(ctx, "access", "brand/1", "member@example.com", "observer")
@@ -194,7 +198,7 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	_, err = client.DisableDeviceItemProfile(ctx, "access", "org/1", "profile/1")
 	check("DisableDeviceItemProfile", err)
 
-	if requests < 45 {
+	if requests < 47 {
 		t.Fatalf("requests = %d, want broad wrapper coverage", requests)
 	}
 }
