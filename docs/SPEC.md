@@ -458,6 +458,33 @@ Production-mode readiness precedence:
   but its source facts are local projections and are not authoritative
   production readiness.
 
+## Developer PKI Test Bundles
+
+The Developer Console exposes `POST /api/developer/pki/test-bundles/app` and
+`POST /api/developer/pki/test-bundles/device` only when
+`DEVELOPER_PKI_TEST_TOOLS_ENABLED=true` and the runtime environment is local or
+staging. Production rejects these routes even if the flag is accidentally set.
+
+These routes are deliberately simplified SDK smoke-test utilities. The browser
+uses WebCrypto to generate an exportable P-256 key and PKCS#10 CSR, sends only
+the CSR to the BFF, receives a `certificate_only` RTK Certificate Bundle v1,
+and locally creates the downloadable `test_exportable` bundle. The private key
+must not enter an HTTP request, localStorage, audit event, or application log.
+
+The active Brand Cloud must match the request. Only owner/admin sessions with
+`pki.test.issue` may issue a test bundle, every request requires
+`Idempotency-Key`, and the certificate lifetime is fixed at 30 days. App
+subjects are selected by Account Manager. Device requests are constrained to
+an active device item profile and use the existing factory-enrollment trust
+boundary. See [developer-pki-test-bundles.md](developer-pki-test-bundles.md)
+and the canonical
+[CERTIFICATE_BUNDLE.md](rtk_cloud_contracts_doc/CERTIFICATE_BUNDLE.md).
+
+This workflow is not production certificate enrollment. Production device and
+app identities use non-exportable keys generated in the device secure store,
+iOS Keychain/Secure Enclave policy, or Android Keystore policy and follow the
+formal enrollment, rotation, and revocation controls.
+
 ## Configuration
 
 ### [REQ-CA-BFF-BREAK-GLASS-001] Deployment configuration cannot enable a local break-glass login
