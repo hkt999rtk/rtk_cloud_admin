@@ -12,6 +12,7 @@ import {
 test('login next accepts only admin and console paths', () => {
   assert.equal(normalizeLoginNext('/admin/health?window=1#top'), '/admin/health?window=1#top');
   assert.equal(normalizeLoginNext('/console/devices?health=warning'), '/console/devices?health=warning');
+  assert.equal(normalizeLoginNext('/brand-cloud-member-invitation/accept?token=invite-token'), '/brand-cloud-member-invitation/accept?token=invite-token');
   assert.equal(isSafeLoginNext('/admin'), true);
   assert.equal(isSafeLoginNext('/console'), true);
 });
@@ -42,6 +43,8 @@ test('session destination respects session kind and next path', () => {
   assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/console/devices'), '/admin');
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/console/devices'), '/console/devices');
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/admin'), '/console/overview');
+  assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/brand-cloud-member-invitation/accept?token=invite-token'), '/brand-cloud-member-invitation/accept?token=invite-token');
+  assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/brand-cloud-member-invitation/accept?token=invite-token'), '/brand-cloud-member-invitation/accept?token=invite-token');
   assert.equal(destinationForSession({ authenticated: false }, '/admin'), '/login?next=%2Fadmin');
 });
 

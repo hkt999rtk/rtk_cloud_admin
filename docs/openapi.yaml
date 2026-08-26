@@ -657,11 +657,32 @@ paths:
         "409": { description: Last owner cannot be disabled }
 
   /api/developer/brand-clouds/{brandCloudID}/members/invitations:
+    get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDMembersInvitations
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BRAND-MEMBER-INVITE-001
+      tags: [Developer]
+      summary: List Brand Cloud membership invitations as the owner
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Invitation list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invitations]
+                properties:
+                  invitations: { type: array, items: { $ref: "#/components/schemas/BrandCloudMemberInvitation" } }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
     post:
       operationId: postApiDeveloperBrandCloudsByBrandCloudIDMembersInvitations
-      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-feature-id: FEAT-CA-BRAND-001
       x-rtk-requirement-ids:
-        - REQ-UI-CA-ROLE-001
+        - REQ-CA-BRAND-MEMBER-INVITE-001
       tags: [Developer]
       summary: Invite an existing developer account to a Brand Cloud
       parameters:
@@ -676,11 +697,64 @@ paths:
               required: [email, role]
               properties:
                 email: { type: string, format: email }
-                role: { type: string, enum: [owner, admin, member] }
+                role: { type: string, enum: [admin, member] }
       responses:
-        "202": { description: Invitation accepted }
+        "202":
+          description: Pending invitation created; no membership exists until acceptance.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invitation]
+                properties:
+                  invitation: { $ref: "#/components/schemas/BrandCloudMemberInvitation" }
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/brand-clouds/{brandCloudID}/members/invitations/{invitationID}/{action}:
+    post:
+      operationId: postApiDeveloperBrandCloudsByBrandCloudIDMembersInvitationsByInvitationIDByAction
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BRAND-MEMBER-INVITE-001
+      tags: [Developer]
+      summary: Resend or cancel a pending membership invitation as the owner
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string } }
+        - { name: invitationID, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [resend, cancel] } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { description: Invitation canceled. }
+        "202": { description: Invitation token rotated and replacement email queued. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+        "409": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/brand-cloud-member-invitations/accept:
+    post:
+      operationId: postApiDeveloperBrandCloudMemberInvitationsAccept
+      x-rtk-feature-id: FEAT-CA-BRAND-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BRAND-MEMBER-INVITE-001
+      tags: [Developer]
+      summary: Accept a membership invitation as its authenticated target Developer
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, minLength: 1 }
+      responses:
+        "200": { description: Invitation accepted and membership created atomically. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+        "409": { $ref: "#/components/responses/PlainTextError" }
 
   /api/developer/brand-clouds/{brandCloudID}/owner-transfer:
     post:
@@ -3881,6 +3955,23 @@ components:
           items: { $ref: "#/components/schemas/DeveloperMembership" }
         pagination: { $ref: "#/components/schemas/Pagination" }
         source_status: { type: string }
+
+    BrandCloudMemberInvitation:
+      type: object
+      required: [id, brand_cloud_id, target_user_id, target_email, role, status, expires_at, created_at, updated_at]
+      properties:
+        id: { type: string }
+        brand_cloud_id: { type: string }
+        invited_by_user_id: { type: string }
+        target_user_id: { type: string }
+        target_email: { type: string, format: email }
+        role: { type: string, enum: [admin, member] }
+        status: { type: string, enum: [pending, accepted, canceled, expired] }
+        expires_at: { type: string, format: date-time }
+        accepted_at: { type: string, format: date-time, nullable: true }
+        canceled_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
     DeveloperBrandCloud:
       type: object

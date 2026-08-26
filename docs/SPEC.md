@@ -575,6 +575,14 @@ scope hash, source freshness, result expiry, download status, and failure
 reason. Team management uses `/api/developer/*`; Platform Admin Brand Cloud
 lifecycle management remains under `/api/admin/*`.
 
+Developer team writes are owner-only. Inviting an existing verified Developer
+creates a 30-minute pending invitation for the `admin` or `member` role and
+does not create membership. The Team page lists pending invitations and offers
+explicit resend and cancel actions. The email acceptance route preserves the
+token across authentication, removes it from the visible URL after capture,
+and requires an explicit accept action from the matching signed-in Developer.
+Ownership changes continue to use the separate owner-transfer workflow.
+
 
 ## RTK Feature Requirement Inventory
 

@@ -12,7 +12,7 @@ export function normalizeLoginNext(value) {
   try {
     const parsed = new URL(next, 'https://connect.local');
     if (parsed.origin !== 'https://connect.local') return '';
-    if (!isAllowedConsolePath(parsed.pathname) && !isAllowedAdminPath(parsed.pathname)) return '';
+    if (!isAllowedConsolePath(parsed.pathname) && !isAllowedAdminPath(parsed.pathname) && !isAllowedDeveloperInvitationPath(parsed.pathname)) return '';
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch (_) {
     return '';
@@ -40,11 +40,11 @@ export function destinationForSession(me, nextPath) {
   if (!me?.authenticated) return loginPathFor(nextPath);
   const next = normalizeLoginNext(nextPath);
   if (me.kind === 'platform_admin') {
-    return next && isAllowedAdminPath(new URL(next, 'https://connect.local').pathname)
+    return next && (isAllowedAdminPath(new URL(next, 'https://connect.local').pathname) || isAllowedDeveloperInvitationPath(new URL(next, 'https://connect.local').pathname))
       ? next
       : PLATFORM_FALLBACK;
   }
-  return next && isAllowedConsolePath(new URL(next, 'https://connect.local').pathname)
+  return next && (isAllowedConsolePath(new URL(next, 'https://connect.local').pathname) || isAllowedDeveloperInvitationPath(new URL(next, 'https://connect.local').pathname))
     ? next
     : CUSTOMER_FALLBACK;
 }
@@ -63,4 +63,8 @@ function isAllowedAdminPath(pathname) {
 
 function isAllowedConsolePath(pathname) {
   return pathname === '/console' || pathname.startsWith('/console/');
+}
+
+function isAllowedDeveloperInvitationPath(pathname) {
+  return pathname === '/brand-cloud-member-invitation/accept';
 }

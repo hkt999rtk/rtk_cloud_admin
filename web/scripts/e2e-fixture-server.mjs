@@ -13,7 +13,7 @@ const [brandClouds, users, members, devices, operations, logs, sessions, prometh
   load('brand-clouds.json'), load('brand-cloud-users.json'), load('brand-cloud-members.json'), load('devices.json'),
   load('operations.json'), load('service-logs.json'), load('sessions.json'), load('prometheus-series.json'),
 ]);
-const state = { brandClouds, users, members, devices, operations, logs, sessions, prometheus, jobs: [], reports: [], sources: [], transfers: [], chipsetProviders: [], idempotency: new Map(), requestLog: [] };
+const state = { brandClouds, users, members, devices, operations, logs, sessions, prometheus, jobs: [], reports: [], sources: [], transfers: [], invitations: [], chipsetProviders: [], idempotency: new Map(), requestLog: [] };
 let platformValidationAllowed = true;
 
 const server = createServer(async (req, res) => {
@@ -336,6 +336,16 @@ async function handleCustomerResource(req, res, url) {
 }
 
 async function handleDeveloperResource(req, res, url) {
+  if (url.pathname === '/v1/developer/brand-cloud-member-invitations/accept' && req.method === 'POST') {
+    const body = await readBody(req);
+    const invitation = state.invitations.find((item) => item.token === body.token);
+    if (!invitation || invitation.status !== 'pending' || new Date(invitation.expires_at) <= new Date()) return send(res, 404, { code: 'INVITATION_NOT_FOUND', message: 'Invitation is invalid or expired.' });
+    invitation.status = 'accepted';
+    invitation.accepted_at = new Date().toISOString();
+    const member = { organization_id: invitation.brand_cloud_id, brand_cloud_user_id: invitation.target_user_id, email: invitation.target_email, role: invitation.role, capabilities: [] };
+    state.members.push(member);
+    return send(res, 200, { invitation: publicInvitation(invitation), member });
+  }
   if (url.pathname === '/v1/developer/brand-cloud-owner-transfers/accept' && req.method === 'POST') {
     const body = await readBody(req);
     const transfer = state.transfers.find((item) => item.token === body.token);
@@ -352,15 +362,25 @@ async function handleDeveloperResource(req, res, url) {
   if (!clouds.some((brand) => brand.id === cloudID)) return send(res, 403, { code: 'MEMBERSHIP_REQUIRED', message: 'Current developer is not a member of this Brand Cloud.' });
   if (!suffix && req.method === 'GET') return send(res, 200, { brand_cloud: clouds.find((brand) => brand.id === cloudID), membership: { organization_id: cloudID, brand_cloud_user_id: 'customer-user', role: 'owner', capabilities: clouds.find((brand) => brand.id === cloudID).capabilities } });
   if (suffix === '/members' && req.method === 'GET') return send(res, 200, { members: state.members.filter((member) => member.organization_id === cloudID), pagination: { limit: 25, offset: 0, total: state.members.filter((member) => member.organization_id === cloudID).length } });
+  if (suffix === '/members/invitations' && req.method === 'GET') return send(res, 200, { invitations: state.invitations.filter((invitation) => invitation.brand_cloud_id === cloudID).map(publicInvitation) });
   if (suffix === '/members/invitations' && req.method === 'POST') {
     const body = await readBody(req);
     const key = String(req.headers['idempotency-key'] || '');
     const replay = key && state.idempotency.get(`invite:${cloudID}:${key}`);
-    if (replay) return send(res, 201, { member: replay, idempotent_replay: true });
-    const member = { organization_id: cloudID, brand_cloud_user_id: `invited-${Date.now()}`, email: body.email, role: body.role || 'Observer', capabilities: [] };
-    state.members.push(member);
-    if (key) state.idempotency.set(`invite:${cloudID}:${key}`, member);
-    return send(res, 201, { member });
+    if (replay) return send(res, 202, { invitation: publicInvitation(replay), idempotent_replay: true });
+    const invitation = { id: `invitation-${Date.now()}`, brand_cloud_id: cloudID, invited_by_user_id: 'developer-user', target_user_id: `invited-${Date.now()}`, target_email: body.email, role: body.role || 'member', status: 'pending', token: `member-token-${cloudID}-${body.email}`, expires_at: new Date(Date.now() + 1_800_000).toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    state.invitations.push(invitation);
+    if (key) state.idempotency.set(`invite:${cloudID}:${key}`, invitation);
+    return send(res, 202, { invitation: publicInvitation(invitation) });
+  }
+  const invitationActionMatch = suffix.match(/^\/members\/invitations\/([^/]+)\/(resend|cancel)$/);
+  if (invitationActionMatch && req.method === 'POST') {
+    const invitation = state.invitations.find((item) => item.id === decodeURIComponent(invitationActionMatch[1]) && item.brand_cloud_id === cloudID);
+    if (!invitation || invitation.status !== 'pending') return send(res, 409, { error: 'invitation not pending' });
+    if (invitationActionMatch[2] === 'cancel') invitation.status = 'canceled';
+    else invitation.expires_at = new Date(Date.now() + 1_800_000).toISOString();
+    invitation.updated_at = new Date().toISOString();
+    return send(res, invitationActionMatch[2] === 'resend' ? 202 : 200, { invitation: publicInvitation(invitation) });
   }
   const memberMatch = suffix.match(/^\/members\/([^/]+)(?:\/(disable|enable))?$/);
   if (memberMatch) {
@@ -385,6 +405,11 @@ async function handleDeveloperResource(req, res, url) {
   const transferMatch = suffix.match(/^\/owner-transfer\/([^/]+)(?:\/cancel)?$/);
   if (transferMatch) { const transfer = state.transfers.find((item) => item.id === decodeURIComponent(transferMatch[1]) && item.brand_cloud_id === cloudID); if (!transfer) return send(res, 404, { error: 'transfer not found' }); if (suffix.endsWith('/cancel')) transfer.status = 'canceled'; return send(res, 200, { owner_transfer: transfer }); }
   return send(res, 404, { error: 'not found' });
+}
+
+function publicInvitation(invitation) {
+  const { token: _token, ...value } = invitation;
+  return value;
 }
 
 async function handleOTA(req, res, url) {

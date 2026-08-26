@@ -458,6 +458,7 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		"/api/developer/brand-clouds?limit=25",
 		"/api/developer/brand-clouds/brand-1",
 		"/api/developer/brand-clouds/brand-1/members?limit=25",
+		"/api/developer/brand-clouds/brand-1/members/invitations",
 		"/api/fleet/devices?limit=25&status=online",
 		"/api/fleet/summary",
 		"/api/groups?limit=25",
@@ -494,6 +495,9 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		body   string
 	}{
 		{http.MethodPost, "/api/developer/brand-clouds/brand-1/members/invitations", `{"email":"new@example.com","role":"observer"}`},
+		{http.MethodPost, "/api/developer/brand-clouds/brand-1/members/invitations/invitation-1/resend", `{}`},
+		{http.MethodPost, "/api/developer/brand-clouds/brand-1/members/invitations/invitation-1/cancel", `{}`},
+		{http.MethodPost, "/api/developer/brand-cloud-member-invitations/accept", `{"token":"invitation-token"}`},
 		{http.MethodPatch, "/api/developer/brand-clouds/brand-1/members/user-1", `{"role":"operations"}`},
 		{http.MethodPatch, "/api/developer/brand-clouds/brand-1/members/user-1/disable", `{}`},
 		{http.MethodPatch, "/api/developer/brand-clouds/brand-1/members/user-1/enable", `{}`},
@@ -522,6 +526,30 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		rec := authenticatedRequest(srv, session.ID, write.method, write.path, strings.NewReader(write.body), writeHeaders)
 		if rec.Code == http.StatusUnauthorized || rec.Code == http.StatusForbidden || rec.Code >= 500 {
 			t.Errorf("%s %s status = %d, body=%s", write.method, write.path, rec.Code, rec.Body.String())
+		}
+	}
+	invitationUnknownAction := authenticatedRequest(srv, session.ID, http.MethodPost, "/api/developer/brand-clouds/brand-1/members/invitations/invitation-1/unknown", strings.NewReader(`{}`), writeHeaders)
+	if invitationUnknownAction.Code != http.StatusNotFound {
+		t.Errorf("unknown invitation action status = %d, want 404", invitationUnknownAction.Code)
+	}
+	invitationInvalidToken := authenticatedRequest(srv, session.ID, http.MethodPost, "/api/developer/brand-cloud-member-invitations/accept", strings.NewReader(`{"token":""}`), writeHeaders)
+	if invitationInvalidToken.Code != http.StatusBadRequest {
+		t.Errorf("invalid invitation token status = %d, want 400", invitationInvalidToken.Code)
+	}
+	for _, path := range []string{
+		"/api/developer/brand-clouds/brand-1/members/invitations",
+		"/api/developer/brand-cloud-member-invitations/accept",
+	} {
+		if rec := requestWithCookie(t, srv, http.MethodPost, path, strings.NewReader(`{}`), nil); rec.Code != http.StatusUnauthorized {
+			t.Errorf("unauthenticated invitation route %s status = %d, want 401", path, rec.Code)
+		}
+	}
+	for _, path := range []string{
+		"/api/developer/brand-clouds/brand-1/members/invitations/invitation-1/resend",
+		"/api/developer/brand-cloud-member-invitations/accept",
+	} {
+		if rec := authenticatedRequest(srv, session.ID, http.MethodPost, path, strings.NewReader(`{}`), nil); rec.Code != http.StatusPreconditionRequired {
+			t.Errorf("invitation route %s without idempotency key status = %d, want 428", path, rec.Code)
 		}
 	}
 	if len(upstreamPaths) < 15 {

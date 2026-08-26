@@ -65,6 +65,7 @@ export function titleFor(active) {
     signup: 'Sign up',
     'signup-check-email': 'Check your email',
     verify: 'Verify email',
+    'brand-cloud-member-invitation-accept': 'Accept Brand Cloud invitation',
     overview: '設備總覽',
     devices: '設備',
     'sku-services': 'SKU 與服務',
@@ -100,6 +101,7 @@ export function routeFromPath(path) {
   if (path === '/signup/check-email' || path.startsWith('/signup/check-email/')) return 'signup-check-email';
   if (path === '/signup/verify' || path.startsWith('/signup/verify/')) return 'verify';
   if (path === '/verify' || path.startsWith('/verify/')) return 'verify';
+  if (path === '/brand-cloud-member-invitation/accept') return 'brand-cloud-member-invitation-accept';
   if (path === '/admin' || path === '/admin/') return 'platform-dashboard';
   if (path === '/admin/grafana' || path.startsWith('/admin/grafana/')) return 'platform-grafana';
   if (path === '/admin/resources' || path.startsWith('/admin/resources/')) return 'platform-dashboard';
