@@ -150,6 +150,21 @@ type OwnerTransfer struct {
 	CanceledAt        string `json:"canceled_at,omitempty"`
 }
 
+type BrandCloudMemberInvitation struct {
+	ID              string `json:"id"`
+	BrandCloudID    string `json:"brand_cloud_id"`
+	InvitedByUserID string `json:"invited_by_user_id"`
+	TargetUserID    string `json:"target_user_id"`
+	TargetEmail     string `json:"target_email"`
+	Role            string `json:"role"`
+	Status          string `json:"status"`
+	ExpiresAt       string `json:"expires_at"`
+	AcceptedAt      string `json:"accepted_at,omitempty"`
+	CanceledAt      string `json:"canceled_at,omitempty"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
+}
+
 type BrandCloudUserResult struct {
 	Action           string         `json:"action"`
 	BrandCloudUser   BrandCloudUser `json:"brand_cloud_user"`
@@ -747,13 +762,49 @@ func (c *Client) DeveloperBrandCloudMembers(ctx context.Context, accessToken, br
 	return body.Members, body.Pagination, nil
 }
 
-func (c *Client) InviteDeveloperBrandCloudMember(ctx context.Context, accessToken, brandCloudID, email, role string) (Member, error) {
+func (c *Client) InviteDeveloperBrandCloudMember(ctx context.Context, accessToken, brandCloudID, email, role string) (BrandCloudMemberInvitation, error) {
 	var body struct {
-		Member Member `json:"member"`
+		Invitation BrandCloudMemberInvitation `json:"invitation"`
 	}
 	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/invitations"
 	err := c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{"email": email, "role": role}, &body)
-	return body.Member, err
+	return body.Invitation, err
+}
+
+func (c *Client) DeveloperBrandCloudMemberInvitations(ctx context.Context, accessToken, brandCloudID string) ([]BrandCloudMemberInvitation, error) {
+	var body struct {
+		Invitations []BrandCloudMemberInvitation `json:"invitations"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/invitations"
+	err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body)
+	return body.Invitations, err
+}
+
+func (c *Client) ResendDeveloperBrandCloudMemberInvitation(ctx context.Context, accessToken, brandCloudID, invitationID string) (BrandCloudMemberInvitation, error) {
+	var body struct {
+		Invitation BrandCloudMemberInvitation `json:"invitation"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/invitations/" + url.PathEscape(invitationID) + "/resend"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, nil, &body)
+	return body.Invitation, err
+}
+
+func (c *Client) CancelDeveloperBrandCloudMemberInvitation(ctx context.Context, accessToken, brandCloudID, invitationID string) (BrandCloudMemberInvitation, error) {
+	var body struct {
+		Invitation BrandCloudMemberInvitation `json:"invitation"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/invitations/" + url.PathEscape(invitationID) + "/cancel"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, nil, &body)
+	return body.Invitation, err
+}
+
+func (c *Client) AcceptDeveloperBrandCloudMemberInvitation(ctx context.Context, accessToken, token string) (BrandCloudMemberInvitation, Member, error) {
+	var body struct {
+		Invitation BrandCloudMemberInvitation `json:"invitation"`
+		Member     Member                     `json:"member"`
+	}
+	err := c.doJSON(ctx, http.MethodPost, "/v1/developer/brand-cloud-member-invitations/accept", accessToken, map[string]string{"token": token}, &body)
+	return body.Invitation, body.Member, err
 }
 
 func (c *Client) UpdateDeveloperBrandCloudMember(ctx context.Context, accessToken, brandCloudID, userID, role string) (Member, error) {

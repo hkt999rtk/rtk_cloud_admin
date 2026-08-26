@@ -46,6 +46,11 @@ test('maps public signup paths to auth routes', () => {
   assert.equal(routeFromPath('/verify/token-1'), 'verify');
 });
 
+test('maps Brand Cloud membership invitation acceptance outside regular console navigation', () => {
+  assert.equal(routeFromPath('/brand-cloud-member-invitation/accept'), 'brand-cloud-member-invitation-accept');
+  assert.equal(titleFor('brand-cloud-member-invitation-accept'), 'Accept Brand Cloud invitation');
+});
+
 test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console'), 'overview');
   assert.equal(routeFromPath('/console/overview'), 'overview');

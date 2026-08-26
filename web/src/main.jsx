@@ -201,11 +201,12 @@ function App() {
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'brand-cloud-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
+  const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept';
   const visibleNavItems = navItemsForCapabilities(active, me?.capabilities).filter((item) => item.id !== 'platform-brand-clouds' || me?.upstream_account_manager);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
   const brandCloudsBlocked = active === 'platform-brand-clouds' && me?.kind === 'platform_admin' && !me?.upstream_account_manager;
   const customerViewPending = !isPlatformView && !isPublicRoute && me === null;
-  const customerCapabilityBlocked = !isPlatformView && !isPublicRoute && me?.authenticated && me.kind === 'customer' && !navItemsForCapabilities(active, me.capabilities).some((item) => item.id === active);
+  const customerCapabilityBlocked = !isMemberInvitationAccept && !isPlatformView && !isPublicRoute && me?.authenticated && me.kind === 'customer' && !navItemsForCapabilities(active, me.capabilities).some((item) => item.id === active);
   const customerViewBlocked = !isPlatformView && !isPublicRoute && me !== null && (me.authenticated === false || me.kind === 'platform_admin' || customerCapabilityBlocked);
 
   function clearDashboardState() {
@@ -478,10 +479,17 @@ function App() {
         }
         if (['jobs', 'reports', 'groups', 'access'].includes(active) && nextMe.kind !== 'platform_admin') {
           const endpoint = active === 'jobs' ? '/api/jobs' : active === 'reports' ? '/api/reports' : active === 'groups' ? '/api/groups' : (developerBrandClouds.length && nextMe.active_org_id ? `/api/developer/brand-clouds/${encodeURIComponent(nextMe.active_org_id)}/members` : '/api/role-assignments');
-          const result = await fetchJSON(endpoint).catch((err) => {
+          let result = await fetchJSON(endpoint).catch((err) => {
             if (err.isAuthError) throw err;
             return { [active]: [], source_status: 'unavailable', source_message: err.message || '資料暫時無法取得。' };
           });
+          if (active === 'access' && endpoint.includes('/developer/brand-clouds/') && result.source_status !== 'unavailable') {
+            const invitationsResult = await fetchJSON(`${endpoint}/invitations`).catch((err) => {
+              if (err.isAuthError) throw err;
+              return { invitations: [], source_status: 'unavailable', source_message: err.message || '邀請資料暫時無法取得。' };
+            });
+            result = { ...result, invitations: invitationsResult.invitations || [] };
+          }
           if (!alive) return;
           if (active === 'jobs') setJobs(result);
           else if (active === 'reports') setReports(result);
@@ -1032,6 +1040,10 @@ function App() {
         onResendVerification={handleResendVerification}
       />
     );
+  }
+
+  if (isMemberInvitationAccept && me?.authenticated) {
+    return <BrandCloudMemberInvitationAcceptPage />;
   }
 
   return (
@@ -2171,8 +2183,46 @@ function GroupsPage({ data, loading, onRefresh }) {
   </section>;
 }
 
+function BrandCloudMemberInvitationAcceptPage() {
+  const [token] = useState(() => new URLSearchParams(window.location.search).get('token') || '');
+  const [requestKey] = useState(() => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
+  const [result, setResult] = useState(null);
+  const [message, setMessage] = useState(token ? '確認後即可加入 Brand Cloud。' : '邀請連結缺少 token。');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    window.history.replaceState({}, '', '/brand-cloud-member-invitation/accept');
+  }, []);
+
+  async function acceptInvitation() {
+    setBusy(true);
+    setMessage('正在驗證邀請…');
+    const response = await fetch('/api/developer/brand-cloud-member-invitations/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invitation-accept-${requestKey}` },
+      body: JSON.stringify({ token }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) {
+      setResult(body);
+      setMessage('邀請已接受，Brand Cloud membership 已建立。');
+    } else if (response.status === 404) {
+      setMessage('邀請無效、已過期、已使用，或登入帳號不是受邀者。');
+    } else if (response.status === 409) {
+      setMessage('邀請已取消、已過期，或 membership 已存在。');
+    } else {
+      setMessage('目前無法接受邀請，請稍後再試。');
+    }
+    setBusy(false);
+  }
+
+  const cloudID = result?.invitation?.brand_cloud_id || '';
+  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">Brand Cloud invitation</p><h1>接受團隊邀請</h1><p>系統會同時驗證 Email invitation token 與目前登入的 Developer 帳號。</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? '驗證中…' : '接受邀請'}</button> : <a className="inline-action" href={`/console/${encodeURIComponent(cloudID)}/access`}>前往 Brand Cloud 團隊頁面</a>}</section></div>;
+}
+
 function AccessPage({ data, loading, activeCloudId, canManage, canIssuePKITest, onRefresh }) {
   const members = data?.members || [];
+  const invitations = data?.invitations || [];
   const assignments = data?.role_assignments || [];
   const roles = data?.roles || [];
   const [email, setEmail] = useState('');
@@ -2191,7 +2241,7 @@ function AccessPage({ data, loading, activeCloudId, canManage, canIssuePKITest, 
   };
   return <section className="page-content">
     <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>團隊與權限</h2><p>角色決定可以做什麼，範圍決定可以管理哪些 SKU、區域、群組或設備。</p></div>{canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setMessage('請使用下方表單邀請成員。')}>＋ 邀請成員</button> : null}</div>
-    {canManage && activeCloudId ? <section className="panel"><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invite-${email}-${role}` }, body: JSON.stringify({ email, role }) }); setMessage(response.ok ? '成員已加入 Brand Cloud。' : '成員目前無法加入。'); if (response.ok) { setEmail(''); onRefresh(); } }}><input required type="email" placeholder="成員 Email" value={email} onChange={(event) => setEmail(event.target.value)} /><select value={role} onChange={(event) => setRole(event.target.value)}><option value="member">Member</option><option value="admin">Admin</option></select><button type="submit" className="primary">送出邀請</button></form></section> : null}
+    {canManage && activeCloudId ? <section className="panel"><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invite-${email}-${role}` }, body: JSON.stringify({ email, role }) }); setMessage(response.ok ? '邀請已寄出，對方接受前不會成為成員。' : '邀請目前無法寄出。'); if (response.ok) { setEmail(''); onRefresh(); } }}><input required type="email" placeholder="成員 Email" value={email} onChange={(event) => setEmail(event.target.value)} /><select value={role} onChange={(event) => setRole(event.target.value)}><option value="member">Member</option><option value="admin">Admin</option></select><button type="submit" className="primary">送出邀請</button></form></section> : null}
     {message ? <div className="notice">{message}</div> : null}
     {canIssuePKITest && activeCloudId ? <PKITestBundleTool activeCloudId={activeCloudId} /> : null}
     <section className="panel"><div className="panel-head"><div><h3>Accept owner transfer</h3><p>貼上 owner transfer email 中的 token，完成 ownership 轉移。</p></div></div><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch('/api/developer/brand-cloud-owner-transfers/accept', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-accept-${transferToken}` }, body: JSON.stringify({ token: transferToken }) }); setMessage(response.ok ? 'Owner transfer 已接受。' : 'Owner transfer token 無效或已過期。'); if (response.ok) { setTransferToken(''); onRefresh(); } }}><input required placeholder="Owner transfer token" value={transferToken} onChange={(event) => setTransferToken(event.target.value)} /><button type="submit" className="primary">接受轉移</button></form></section>
@@ -2199,7 +2249,8 @@ function AccessPage({ data, loading, activeCloudId, canManage, canIssuePKITest, 
     {loading ? <section className="panel split-panel"><div><h3>正在載入權限</h3></div></section> : null}
     {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>權限資料暫時無法取得</h3><p>{data?.source_message || '請稍後再試。'}</p></div></section> : null}
     {!loading && data?.source_status === 'available' ? <>
-      <section className="panel"><div className="panel-head"><div><h3>Brand Cloud 成員</h3><p>成員資料與 membership scope 由 Account Manager 提供。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>成員</th><th>角色</th><th>狀態</th>{canManage ? <th>操作</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong><small>{member.email}</small></td><td>{canManage ? <select value={member.role} onChange={async (event) => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-role-${member.user_id}-${event.target.value}` }, body: JSON.stringify({ role: event.target.value }) }); setMessage(response.ok ? '成員角色已更新。' : '成員角色目前無法更新。'); if (response.ok) onRefresh(); }}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select> : member.role}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}>{member.disabled_at ? '停用' : '啟用'}</span></td>{canManage ? <td>{member.disabled_at ? <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}/enable`, { method: 'PATCH', headers: { 'Idempotency-Key': `member-enable-${member.user_id}` } }); setMessage(response.ok ? '成員已啟用。' : '成員目前無法啟用。'); if (response.ok) onRefresh(); }}>啟用</button> : <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}/disable`, { method: 'PATCH', headers: { 'Idempotency-Key': `member-disable-${member.user_id}` } }); setMessage(response.ok ? '成員已停用。' : '成員目前無法停用。'); if (response.ok) onRefresh(); }}>停用</button>} <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `member-remove-${member.user_id}` } }); setMessage(response.ok ? '成員已移除。' : '成員目前無法移除。'); if (response.ok) onRefresh(); }}>移除</button></td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">目前沒有 Brand Cloud 成員。</p> : null}</div></section>
+      {canManage ? <section className="panel"><div className="panel-head"><div><h3>待接受邀請</h3><p>邀請連結有效 30 分鐘；重寄後舊連結立即失效。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Email</th><th>角色</th><th>狀態</th><th>到期時間</th><th>操作</th></tr></thead><tbody>{invitations.filter((invitation) => invitation.status === 'pending').map((invitation) => <tr key={invitation.id}><td>{invitation.target_email}</td><td>{invitation.role}</td><td><span className="status-badge neutral">待接受</span></td><td>{new Date(invitation.expires_at).toLocaleString()}</td><td><button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/invitations/${encodeURIComponent(invitation.id)}/resend`, { method: 'POST', headers: { 'Idempotency-Key': `member-invite-resend-${invitation.id}-${Date.now()}` } }); setMessage(response.ok ? '邀請已重新寄出。' : '邀請目前無法重寄。'); if (response.ok) onRefresh(); }}>重寄</button> <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/invitations/${encodeURIComponent(invitation.id)}/cancel`, { method: 'POST', headers: { 'Idempotency-Key': `member-invite-cancel-${invitation.id}` } }); setMessage(response.ok ? '邀請已取消。' : '邀請目前無法取消。'); if (response.ok) onRefresh(); }}>取消</button></td></tr>)}</tbody></table>{!invitations.some((invitation) => invitation.status === 'pending') ? <p className="empty-state">目前沒有待接受邀請。</p> : null}</div></section> : null}
+      <section className="panel"><div className="panel-head"><div><h3>Brand Cloud 成員</h3><p>成員資料與 membership scope 由 Account Manager 提供。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>成員</th><th>角色</th><th>狀態</th>{canManage ? <th>操作</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong><small>{member.email}</small></td><td>{canManage && member.role !== 'owner' ? <select value={member.role} onChange={async (event) => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-role-${member.user_id}-${event.target.value}` }, body: JSON.stringify({ role: event.target.value }) }); setMessage(response.ok ? '成員角色已更新。' : '成員角色目前無法更新。'); if (response.ok) onRefresh(); }}><option value="admin">Admin</option><option value="member">Member</option></select> : member.role}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}>{member.disabled_at ? '停用' : '啟用'}</span></td>{canManage ? <td>{member.role === 'owner' ? 'Owner transfer only' : <>{member.disabled_at ? <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}/enable`, { method: 'PATCH', headers: { 'Idempotency-Key': `member-enable-${member.user_id}` } }); setMessage(response.ok ? '成員已啟用。' : '成員目前無法啟用。'); if (response.ok) onRefresh(); }}>啟用</button> : <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}/disable`, { method: 'PATCH', headers: { 'Idempotency-Key': `member-disable-${member.user_id}` } }); setMessage(response.ok ? '成員已停用。' : '成員目前無法停用。'); if (response.ok) onRefresh(); }}>停用</button>} <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/${encodeURIComponent(member.user_id)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `member-remove-${member.user_id}` } }); setMessage(response.ok ? '成員已移除。' : '成員目前無法移除。'); if (response.ok) onRefresh(); }}>移除</button></>}</td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">目前沒有 Brand Cloud 成員。</p> : null}</div></section>
       <section className="panel"><div className="panel-head"><div><h3>可用角色</h3><p>Developer、Operations 等角色的可用操作由平台設定。</p></div></div><div className="chip-list">{roles.map((role) => <span className="status-badge neutral" key={role.id}>{role.name}</span>)}</div></section>
       <section className="panel"><div className="panel-head"><div><h3>目前的權限範圍</h3><p>這裡只顯示管理範圍，不顯示內部權限代碼。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>角色</th><th>管理範圍</th><th>狀態</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{assignment.role_name}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good">啟用</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">目前沒有額外的範圍指派。</p> : null}</div></section>
     </> : null}
