@@ -650,6 +650,51 @@ async function runMobileSmoke(browserContext) {
   await screenshot(page, 'mobile-signup-tab.png');
   await page.unroute('**/api/**');
   await installApiMocks(page);
+
+  await page.setViewportSize({ width: 360, height: 800 });
+  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await expectText(page, 'Devices that need attention');
+  await assertNoHorizontalOverflow(page, '360px Overview');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await assertNoHorizontalOverflow(page, '390px Overview');
+  const menuButton = page.getByRole('button', { name: 'Open navigation' });
+  if (await menuButton.getAttribute('aria-expanded') !== 'false') {
+    throw new Error('Mobile navigation must be closed by default.');
+  }
+  await menuButton.click();
+  if (await menuButton.getAttribute('aria-expanded') !== 'true') {
+    throw new Error('Mobile navigation button must expose its open state.');
+  }
+  await page.waitForFunction(() => document.querySelector('#primary-navigation')?.getBoundingClientRect().left >= -1);
+  const drawerLeft = await page.locator('#primary-navigation').evaluate((element) => element.getBoundingClientRect().left);
+  if (drawerLeft < -1) {
+    throw new Error('Mobile navigation drawer must move on screen when opened.');
+  }
+  await page.keyboard.press('Escape');
+  if (await menuButton.getAttribute('aria-expanded') !== 'false') {
+    throw new Error('Escape must close the mobile navigation drawer.');
+  }
+  await page.waitForFunction(() => document.querySelector('#primary-navigation')?.getBoundingClientRect().right <= 1);
+  await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
+  await assertOverviewStartsInViewport(page, '390px Overview');
+  await screenshot(page, 'mobile-overview.png');
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
+  await assertOverviewStartsInViewport(page, '768px Overview');
+  await assertNoHorizontalOverflow(page, '768px Overview');
+  await screenshot(page, 'tablet-overview.png');
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
+  await assertNoHorizontalOverflow(page, '1024px Overview');
+  await screenshot(page, 'compact-desktop-overview.png');
+
+  await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndAssert(page, '/console/devices', 'Devices');
   await expectText(page, '設備總覽');
   await expectText(page, '影像播放狀況');
@@ -698,10 +743,32 @@ async function gotoAndAssert(page, routePath, expectedTitle) {
   if (/Internal server error|vite|webpack|ReferenceError|TypeError/.test(rootText)) {
     throw new Error(`Framework/runtime overlay detected at ${routePath}`);
   }
+  await page.evaluate(() => window.scrollTo(0, 0));
 }
 
 async function expectText(page, text) {
-  await page.getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByText(text, { exact: false }).filter({ visible: true }).first().waitFor({ state: 'visible', timeout: 5000 });
+}
+
+async function assertNoHorizontalOverflow(page, label) {
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    document: document.documentElement.scrollWidth,
+  }));
+  if (dimensions.document > dimensions.viewport + 1) {
+    throw new Error(`${label} must not overflow horizontally: ${JSON.stringify(dimensions)}`);
+  }
+}
+
+async function assertOverviewStartsInViewport(page, label) {
+  const position = await page.locator('.overview-layout').evaluate((element) => ({
+    top: element.getBoundingClientRect().top,
+    height: element.getBoundingClientRect().height,
+    viewportHeight: window.innerHeight,
+  }));
+  if (position.top >= position.viewportHeight) {
+    throw new Error(`${label} content must begin in the first viewport: ${JSON.stringify(position)}`);
+  }
 }
 
 async function screenshot(page, name) {

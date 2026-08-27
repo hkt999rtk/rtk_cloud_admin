@@ -161,7 +161,7 @@ Use this mapping when reviewing developer issues opened from
 | --- | --- |
 | 1. WebUI foundation cleanup and route guards | Global shell, hidden Groups, role-gated Platform switcher, wrong-role route gates |
 | 2. Customer View source-aware page states | Loading, empty, filtered-empty, source-unavailable, gateway-error, and read-only panel states |
-| 3. Fleet Health Overview completion | Overview KPI strip, trend chart, health distribution, recent alerts, attention queue, quota callout |
+| 3. Fleet Health Overview completion | Overview KPI strip, health distribution, trend chart, combined attention list, region summary, quota callout |
 | 4. Devices table and detail drawer completion | Device filters, selected row, drawer overview, source facts, telemetry panels, provision/deactivate states |
 | 5. Firmware & OTA read-only workflows | Firmware distribution, campaign summary/table, read-only drill-down, unsupported policies, firmware risk queue |
 | 6. Stream Health read-only workflows | Stream KPIs, trend, source-backed By Mode rows, per-device table, attention routing |
@@ -172,7 +172,10 @@ Use this mapping when reviewing developer issues opened from
 ## Responsive Checks
 
 - At desktop width, sidebar stays fixed-width and tables remain readable.
-- At tablet/mobile width, sidebar stacks above content.
+- Below 1024px, the persistent sidebar is replaced by a sticky app bar and
+  off-canvas drawer with focus containment and Escape-to-close.
+- Overview is checked at 360×800, 390×844, 768×1024, 1024×768, and 1440×1000;
+  none may introduce page-level horizontal overflow.
 - Tables scroll horizontally rather than clipping columns.
 - Drawer fits within viewport and remains scrollable.
 - Charts remain visible and do not overlap adjacent panels.

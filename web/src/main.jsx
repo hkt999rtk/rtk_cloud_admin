@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs';
 import {
@@ -197,6 +197,9 @@ function App() {
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavRef = useRef(null);
+  const mobileMenuButtonRef = useRef(null);
   const isPublicRoute = isPublicRouteId(active);
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'brand-cloud-activate' || active === 'forgot-password' || active === 'reset-password';
@@ -636,11 +639,46 @@ function App() {
     setDeviceDrawerOpen(Boolean(deviceId));
   }, [active]);
 
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+    const drawer = mobileNavRef.current;
+    const focusable = () => [...(drawer?.querySelectorAll('button, select, a[href], [tabindex]:not([tabindex="-1"])') || [])]
+      .filter((element) => !element.disabled && element.getAttribute('aria-hidden') !== 'true');
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    focusable()[0]?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setMobileNavOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+      mobileMenuButtonRef.current?.focus();
+    };
+  }, [mobileNavOpen]);
+
   function navigate(item) {
     const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
     const path = cloudId && item.path.startsWith('/console/') ? `/console/${encodeURIComponent(cloudId)}/${item.path.slice('/console/'.length)}` : item.path;
     window.history.pushState({}, '', path);
     setActive(item.id);
+    setMobileNavOpen(false);
   }
 
   function switchView(targetActive) {
@@ -983,6 +1021,7 @@ function App() {
   }
 
   async function handleLogout() {
+    setMobileNavOpen(false);
     setError('');
     const response = await fetch('/api/auth/logout', { method: 'POST' });
     if (!response.ok) {
@@ -1034,10 +1073,40 @@ function App() {
 
   return (
     <div className={`app-shell ${isPlatformView ? 'platform-shell' : ''}`}>
-      <aside className="sidebar">
+      <header className="mobile-appbar">
+        <button
+          ref={mobileMenuButtonRef}
+          type="button"
+          className="mobile-menu-button"
+          aria-label="Open navigation"
+          aria-controls="primary-navigation"
+          aria-expanded={mobileNavOpen}
+          onClick={() => setMobileNavOpen(true)}
+        >
+          <Icon name="bars" />
+        </button>
+        <strong>{titleFor(active)}</strong>
+        <span className="mobile-appbar-mark" aria-hidden="true">C+</span>
+      </header>
+      <button
+        type="button"
+        className={`mobile-nav-overlay ${mobileNavOpen ? 'open' : ''}`}
+        aria-label="Close navigation"
+        tabIndex={mobileNavOpen ? 0 : -1}
+        onClick={() => setMobileNavOpen(false)}
+      />
+      <aside
+        id="primary-navigation"
+        ref={mobileNavRef}
+        className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}
+        aria-label="Primary navigation"
+      >
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">{isPlatformView ? <Icon name="cloud" /> : 'C+'}</span>
           <strong>{isPlatformView ? 'RTK cloud' : 'Connect+ Ops'}</strong>
+          <button type="button" className="mobile-nav-close" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>
+            <Icon name="xmark" />
+          </button>
         </div>
         <p className="sidebar-section-label">{isPlatformView ? 'Platform View' : 'Customer View'}</p>
         <nav>
@@ -1067,6 +1136,7 @@ function App() {
             <strong>{sessionLabel(me)}</strong>
             <small>{me?.authenticated ? me.email : 'Sign in required'}</small>
           </div>
+          {me?.authenticated ? <button type="button" className="sidebar-logout" onClick={handleLogout}><Icon name="right-from-bracket" />Logout</button> : null}
         </div>
       </aside>
 
@@ -1748,6 +1818,12 @@ function Overview({
       {!telemetryAvailable ? <SourceBlockedState title={telemetryState.title} message={telemetryReason} /> : null}
 
       <section className="overview-grid">
+        <HealthDistributionPanel
+          loading={loading}
+          current={fleetHealth?.current}
+          onFilter={onHealthFilter}
+          source={fleetHealth}
+        />
         <FleetHealthTrendPanel
           loading={loading}
           trend={fleetHealth?.trend || []}
@@ -1755,20 +1831,13 @@ function Overview({
           onWindowChange={setOverviewWindow}
           source={fleetHealth}
         />
-        <HealthDistributionPanel
-          loading={loading}
-          current={fleetHealth?.current}
-          onFilter={onHealthFilter}
-          source={fleetHealth}
-        />
+      </section>
+
+      <section className="overview-attention">
+        <AttentionQueuePanel loading={loading} items={attentionDevices} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
       </section>
 
       <RegionFleetPanel summary={fleetSummary} loading={loading} />
-
-      <section className="overview-lower-grid">
-        <RecentAlertsPanel loading={loading} alerts={recentAlerts} source={fleetHealth} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
-        <AttentionQueuePanel loading={loading} items={attentionDevices} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
-      </section>
 
       {me?.authenticated && isEvaluation && nearQuota ? (
         <section className="panel quota-callout">
@@ -1805,17 +1874,6 @@ function RegionFleetPanel({ summary, loading }) {
       {!loading && unavailable ? <p className="empty-state">區域資料暫時無法取得。</p> : null}
       {!loading && !unavailable ? (
         <div className="region-fleet-grid">
-          <div className="region-map-vector" aria-label="區域設備分布圖">
-            <svg viewBox="0 0 520 260" role="img" aria-label="設備區域分布">
-              <path d="M38 150 92 118 138 128 166 92 230 106 274 78 334 96 390 72 476 112 450 178 390 184 350 220 275 202 220 232 164 214 100 232 52 202Z" />
-              {regions.slice(0, 8).map(([region, count], index) => {
-                const x = 70 + ((index * 71) % 390);
-                const y = 112 + ((index * 43) % 100);
-                return <g key={region}><circle cx={x} cy={y} r={Math.max(5, Math.min(14, 5 + count / max * 10))} /><text x={x + 10} y={y + 4}>{region}</text></g>;
-              })}
-            </svg>
-            <small>區域示意圖 · 資料依設備回報的區域分類</small>
-          </div>
           <div className="region-bars">
             {regions.slice(0, 8).map(([region, count]) => <div className="region-bar-row" key={region}>
               <div><strong>{region}</strong><span>{count.toLocaleString()} 台</span></div>
@@ -1823,10 +1881,29 @@ function RegionFleetPanel({ summary, loading }) {
             </div>)}
             {!regions.length ? <p className="empty-state">目前沒有區域資料。</p> : null}
           </div>
+          <div className="region-map-desktop"><RegionMap regions={regions} max={max} /></div>
+          <details className="region-map-mobile">
+            <summary>View map</summary>
+            <RegionMap regions={regions} max={max} />
+          </details>
         </div>
       ) : null}
     </section>
   );
+}
+
+function RegionMap({ regions, max }) {
+  return <div className="region-map-vector" aria-label="區域設備分布圖">
+    <svg viewBox="0 0 520 260" role="img" aria-label="設備區域分布">
+      <path d="M38 150 92 118 138 128 166 92 230 106 274 78 334 96 390 72 476 112 450 178 390 184 350 220 275 202 220 232 164 214 100 232 52 202Z" />
+      {regions.slice(0, 8).map(([region, count], index) => {
+        const x = 70 + ((index * 71) % 390);
+        const y = 112 + ((index * 43) % 100);
+        return <g key={region}><circle cx={x} cy={y} r={Math.max(5, Math.min(14, 5 + count / max * 10))} /><text x={x + 10} y={y + 4}>{region}</text></g>;
+      })}
+    </svg>
+    <small>區域示意圖 · 資料依設備回報的區域分類</small>
+  </div>;
 }
 
 function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
@@ -4666,51 +4743,13 @@ function HealthDistributionPanel({ loading, current, onFilter, source }) {
   );
 }
 
-function RecentAlertsPanel({ loading, alerts, source, onOpenDevice }) {
-  const available = sourceAvailable(source);
-  return (
-    <section className="panel overview-panel alerts-panel">
-      <div className="panel-head">
-        <div>
-          <h2>Recent alerts</h2>
-          <p>Last 10 telemetry events that resulted in a health change.</p>
-        </div>
-      </div>
-      {!available ? (
-        <p className="empty-state">{sourceMessage(source, 'No telemetry source configured.')}</p>
-      ) : loading && !alerts.length ? (
-        <p className="empty-state">Loading recent alerts.</p>
-      ) : alerts.length ? (
-        <div className="alerts-table">
-          <div className="alerts-table-head">
-            <span>Time</span>
-            <span>Device</span>
-            <span>Signal</span>
-            <span>Health</span>
-          </div>
-          {alerts.map((alert) => (
-            <button type="button" className="alerts-table-row" key={alert.id} onClick={() => onOpenDevice(alert.device_id)}>
-              <time title={alert.occurred_at}>{formatRelativeTime(alert.occurred_at)}</time>
-              <strong>{alert.device_name}</strong>
-              <span>{alert.signal}</span>
-              <StatusBadge value={normalizeStatusKey(alert.health)} label={toTitleCase(alert.health)} />
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="empty-state">No alerts in selected window.</p>
-      )}
-    </section>
-  );
-}
-
 function AttentionQueuePanel({ loading, items, onOpenDevice }) {
   return (
     <section className="panel overview-panel attention-panel">
       <div className="panel-head">
         <div>
-          <h2>Attention Queue ({items.length})</h2>
-          <p>Devices sorted by current health, signal, and alert impact.</p>
+          <h2>Devices that need attention ({items.length})</h2>
+          <p>Prioritized by current health, signal quality, and recent alerts.</p>
         </div>
       </div>
       {loading && !items.length ? (

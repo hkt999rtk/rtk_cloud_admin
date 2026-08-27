@@ -275,7 +275,9 @@ Status color usage:
 
 ## App Shell
 
-The Customer View shell uses a fixed left sidebar and a full-height work area.
+The Customer View shell uses a fixed left sidebar and a full-height work area on
+desktop. Below 1024px, it uses a sticky top app bar and an off-canvas navigation
+drawer; the full sidebar must not consume the first mobile viewport.
 
 Sidebar:
 
@@ -391,12 +393,25 @@ Required layout:
 
 - KPI strip with current online devices, seven-day online ratio, devices needing
   attention, and devices playing now.
-- Large device-status trend chart with online ratio plus attention trends.
 - Health distribution panel with Normal, Needs attention, Serious problem, and
   No data.
+- Large device-status trend chart with online ratio plus attention trends.
 - One **Devices that need attention** list with Device, Problem, Time, and one
   direct action. Do not render separate Recent Alerts and Attention Queue
   panels.
+- Region summary follows the attention list. Ranked region bars are primary on
+  mobile; the map is available behind a `View map` disclosure.
+
+Responsive hierarchy:
+
+- At 1280px and wider, show four KPI cards, the desktop sidebar, and the
+  two-column Health Distribution / Fleet Health Trend row.
+- From 1024px through 1279px, keep the desktop sidebar, use a 2 × 2 KPI grid,
+  and stack operational panels into one column.
+- Below 1024px, use the sticky app bar and keyboard-accessible navigation
+  drawer, a 2 × 2 KPI grid, and single-column operational panels.
+- Below 360px, KPI cards may collapse to one column. No supported viewport may
+  introduce page-level horizontal overflow.
 
 Behavior notes:
 
@@ -641,8 +656,9 @@ before implementation is considered complete:
 - Partial failure: keep successful rows/results visible and identify retryable
   failed items.
 - Read-only: expose data normally and remove or disable write controls.
-- Mobile/tablet: keep the sidebar and tables usable; tables may scroll
-  horizontally rather than dropping required columns.
+- Mobile/tablet: use the sticky app bar and off-canvas navigation drawer below
+  1024px. Purpose-built compact lists are preferred where defined; data tables
+  may scroll horizontally rather than dropping required columns.
 
 ## Implementation Notes
 
@@ -662,7 +678,8 @@ before implementation is considered complete:
 ## Review Checklist
 
 - Customer View pages use the Realtek Ops Console palette and density.
-- All pages keep the left sidebar + main work area structure.
+- Desktop pages keep the left sidebar + main work area structure; below 1024px
+  they use the shared top app bar + off-canvas drawer shell.
 - Customer View does not contain Platform View content.
 - Brand Fleet navigation exposes Groups, Tags, Batch Jobs, and Reports according
   to role capabilities, without a second device-registration workflow.
