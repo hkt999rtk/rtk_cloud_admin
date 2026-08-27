@@ -204,7 +204,7 @@ function App() {
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'brand-cloud-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
-  const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept';
+  const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept' || active === 'sku-collaborator-invitation-accept';
   const visibleNavItems = navItemsForCapabilities(active, me?.capabilities).filter((item) => item.id !== 'platform-brand-clouds' || me?.upstream_account_manager);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
   const brandCloudsBlocked = active === 'platform-brand-clouds' && me?.kind === 'platform_admin' && !me?.upstream_account_manager;
@@ -2101,7 +2101,37 @@ function SKUsPage({ loading, data, onRefresh }) {
   const [preview, setPreview] = useState(null);
   const [form, setForm] = useState({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['即時觀看'] });
   const [message, setMessage] = useState('');
-  const canManage = data?.can_manage || items.some((sku) => sku.allowed_actions?.includes('manage_devices'));
+  const [collaborationSKU, setCollaborationSKU] = useState(null);
+  const [collaboration, setCollaboration] = useState(null);
+  const [invite, setInvite] = useState({ email: '', role: 'sku_editor' });
+  const canManage = Boolean(data?.can_manage);
+  async function loadCollaborators(sku) {
+    setCollaborationSKU(sku); setCollaboration(null);
+    const response = await fetch(`/api/skus/${encodeURIComponent(sku.id)}/collaborators`);
+    setCollaboration(response.ok ? await response.json() : { source_status: 'unavailable' });
+  }
+  async function inviteCollaborator(event) {
+    event.preventDefault();
+    const response = await fetch(`/api/skus/${encodeURIComponent(collaborationSKU.id)}/collaborator-invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `sku-invite-${collaborationSKU.id}-${invite.email}` }, body: JSON.stringify(invite) });
+    setMessage(response.ok ? 'SKU 協作者邀請已寄出。' : '無法邀請；請確認此 Email 已註冊且尚未加入這個 SKU。');
+    if (response.ok) { setInvite({ email: '', role: 'sku_editor' }); await loadCollaborators(collaborationSKU); }
+  }
+  async function updateCollaborator(userId, role) {
+    const response = await fetch(`/api/skus/${encodeURIComponent(collaborationSKU.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `sku-role-${collaborationSKU.id}-${userId}-${role}` }, body: JSON.stringify({ role }) });
+    setMessage(response.ok ? '協作者角色已更新。' : '無法更新協作者角色。'); if (response.ok) await loadCollaborators(collaborationSKU);
+  }
+  async function removeCollaborator(userId) {
+    const response = await fetch(`/api/skus/${encodeURIComponent(collaborationSKU.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `sku-remove-${collaborationSKU.id}-${userId}` } });
+    setMessage(response.ok ? '協作者已移除。' : '無法移除協作者。'); if (response.ok) await loadCollaborators(collaborationSKU);
+  }
+  async function transferOwner(userId) {
+    const response = await fetch(`/api/skus/${encodeURIComponent(collaborationSKU.id)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `sku-owner-${collaborationSKU.id}-${userId}` }, body: JSON.stringify({ target_user_id: userId }) });
+    setMessage(response.ok ? 'SKU ownership 已轉移。' : '無法轉移 SKU ownership。'); if (response.ok) { await loadCollaborators(collaborationSKU); onRefresh(); }
+  }
+  async function invitationAction(invitationId, action) {
+    const response = await fetch(`/api/skus/${encodeURIComponent(collaborationSKU.id)}/collaborator-invitations/${encodeURIComponent(invitationId)}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `sku-invite-${action}-${invitationId}-${Date.now()}` } });
+    setMessage(response.ok ? (action === 'resend' ? '邀請已重寄。' : '邀請已取消。') : '無法更新邀請。'); if (response.ok) await loadCollaborators(collaborationSKU);
+  }
   async function createSKU(event) {
     event.preventDefault();
     const response = await fetch(editingSKU ? `/api/skus/${encodeURIComponent(editingSKU.id)}` : '/api/skus', { method: editingSKU ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `sku-write-${editingSKU?.id || form.name}` }, body: JSON.stringify(form) });
@@ -2133,22 +2163,24 @@ function SKUsPage({ loading, data, onRefresh }) {
         <section className="panel">
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>SKU</th><th>產品型號</th><th>設備數量</th><th>生產批次</th><th>可用服務</th><th>設備政策</th><th>韌體政策</th><th>可執行操作</th><th>狀態</th></tr></thead>
+              <thead><tr><th>SKU</th><th>我的角色</th><th>產品型號</th><th>設備數量</th><th>生產批次</th><th>可用服務</th><th>設備政策</th><th>韌體政策</th><th>可執行操作</th><th>狀態</th></tr></thead>
               <tbody>{items.map((sku) => <tr key={sku.id}>
                 <td><strong>{sku.name}</strong><small>{sku.id}</small></td>
+                <td><span className="status-badge neutral">{sku.current_user_role === 'brand_owner' ? 'Brand Owner' : sku.current_user_role === 'sku_owner' ? 'Owner' : sku.current_user_role === 'sku_editor' ? 'Editor' : 'Viewer'}</span>{sku.allowed_actions?.includes('manage_collaborators') ? <button type="button" className="link-button" onClick={() => loadCollaborators(sku)}>協作者 ({sku.collaborator_count || 0})</button> : null}</td>
                 <td>{sku.product_model || sku.category || '—'}</td>
                 <td>{sku.device_count?.toLocaleString?.() || '0'}</td>
                 <td>{(sku.production_run_count || 0).toLocaleString()} 批</td>
                 <td>{sku.service_capabilities?.length ? sku.service_capabilities.join('、') : '未啟用'}</td>
                 <td>{sku.device_policy?.setup_available || sku.device_policy?.binding_available ? '已設定' : '未設定'}</td>
                 <td>{sku.firmware_policy?.ota_enabled ? '允許韌體更新' : '未啟用'}</td>
-                <td>{sku.allowed_actions?.length ? sku.allowed_actions.map((action) => action === 'manage_devices' ? '管理設備' : action === 'manage_updates' ? '管理更新' : action === 'view_reports' ? '查看報表' : '查看').join('、') : '需要聯絡管理者'}{canManage ? <button type="button" className="link-button" onClick={() => { setEditingSKU(sku); setForm({ name: sku.name, product_model: sku.product_model || '', category: sku.category || 'generic', service_capabilities: sku.service_capabilities || [] }); setPreview(null); setShowCreate(true); }}>編輯</button> : null}</td>
-                <td><span className={sku.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{sku.status === 'active' ? '啟用' : '停用'}</span>{sku.status === 'active' && canManage ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/skus/${encodeURIComponent(sku.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `sku-disable-${sku.id}` } }); onRefresh(); }}>停用</button> : null}</td>
+                <td>{sku.allowed_actions?.length ? sku.allowed_actions.map((action) => action === 'manage_devices' ? '管理設備' : action === 'manage_updates' ? '管理更新' : action === 'view_reports' ? '查看報表' : action === 'manage_collaborators' ? '管理協作者' : action === 'edit_sku' ? '編輯 SKU' : '查看').join('、') : '需要聯絡管理者'}{sku.allowed_actions?.includes('edit_sku') ? <button type="button" className="link-button" onClick={() => { setEditingSKU(sku); setForm({ name: sku.name, product_model: sku.product_model || '', category: sku.category || 'generic', service_capabilities: sku.service_capabilities || [] }); setPreview(null); setShowCreate(true); }}>編輯</button> : null}</td>
+                <td><span className={sku.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{sku.status === 'active' ? '啟用' : '停用'}</span>{sku.status === 'active' && sku.allowed_actions?.includes('disable_sku') ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/skus/${encodeURIComponent(sku.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `sku-disable-${sku.id}` } }); onRefresh(); }}>停用</button> : null}</td>
               </tr>)}</tbody>
             </table>
           </div>
         </section>
       ) : null}
+      {collaborationSKU ? <section className="panel" data-testid="sku-collaborators"><div className="panel-head"><div><h3>{collaborationSKU.name} 協作者</h3><p>協作者只會看到被指派的 SKU；Editor 可執行專案工作，Viewer 為唯讀。</p></div><button type="button" className="link-button" onClick={() => { setCollaborationSKU(null); setCollaboration(null); }}>關閉</button></div>{collaboration?.source_status === 'unavailable' ? <p className="notice">協作者資料目前無法取得。</p> : <><form className="inline-form" onSubmit={inviteCollaborator}><input required type="email" placeholder="已註冊的 Developer Email" value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} /><select value={invite.role} onChange={(event) => setInvite({ ...invite, role: event.target.value })}><option value="sku_editor">Editor</option><option value="sku_viewer">Viewer</option></select><button type="submit" className="primary">邀請到此 SKU</button></form><div className="table-wrap"><table className="data-table"><thead><tr><th>Developer</th><th>角色</th><th>操作</th></tr></thead><tbody>{(collaboration?.collaborators || []).map((person) => <tr key={person.user_id}><td><strong>{person.display_name || person.email}</strong><small>{person.email}</small></td><td>{person.role === 'sku_owner' ? 'Owner' : <select value={person.role} onChange={(event) => updateCollaborator(person.user_id, event.target.value)}><option value="sku_editor">Editor</option><option value="sku_viewer">Viewer</option></select>}</td><td>{person.role === 'sku_owner' ? 'Ownership transfer required' : <><button type="button" className="link-button" onClick={() => transferOwner(person.user_id)}>轉移 Owner</button><button type="button" className="link-button" onClick={() => removeCollaborator(person.user_id)}>移除</button></>}</td></tr>)}</tbody></table></div>{(collaboration?.invitations || []).some((item) => item.status === 'pending') ? <div className="chip-list">{collaboration.invitations.filter((item) => item.status === 'pending').map((item) => <span className="status-badge neutral" key={item.id}>{item.target_email} · {item.role === 'sku_editor' ? 'Editor' : 'Viewer'} · 待接受 <button type="button" className="link-button" onClick={() => invitationAction(item.id, 'resend')}>重寄</button><button type="button" className="link-button" onClick={() => invitationAction(item.id, 'cancel')}>取消</button></span>)}</div> : null}</>}</section> : null}
     </section>
   );
 }
@@ -2206,6 +2238,7 @@ function GroupsPage({ data, loading, onRefresh }) {
 }
 
 function BrandCloudMemberInvitationAcceptPage() {
+	const isSKUInvitation = window.location.pathname === '/sku-collaborator-invitation/accept';
   const [token] = useState(() => new URLSearchParams(window.location.search).get('token') || '');
   const [requestKey] = useState(() => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
   const [result, setResult] = useState(null);
@@ -2213,13 +2246,13 @@ function BrandCloudMemberInvitationAcceptPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    window.history.replaceState({}, '', '/brand-cloud-member-invitation/accept');
+    window.history.replaceState({}, '', isSKUInvitation ? '/sku-collaborator-invitation/accept' : '/brand-cloud-member-invitation/accept');
   }, []);
 
   async function acceptInvitation() {
     setBusy(true);
     setMessage('正在驗證邀請…');
-    const response = await fetch('/api/developer/brand-cloud-member-invitations/accept', {
+    const response = await fetch(isSKUInvitation ? '/api/developer/sku-collaborator-invitations/accept' : '/api/developer/brand-cloud-member-invitations/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invitation-accept-${requestKey}` },
       body: JSON.stringify({ token }),
@@ -2227,7 +2260,7 @@ function BrandCloudMemberInvitationAcceptPage() {
     const body = await response.json().catch(() => ({}));
     if (response.ok) {
       setResult(body);
-      setMessage('邀請已接受，Brand Cloud membership 已建立。');
+      setMessage(isSKUInvitation ? '邀請已接受，SKU project access 已建立。' : '邀請已接受，Brand Cloud membership 已建立。');
     } else if (response.status === 404) {
       setMessage('邀請無效、已過期、已使用，或登入帳號不是受邀者。');
     } else if (response.status === 409) {
@@ -2239,7 +2272,7 @@ function BrandCloudMemberInvitationAcceptPage() {
   }
 
   const cloudID = result?.invitation?.brand_cloud_id || '';
-  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">Brand Cloud invitation</p><h1>接受團隊邀請</h1><p>系統會同時驗證 Email invitation token 與目前登入的 Developer 帳號。</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? '驗證中…' : '接受邀請'}</button> : <a className="inline-action" href={`/console/${encodeURIComponent(cloudID)}/access`}>前往 Brand Cloud 團隊頁面</a>}</section></div>;
+  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isSKUInvitation ? 'SKU project invitation' : 'Brand Cloud invitation'}</p><h1>{isSKUInvitation ? '接受 SKU 協作邀請' : '接受團隊邀請'}</h1><p>系統會同時驗證 Email invitation token 與目前登入的 Developer 帳號。</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? '驗證中…' : '接受邀請'}</button> : <a className="inline-action" href={`/console/${encodeURIComponent(cloudID)}/sku-services`}>前往 SKU project</a>}</section></div>;
 }
 
 function AccessPage({ data, loading, activeCloudId, canManage, canIssuePKITest, onRefresh }) {

@@ -67,6 +67,7 @@ export function titleFor(active) {
     'signup-verification-expired': 'Verification link expired',
     verify: 'Verify email',
     'brand-cloud-member-invitation-accept': 'Accept Brand Cloud invitation',
+    'sku-collaborator-invitation-accept': 'Accept SKU collaboration invitation',
     overview: '設備總覽',
     devices: '設備',
     'sku-services': 'SKU 與服務',
@@ -104,6 +105,7 @@ export function routeFromPath(path) {
   if (path === '/signup/verify' || path.startsWith('/signup/verify/')) return 'verify';
   if (path === '/verify' || path.startsWith('/verify/')) return 'verify';
   if (path === '/brand-cloud-member-invitation/accept') return 'brand-cloud-member-invitation-accept';
+  if (path === '/sku-collaborator-invitation/accept') return 'sku-collaborator-invitation-accept';
   if (path === '/admin' || path === '/admin/') return 'platform-dashboard';
   if (path === '/admin/grafana' || path.startsWith('/admin/grafana/')) return 'platform-grafana';
   if (path === '/admin/resources' || path.startsWith('/admin/resources/')) return 'platform-dashboard';

@@ -52,6 +52,11 @@ test('maps Brand Cloud membership invitation acceptance outside regular console 
   assert.equal(titleFor('brand-cloud-member-invitation-accept'), 'Accept Brand Cloud invitation');
 });
 
+test('maps SKU collaborator invitation acceptance outside regular console navigation', () => {
+  assert.equal(routeFromPath('/sku-collaborator-invitation/accept'), 'sku-collaborator-invitation-accept');
+  assert.equal(titleFor('sku-collaborator-invitation-accept'), 'Accept SKU collaboration invitation');
+});
+
 test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console'), 'overview');
   assert.equal(routeFromPath('/console/overview'), 'overview');
