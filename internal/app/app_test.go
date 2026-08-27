@@ -246,6 +246,32 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 	}
 }
 
+func TestPublicSignupPreservesExistingAccountConflict(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/auth/signup" {
+			t.Fatalf("unexpected upstream request path: %s", r.URL.Path)
+		}
+		http.Error(w, `{"error":{"code":"conflict","message":"duplicate user","internal":"secret"}}`, http.StatusConflict)
+	}))
+	defer upstream.Close()
+
+	srv := NewWithOptions(mustOpenStore(t), Options{
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		AccountClient: accountclient.New(upstream.URL),
+	})
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/signup", strings.NewReader(`{"email":"existing@example.com"}`)))
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("signup status = %d, want 409; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Body.String(); !strings.Contains(got, "An account already exists for this email") || strings.Contains(got, "secret") || strings.Contains(got, "duplicate user") {
+		t.Fatalf("signup conflict body is not customer-safe: %s", got)
+	}
+}
+
 func TestSSOStartAndCallbackCreateSessions(t *testing.T) {
 	t.Parallel()
 

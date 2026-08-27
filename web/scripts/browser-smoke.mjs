@@ -422,6 +422,13 @@ async function installApiMocks(page, { sessionForPath } = {}) {
         throw new Error(`Signup must use POST, got ${request.method()}`);
       }
       const payload = request.postDataJSON();
+      if (payload.email === 'existing.customer@example.com') {
+        return route.fulfill({
+          status: 409,
+          contentType: 'text/plain',
+          body: 'An account already exists for this email',
+        });
+      }
       const expected = {
         email: 'new.customer@example.com',
       };
@@ -488,7 +495,7 @@ async function installApiMocks(page, { sessionForPath } = {}) {
 async function runAuthSmoke(browserContext) {
   const page = await browserContext.newPage();
   await installApiMocks(page, { sessionForPath: () => anonymousMe });
-  const consoleIssues = collectConsoleIssues(page);
+  const consoleIssues = collectConsoleIssues(page, [/409 \(Conflict\).*\/api\/auth\/customer\/signup/]);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${baseURL}/admin`, { waitUntil: 'networkidle' });
   if (page.url() !== `${baseURL}/login?next=%2Fadmin`) {
@@ -517,6 +524,13 @@ async function runAuthSmoke(browserContext) {
 
   await signUpTab.click();
   await expectText(page, 'Create account');
+  const signupURL = page.url();
+  await page.getByLabel('Email').fill('existing.customer@example.com');
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await expectText(page, 'An account already exists for this email. Log in or reset your password.');
+  if (page.url() !== signupURL) {
+    throw new Error(`Duplicate signup must stay on the signup form, got ${page.url()}`);
+  }
   await page.getByLabel('Email').fill('new.customer@example.com');
   await screenshot(page, 'desktop-signup-tab.png');
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
@@ -538,12 +552,14 @@ async function runAuthSmoke(browserContext) {
   await page.close();
 }
 
-function collectConsoleIssues(page) {
+function collectConsoleIssues(page, ignoredPatterns = []) {
   const issues = [];
   page.on('console', (message) => {
     if (!['error', 'warning'].includes(message.type())) return;
     const location = message.location().url;
-    issues.push(`${message.type()}: ${message.text()}${location ? ` (${location})` : ''}`);
+    const issue = `${message.type()}: ${message.text()}${location ? ` (${location})` : ''}`;
+    if (ignoredPatterns.some((pattern) => pattern.test(issue))) return;
+    issues.push(issue);
   });
   page.on('pageerror', (error) => {
     issues.push(`pageerror: ${error.message}`);

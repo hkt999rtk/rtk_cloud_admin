@@ -320,6 +320,10 @@ Login page:
 - The `Login` / `Sign Up` switcher must be visible in the first viewport, for
   example as tabs or a segmented control directly above the form.
 - The email field label is `Email`; do not use `Work email`.
+- A duplicate signup email is an account conflict, not a service outage. Show
+  `An account already exists for this email. Log in or reset your password.`;
+  reserve the temporary-unavailable message for gateway, timeout, and 5xx
+  failures.
 - Do not show a top-right `Need help?` link on the login page.
 - Keep login copy short and operational. Avoid support, marketing, or
   instructional links in the first viewport.

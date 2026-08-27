@@ -991,10 +991,20 @@ func (s *Server) apiCustomerSignup(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := s.accountClient.Signup(r.Context(), body)
 	if err != nil {
-		s.writeCustomerError(w, err)
+		s.writeSignupError(w, err)
 		return
 	}
 	writeJSONStatus(w, http.StatusAccepted, result)
+}
+
+func (s *Server) writeSignupError(w http.ResponseWriter, err error) {
+	var httpErr *accountclient.HTTPError
+	if errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusConflict {
+		s.logUpstreamError("account_manager", err)
+		http.Error(w, "An account already exists for this email", http.StatusConflict)
+		return
+	}
+	s.writeCustomerError(w, err)
 }
 
 func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) {
