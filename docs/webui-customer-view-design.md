@@ -586,8 +586,11 @@ Design requirements:
   Manager atomically sets the initial password, verifies the email, clears the
   pending state, and issues the initial session. The callback token is an opaque
   credential read from the URL and must never be rendered as page text, a form
-  control, or any other DOM content. It also handles expired token, invalid
-  token, already verified, and service-unavailable outcomes.
+  control, or any other DOM content. Verification links expire according to
+  Account Manager's `EMAIL_VERIFICATION_TTL`, which defaults to 30 minutes;
+  expired links must be rejected and direct the user to request another email.
+  It also handles invalid token, already verified, and service-unavailable
+  outcomes.
 - Evaluation-tier quota copy uses the Account Manager quota fields
   `tier=evaluation` and `evaluation_device_quota`; it must not imply commercial
   entitlement or automatic quota approval.

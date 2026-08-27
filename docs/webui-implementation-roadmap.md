@@ -440,6 +440,9 @@ sign-in path.
 - Treat the callback verification token as an opaque credential. Read it from
   the URL and submit it internally, but never render its value or expose an
   editable token field in the page DOM.
+- Verification links use Account Manager's configurable
+  `EMAIL_VERIFICATION_TTL` and expire after 30 minutes by default. Expired links
+  are rejected and require a resend.
 - Route platform password login through Account Manager platform-admin
   authorization during migration.
 - Complete `/signup`, `/signup/check-email`, and `/verify` states for public

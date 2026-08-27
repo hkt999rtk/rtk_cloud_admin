@@ -123,6 +123,8 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 影像
   session.
 - The verification token is consumed from the callback URL only. Its value is
   not rendered in page text, form controls, the DOM, or screenshots.
+- Verification links expire after the Account Manager-configured TTL (30
+  minutes by default); expired links are rejected and the user must resend.
 - Check-email and verification routes cover pending verification, success,
   expired token, invalid token, already verified, resend, and service-unavailable
   states.
