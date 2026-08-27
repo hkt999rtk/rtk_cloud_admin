@@ -622,6 +622,32 @@ Design requirements:
   `tier=evaluation` and `evaluation_device_quota`; it must not imply commercial
   entitlement or automatic quota approval.
 
+#### Signup And Verification Lifecycle
+
+The WebUI lifecycle is:
+
+| Stage | Account/token state | Required UI | Next transition |
+| --- | --- | --- | --- |
+| Start | No account exists for the email | `Sign Up` on `/login` or `/signup`; collect only email | Submit signup and open `/signup/check-email` |
+| Awaiting verification | Account is enabled, unverified, signup-pending, and has an active verification token | Explain that a verification email was sent; do not expose the token | Open the email link or request resend through the Account Manager-backed API |
+| Valid link | The non-consuming status check returns `valid` | `/verify` shows only the new-password form and never renders the token | Submit `token` and `new_password` to complete verification |
+| Expired link | The status check returns `expired` | Immediately replace the location with `/signup/verification-expired`; show no password field or token | `Sign up again` opens `/signup` |
+| Restart after expiry | The account is still unverified and signup-pending, with no active verification token | Accept the same email as a recovery signup | Reuse the pending account and Brand Cloud, issue a fresh token, and return to `/signup/check-email` |
+| Completed | Email is verified, signup-pending is cleared, the password is stored, and an initial session exists | Redirect to `/console/overview` | Future access uses `Login` |
+
+Exception rules:
+
+- Signup for a verified account or a pending account that still has an active
+  verification token is a conflict; the WebUI must not create another account.
+- `invalid` is distinct from `expired`. An invalid or already-consumed token
+  must not be described as an expired link.
+- The Account Manager verification response remains authoritative. If the token
+  expires after the initial status check but before submission, verification
+  must fail without changing the account. Refreshing or reopening the link runs
+  the status check again and transitions to the expired-verification page.
+- Network and upstream failures preserve the current state and show a retryable,
+  customer-safe error; they must not be presented as token expiry.
+
 ### SSO Login And Session Gates
 
 Required behavior:
