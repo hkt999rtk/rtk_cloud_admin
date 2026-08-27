@@ -2,10 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   billingSubpaths,
+  canAccessCustomerRoute,
+  customerNavGroups,
   customerNavItems,
+  defaultBrandCloudRoute,
   devicesPathWithFilters,
+  isCustomerNavItemActive,
   isPlatformRouteId,
   isPublicRouteId,
+  navGroupsForCapabilities,
   navItemsForCapabilities,
   navItemsForRoute,
   platformNavItems,
@@ -69,6 +74,9 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/groups'), 'groups');
   assert.equal(routeFromPath('/console/groups/legacy'), 'groups');
   assert.equal(routeFromPath('/console/access'), 'access');
+  assert.equal(routeFromPath('/console/settings'), 'settings');
+  assert.equal(routeFromPath('/console/cloud-123/settings'), 'settings');
+  assert.equal(cloudIdFromPath('/console/cloud-123/settings'), 'cloud-123');
   assert.equal(routeFromPath('/console/billing'), 'billing');
   assert.equal(routeFromPath('/console/cloud-123/billing'), 'billing');
   assert.equal(cloudIdFromPath('/console/cloud-123/billing'), 'cloud-123');
@@ -83,13 +91,15 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
     '/console/billing/profile',
   ]);
   for (const path of Object.values(billingSubpaths)) assert.equal(routeFromPath(path), 'billing');
+  assert.equal(cloudIdFromPath('/console/billing/settings'), '');
 });
 
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '群組與標籤', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表', '設備註冊', '帳務與自動加值'],
+    ['品牌雲首頁', '設備', '群組與標籤', '設備註冊', '批次工作', 'SKU 與服務', 'ChipSet & SDK', '韌體更新', '影像播放狀況', '報表', '帳務與自動加值'],
   );
+  assert.deepEqual(customerNavGroups.map((group) => group.label), ['品牌雲', '設備營運', '產品與更新', '監控與分析', '帳號管理']);
 });
 
 test('customer nav is derived from active membership capabilities', () => {
@@ -98,10 +108,25 @@ test('customer nav is derived from active membership capabilities', () => {
     'customer.devices.read',
     'customer.stream.read',
   ]).map((item) => item.label);
-  assert.deepEqual(labels, ['設備總覽', '設備', 'ChipSet & SDK', '群組與標籤', '影像播放狀況', '批次工作']);
-  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), true);
+  assert.deepEqual(labels, ['品牌雲首頁', '設備', '群組與標籤', '批次工作', 'ChipSet & SDK', '影像播放狀況']);
+  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'overview'), true);
+  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), false);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'sku-services'), false);
   assert.equal(navItemsForCapabilities('overview', ['billing_account.read']).some((item) => item.id === 'billing'), true);
+});
+
+test('Brand Cloud navigation and route access are evaluated independently', () => {
+  const brandCloudItem = customerNavItems[0];
+  assert.equal(isCustomerNavItemActive(brandCloudItem, 'overview'), true);
+  assert.equal(isCustomerNavItemActive(brandCloudItem, 'access'), true);
+  assert.equal(isCustomerNavItemActive(brandCloudItem, 'settings'), true);
+  assert.equal(canAccessCustomerRoute('overview', ['team.read']), false);
+  assert.equal(canAccessCustomerRoute('access', ['team.read']), true);
+  assert.equal(canAccessCustomerRoute('settings', []), true);
+  assert.equal(defaultBrandCloudRoute(['fleet.read']), 'overview');
+  assert.equal(defaultBrandCloudRoute(['team.read']), 'access');
+  assert.equal(defaultBrandCloudRoute([]), 'settings');
+  assert.deepEqual(navGroupsForCapabilities(['team.read']).map((group) => group.label), ['品牌雲', '產品與更新']);
 });
 
 test('retired customer pages are not exposed in section navigation', () => {
@@ -153,8 +178,10 @@ test('builds devices URLs with supported filters only', () => {
   );
 });
 
-test('uses fleet health overview title for the customer landing page', () => {
-  assert.equal(titleFor('overview'), '設備總覽');
+test('uses the shared Brand Cloud title for integrated routes', () => {
+  assert.equal(titleFor('overview'), '品牌雲');
+  assert.equal(titleFor('access'), '品牌雲');
+  assert.equal(titleFor('settings'), '品牌雲');
 });
 
 test('falls back unknown paths to the customer overview route', () => {
@@ -178,6 +205,8 @@ test('provides titles for all public shell routes', () => {
     'forgot-password',
     'reset-password',
     'overview',
+    'access',
+    'settings',
     'devices',
     'billing',
     'sku-services',

@@ -553,6 +553,23 @@ nav button:hover .fa-solid {
   color: #fff;
 }
 
+.customer-nav-groups {
+  gap: 18px;
+}
+
+.customer-nav-group {
+  display: grid;
+  gap: 6px;
+}
+
+.customer-nav-group .sidebar-section-label {
+  margin-bottom: 2px;
+}
+
+.customer-nav-group button {
+  width: 100%;
+}
+
 main {
   min-width: 0;
   padding: 24px 28px 36px;
@@ -1129,6 +1146,98 @@ p {
 .overview-layout {
   display: grid;
   gap: 18px;
+}
+
+.brand-cloud-page {
+  display: grid;
+  gap: 18px;
+}
+
+.brand-cloud-header {
+  align-items: flex-end;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .98), rgba(234, 246, 251, .92));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  padding: 18px 20px;
+}
+
+.brand-cloud-header h2,
+.brand-cloud-header p:last-child {
+  margin-bottom: 0;
+}
+
+.brand-cloud-header p:last-child {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.brand-cloud-tabs {
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 22px;
+}
+
+.brand-cloud-tabs button {
+  border-radius: 0;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 10px 2px 12px;
+  position: relative;
+}
+
+.brand-cloud-tabs button:hover,
+.brand-cloud-tabs button.active {
+  background: transparent;
+  box-shadow: none;
+  color: var(--brand);
+}
+
+.brand-cloud-tabs button.active::after {
+  background: var(--brand);
+  bottom: -1px;
+  content: "";
+  height: 3px;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.team-summary-card {
+  padding: 18px;
+}
+
+.team-summary-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.team-summary-grid > div {
+  background: #f8fbfc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.team-summary-grid small,
+.team-summary-grid strong {
+  display: block;
+}
+
+.team-summary-grid small {
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+
+.team-summary-grid strong {
+  overflow-wrap: anywhere;
+}
+
+.invite-member-panel {
+  padding: 16px;
 }
 
 .hero-panel {
@@ -4313,7 +4422,16 @@ th {
 
   .sidebar {
     min-height: auto;
+    padding: 14px;
     position: static;
+  }
+
+  .sidebar .brand {
+    margin-bottom: 12px;
+  }
+
+  .sidebar > .sidebar-section-label {
+    display: none;
   }
 
   .sidebar nav {
@@ -4321,12 +4439,65 @@ th {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .sidebar .customer-nav-groups {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: thin;
+  }
+
+  .sidebar .customer-nav-group {
+    display: block;
+    flex: 0 0 auto;
+  }
+
+  .sidebar .customer-nav-group .sidebar-section-label {
+    margin: 0 4px 5px;
+  }
+
+  .sidebar .customer-nav-group button {
+    display: inline-flex;
+    margin-right: 4px;
+    width: auto;
+  }
+
+  .brand-cloud-header,
+  .team-summary-card .panel-head {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .team-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .brand-cloud-tabs {
+    overflow-x: auto;
+  }
+
+  .team-access-page .inline-form,
+  .brand-cloud-settings-page .inline-form {
+    align-items: stretch;
+    display: grid;
+  }
+
   .sidebar-platform-switch {
-    margin-top: 18px;
+    border-top: 0;
+    margin-top: 4px;
+    padding-top: 0;
+  }
+
+  .sidebar-platform-switch .sidebar-section-label {
+    display: none;
+  }
+
+  .sidebar-platform-switch button {
+    max-width: 260px;
   }
 
   .sidebar-account {
-    margin-top: 18px;
+    display: none;
   }
 
   .metrics {

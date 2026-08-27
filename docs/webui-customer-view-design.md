@@ -280,9 +280,13 @@ The Customer View shell uses a fixed left sidebar and a full-height work area.
 Sidebar:
 
 - Brand label: `Connect+ Ops`.
-- Brand Fleet nav items are role-aware: `設備總覽`, `設備`,
-  `群組與標籤`, `SKU 與服務`, `韌體版本`, `更新計畫`, `批次工作`,
-  `報表`, and `團隊與權限`.
+- Brand Fleet navigation uses fixed, non-collapsible groups: `品牌雲`,
+  `設備營運`, `產品與更新`, `監控與分析`, and `帳號管理`.
+- `品牌雲首頁` is the single sidebar entry for the Brand Cloud resource. Its
+  page-level tabs are `總覽`, `成員與權限`, and `設定`; the entry remains active
+  across all three routes.
+- Navigation items and Brand Cloud tabs are role-aware. Hidden affordances do
+  not replace backend authorization checks.
 - Active nav item uses primary blue fill.
 - Platform View switcher is visually separated from Customer View navigation and
   routes only to role-gated Platform View pages.
@@ -299,6 +303,14 @@ Main header:
 - Refresh affordance and signed-in actions on the right.
 - Do not show a passive active-organization label or global last-updated
   timestamp in the header.
+
+Brand Cloud page:
+
+- `/console/{cloudId}/overview`, `/access`, and `/settings` share one Brand
+  Cloud header and tab shell while remaining independently addressable.
+- Overview includes a team summary when team read capability is available.
+- Members and access contains invitations, members, roles, and scope
+  assignments. Settings contains ownership transfer and PKI test tooling.
 
 Login page:
 
