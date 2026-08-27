@@ -813,6 +813,7 @@ main {
 
 .service-checks {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -3870,12 +3871,88 @@ select,
   background: #fff;
 }
 
-input:focus,
+input:not([type='checkbox']):focus,
 select:focus,
 .input:focus {
   border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(0, 104, 183, 0.11);
   outline: none;
+}
+
+input[type='checkbox'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #fff;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 14px 14px;
+  border: 1.5px solid #aeb9c5;
+  border-radius: 5px;
+  cursor: pointer;
+  display: inline-grid;
+  flex: 0 0 18px;
+  height: 18px;
+  margin: 0;
+  min-height: 18px;
+  min-width: 18px;
+  padding: 0;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  vertical-align: middle;
+  width: 18px;
+}
+
+input[type='checkbox']:hover:not(:checked):not(:indeterminate):not(:disabled) {
+  background-color: #f7fbfe;
+  border-color: var(--brand);
+}
+
+input[type='checkbox']:checked {
+  background-color: var(--brand);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3.5 8 3 3 6-6' fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.2'/%3E%3C/svg%3E");
+  border-color: var(--brand);
+}
+
+input[type='checkbox']:indeterminate {
+  background-color: var(--brand);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8h8' fill='none' stroke='%23fff' stroke-linecap='round' stroke-width='2.2'/%3E%3C/svg%3E");
+  border-color: var(--brand);
+}
+
+input[type='checkbox']:focus-visible {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(0, 104, 183, 0.14);
+  outline: none;
+}
+
+input[type='checkbox']:disabled {
+  background-color: #f0f3f6;
+  border-color: #d4dbe3;
+  cursor: not-allowed;
+  opacity: 0.82;
+}
+
+input[type='checkbox']:checked:disabled,
+input[type='checkbox']:indeterminate:disabled {
+  background-color: #91aec4;
+  border-color: #91aec4;
+}
+
+.auth-form .auth-terms,
+.service-checks label,
+.dimension-picker label,
+.toggle-row {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.auth-form .auth-terms:has(input[type='checkbox']:disabled),
+.service-checks label:has(input[type='checkbox']:disabled),
+.dimension-picker label:has(input[type='checkbox']:disabled),
+.toggle-row:has(input[type='checkbox']:disabled) {
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .primary-button {

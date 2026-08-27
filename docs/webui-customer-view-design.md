@@ -268,6 +268,10 @@ Shape and surface:
 - Use fine borders over heavy shadows.
 - Avoid nested cards unless the inner surface is a genuine table, drawer block,
   chart area, or repeated row group.
+- Checkboxes use the shared 18px console control: white surface and neutral
+  border when unchecked, primary blue with a white check when selected, and a
+  visible blue focus ring. They must not inherit text-input width, height, or
+  padding; disabled and indeterminate states remain visually distinct.
 
 Status color usage:
 
