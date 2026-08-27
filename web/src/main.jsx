@@ -1581,9 +1581,8 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
 }
 
 function VerifyForm({ token, onVerify }) {
-  const [value, setValue] = useState(token);
   const [password, setPassword] = useState('');
-  const [status, setStatus] = useState('Create your password to finish verification.');
+  const [status, setStatus] = useState(token ? 'Create your password to finish verification.' : 'This verification link is invalid.');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -1592,7 +1591,7 @@ function VerifyForm({ token, onVerify }) {
     setBusy(true);
     setLocalError('');
     try {
-      const result = await onVerify({ token: value, new_password: password });
+      const result = await onVerify({ token, new_password: password });
       if (!result) {
         setLocalError('Verification failed. Check the token and try again.');
       } else if (result.tokens?.access_token) {
@@ -1612,14 +1611,10 @@ function VerifyForm({ token, onVerify }) {
       <p>Verify your email and create the password you will use to log in.</p>
       <form className="auth-form" onSubmit={submit}>
         <label>
-          Verification token
-          <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Verification token" required />
-        </label>
-        <label>
           New password
           <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
         </label>
-        <button type="submit" disabled={busy}>{busy ? 'Verifying' : 'Verify and continue'}</button>
+        <button type="submit" disabled={busy || !token}>{busy ? 'Verifying' : 'Verify and continue'}</button>
       </form>
       <p className="auth-status">{status}</p>
       {error ? <p className="error">{error}</p> : null}

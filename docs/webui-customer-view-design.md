@@ -584,8 +584,10 @@ Design requirements:
 - The verification landing state asks the user to create a password of at least
   eight characters. It submits `token` and `new_password` together so Account
   Manager atomically sets the initial password, verifies the email, clears the
-  pending state, and issues the initial session. It also handles expired token,
-  invalid token, already verified, and service-unavailable outcomes.
+  pending state, and issues the initial session. The callback token is an opaque
+  credential read from the URL and must never be rendered as page text, a form
+  control, or any other DOM content. It also handles expired token, invalid
+  token, already verified, and service-unavailable outcomes.
 - Evaluation-tier quota copy uses the Account Manager quota fields
   `tier=evaluation` and `evaluation_device_quota`; it must not imply commercial
   entitlement or automatic quota approval.

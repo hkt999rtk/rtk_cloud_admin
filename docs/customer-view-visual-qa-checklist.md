@@ -121,6 +121,8 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 影像
 - The verification page shows `New password` and sends exactly `token` and
   `new_password`; successful activation creates the initial authenticated
   session.
+- The verification token is consumed from the callback URL only. Its value is
+  not rendered in page text, form controls, the DOM, or screenshots.
 - Check-email and verification routes cover pending verification, success,
   expired token, invalid token, already verified, resend, and service-unavailable
   states.

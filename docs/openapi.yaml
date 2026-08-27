@@ -150,7 +150,7 @@ paths:
         - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Verify a customer signup email and set its initial password
-      description: Proxies the token and new password to Account Manager and creates a customer session when tokens are returned.
+      description: Proxies the callback token and new password to Account Manager and creates a customer session when tokens are returned. The Web UI consumes the opaque token from the callback URL without rendering it or exposing an editable token field.
       security: []
       requestBody:
         required: true

@@ -437,6 +437,9 @@ sign-in path.
 - On the verification page, collect `New password` and submit it with the
   verification token. Account Manager must set the initial password and verify
   the account atomically before issuing the first session.
+- Treat the callback verification token as an opaque credential. Read it from
+  the URL and submit it internally, but never render its value or expose an
+  editable token field in the page DOM.
 - Route platform password login through Account Manager platform-admin
   authorization during migration.
 - Complete `/signup`, `/signup/check-email`, and `/verify` states for public

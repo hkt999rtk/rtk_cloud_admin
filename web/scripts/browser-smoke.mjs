@@ -523,6 +523,12 @@ async function runAuthSmoke(browserContext) {
   await page.waitForURL(`${baseURL}/signup/check-email?email=new.customer%40example.com`);
   await expectText(page, 'We sent a verification link to new.customer@example.com.');
   await page.goto(`${baseURL}/verify?token=verification-token`, { waitUntil: 'networkidle' });
+  if (await page.getByLabel('Verification token').count()) {
+    throw new Error('Verification page must not render the token as a field.');
+  }
+  if ((await page.locator('body').innerText()).includes('verification-token')) {
+    throw new Error('Verification page must not render the token value.');
+  }
   await page.getByLabel('New password').fill('password123');
   await page.getByRole('button', { name: 'Verify and continue', exact: true }).click();
   await page.waitForURL(`${baseURL}/console/overview`);
@@ -564,8 +570,11 @@ async function runDesktopSmoke(page) {
   await expectText(page, 'Create account');
   await gotoAndAssert(page, '/signup/check-email?email=fleet.manager%40example.com', 'Check your email');
   await expectText(page, 'Resend');
-  await gotoAndAssert(page, '/verify', 'Verify email');
+  await gotoAndAssert(page, '/verify?token=visual-check-token', 'Verify email');
   await expectText(page, 'Create your password to finish verification');
+  if ((await page.locator('body').innerText()).includes('visual-check-token')) {
+    throw new Error('Verification page screenshot state must not render the token value.');
+  }
   await screenshot(page, 'desktop-public-auth.png');
 
   await gotoAndAssert(page, '/console/devices?device=dev-1002', 'Devices');
