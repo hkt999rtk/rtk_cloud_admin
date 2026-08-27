@@ -41,6 +41,7 @@ import {
   loginPathFor,
   passwordLoginOrderForNext,
   protectedPathFromLocation,
+  removeQueryParameterFromAddress,
 } from './auth-routing.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
@@ -1302,6 +1303,10 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onBrandC
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
+  const pageHeading = active === 'reset-password' ? 'Reset your password' : 'Admin Console';
+  const pageCopy = active === 'reset-password'
+    ? 'Choose a new password for your Connect+ Ops account.'
+    : 'Login to an existing account or create a new evaluation account.';
   const content = active === 'login-check-email' ? (
     <LoginCheckEmail email={email} />
   ) : active === 'login-activate' ? (
@@ -1323,8 +1328,8 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onBrandC
             <img src="/assets/realtek-logo.png" alt="Realtek" />
             <strong>Connect+ Ops</strong>
           </div>
-          <h1 id="login-title">Admin Console</h1>
-          <p className="login-copy">Login to an existing account or create a new evaluation account.</p>
+          <h1 id="login-title">{pageHeading}</h1>
+          <p className="login-copy">{pageCopy}</p>
           {content}
           {error ? <div className="error">{error}</div> : null}
         </section>
@@ -1519,37 +1524,91 @@ function ForgotPasswordView({ email, onForgotPassword }) {
 }
 
 function ResetPasswordView({ token, onResetPassword }) {
-  const [tokenValue, setTokenValue] = useState(token);
+  const [tokenValue, setTokenValue] = useState(() => token);
   const [password, setPassword] = useState('');
-  const [status, setStatus] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [completed, setCompleted] = useState(false);
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    removeQueryParameterFromAddress(window.location, window.history, 'token');
+  }, []);
+
   async function submit(event) {
     event.preventDefault();
+    if (password !== confirmPassword) {
+      setLocalError('Passwords do not match.');
+      return;
+    }
     setBusy(true);
     setLocalError('');
     try {
       await onResetPassword({ token: tokenValue, new_password: password });
-      setStatus('Password reset completed. You can sign in with the new password.');
+      setTokenValue('');
+      setPassword('');
+      setConfirmPassword('');
+      setCompleted(true);
     } catch (err) {
       setLocalError(userFacingPasswordResetError(err));
     } finally {
       setBusy(false);
     }
   }
+
+  if (completed) {
+    return (
+      <div className="auth-stack" role="status">
+        <div className="reset-link-status success">
+          <span className="reset-link-status-icon" aria-hidden="true">✓</span>
+          <div>
+            <strong>Password updated</strong>
+            <p>Your new password is ready. You can now sign in to your account.</p>
+          </div>
+        </div>
+        <a className="auth-primary-action" href="/login">Continue to sign in</a>
+      </div>
+    );
+  }
+
+  if (!tokenValue) {
+    return (
+      <div className="auth-stack">
+        <div className="reset-link-status invalid" role="alert">
+          <span className="reset-link-status-icon" aria-hidden="true">!</span>
+          <div>
+            <strong>This reset link is not valid</strong>
+            <p>Request a new email to continue. Reset links can expire or be used only once.</p>
+          </div>
+        </div>
+        <a className="auth-primary-action" href="/forgot-password">Request a new reset link</a>
+        <a className="auth-link" href="/login">Back to sign in</a>
+      </div>
+    );
+  }
+
+  const passwordsDoNotMatch = Boolean(confirmPassword) && password !== confirmPassword;
   return (
     <form className="login-form" onSubmit={submit}>
-      <label>
-        Reset token
-        <input value={tokenValue} onChange={(event) => setTokenValue(event.target.value)} placeholder="Reset token" required />
-      </label>
+      <div className="reset-link-status">
+        <span className="reset-link-status-icon" aria-hidden="true">✓</span>
+        <div>
+          <strong>Secure reset link recognized</strong>
+          <p>Your reset code is hidden and will be submitted securely.</p>
+        </div>
+      </div>
       <label>
         New password
-        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
+        <input type="password" autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setLocalError(''); }} placeholder="At least 8 characters" minLength={8} required />
       </label>
-      <button type="submit" disabled={busy}>{busy ? 'Resetting' : 'Reset password'}</button>
-      {status ? <p className="auth-status">{status}</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      <label>
+        Confirm new password
+        <input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setLocalError(''); }} placeholder="Enter the new password again" minLength={8} aria-invalid={passwordsDoNotMatch} required />
+      </label>
+      <p className="password-requirement">Use at least 8 characters.</p>
+      {passwordsDoNotMatch ? <p className="field-error" role="alert">Passwords do not match.</p> : null}
+      <button type="submit" disabled={busy || passwordsDoNotMatch}>{busy ? 'Updating password' : 'Update password'}</button>
+      {error && !passwordsDoNotMatch ? <p className="error">{error}</p> : null}
       <a className="auth-link" href="/login">Back to sign in</a>
     </form>
   );

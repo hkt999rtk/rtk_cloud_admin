@@ -31,6 +31,16 @@ export function protectedPathFromLocation(location) {
   return `${pathname}${search}${hash}`;
 }
 
+export function removeQueryParameterFromAddress(location, history, parameter) {
+  const params = new URLSearchParams(location?.search || '');
+  if (!params.has(parameter)) return false;
+  params.delete(parameter);
+  const search = params.toString();
+  const nextAddress = `${location?.pathname || '/'}${search ? `?${search}` : ''}${location?.hash || ''}`;
+  history.replaceState(history.state, '', nextAddress);
+  return true;
+}
+
 export function loginPathFor(nextPath) {
   const next = normalizeLoginNext(nextPath);
   return next ? `/login?next=${encodeURIComponent(next)}` : '/login';

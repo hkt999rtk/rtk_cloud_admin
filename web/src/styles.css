@@ -2658,6 +2658,25 @@ p {
   text-decoration: underline;
 }
 
+.auth-primary-action {
+  align-items: center;
+  align-self: start;
+  background: var(--brand);
+  border-radius: 8px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 18px;
+  text-decoration: none;
+}
+
+.auth-primary-action:hover {
+  background: var(--brand-dark);
+}
+
 .auth-honeypot {
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
@@ -2818,6 +2837,75 @@ p {
 .login-form button:disabled {
   background: #ccd7e0;
   cursor: not-allowed;
+}
+
+.reset-link-status {
+  align-items: flex-start;
+  background: #f2f8fc;
+  border: 1px solid #c9dfed;
+  border-radius: 8px;
+  color: var(--navy);
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+}
+
+.reset-link-status.success {
+  background: #f0f8f3;
+  border-color: #bcdcc7;
+}
+
+.reset-link-status.invalid {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.reset-link-status-icon {
+  align-items: center;
+  background: var(--brand);
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 24px;
+  font-size: 13px;
+  font-weight: 900;
+  height: 24px;
+  justify-content: center;
+}
+
+.reset-link-status.success .reset-link-status-icon {
+  background: #21804b;
+}
+
+.reset-link-status.invalid .reset-link-status-icon {
+  background: #b45309;
+}
+
+.reset-link-status strong,
+.reset-link-status p {
+  margin: 0;
+}
+
+.reset-link-status p,
+.password-requirement {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.reset-link-status p {
+  margin-top: 3px;
+}
+
+.password-requirement,
+.field-error {
+  margin: -3px 0 0;
+}
+
+.field-error {
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .login-form .secondary-button {
