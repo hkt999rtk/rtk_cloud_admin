@@ -79,6 +79,8 @@ type SKU struct {
 	RegionDistribution   map[string]int `json:"region_distribution,omitempty"`
 	FirmwareDistribution map[string]int `json:"firmware_distribution,omitempty"`
 	ProductionRunCount   int            `json:"production_run_count"`
+	CurrentUserRole      string         `json:"current_user_role,omitempty"`
+	CollaboratorCount    int            `json:"collaborator_count"`
 }
 
 type FleetSummary struct {

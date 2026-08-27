@@ -180,6 +180,22 @@ explicitly granted the developer capability.
 
 ### Capability contract
 
+### SKU project collaboration
+
+Brand Cloud membership is not SKU visibility. The Brand Cloud owner has audited
+governance access and is the only actor allowed to create a SKU. Each SKU has
+one explicit, transferable owner plus Editors and Viewers:
+
+| SKU role | Project access | Collaboration authority |
+|---|---|---|
+| Owner | Full SKU, device, firmware, OTA, provisioning, batch, and report access | Invite, change, remove, disable, and transfer ownership |
+| Editor | Read/write project operations | None |
+| Viewer | Read-only project resources | None |
+
+Unassigned SKUs are omitted from lists and direct access fails without revealing
+whether the SKU exists. Organization-wide admin/member roles do not override
+this rule.
+
 The active membership must project these machine-readable capabilities. Display
 roles are only labels:
 
