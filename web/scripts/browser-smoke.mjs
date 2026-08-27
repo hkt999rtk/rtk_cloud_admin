@@ -528,6 +528,10 @@ async function runAuthSmoke(browserContext) {
   await page.getByLabel('Email').fill('existing.customer@example.com');
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await expectText(page, 'An account already exists for this email. Log in or reset your password.');
+  const duplicateMessages = await page.getByText('An account already exists for this email. Log in or reset your password.', { exact: true }).count();
+  if (duplicateMessages !== 1) {
+    throw new Error(`Duplicate signup must show exactly one error message, got ${duplicateMessages}.`);
+  }
   if (page.url() !== signupURL) {
     throw new Error(`Duplicate signup must stay on the signup form, got ${page.url()}`);
   }

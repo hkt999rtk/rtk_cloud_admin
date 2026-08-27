@@ -953,16 +953,11 @@ function App() {
 
   async function handleSignup(payload) {
     setError('');
-    try {
-      const result = await postJSON('/api/auth/customer/signup', payload);
-      window.history.pushState({}, '', `/signup/check-email?email=${encodeURIComponent(payload.email)}`);
-      setActive('signup-check-email');
-      setRefreshTick((tick) => tick + 1);
-      return result;
-    } catch (err) {
-      setError(userFacingSignupError(err));
-      throw err;
-    }
+    const result = await postJSON('/api/auth/customer/signup', payload);
+    window.history.pushState({}, '', `/signup/check-email?email=${encodeURIComponent(payload.email)}`);
+    setActive('signup-check-email');
+    setRefreshTick((tick) => tick + 1);
+    return result;
   }
 
   async function handleVerify(payload) {
