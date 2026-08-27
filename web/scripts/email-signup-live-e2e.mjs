@@ -12,7 +12,6 @@ const imapHelper = requiredEnv('EMAIL_E2E_IMAP_HELPER');
 const runID = optionalEnv('EMAIL_E2E_RUN_ID') || 'local';
 const evidencePath = optionalEnv('EMAIL_E2E_EVIDENCE_PATH');
 const python = process.env.PYTHON || 'python3';
-const organizationName = `E2E Email Signup ${runID}`;
 
 const snapshot = await runIMAP('snapshot');
 if (!Number.isInteger(snapshot.uid_next) || snapshot.uid_next < 1) {
@@ -27,9 +26,6 @@ try {
   await signupPage.goto(`${baseURL}/signup`, { waitUntil: 'networkidle' });
   await signupPage.getByLabel('Email', { exact: true }).fill(emailAddress);
   await signupPage.getByLabel('Password', { exact: true }).fill(password);
-  await signupPage.getByLabel('Organization name', { exact: true }).fill(organizationName);
-  await signupPage.getByLabel('Display name', { exact: true }).fill(`E2E Email Signup ${runID}`);
-  await signupPage.getByLabel('I accept the evaluation-tier terms.').check();
   await signupPage.getByRole('button', { name: 'Create account' }).click();
   await signupPage.waitForURL(/\/signup\/check-email(?:\?|$)/, { timeout: 30_000 });
   await signupPage.getByText('We sent a verification link', { exact: false }).waitFor();

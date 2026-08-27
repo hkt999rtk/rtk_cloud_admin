@@ -431,7 +431,7 @@ type SignupRequest struct {
 	Email            string `json:"email"`
 	Password         string `json:"password"`
 	DisplayName      string `json:"display_name,omitempty"`
-	OrganizationName string `json:"organization_name"`
+	OrganizationName string `json:"organization_name,omitempty"`
 	CaptchaToken     string `json:"captcha_token,omitempty"`
 }
 

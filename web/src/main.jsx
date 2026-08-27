@@ -865,20 +865,6 @@ function App() {
     throw new Error(nextError);
   }
 
-  async function handleEmailSignIn(email) {
-    setError('');
-    try {
-      await postJSON('/api/auth/sign-in', { email });
-      window.history.pushState({}, '', `/login/check-email?email=${encodeURIComponent(email)}`);
-      setActive('login-check-email');
-      return true;
-    } catch (err) {
-      const nextError = userFacingLoginActivationError(err);
-      setError(nextError);
-      throw new Error(nextError);
-    }
-  }
-
   async function handleLoginActivate(token) {
     setError('');
     try {
@@ -1022,7 +1008,7 @@ function App() {
           active={active}
           error={error}
           loading={loading}
-          onEmailSignIn={handleEmailSignIn}
+          onSignup={handleSignup}
           onLoginActivate={handleLoginActivate}
           onBrandCloudActivate={handleBrandCloudActivate}
           onPasswordLogin={handlePasswordLogin}
@@ -1236,7 +1222,7 @@ function App() {
   );
 }
 
-function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onBrandCloudActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
+function LoginPage({ active, error, loading, onSignup, onLoginActivate, onBrandCloudActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
@@ -1251,7 +1237,7 @@ function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onB
   ) : active === 'reset-password' ? (
     <ResetPasswordView token={token} onResetPassword={onResetPassword} />
   ) : (
-    <LoginEntryForm onEmailSignIn={onEmailSignIn} onPasswordLogin={onPasswordLogin} disabled={loading} />
+    <LoginEntryForm onSignup={onSignup} onPasswordLogin={onPasswordLogin} disabled={loading} />
   );
   return (
     <div className="login-shell">
@@ -1262,7 +1248,7 @@ function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onB
             <strong>Connect+ Ops</strong>
           </div>
           <h1 id="login-title">Admin Console</h1>
-          <p className="login-copy">Login with your password or sign in with an email activation link.</p>
+          <p className="login-copy">Login to an existing account or create a new evaluation account.</p>
           {content}
           {error ? <div className="error">{error}</div> : null}
         </section>
@@ -1301,7 +1287,7 @@ function BrandCloudActivateView({ token, tenant, onActivate }) {
   );
 }
 
-function LoginEntryForm({ onEmailSignIn, onPasswordLogin, disabled }) {
+function LoginEntryForm({ onSignup, onPasswordLogin, disabled }) {
   const [mode, setMode] = useState('login');
   return (
     <div className="auth-stack">
@@ -1317,49 +1303,20 @@ function LoginEntryForm({ onEmailSignIn, onPasswordLogin, disabled }) {
         </button>
         <button
           type="button"
-          className={mode === 'signin' ? 'active' : ''}
+          className={mode === 'signup' ? 'active' : ''}
           role="tab"
-          aria-selected={mode === 'signin'}
-          onClick={() => setMode('signin')}
+          aria-selected={mode === 'signup'}
+          onClick={() => setMode('signup')}
         >
-          Sign-in
+          Sign Up
         </button>
       </div>
-      {mode === 'signin' ? (
-        <LoginEmailForm onEmailSignIn={onEmailSignIn} disabled={disabled} />
+      {mode === 'signup' ? (
+        <SignupForm onSignup={onSignup} disabled={disabled} />
       ) : (
         <LoginPasswordForm onPasswordLogin={onPasswordLogin} disabled={disabled} />
       )}
     </div>
-  );
-}
-
-function LoginEmailForm({ onEmailSignIn, disabled }) {
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [localError, setLocalError] = useState('');
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setLocalError('');
-    try {
-      await onEmailSignIn(email);
-    } catch (err) {
-      setLocalError(err?.message || 'Sign-in is temporarily unavailable. Please try again later.');
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <form className="login-form" onSubmit={submit}>
-      <p className="auth-status">Send an activation link to continue without a password.</p>
-      <label>
-        Email
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
-      </label>
-      <button type="submit" disabled={busy || disabled}>{busy ? 'Sending' : 'Continue'}</button>
-      {localError ? <p className="error">{localError}</p> : null}
-    </form>
   );
 }
 
@@ -1548,13 +1505,9 @@ function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerificatio
   );
 }
 
-function SignupForm({ onSignup }) {
+function SignupForm({ onSignup, disabled = false }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [organizationName, setOrganizationName] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [captchaToken, setCaptchaToken] = useState('');
-  const [acceptTerms, setAcceptTerms] = useState(false);
   const [honeypot, setHoneypot] = useState('');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1562,16 +1515,13 @@ function SignupForm({ onSignup }) {
 
   async function submit(event) {
     event.preventDefault();
-    if (!acceptTerms || honeypot) return;
+    if (honeypot) return;
     setBusy(true);
     setLocalError('');
     try {
       await onSignup({
         email,
         password,
-        display_name: displayName,
-        organization_name: organizationName,
-        captcha_token: captchaToken,
       });
     } catch (err) {
       setLocalError(userFacingSignupError(err));
@@ -1590,31 +1540,15 @@ function SignupForm({ onSignup }) {
         Password
         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
       </label>
-      <label>
-        Organization name
-        <input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder="Acme Camera Fleet" required />
-      </label>
-      <label>
-        Display name
-        <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Optional contact name" />
-      </label>
       <label className="auth-honeypot">
         Leave this field empty
         <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
-      </label>
-      <label>
-        CAPTCHA token
-        <input value={captchaToken} onChange={(event) => setCaptchaToken(event.target.value)} placeholder="Optional if enabled" />
       </label>
       <div className="auth-strength">
         <span>Password strength</span>
         <strong>{strength}</strong>
       </div>
-      <label className="auth-terms">
-        <input type="checkbox" checked={acceptTerms} onChange={(event) => setAcceptTerms(event.target.checked)} />
-        I accept the evaluation-tier terms.
-      </label>
-      <button type="submit" disabled={busy || !acceptTerms || !!honeypot}>Create account</button>
+      <button type="submit" disabled={busy || disabled || !!honeypot}>Create account</button>
       {error ? <p className="error">{error}</p> : null}
     </form>
   );

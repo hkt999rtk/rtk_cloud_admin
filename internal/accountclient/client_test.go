@@ -396,6 +396,13 @@ func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 			if r.Method != http.MethodPost {
 				t.Fatalf("signup method = %s", r.Method)
 			}
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode signup body: %v", err)
+			}
+			if len(body) != 2 || body["email"] != "signup@example.com" || body["password"] != "password123" {
+				t.Fatalf("signup body = %#v", body)
+			}
 			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"signup@example.com","name":"Signup"},"organization":{"id":"org-1","name":"Acme","role":"owner","tier":"evaluation","evaluation_device_quota":5}}`))
 		case "/v1/auth/verify-email":
 			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"signup@example.com","name":"Signup"},"tokens":{"access_token":"access","refresh_token":"refresh","expires_in":3600}}`))
@@ -413,11 +420,7 @@ func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 	defer upstream.Close()
 
 	client := New(upstream.URL)
-	signup, err := client.Signup(t.Context(), SignupRequest{
-		Email:            "signup@example.com",
-		Password:         "password123",
-		OrganizationName: "Acme",
-	})
+	signup, err := client.Signup(t.Context(), SignupRequest{Email: "signup@example.com", Password: "password123"})
 	if err != nil {
 		t.Fatalf("Signup returned error: %v", err)
 	}

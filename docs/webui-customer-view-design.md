@@ -304,28 +304,27 @@ Login page:
 
 - Use the Realtek logo asset, followed by the `Connect+ Ops` product label.
 - The auth page is a normal website-style entry page with two first-class
-  modes: `Login` and `Sign-in`. Do not model either mode as a fallback hidden
-  behind copy such as `Use password instead`.
+  modes: `Login` and `Sign Up`. Do not model either mode as a fallback hidden
+  behind secondary copy.
 - `Login` is the default mode for an existing Admin Console user. It shows
   `Email`, `Password`, a primary `Login` action, and a `Forgot password?`
   link. Password login keeps the existing platform/customer login behavior.
-- `Sign-in` is the email activation-link mode. It shows one `Email` field and
-  a primary `Continue` action that calls `POST /api/auth/sign-in`. The UI copy
-  must make clear that this sends an activation/sign-in link instead of
-  logging in immediately.
-- The `Login` / `Sign-in` switcher must be visible in the first viewport, for
+- `Sign Up` is the public evaluation-account creation mode. It collects the
+  minimum Account Manager signup fields: `Email` and `Password`. It does not ask
+  for `Organization name`, `Display name`, a manual `CAPTCHA token`, or terms
+  acceptance. It calls
+  `POST /api/auth/customer/signup`; a successful response creates a new
+  pending-verification account, uses the normalized email as the default initial
+  Brand Cloud name, and routes to `/signup/check-email`.
+- The `Login` / `Sign Up` switcher must be visible in the first viewport, for
   example as tabs or a segmented control directly above the form.
 - The email field label is `Email`; do not use `Work email`.
 - Do not show a top-right `Need help?` link on the login page.
 - Keep login copy short and operational. Avoid support, marketing, or
   instructional links in the first viewport.
-- `/login/check-email` confirms that a sign-in request was accepted. The copy
-  must be enumeration-safe and must not reveal whether the account exists,
-  is disabled, or was rate limited.
-- `/login/activate` consumes a login activation token and creates the Admin
-  Console session only after Account Manager returns successful credentials.
-  Invalid, expired, or replayed tokens show a compact failure state with a
-  route back to `/login`.
+- The existing Account Manager email activation-link sign-in API remains an
+  authentication capability, but it is not exposed as the account-creation tab
+  and must not be labeled `Sign Up`.
 - `/forgot-password` requests a password reset token by email and returns the
   same accepted UI for known, unknown, disabled, or throttled accounts.
 - `/reset-password` consumes a reset token, writes the new password through
@@ -373,10 +372,10 @@ Capability and role behavior:
 Auth and access states:
 
 - Unauthenticated users see the standalone Admin Console auth page. `Login`
-  and `Sign-in` are both first-class modes, with `Login` selected by default.
-- Signup entry points route to the self-service evaluation flow documented in
-  `SPEC.md`; commercial brand-cloud user creation is separate and platform
-  admin-owned.
+  and `Sign Up` are both first-class modes, with `Login` selected by default.
+- The `Sign Up` tab and direct `/signup` route open the same self-service
+  evaluation flow documented in `SPEC.md`; commercial brand-cloud user
+  creation is separate and platform admin-owned.
 - SSO callback, verification, expired-token, and gateway-error states need
   dedicated copy. Do not leave users on a blank dashboard shell while auth state
   is pending.
@@ -575,9 +574,13 @@ Design requirements:
 - Signup is for public evaluation-tier onboarding only. It creates a pending
   Account Manager signup and must not be used for commercial brand-cloud user
   creation.
-- The signup form collects the minimum Account Manager fields needed to start
-  evaluation onboarding and shows that verification email is required before
-  account use.
+- The `Sign Up` tab on the standalone auth page and the direct `/signup` route
+  are two entry points to this same flow; they must submit the same payload,
+  containing only `email` and `password`, and produce the same
+  pending-verification state.
+- The signup form collects only email and password. Optional profile,
+  organization-name, manual CAPTCHA-token, and terms-acceptance fields are not
+  exposed. Verification email is required before account use.
 - The check-email state explains that the user must verify email before signing
   in. It may offer resend only through the Account Manager-backed API.
 - The verification landing state handles success, expired token, invalid token,

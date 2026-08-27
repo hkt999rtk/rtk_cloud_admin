@@ -3357,7 +3357,7 @@ components:
           minLength: 8
     SignupRequest:
       type: object
-      required: [email, password, organization_name]
+      required: [email, password]
       properties:
         email:
           type: string
@@ -3365,10 +3365,12 @@ components:
         password:
           type: string
           format: password
+          minLength: 8
         display_name:
           type: string
         organization_name:
           type: string
+          description: Optional initial Brand Cloud name. Blank or omitted values fall back to the normalized email.
         captcha_token:
           type: string
     SignupResult:

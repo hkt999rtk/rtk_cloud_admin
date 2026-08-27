@@ -417,7 +417,28 @@ async function installApiMocks(page, { sessionForPath } = {}) {
       }
       return route.fulfill({ json: isPlatformFrame ? platformMe : customerMe });
     }
+    if (pathName === '/api/auth/customer/signup') {
+      if (request.method() !== 'POST') {
+        throw new Error(`Signup must use POST, got ${request.method()}`);
+      }
+      const payload = request.postDataJSON();
+      const expected = {
+        email: 'new.customer@example.com',
+        password: 'password123',
+      };
+      if (JSON.stringify(payload) !== JSON.stringify(expected)) {
+        throw new Error(`Unexpected signup payload: ${JSON.stringify(payload)}`);
+      }
+      return route.fulfill({
+        status: 202,
+        json: {
+          user: { id: 'user-new-customer', email: expected.email },
+          organization: { id: 'org-new-customer', name: expected.email, tier: 'evaluation' },
+        },
+      });
+    }
     if (pathName === '/api/summary' || pathName === '/api/admin/summary') return route.fulfill({ json: summary });
+    if (pathName === '/api/developer/brand-clouds') return route.fulfill({ json: { brand_clouds: [] } });
     if (pathName === '/api/customers' || pathName === '/api/admin/customers') return route.fulfill({ json: customers });
     if (pathName === '/api/devices' || pathName === '/api/admin/devices') return route.fulfill({ json: devices });
     if (pathName === '/api/fleet/devices') return route.fulfill({ json: { devices, pagination: { limit: 100, offset: 0, total: devices.length }, query: { server_side: true } } });
@@ -468,7 +489,24 @@ async function runAuthSmoke(browserContext) {
   if (await page.locator('.login-preview').count()) {
     throw new Error('Login page must not render destination preview panels.');
   }
+  const loginTab = page.getByRole('tab', { name: 'Login', exact: true });
+  const signUpTab = page.getByRole('tab', { name: 'Sign Up', exact: true });
+  if (await loginTab.getAttribute('aria-selected') !== 'true') {
+    throw new Error('Login must be the default auth tab.');
+  }
+  if (await page.getByRole('tab', { name: 'Sign-in', exact: true }).count()) {
+    throw new Error('Login page must not expose the retired Sign-in tab.');
+  }
   await screenshot(page, 'desktop-login.png');
+
+  await signUpTab.click();
+  await expectText(page, 'Create account');
+  await page.getByLabel('Email').fill('new.customer@example.com');
+  await page.getByLabel('Password').fill('password123');
+  await screenshot(page, 'desktop-signup-tab.png');
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await page.waitForURL(`${baseURL}/signup/check-email?email=new.customer%40example.com`);
+  await expectText(page, 'We sent a verification link to new.customer@example.com.');
   if (consoleIssues.length) {
     throw new Error(`Auth smoke console issues detected:\n${consoleIssues.join('\n')}`);
   }
@@ -479,7 +517,8 @@ function collectConsoleIssues(page) {
   const issues = [];
   page.on('console', (message) => {
     if (!['error', 'warning'].includes(message.type())) return;
-    issues.push(`${message.type()}: ${message.text()}`);
+    const location = message.location().url;
+    issues.push(`${message.type()}: ${message.text()}${location ? ` (${location})` : ''}`);
   });
   page.on('pageerror', (error) => {
     issues.push(`pageerror: ${error.message}`);
@@ -503,7 +542,6 @@ async function runDesktopSmoke(page) {
   await screenshot(page, 'desktop-overview.png');
 
   await gotoAndAssert(page, '/signup', 'Sign up');
-  await expectText(page, 'evaluation-tier');
   await expectText(page, 'Create account');
   await gotoAndAssert(page, '/signup/check-email?email=fleet.manager%40example.com', 'Check your email');
   await expectText(page, 'Resend');
@@ -562,6 +600,26 @@ async function runMobileSmoke(browserContext) {
     throw new Error('Mobile login page must not render recovery access controls.');
   }
   await screenshot(page, 'mobile-login.png');
+  await page.getByRole('tab', { name: 'Sign Up', exact: true }).click();
+  await expectText(page, 'Create account');
+  const signupOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  if (signupOverflow) {
+    const overflowDetails = await page.evaluate(() => ({
+      viewport: window.innerWidth,
+      document: document.documentElement.scrollWidth,
+      html: { clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth },
+      body: { clientWidth: document.body.clientWidth, scrollWidth: document.body.scrollWidth, width: document.body.getBoundingClientRect().width },
+      elements: [...document.querySelectorAll('body *')]
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          return { tag: element.tagName, className: element.className, left: rect.left, right: rect.right, width: rect.width };
+        })
+        .filter((item) => item.left < -1 || item.right > window.innerWidth + 1)
+        .slice(0, 8),
+    }));
+    throw new Error(`Mobile Sign Up tab must not overflow horizontally: ${JSON.stringify(overflowDetails)}`);
+  }
+  await screenshot(page, 'mobile-signup-tab.png');
   await page.unroute('**/api/**');
   await installApiMocks(page);
   await gotoAndAssert(page, '/console/devices', 'Devices');

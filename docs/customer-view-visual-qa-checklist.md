@@ -108,6 +108,16 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 影像
 
 - Signup route is evaluation-tier only and does not imply commercial brand-cloud
   user creation.
+- The standalone auth page labels its two first-class tabs `Login` and
+  `Sign Up`; it does not use `Sign-in` as the signup label.
+- `Login` authenticates an existing account. `Sign Up` opens the same
+  evaluation-account creation flow as `/signup` and continues to the
+  signup check-email state.
+- Both Sign Up entry points show only `Email` and `Password`. They do not show
+  organization name, display name, a manual CAPTCHA token, or a
+  terms-acceptance checkbox.
+- Submitting either Sign Up entry point sends exactly `email` and `password` to
+  `POST /api/auth/customer/signup`.
 - Check-email and verification routes cover pending verification, success,
   expired token, invalid token, already verified, resend, and service-unavailable
   states.

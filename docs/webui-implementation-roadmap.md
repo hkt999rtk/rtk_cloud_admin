@@ -428,6 +428,12 @@ sign-in path.
 
 - Polish email/password login states: idle, submitting, denied access,
   unavailable source, and retry.
+- Replace the ambiguous `Login` / `Sign-in` auth-mode tabs with `Login` /
+  `Sign Up`. `Login` authenticates an existing account; `Sign Up` executes the
+  public evaluation-account creation flow and proceeds to email verification.
+- Keep both Sign Up entry points minimal: show only `Email` and `Password`, and
+  submit only `email` and `password`. Do not expose organization name, display
+  name, a manual CAPTCHA token, or a terms-acceptance checkbox.
 - Route platform password login through Account Manager platform-admin
   authorization during migration.
 - Complete `/signup`, `/signup/check-email`, and `/verify` states for public
@@ -456,6 +462,14 @@ sign-in path.
 ## Acceptance Criteria
 
 - Public auth pages are outside Customer View and Platform View section nav.
+- The first auth viewport presents `Login` and `Sign Up` as the two first-class
+  tabs, with `Login` selected by default.
+- The `Sign Up` tab and `/signup` route submit the same Account Manager-backed
+  evaluation signup and create a pending-verification account.
+- Both signup entry points show only `Email` and `Password`; their request body
+  contains exactly `email` and `password`.
+- Signup does not show organization-name, display-name, manual CAPTCHA-token,
+  or terms-acceptance controls.
 - Signup is clearly evaluation-tier only.
 - Verification and login errors use user-facing copy without exposing internal
   upstream payloads.
@@ -467,7 +481,10 @@ sign-in path.
 - `cd web && npm test`
 - `cd web && npm run build`
 - `cd web && npm run browser:smoke`
-- `go test ./...` if BFF auth, signup, verification, or quota behavior changes.
+- Browser smoke verifies the two-field signup form and exact
+  `{email, password}` request payload on `/login` and `/signup`.
+- `GOWORK=off go test ./...` if BFF auth, signup, verification, or quota behavior
+  changes.
 
 ## References
 
