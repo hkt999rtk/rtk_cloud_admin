@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs';
 import {
@@ -197,6 +197,9 @@ function App() {
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavRef = useRef(null);
+  const mobileMenuButtonRef = useRef(null);
   const isPublicRoute = isPublicRouteId(active);
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'brand-cloud-activate' || active === 'forgot-password' || active === 'reset-password';
@@ -636,11 +639,46 @@ function App() {
     setDeviceDrawerOpen(Boolean(deviceId));
   }, [active]);
 
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+    const drawer = mobileNavRef.current;
+    const focusable = () => [...(drawer?.querySelectorAll('button, select, a[href], [tabindex]:not([tabindex="-1"])') || [])]
+      .filter((element) => !element.disabled && element.getAttribute('aria-hidden') !== 'true');
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    focusable()[0]?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setMobileNavOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+      mobileMenuButtonRef.current?.focus();
+    };
+  }, [mobileNavOpen]);
+
   function navigate(item) {
     const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
     const path = cloudId && item.path.startsWith('/console/') ? `/console/${encodeURIComponent(cloudId)}/${item.path.slice('/console/'.length)}` : item.path;
     window.history.pushState({}, '', path);
     setActive(item.id);
+    setMobileNavOpen(false);
   }
 
   function switchView(targetActive) {
@@ -865,20 +903,6 @@ function App() {
     throw new Error(nextError);
   }
 
-  async function handleEmailSignIn(email) {
-    setError('');
-    try {
-      await postJSON('/api/auth/sign-in', { email });
-      window.history.pushState({}, '', `/login/check-email?email=${encodeURIComponent(email)}`);
-      setActive('login-check-email');
-      return true;
-    } catch (err) {
-      const nextError = userFacingLoginActivationError(err);
-      setError(nextError);
-      throw new Error(nextError);
-    }
-  }
-
   async function handleLoginActivate(token) {
     setError('');
     try {
@@ -929,22 +953,17 @@ function App() {
 
   async function handleSignup(payload) {
     setError('');
-    try {
-      const result = await postJSON('/api/auth/customer/signup', payload);
-      window.history.pushState({}, '', `/signup/check-email?email=${encodeURIComponent(payload.email)}`);
-      setActive('signup-check-email');
-      setRefreshTick((tick) => tick + 1);
-      return result;
-    } catch (err) {
-      setError(userFacingSignupError(err));
-      throw err;
-    }
+    const result = await postJSON('/api/auth/customer/signup', payload);
+    window.history.pushState({}, '', `/signup/check-email?email=${encodeURIComponent(payload.email)}`);
+    setActive('signup-check-email');
+    setRefreshTick((tick) => tick + 1);
+    return result;
   }
 
-  async function handleVerify(token) {
+  async function handleVerify(payload) {
     setError('');
     try {
-      const result = await postJSON('/api/auth/customer/verify-email', { token });
+      const result = await postJSON('/api/auth/customer/verify-email', payload);
       if (result.tokens?.access_token) {
         window.history.pushState({}, '', '/console/overview');
         setActive('overview');
@@ -955,6 +974,16 @@ function App() {
       setError(userFacingVerificationError(err));
       throw err;
     }
+  }
+
+  async function handleVerificationStatus(token) {
+    setError('');
+    const result = await postJSON('/api/auth/customer/verification-status', { token });
+    if (result?.status === 'expired') {
+      window.history.replaceState({}, '', '/signup/verification-expired');
+      setActive('signup-verification-expired');
+    }
+    return result;
   }
 
   async function handleResendVerification(email) {
@@ -997,6 +1026,7 @@ function App() {
   }
 
   async function handleLogout() {
+    setMobileNavOpen(false);
     setError('');
     const response = await fetch('/api/auth/logout', { method: 'POST' });
     if (!response.ok) {
@@ -1022,7 +1052,7 @@ function App() {
           active={active}
           error={error}
           loading={loading}
-          onEmailSignIn={handleEmailSignIn}
+          onSignup={handleSignup}
           onLoginActivate={handleLoginActivate}
           onBrandCloudActivate={handleBrandCloudActivate}
           onPasswordLogin={handlePasswordLogin}
@@ -1036,6 +1066,7 @@ function App() {
         active={active}
         error={error}
         onSignup={handleSignup}
+        onCheckVerification={handleVerificationStatus}
         onVerify={handleVerify}
         onResendVerification={handleResendVerification}
       />
@@ -1048,10 +1079,40 @@ function App() {
 
   return (
     <div className={`app-shell ${isPlatformView ? 'platform-shell' : ''}`}>
-      <aside className="sidebar">
+      <header className="mobile-appbar">
+        <button
+          ref={mobileMenuButtonRef}
+          type="button"
+          className="mobile-menu-button"
+          aria-label="Open navigation"
+          aria-controls="primary-navigation"
+          aria-expanded={mobileNavOpen}
+          onClick={() => setMobileNavOpen(true)}
+        >
+          <Icon name="bars" />
+        </button>
+        <strong>{titleFor(active)}</strong>
+        <span className="mobile-appbar-mark" aria-hidden="true">C+</span>
+      </header>
+      <button
+        type="button"
+        className={`mobile-nav-overlay ${mobileNavOpen ? 'open' : ''}`}
+        aria-label="Close navigation"
+        tabIndex={mobileNavOpen ? 0 : -1}
+        onClick={() => setMobileNavOpen(false)}
+      />
+      <aside
+        id="primary-navigation"
+        ref={mobileNavRef}
+        className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}
+        aria-label="Primary navigation"
+      >
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">{isPlatformView ? <Icon name="cloud" /> : 'C+'}</span>
           <strong>{isPlatformView ? 'RTK cloud' : 'Connect+ Ops'}</strong>
+          <button type="button" className="mobile-nav-close" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>
+            <Icon name="xmark" />
+          </button>
         </div>
         <p className="sidebar-section-label">{isPlatformView ? 'Platform View' : 'Customer View'}</p>
         <nav>
@@ -1081,6 +1142,7 @@ function App() {
             <strong>{sessionLabel(me)}</strong>
             <small>{me?.authenticated ? me.email : 'Sign in required'}</small>
           </div>
+          {me?.authenticated ? <button type="button" className="sidebar-logout" onClick={handleLogout}><Icon name="right-from-bracket" />Logout</button> : null}
         </div>
       </aside>
 
@@ -1236,7 +1298,7 @@ function App() {
   );
 }
 
-function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onBrandCloudActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
+function LoginPage({ active, error, loading, onSignup, onLoginActivate, onBrandCloudActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
@@ -1251,7 +1313,7 @@ function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onB
   ) : active === 'reset-password' ? (
     <ResetPasswordView token={token} onResetPassword={onResetPassword} />
   ) : (
-    <LoginEntryForm onEmailSignIn={onEmailSignIn} onPasswordLogin={onPasswordLogin} disabled={loading} />
+    <LoginEntryForm onSignup={onSignup} onPasswordLogin={onPasswordLogin} disabled={loading} />
   );
   return (
     <div className="login-shell">
@@ -1262,7 +1324,7 @@ function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onB
             <strong>Connect+ Ops</strong>
           </div>
           <h1 id="login-title">Admin Console</h1>
-          <p className="login-copy">Login with your password or sign in with an email activation link.</p>
+          <p className="login-copy">Login to an existing account or create a new evaluation account.</p>
           {content}
           {error ? <div className="error">{error}</div> : null}
         </section>
@@ -1301,7 +1363,7 @@ function BrandCloudActivateView({ token, tenant, onActivate }) {
   );
 }
 
-function LoginEntryForm({ onEmailSignIn, onPasswordLogin, disabled }) {
+function LoginEntryForm({ onSignup, onPasswordLogin, disabled }) {
   const [mode, setMode] = useState('login');
   return (
     <div className="auth-stack">
@@ -1317,49 +1379,20 @@ function LoginEntryForm({ onEmailSignIn, onPasswordLogin, disabled }) {
         </button>
         <button
           type="button"
-          className={mode === 'signin' ? 'active' : ''}
+          className={mode === 'signup' ? 'active' : ''}
           role="tab"
-          aria-selected={mode === 'signin'}
-          onClick={() => setMode('signin')}
+          aria-selected={mode === 'signup'}
+          onClick={() => setMode('signup')}
         >
-          Sign-in
+          Sign Up
         </button>
       </div>
-      {mode === 'signin' ? (
-        <LoginEmailForm onEmailSignIn={onEmailSignIn} disabled={disabled} />
+      {mode === 'signup' ? (
+        <SignupForm onSignup={onSignup} disabled={disabled} />
       ) : (
         <LoginPasswordForm onPasswordLogin={onPasswordLogin} disabled={disabled} />
       )}
     </div>
-  );
-}
-
-function LoginEmailForm({ onEmailSignIn, disabled }) {
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [localError, setLocalError] = useState('');
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setLocalError('');
-    try {
-      await onEmailSignIn(email);
-    } catch (err) {
-      setLocalError(err?.message || 'Sign-in is temporarily unavailable. Please try again later.');
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <form className="login-form" onSubmit={submit}>
-      <p className="auth-status">Send an activation link to continue without a password.</p>
-      <label>
-        Email
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
-      </label>
-      <button type="submit" disabled={busy || disabled}>{busy ? 'Sending' : 'Continue'}</button>
-      {localError ? <p className="error">{localError}</p> : null}
-    </form>
   );
 }
 
@@ -1522,7 +1555,7 @@ function ResetPasswordView({ token, onResetPassword }) {
   );
 }
 
-function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerification }) {
+function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify, onResendVerification }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
@@ -1539,8 +1572,10 @@ function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerificatio
           <SignupForm onSignup={onSignup} />
         ) : active === 'signup-check-email' ? (
           <CheckEmailInterstitial email={email} onResendVerification={onResendVerification} />
+        ) : active === 'signup-verification-expired' ? (
+          <ExpiredVerificationPage />
         ) : (
-          <VerifyForm token={token} onVerify={onVerify} />
+          <VerifyForm token={token} onCheckVerification={onCheckVerification} onVerify={onVerify} />
         )}
         {error ? <div className="error">{error}</div> : null}
       </section>
@@ -1548,30 +1583,20 @@ function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerificatio
   );
 }
 
-function SignupForm({ onSignup }) {
+function SignupForm({ onSignup, disabled = false }) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [organizationName, setOrganizationName] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [captchaToken, setCaptchaToken] = useState('');
-  const [acceptTerms, setAcceptTerms] = useState(false);
   const [honeypot, setHoneypot] = useState('');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
-  const strength = passwordStrength(password);
 
   async function submit(event) {
     event.preventDefault();
-    if (!acceptTerms || honeypot) return;
+    if (honeypot) return;
     setBusy(true);
     setLocalError('');
     try {
       await onSignup({
         email,
-        password,
-        display_name: displayName,
-        organization_name: organizationName,
-        captcha_token: captchaToken,
       });
     } catch (err) {
       setLocalError(userFacingSignupError(err));
@@ -1586,35 +1611,11 @@ function SignupForm({ onSignup }) {
         Email
         <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
       </label>
-      <label>
-        Password
-        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
-      </label>
-      <label>
-        Organization name
-        <input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder="Acme Camera Fleet" required />
-      </label>
-      <label>
-        Display name
-        <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Optional contact name" />
-      </label>
       <label className="auth-honeypot">
         Leave this field empty
         <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
       </label>
-      <label>
-        CAPTCHA token
-        <input value={captchaToken} onChange={(event) => setCaptchaToken(event.target.value)} placeholder="Optional if enabled" />
-      </label>
-      <div className="auth-strength">
-        <span>Password strength</span>
-        <strong>{strength}</strong>
-      </div>
-      <label className="auth-terms">
-        <input type="checkbox" checked={acceptTerms} onChange={(event) => setAcceptTerms(event.target.checked)} />
-        I accept the evaluation-tier terms.
-      </label>
-      <button type="submit" disabled={busy || !acceptTerms || !!honeypot}>Create account</button>
+      <button type="submit" disabled={busy || disabled || !!honeypot}>Create account</button>
       {error ? <p className="error">{error}</p> : null}
     </form>
   );
@@ -1657,44 +1658,54 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
   );
 }
 
-function VerifyForm({ token, onVerify }) {
-  const [value, setValue] = useState(token);
-  const [status, setStatus] = useState('Waiting for verification link.');
+function ExpiredVerificationPage() {
+  return (
+    <div className="auth-stack expired-verification-page">
+      <h2>Verification link expired</h2>
+      <p>Your account was not verified. Start Sign Up again to receive a new verification email.</p>
+      <a className="primary-button auth-primary-link" href="/signup">Sign up again</a>
+      <a className="auth-link" href="/login">Back to Login</a>
+    </div>
+  );
+}
+
+function VerifyForm({ token, onCheckVerification, onVerify }) {
+  const [password, setPassword] = useState('');
+  const [linkStatus, setLinkStatus] = useState(token ? 'checking' : 'invalid');
+  const [status, setStatus] = useState(token ? 'Checking verification link…' : 'This verification link is invalid.');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
-    if (!value || attempted) return;
-    setAttempted(true);
-    setBusy(true);
-    setLocalError('');
-    onVerify(value)
+    if (!token) return undefined;
+    let active = true;
+    onCheckVerification(token)
       .then((result) => {
-        if (!result) {
-          setLocalError('Verification failed. Check the token and try again.');
-        } else if (result.tokens?.access_token) {
-          setStatus('Verification completed. Redirecting to the dashboard.');
-        } else {
-          setStatus('Email verified. Sign in to continue.');
-        }
+        if (!active || result?.status === 'expired') return;
+        const nextStatus = result?.status === 'valid' ? 'valid' : 'invalid';
+        setLinkStatus(nextStatus);
+        setStatus(nextStatus === 'valid' ? 'Create your password to finish verification.' : 'This verification link is invalid.');
       })
-      .catch((err) => setLocalError(userFacingVerificationError(err)))
-      .finally(() => setBusy(false));
-  }, [attempted, onVerify, value]);
+      .catch((err) => {
+        if (!active) return;
+        setLinkStatus('error');
+        setLocalError(userFacingVerificationError(err));
+      });
+    return () => { active = false; };
+  }, [onCheckVerification, token]);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
     setLocalError('');
     try {
-      const result = await onVerify(value);
+      const result = await onVerify({ token, new_password: password });
       if (!result) {
         setLocalError('Verification failed. Check the token and try again.');
       } else if (result.tokens?.access_token) {
         setStatus('Verification completed. Redirecting to the dashboard.');
       } else {
-        setStatus('Email verified. Sign in to continue.');
+        setStatus('Email verified. You can now sign in.');
       }
     } catch (err) {
       setLocalError(userFacingVerificationError(err));
@@ -1705,13 +1716,17 @@ function VerifyForm({ token, onVerify }) {
 
   return (
     <div className="auth-stack">
-      <p>Paste the email verification token from your inbox link.</p>
-      <form className="auth-inline" onSubmit={submit}>
-        <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Verification token" required />
-        <button type="submit" disabled={busy}>Verify</button>
-      </form>
+      <p>Verify your email and create the password you will use to log in.</p>
+      {linkStatus === 'valid' ? <form className="auth-form" onSubmit={submit}>
+        <label>
+          New password
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
+        </label>
+        <button type="submit" disabled={busy || !token}>{busy ? 'Verifying' : 'Verify and continue'}</button>
+      </form> : null}
       <p className="auth-status">{status}</p>
       {error ? <p className="error">{error}</p> : null}
+      {linkStatus === 'invalid' ? <a className="auth-link" href="/signup">Sign up again</a> : null}
     </div>
   );
 }
@@ -1842,6 +1857,12 @@ function Overview({
       {!telemetryAvailable ? <SourceBlockedState title={telemetryState.title} message={telemetryReason} /> : null}
 
       <section className="overview-grid">
+        <HealthDistributionPanel
+          loading={loading}
+          current={fleetHealth?.current}
+          onFilter={onHealthFilter}
+          source={fleetHealth}
+        />
         <FleetHealthTrendPanel
           loading={loading}
           trend={fleetHealth?.trend || []}
@@ -1849,20 +1870,13 @@ function Overview({
           onWindowChange={setOverviewWindow}
           source={fleetHealth}
         />
-        <HealthDistributionPanel
-          loading={loading}
-          current={fleetHealth?.current}
-          onFilter={onHealthFilter}
-          source={fleetHealth}
-        />
+      </section>
+
+      <section className="overview-attention">
+        <AttentionQueuePanel loading={loading} items={attentionDevices} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
       </section>
 
       <RegionFleetPanel summary={fleetSummary} loading={loading} />
-
-      <section className="overview-lower-grid">
-        <RecentAlertsPanel loading={loading} alerts={recentAlerts} source={fleetHealth} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
-        <AttentionQueuePanel loading={loading} items={attentionDevices} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
-      </section>
 
       {me?.authenticated && isEvaluation && nearQuota ? (
         <section className="panel quota-callout">
@@ -1899,17 +1913,6 @@ function RegionFleetPanel({ summary, loading }) {
       {!loading && unavailable ? <p className="empty-state">區域資料暫時無法取得。</p> : null}
       {!loading && !unavailable ? (
         <div className="region-fleet-grid">
-          <div className="region-map-vector" aria-label="區域設備分布圖">
-            <svg viewBox="0 0 520 260" role="img" aria-label="設備區域分布">
-              <path d="M38 150 92 118 138 128 166 92 230 106 274 78 334 96 390 72 476 112 450 178 390 184 350 220 275 202 220 232 164 214 100 232 52 202Z" />
-              {regions.slice(0, 8).map(([region, count], index) => {
-                const x = 70 + ((index * 71) % 390);
-                const y = 112 + ((index * 43) % 100);
-                return <g key={region}><circle cx={x} cy={y} r={Math.max(5, Math.min(14, 5 + count / max * 10))} /><text x={x + 10} y={y + 4}>{region}</text></g>;
-              })}
-            </svg>
-            <small>區域示意圖 · 資料依設備回報的區域分類</small>
-          </div>
           <div className="region-bars">
             {regions.slice(0, 8).map(([region, count]) => <div className="region-bar-row" key={region}>
               <div><strong>{region}</strong><span>{count.toLocaleString()} 台</span></div>
@@ -1917,10 +1920,29 @@ function RegionFleetPanel({ summary, loading }) {
             </div>)}
             {!regions.length ? <p className="empty-state">目前沒有區域資料。</p> : null}
           </div>
+          <div className="region-map-desktop"><RegionMap regions={regions} max={max} /></div>
+          <details className="region-map-mobile">
+            <summary>View map</summary>
+            <RegionMap regions={regions} max={max} />
+          </details>
         </div>
       ) : null}
     </section>
   );
+}
+
+function RegionMap({ regions, max }) {
+  return <div className="region-map-vector" aria-label="區域設備分布圖">
+    <svg viewBox="0 0 520 260" role="img" aria-label="設備區域分布">
+      <path d="M38 150 92 118 138 128 166 92 230 106 274 78 334 96 390 72 476 112 450 178 390 184 350 220 275 202 220 232 164 214 100 232 52 202Z" />
+      {regions.slice(0, 8).map(([region, count], index) => {
+        const x = 70 + ((index * 71) % 390);
+        const y = 112 + ((index * 43) % 100);
+        return <g key={region}><circle cx={x} cy={y} r={Math.max(5, Math.min(14, 5 + count / max * 10))} /><text x={x + 10} y={y + 4}>{region}</text></g>;
+      })}
+    </svg>
+    <small>區域示意圖 · 資料依設備回報的區域分類</small>
+  </div>;
 }
 
 function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
@@ -4760,51 +4782,13 @@ function HealthDistributionPanel({ loading, current, onFilter, source }) {
   );
 }
 
-function RecentAlertsPanel({ loading, alerts, source, onOpenDevice }) {
-  const available = sourceAvailable(source);
-  return (
-    <section className="panel overview-panel alerts-panel">
-      <div className="panel-head">
-        <div>
-          <h2>Recent alerts</h2>
-          <p>Last 10 telemetry events that resulted in a health change.</p>
-        </div>
-      </div>
-      {!available ? (
-        <p className="empty-state">{sourceMessage(source, 'No telemetry source configured.')}</p>
-      ) : loading && !alerts.length ? (
-        <p className="empty-state">Loading recent alerts.</p>
-      ) : alerts.length ? (
-        <div className="alerts-table">
-          <div className="alerts-table-head">
-            <span>Time</span>
-            <span>Device</span>
-            <span>Signal</span>
-            <span>Health</span>
-          </div>
-          {alerts.map((alert) => (
-            <button type="button" className="alerts-table-row" key={alert.id} onClick={() => onOpenDevice(alert.device_id)}>
-              <time title={alert.occurred_at}>{formatRelativeTime(alert.occurred_at)}</time>
-              <strong>{alert.device_name}</strong>
-              <span>{alert.signal}</span>
-              <StatusBadge value={normalizeStatusKey(alert.health)} label={toTitleCase(alert.health)} />
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="empty-state">No alerts in selected window.</p>
-      )}
-    </section>
-  );
-}
-
 function AttentionQueuePanel({ loading, items, onOpenDevice }) {
   return (
     <section className="panel overview-panel attention-panel">
       <div className="panel-head">
         <div>
-          <h2>Attention Queue ({items.length})</h2>
-          <p>Devices sorted by current health, signal, and alert impact.</p>
+          <h2>Devices that need attention ({items.length})</h2>
+          <p>Prioritized by current health, signal quality, and recent alerts.</p>
         </div>
       </div>
       {loading && !items.length ? (
@@ -6104,17 +6088,6 @@ function formatTierLabel(tier) {
   if (tier === 'evaluation') return 'Evaluation';
   if (tier === 'commercial') return 'Commercial';
   return toTitleCase(String(tier).replaceAll('_', ' '));
-}
-
-function passwordStrength(password) {
-  if (!password) return 'Empty';
-  let score = 0;
-  if (password.length >= 8) score += 1;
-  if (password.length >= 12) score += 1;
-  if (/[A-Z]/.test(password)) score += 1;
-  if (/[0-9]/.test(password)) score += 1;
-  if (/[^A-Za-z0-9]/.test(password)) score += 1;
-  return ['Weak', 'Fair', 'Good', 'Strong', 'Excellent'][Math.min(score, 4)];
 }
 
 function normalizeStatusKey(value) {

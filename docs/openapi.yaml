@@ -149,15 +149,15 @@ paths:
       x-rtk-requirement-ids:
         - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
-      summary: Verify a customer signup email token
-      description: Proxies token verification to Account Manager and creates a customer session when tokens are returned.
+      summary: Verify a customer signup email and set its initial password
+      description: Proxies the callback token and new password to Account Manager and creates a customer session when tokens are returned. The Web UI consumes the opaque token from the callback URL without rendering it or exposing an editable token field.
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AuthTokenRequest"
+              $ref: "#/components/schemas/VerifyEmailRequest"
       responses:
         "200":
           description: Verification succeeded.
@@ -3357,20 +3357,12 @@ components:
           minLength: 8
     SignupRequest:
       type: object
-      required: [email, password, organization_name]
+      required: [email]
       properties:
         email:
           type: string
           format: email
-        password:
-          type: string
-          format: password
-        display_name:
-          type: string
-        organization_name:
-          type: string
-        captcha_token:
-          type: string
+      additionalProperties: false
     SignupResult:
       type: object
       required: [user, organization]
@@ -3385,6 +3377,17 @@ components:
       properties:
         token:
           type: string
+    VerifyEmailRequest:
+      type: object
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          format: password
+          minLength: 8
+      additionalProperties: false
     VerifyEmailResult:
       type: object
       required: [user]

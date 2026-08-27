@@ -279,6 +279,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
 	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
 	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
+	s.mux.HandleFunc("POST /api/auth/customer/verification-status", s.apiCustomerVerificationStatus)
 	s.mux.HandleFunc("POST /api/auth/customer/resend-verification", s.apiCustomerResendVerification)
 	s.mux.HandleFunc("POST /api/auth/sign-in", s.apiAuthSignIn)
 	s.mux.HandleFunc("POST /api/auth/login/activate", s.apiAuthLoginActivate)
@@ -402,6 +403,7 @@ func (s *Server) routes() {
 		"/reset-password",
 		"/signup",
 		"/signup/check-email",
+		"/signup/verification-expired",
 		"/signup/verify",
 		"/signup/verify/",
 		"/verify",
@@ -983,16 +985,28 @@ func (s *Server) apiCustomerSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body accountclient.SignupRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil || strings.TrimSpace(body.Email) == "" {
 		http.Error(w, "invalid signup request", http.StatusBadRequest)
 		return
 	}
 	result, err := s.accountClient.Signup(r.Context(), body)
 	if err != nil {
-		s.writeCustomerError(w, err)
+		s.writeSignupError(w, err)
 		return
 	}
 	writeJSONStatus(w, http.StatusAccepted, result)
+}
+
+func (s *Server) writeSignupError(w http.ResponseWriter, err error) {
+	var httpErr *accountclient.HTTPError
+	if errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusConflict {
+		s.logUpstreamError("account_manager", err)
+		http.Error(w, "An account already exists for this email", http.StatusConflict)
+		return
+	}
+	s.writeCustomerError(w, err)
 }
 
 func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) {
@@ -1000,12 +1014,14 @@ func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
 		return
 	}
-	var body accountclient.AuthTokenRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" {
-		http.Error(w, "token is required", http.StatusBadRequest)
+	var body accountclient.VerifyEmailRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" || len(body.NewPassword) < 8 {
+		http.Error(w, "token and new_password are required", http.StatusBadRequest)
 		return
 	}
-	result, err := s.accountClient.VerifyEmail(r.Context(), body.Token)
+	result, err := s.accountClient.VerifyEmail(r.Context(), body)
 	if err != nil {
 		s.writeAuthProxyError(w, err)
 		return
@@ -1017,6 +1033,26 @@ func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		setSessionCookie(w, session.ID)
+	}
+	writeJSONStatus(w, http.StatusOK, result)
+}
+
+func (s *Server) apiCustomerVerificationStatus(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.AuthTokenRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" {
+		http.Error(w, "token is required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.VerificationStatus(r.Context(), strings.TrimSpace(body.Token))
+	if err != nil {
+		s.writeAuthProxyError(w, err)
+		return
 	}
 	writeJSONStatus(w, http.StatusOK, result)
 }

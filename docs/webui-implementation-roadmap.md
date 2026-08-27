@@ -428,6 +428,21 @@ sign-in path.
 
 - Polish email/password login states: idle, submitting, denied access,
   unavailable source, and retry.
+- Replace the ambiguous `Login` / `Sign-in` auth-mode tabs with `Login` /
+  `Sign Up`. `Login` authenticates an existing account; `Sign Up` executes the
+  public evaluation-account creation flow and proceeds to email verification.
+- Keep both Sign Up entry points minimal: show only `Email` and submit only
+  `email`. Do not expose password, organization name, display name, a manual
+  CAPTCHA token, or a terms-acceptance checkbox during signup.
+- On the verification page, collect `New password` and submit it with the
+  verification token. Account Manager must set the initial password and verify
+  the account atomically before issuing the first session.
+- Treat the callback verification token as an opaque credential. Read it from
+  the URL and submit it internally, but never render its value or expose an
+  editable token field in the page DOM.
+- Verification links use Account Manager's configurable
+  `EMAIL_VERIFICATION_TTL` and expire after 30 minutes by default. Expired links
+  are rejected and require a resend.
 - Route platform password login through Account Manager platform-admin
   authorization during migration.
 - Complete `/signup`, `/signup/check-email`, and `/verify` states for public
@@ -456,6 +471,16 @@ sign-in path.
 ## Acceptance Criteria
 
 - Public auth pages are outside Customer View and Platform View section nav.
+- The first auth viewport presents `Login` and `Sign Up` as the two first-class
+  tabs, with `Login` selected by default.
+- The `Sign Up` tab and `/signup` route submit the same Account Manager-backed
+  evaluation signup and create a pending-verification account.
+- Both signup entry points show only `Email`; their request body contains
+  exactly `email`.
+- Signup does not show password, organization-name, display-name, manual
+  CAPTCHA-token, or terms-acceptance controls.
+- Verification requires `token` and `new_password`; success leaves no verified
+  account without a usable password.
 - Signup is clearly evaluation-tier only.
 - Verification and login errors use user-facing copy without exposing internal
   upstream payloads.
@@ -467,7 +492,11 @@ sign-in path.
 - `cd web && npm test`
 - `cd web && npm run build`
 - `cd web && npm run browser:smoke`
-- `go test ./...` if BFF auth, signup, verification, or quota behavior changes.
+- Browser smoke verifies the email-only signup form and exact `{email}` request
+  payload on `/login` and `/signup`, then verifies the `{token, new_password}`
+  activation payload.
+- `GOWORK=off go test ./...` if BFF auth, signup, verification, or quota behavior
+  changes.
 
 ## References
 

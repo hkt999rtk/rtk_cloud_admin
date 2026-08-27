@@ -34,8 +34,12 @@ gitignored.
   - Platform Operations Log
   - Platform SSO Providers
   - Platform Audit Log
+- Responsive Overview at 360px, 390px, 768px, 1024px, and 1440px:
+  - No page-level horizontal overflow
+  - KPI and operational panels follow the status-first hierarchy
+  - Below 1024px, the sticky app bar opens a keyboard-accessible navigation
+    drawer; Escape closes it
 - Mobile 390px:
-  - Customer sidebar/nav remains visible
   - Devices uses compact rows instead of rendering the full table
   - Platform Dashboard remains navigable and readable on a narrow viewport
   - Public signup remains usable on a narrow viewport

@@ -40,6 +40,7 @@ test('maps public signup paths to auth routes', () => {
   assert.equal(routeFromPath('/signup'), 'signup');
   assert.equal(routeFromPath('/signup/check-email'), 'signup-check-email');
   assert.equal(routeFromPath('/signup/check-email/inbox'), 'signup-check-email');
+  assert.equal(routeFromPath('/signup/verification-expired'), 'signup-verification-expired');
   assert.equal(routeFromPath('/signup/verify'), 'verify');
   assert.equal(routeFromPath('/signup/verify/'), 'verify');
   assert.equal(routeFromPath('/verify'), 'verify');
@@ -127,7 +128,7 @@ test('platform nav follows the Platform Dashboard landing order', () => {
 });
 
 test('public auth routes stay outside Customer and Platform section navigation', () => {
-  for (const route of ['login', 'login-check-email', 'login-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'verify']) {
+  for (const route of ['login', 'login-check-email', 'login-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'signup-verification-expired', 'verify']) {
     assert.equal(isPublicRouteId(route), true, route);
     assert.equal(isPlatformRouteId(route), false, route);
     assert.deepEqual(navItemsForRoute(route), []);

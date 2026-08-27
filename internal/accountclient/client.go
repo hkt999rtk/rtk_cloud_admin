@@ -428,11 +428,7 @@ type SSOProviderConfigRequest struct {
 }
 
 type SignupRequest struct {
-	Email            string `json:"email"`
-	Password         string `json:"password"`
-	DisplayName      string `json:"display_name,omitempty"`
-	OrganizationName string `json:"organization_name"`
-	CaptchaToken     string `json:"captcha_token,omitempty"`
+	Email string `json:"email"`
 }
 
 type SignupResult struct {
@@ -442,6 +438,15 @@ type SignupResult struct {
 
 type AuthTokenRequest struct {
 	Token string `json:"token"`
+}
+
+type VerifyEmailRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+type VerificationStatusResult struct {
+	Status string `json:"status"`
 }
 
 type ResetPasswordRequest struct {
@@ -550,9 +555,15 @@ func (c *Client) Signup(ctx context.Context, req SignupRequest) (SignupResult, e
 	return out, err
 }
 
-func (c *Client) VerifyEmail(ctx context.Context, token string) (VerifyEmailResult, error) {
+func (c *Client) VerifyEmail(ctx context.Context, req VerifyEmailRequest) (VerifyEmailResult, error) {
 	var out VerifyEmailResult
-	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/verify-email", "", AuthTokenRequest{Token: token}, &out)
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/verify-email", "", req, &out)
+	return out, err
+}
+
+func (c *Client) VerificationStatus(ctx context.Context, token string) (VerificationStatusResult, error) {
+	var out VerificationStatusResult
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/verify-email/status", "", AuthTokenRequest{Token: token}, &out)
 	return out, err
 }
 

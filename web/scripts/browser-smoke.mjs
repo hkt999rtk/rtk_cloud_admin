@@ -417,7 +417,61 @@ async function installApiMocks(page, { sessionForPath } = {}) {
       }
       return route.fulfill({ json: isPlatformFrame ? platformMe : customerMe });
     }
+    if (pathName === '/api/auth/customer/signup') {
+      if (request.method() !== 'POST') {
+        throw new Error(`Signup must use POST, got ${request.method()}`);
+      }
+      const payload = request.postDataJSON();
+      if (payload.email === 'existing.customer@example.com') {
+        return route.fulfill({
+          status: 409,
+          contentType: 'text/plain',
+          body: 'An account already exists for this email',
+        });
+      }
+      const expected = {
+        email: 'new.customer@example.com',
+      };
+      if (JSON.stringify(payload) !== JSON.stringify(expected)) {
+        throw new Error(`Unexpected signup payload: ${JSON.stringify(payload)}`);
+      }
+      return route.fulfill({
+        status: 202,
+        json: {
+          user: { id: 'user-new-customer', email: expected.email },
+          organization: { id: 'org-new-customer', name: expected.email, tier: 'evaluation' },
+        },
+      });
+    }
+    if (pathName === '/api/auth/customer/verify-email') {
+      if (request.method() !== 'POST') {
+        throw new Error(`Verification must use POST, got ${request.method()}`);
+      }
+      const payload = request.postDataJSON();
+      const expected = { token: 'verification-token', new_password: 'password123' };
+      if (JSON.stringify(payload) !== JSON.stringify(expected)) {
+        throw new Error(`Unexpected verification payload: ${JSON.stringify(payload)}`);
+      }
+      return route.fulfill({
+        status: 200,
+        json: {
+          user: { id: 'user-new-customer', email: 'new.customer@example.com' },
+          tokens: { access_token: 'access-token', refresh_token: 'refresh-token', expires_in: 3600 },
+        },
+      });
+    }
+    if (pathName === '/api/auth/customer/verification-status') {
+      if (request.method() !== 'POST') {
+        throw new Error(`Verification status must use POST, got ${request.method()}`);
+      }
+      const payload = request.postDataJSON();
+      if (!payload.token) {
+        throw new Error('Verification status requires a token.');
+      }
+      return route.fulfill({ json: { status: payload.token === 'expired-token' ? 'expired' : 'valid' } });
+    }
     if (pathName === '/api/summary' || pathName === '/api/admin/summary') return route.fulfill({ json: summary });
+    if (pathName === '/api/developer/brand-clouds') return route.fulfill({ json: { brand_clouds: [] } });
     if (pathName === '/api/customers' || pathName === '/api/admin/customers') return route.fulfill({ json: customers });
     if (pathName === '/api/devices' || pathName === '/api/admin/devices') return route.fulfill({ json: devices });
     if (pathName === '/api/fleet/devices') return route.fulfill({ json: { devices, pagination: { limit: 100, offset: 0, total: devices.length }, query: { server_side: true } } });
@@ -451,7 +505,7 @@ async function installApiMocks(page, { sessionForPath } = {}) {
 async function runAuthSmoke(browserContext) {
   const page = await browserContext.newPage();
   await installApiMocks(page, { sessionForPath: () => anonymousMe });
-  const consoleIssues = collectConsoleIssues(page);
+  const consoleIssues = collectConsoleIssues(page, [/409 \(Conflict\).*\/api\/auth\/customer\/signup/]);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${baseURL}/admin`, { waitUntil: 'networkidle' });
   if (page.url() !== `${baseURL}/login?next=%2Fadmin`) {
@@ -468,18 +522,69 @@ async function runAuthSmoke(browserContext) {
   if (await page.locator('.login-preview').count()) {
     throw new Error('Login page must not render destination preview panels.');
   }
+  const loginTab = page.getByRole('tab', { name: 'Login', exact: true });
+  const signUpTab = page.getByRole('tab', { name: 'Sign Up', exact: true });
+  if (await loginTab.getAttribute('aria-selected') !== 'true') {
+    throw new Error('Login must be the default auth tab.');
+  }
+  if (await page.getByRole('tab', { name: 'Sign-in', exact: true }).count()) {
+    throw new Error('Login page must not expose the retired Sign-in tab.');
+  }
   await screenshot(page, 'desktop-login.png');
+
+  await signUpTab.click();
+  await expectText(page, 'Create account');
+  const signupURL = page.url();
+  await page.getByLabel('Email').fill('existing.customer@example.com');
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await expectText(page, 'An account already exists for this email. Log in or reset your password.');
+  const duplicateMessages = await page.getByText('An account already exists for this email. Log in or reset your password.', { exact: true }).count();
+  if (duplicateMessages !== 1) {
+    throw new Error(`Duplicate signup must show exactly one error message, got ${duplicateMessages}.`);
+  }
+  if (page.url() !== signupURL) {
+    throw new Error(`Duplicate signup must stay on the signup form, got ${page.url()}`);
+  }
+  await page.getByLabel('Email').fill('new.customer@example.com');
+  await screenshot(page, 'desktop-signup-tab.png');
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await page.waitForURL(`${baseURL}/signup/check-email?email=new.customer%40example.com`);
+  await expectText(page, 'We sent a verification link to new.customer@example.com.');
+  await page.goto(`${baseURL}/verify?token=expired-token`, { waitUntil: 'networkidle' });
+  await page.waitForURL(`${baseURL}/signup/verification-expired`);
+  await expectText(page, 'Verification link expired');
+  await expectText(page, 'Start Sign Up again to receive a new verification email.');
+  if (await page.getByLabel('New password').count()) {
+    throw new Error('Expired verification page must not render the password form.');
+  }
+  if (await page.getByRole('link', { name: 'Sign up again', exact: true }).count() !== 1) {
+    throw new Error('Expired verification page must offer one Sign up again action.');
+  }
+  await screenshot(page, 'desktop-verification-expired.png');
+  await page.goto(`${baseURL}/verify?token=verification-token`, { waitUntil: 'networkidle' });
+  if (await page.getByLabel('Verification token').count()) {
+    throw new Error('Verification page must not render the token as a field.');
+  }
+  if ((await page.locator('body').innerText()).includes('verification-token')) {
+    throw new Error('Verification page must not render the token value.');
+  }
+  await page.getByLabel('New password').fill('password123');
+  await page.getByRole('button', { name: 'Verify and continue', exact: true }).click();
+  await page.waitForURL(`${baseURL}/console/overview`);
   if (consoleIssues.length) {
     throw new Error(`Auth smoke console issues detected:\n${consoleIssues.join('\n')}`);
   }
   await page.close();
 }
 
-function collectConsoleIssues(page) {
+function collectConsoleIssues(page, ignoredPatterns = []) {
   const issues = [];
   page.on('console', (message) => {
     if (!['error', 'warning'].includes(message.type())) return;
-    issues.push(`${message.type()}: ${message.text()}`);
+    const location = message.location().url;
+    const issue = `${message.type()}: ${message.text()}${location ? ` (${location})` : ''}`;
+    if (ignoredPatterns.some((pattern) => pattern.test(issue))) return;
+    issues.push(issue);
   });
   page.on('pageerror', (error) => {
     issues.push(`pageerror: ${error.message}`);
@@ -503,12 +608,14 @@ async function runDesktopSmoke(page) {
   await screenshot(page, 'desktop-overview.png');
 
   await gotoAndAssert(page, '/signup', 'Sign up');
-  await expectText(page, 'evaluation-tier');
   await expectText(page, 'Create account');
   await gotoAndAssert(page, '/signup/check-email?email=fleet.manager%40example.com', 'Check your email');
   await expectText(page, 'Resend');
-  await gotoAndAssert(page, '/verify', 'Verify email');
-  await expectText(page, 'Waiting for verification link');
+  await gotoAndAssert(page, '/verify?token=visual-check-token', 'Verify email');
+  await expectText(page, 'Create your password to finish verification');
+  if ((await page.locator('body').innerText()).includes('visual-check-token')) {
+    throw new Error('Verification page screenshot state must not render the token value.');
+  }
   await screenshot(page, 'desktop-public-auth.png');
 
   await gotoAndAssert(page, '/console/devices?device=dev-1002', 'Devices');
@@ -562,8 +669,73 @@ async function runMobileSmoke(browserContext) {
     throw new Error('Mobile login page must not render recovery access controls.');
   }
   await screenshot(page, 'mobile-login.png');
+  await page.getByRole('tab', { name: 'Sign Up', exact: true }).click();
+  await expectText(page, 'Create account');
+  const signupOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  if (signupOverflow) {
+    const overflowDetails = await page.evaluate(() => ({
+      viewport: window.innerWidth,
+      document: document.documentElement.scrollWidth,
+      html: { clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth },
+      body: { clientWidth: document.body.clientWidth, scrollWidth: document.body.scrollWidth, width: document.body.getBoundingClientRect().width },
+      elements: [...document.querySelectorAll('body *')]
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          return { tag: element.tagName, className: element.className, left: rect.left, right: rect.right, width: rect.width };
+        })
+        .filter((item) => item.left < -1 || item.right > window.innerWidth + 1)
+        .slice(0, 8),
+    }));
+    throw new Error(`Mobile Sign Up tab must not overflow horizontally: ${JSON.stringify(overflowDetails)}`);
+  }
+  await screenshot(page, 'mobile-signup-tab.png');
   await page.unroute('**/api/**');
   await installApiMocks(page);
+
+  await page.setViewportSize({ width: 360, height: 800 });
+  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await expectText(page, 'Devices that need attention');
+  await assertNoHorizontalOverflow(page, '360px Overview');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await assertNoHorizontalOverflow(page, '390px Overview');
+  const menuButton = page.getByRole('button', { name: 'Open navigation' });
+  if (await menuButton.getAttribute('aria-expanded') !== 'false') {
+    throw new Error('Mobile navigation must be closed by default.');
+  }
+  await menuButton.click();
+  if (await menuButton.getAttribute('aria-expanded') !== 'true') {
+    throw new Error('Mobile navigation button must expose its open state.');
+  }
+  await page.waitForFunction(() => document.querySelector('#primary-navigation')?.getBoundingClientRect().left >= -1);
+  const drawerLeft = await page.locator('#primary-navigation').evaluate((element) => element.getBoundingClientRect().left);
+  if (drawerLeft < -1) {
+    throw new Error('Mobile navigation drawer must move on screen when opened.');
+  }
+  await page.keyboard.press('Escape');
+  if (await menuButton.getAttribute('aria-expanded') !== 'false') {
+    throw new Error('Escape must close the mobile navigation drawer.');
+  }
+  await page.waitForFunction(() => document.querySelector('#primary-navigation')?.getBoundingClientRect().right <= 1);
+  await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
+  await assertOverviewStartsInViewport(page, '390px Overview');
+  await screenshot(page, 'mobile-overview.png');
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
+  await assertOverviewStartsInViewport(page, '768px Overview');
+  await assertNoHorizontalOverflow(page, '768px Overview');
+  await screenshot(page, 'tablet-overview.png');
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
+  await assertNoHorizontalOverflow(page, '1024px Overview');
+  await screenshot(page, 'compact-desktop-overview.png');
+
+  await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndAssert(page, '/console/devices', 'Devices');
   await expectText(page, '設備總覽');
   await expectText(page, '影像播放狀況');
@@ -612,10 +784,32 @@ async function gotoAndAssert(page, routePath, expectedTitle) {
   if (/Internal server error|vite|webpack|ReferenceError|TypeError/.test(rootText)) {
     throw new Error(`Framework/runtime overlay detected at ${routePath}`);
   }
+  await page.evaluate(() => window.scrollTo(0, 0));
 }
 
 async function expectText(page, text) {
-  await page.getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByText(text, { exact: false }).filter({ visible: true }).first().waitFor({ state: 'visible', timeout: 5000 });
+}
+
+async function assertNoHorizontalOverflow(page, label) {
+  const dimensions = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    document: document.documentElement.scrollWidth,
+  }));
+  if (dimensions.document > dimensions.viewport + 1) {
+    throw new Error(`${label} must not overflow horizontally: ${JSON.stringify(dimensions)}`);
+  }
+}
+
+async function assertOverviewStartsInViewport(page, label) {
+  const position = await page.locator('.overview-layout').evaluate((element) => ({
+    top: element.getBoundingClientRect().top,
+    height: element.getBoundingClientRect().height,
+    viewportHeight: window.innerHeight,
+  }));
+  if (position.top >= position.viewportHeight) {
+    throw new Error(`${label} content must begin in the first viewport: ${JSON.stringify(position)}`);
+  }
 }
 
 async function screenshot(page, name) {
