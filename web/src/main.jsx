@@ -1486,7 +1486,6 @@ function ForgotPasswordView({ email, onForgotPassword }) {
 }
 
 function ResetPasswordView({ token, onResetPassword }) {
-  const [tokenValue, setTokenValue] = useState(token);
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState('');
   const [error, setLocalError] = useState('');
@@ -1496,7 +1495,7 @@ function ResetPasswordView({ token, onResetPassword }) {
     setBusy(true);
     setLocalError('');
     try {
-      await onResetPassword({ token: tokenValue, new_password: password });
+      await onResetPassword({ token, new_password: password });
       setStatus('Password reset completed. You can sign in with the new password.');
     } catch (err) {
       setLocalError(userFacingPasswordResetError(err));
@@ -1506,10 +1505,6 @@ function ResetPasswordView({ token, onResetPassword }) {
   }
   return (
     <form className="login-form" onSubmit={submit}>
-      <label>
-        Reset token
-        <input value={tokenValue} onChange={(event) => setTokenValue(event.target.value)} placeholder="Reset token" required />
-      </label>
       <label>
         New password
         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
