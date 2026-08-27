@@ -20,6 +20,7 @@ test('[UI-CA-BILLING-STG-001] real staging overview is tenant scoped and provide
 
   await page.goto(`/console/${encodeURIComponent(organizationID)}/billing`);
   await expect(page.getByTestId('billing-page')).toBeVisible();
+  await expect(page.getByTestId('managed-cloud-plan')).toContainText('Realtek Managed Cloud');
   await expect(page.getByRole('heading', { name: '帳務總覽' }).first()).toBeVisible();
   await expect(page.locator('input[name="card_number"], input[autocomplete="cc-number"], input[autocomplete="cc-csc"]')).toHaveCount(0);
   await testInfo.attach('staging-billing-overview', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });

@@ -2399,6 +2399,25 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   if (billingView === 'overview') return <section className="page-content billing-page" data-testid="billing-page">
     <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>帳務總覽</h2><p>掌握可用餘額、本月估算費用、發票與最近的帳務異動。</p></div><small>更新時間：{formatProviderTimestamp(summary.calculated_at || account?.updated_at)}</small></div>
     {billingTabs}
+    <section className="panel managed-cloud-plan" data-testid="managed-cloud-plan">
+      <div className="managed-cloud-plan-main">
+        <span className="managed-cloud-plan-badge">推薦方案</span>
+        <div>
+          <p className="eyebrow">Realtek Managed Cloud</p>
+          <h3>由 Realtek 託管營運，使用多少、支付多少</h3>
+          <p>Realtek 負責雲端建置、託管、維護與平台營運；客戶依實際服務使用量付費。正式費率與計價單位將另行確認，本頁不代表價格承諾。</p>
+        </div>
+        <div className="inline-actions">
+          <a className="primary button-link" href="#billing-usage">查看本月用量與費用</a>
+          <button type="button" className="ghost-button" onClick={() => selectBillingView('invoices')}>查看發票</button>
+          <button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>付款設定</button>
+        </div>
+      </div>
+      <aside className="managed-cloud-private-option">
+        <span><Icon name="cloud" /></span>
+        <div><strong>需要 Private Cloud？</strong><p>若需要客戶自有基礎架構、資料位置或治理邊界，請聯絡 Realtek 洽詢專屬部署方案。</p></div>
+      </aside>
+    </section>
     <div className="metric-grid billing-overview-metrics">
       <MetricCard icon="wallet" label="可用餘額" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={summary.runway?.state === 'available' ? `預估可用 ${summary.runway.projected_days} 天` : '用量不足，尚無法估算可用天數'} tone="info" />
       <MetricCard icon="chart-column" label="本月費用" value={formatMinorAmount(usage.total_minor, usage.currency || account?.currency)} hint={`${formatProviderTimestamp(usage.period_start)} 起 · 目前為估算值`} tone="neutral" />
@@ -2406,7 +2425,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     </div>
     <div className="billing-overview-grid">
       <section className="panel billing-auto-card"><div className="panel-head"><div><h3>自動加值{policy?.enabled ? '已啟用' : '未啟用'}</h3><p>{policy ? `低於 ${formatMinorAmount(policy.threshold_minor, policy.currency)} 時加值 ${formatMinorAmount(policy.top_up_amount_minor, policy.currency)}` : '設定門檻與付款方式後即可啟用。'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>{policy?.last_succeeded_at ? <p>上次加值 {formatProviderTimestamp(policy.last_succeeded_at)}</p> : null}<button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>管理自動加值</button></section>
-      <section className="panel billing-usage-card"><div className="panel-head"><div><h3>本月費用明細（依服務類別）</h3><p>定價版本鎖定後，結帳結果會成為不可變發票。</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>總計</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
+      <section className="panel billing-usage-card" id="billing-usage"><div className="panel-head"><div><h3>本月費用明細（依服務類別）</h3><p>定價版本鎖定後，結帳結果會成為不可變發票。</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>總計</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
     </div>
     <div className="billing-overview-grid lower">
       <section className="panel"><div className="panel-head"><div><h3>查看發票</h3><p>已開立發票與不可變 PDF 文件。</p></div><button type="button" className="link-button" onClick={() => selectBillingView('invoices')}>全部發票</button></div><BillingInvoiceTable invoices={invoices.slice(0, 3)} onSelect={openBillingInvoice} /></section>

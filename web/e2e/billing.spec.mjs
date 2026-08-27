@@ -7,6 +7,9 @@ test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and act
   await page.goto('/console/brand-e2e-01/billing');
 
   await expect(page.getByTestId('billing-page')).toBeVisible();
+  await expect(page.getByTestId('managed-cloud-plan')).toContainText('Realtek Managed Cloud');
+  await expect(page.getByTestId('managed-cloud-plan')).toContainText('使用多少、支付多少');
+  await expect(page.getByTestId('managed-cloud-plan')).toContainText('Private Cloud');
   await expect(page.getByRole('heading', { name: '帳務總覽' }).first()).toBeVisible();
   await expect(page.getByText(/\$1,250/).first()).toBeVisible();
   await expect(page.getByText('VISA •••• 4242').first()).toBeVisible();
