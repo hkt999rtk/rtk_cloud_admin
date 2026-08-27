@@ -29,7 +29,7 @@ async validation-then-execution workflow.
 
 Original date: 2026-05-09
 
-Last updated: 2026-08-28 — Brand Cloud overview/access/settings integration
+Last updated: 2026-08-28 — unified Customer and Platform app shell
 
 Audience:
 
@@ -282,7 +282,10 @@ Status color usage:
 
 ## App Shell
 
-The Customer View shell uses a fixed left sidebar and a full-height work area.
+Customer Developers and Platform Admins use the same `Connect+ Ops` app shell:
+a dark fixed sidebar, common topbar, account summary, focus treatment, and
+responsive mobile navigation. The authenticated session selects one navigation
+hierarchy; the UI does not expose a view switcher or combine cross-role data.
 
 Sidebar:
 
@@ -295,8 +298,9 @@ Sidebar:
 - Navigation items and Brand Cloud tabs are role-aware. Hidden affordances do
   not replace backend authorization checks.
 - Active nav item uses primary blue fill.
-- Platform View switcher is visually separated from Customer View navigation and
-  routes only to role-gated Platform View pages.
+- Customer sessions show only Customer groups. Platform Admin sessions show
+  only Platform groups, including when the current deep link is rejected by a
+  wrong-role access gate.
 - Platform View content must not appear inside Customer View pages.
 - Sidebar account summary shows the signed-in role and email only. It does not
   repeat the active organization name.
@@ -457,10 +461,11 @@ Capability and role behavior:
   enforcement boundary for provision, deactivate, quota, and any future tenant
   write action.
 - Customer sessions must not receive Platform View data. If they open a
-  Platform View route or switcher target, the UI shows a role/access gate rather
-  than platform content.
+  Platform View route directly, the UI shows a role/access gate rather than
+  platform content and keeps Customer navigation visible.
 - Platform Admin sessions must see a guard if they open Customer View directly,
-  with a route back to Platform View rather than customer data.
+  with a route back to `/admin` rather than customer data and with Platform
+  navigation still visible.
 
 Auth and access states:
 

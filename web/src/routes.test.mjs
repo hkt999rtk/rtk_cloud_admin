@@ -13,6 +13,7 @@ import {
   navGroupsForCapabilities,
   navItemsForCapabilities,
   navItemsForRoute,
+  platformNavGroups,
   platformNavItems,
   routeFromPath,
   cloudIdFromPath,
@@ -126,7 +127,7 @@ test('Brand Cloud navigation and route access are evaluated independently', () =
   assert.equal(defaultBrandCloudRoute(['fleet.read']), 'overview');
   assert.equal(defaultBrandCloudRoute(['team.read']), 'access');
   assert.equal(defaultBrandCloudRoute([]), 'settings');
-  assert.deepEqual(navGroupsForCapabilities(['team.read']).map((group) => group.label), ['品牌雲', '產品與更新']);
+  assert.deepEqual(navGroupsForCapabilities('overview', ['team.read']).map((group) => group.label), ['品牌雲', '產品與更新']);
 });
 
 test('retired customer pages are not exposed in section navigation', () => {
@@ -140,15 +141,24 @@ test('retired customer pages are not exposed in section navigation', () => {
   assert.equal(platformLabels.includes('Customers'), false);
 });
 
-test('platform nav follows the Platform Dashboard landing order', () => {
+test('platform nav follows the unified shell group order', () => {
+  assert.deepEqual(platformNavGroups.map((group) => group.label), ['平台總覽', '監控與診斷', '組織與產品', '營運與稽核']);
   assert.deepEqual(
     platformNavItems.map((item) => item.label),
-    ['Platform Dashboard', 'Grafana', 'Service Health', 'Brand Clouds', 'ChipSet & SDK Providers', 'SSO Providers', 'Service Logs', 'Operations Log', 'Audit Log'],
+    ['平台首頁', 'Grafana', '服務健康', '服務日誌', '品牌雲管理', 'ChipSet & SDK 供應商', 'SSO 供應商', '營運紀錄', '稽核紀錄'],
   );
   assert.deepEqual(
     platformNavItems.map((item) => item.path),
-    ['/admin', '/admin/grafana', '/admin/health', '/admin/brand-clouds', '/admin/chipset-providers', '/admin/sso', '/admin/logs', '/admin/ops', '/admin/audit'],
+    ['/admin', '/admin/grafana', '/admin/health', '/admin/logs', '/admin/brand-clouds', '/admin/chipset-providers', '/admin/sso', '/admin/ops', '/admin/audit'],
   );
+});
+
+test('route kind selects one capability-filtered navigation hierarchy', () => {
+  assert.deepEqual(navGroupsForCapabilities('overview', []).map((group) => group.label), ['品牌雲', '產品與更新']);
+  assert.deepEqual(navGroupsForCapabilities('platform-dashboard', []).map((group) => group.label), ['平台總覽', '監控與診斷', '組織與產品', '營運與稽核']);
+  assert.equal(navGroupsForCapabilities('platform-dashboard', [])[2].items.some((item) => item.id === 'platform-chipset-providers'), false);
+  assert.equal(navGroupsForCapabilities('platform-dashboard', ['platform.chipset_sdk.read'])[2].items.some((item) => item.id === 'platform-chipset-providers'), true);
+  assert.deepEqual(navGroupsForCapabilities('login', []), []);
 });
 
 test('public auth routes stay outside Customer and Platform section navigation', () => {
@@ -182,6 +192,14 @@ test('uses the shared Brand Cloud title for integrated routes', () => {
   assert.equal(titleFor('overview'), '品牌雲');
   assert.equal(titleFor('access'), '品牌雲');
   assert.equal(titleFor('settings'), '品牌雲');
+});
+
+test('uses Chinese platform route titles in the unified shell', () => {
+  assert.equal(titleFor('platform-dashboard'), '平台首頁');
+  assert.equal(titleFor('platform-health'), '服務健康');
+  assert.equal(titleFor('platform-brand-clouds'), '品牌雲管理');
+  assert.equal(titleFor('platform-operations'), '營運紀錄');
+  assert.equal(titleFor('platform-audit'), '稽核紀錄');
 });
 
 test('falls back unknown paths to the customer overview route', () => {

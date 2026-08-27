@@ -4,17 +4,13 @@ import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs
 import {
   billingSubpaths,
   canAccessCustomerRoute,
-  customerNavItems,
   cloudIdFromPath,
   defaultBrandCloudRoute,
   isCustomerNavItemActive,
   navGroupsForCapabilities,
-  navItemsForCapabilities,
   devicesPathWithFilters,
   isPlatformRouteId,
   isPublicRouteId,
-  navItemsForRoute,
-  platformNavItems,
   routeFromLocation,
   titleFor,
 } from './routes.mjs';
@@ -247,8 +243,8 @@ function App() {
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'brand-cloud-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
   const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept';
-  const visibleNavItems = navItemsForCapabilities(active, me?.capabilities).filter((item) => item.id !== 'platform-brand-clouds' || me?.upstream_account_manager);
-  const visibleCustomerNavGroups = navGroupsForCapabilities(me?.capabilities);
+  const navigationRoute = me?.kind === 'platform_admin' ? 'platform-dashboard' : me?.kind === 'customer' ? 'overview' : active;
+  const visibleNavGroups = navGroupsForCapabilities(navigationRoute, me?.capabilities);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
   const brandCloudsBlocked = active === 'platform-brand-clouds' && me?.kind === 'platform_admin' && !me?.upstream_account_manager;
   const customerViewPending = !isPlatformView && !isPublicRoute && me === null;
@@ -698,11 +694,6 @@ function App() {
     setActive(targetRoute);
   }
 
-  function switchView(targetActive) {
-    const target = targetActive === 'platform' ? platformNavItems[0] : customerNavItems[0];
-    navigate(target);
-  }
-
   function selectDevice(deviceId) {
     setSelectedDeviceId(deviceId);
     setDeviceDrawerOpen(true);
@@ -1111,35 +1102,21 @@ function App() {
   }
 
   return (
-    <div className={`app-shell ${isPlatformView ? 'platform-shell' : ''}`}>
+    <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">{isPlatformView ? <Icon name="cloud" /> : 'C+'}</span>
-          <strong>{isPlatformView ? 'RTK cloud' : 'Connect+ Ops'}</strong>
+          <span className="brand-mark" aria-hidden="true">C+</span>
+          <strong>Connect+ Ops</strong>
         </div>
-        <p className="sidebar-section-label">{isPlatformView ? 'Platform View' : 'Customer View'}</p>
-        {isPlatformView ? <nav>
-          {visibleNavItems.map((item) => <button type="button" key={item.id} className={active === item.id ? 'active' : ''} onClick={() => navigate(item)}>
-            {item.icon ? <Icon name={item.icon} /> : null}
-            {item.label}
-          </button>)}
-        </nav> : <nav className="customer-nav-groups">
-          {visibleCustomerNavGroups.map((group) => <section className="customer-nav-group" key={group.id}>
+        <nav className="sidebar-nav-groups">
+          {visibleNavGroups.map((group) => <section className="sidebar-nav-group" key={group.id}>
             <p className="sidebar-section-label">{group.label}</p>
             {group.items.map((item) => <button type="button" key={item.id} className={isCustomerNavItemActive(item, active) ? 'active' : ''} onClick={() => navigate(item)}>
               {item.icon ? <Icon name={item.icon} /> : null}
               {item.label}
             </button>)}
           </section>)}
-        </nav>}
-        <div className="sidebar-platform-switch">
-          <p className="sidebar-section-label">Platform View</p>
-          <button type="button" onClick={() => switchView(isPlatformView ? 'customer' : 'platform')}>
-            <Icon name={isPlatformView ? 'user' : 'shield-halved'} />
-            {isPlatformView ? 'Switch to Customer View' : 'Switch to Platform View'}
-            <Icon name="chevron-right" />
-          </button>
-        </div>
+        </nav>
         <div className="sidebar-account">
           <span className="avatar">{me?.email ? initialsForEmail(me.email) : 'DM'}</span>
           <div>
@@ -3500,8 +3477,9 @@ function CustomerAccessGate({ me, active }) {
     return (
       <section className="panel split-panel">
         <div>
-          <h2>Platform admin cannot use Customer View</h2>
-          <p>Switch to Platform View to inspect service health, SSO providers, operations, and audit data across tenants.</p>
+          <h2>Platform admin cannot use the Brand Cloud console</h2>
+          <p>Your platform session remains isolated from customer data. Open the platform home to inspect cross-tenant operations.</p>
+          <a className="inline-action" href="/admin">前往平台首頁</a>
         </div>
       </section>
     );
@@ -3523,7 +3501,7 @@ function PlatformAccessGate({ active, me }) {
     <section className="panel split-panel">
       <div>
         <h2>{signedInCustomer ? 'Platform access denied' : 'Platform access required'}</h2>
-        <p>{signedInCustomer ? 'Your current customer session cannot open Platform View.' : `Sign in with a platform admin session to open ${titleFor(active)}.`}</p>
+        <p>{signedInCustomer ? 'Your current customer session cannot open platform administration routes.' : `Sign in with a platform admin session to open ${titleFor(active)}.`}</p>
         {!signedInCustomer ? <a className="inline-action" href={loginPathFor(protectedPathFromLocation(window.location))}>Go to sign in</a> : null}
       </div>
     </section>

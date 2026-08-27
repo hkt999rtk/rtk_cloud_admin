@@ -19,6 +19,8 @@ Status: implemented baseline; design-parity follow-up is tracked in
 
 Date: 2026-06-02
 
+Last updated: 2026-08-28 — unified Connect+ Ops shell and grouped Platform navigation
+
 Audience:
 
 - `rtk_cloud_admin` frontend and backend developers
@@ -118,19 +120,22 @@ backend APIs in the first release.
 {"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
-Acceptance: Platform Dashboard is the first Platform View destination, links to the dedicated management drill-downs, keeps Service Health separate, and exposes ChipSet & SDK Provider mutation actions only to capable Platform Admin sessions without revealing raw provider URLs or manifests to Developer sessions.
+Acceptance: `/admin` is the first Platform Admin destination in the shared Connect+ Ops shell, links to the dedicated management drill-downs, keeps Service Health separate, and exposes ChipSet & SDK Provider mutation actions only to capable Platform Admin sessions without revealing raw provider URLs or manifests to Developer sessions.
 
-Current Platform View nav order:
+Platform Admin navigation is fixed, expanded, and grouped:
 
-1. Platform Dashboard
-2. Grafana
-3. Service Health
-4. Brand Clouds
-5. ChipSet & SDK Providers
-6. SSO Providers
-7. Service Logs
-8. Operations Log
-9. Audit Log
+| Group | Items |
+| --- | --- |
+| 平台總覽 | 平台首頁 |
+| 監控與診斷 | Grafana、服務健康、服務日誌 |
+| 組織與產品 | 品牌雲管理、ChipSet & SDK 供應商、SSO 供應商 |
+| 營運與稽核 | 營運紀錄、稽核紀錄 |
+
+The same dark sidebar, `Connect+ Ops` brand, topbar, account summary, focus
+state, and mobile horizontal navigation are used for Customer and Platform
+sessions. There is no `Switch to Platform View` / `Switch to Customer View`
+control. Session kind determines which one navigation hierarchy is rendered;
+route guards and backend authorization remain independent.
 
 `Service Health` remains a dedicated drill-down page. `Platform Dashboard`
 summarizes service and metrics health at a higher level. The current React
@@ -158,7 +163,7 @@ expose the raw manifest or provider URL to Developer sessions.
 Acceptance: The first viewport keeps Service Health, K8s Workloads, Cluster Nodes, and Operation Risk visible in the Realtek Ops Console visual system; panels use compact rows, status treatment, Font Awesome affordances with accessible labels, and the authenticated shell refreshes through one background loading path every 20 seconds without a manual topbar refresh action.
 
 ```
-Platform View / Platform Dashboard
+Connect+ Ops / 平台首頁
 Cross-tenant operating status for Realtek Platform Admins.
 
 [Tenants] [Devices Online] [Open Operations] [Scrape Targets Down]

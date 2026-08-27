@@ -52,17 +52,43 @@ export const billingSubpaths = Object.freeze({
   profile: '/console/billing/profile',
 });
 
-export const platformNavItems = [
-  { id: 'platform-dashboard', label: 'Platform Dashboard', path: '/admin', icon: 'gauge-high' },
-  { id: 'platform-grafana', label: 'Grafana', path: '/admin/grafana', icon: 'chart-simple' },
-  { id: 'platform-health', label: 'Service Health', path: '/admin/health', icon: 'heart-pulse' },
-  { id: 'platform-brand-clouds', label: 'Brand Clouds', path: '/admin/brand-clouds', icon: 'cloud' },
-  { id: 'platform-chipset-providers', label: 'ChipSet & SDK Providers', path: '/admin/chipset-providers', icon: 'code-branch', capabilities: ['platform.chipset_sdk.read', 'platform.chipset_sdk.edit', 'platform.chipset_sdk.publish'] },
-  { id: 'platform-sso', label: 'SSO Providers', path: '/admin/sso', icon: 'key' },
-  { id: 'platform-logs', label: 'Service Logs', path: '/admin/logs', icon: 'file-lines' },
-  { id: 'platform-operations', label: 'Operations Log', path: '/admin/ops', icon: 'list-check' },
-  { id: 'platform-audit', label: 'Audit Log', path: '/admin/audit', icon: 'shield-halved' },
+export const platformNavGroups = [
+  {
+    id: 'platform-overview',
+    label: '平台總覽',
+    items: [
+      { id: 'platform-dashboard', label: '平台首頁', path: '/admin', icon: 'gauge-high' },
+    ],
+  },
+  {
+    id: 'platform-observability',
+    label: '監控與診斷',
+    items: [
+      { id: 'platform-grafana', label: 'Grafana', path: '/admin/grafana', icon: 'chart-simple' },
+      { id: 'platform-health', label: '服務健康', path: '/admin/health', icon: 'heart-pulse' },
+      { id: 'platform-logs', label: '服務日誌', path: '/admin/logs', icon: 'file-lines' },
+    ],
+  },
+  {
+    id: 'platform-organizations-products',
+    label: '組織與產品',
+    items: [
+      { id: 'platform-brand-clouds', label: '品牌雲管理', path: '/admin/brand-clouds', icon: 'cloud' },
+      { id: 'platform-chipset-providers', label: 'ChipSet & SDK 供應商', path: '/admin/chipset-providers', icon: 'code-branch', capabilities: ['platform.chipset_sdk.read', 'platform.chipset_sdk.edit', 'platform.chipset_sdk.publish'] },
+      { id: 'platform-sso', label: 'SSO 供應商', path: '/admin/sso', icon: 'key' },
+    ],
+  },
+  {
+    id: 'platform-operations-audit',
+    label: '營運與稽核',
+    items: [
+      { id: 'platform-operations', label: '營運紀錄', path: '/admin/ops', icon: 'list-check' },
+      { id: 'platform-audit', label: '稽核紀錄', path: '/admin/audit', icon: 'shield-halved' },
+    ],
+  },
 ];
+
+export const platformNavItems = platformNavGroups.flatMap((group) => group.items);
 
 const publicRouteIds = new Set(['login', 'login-check-email', 'login-activate', 'brand-cloud-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'verify']);
 
@@ -85,9 +111,11 @@ export function navItemsForCapabilities(route, capabilities) {
   return items.filter((item) => item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability)));
 }
 
-export function navGroupsForCapabilities(capabilities) {
+export function navGroupsForCapabilities(route, capabilities) {
+  if (isPublicRouteId(route)) return [];
+  const groups = isPlatformRouteId(route) ? platformNavGroups : customerNavGroups;
   const values = new Set(Array.isArray(capabilities) ? capabilities : []);
-  return customerNavGroups
+  return groups
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability))),
@@ -138,15 +166,15 @@ export function titleFor(active) {
     reports: '報表',
     provisioning: '設備註冊',
     billing: '帳務與自動加值',
-    'platform-dashboard': 'Platform Dashboard',
+    'platform-dashboard': '平台首頁',
     'platform-grafana': 'Grafana',
-    'platform-health': 'Service Health',
-    'platform-brand-clouds': 'Brand Clouds',
-    'platform-chipset-providers': 'ChipSet & SDK Providers',
-    'platform-sso': 'SSO Providers',
-    'platform-logs': 'Service Logs',
-    'platform-operations': 'Operations',
-    'platform-audit': 'Audit Log',
+    'platform-health': '服務健康',
+    'platform-brand-clouds': '品牌雲管理',
+    'platform-chipset-providers': 'ChipSet & SDK 供應商',
+    'platform-sso': 'SSO 供應商',
+    'platform-logs': '服務日誌',
+    'platform-operations': '營運紀錄',
+    'platform-audit': '稽核紀錄',
   }[active];
 }
 

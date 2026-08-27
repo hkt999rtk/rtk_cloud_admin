@@ -19,8 +19,9 @@ against the approved design assets in `docs/assets/webui-design/`.
   報表; 帳務與自動加值.
 - 團隊與權限 is not a separate sidebar item. 品牌雲首頁 remains active for the
   總覽、成員與權限、設定 tabs.
-- Platform View switcher is visually separated from Customer View navigation and
-  remains role/route gated.
+- No `Switch to Platform View` or `Switch to Customer View` control is present.
+  Customer and Platform sessions use the same Connect+ Ops shell, but each
+  session renders only its own grouped navigation.
 - Sidebar account summary shows role and email only; it does not repeat the
   active organization name.
 - Header contains page title, relevant window control, refresh action, and
@@ -139,16 +140,19 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 影像
 - Platform password login is Account Manager-backed and appears only for
   platform routes
   by deployment configuration.
-- Customer sessions cannot see Platform View data; Platform View routes and
-  switcher targets show an access gate for the wrong role. Platform Admin
-  sessions cannot see Customer View data unless future impersonation is
-  explicitly implemented.
+- Customer sessions cannot see Platform View data; direct `/admin/*` links show
+  an access gate while retaining Customer navigation. Platform Admin sessions
+  opening `/console/*` see a Customer access gate while retaining Platform
+  navigation. Future impersonation must be explicitly designed and authorized.
 
 ## Platform View Boundary
 
-- Customer View concept images do not complete Platform View design.
-- Platform View contains Platform Dashboard, Service Health, SSO Providers,
-  Operations Log, and Audit Log for Tier 1 only.
+- Platform Admin uses the same dark Connect+ Ops shell and responsive behavior
+  as Customer, with fixed groups: 平台總覽、監控與診斷、組織與產品、營運與稽核.
+- Platform navigation contains 平台首頁; Grafana、服務健康、服務日誌; 品牌雲管理、
+  ChipSet & SDK 供應商、SSO 供應商; 營運紀錄、稽核紀錄, in that order.
+- Platform content remains Tier 1 only and stays on `/admin/*`; Customer content
+  remains on `/console/*`. A unified shell does not imply shared payloads.
 - Platform Dashboard follows `docs/platform-view-dashboard-design.md`: curated
   cross-tenant metrics, Prometheus scrape health, and source-unavailable states,
   not a raw Prometheus or Grafana replacement UI.
@@ -166,14 +170,14 @@ Use this mapping when reviewing developer issues opened from
 
 | Roadmap milestone | QA focus |
 | --- | --- |
-| 1. WebUI foundation cleanup and route guards | Global shell, hidden Groups, role-gated Platform switcher, wrong-role route gates |
+| 1. WebUI foundation cleanup and route guards | Unified shell, session-specific grouped navigation, wrong-role route gates |
 | 2. Customer View source-aware page states | Loading, empty, filtered-empty, source-unavailable, gateway-error, and read-only panel states |
 | 3. Fleet Health Overview completion | Overview KPI strip, trend chart, health distribution, recent alerts, attention queue, quota callout |
 | 4. Devices table and detail drawer completion | Device filters, selected row, drawer overview, source facts, telemetry panels, provision/deactivate states |
 | 5. Firmware & OTA read-only workflows | Firmware distribution, campaign summary/table, read-only drill-down, unsupported policies, firmware risk queue |
 | 6. Stream Health read-only workflows | Stream KPIs, trend, source-backed By Mode rows, per-device table, attention routing |
 | 7. Public auth, signup, verification, and quota UX polish | Email/password login, signup/check-email/verify states, quota request states, platform login routing |
-| 8. Platform View polish | Platform Dashboard, Service Health, SSO Providers, Operations Log, Audit Log, Tier 1-only boundaries |
+| 8. Platform View polish | Shared shell, grouped Platform navigation, dashboard and drill-downs, Tier 1-only boundaries |
 | 9. Final WebUI browser QA and documentation signoff | Desktop/mobile browser smoke, visual checklist closure, documented remaining upstream blockers |
 
 ## Responsive Checks

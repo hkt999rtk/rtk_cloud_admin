@@ -4,6 +4,12 @@ import { enterPlatform, login } from './fixtures/session.mjs';
 test('[UI-CA-DASH-001] platform admin can triage platform dashboard @smoke', async ({ page }) => {
   await login(page, 'platform_admin');
   await enterPlatform(page);
+  await expect(page.getByText('Connect+ Ops', { exact: true })).toBeVisible();
+  for (const group of ['平台總覽', '監控與診斷', '組織與產品', '營運與稽核']) {
+    await expect(page.getByText(group, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('button', { name: /Switch to/i })).toHaveCount(0);
+  await expect(page.getByText('品牌雲首頁', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Services Up', { exact: true })).toBeVisible();
   await expect(page.getByText('Service Health', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('K8s Workloads', { exact: true })).toBeVisible();
@@ -15,6 +21,11 @@ test('[UI-CA-DASH-001] platform admin can triage platform dashboard @smoke', asy
   await expect(page.getByRole('link', { name: /View all operations/ })).toHaveAttribute('href', '/admin/ops');
   await expect(page.getByRole('button', { name: /refresh|重新整理/i })).toHaveCount(0);
   await expect(page.locator('.fa-solid').first()).toBeVisible();
+
+  await page.goto('/console/overview');
+  await expect(page.getByRole('heading', { name: 'Platform admin cannot use the Brand Cloud console', exact: true })).toBeVisible();
+  await expect(page.getByText('平台總覽', { exact: true })).toBeVisible();
+  await expect(page.getByText('品牌雲首頁', { exact: true })).toHaveCount(0);
 });
 
 test('[UI-CA-DASH-002] dashboard shows degraded state when Prometheus fixture is unavailable', async ({ page }) => {

@@ -321,134 +321,6 @@ input {
   min-height: 100vh;
 }
 
-.platform-shell {
-  grid-template-columns: 256px 1fr;
-}
-
-.platform-shell main {
-  background: #fafbfc;
-  padding: 0;
-}
-
-.platform-shell .topbar {
-  background: #fff;
-  border-bottom: 1px solid #e6e8ec;
-  margin: 0;
-  min-height: 72px;
-  padding: 0 28px;
-}
-
-.platform-shell .topbar h1 {
-  color: #111827;
-  font-size: 22px;
-  font-weight: 760;
-}
-
-.platform-shell .topbar-controls {
-  gap: 14px;
-}
-
-.platform-shell .ghost-button {
-  border: 0;
-  color: #344054;
-  min-height: 34px;
-}
-
-.platform-shell > main > .error,
-.platform-shell > main > .platform-dashboard,
-.platform-shell > main > .panel,
-.platform-shell > main > .platform-brand-clouds,
-.platform-shell > main > .platform-sso-page {
-  margin: 20px 28px 36px;
-}
-
-.platform-shell .sidebar {
-  background: #fff;
-  border-right: 1px solid #e6e8ec;
-  box-shadow: none;
-  color: #111827;
-  padding: 22px 10px;
-}
-
-.platform-shell .brand {
-  margin-bottom: 28px;
-  padding: 0 8px;
-}
-
-.platform-shell .brand strong {
-  color: #111827;
-  font-size: 21px;
-  letter-spacing: 0;
-}
-
-.platform-shell .brand strong::after {
-  color: #1473e6;
-  content: "";
-}
-
-.platform-shell .brand-mark {
-  background: transparent;
-  color: #1473e6;
-  font-size: 20px;
-  height: 30px;
-  width: 30px;
-}
-
-.platform-shell .brand small {
-  color: #667085;
-}
-
-.platform-shell .sidebar-section-label {
-  color: #98a2b3;
-}
-
-.platform-shell nav {
-  gap: 6px;
-}
-
-.platform-shell nav button {
-  border-radius: 6px;
-  color: #344054;
-  font-size: 14px;
-  font-weight: 650;
-  min-height: 44px;
-}
-
-.platform-shell nav button .fa-solid {
-  color: #344054;
-}
-
-.platform-shell nav button.active,
-.platform-shell nav button:hover {
-  background: #eaf2ff;
-  box-shadow: inset 3px 0 0 #1473e6;
-  color: #0056d6;
-}
-
-.platform-shell nav button.active .fa-solid,
-.platform-shell nav button:hover .fa-solid {
-  color: #0056d6;
-}
-
-.platform-shell .sidebar-platform-switch,
-.platform-shell .sidebar-account {
-  border-top-color: #e6e8ec;
-}
-
-.platform-shell .sidebar-platform-switch button {
-  background: #f8fafc;
-  border-color: #e6e8ec;
-  color: #344054;
-}
-
-.platform-shell .sidebar-account strong {
-  color: #111827;
-}
-
-.platform-shell .sidebar-account small {
-  color: #667085;
-}
-
 .sidebar {
   background: linear-gradient(180deg, #082944 0%, var(--navy) 100%);
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
@@ -548,25 +420,30 @@ nav button:hover {
   color: #fff;
 }
 
+nav button:focus-visible {
+  outline: 3px solid rgba(109, 206, 221, 0.9);
+  outline-offset: 2px;
+}
+
 nav button.active .fa-solid,
 nav button:hover .fa-solid {
   color: #fff;
 }
 
-.customer-nav-groups {
+.sidebar-nav-groups {
   gap: 18px;
 }
 
-.customer-nav-group {
+.sidebar-nav-group {
   display: grid;
   gap: 6px;
 }
 
-.customer-nav-group .sidebar-section-label {
+.sidebar-nav-group .sidebar-section-label {
   margin-bottom: 2px;
 }
 
-.customer-nav-group button {
+.sidebar-nav-group button {
   width: 100%;
 }
 
@@ -626,31 +503,6 @@ main {
   letter-spacing: 0.08em;
   margin: 0 8px 10px;
   text-transform: uppercase;
-}
-
-.sidebar-platform-switch {
-  border-top: 1px solid rgba(255, 255, 255, 0.16);
-  margin-top: 28px;
-  padding-top: 18px;
-}
-
-.sidebar-platform-switch button {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 8px;
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  min-height: 42px;
-  padding: 0 12px;
-  width: 100%;
-}
-
-.sidebar-platform-switch button .fa-chevron-right {
-  margin-left: auto;
 }
 
 .sidebar-account {
@@ -4499,8 +4351,10 @@ th {
 
   .sidebar {
     min-height: auto;
+    min-width: 0;
     padding: 14px;
     position: static;
+    width: 100%;
   }
 
   .sidebar .brand {
@@ -4516,7 +4370,7 @@ th {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .sidebar .customer-nav-groups {
+  .sidebar .sidebar-nav-groups {
     display: flex;
     gap: 12px;
     overflow-x: auto;
@@ -4524,16 +4378,16 @@ th {
     scrollbar-width: thin;
   }
 
-  .sidebar .customer-nav-group {
+  .sidebar .sidebar-nav-group {
     display: block;
     flex: 0 0 auto;
   }
 
-  .sidebar .customer-nav-group .sidebar-section-label {
+  .sidebar .sidebar-nav-group .sidebar-section-label {
     margin: 0 4px 5px;
   }
 
-  .sidebar .customer-nav-group button {
+  .sidebar .sidebar-nav-group button {
     display: inline-flex;
     margin-right: 4px;
     width: auto;
@@ -4557,20 +4411,6 @@ th {
   .brand-cloud-settings-page .inline-form {
     align-items: stretch;
     display: grid;
-  }
-
-  .sidebar-platform-switch {
-    border-top: 0;
-    margin-top: 4px;
-    padding-top: 0;
-  }
-
-  .sidebar-platform-switch .sidebar-section-label {
-    display: none;
-  }
-
-  .sidebar-platform-switch button {
-    max-width: 260px;
   }
 
   .sidebar-account {

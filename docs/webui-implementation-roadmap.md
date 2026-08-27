@@ -47,6 +47,20 @@ Platform Dashboard and Brand Clouds already have an implemented baseline; their
 remaining design/API work is tracked in
 [platform-admin-implementation-plan.md](platform-admin-implementation-plan.md).
 
+## Completed Follow-up: Unified Customer And Platform Shell
+
+Customer Developer and Platform Admin sessions now share one `Connect+ Ops`
+shell, topbar, account summary, focus states, and responsive navigation. The
+former view switcher and Platform-only shell styling were removed.
+
+The login/session kind selects exactly one fixed navigation hierarchy. Customer
+keeps its five existing groups. Platform Admin uses four Chinese groups:
+平台總覽、監控與診斷、組織與產品、營運與稽核. Platform login lands on
+`/admin`; all existing `/admin/*` and `/console/*` deep links remain unchanged.
+Opening a wrong-role route shows an access gate while keeping the signed-in
+role's navigation. No Platform API, Customer payload, session kind, capability,
+or backend authorization contract was changed.
+
 ## Completed Follow-up: Brand Cloud Overview And Access Integration
 
 The Customer View shell now uses fixed groups: 品牌雲、設備營運、產品與更新、
@@ -115,8 +129,8 @@ before page-level implementation continues.
   through nav, mobile nav, or direct route fallback.
 - Confirm `/console/groups`, `/console/customers`, `/console/operations`, and
   other retired Customer View paths route to a safe Customer View landing state.
-- Ensure Platform View links appear only in the visually separated, role-gated
-  view switcher.
+- Render one session-specific navigation hierarchy inside the shared shell; do
+  not expose a cross-role view switcher.
 - Ensure customer sessions never receive Platform View data and platform admin
   sessions see a Customer View guard unless future impersonation is explicitly
   implemented.
@@ -143,8 +157,8 @@ before page-level implementation continues.
 - No visible or reachable Groups placeholder is present.
 - Wrong-role routes show access gates instead of empty dashboards or cross-role
   data.
-- Platform View remains reachable only through `/admin` routes or the separated
-  role-gated view switcher.
+- Platform management remains reachable only through role-gated `/admin/*`
+  routes; Customer management remains on `/console/*`.
 - Existing direct links to retired Customer View paths fall back safely.
 
 ## Required Tests

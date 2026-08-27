@@ -7,7 +7,7 @@ test.describe('Brand Clouds', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, 'platform_admin');
     await enterPlatform(page);
-    await page.getByRole('button', { name: 'Brand Clouds', exact: true }).click();
+    await page.getByRole('button', { name: '品牌雲管理', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Brand Clouds' }).first()).toBeVisible();
   });
 
