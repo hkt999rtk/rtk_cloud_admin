@@ -15,14 +15,14 @@ const customerMe = {
   kind: 'customer',
   email: 'fleet.manager@example.com',
   active_org_id: 'org-acme',
-  capabilities: ['customer.devices.read', 'customer.devices.provision', 'customer.devices.deactivate', 'customer.firmware.read', 'customer.stream.read'],
+  capabilities: ['customer.devices.read', 'customer.devices.provision', 'customer.devices.deactivate', 'customer.firmware.read', 'customer.stream.read', 'reports.read', 'reports.create'],
   memberships: [{
     organization_id: 'org-acme',
     organization: 'Acme Smart Camera',
     role: 'fleet_manager',
     tier: 'evaluation',
     evaluation_device_quota: 5,
-    capabilities: ['customer.devices.read', 'customer.devices.provision', 'customer.devices.deactivate', 'customer.firmware.read', 'customer.stream.read'],
+    capabilities: ['customer.devices.read', 'customer.devices.provision', 'customer.devices.deactivate', 'customer.firmware.read', 'customer.stream.read', 'reports.read', 'reports.create'],
   }],
 };
 
@@ -647,6 +647,31 @@ async function runDesktopSmoke(page) {
     throw new Error('Verification page screenshot state must not render the token value.');
   }
   await screenshot(page, 'desktop-public-auth.png');
+
+  await gotoAndAssert(page, '/console/org-acme/reports', '報表');
+  const reportNameBox = await page.getByLabel('報表名稱').boundingBox();
+  const reportTypeBox = await page.getByLabel('報表類型').boundingBox();
+  if (!reportNameBox || !reportTypeBox || Math.abs(reportNameBox.height - reportTypeBox.height) > 1) {
+    throw new Error(`Report text and select controls must have matching heights: input=${reportNameBox?.height}, select=${reportTypeBox?.height}`);
+  }
+  const dimensionCheckboxBox = await page.locator('.dimension-picker input[type="checkbox"]').first().boundingBox();
+  const dimensionLabelBox = await page.locator('.dimension-picker label').first().boundingBox();
+  if (!dimensionCheckboxBox || dimensionCheckboxBox.width < 18 || dimensionCheckboxBox.height < 18) {
+    throw new Error('Report dimension checkboxes must render at least 18 by 18 pixels.');
+  }
+  if (!dimensionLabelBox || dimensionLabelBox.height < 32) {
+    throw new Error('Report dimension labels must provide a usable click target.');
+  }
+  const sidebarLayout = await page.locator('.sidebar').evaluate((element) => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return { position: style.position, top: rect.top, bottom: rect.bottom, viewportHeight: window.innerHeight };
+  });
+  const accountBottom = await page.locator('.sidebar-account').evaluate((element) => element.getBoundingClientRect().bottom);
+  if (sidebarLayout.position !== 'sticky' || Math.abs(sidebarLayout.top) > 1 || Math.abs(sidebarLayout.bottom - sidebarLayout.viewportHeight) > 1 || accountBottom > sidebarLayout.bottom + 1) {
+    throw new Error(`Sidebar account area must stay within a viewport-height sticky sidebar: ${JSON.stringify({ sidebarLayout, accountBottom })}`);
+  }
+  await screenshot(page, 'desktop-reports-controls.png');
 
   await gotoAndAssert(page, '/console/devices?device=dev-1002', 'Devices');
   await expectText(page, '選取本頁');
