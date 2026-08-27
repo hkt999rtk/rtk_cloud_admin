@@ -40,10 +40,41 @@ dependency note only and was not opened as part of this batch.
 
 This roadmap tracks the completed first WebUI implementation sequence for
 Customer View, auth, Platform View pages, and Platform Dashboard. Brand Fleet
-Management remains the next large product sequence for brand sub-tenants.
+Management remains the larger product sequence for brand sub-tenants. The
+Brand Cloud navigation and overview/access/settings integration described below
+is complete as of 2026-08-28.
 Platform Dashboard and Brand Clouds already have an implemented baseline; their
 remaining design/API work is tracked in
 [platform-admin-implementation-plan.md](platform-admin-implementation-plan.md).
+
+## Completed Follow-up: Brand Cloud Overview And Access Integration
+
+The Customer View shell now uses fixed groups: 品牌雲、設備營運、產品與更新、
+監控與分析、帳號管理. 品牌雲首頁 is the only Brand Cloud sidebar entry and owns
+three independently addressable tabs:
+
+- `/console/{cloudId}/overview` — fleet overview plus capability-gated team
+  summary.
+- `/console/{cloudId}/access` — members, invitations, roles, and management
+  scopes.
+- `/console/{cloudId}/settings` — owner transfer and PKI test tools.
+
+The unscoped compatibility routes remain supported. Navigation visibility and
+route authorization are separate, tab changes participate in browser history,
+and existing backend routes/schema are unchanged. The frontend composes
+members, invitations, and role assignments with panel-level failure isolation.
+
+Implementation anchors:
+
+- `web/src/main.jsx`
+- `web/src/routes.mjs`
+- `web/src/styles.css`
+- `web/src/routes.test.mjs`
+- `web/e2e/brand-fleet-pages.spec.mjs`
+- `web/e2e/brand-fleet-team.spec.mjs`
+
+The original milestone sequence below remains historical traceability and must
+not be used to replace the current grouped navigation.
 
 ## Issue Body Template
 

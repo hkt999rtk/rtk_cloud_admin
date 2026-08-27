@@ -12,10 +12,13 @@ against the approved design assets in `docs/assets/webui-design/`.
 
 - Sidebar uses the Realtek Ops Console navy background and primary blue active
   nav state.
-- The current Brand Fleet navigation contains 設備總覽、設備、設備註冊、群組與
-  標籤、產品與設備規格、韌體版本、更新計畫、批次工作、報表、團隊與權限。
-  The four-page Customer View navigation below is historical and must not be
-  used as the current brand-tenant acceptance target.
+- Sidebar groups are fixed and non-collapsible, in this order: 品牌雲、設備營運、
+  產品與更新、監控與分析、帳號管理.
+- Group items appear in the approved order: 品牌雲首頁; 設備、群組與標籤、
+  設備註冊、批次工作; SKU 與服務、ChipSet & SDK、韌體更新; 影像播放狀況、
+  報表; 帳務與自動加值.
+- 團隊與權限 is not a separate sidebar item. 品牌雲首頁 remains active for the
+  總覽、成員與權限、設定 tabs.
 - Platform View switcher is visually separated from Customer View navigation and
   remains role/route gated.
 - Sidebar account summary shows role and email only; it does not repeat the
@@ -38,6 +41,27 @@ against the approved design assets in `docs/assets/webui-design/`.
   required.
 - Loading, empty, filtered-empty, source-unavailable, and gateway-error states
   are handled at panel level without leaking raw upstream payloads.
+
+## Brand Cloud Shell And Tabs
+
+- `/console/{cloudId}/overview`, `/access`, and `/settings` render the same
+  Brand Cloud name, Cloud ID, organization selector, and tab strip.
+- Direct navigation, refresh, Back, and Forward preserve the URL and selected
+  tab. Existing unscoped `/console/overview`, `/console/access`, and
+  `/console/settings` routes remain usable.
+- Clicking 品牌雲首頁 opens the first accessible tab in the order 總覽、成員與
+  權限、設定. Sidebar active state is present on every Brand Cloud tab.
+- 總覽 shows the team summary only when team or role-assignment read access is
+  available. A failed team source does not hide fleet KPIs or fleet panels.
+- 成員與權限 shows members, pending invitations, roles, and readable management
+  scopes. Invite/member mutation controls are absent for read-only users.
+- 設定 always exposes owner-transfer token acceptance to authenticated customer
+  developers. Owner-transfer management requires `team.manage`; PKI test bundle
+  issuance requires `pki.test.issue`.
+- A failed fleet source does not hide usable team administration. Members,
+  invitations, and role-assignment source failures are rendered independently.
+- On mobile, grouped navigation and tabs remain usable without converting the
+  three routes into a single long page.
 
 ## Fleet Health Overview
 

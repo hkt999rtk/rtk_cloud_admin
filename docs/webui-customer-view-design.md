@@ -27,7 +27,9 @@ async validation-then-execution workflow.
 > Manager and Operations users managing 100K+ devices. The authoritative
 > prototype is `brand-fleet-management-mock.html`.
 
-Date: 2026-05-09
+Original date: 2026-05-09
+
+Last updated: 2026-08-28 — Brand Cloud overview/access/settings integration
 
 Audience:
 
@@ -90,8 +92,8 @@ removed from the production UI.
 
 | Surface | Required for v0.1 | Visual source | Status in this design |
 | --- | --- | --- | --- |
-| Brand Fleet shell | Yes | `brand-fleet-management-mock.html` plus this document | Planned, with role-specific navigation |
-| Fleet Overview | Yes | `brand-fleet-management-mock.html` | Approved large-fleet direction |
+| Brand Fleet shell | Yes | `brand-fleet-management-mock.html` plus this document | Implemented with fixed grouped navigation |
+| Fleet Overview | Yes | `brand-fleet-management-mock.html` | Implemented inside the Brand Cloud tab shell |
 | Devices + Detail Drawer | Yes | `brand-fleet-management-mock.html` | Approved server-side query direction |
 | Firmware Releases + Update Plans | Yes | `brand-fleet-management-mock.html` | Approved Developer / Operations workflow |
 | Batch Jobs + Reports | Yes | `brand-fleet-management-mock.html` | Approved asynchronous operations direction |
@@ -103,8 +105,9 @@ removed from the production UI.
 | Platform View: Audit Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Brand-cloud management UI | No | [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md) plus backend/BFF contract | Platform View draft, outside Customer View |
 | ChipSet & SDK resource center | Yes | [chipset-sdk-information-provider-mock.html](assets/webui-design/chipset-sdk-information-provider-mock.html) | Developer read-only resource center; global published catalog |
-| Groups and Tags | Yes | `brand-fleet-management-mock.html` | Required for large-fleet targeting |
-| Batch Jobs and Reports | Yes | `brand-fleet-management-mock.html` | Required for asynchronous fleet operations |
+| Brand Cloud members and settings | Yes | This document plus backend/BFF contracts | Implemented as addressable page tabs |
+| Groups and Tags | Yes | `brand-fleet-management-mock.html` | Implemented for large-fleet targeting |
+| Batch Jobs and Reports | Yes | `brand-fleet-management-mock.html` | Implemented asynchronous operations surfaces |
 
 ## Review Mockup
 
@@ -294,6 +297,21 @@ Sidebar:
 - Sidebar account summary shows the signed-in role and email only. It does not
   repeat the active organization name.
 
+The fixed group and item order is:
+
+| Group | Items |
+| --- | --- |
+| 品牌雲 | 品牌雲首頁 |
+| 設備營運 | 設備、群組與標籤、設備註冊、批次工作 |
+| 產品與更新 | SKU 與服務、ChipSet & SDK、韌體更新 |
+| 監控與分析 | 影像播放狀況、報表 |
+| 帳號管理 | 帳務與自動加值 |
+
+Groups are always expanded. Capability filtering removes unavailable items but
+does not reorder the remaining items or collapse the group hierarchy. The
+`品牌雲首頁` item is always the navigation entry for the active Brand Cloud;
+route authorization independently chooses its first accessible tab.
+
 Main header:
 
 - Page title at the top-left of the content area.
@@ -311,6 +329,64 @@ Brand Cloud page:
 - Overview includes a team summary when team read capability is available.
 - Members and access contains invitations, members, roles, and scope
   assignments. Settings contains ownership transfer and PKI test tooling.
+
+### Brand Cloud route and tab contract
+
+The three tabs preserve their own URLs instead of using a query parameter or a
+single long page:
+
+| Tab | Scoped route | Unscoped compatibility route | Minimum frontend access |
+| --- | --- | --- | --- |
+| 總覽 | `/console/{cloudId}/overview` | `/console/overview` | `fleet.read` or `customer.devices.read` |
+| 成員與權限 | `/console/{cloudId}/access` | `/console/access` | `team.read` or `role_assignment.read` |
+| 設定 | `/console/{cloudId}/settings` | `/console/settings` | Any authenticated customer developer; individual tools remain capability-gated |
+
+Opening `品牌雲首頁` selects the first accessible route in the order above.
+The sidebar item stays active on all three routes. Navigation visibility and
+route access are separate decisions: removing an `access` sidebar item must not
+make `/access` inaccessible or bypass its capability guard.
+
+Tab changes use browser history navigation. Direct links, refresh, Back, and
+Forward must restore the same active tab. Existing invitation acceptance links
+continue to land on `/console/{cloudId}/access`; no redirect or backend contract
+change is required.
+
+### Shared Brand Cloud shell
+
+All tabs share the Brand Cloud name, Cloud ID, active-organization selector,
+and tab strip. The content responsibilities are:
+
+- **總覽:** fleet KPIs, health trend, region distribution, attention devices,
+  and a compact team summary with member count, owner, pending invitations, and
+  the current user's role.
+- **成員與權限:** members, pending invitations, available roles, and readable
+  management scopes. The invitation form expands from an explicit action;
+  read-only users do not see write controls.
+- **設定:** owner-transfer create/cancel for `team.manage`, owner-transfer token
+  acceptance for every authenticated customer developer, and PKI test bundle
+  issuance for `pki.test.issue`.
+
+The organization selector remains the single authority for active scope. The
+page header must not introduce a second Brand Cloud picker.
+
+### Access data composition and failure isolation
+
+The WebUI composes existing APIs; there is no new aggregate backend endpoint:
+
+- Overview requests members and invitations only when `team.read` or
+  `role_assignment.read` is present and reduces them into the team summary.
+- Members and access loads members, invitations, and `/api/role-assignments`
+  concurrently, then joins role and scope facts into one view model.
+- Each source retains its own availability status. Team-source failure affects
+  only the summary/access panels; it cannot hide Fleet Overview. Fleet-source
+  failure cannot remove team administration.
+- Existing idempotency keys, request paths, success/error messages, and backend
+  authorization remain authoritative for every write action.
+
+On mobile, fixed groups remain visible in a compact horizontal navigation area
+above the work area. The Brand Cloud tabs may scroll horizontally but must keep
+the active tab, Cloud ID, and primary content readable without changing route
+semantics.
 
 Login page:
 

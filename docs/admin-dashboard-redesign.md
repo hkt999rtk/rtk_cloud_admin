@@ -155,24 +155,45 @@ Platform Admin   →  customer count + service health
 Operations roles:
 
 ```
-設備總覽
-設備
-群組與標籤
-SKU 與服務
-韌體版本
-更新計畫
-批次工作
-報表
-團隊與權限
+品牌雲
+└─ 品牌雲首頁
+   ├─ 總覽
+   ├─ 成員與權限
+   └─ 設定
+
+設備營運
+├─ 設備
+├─ 群組與標籤
+├─ 設備註冊
+└─ 批次工作
+
+產品與更新
+├─ SKU 與服務
+├─ ChipSet & SDK
+└─ 韌體更新
+
+監控與分析
+├─ 影像播放狀況
+└─ 報表
+
+帳號管理
+└─ 帳務與自動加值
 ```
 
 Device Groups, Tags, Products, Device Profiles, Batch Jobs, and Reports are
 required Brand Fleet surfaces because the target tenant manages 100K+ devices.
 
-`團隊與權限` uses the same scope model as the backend: a role assignment can
+The groups are fixed and non-collapsible. `團隊與權限` is no longer a separate
+sidebar destination: it is an addressable tab in `品牌雲首頁`, alongside fleet
+overview and low-frequency settings. `/overview`, `/access`, and `/settings`
+remain distinct deep links while sharing the Brand Cloud name, Cloud ID,
+organization selector, and tab strip.
+
+`成員與權限` uses the same scope model as the backend: a role assignment can
 cover the whole organization, one SKU, a region, a device group, or a single
-device. The page shows role names and readable scope labels; raw permission
-names and internal actor identifiers stay out of the primary workflow.
+device. The tab shows role names and readable scope labels; raw permission
+names and internal actor identifiers stay out of the primary workflow. Owner
+transfer and PKI test tools live under `設定`, not in the everyday member list.
 
 The `SKU 與服務` surface is the source of truth for the operator-facing
 relationship between a SKU, its product/device specification, enabled service
