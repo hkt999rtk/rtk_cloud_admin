@@ -143,7 +143,7 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 		case "/v1/auth/signup":
 			_, _ = w.Write([]byte(`{"user":{"id":"u-signup","email":"signup@example.com","name":"Signup User"},"organization":{"id":"org-1","name":"Acme Eval","role":"owner","tier":"evaluation","evaluation_device_quota":5}}`))
 		case "/v1/auth/verify-email":
-			var body accountclient.AuthTokenRequest
+			var body accountclient.VerifyEmailRequest
 			_ = json.NewDecoder(r.Body).Decode(&body)
 			if body.Token == "consumed-token" {
 				http.Error(w, "Invalid or expired verification token", http.StatusBadRequest)
@@ -183,12 +183,17 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 	}
 
 	signupRec := httptest.NewRecorder()
-	srv.ServeHTTP(signupRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/signup", strings.NewReader(`{"email":"signup@example.com","password":"password123","organization_name":"Acme Eval","display_name":"Signup User"}`)))
+	srv.ServeHTTP(signupRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/signup", strings.NewReader(`{"email":"signup@example.com"}`)))
 	if signupRec.Code != http.StatusAccepted {
 		t.Fatalf("signup status = %d, body=%s", signupRec.Code, signupRec.Body.String())
 	}
 	if !strings.Contains(signupRec.Body.String(), `"tier":"evaluation"`) {
 		t.Fatalf("signup body = %s", signupRec.Body.String())
+	}
+	legacySignupRec := httptest.NewRecorder()
+	srv.ServeHTTP(legacySignupRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/signup", strings.NewReader(`{"email":"legacy@example.com","password":"password123"}`)))
+	if legacySignupRec.Code != http.StatusBadRequest {
+		t.Fatalf("legacy signup fields status = %d, want 400", legacySignupRec.Code)
 	}
 
 	resendRec := httptest.NewRecorder()
@@ -198,17 +203,22 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 	}
 
 	verifyRec := httptest.NewRecorder()
-	srv.ServeHTTP(verifyRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verify-email", strings.NewReader(`{"token":"token-1"}`)))
+	srv.ServeHTTP(verifyRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verify-email", strings.NewReader(`{"token":"token-1","new_password":"password123"}`)))
 	if verifyRec.Code != http.StatusOK {
 		t.Fatalf("verify status = %d, body=%s", verifyRec.Code, verifyRec.Body.String())
 	}
 	if len(verifyRec.Result().Cookies()) != 1 {
 		t.Fatalf("verify did not set a session cookie")
 	}
+	missingPasswordRec := httptest.NewRecorder()
+	srv.ServeHTTP(missingPasswordRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verify-email", strings.NewReader(`{"token":"token-1"}`)))
+	if missingPasswordRec.Code != http.StatusBadRequest {
+		t.Fatalf("missing verification password status = %d, want 400", missingPasswordRec.Code)
+	}
 	sessionCookie := verifyRec.Result().Cookies()[0]
 
 	replayRec := httptest.NewRecorder()
-	srv.ServeHTTP(replayRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verify-email", strings.NewReader(`{"token":"consumed-token"}`)))
+	srv.ServeHTTP(replayRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verify-email", strings.NewReader(`{"token":"consumed-token","new_password":"password123"}`)))
 	if replayRec.Code != http.StatusBadRequest {
 		t.Fatalf("replayed verification status = %d, want 400; body=%s", replayRec.Code, replayRec.Body.String())
 	}

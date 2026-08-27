@@ -424,7 +424,6 @@ async function installApiMocks(page, { sessionForPath } = {}) {
       const payload = request.postDataJSON();
       const expected = {
         email: 'new.customer@example.com',
-        password: 'password123',
       };
       if (JSON.stringify(payload) !== JSON.stringify(expected)) {
         throw new Error(`Unexpected signup payload: ${JSON.stringify(payload)}`);
@@ -434,6 +433,23 @@ async function installApiMocks(page, { sessionForPath } = {}) {
         json: {
           user: { id: 'user-new-customer', email: expected.email },
           organization: { id: 'org-new-customer', name: expected.email, tier: 'evaluation' },
+        },
+      });
+    }
+    if (pathName === '/api/auth/customer/verify-email') {
+      if (request.method() !== 'POST') {
+        throw new Error(`Verification must use POST, got ${request.method()}`);
+      }
+      const payload = request.postDataJSON();
+      const expected = { token: 'verification-token', new_password: 'password123' };
+      if (JSON.stringify(payload) !== JSON.stringify(expected)) {
+        throw new Error(`Unexpected verification payload: ${JSON.stringify(payload)}`);
+      }
+      return route.fulfill({
+        status: 200,
+        json: {
+          user: { id: 'user-new-customer', email: 'new.customer@example.com' },
+          tokens: { access_token: 'access-token', refresh_token: 'refresh-token', expires_in: 3600 },
         },
       });
     }
@@ -502,11 +518,14 @@ async function runAuthSmoke(browserContext) {
   await signUpTab.click();
   await expectText(page, 'Create account');
   await page.getByLabel('Email').fill('new.customer@example.com');
-  await page.getByLabel('Password').fill('password123');
   await screenshot(page, 'desktop-signup-tab.png');
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await page.waitForURL(`${baseURL}/signup/check-email?email=new.customer%40example.com`);
   await expectText(page, 'We sent a verification link to new.customer@example.com.');
+  await page.goto(`${baseURL}/verify?token=verification-token`, { waitUntil: 'networkidle' });
+  await page.getByLabel('New password').fill('password123');
+  await page.getByRole('button', { name: 'Verify and continue', exact: true }).click();
+  await page.waitForURL(`${baseURL}/console/overview`);
   if (consoleIssues.length) {
     throw new Error(`Auth smoke console issues detected:\n${consoleIssues.join('\n')}`);
   }
@@ -546,7 +565,7 @@ async function runDesktopSmoke(page) {
   await gotoAndAssert(page, '/signup/check-email?email=fleet.manager%40example.com', 'Check your email');
   await expectText(page, 'Resend');
   await gotoAndAssert(page, '/verify', 'Verify email');
-  await expectText(page, 'Waiting for verification link');
+  await expectText(page, 'Create your password to finish verification');
   await screenshot(page, 'desktop-public-auth.png');
 
   await gotoAndAssert(page, '/console/devices?device=dev-1002', 'Devices');

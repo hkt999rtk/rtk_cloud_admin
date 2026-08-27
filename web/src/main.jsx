@@ -927,10 +927,10 @@ function App() {
     }
   }
 
-  async function handleVerify(token) {
+  async function handleVerify(payload) {
     setError('');
     try {
-      const result = await postJSON('/api/auth/customer/verify-email', { token });
+      const result = await postJSON('/api/auth/customer/verify-email', payload);
       if (result.tokens?.access_token) {
         window.history.pushState({}, '', '/console/overview');
         setActive('overview');
@@ -1507,11 +1507,9 @@ function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerificatio
 
 function SignupForm({ onSignup, disabled = false }) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [honeypot, setHoneypot] = useState('');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
-  const strength = passwordStrength(password);
 
   async function submit(event) {
     event.preventDefault();
@@ -1521,7 +1519,6 @@ function SignupForm({ onSignup, disabled = false }) {
     try {
       await onSignup({
         email,
-        password,
       });
     } catch (err) {
       setLocalError(userFacingSignupError(err));
@@ -1536,18 +1533,10 @@ function SignupForm({ onSignup, disabled = false }) {
         Email
         <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
       </label>
-      <label>
-        Password
-        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
-      </label>
       <label className="auth-honeypot">
         Leave this field empty
         <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
       </label>
-      <div className="auth-strength">
-        <span>Password strength</span>
-        <strong>{strength}</strong>
-      </div>
       <button type="submit" disabled={busy || disabled || !!honeypot}>Create account</button>
       {error ? <p className="error">{error}</p> : null}
     </form>
@@ -1593,42 +1582,23 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
 
 function VerifyForm({ token, onVerify }) {
   const [value, setValue] = useState(token);
-  const [status, setStatus] = useState('Waiting for verification link.');
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState('Create your password to finish verification.');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [attempted, setAttempted] = useState(false);
-
-  useEffect(() => {
-    if (!value || attempted) return;
-    setAttempted(true);
-    setBusy(true);
-    setLocalError('');
-    onVerify(value)
-      .then((result) => {
-        if (!result) {
-          setLocalError('Verification failed. Check the token and try again.');
-        } else if (result.tokens?.access_token) {
-          setStatus('Verification completed. Redirecting to the dashboard.');
-        } else {
-          setStatus('Email verified. Sign in to continue.');
-        }
-      })
-      .catch((err) => setLocalError(userFacingVerificationError(err)))
-      .finally(() => setBusy(false));
-  }, [attempted, onVerify, value]);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
     setLocalError('');
     try {
-      const result = await onVerify(value);
+      const result = await onVerify({ token: value, new_password: password });
       if (!result) {
         setLocalError('Verification failed. Check the token and try again.');
       } else if (result.tokens?.access_token) {
         setStatus('Verification completed. Redirecting to the dashboard.');
       } else {
-        setStatus('Email verified. Sign in to continue.');
+        setStatus('Email verified. You can now sign in.');
       }
     } catch (err) {
       setLocalError(userFacingVerificationError(err));
@@ -1639,10 +1609,17 @@ function VerifyForm({ token, onVerify }) {
 
   return (
     <div className="auth-stack">
-      <p>Paste the email verification token from your inbox link.</p>
-      <form className="auth-inline" onSubmit={submit}>
-        <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Verification token" required />
-        <button type="submit" disabled={busy}>Verify</button>
+      <p>Verify your email and create the password you will use to log in.</p>
+      <form className="auth-form" onSubmit={submit}>
+        <label>
+          Verification token
+          <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Verification token" required />
+        </label>
+        <label>
+          New password
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
+        </label>
+        <button type="submit" disabled={busy}>{busy ? 'Verifying' : 'Verify and continue'}</button>
       </form>
       <p className="auth-status">{status}</p>
       {error ? <p className="error">{error}</p> : null}
@@ -6038,17 +6015,6 @@ function formatTierLabel(tier) {
   if (tier === 'evaluation') return 'Evaluation';
   if (tier === 'commercial') return 'Commercial';
   return toTitleCase(String(tier).replaceAll('_', ' '));
-}
-
-function passwordStrength(password) {
-  if (!password) return 'Empty';
-  let score = 0;
-  if (password.length >= 8) score += 1;
-  if (password.length >= 12) score += 1;
-  if (/[A-Z]/.test(password)) score += 1;
-  if (/[0-9]/.test(password)) score += 1;
-  if (/[^A-Za-z0-9]/.test(password)) score += 1;
-  return ['Weak', 'Fair', 'Good', 'Strong', 'Excellent'][Math.min(score, 4)];
 }
 
 function normalizeStatusKey(value) {

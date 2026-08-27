@@ -113,11 +113,14 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 影像
 - `Login` authenticates an existing account. `Sign Up` opens the same
   evaluation-account creation flow as `/signup` and continues to the
   signup check-email state.
-- Both Sign Up entry points show only `Email` and `Password`. They do not show
+- Both Sign Up entry points show only `Email`. They do not show password,
   organization name, display name, a manual CAPTCHA token, or a
   terms-acceptance checkbox.
-- Submitting either Sign Up entry point sends exactly `email` and `password` to
+- Submitting either Sign Up entry point sends exactly `email` to
   `POST /api/auth/customer/signup`.
+- The verification page shows `New password` and sends exactly `token` and
+  `new_password`; successful activation creates the initial authenticated
+  session.
 - Check-email and verification routes cover pending verification, success,
   expired token, invalid token, already verified, resend, and service-unavailable
   states.

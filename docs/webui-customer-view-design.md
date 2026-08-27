@@ -309,10 +309,9 @@ Login page:
 - `Login` is the default mode for an existing Admin Console user. It shows
   `Email`, `Password`, a primary `Login` action, and a `Forgot password?`
   link. Password login keeps the existing platform/customer login behavior.
-- `Sign Up` is the public evaluation-account creation mode. It collects the
-  minimum Account Manager signup fields: `Email` and `Password`. It does not ask
-  for `Organization name`, `Display name`, a manual `CAPTCHA token`, or terms
-  acceptance. It calls
+- `Sign Up` is the public evaluation-account creation mode. It collects only
+  `Email`. It does not ask for a password, `Organization name`, `Display name`,
+  a manual `CAPTCHA token`, or terms acceptance. It calls
   `POST /api/auth/customer/signup`; a successful response creates a new
   pending-verification account, uses the normalized email as the default initial
   Brand Cloud name, and routes to `/signup/check-email`.
@@ -576,16 +575,17 @@ Design requirements:
   creation.
 - The `Sign Up` tab on the standalone auth page and the direct `/signup` route
   are two entry points to this same flow; they must submit the same payload,
-  containing only `email` and `password`, and produce the same
-  pending-verification state.
-- The signup form collects only email and password. Optional profile,
+  containing only `email`, and produce the same pending-verification state.
+- The signup form collects only email. Password, optional profile,
   organization-name, manual CAPTCHA-token, and terms-acceptance fields are not
-  exposed. Verification email is required before account use.
+  exposed during signup. Verification email is required before account use.
 - The check-email state explains that the user must verify email before signing
   in. It may offer resend only through the Account Manager-backed API.
-- The verification landing state handles success, expired token, invalid token,
-  already verified, and service-unavailable outcomes. Success routes users
-  toward the email/password login flow for the newly verified account.
+- The verification landing state asks the user to create a password of at least
+  eight characters. It submits `token` and `new_password` together so Account
+  Manager atomically sets the initial password, verifies the email, clears the
+  pending state, and issues the initial session. It also handles expired token,
+  invalid token, already verified, and service-unavailable outcomes.
 - Evaluation-tier quota copy uses the Account Manager quota fields
   `tier=evaluation` and `evaluation_device_quota`; it must not imply commercial
   entitlement or automatic quota approval.

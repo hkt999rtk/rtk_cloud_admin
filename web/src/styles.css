@@ -2649,13 +2649,6 @@ p {
   text-decoration: underline;
 }
 
-.auth-strength {
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-  font-size: 13px;
-}
-
 .auth-honeypot {
   clip: rect(0 0 0 0);
   clip-path: inset(50%);

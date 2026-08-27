@@ -400,11 +400,18 @@ func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatalf("decode signup body: %v", err)
 			}
-			if len(body) != 2 || body["email"] != "signup@example.com" || body["password"] != "password123" {
+			if len(body) != 1 || body["email"] != "signup@example.com" {
 				t.Fatalf("signup body = %#v", body)
 			}
 			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"signup@example.com","name":"Signup"},"organization":{"id":"org-1","name":"Acme","role":"owner","tier":"evaluation","evaluation_device_quota":5}}`))
 		case "/v1/auth/verify-email":
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode verify body: %v", err)
+			}
+			if len(body) != 2 || body["token"] != "token-1" || body["new_password"] != "password123" {
+				t.Fatalf("verify body = %#v", body)
+			}
 			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"signup@example.com","name":"Signup"},"tokens":{"access_token":"access","refresh_token":"refresh","expires_in":3600}}`))
 		case "/v1/auth/resend-verification":
 			w.WriteHeader(http.StatusAccepted)
@@ -420,7 +427,7 @@ func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 	defer upstream.Close()
 
 	client := New(upstream.URL)
-	signup, err := client.Signup(t.Context(), SignupRequest{Email: "signup@example.com", Password: "password123"})
+	signup, err := client.Signup(t.Context(), SignupRequest{Email: "signup@example.com"})
 	if err != nil {
 		t.Fatalf("Signup returned error: %v", err)
 	}
@@ -428,7 +435,7 @@ func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 		t.Fatalf("signup organization = %#v", signup.Organization)
 	}
 
-	verify, err := client.VerifyEmail(t.Context(), "token-1")
+	verify, err := client.VerifyEmail(t.Context(), VerifyEmailRequest{Token: "token-1", NewPassword: "password123"})
 	if err != nil {
 		t.Fatalf("VerifyEmail returned error: %v", err)
 	}

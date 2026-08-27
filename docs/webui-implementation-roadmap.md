@@ -431,9 +431,12 @@ sign-in path.
 - Replace the ambiguous `Login` / `Sign-in` auth-mode tabs with `Login` /
   `Sign Up`. `Login` authenticates an existing account; `Sign Up` executes the
   public evaluation-account creation flow and proceeds to email verification.
-- Keep both Sign Up entry points minimal: show only `Email` and `Password`, and
-  submit only `email` and `password`. Do not expose organization name, display
-  name, a manual CAPTCHA token, or a terms-acceptance checkbox.
+- Keep both Sign Up entry points minimal: show only `Email` and submit only
+  `email`. Do not expose password, organization name, display name, a manual
+  CAPTCHA token, or a terms-acceptance checkbox during signup.
+- On the verification page, collect `New password` and submit it with the
+  verification token. Account Manager must set the initial password and verify
+  the account atomically before issuing the first session.
 - Route platform password login through Account Manager platform-admin
   authorization during migration.
 - Complete `/signup`, `/signup/check-email`, and `/verify` states for public
@@ -466,10 +469,12 @@ sign-in path.
   tabs, with `Login` selected by default.
 - The `Sign Up` tab and `/signup` route submit the same Account Manager-backed
   evaluation signup and create a pending-verification account.
-- Both signup entry points show only `Email` and `Password`; their request body
-  contains exactly `email` and `password`.
-- Signup does not show organization-name, display-name, manual CAPTCHA-token,
-  or terms-acceptance controls.
+- Both signup entry points show only `Email`; their request body contains
+  exactly `email`.
+- Signup does not show password, organization-name, display-name, manual
+  CAPTCHA-token, or terms-acceptance controls.
+- Verification requires `token` and `new_password`; success leaves no verified
+  account without a usable password.
 - Signup is clearly evaluation-tier only.
 - Verification and login errors use user-facing copy without exposing internal
   upstream payloads.
@@ -481,8 +486,9 @@ sign-in path.
 - `cd web && npm test`
 - `cd web && npm run build`
 - `cd web && npm run browser:smoke`
-- Browser smoke verifies the two-field signup form and exact
-  `{email, password}` request payload on `/login` and `/signup`.
+- Browser smoke verifies the email-only signup form and exact `{email}` request
+  payload on `/login` and `/signup`, then verifies the `{token, new_password}`
+  activation payload.
 - `GOWORK=off go test ./...` if BFF auth, signup, verification, or quota behavior
   changes.
 
