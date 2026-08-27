@@ -460,6 +460,16 @@ async function installApiMocks(page, { sessionForPath } = {}) {
         },
       });
     }
+    if (pathName === '/api/auth/customer/verification-status') {
+      if (request.method() !== 'POST') {
+        throw new Error(`Verification status must use POST, got ${request.method()}`);
+      }
+      const payload = request.postDataJSON();
+      if (!payload.token) {
+        throw new Error('Verification status requires a token.');
+      }
+      return route.fulfill({ json: { status: payload.token === 'expired-token' ? 'expired' : 'valid' } });
+    }
     if (pathName === '/api/summary' || pathName === '/api/admin/summary') return route.fulfill({ json: summary });
     if (pathName === '/api/developer/brand-clouds') return route.fulfill({ json: { brand_clouds: [] } });
     if (pathName === '/api/customers' || pathName === '/api/admin/customers') return route.fulfill({ json: customers });
@@ -540,6 +550,17 @@ async function runAuthSmoke(browserContext) {
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await page.waitForURL(`${baseURL}/signup/check-email?email=new.customer%40example.com`);
   await expectText(page, 'We sent a verification link to new.customer@example.com.');
+  await page.goto(`${baseURL}/verify?token=expired-token`, { waitUntil: 'networkidle' });
+  await page.waitForURL(`${baseURL}/signup/verification-expired`);
+  await expectText(page, 'Verification link expired');
+  await expectText(page, 'Start Sign Up again to receive a new verification email.');
+  if (await page.getByLabel('New password').count()) {
+    throw new Error('Expired verification page must not render the password form.');
+  }
+  if (await page.getByRole('link', { name: 'Sign up again', exact: true }).count() !== 1) {
+    throw new Error('Expired verification page must offer one Sign up again action.');
+  }
+  await screenshot(page, 'desktop-verification-expired.png');
   await page.goto(`${baseURL}/verify?token=verification-token`, { waitUntil: 'networkidle' });
   if (await page.getByLabel('Verification token').count()) {
     throw new Error('Verification page must not render the token as a field.');

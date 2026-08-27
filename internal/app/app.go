@@ -279,6 +279,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
 	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
 	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
+	s.mux.HandleFunc("POST /api/auth/customer/verification-status", s.apiCustomerVerificationStatus)
 	s.mux.HandleFunc("POST /api/auth/customer/resend-verification", s.apiCustomerResendVerification)
 	s.mux.HandleFunc("POST /api/auth/sign-in", s.apiAuthSignIn)
 	s.mux.HandleFunc("POST /api/auth/login/activate", s.apiAuthLoginActivate)
@@ -402,6 +403,7 @@ func (s *Server) routes() {
 		"/reset-password",
 		"/signup",
 		"/signup/check-email",
+		"/signup/verification-expired",
 		"/signup/verify",
 		"/signup/verify/",
 		"/verify",
@@ -1031,6 +1033,26 @@ func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		setSessionCookie(w, session.ID)
+	}
+	writeJSONStatus(w, http.StatusOK, result)
+}
+
+func (s *Server) apiCustomerVerificationStatus(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.AuthTokenRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" {
+		http.Error(w, "token is required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.VerificationStatus(r.Context(), strings.TrimSpace(body.Token))
+	if err != nil {
+		s.writeAuthProxyError(w, err)
+		return
 	}
 	writeJSONStatus(w, http.StatusOK, result)
 }

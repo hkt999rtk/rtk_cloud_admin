@@ -413,6 +413,12 @@ func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 				t.Fatalf("verify body = %#v", body)
 			}
 			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"signup@example.com","name":"Signup"},"tokens":{"access_token":"access","refresh_token":"refresh","expires_in":3600}}`))
+		case "/v1/auth/verify-email/status":
+			var body AuthTokenRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Token != "token-1" {
+				t.Fatalf("verification status body = %#v, err=%v", body, err)
+			}
+			_, _ = w.Write([]byte(`{"status":"valid"}`))
 		case "/v1/auth/resend-verification":
 			w.WriteHeader(http.StatusAccepted)
 		case "/v1/orgs/org-1/quota-raise-requests":
@@ -433,6 +439,10 @@ func TestClientSignupVerifyResendAndQuotaRaise(t *testing.T) {
 	}
 	if signup.Organization.Tier != "evaluation" || signup.Organization.EvaluationDeviceQuota != 5 {
 		t.Fatalf("signup organization = %#v", signup.Organization)
+	}
+	status, err := client.VerificationStatus(t.Context(), "token-1")
+	if err != nil || status.Status != "valid" {
+		t.Fatalf("VerificationStatus = %#v, err=%v", status, err)
 	}
 
 	verify, err := client.VerifyEmail(t.Context(), VerifyEmailRequest{Token: "token-1", NewPassword: "password123"})

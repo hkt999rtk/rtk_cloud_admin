@@ -445,6 +445,10 @@ type VerifyEmailRequest struct {
 	NewPassword string `json:"new_password"`
 }
 
+type VerificationStatusResult struct {
+	Status string `json:"status"`
+}
+
 type ResetPasswordRequest struct {
 	Token       string `json:"token"`
 	NewPassword string `json:"new_password"`
@@ -554,6 +558,12 @@ func (c *Client) Signup(ctx context.Context, req SignupRequest) (SignupResult, e
 func (c *Client) VerifyEmail(ctx context.Context, req VerifyEmailRequest) (VerifyEmailResult, error) {
 	var out VerifyEmailResult
 	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/verify-email", "", req, &out)
+	return out, err
+}
+
+func (c *Client) VerificationStatus(ctx context.Context, token string) (VerificationStatusResult, error) {
+	var out VerificationStatusResult
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/verify-email/status", "", AuthTokenRequest{Token: token}, &out)
 	return out, err
 }
 

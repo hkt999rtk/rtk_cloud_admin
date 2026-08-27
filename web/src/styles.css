@@ -2618,6 +2618,14 @@ p {
   gap: 14px;
 }
 
+.auth-primary-link {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  justify-self: start;
+  text-decoration: none;
+}
+
 .auth-status {
   color: var(--brand-dark);
   font-size: 14px;

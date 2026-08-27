@@ -585,6 +585,7 @@ Required routes:
 
 - `/signup`
 - `/signup/check-email`
+- `/signup/verification-expired`
 - `/verify`
 
 Design requirements:
@@ -606,10 +607,17 @@ Design requirements:
   pending state, and issues the initial session. The callback token is an opaque
   credential read from the URL and must never be rendered as page text, a form
   control, or any other DOM content. Verification links expire according to
-  Account Manager's `EMAIL_VERIFICATION_TTL`, which defaults to 30 minutes;
-  expired links must be rejected and direct the user to request another email.
-  It also handles invalid token, already verified, and service-unavailable
-  outcomes.
+  Account Manager's `EMAIL_VERIFICATION_TTL`, which defaults to 30 minutes.
+  Before rendering the password form, the page must perform a non-consuming
+  token-status check. A valid link may show the password form; an expired link
+  must immediately replace the browser location with
+  `/signup/verification-expired`.
+- The dedicated expired-verification page is a terminal explanation state. It
+  must not render the token or password form. Its primary action is
+  `Sign up again`, linking to `/signup`, so an unverified account whose last
+  verification token expired can restart signup and receive a new email.
+  Invalid-token, already-verified, and service-unavailable outcomes remain
+  distinct states and must not be presented as an expired link.
 - Evaluation-tier quota copy uses the Account Manager quota fields
   `tier=evaluation` and `evaluation_device_quota`; it must not imply commercial
   entitlement or automatic quota approval.

@@ -150,6 +150,8 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 				return
 			}
 			_, _ = w.Write([]byte(`{"user":{"id":"u-signup","email":"signup@example.com","name":"Signup User"},"tokens":{"access_token":"access-1","refresh_token":"refresh-1","expires_in":3600}}`))
+		case "/v1/auth/verify-email/status":
+			_, _ = w.Write([]byte(`{"status":"valid"}`))
 		case "/v1/auth/resend-verification":
 			w.WriteHeader(http.StatusAccepted)
 		case "/v1/me":
@@ -174,7 +176,7 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
-	for _, path := range []string{"/login", "/signup", "/signup/check-email", "/signup/verify", "/signup/verify/", "/verify"} {
+	for _, path := range []string{"/login", "/signup", "/signup/check-email", "/signup/verification-expired", "/signup/verify", "/signup/verify/", "/verify"} {
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
 		if rec.Code != http.StatusOK {
@@ -200,6 +202,11 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 	srv.ServeHTTP(resendRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/resend-verification", strings.NewReader(`{"email":"signup@example.com"}`)))
 	if resendRec.Code != http.StatusAccepted {
 		t.Fatalf("resend status = %d, body=%s", resendRec.Code, resendRec.Body.String())
+	}
+	statusRec := httptest.NewRecorder()
+	srv.ServeHTTP(statusRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verification-status", strings.NewReader(`{"token":"token-1"}`)))
+	if statusRec.Code != http.StatusOK || !strings.Contains(statusRec.Body.String(), `"status":"valid"`) {
+		t.Fatalf("verification status = %d, body=%s", statusRec.Code, statusRec.Body.String())
 	}
 
 	verifyRec := httptest.NewRecorder()

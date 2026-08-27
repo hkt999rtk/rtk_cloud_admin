@@ -976,6 +976,16 @@ function App() {
     }
   }
 
+  async function handleVerificationStatus(token) {
+    setError('');
+    const result = await postJSON('/api/auth/customer/verification-status', { token });
+    if (result?.status === 'expired') {
+      window.history.replaceState({}, '', '/signup/verification-expired');
+      setActive('signup-verification-expired');
+    }
+    return result;
+  }
+
   async function handleResendVerification(email) {
     setError('');
     try {
@@ -1056,6 +1066,7 @@ function App() {
         active={active}
         error={error}
         onSignup={handleSignup}
+        onCheckVerification={handleVerificationStatus}
         onVerify={handleVerify}
         onResendVerification={handleResendVerification}
       />
@@ -1544,7 +1555,7 @@ function ResetPasswordView({ token, onResetPassword }) {
   );
 }
 
-function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerification }) {
+function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify, onResendVerification }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
@@ -1561,8 +1572,10 @@ function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerificatio
           <SignupForm onSignup={onSignup} />
         ) : active === 'signup-check-email' ? (
           <CheckEmailInterstitial email={email} onResendVerification={onResendVerification} />
+        ) : active === 'signup-verification-expired' ? (
+          <ExpiredVerificationPage />
         ) : (
-          <VerifyForm token={token} onVerify={onVerify} />
+          <VerifyForm token={token} onCheckVerification={onCheckVerification} onVerify={onVerify} />
         )}
         {error ? <div className="error">{error}</div> : null}
       </section>
@@ -1645,11 +1658,41 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
   );
 }
 
-function VerifyForm({ token, onVerify }) {
+function ExpiredVerificationPage() {
+  return (
+    <div className="auth-stack expired-verification-page">
+      <h2>Verification link expired</h2>
+      <p>Your account was not verified. Start Sign Up again to receive a new verification email.</p>
+      <a className="primary-button auth-primary-link" href="/signup">Sign up again</a>
+      <a className="auth-link" href="/login">Back to Login</a>
+    </div>
+  );
+}
+
+function VerifyForm({ token, onCheckVerification, onVerify }) {
   const [password, setPassword] = useState('');
-  const [status, setStatus] = useState(token ? 'Create your password to finish verification.' : 'This verification link is invalid.');
+  const [linkStatus, setLinkStatus] = useState(token ? 'checking' : 'invalid');
+  const [status, setStatus] = useState(token ? 'Checking verification link…' : 'This verification link is invalid.');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!token) return undefined;
+    let active = true;
+    onCheckVerification(token)
+      .then((result) => {
+        if (!active || result?.status === 'expired') return;
+        const nextStatus = result?.status === 'valid' ? 'valid' : 'invalid';
+        setLinkStatus(nextStatus);
+        setStatus(nextStatus === 'valid' ? 'Create your password to finish verification.' : 'This verification link is invalid.');
+      })
+      .catch((err) => {
+        if (!active) return;
+        setLinkStatus('error');
+        setLocalError(userFacingVerificationError(err));
+      });
+    return () => { active = false; };
+  }, [onCheckVerification, token]);
 
   async function submit(event) {
     event.preventDefault();
@@ -1674,15 +1717,16 @@ function VerifyForm({ token, onVerify }) {
   return (
     <div className="auth-stack">
       <p>Verify your email and create the password you will use to log in.</p>
-      <form className="auth-form" onSubmit={submit}>
+      {linkStatus === 'valid' ? <form className="auth-form" onSubmit={submit}>
         <label>
           New password
           <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
         </label>
         <button type="submit" disabled={busy || !token}>{busy ? 'Verifying' : 'Verify and continue'}</button>
-      </form>
+      </form> : null}
       <p className="auth-status">{status}</p>
       {error ? <p className="error">{error}</p> : null}
+      {linkStatus === 'invalid' ? <a className="auth-link" href="/signup">Sign up again</a> : null}
     </div>
   );
 }
