@@ -470,6 +470,17 @@ async function installApiMocks(page, { sessionForPath } = {}) {
       }
       return route.fulfill({ json: { status: payload.token === 'expired-token' ? 'expired' : 'valid' } });
     }
+    if (pathName === '/api/auth/reset-password') {
+      if (request.method() !== 'POST') {
+        throw new Error(`Password reset must use POST, got ${request.method()}`);
+      }
+      const payload = request.postDataJSON();
+      const expected = { token: 'synthetic-reset-token', new_password: 'new-password-123' };
+      if (JSON.stringify(payload) !== JSON.stringify(expected)) {
+        throw new Error('Unexpected password reset payload.');
+      }
+      return route.fulfill({ status: 204, body: '' });
+    }
     if (pathName === '/api/summary' || pathName === '/api/admin/summary') return route.fulfill({ json: summary });
     if (pathName === '/api/developer/brand-clouds') return route.fulfill({ json: { brand_clouds: [] } });
     if (pathName === '/api/customers' || pathName === '/api/admin/customers') return route.fulfill({ json: customers });
@@ -571,6 +582,25 @@ async function runAuthSmoke(browserContext) {
   await page.getByLabel('New password').fill('password123');
   await page.getByRole('button', { name: 'Verify and continue', exact: true }).click();
   await page.waitForURL(`${baseURL}/console/overview`);
+  await page.goto(`${baseURL}/reset-password?token=synthetic-reset-token`, { waitUntil: 'networkidle' });
+  await page.waitForURL(`${baseURL}/reset-password`);
+  await expectText(page, 'Secure reset link recognized');
+  if (await page.getByLabel('Reset token').count()) {
+    throw new Error('Password reset page must not render the token as a field.');
+  }
+  if ((await page.locator('body').innerText()).includes('synthetic-reset-token')) {
+    throw new Error('Password reset page must not render the token value.');
+  }
+  await page.getByLabel('New password', { exact: true }).fill('new-password-123');
+  await page.getByLabel('Confirm new password', { exact: true }).fill('new-password-123');
+  await screenshot(page, 'desktop-reset-password.png');
+  await page.getByRole('button', { name: 'Update password', exact: true }).click();
+  await expectText(page, 'Password updated');
+  await page.goto(`${baseURL}/reset-password`, { waitUntil: 'networkidle' });
+  await expectText(page, 'This reset link is not valid');
+  if (await page.getByLabel('New password', { exact: true }).count()) {
+    throw new Error('Password reset page without a token must not render the password form.');
+  }
   if (consoleIssues.length) {
     throw new Error(`Auth smoke console issues detected:\n${consoleIssues.join('\n')}`);
   }

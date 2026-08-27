@@ -7,6 +7,7 @@ import {
   loginPathFor,
   normalizeLoginNext,
   passwordLoginOrderForNext,
+  removeQueryParameterFromAddress,
 } from './auth-routing.mjs';
 
 test('login next accepts only admin and console paths', () => {
@@ -53,4 +54,22 @@ test('password login prefers the destination view', () => {
   assert.deepEqual(passwordLoginOrderForNext('/admin/resources'), ['platform', 'customer']);
   assert.deepEqual(passwordLoginOrderForNext('/console/devices'), ['customer', 'platform']);
   assert.deepEqual(passwordLoginOrderForNext('/signup'), ['customer', 'platform']);
+});
+
+test('sensitive query parameters are removed without changing the rest of the address', () => {
+  const calls = [];
+  const history = {
+    state: { source: 'email' },
+    replaceState: (...args) => calls.push(args),
+  };
+  const location = {
+    pathname: '/reset-password',
+    search: '?token=secret&campaign=welcome',
+    hash: '#form',
+  };
+
+  assert.equal(removeQueryParameterFromAddress(location, history, 'token'), true);
+  assert.deepEqual(calls, [[history.state, '', '/reset-password?campaign=welcome#form']]);
+  assert.equal(removeQueryParameterFromAddress({ pathname: '/reset-password', search: '' }, history, 'token'), false);
+  assert.equal(calls.length, 1);
 });
