@@ -313,7 +313,9 @@ body:has(.login-shell) {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -457,8 +459,12 @@ input {
   color: #fff;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   padding: 22px 14px;
+  position: sticky;
+  top: 0;
 }
 
 .brand {
@@ -495,9 +501,11 @@ td small {
   color: rgba(255, 255, 255, 0.72);
 }
 
-nav {
+.sidebar nav {
   display: grid;
   gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 nav button {
@@ -615,6 +623,7 @@ main {
 
 .sidebar-platform-switch {
   border-top: 1px solid rgba(255, 255, 255, 0.16);
+  flex: 0 0 auto;
   margin-top: 28px;
   padding-top: 18px;
 }
@@ -642,6 +651,7 @@ main {
   align-items: center;
   border-top: 1px solid rgba(255, 255, 255, 0.16);
   display: flex;
+  flex: 0 0 auto;
   gap: 10px;
   margin-top: auto;
   padding: 18px 8px 0;
@@ -691,9 +701,11 @@ main {
   gap: 8px;
 }
 
-.inline-form input {
+.inline-form input:not([type="checkbox"]):not([type="radio"]),
+.inline-form select {
   border: 1px solid var(--line);
   border-radius: 6px;
+  min-height: 42px;
   min-width: 260px;
   padding: 9px 11px;
 }
@@ -722,7 +734,26 @@ main {
 }
 
 .report-builder {
-  flex-wrap: wrap;
+  align-items: end;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  width: 100%;
+}
+
+.report-builder > input,
+.report-builder > select,
+.report-builder > label input {
+  height: 44px;
+  min-width: 0;
+  width: 100%;
+}
+
+.report-builder > label {
+  color: var(--muted);
+  display: grid;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
 }
 
 .dimension-picker {
@@ -731,6 +762,7 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  grid-column: 1 / -1;
   margin: 0;
   padding: 8px 10px;
 }
@@ -742,8 +774,23 @@ main {
 }
 
 .dimension-picker label {
+  align-items: center;
   color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
   font-size: 12px;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 4px;
+}
+
+.dimension-picker input[type="checkbox"] {
+  accent-color: var(--brand);
+  height: 18px;
+  margin: 0;
+  min-width: 18px;
+  padding: 0;
+  width: 18px;
 }
 
 .validation-detail-list {
@@ -3850,6 +3897,12 @@ select,
   padding: 10px 12px;
   color: var(--text);
   background: #fff;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  min-width: 0;
+  padding: 0;
 }
 
 input:focus,
