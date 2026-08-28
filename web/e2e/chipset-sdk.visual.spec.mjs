@@ -10,16 +10,18 @@ const providers = [
 const chipsets = [{
   id: 'chipset-amebapro2', provider_name: 'Ameba IoT', chipset_key: 'realtek-amebapro2', vendor: 'Realtek', name: 'AmebaPro2', family: 'AmebaPro2', stale: true, last_successful_refresh_at: syncedAt,
   description: '低功耗 AIoT multimedia ChipSet，提供 Arduino 與 FreeRTOS 開發資源。',
+  resources: [
+    { type: 'product', title: 'AmebaPro2 產品與開發板', url: 'https://www.amebaiot.com/en/amebapro2/', source: 'official', languages: ['en'], verified_at: '2026-08-28', summary: '官方產品、規格與開發板入口。' },
+    { type: 'datasheet', title: 'AMB82 Mini Datasheet', url: 'https://www.amebaiot.com/en/datasheet-download-amb82-mini/', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
+    { type: 'forum', title: 'Ameba 開發者論壇', url: 'https://forum.amebaiot.com/', source: 'official', languages: ['en', 'zh-TW'], verified_at: '2026-08-28' },
+    { type: 'video', title: 'AmebaPro2 Start Here', url: 'https://www.youtube.com/playlist?list=PLEQfNjOZQRyP1dyegDVYqgw53_AORspMK', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
+  ],
   sdk_releases: [
-    { name: 'Ameba Arduino Pro2', version: '4.0.8', summary: 'Arduino development package', recommended: true, supported_models: ['AMB82-Mini', 'AmebaPro2 EVB'], endpoints: [
-      { type: 'github', title: 'GitHub', url: 'https://github.com/Ameba-AIoT/ameba-arduino-pro2' },
-      { type: 'information', title: '產品資訊', url: 'https://www.amebaiot.com/en/amebapro2/' },
-      { type: 'sdk', title: 'SDK', url: 'https://github.com/Freertos-kvs-LTS/ambpro2_sdk' },
-      { type: 'documentation', title: '文件', url: 'https://www.amebaiot.com/en/amebapro2/' },
-      { type: 'example', title: '範例', url: 'https://github.com/Ameba-AIoT/ameba-arduino-pro2/tree/main/Arduino_package/hardware/libraries' },
-      { type: 'support', title: '支援', url: 'https://www.amebaiot.com/en/contact-us/' },
+    { name: 'Ameba Arduino Pro2', version: '4.1.0', summary: 'Arduino development package', recommended: true, supported_models: ['AMB82 MINI'], endpoints: [
+      { type: 'github', title: 'GitHub', url: 'https://github.com/Ameba-AIoT/ameba-arduino-pro2', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
+      { type: 'getting_started', title: '安裝與入門', url: 'https://ameba-doc-arduino-sdk.readthedocs-hosted.com/en/latest/ameba_pro2/amb82-mini/index.html', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
     ] },
-    { name: 'ambpro2 SDK', version: 'main', summary: 'FreeRTOS-based production SDK', recommended: false, supported_models: ['AmebaPro2 EVB'], endpoints: [{ type: 'sdk', title: 'SDK repository', url: 'https://github.com/Freertos-kvs-LTS/ambpro2_sdk' }] },
+    { name: 'Ameba FreeRTOS Pro2', version: 'main', summary: 'FreeRTOS-based production SDK', recommended: false, supported_models: ['AMB82 MINI'], endpoints: [{ type: 'github', title: 'SDK repository', url: 'https://github.com/Ameba-AIoT/ameba-rtos-pro2', source: 'official', languages: ['en'], verified_at: '2026-08-28' }] },
   ],
 }];
 

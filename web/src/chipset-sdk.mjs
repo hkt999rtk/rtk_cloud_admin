@@ -30,8 +30,9 @@ export function providerSyncHealth(provider = {}) {
 }
 
 export function providerEndpointCount(chipsets = []) {
-  return chipsets.reduce((total, chipset) => total + (chipset.sdk_releases || [])
-    .reduce((sum, release) => sum + (release.endpoints || []).length, 0), 0);
+	return chipsets.reduce((total, chipset) => total
+		+ (chipset.resources || []).length
+		+ (chipset.sdk_releases || []).reduce((sum, release) => sum + (release.endpoints || []).length, 0), 0);
 }
 
 export function chipsetVendors(chipsets = []) {
@@ -43,8 +44,12 @@ export function filterChipsets(chipsets = [], query = '', vendor = 'all', recomm
   return chipsets.filter((chipset) => {
     const releases = chipset.sdk_releases || [];
     const haystack = [
-      chipset.name, chipset.vendor, chipset.family, chipset.description,
-      ...releases.flatMap((release) => [release.name, release.version, release.summary, ...(release.supported_models || [])]),
+		chipset.name, chipset.vendor, chipset.family, chipset.description,
+		...(chipset.resources || []).flatMap((resource) => [resource.type, resource.title, resource.summary, ...(resource.languages || [])]),
+		...releases.flatMap((release) => [
+			release.name, release.version, release.summary, ...(release.supported_models || []),
+			...(release.endpoints || []).flatMap((endpoint) => [endpoint.type, endpoint.title, endpoint.summary, ...(endpoint.languages || [])]),
+		]),
     ].filter(Boolean).join(' ').toLowerCase();
     return (vendor === 'all' || chipset.vendor === vendor)
       && (!recommendedOnly || releases.some((release) => release.recommended))

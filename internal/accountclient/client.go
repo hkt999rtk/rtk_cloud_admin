@@ -20,10 +20,14 @@ type Client struct {
 }
 
 type ChipsetEndpoint struct {
-	Type     string         `json:"type"`
-	Title    string         `json:"title"`
-	URL      string         `json:"url"`
-	Metadata map[string]any `json:"metadata,omitempty"`
+	Type       string         `json:"type"`
+	Title      string         `json:"title"`
+	URL        string         `json:"url"`
+	Source     string         `json:"source,omitempty"`
+	Languages  []string       `json:"languages,omitempty"`
+	VerifiedAt string         `json:"verified_at,omitempty"`
+	Summary    string         `json:"summary,omitempty"`
+	Metadata   map[string]any `json:"metadata,omitempty"`
 }
 
 type ChipsetSDKRelease struct {
@@ -43,6 +47,7 @@ type DeveloperChipset struct {
 	Name                    string              `json:"name"`
 	Family                  string              `json:"family,omitempty"`
 	Description             string              `json:"description,omitempty"`
+	Resources               []ChipsetEndpoint   `json:"resources,omitempty"`
 	SDKReleases             []ChipsetSDKRelease `json:"sdk_releases"`
 	Stale                   bool                `json:"stale"`
 	LastSuccessfulRefreshAt string              `json:"last_successful_refresh_at"`

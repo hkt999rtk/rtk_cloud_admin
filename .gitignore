@@ -10,6 +10,7 @@ keys/*
 server
 web/dist/
 web/node_modules/
+web/public/assets/chipset-packages/
 *.db
 *.db-shm
 *.db-wal

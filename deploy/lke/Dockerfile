@@ -1,10 +1,11 @@
 FROM node:22-bookworm AS web
 
-WORKDIR /src/web
-COPY web/package*.json ./
-RUN npm ci
-COPY web ./
-RUN npm run build
+WORKDIR /src
+COPY web/package*.json web/
+RUN cd web && npm ci
+COPY web web
+COPY docs/rtk_cloud_contracts_doc/fixtures/chipset-sdk-provider docs/rtk_cloud_contracts_doc/fixtures/chipset-sdk-provider
+RUN cd web && npm run build
 
 FROM golang:1.26-bookworm AS builder
 

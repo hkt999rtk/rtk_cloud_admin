@@ -27,7 +27,8 @@
     "e2e:headed": "playwright test --headed",
     "e2e:report": "playwright show-report",
     "e2e:install": "playwright install chromium",
-    "build": "vite build",
+    "prepare:chipset-packages": "node scripts/sync-chipset-packages.mjs",
+    "build": "npm run prepare:chipset-packages && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {

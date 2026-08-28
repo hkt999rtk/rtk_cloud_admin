@@ -130,10 +130,15 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
   const initialRelease = page.locator('.sdk-release').filter({ hasText: 'Ameba Arduino Pro2 · 1.0.0' }).first();
   await expect(initialRelease.getByText('Ameba Arduino Pro2 · 1.0.0')).toBeVisible();
   await expect(initialRelease.getByText('Recommended', { exact: true })).toBeVisible();
-  await expect(initialRelease.getByText('AMB82-Mini')).toBeVisible();
+  await expect(initialRelease.getByText('AMB82 MINI')).toBeVisible();
   await expect(initialRelease.getByRole('link', { name: /Ameba Arduino Pro2 GitHub/ })).toHaveAttribute('target', '_blank');
-  const sdkDownloadLink = page.locator('a[href="https://github.com/Freertos-kvs-LTS/ambpro2_sdk"]:visible').first();
-  await expect(sdkDownloadLink).toHaveAccessibleName(/Get ambpro2 SDK/);
+  await expect(initialRelease.getByRole('link', { name: /Ameba Arduino Pro2 GitHub/ })).toHaveAttribute('rel', /noopener/);
+  const productLink = page.getByRole('link', { name: /AmebaPro2 產品與開發板/ }).first();
+  await expect(productLink).toHaveAttribute('target', '_blank');
+  await expect(productLink).toContainText('Official');
+  await expect(productLink).toContainText('en');
+  const sdkDownloadLink = page.locator('a[href="https://github.com/Ameba-AIoT/ameba-rtos-pro2"]:visible').first();
+  await expect(sdkDownloadLink).toHaveAccessibleName(/Ameba FreeRTOS Pro2 GitHub/);
 
   await login(page, 'platform_admin');
   await navigateAfterRoleSwitch(page, '/admin/chipset-providers');
