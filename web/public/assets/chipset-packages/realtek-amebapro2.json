@@ -39,38 +39,6 @@
           "verified_at": "2026-08-28T00:00:00Z"
         },
         {
-          "type": "faq",
-          "title": "Ameba FAQ",
-          "url": "https://forum.amebaiot.com/t/welcome-to-ameba-faq/1748",
-          "source": "official",
-          "languages": ["en"],
-          "verified_at": "2026-08-28T00:00:00Z"
-        },
-        {
-          "type": "video",
-          "title": "AMB82 Mini: Start Here!",
-          "url": "https://www.youtube.com/playlist?list=PLEQfNjOZQRyP1dyegDVYqgw53_AORspMK",
-          "source": "official",
-          "languages": ["en"],
-          "verified_at": "2026-08-28T00:00:00Z"
-        },
-        {
-          "type": "video",
-          "title": "AMB82 Mini Tutorials",
-          "url": "https://www.youtube.com/playlist?list=PLEQfNjOZQRyPnmXCuRqE1f5au2HT4E9CP",
-          "source": "official",
-          "languages": ["en"],
-          "verified_at": "2026-08-28T00:00:00Z"
-        },
-        {
-          "type": "video",
-          "title": "AMB82 Mini 中文教程",
-          "url": "https://www.youtube.com/playlist?list=PLEQfNjOZQRyOxXFV7X_2fIcnd_J6VBmyM",
-          "source": "official",
-          "languages": ["zh-CN"],
-          "verified_at": "2026-08-28T00:00:00Z"
-        },
-        {
           "type": "video",
           "title": "AMB82 Mini Maker Projects",
           "url": "https://www.youtube.com/playlist?list=PLEQfNjOZQRyPWhySw16ZgBOPWnzLWDAjz",

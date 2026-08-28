@@ -23,6 +23,15 @@ export async function enterCustomer(page, cloudId = 'brand-e2e-01') {
   await expect(page.getByText('Brand Fleet', { exact: true })).toBeVisible();
 }
 
+export async function expectPageTitle(page, title) {
+  const mobileTitle = page.locator('.mobile-appbar strong');
+  if (await mobileTitle.isVisible()) {
+    await expect(mobileTitle).toHaveText(title);
+    return;
+  }
+  await expect(page.getByRole('heading', { name: title }).first()).toBeVisible();
+}
+
 export async function waitForJobState(page, jobId, states = ['completed'], timeout = 15_000) {
   const pattern = new RegExp(`^(?:${states.join('|')})$`);
   await expect.poll(async () => {
@@ -45,8 +54,6 @@ export async function enterPlatform(page) {
   try {
     await switchButton.waitFor({ state: 'visible', timeout: 10_000 });
     await switchButton.click();
-    await page.getByRole('heading', { name: 'Platform Dashboard' }).waitFor();
-  } catch {
-    await page.getByRole('heading', { name: 'Platform Dashboard' }).waitFor();
-  }
+  } catch {}
+  await expectPageTitle(page, 'Platform Dashboard');
 }
