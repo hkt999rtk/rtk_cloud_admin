@@ -274,11 +274,13 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel", s.apiDeveloperOwnerTransfer)
 	s.mux.HandleFunc("POST /api/developer/brand-cloud-owner-transfers/accept", s.apiDeveloperOwnerTransferAccept)
 	s.mux.HandleFunc("POST /api/developer/brand-cloud-member-invitations/accept", s.apiDeveloperBrandCloudInvitationAccept)
+	s.mux.HandleFunc("POST /api/developer/sku-collaborator-invitations/accept", s.apiSKUCollaboratorInvitationAccept)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/app", s.apiDeveloperPKITestAppBundle)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/device", s.apiDeveloperPKITestDeviceBundle)
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
 	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
 	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
+	s.mux.HandleFunc("POST /api/auth/customer/verification-status", s.apiCustomerVerificationStatus)
 	s.mux.HandleFunc("POST /api/auth/customer/resend-verification", s.apiCustomerResendVerification)
 	s.mux.HandleFunc("POST /api/auth/sign-in", s.apiAuthSignIn)
 	s.mux.HandleFunc("POST /api/auth/login/activate", s.apiAuthLoginActivate)
@@ -350,6 +352,12 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/skus/{id}/disable", s.apiSKUWrite)
 	s.mux.HandleFunc("GET /api/skus/{id}/permissions", s.apiSKUPermissions)
 	s.mux.HandleFunc("POST /api/skus/{id}/impact-preview", s.apiSKUImpactPreview)
+	s.mux.HandleFunc("GET /api/skus/{id}/collaborators", s.apiSKUCollaborators)
+	s.mux.HandleFunc("PATCH /api/skus/{id}/collaborators/{userId}", s.apiSKUCollaborator)
+	s.mux.HandleFunc("DELETE /api/skus/{id}/collaborators/{userId}", s.apiSKUCollaborator)
+	s.mux.HandleFunc("POST /api/skus/{id}/collaborator-invitations", s.apiSKUCollaboratorInvitations)
+	s.mux.HandleFunc("POST /api/skus/{id}/collaborator-invitations/{invitationId}/{action}", s.apiSKUCollaboratorInvitationAction)
+	s.mux.HandleFunc("POST /api/skus/{id}/owner-transfer", s.apiSKUOwnerTransfer)
 	s.mux.HandleFunc("GET /api/admin/devices", s.apiAdminDevices)
 	s.mux.HandleFunc("GET /api/admin/brand-clouds", s.apiAdminBrandClouds)
 	s.mux.HandleFunc("POST /api/admin/brand-clouds", s.apiAdminBrandClouds)
@@ -402,6 +410,7 @@ func (s *Server) routes() {
 		"/reset-password",
 		"/signup",
 		"/signup/check-email",
+		"/signup/verification-expired",
 		"/signup/verify",
 		"/signup/verify/",
 		"/verify",
@@ -861,6 +870,30 @@ func (s *Server) apiDeveloperBrandCloudInvitationAccept(w http.ResponseWriter, r
 	writeJSON(w, map[string]any{"invitation": invitation, "member": member, "source_status": "available"})
 }
 
+func (s *Server) apiSKUCollaboratorInvitationAccept(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requestSession(r)
+	if !ok || strings.TrimSpace(session.AccessToken) == "" {
+		http.Error(w, "developer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if _, ok := requireIdempotencyKey(w, r); !ok {
+		return
+	}
+	var body struct {
+		Token string `json:"token"`
+	}
+	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.Token) == "" {
+		http.Error(w, "token is required", http.StatusBadRequest)
+		return
+	}
+	invitation, err := s.accountClient.AcceptSKUCollaboratorInvitation(r.Context(), session.AccessToken, strings.TrimSpace(body.Token))
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"invitation": invitation, "source_status": "available"})
+}
+
 func (s *Server) apiDeveloperBrandCloudMember(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.customerSession(r)
 	if !ok {
@@ -983,16 +1016,28 @@ func (s *Server) apiCustomerSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body accountclient.SignupRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil || strings.TrimSpace(body.Email) == "" {
 		http.Error(w, "invalid signup request", http.StatusBadRequest)
 		return
 	}
 	result, err := s.accountClient.Signup(r.Context(), body)
 	if err != nil {
-		s.writeCustomerError(w, err)
+		s.writeSignupError(w, err)
 		return
 	}
 	writeJSONStatus(w, http.StatusAccepted, result)
+}
+
+func (s *Server) writeSignupError(w http.ResponseWriter, err error) {
+	var httpErr *accountclient.HTTPError
+	if errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusConflict {
+		s.logUpstreamError("account_manager", err)
+		http.Error(w, "An account already exists for this email", http.StatusConflict)
+		return
+	}
+	s.writeCustomerError(w, err)
 }
 
 func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) {
@@ -1000,12 +1045,14 @@ func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
 		return
 	}
-	var body accountclient.AuthTokenRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" {
-		http.Error(w, "token is required", http.StatusBadRequest)
+	var body accountclient.VerifyEmailRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" || len(body.NewPassword) < 8 {
+		http.Error(w, "token and new_password are required", http.StatusBadRequest)
 		return
 	}
-	result, err := s.accountClient.VerifyEmail(r.Context(), body.Token)
+	result, err := s.accountClient.VerifyEmail(r.Context(), body)
 	if err != nil {
 		s.writeAuthProxyError(w, err)
 		return
@@ -1017,6 +1064,26 @@ func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		setSessionCookie(w, session.ID)
+	}
+	writeJSONStatus(w, http.StatusOK, result)
+}
+
+func (s *Server) apiCustomerVerificationStatus(w http.ResponseWriter, r *http.Request) {
+	if !s.accountClient.Enabled() {
+		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body accountclient.AuthTokenRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil || strings.TrimSpace(body.Token) == "" {
+		http.Error(w, "token is required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.accountClient.VerificationStatus(r.Context(), strings.TrimSpace(body.Token))
+	if err != nil {
+		s.writeAuthProxyError(w, err)
+		return
 	}
 	writeJSONStatus(w, http.StatusOK, result)
 }
@@ -2924,6 +2991,11 @@ func (s *Server) apiSKUs(w http.ResponseWriter, r *http.Request) {
 	capabilities := capabilitiesForOrganization(org)
 	for _, profile := range profiles {
 		item := customerSKUWithActionsAndSummary(profile, capabilities, &fleetSummary)
+		if profile.CurrentUserRole == "sku_owner" {
+			if collaborators, collaboratorErr := s.accountClient.SKUCollaborators(r.Context(), tokens.AccessToken, org.ID, profile.ID); collaboratorErr == nil {
+				item.CollaboratorCount = len(collaborators)
+			}
+		}
 		var runs []accountclient.ProductionRun
 		var runErr error
 		tokens, runErr = s.customerCall(r.Context(), tokens, func(token string) error {
@@ -2935,7 +3007,133 @@ func (s *Server) apiSKUs(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, item)
 	}
-	writeJSON(w, map[string]any{"skus": items, "can_manage": hasCapability(capabilities, "registry_device.manage") || hasCapability(capabilities, capabilityCustomerFirmwareManage), "source_status": "available"})
+	writeJSON(w, map[string]any{"skus": items, "can_manage": org.Role == "owner", "source_status": "available"})
+}
+
+func (s *Server) skuCollaborationContext(w http.ResponseWriter, r *http.Request) (store.Session, accountclient.Organization, accountclient.Tokens, bool) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "developer authentication required", http.StatusUnauthorized)
+		return store.Session{}, accountclient.Organization{}, accountclient.Tokens{}, false
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return store.Session{}, accountclient.Organization{}, accountclient.Tokens{}, false
+	}
+	return session, org, tokens, true
+}
+
+func (s *Server) apiSKUCollaborators(w http.ResponseWriter, r *http.Request) {
+	session, org, tokens, ok := s.skuCollaborationContext(w, r)
+	if !ok {
+		return
+	}
+	items, err := s.accountClient.SKUCollaborators(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"))
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	invitations, _ := s.accountClient.SKUCollaboratorInvitations(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"))
+	writeJSON(w, map[string]any{"collaborators": items, "invitations": invitations, "source_status": "available"})
+}
+
+func (s *Server) apiSKUCollaboratorInvitations(w http.ResponseWriter, r *http.Request) {
+	session, org, tokens, ok := s.skuCollaborationContext(w, r)
+	if !ok {
+		return
+	}
+	if _, ok := requireIdempotencyKey(w, r); !ok {
+		return
+	}
+	var body struct {
+		Email string `json:"email"`
+		Role  string `json:"role"`
+	}
+	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.Email) == "" {
+		http.Error(w, "email is required", http.StatusBadRequest)
+		return
+	}
+	invitation, err := s.accountClient.InviteSKUCollaborator(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), strings.TrimSpace(body.Email), strings.TrimSpace(body.Role))
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusAccepted, map[string]any{"invitation": invitation, "source_status": "available"})
+}
+
+func (s *Server) apiSKUCollaboratorInvitationAction(w http.ResponseWriter, r *http.Request) {
+	session, org, tokens, ok := s.skuCollaborationContext(w, r)
+	if !ok {
+		return
+	}
+	if _, ok := requireIdempotencyKey(w, r); !ok {
+		return
+	}
+	action := r.PathValue("action")
+	if action != "resend" && action != "cancel" {
+		http.NotFound(w, r)
+		return
+	}
+	item, err := s.accountClient.ActOnSKUCollaboratorInvitation(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), r.PathValue("invitationId"), action)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"invitation": item, "source_status": "available"})
+}
+
+func (s *Server) apiSKUCollaborator(w http.ResponseWriter, r *http.Request) {
+	session, org, tokens, ok := s.skuCollaborationContext(w, r)
+	if !ok {
+		return
+	}
+	if _, ok := requireIdempotencyKey(w, r); !ok {
+		return
+	}
+	if r.Method == http.MethodDelete {
+		if err := s.accountClient.RemoveSKUCollaborator(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), r.PathValue("userId")); err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	var body struct {
+		Role string `json:"role"`
+	}
+	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil {
+		http.Error(w, "role is required", http.StatusBadRequest)
+		return
+	}
+	item, err := s.accountClient.UpdateSKUCollaborator(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), r.PathValue("userId"), strings.TrimSpace(body.Role))
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"collaborator": item, "source_status": "available"})
+}
+
+func (s *Server) apiSKUOwnerTransfer(w http.ResponseWriter, r *http.Request) {
+	session, org, tokens, ok := s.skuCollaborationContext(w, r)
+	if !ok {
+		return
+	}
+	if _, ok := requireIdempotencyKey(w, r); !ok {
+		return
+	}
+	var body struct {
+		TargetUserID string `json:"target_user_id"`
+	}
+	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.TargetUserID) == "" {
+		http.Error(w, "target_user_id is required", http.StatusBadRequest)
+		return
+	}
+	if err := s.accountClient.TransferSKUOwnership(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), strings.TrimSpace(body.TargetUserID)); err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"sku_id": r.PathValue("id"), "owner_user_id": strings.TrimSpace(body.TargetUserID), "source_status": "available"})
 }
 
 func (s *Server) apiSKU(w http.ResponseWriter, r *http.Request) {
@@ -3001,8 +3199,21 @@ func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	if !requireCustomerCapability(w, org, capabilitySKUPolicyManage, "sku.manage", "registry_device.manage") {
-		return
+	if r.PathValue("id") == "" {
+		if org.Role != "owner" {
+			writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "BRAND_OWNER_REQUIRED", "message": "Only the Brand Cloud owner can create a SKU."})
+			return
+		}
+	} else {
+		allowed, checkErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, "registry_device.manage", "sku", r.PathValue("id"))
+		if checkErr != nil {
+			s.writeCustomerErrorForSession(w, session.ID, checkErr)
+			return
+		}
+		if !allowed {
+			writeJSONStatus(w, http.StatusNotFound, map[string]any{"code": "SKU_NOT_FOUND", "message": "SKU not found."})
+			return
+		}
 	}
 	if _, ok := requireIdempotencyKey(w, r); !ok {
 		return
@@ -3033,11 +3244,6 @@ func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	request := accountclient.DeviceItemProfileRequest{ProfileKey: strings.TrimSpace(input.ProfileKey), DisplayName: strings.TrimSpace(input.Name), Category: strings.TrimSpace(input.Category), Manufacturer: strings.TrimSpace(input.Manufacturer), Model: strings.TrimSpace(input.ProductModel), ServiceOptions: customerServiceOptions(input.ServiceCapabilities), ClaimPolicy: input.DevicePolicy, ProvisioningPolicy: input.DevicePolicy}
-	if input.ServiceCapabilities != nil || input.DevicePolicy != nil || input.FirmwarePolicy != nil {
-		if !requireCustomerCapability(w, org, capabilitySKUPolicyManage) {
-			return
-		}
-	}
 	if request.ProfileKey == "" && request.DisplayName != "" {
 		request.ProfileKey = "sku-" + strings.ToLower(strings.NewReplacer(" ", "-", "/", "-", "_", "-").Replace(request.DisplayName))
 	}
@@ -3126,7 +3332,13 @@ func (s *Server) apiSKUImpactPreview(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	if !requireCustomerCapability(w, org, capabilitySKUPolicyManage) {
+	allowed, checkErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, "registry_device.manage", "sku", r.PathValue("id"))
+	if checkErr != nil {
+		s.writeCustomerErrorForSession(w, session.ID, checkErr)
+		return
+	}
+	if !allowed {
+		http.NotFound(w, r)
 		return
 	}
 	if _, ok := requireIdempotencyKey(w, r); !ok {
@@ -3238,7 +3450,8 @@ func customerSKUWithActionsAndSummary(profile accountclient.DeviceItemProfile, c
 		FirmwarePolicy: map[string]any{
 			"ota_enabled": hasOTA,
 		},
-		AllowedActions:     skuAllowedActions(capabilities),
+		AllowedActions:     skuAllowedActionsForRole(profile.CurrentUserRole, capabilities),
+		CurrentUserRole:    profile.CurrentUserRole,
 		UpdatedAt:          profile.UpdatedAt,
 		DeviceCount:        deviceCount,
 		RegionDistribution: regionDistribution,
@@ -3248,6 +3461,21 @@ func customerSKUWithActionsAndSummary(profile accountclient.DeviceItemProfile, c
 			}
 			return summary.BySKUFirmware[profile.ID]
 		}(),
+	}
+}
+
+func skuAllowedActionsForRole(role string, capabilities []string) []string {
+	switch role {
+	case "sku_owner":
+		return []string{"read", "manage_devices", "manage_updates", "view_reports", "edit_sku", "manage_collaborators", "disable_sku"}
+	case "brand_owner":
+		return []string{"read", "manage_devices", "manage_updates", "view_reports", "edit_sku", "disable_sku"}
+	case "sku_editor":
+		return []string{"read", "manage_devices", "manage_updates", "view_reports", "edit_sku"}
+	case "sku_viewer":
+		return []string{"read", "view_reports"}
+	default:
+		return skuAllowedActions(capabilities)
 	}
 }
 
@@ -3415,6 +3643,7 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 	}
 	orgID := strings.TrimSpace(session.ActiveOrgID)
 	capabilities := fleetManagerCapabilities()
+	resourceAllowed := false
 	if s.accountClient.Enabled() {
 		org, tokens, err := s.activeCustomerOrg(r.Context(), session)
 		if err != nil {
@@ -3438,6 +3667,7 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 				writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "RESOURCE_SCOPE_FORBIDDEN", "resource": "sku", "message": "Current membership does not allow this SKU scope."})
 				return
 			}
+			resourceAllowed = true
 		}
 	}
 	required := capabilityCustomerFirmwareRead
@@ -3457,7 +3687,7 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 			required = capabilityCustomerFirmwareManage
 		}
 	}
-	if !hasCapability(capabilities, required) && !(required == capabilityFirmwareReleaseRead && hasCapability(capabilities, capabilityCustomerFirmwareRead)) && !(required == capabilityOTAPlanRead && hasCapability(capabilities, capabilityCustomerFirmwareRead)) {
+	if !resourceAllowed && !hasCapability(capabilities, required) && !(required == capabilityFirmwareReleaseRead && hasCapability(capabilities, capabilityCustomerFirmwareRead)) && !(required == capabilityOTAPlanRead && hasCapability(capabilities, capabilityCustomerFirmwareRead)) {
 		writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "CAPABILITY_REQUIRED", "required_capability": required, "message": "Current membership does not allow this action."})
 		return
 	}

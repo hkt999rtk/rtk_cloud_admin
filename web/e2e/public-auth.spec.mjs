@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { login } from './fixtures/session.mjs';
 
 test('[UI-CA-AUTH-001] reset password keeps the URL token out of the form @smoke', async ({ page }, testInfo) => {
   let resetPayload;
@@ -11,10 +12,11 @@ test('[UI-CA-AUTH-001] reset password keeps the URL token out of the form @smoke
 
   await expect(page.getByLabel('Reset token')).toHaveCount(0);
   await expect(page.getByText('Reset token', { exact: true })).toHaveCount(0);
-  await page.getByLabel('New password').fill('new-password-123');
-  await page.getByRole('button', { name: 'Reset password' }).click();
+  await page.getByLabel('New password', { exact: true }).fill('new-password-123');
+  await page.getByLabel('Confirm new password', { exact: true }).fill('new-password-123');
+  await page.getByRole('button', { name: 'Update password' }).click();
 
-  await expect(page.getByText('Password reset completed. You can sign in with the new password.')).toBeVisible();
+  await expect(page.getByText('Password updated', { exact: true })).toBeVisible();
   expect(resetPayload).toEqual({ token: 'fixture-reset-token', new_password: 'new-password-123' });
   await testInfo.attach('final-viewport', {
     body: await page.screenshot({ fullPage: true }),
@@ -23,9 +25,10 @@ test('[UI-CA-AUTH-001] reset password keeps the URL token out of the form @smoke
 });
 
 test('[UI-CA-AUTH-002] checkbox follows the shared console control style @smoke', async ({ page }, testInfo) => {
-  await page.goto('/signup');
+  await login(page, 'developer');
+  await page.goto('/console/brand-e2e-01/reports');
 
-  const checkbox = page.getByRole('checkbox', { name: 'I accept the evaluation-tier terms.' });
+  const checkbox = page.getByRole('checkbox', { name: 'sku' });
   await expect(checkbox).toBeVisible();
   await expect(checkbox).toHaveCSS('appearance', 'none');
   await expect(checkbox).toHaveCSS('width', '18px');

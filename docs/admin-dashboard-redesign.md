@@ -195,6 +195,14 @@ device. The tab shows role names and readable scope labels; raw permission
 names and internal actor identifiers stay out of the primary workflow. Owner
 transfer and PKI test tools live under `設定`, not in the everyday member list.
 
+SKU collaboration is managed from `SKU 與服務`, not from the tenant-wide team
+table. The Brand Cloud owner alone creates a SKU and becomes its initial owner.
+The SKU owner invites registered developers as Editor or Viewer, changes or
+removes collaborators, and may explicitly transfer ownership. Cards and tables
+show the current user's effective SKU role and only render server-projected
+`allowed_actions`. A developer with a valid Brand Cloud identity but no SKU
+assignment sees an empty project state rather than the tenant's full catalog.
+
 The `SKU 與服務` surface is the source of truth for the operator-facing
 relationship between a SKU, its product/device specification, enabled service
 capabilities, user permissions, device policy, and firmware policy. A SKU is

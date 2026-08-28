@@ -149,15 +149,15 @@ paths:
       x-rtk-requirement-ids:
         - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
-      summary: Verify a customer signup email token
-      description: Proxies token verification to Account Manager and creates a customer session when tokens are returned.
+      summary: Verify a customer signup email and set its initial password
+      description: Proxies the callback token and new password to Account Manager and creates a customer session when tokens are returned. The Web UI consumes the opaque token from the callback URL without rendering it or exposing an editable token field.
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AuthTokenRequest"
+              $ref: "#/components/schemas/VerifyEmailRequest"
       responses:
         "200":
           description: Verification succeeded.
@@ -596,6 +596,83 @@ paths:
                 $ref: "#/components/schemas/DeveloperMemberList"
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/skus/{skuID}/collaborators:
+    get:
+      operationId: getApiSKUCollaborators
+      x-rtk-requirement-ids: [REQ-CONTRACT-SKU-COLLAB-001]
+      tags: [Developer]
+      summary: List collaborators and pending invitations for one SKU project
+      parameters: [{ name: skuID, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: SKU collaborator state. }
+        "404": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/skus/{skuID}/collaborator-invitations:
+    post:
+      operationId: postApiSKUCollaboratorInvitation
+      x-rtk-requirement-ids: [REQ-CONTRACT-SKU-COLLAB-001]
+      tags: [Developer]
+      summary: Invite a registered developer as Editor or Viewer
+      parameters:
+        - { name: skuID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email: { type: string, format: email }
+                role: { type: string, enum: [sku_editor, sku_viewer] }
+      responses:
+        "202": { description: Invitation created. }
+        "404": { $ref: "#/components/responses/PlainTextError" }
+        "409": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/skus/{skuID}/collaborators/{userID}:
+    patch:
+      operationId: patchApiSKUCollaborator
+      x-rtk-requirement-ids: [REQ-CONTRACT-SKU-COLLAB-001]
+      tags: [Developer]
+      summary: Change an Editor or Viewer role
+      parameters:
+        - { name: skuID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: userID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: { "200": { description: Collaborator updated. }, "404": { $ref: "#/components/responses/PlainTextError" } }
+    delete:
+      operationId: deleteApiSKUCollaborator
+      x-rtk-requirement-ids: [REQ-CONTRACT-SKU-COLLAB-001]
+      tags: [Developer]
+      summary: Remove a non-owner collaborator
+      parameters:
+        - { name: skuID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: userID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: { "204": { description: Collaborator removed. }, "404": { $ref: "#/components/responses/PlainTextError" } }
+
+  /api/skus/{skuID}/owner-transfer:
+    post:
+      operationId: postApiSKUOwnerTransfer
+      x-rtk-requirement-ids: [REQ-CONTRACT-SKU-COLLAB-001]
+      tags: [Developer]
+      summary: Atomically transfer explicit SKU ownership
+      parameters:
+        - { name: skuID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: { "200": { description: Ownership transferred. }, "404": { $ref: "#/components/responses/PlainTextError" } }
+
+  /api/developer/sku-collaborator-invitations/accept:
+    post:
+      operationId: postApiDeveloperSKUCollaboratorInvitationsAccept
+      x-rtk-requirement-ids: [REQ-CONTRACT-SKU-COLLAB-001]
+      tags: [Developer]
+      summary: Accept a SKU invitation and atomically activate membership and assignment
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      responses: { "200": { description: SKU assignment activated. }, "404": { $ref: "#/components/responses/PlainTextError" } }
 
   /api/developer/brand-clouds/{brandCloudID}/members/{userID}:
     patch:
@@ -3357,20 +3434,12 @@ components:
           minLength: 8
     SignupRequest:
       type: object
-      required: [email, password, organization_name]
+      required: [email]
       properties:
         email:
           type: string
           format: email
-        password:
-          type: string
-          format: password
-        display_name:
-          type: string
-        organization_name:
-          type: string
-        captcha_token:
-          type: string
+      additionalProperties: false
     SignupResult:
       type: object
       required: [user, organization]
@@ -3385,6 +3454,17 @@ components:
       properties:
         token:
           type: string
+    VerifyEmailRequest:
+      type: object
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          format: password
+          minLength: 8
+      additionalProperties: false
     VerifyEmailResult:
       type: object
       required: [user]

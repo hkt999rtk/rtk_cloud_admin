@@ -60,6 +60,9 @@ export function userFacingSSOError(error) {
 
 export function userFacingSignupError(error) {
   const message = String(error?.message || error || '');
+  if (error?.status === 409 || /already exists|conflict|duplicate/i.test(message)) {
+    return 'An account already exists for this email. Log in or reset your password.';
+  }
   if (/validation|email|password|captcha|terms|400|422/i.test(message)) {
     return 'Check the signup fields and try again.';
   }

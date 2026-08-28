@@ -139,6 +139,23 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 影像
 
 - Signup route is evaluation-tier only and does not imply commercial brand-cloud
   user creation.
+- The standalone auth page labels its two first-class tabs `Login` and
+  `Sign Up`; it does not use `Sign-in` as the signup label.
+- `Login` authenticates an existing account. `Sign Up` opens the same
+  evaluation-account creation flow as `/signup` and continues to the
+  signup check-email state.
+- Both Sign Up entry points show only `Email`. They do not show password,
+  organization name, display name, a manual CAPTCHA token, or a
+  terms-acceptance checkbox.
+- Submitting either Sign Up entry point sends exactly `email` to
+  `POST /api/auth/customer/signup`.
+- The verification page shows `New password` and sends exactly `token` and
+  `new_password`; successful activation creates the initial authenticated
+  session.
+- The verification token is consumed from the callback URL only. Its value is
+  not rendered in page text, form controls, the DOM, or screenshots.
+- Verification links expire after the Account Manager-configured TTL (30
+  minutes by default); expired links are rejected and the user must resend.
 - Check-email and verification routes cover pending verification, success,
   expired token, invalid token, already verified, resend, and service-unavailable
   states.
@@ -178,7 +195,7 @@ Use this mapping when reviewing developer issues opened from
 | --- | --- |
 | 1. WebUI foundation cleanup and route guards | Unified shell, session-specific grouped navigation, wrong-role route gates |
 | 2. Customer View source-aware page states | Loading, empty, filtered-empty, source-unavailable, gateway-error, and read-only panel states |
-| 3. Fleet Health Overview completion | Overview KPI strip, trend chart, health distribution, recent alerts, attention queue, quota callout |
+| 3. Fleet Health Overview completion | Overview KPI strip, health distribution, trend chart, combined attention list, region summary, quota callout |
 | 4. Devices table and detail drawer completion | Device filters, selected row, drawer overview, source facts, telemetry panels, provision/deactivate states |
 | 5. Firmware & OTA read-only workflows | Firmware distribution, campaign summary/table, read-only drill-down, unsupported policies, firmware risk queue |
 | 6. Stream Health read-only workflows | Stream KPIs, trend, source-backed By Mode rows, per-device table, attention routing |
@@ -189,7 +206,10 @@ Use this mapping when reviewing developer issues opened from
 ## Responsive Checks
 
 - At desktop width, sidebar stays fixed-width and tables remain readable.
-- At tablet/mobile width, sidebar stacks above content.
+- Below 1024px, the persistent sidebar is replaced by a sticky app bar and
+  off-canvas drawer with focus containment and Escape-to-close.
+- Overview is checked at 360×800, 390×844, 768×1024, 1024×768, and 1440×1000;
+  none may introduce page-level horizontal overflow.
 - Tables scroll horizontally rather than clipping columns.
 - Drawer fits within viewport and remains scrollable.
 - Charts remain visible and do not overlap adjacent panels.

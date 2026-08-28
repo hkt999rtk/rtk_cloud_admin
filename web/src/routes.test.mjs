@@ -46,6 +46,7 @@ test('maps public signup paths to auth routes', () => {
   assert.equal(routeFromPath('/signup'), 'signup');
   assert.equal(routeFromPath('/signup/check-email'), 'signup-check-email');
   assert.equal(routeFromPath('/signup/check-email/inbox'), 'signup-check-email');
+  assert.equal(routeFromPath('/signup/verification-expired'), 'signup-verification-expired');
   assert.equal(routeFromPath('/signup/verify'), 'verify');
   assert.equal(routeFromPath('/signup/verify/'), 'verify');
   assert.equal(routeFromPath('/verify'), 'verify');
@@ -55,6 +56,11 @@ test('maps public signup paths to auth routes', () => {
 test('maps Brand Cloud membership invitation acceptance outside regular console navigation', () => {
   assert.equal(routeFromPath('/brand-cloud-member-invitation/accept'), 'brand-cloud-member-invitation-accept');
   assert.equal(titleFor('brand-cloud-member-invitation-accept'), 'Accept Brand Cloud invitation');
+});
+
+test('maps SKU collaborator invitation acceptance outside regular console navigation', () => {
+  assert.equal(routeFromPath('/sku-collaborator-invitation/accept'), 'sku-collaborator-invitation-accept');
+  assert.equal(titleFor('sku-collaborator-invitation-accept'), 'Accept SKU collaboration invitation');
 });
 
 test('maps customer shell paths to customer routes', () => {
@@ -162,7 +168,7 @@ test('route kind selects one capability-filtered navigation hierarchy', () => {
 });
 
 test('public auth routes stay outside Customer and Platform section navigation', () => {
-  for (const route of ['login', 'login-check-email', 'login-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'verify']) {
+  for (const route of ['login', 'login-check-email', 'login-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'signup-verification-expired', 'verify']) {
     assert.equal(isPublicRouteId(route), true, route);
     assert.equal(isPlatformRouteId(route), false, route);
     assert.deepEqual(navItemsForRoute(route), []);

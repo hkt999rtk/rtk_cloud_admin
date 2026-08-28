@@ -186,6 +186,16 @@ test('userFacingSSOError maps auth and malformed redirect failures to operator-s
 });
 
 test('public signup errors use evaluation-tier safe copy', () => {
+  const conflict = new Error('Account Manager request failed');
+  conflict.status = 409;
+  assert.equal(
+    userFacingSignupError(conflict),
+    'An account already exists for this email. Log in or reset your password.',
+  );
+  assert.equal(
+    userFacingSignupError(new Error('duplicate email conflict')),
+    'An account already exists for this email. Log in or reset your password.',
+  );
   assert.equal(
     userFacingSignupError(new Error('email validation failed with 400')),
     'Check the signup fields and try again.',

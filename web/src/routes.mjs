@@ -90,7 +90,7 @@ export const platformNavGroups = [
 
 export const platformNavItems = platformNavGroups.flatMap((group) => group.items);
 
-const publicRouteIds = new Set(['login', 'login-check-email', 'login-activate', 'brand-cloud-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'verify']);
+const publicRouteIds = new Set(['login', 'login-check-email', 'login-activate', 'brand-cloud-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'signup-verification-expired', 'verify']);
 
 export function isPublicRouteId(route) {
   return publicRouteIds.has(route);
@@ -151,8 +151,10 @@ export function titleFor(active) {
     'reset-password': 'Reset password',
     signup: 'Sign up',
     'signup-check-email': 'Check your email',
+    'signup-verification-expired': 'Verification link expired',
     verify: 'Verify email',
     'brand-cloud-member-invitation-accept': 'Accept Brand Cloud invitation',
+    'sku-collaborator-invitation-accept': 'Accept SKU collaboration invitation',
     overview: '品牌雲',
     devices: '設備',
     'sku-services': 'SKU 與服務',
@@ -187,9 +189,11 @@ export function routeFromPath(path) {
   if (path === '/reset-password' || path.startsWith('/reset-password/')) return 'reset-password';
   if (path === '/signup' || path === '/signup/') return 'signup';
   if (path === '/signup/check-email' || path.startsWith('/signup/check-email/')) return 'signup-check-email';
+  if (path === '/signup/verification-expired' || path.startsWith('/signup/verification-expired/')) return 'signup-verification-expired';
   if (path === '/signup/verify' || path.startsWith('/signup/verify/')) return 'verify';
   if (path === '/verify' || path.startsWith('/verify/')) return 'verify';
   if (path === '/brand-cloud-member-invitation/accept') return 'brand-cloud-member-invitation-accept';
+  if (path === '/sku-collaborator-invitation/accept') return 'sku-collaborator-invitation-accept';
   if (path === '/admin' || path === '/admin/') return 'platform-dashboard';
   if (path === '/admin/grafana' || path.startsWith('/admin/grafana/')) return 'platform-grafana';
   if (path === '/admin/resources' || path.startsWith('/admin/resources/')) return 'platform-dashboard';

@@ -286,6 +286,9 @@ Customer Developers and Platform Admins use the same `Connect+ Ops` app shell:
 a dark fixed sidebar, common topbar, account summary, focus treatment, and
 responsive mobile navigation. The authenticated session selects one navigation
 hierarchy; the UI does not expose a view switcher or combine cross-role data.
+On desktop the shell uses a fixed left sidebar and a full-height work area.
+Below 1024px, it uses a sticky top app bar and an off-canvas navigation drawer;
+the full sidebar must not consume the first mobile viewport.
 
 Sidebar:
 
@@ -400,28 +403,30 @@ Login page:
 
 - Use the Realtek logo asset, followed by the `Connect+ Ops` product label.
 - The auth page is a normal website-style entry page with two first-class
-  modes: `Login` and `Sign-in`. Do not model either mode as a fallback hidden
-  behind copy such as `Use password instead`.
+  modes: `Login` and `Sign Up`. Do not model either mode as a fallback hidden
+  behind secondary copy.
 - `Login` is the default mode for an existing Admin Console user. It shows
   `Email`, `Password`, a primary `Login` action, and a `Forgot password?`
   link. Password login keeps the existing platform/customer login behavior.
-- `Sign-in` is the email activation-link mode. It shows one `Email` field and
-  a primary `Continue` action that calls `POST /api/auth/sign-in`. The UI copy
-  must make clear that this sends an activation/sign-in link instead of
-  logging in immediately.
-- The `Login` / `Sign-in` switcher must be visible in the first viewport, for
+- `Sign Up` is the public evaluation-account creation mode. It collects only
+  `Email`. It does not ask for a password, `Organization name`, `Display name`,
+  a manual `CAPTCHA token`, or terms acceptance. It calls
+  `POST /api/auth/customer/signup`; a successful response creates a new
+  pending-verification account, uses the normalized email as the default initial
+  Brand Cloud name, and routes to `/signup/check-email`.
+- The `Login` / `Sign Up` switcher must be visible in the first viewport, for
   example as tabs or a segmented control directly above the form.
 - The email field label is `Email`; do not use `Work email`.
+- A duplicate signup email is an account conflict, not a service outage. Show
+  `An account already exists for this email. Log in or reset your password.`;
+  reserve the temporary-unavailable message for gateway, timeout, and 5xx
+  failures.
 - Do not show a top-right `Need help?` link on the login page.
 - Keep login copy short and operational. Avoid support, marketing, or
   instructional links in the first viewport.
-- `/login/check-email` confirms that a sign-in request was accepted. The copy
-  must be enumeration-safe and must not reveal whether the account exists,
-  is disabled, or was rate limited.
-- `/login/activate` consumes a login activation token and creates the Admin
-  Console session only after Account Manager returns successful credentials.
-  Invalid, expired, or replayed tokens show a compact failure state with a
-  route back to `/login`.
+- The existing Account Manager email activation-link sign-in API remains an
+  authentication capability, but it is not exposed as the account-creation tab
+  and must not be labeled `Sign Up`.
 - `/forgot-password` requests a password reset token by email and returns the
   same accepted UI for known, unknown, disabled, or throttled accounts.
 - `/reset-password` consumes a reset token, writes the new password through
@@ -470,10 +475,10 @@ Capability and role behavior:
 Auth and access states:
 
 - Unauthenticated users see the standalone Admin Console auth page. `Login`
-  and `Sign-in` are both first-class modes, with `Login` selected by default.
-- Signup entry points route to the self-service evaluation flow documented in
-  `SPEC.md`; commercial brand-cloud user creation is separate and platform
-  admin-owned.
+  and `Sign Up` are both first-class modes, with `Login` selected by default.
+- The `Sign Up` tab and direct `/signup` route open the same self-service
+  evaluation flow documented in `SPEC.md`; commercial brand-cloud user
+  creation is separate and platform admin-owned.
 - SSO callback, verification, expired-token, and gateway-error states need
   dedicated copy. Do not leave users on a blank dashboard shell while auth state
   is pending.
@@ -490,12 +495,25 @@ Required layout:
 
 - KPI strip with current online devices, seven-day online ratio, devices needing
   attention, and devices playing now.
-- Large device-status trend chart with online ratio plus attention trends.
 - Health distribution panel with Normal, Needs attention, Serious problem, and
   No data.
+- Large device-status trend chart with online ratio plus attention trends.
 - One **Devices that need attention** list with Device, Problem, Time, and one
   direct action. Do not render separate Recent Alerts and Attention Queue
   panels.
+- Region summary follows the attention list. Ranked region bars are primary on
+  mobile; the map is available behind a `View map` disclosure.
+
+Responsive hierarchy:
+
+- At 1280px and wider, show four KPI cards, the desktop sidebar, and the
+  two-column Health Distribution / Fleet Health Trend row.
+- From 1024px through 1279px, keep the desktop sidebar, use a 2 × 2 KPI grid,
+  and stack operational panels into one column.
+- Below 1024px, use the sticky app bar and keyboard-accessible navigation
+  drawer, a 2 × 2 KPI grid, and single-column operational panels.
+- Below 360px, KPI cards may collapse to one column. No supported viewport may
+  introduce page-level horizontal overflow.
 
 Behavior notes:
 
@@ -686,6 +704,7 @@ Required routes:
 
 - `/signup`
 - `/signup/check-email`
+- `/signup/verification-expired`
 - `/verify`
 
 Design requirements:
@@ -693,17 +712,60 @@ Design requirements:
 - Signup is for public evaluation-tier onboarding only. It creates a pending
   Account Manager signup and must not be used for commercial brand-cloud user
   creation.
-- The signup form collects the minimum Account Manager fields needed to start
-  evaluation onboarding and shows that verification email is required before
-  account use.
+- The `Sign Up` tab on the standalone auth page and the direct `/signup` route
+  are two entry points to this same flow; they must submit the same payload,
+  containing only `email`, and produce the same pending-verification state.
+- The signup form collects only email. Password, optional profile,
+  organization-name, manual CAPTCHA-token, and terms-acceptance fields are not
+  exposed during signup. Verification email is required before account use.
 - The check-email state explains that the user must verify email before signing
   in. It may offer resend only through the Account Manager-backed API.
-- The verification landing state handles success, expired token, invalid token,
-  already verified, and service-unavailable outcomes. Success routes users
-  toward the email/password login flow for the newly verified account.
+- The verification landing state asks the user to create a password of at least
+  eight characters. It submits `token` and `new_password` together so Account
+  Manager atomically sets the initial password, verifies the email, clears the
+  pending state, and issues the initial session. The callback token is an opaque
+  credential read from the URL and must never be rendered as page text, a form
+  control, or any other DOM content. Verification links expire according to
+  Account Manager's `EMAIL_VERIFICATION_TTL`, which defaults to 30 minutes.
+  Before rendering the password form, the page must perform a non-consuming
+  token-status check. A valid link may show the password form; an expired link
+  must immediately replace the browser location with
+  `/signup/verification-expired`.
+- The dedicated expired-verification page is a terminal explanation state. It
+  must not render the token or password form. Its primary action is
+  `Sign up again`, linking to `/signup`, so an unverified account whose last
+  verification token expired can restart signup and receive a new email.
+  Invalid-token, already-verified, and service-unavailable outcomes remain
+  distinct states and must not be presented as an expired link.
 - Evaluation-tier quota copy uses the Account Manager quota fields
   `tier=evaluation` and `evaluation_device_quota`; it must not imply commercial
   entitlement or automatic quota approval.
+
+#### Signup And Verification Lifecycle
+
+The WebUI lifecycle is:
+
+| Stage | Account/token state | Required UI | Next transition |
+| --- | --- | --- | --- |
+| Start | No account exists for the email | `Sign Up` on `/login` or `/signup`; collect only email | Submit signup and open `/signup/check-email` |
+| Awaiting verification | Account is enabled, unverified, signup-pending, and has an active verification token | Explain that a verification email was sent; do not expose the token | Open the email link or request resend through the Account Manager-backed API |
+| Valid link | The non-consuming status check returns `valid` | `/verify` shows only the new-password form and never renders the token | Submit `token` and `new_password` to complete verification |
+| Expired link | The status check returns `expired` | Immediately replace the location with `/signup/verification-expired`; show no password field or token | `Sign up again` opens `/signup` |
+| Restart after expiry | The account is still unverified and signup-pending, with no active verification token | Accept the same email as a recovery signup | Reuse the pending account and Brand Cloud, issue a fresh token, and return to `/signup/check-email` |
+| Completed | Email is verified, signup-pending is cleared, the password is stored, and an initial session exists | Redirect to `/console/overview` | Future access uses `Login` |
+
+Exception rules:
+
+- Signup for a verified account or a pending account that still has an active
+  verification token is a conflict; the WebUI must not create another account.
+- `invalid` is distinct from `expired`. An invalid or already-consumed token
+  must not be described as an expired link.
+- The Account Manager verification response remains authoritative. If the token
+  expires after the initial status check but before submission, verification
+  must fail without changing the account. Refreshing or reopening the link runs
+  the status check again and transitions to the expired-verification page.
+- Network and upstream failures preserve the current state and show a retryable,
+  customer-safe error; they must not be presented as token expiry.
 
 ### SSO Login And Session Gates
 
@@ -751,8 +813,9 @@ before implementation is considered complete:
 - Partial failure: keep successful rows/results visible and identify retryable
   failed items.
 - Read-only: expose data normally and remove or disable write controls.
-- Mobile/tablet: keep the sidebar and tables usable; tables may scroll
-  horizontally rather than dropping required columns.
+- Mobile/tablet: use the sticky app bar and off-canvas navigation drawer below
+  1024px. Purpose-built compact lists are preferred where defined; data tables
+  may scroll horizontally rather than dropping required columns.
 
 ## Implementation Notes
 
@@ -772,7 +835,8 @@ before implementation is considered complete:
 ## Review Checklist
 
 - Customer View pages use the Realtek Ops Console palette and density.
-- All pages keep the left sidebar + main work area structure.
+- Desktop pages keep the left sidebar + main work area structure; below 1024px
+  they use the shared top app bar + off-canvas drawer shell.
 - Customer View does not contain Platform View content.
 - Brand Fleet navigation exposes Groups, Tags, Batch Jobs, and Reports according
   to role capabilities, without a second device-registration workflow.

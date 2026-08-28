@@ -931,8 +931,8 @@ func TestPublicAuthProxySuccessFailureAndValidation(t *testing.T) {
 		successCode int
 		failureBody string
 	}{
-		{"/api/auth/customer/signup", `{"email":"owner@example.com","password":"password123","organization_name":"Acme"}`, http.StatusAccepted, `{"email":"fail@example.com","password":"password123","organization_name":"Acme"}`},
-		{"/api/auth/customer/verify-email", `{"token":"verify-token"}`, http.StatusOK, `{"token":"fail-token"}`},
+		{"/api/auth/customer/signup", `{"email":"owner@example.com"}`, http.StatusAccepted, `{"email":"fail@example.com"}`},
+		{"/api/auth/customer/verify-email", `{"token":"verify-token","new_password":"password123"}`, http.StatusOK, `{"token":"fail-token","new_password":"password123"}`},
 		{"/api/auth/customer/resend-verification", `{"email":"owner@example.com"}`, http.StatusAccepted, `{"email":"fail@example.com"}`},
 		{"/api/auth/sign-in", `{"email":"owner@example.com"}`, http.StatusAccepted, `{"email":"fail@example.com"}`},
 		{"/api/auth/forgot-password", `{"email":"owner@example.com"}`, http.StatusAccepted, `{"email":"fail@example.com"}`},

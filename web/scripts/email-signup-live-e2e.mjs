@@ -12,7 +12,6 @@ const imapHelper = requiredEnv('EMAIL_E2E_IMAP_HELPER');
 const runID = optionalEnv('EMAIL_E2E_RUN_ID') || 'local';
 const evidencePath = optionalEnv('EMAIL_E2E_EVIDENCE_PATH');
 const python = process.env.PYTHON || 'python3';
-const organizationName = `E2E Email Signup ${runID}`;
 
 const snapshot = await runIMAP('snapshot');
 if (!Number.isInteger(snapshot.uid_next) || snapshot.uid_next < 1) {
@@ -26,10 +25,6 @@ try {
   const signupPage = await signupContext.newPage();
   await signupPage.goto(`${baseURL}/signup`, { waitUntil: 'networkidle' });
   await signupPage.getByLabel('Email', { exact: true }).fill(emailAddress);
-  await signupPage.getByLabel('Password', { exact: true }).fill(password);
-  await signupPage.getByLabel('Organization name', { exact: true }).fill(organizationName);
-  await signupPage.getByLabel('Display name', { exact: true }).fill(`E2E Email Signup ${runID}`);
-  await signupPage.getByLabel('I accept the evaluation-tier terms.').check();
   await signupPage.getByRole('button', { name: 'Create account' }).click();
   await signupPage.waitForURL(/\/signup\/check-email(?:\?|$)/, { timeout: 30_000 });
   await signupPage.getByText('We sent a verification link', { exact: false }).waitFor();
@@ -55,16 +50,8 @@ try {
     return response;
   });
   await verifyPage.goto(delivered.url, { waitUntil: 'networkidle' });
-  await Promise.race([
-    verifyResponsePromise,
-    new Promise((resolve) => setTimeout(resolve, 2_000)),
-  ]);
-  if (!verifyResponse) {
-    const verifyButton = verifyPage.getByRole('button', { name: 'Verify', exact: true });
-    if (await verifyButton.isEnabled()) {
-      await verifyButton.click();
-    }
-  }
+  await verifyPage.getByLabel('New password', { exact: true }).fill(password);
+  await verifyPage.getByRole('button', { name: 'Verify and continue', exact: true }).click();
   verifyResponse = await verifyResponsePromise;
   if (verifyResponse.status() !== 200) {
     throw new Error(`email verification returned HTTP ${verifyResponse.status()}`);
@@ -79,8 +66,8 @@ try {
     throw new Error(`verified Admin Console session returned HTTP ${meResponse.status()}`);
   }
   const me = await meResponse.json();
-  if (!me.memberships?.some((membership) => membership.organization === organizationName)) {
-    throw new Error('verified account organization name did not match the signup form');
+  if (!me.memberships?.some((membership) => membership.organization === emailAddress.toLowerCase())) {
+    throw new Error('verified account default organization name did not match the signup email');
   }
   await verifyContext.close();
 
@@ -116,6 +103,8 @@ try {
     new URL(response.url()).pathname === '/api/auth/customer/verify-email'
   ));
   await replayPage.goto(delivered.url, { waitUntil: 'networkidle' });
+  await replayPage.getByLabel('New password', { exact: true }).fill(password);
+  await replayPage.getByRole('button', { name: 'Verify and continue', exact: true }).click();
   const replayResponse = await replayResponsePromise;
   if (replayResponse.status() !== 400) {
     throw new Error(`replayed verification token returned HTTP ${replayResponse.status()}`);

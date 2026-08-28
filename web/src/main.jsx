@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs';
 import {
@@ -41,6 +41,7 @@ import {
   loginPathFor,
   passwordLoginOrderForNext,
   protectedPathFromLocation,
+  removeQueryParameterFromAddress,
 } from './auth-routing.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
@@ -239,11 +240,14 @@ function App() {
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavRef = useRef(null);
+  const mobileMenuButtonRef = useRef(null);
   const isPublicRoute = isPublicRouteId(active);
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'brand-cloud-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
-  const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept';
+  const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept' || active === 'sku-collaborator-invitation-accept';
   const navigationRoute = me?.kind === 'platform_admin' ? 'platform-dashboard' : me?.kind === 'customer' ? 'overview' : active;
   const visibleNavGroups = navGroupsForCapabilities(navigationRoute, me?.capabilities);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
@@ -678,6 +682,40 @@ function App() {
     setDeviceDrawerOpen(Boolean(deviceId));
   }, [active]);
 
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+    const drawer = mobileNavRef.current;
+    const focusable = () => [...(drawer?.querySelectorAll('button, select, a[href], [tabindex]:not([tabindex="-1"])') || [])]
+      .filter((element) => !element.disabled && element.getAttribute('aria-hidden') !== 'true');
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    focusable()[0]?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setMobileNavOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+      mobileMenuButtonRef.current?.focus();
+    };
+  }, [mobileNavOpen]);
+
   function navigate(item) {
     const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
@@ -689,6 +727,7 @@ function App() {
       setFirmwareSKUId('');
     }
     setActive(targetRoute);
+    setMobileNavOpen(false);
   }
 
   function selectFirmwareSKU(skuID) {
@@ -925,20 +964,6 @@ function App() {
     throw new Error(nextError);
   }
 
-  async function handleEmailSignIn(email) {
-    setError('');
-    try {
-      await postJSON('/api/auth/sign-in', { email });
-      window.history.pushState({}, '', `/login/check-email?email=${encodeURIComponent(email)}`);
-      setActive('login-check-email');
-      return true;
-    } catch (err) {
-      const nextError = userFacingLoginActivationError(err);
-      setError(nextError);
-      throw new Error(nextError);
-    }
-  }
-
   async function handleLoginActivate(token) {
     setError('');
     try {
@@ -989,22 +1014,17 @@ function App() {
 
   async function handleSignup(payload) {
     setError('');
-    try {
-      const result = await postJSON('/api/auth/customer/signup', payload);
-      window.history.pushState({}, '', `/signup/check-email?email=${encodeURIComponent(payload.email)}`);
-      setActive('signup-check-email');
-      setRefreshTick((tick) => tick + 1);
-      return result;
-    } catch (err) {
-      setError(userFacingSignupError(err));
-      throw err;
-    }
+    const result = await postJSON('/api/auth/customer/signup', payload);
+    window.history.pushState({}, '', `/signup/check-email?email=${encodeURIComponent(payload.email)}`);
+    setActive('signup-check-email');
+    setRefreshTick((tick) => tick + 1);
+    return result;
   }
 
-  async function handleVerify(token) {
+  async function handleVerify(payload) {
     setError('');
     try {
-      const result = await postJSON('/api/auth/customer/verify-email', { token });
+      const result = await postJSON('/api/auth/customer/verify-email', payload);
       if (result.tokens?.access_token) {
         window.history.pushState({}, '', '/console/overview');
         setActive('overview');
@@ -1015,6 +1035,16 @@ function App() {
       setError(userFacingVerificationError(err));
       throw err;
     }
+  }
+
+  async function handleVerificationStatus(token) {
+    setError('');
+    const result = await postJSON('/api/auth/customer/verification-status', { token });
+    if (result?.status === 'expired') {
+      window.history.replaceState({}, '', '/signup/verification-expired');
+      setActive('signup-verification-expired');
+    }
+    return result;
   }
 
   async function handleResendVerification(email) {
@@ -1057,6 +1087,7 @@ function App() {
   }
 
   async function handleLogout() {
+    setMobileNavOpen(false);
     setError('');
     const response = await fetch('/api/auth/logout', { method: 'POST' });
     if (!response.ok) {
@@ -1091,7 +1122,7 @@ function App() {
           active={active}
           error={error}
           loading={loading}
-          onEmailSignIn={handleEmailSignIn}
+          onSignup={handleSignup}
           onLoginActivate={handleLoginActivate}
           onBrandCloudActivate={handleBrandCloudActivate}
           onPasswordLogin={handlePasswordLogin}
@@ -1105,6 +1136,7 @@ function App() {
         active={active}
         error={error}
         onSignup={handleSignup}
+        onCheckVerification={handleVerificationStatus}
         onVerify={handleVerify}
         onResendVerification={handleResendVerification}
       />
@@ -1117,10 +1149,40 @@ function App() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <header className="mobile-appbar">
+        <button
+          ref={mobileMenuButtonRef}
+          type="button"
+          className="mobile-menu-button"
+          aria-label="Open navigation"
+          aria-controls="primary-navigation"
+          aria-expanded={mobileNavOpen}
+          onClick={() => setMobileNavOpen(true)}
+        >
+          <Icon name="bars" />
+        </button>
+        <h1>{titleFor(active)}</h1>
+        <span className="mobile-appbar-mark" aria-hidden="true">C+</span>
+      </header>
+      <button
+        type="button"
+        className={`mobile-nav-overlay ${mobileNavOpen ? 'open' : ''}`}
+        aria-label="Close navigation"
+        tabIndex={mobileNavOpen ? 0 : -1}
+        onClick={() => setMobileNavOpen(false)}
+      />
+      <aside
+        id="primary-navigation"
+        ref={mobileNavRef}
+        className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}
+        aria-label="Primary navigation"
+      >
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">C+</span>
           <strong>Connect+ Ops</strong>
+          <button type="button" className="mobile-nav-close" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>
+            <Icon name="xmark" />
+          </button>
         </div>
         <nav className="sidebar-nav-groups">
           {visibleNavGroups.map((group) => <section className="sidebar-nav-group" key={group.id}>
@@ -1137,6 +1199,7 @@ function App() {
             <strong>{sessionLabel(me)}</strong>
             <small>{me?.authenticated ? me.email : 'Sign in required'}</small>
           </div>
+          {me?.authenticated ? <button type="button" className="sidebar-logout" onClick={handleLogout}><Icon name="right-from-bracket" />Logout</button> : null}
         </div>
       </aside>
 
@@ -1297,10 +1360,14 @@ function App() {
   );
 }
 
-function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onBrandCloudActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
+function LoginPage({ active, error, loading, onSignup, onLoginActivate, onBrandCloudActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
+  const pageHeading = active === 'reset-password' ? 'Reset your password' : 'Admin Console';
+  const pageCopy = active === 'reset-password'
+    ? 'Choose a new password for your Connect+ Ops account.'
+    : 'Login to an existing account or create a new evaluation account.';
   const content = active === 'login-check-email' ? (
     <LoginCheckEmail email={email} />
   ) : active === 'login-activate' ? (
@@ -1312,7 +1379,7 @@ function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onB
   ) : active === 'reset-password' ? (
     <ResetPasswordView token={token} onResetPassword={onResetPassword} />
   ) : (
-    <LoginEntryForm onEmailSignIn={onEmailSignIn} onPasswordLogin={onPasswordLogin} disabled={loading} />
+    <LoginEntryForm onSignup={onSignup} onPasswordLogin={onPasswordLogin} disabled={loading} />
   );
   return (
     <div className="login-shell">
@@ -1322,8 +1389,8 @@ function LoginPage({ active, error, loading, onEmailSignIn, onLoginActivate, onB
             <img src="/assets/realtek-logo.png" alt="Realtek" />
             <strong>Connect+ Ops</strong>
           </div>
-          <h1 id="login-title">Admin Console</h1>
-          <p className="login-copy">Login with your password or sign in with an email activation link.</p>
+          <h1 id="login-title">{pageHeading}</h1>
+          <p className="login-copy">{pageCopy}</p>
           {content}
           {error ? <div className="error">{error}</div> : null}
         </section>
@@ -1362,7 +1429,7 @@ function BrandCloudActivateView({ token, tenant, onActivate }) {
   );
 }
 
-function LoginEntryForm({ onEmailSignIn, onPasswordLogin, disabled }) {
+function LoginEntryForm({ onSignup, onPasswordLogin, disabled }) {
   const [mode, setMode] = useState('login');
   return (
     <div className="auth-stack">
@@ -1378,49 +1445,20 @@ function LoginEntryForm({ onEmailSignIn, onPasswordLogin, disabled }) {
         </button>
         <button
           type="button"
-          className={mode === 'signin' ? 'active' : ''}
+          className={mode === 'signup' ? 'active' : ''}
           role="tab"
-          aria-selected={mode === 'signin'}
-          onClick={() => setMode('signin')}
+          aria-selected={mode === 'signup'}
+          onClick={() => setMode('signup')}
         >
-          Sign-in
+          Sign Up
         </button>
       </div>
-      {mode === 'signin' ? (
-        <LoginEmailForm onEmailSignIn={onEmailSignIn} disabled={disabled} />
+      {mode === 'signup' ? (
+        <SignupForm onSignup={onSignup} disabled={disabled} />
       ) : (
         <LoginPasswordForm onPasswordLogin={onPasswordLogin} disabled={disabled} />
       )}
     </div>
-  );
-}
-
-function LoginEmailForm({ onEmailSignIn, disabled }) {
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [localError, setLocalError] = useState('');
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setLocalError('');
-    try {
-      await onEmailSignIn(email);
-    } catch (err) {
-      setLocalError(err?.message || 'Sign-in is temporarily unavailable. Please try again later.');
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <form className="login-form" onSubmit={submit}>
-      <p className="auth-status">Send an activation link to continue without a password.</p>
-      <label>
-        Email
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
-      </label>
-      <button type="submit" disabled={busy || disabled}>{busy ? 'Sending' : 'Continue'}</button>
-      {localError ? <p className="error">{localError}</p> : null}
-    </form>
   );
 }
 
@@ -1547,38 +1585,97 @@ function ForgotPasswordView({ email, onForgotPassword }) {
 }
 
 function ResetPasswordView({ token, onResetPassword }) {
+  const [tokenValue, setTokenValue] = useState(() => token);
   const [password, setPassword] = useState('');
-  const [status, setStatus] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [completed, setCompleted] = useState(false);
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    removeQueryParameterFromAddress(window.location, window.history, 'token');
+  }, []);
+
   async function submit(event) {
     event.preventDefault();
+    if (password !== confirmPassword) {
+      setLocalError('Passwords do not match.');
+      return;
+    }
     setBusy(true);
     setLocalError('');
     try {
-      await onResetPassword({ token, new_password: password });
-      setStatus('Password reset completed. You can sign in with the new password.');
+      await onResetPassword({ token: tokenValue, new_password: password });
+      setTokenValue('');
+      setPassword('');
+      setConfirmPassword('');
+      setCompleted(true);
     } catch (err) {
       setLocalError(userFacingPasswordResetError(err));
     } finally {
       setBusy(false);
     }
   }
+
+  if (completed) {
+    return (
+      <div className="auth-stack" role="status">
+        <div className="reset-link-status success">
+          <span className="reset-link-status-icon" aria-hidden="true">✓</span>
+          <div>
+            <strong>Password updated</strong>
+            <p>Your new password is ready. You can now sign in to your account.</p>
+          </div>
+        </div>
+        <a className="auth-primary-action" href="/login">Continue to sign in</a>
+      </div>
+    );
+  }
+
+  if (!tokenValue) {
+    return (
+      <div className="auth-stack">
+        <div className="reset-link-status invalid" role="alert">
+          <span className="reset-link-status-icon" aria-hidden="true">!</span>
+          <div>
+            <strong>This reset link is not valid</strong>
+            <p>Request a new email to continue. Reset links can expire or be used only once.</p>
+          </div>
+        </div>
+        <a className="auth-primary-action" href="/forgot-password">Request a new reset link</a>
+        <a className="auth-link" href="/login">Back to sign in</a>
+      </div>
+    );
+  }
+
+  const passwordsDoNotMatch = Boolean(confirmPassword) && password !== confirmPassword;
   return (
     <form className="login-form" onSubmit={submit}>
+      <div className="reset-link-status">
+        <span className="reset-link-status-icon" aria-hidden="true">✓</span>
+        <div>
+          <strong>Secure reset link recognized</strong>
+          <p>Your reset code is hidden and will be submitted securely.</p>
+        </div>
+      </div>
       <label>
         New password
-        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
+        <input type="password" autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setLocalError(''); }} placeholder="At least 8 characters" minLength={8} required />
       </label>
-      <button type="submit" disabled={busy}>{busy ? 'Resetting' : 'Reset password'}</button>
-      {status ? <p className="auth-status">{status}</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      <label>
+        Confirm new password
+        <input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setLocalError(''); }} placeholder="Enter the new password again" minLength={8} aria-invalid={passwordsDoNotMatch} required />
+      </label>
+      <p className="password-requirement">Use at least 8 characters.</p>
+      {passwordsDoNotMatch ? <p className="field-error" role="alert">Passwords do not match.</p> : null}
+      <button type="submit" disabled={busy || passwordsDoNotMatch}>{busy ? 'Updating password' : 'Update password'}</button>
+      {error && !passwordsDoNotMatch ? <p className="error">{error}</p> : null}
       <a className="auth-link" href="/login">Back to sign in</a>
     </form>
   );
 }
 
-function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerification }) {
+function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify, onResendVerification }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
@@ -1595,8 +1692,10 @@ function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerificatio
           <SignupForm onSignup={onSignup} />
         ) : active === 'signup-check-email' ? (
           <CheckEmailInterstitial email={email} onResendVerification={onResendVerification} />
+        ) : active === 'signup-verification-expired' ? (
+          <ExpiredVerificationPage />
         ) : (
-          <VerifyForm token={token} onVerify={onVerify} />
+          <VerifyForm token={token} onCheckVerification={onCheckVerification} onVerify={onVerify} />
         )}
         {error ? <div className="error">{error}</div> : null}
       </section>
@@ -1604,30 +1703,20 @@ function PublicAuthPage({ active, error, onSignup, onVerify, onResendVerificatio
   );
 }
 
-function SignupForm({ onSignup }) {
+function SignupForm({ onSignup, disabled = false }) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [organizationName, setOrganizationName] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [captchaToken, setCaptchaToken] = useState('');
-  const [acceptTerms, setAcceptTerms] = useState(false);
   const [honeypot, setHoneypot] = useState('');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
-  const strength = passwordStrength(password);
 
   async function submit(event) {
     event.preventDefault();
-    if (!acceptTerms || honeypot) return;
+    if (honeypot) return;
     setBusy(true);
     setLocalError('');
     try {
       await onSignup({
         email,
-        password,
-        display_name: displayName,
-        organization_name: organizationName,
-        captcha_token: captchaToken,
       });
     } catch (err) {
       setLocalError(userFacingSignupError(err));
@@ -1642,35 +1731,11 @@ function SignupForm({ onSignup }) {
         Email
         <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
       </label>
-      <label>
-        Password
-        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
-      </label>
-      <label>
-        Organization name
-        <input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder="Acme Camera Fleet" required />
-      </label>
-      <label>
-        Display name
-        <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Optional contact name" />
-      </label>
       <label className="auth-honeypot">
         Leave this field empty
         <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
       </label>
-      <label>
-        CAPTCHA token
-        <input value={captchaToken} onChange={(event) => setCaptchaToken(event.target.value)} placeholder="Optional if enabled" />
-      </label>
-      <div className="auth-strength">
-        <span>Password strength</span>
-        <strong>{strength}</strong>
-      </div>
-      <label className="auth-terms">
-        <input type="checkbox" checked={acceptTerms} onChange={(event) => setAcceptTerms(event.target.checked)} />
-        I accept the evaluation-tier terms.
-      </label>
-      <button type="submit" disabled={busy || !acceptTerms || !!honeypot}>Create account</button>
+      <button type="submit" disabled={busy || disabled || !!honeypot}>Create account</button>
       {error ? <p className="error">{error}</p> : null}
     </form>
   );
@@ -1713,44 +1778,54 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
   );
 }
 
-function VerifyForm({ token, onVerify }) {
-  const [value, setValue] = useState(token);
-  const [status, setStatus] = useState('Waiting for verification link.');
+function ExpiredVerificationPage() {
+  return (
+    <div className="auth-stack expired-verification-page">
+      <h2>Verification link expired</h2>
+      <p>Your account was not verified. Start Sign Up again to receive a new verification email.</p>
+      <a className="primary-button auth-primary-link" href="/signup">Sign up again</a>
+      <a className="auth-link" href="/login">Back to Login</a>
+    </div>
+  );
+}
+
+function VerifyForm({ token, onCheckVerification, onVerify }) {
+  const [password, setPassword] = useState('');
+  const [linkStatus, setLinkStatus] = useState(token ? 'checking' : 'invalid');
+  const [status, setStatus] = useState(token ? 'Checking verification link…' : 'This verification link is invalid.');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
-    if (!value || attempted) return;
-    setAttempted(true);
-    setBusy(true);
-    setLocalError('');
-    onVerify(value)
+    if (!token) return undefined;
+    let active = true;
+    onCheckVerification(token)
       .then((result) => {
-        if (!result) {
-          setLocalError('Verification failed. Check the token and try again.');
-        } else if (result.tokens?.access_token) {
-          setStatus('Verification completed. Redirecting to the dashboard.');
-        } else {
-          setStatus('Email verified. Sign in to continue.');
-        }
+        if (!active || result?.status === 'expired') return;
+        const nextStatus = result?.status === 'valid' ? 'valid' : 'invalid';
+        setLinkStatus(nextStatus);
+        setStatus(nextStatus === 'valid' ? 'Create your password to finish verification.' : 'This verification link is invalid.');
       })
-      .catch((err) => setLocalError(userFacingVerificationError(err)))
-      .finally(() => setBusy(false));
-  }, [attempted, onVerify, value]);
+      .catch((err) => {
+        if (!active) return;
+        setLinkStatus('error');
+        setLocalError(userFacingVerificationError(err));
+      });
+    return () => { active = false; };
+  }, [onCheckVerification, token]);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
     setLocalError('');
     try {
-      const result = await onVerify(value);
+      const result = await onVerify({ token, new_password: password });
       if (!result) {
         setLocalError('Verification failed. Check the token and try again.');
       } else if (result.tokens?.access_token) {
         setStatus('Verification completed. Redirecting to the dashboard.');
       } else {
-        setStatus('Email verified. Sign in to continue.');
+        setStatus('Email verified. You can now sign in.');
       }
     } catch (err) {
       setLocalError(userFacingVerificationError(err));
@@ -1761,13 +1836,17 @@ function VerifyForm({ token, onVerify }) {
 
   return (
     <div className="auth-stack">
-      <p>Paste the email verification token from your inbox link.</p>
-      <form className="auth-inline" onSubmit={submit}>
-        <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Verification token" required />
-        <button type="submit" disabled={busy}>Verify</button>
-      </form>
+      <p>Verify your email and create the password you will use to log in.</p>
+      {linkStatus === 'valid' ? <form className="auth-form" onSubmit={submit}>
+        <label>
+          New password
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
+        </label>
+        <button type="submit" disabled={busy || !token}>{busy ? 'Verifying' : 'Verify and continue'}</button>
+      </form> : null}
       <p className="auth-status">{status}</p>
       {error ? <p className="error">{error}</p> : null}
+      {linkStatus === 'invalid' ? <a className="auth-link" href="/signup">Sign up again</a> : null}
     </div>
   );
 }
@@ -2007,6 +2086,12 @@ function Overview({
       {!telemetryAvailable ? <SourceBlockedState title={telemetryState.title} message={telemetryReason} /> : null}
 
       <section className="overview-grid">
+        <HealthDistributionPanel
+          loading={loading}
+          current={fleetHealth?.current}
+          onFilter={onHealthFilter}
+          source={fleetHealth}
+        />
         <FleetHealthTrendPanel
           loading={loading}
           trend={fleetHealth?.trend || []}
@@ -2014,20 +2099,13 @@ function Overview({
           onWindowChange={setOverviewWindow}
           source={fleetHealth}
         />
-        <HealthDistributionPanel
-          loading={loading}
-          current={fleetHealth?.current}
-          onFilter={onHealthFilter}
-          source={fleetHealth}
-        />
+      </section>
+
+      <section className="overview-attention">
+        <AttentionQueuePanel loading={loading} items={attentionDevices} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
       </section>
 
       <RegionFleetPanel summary={fleetSummary} loading={loading} />
-
-      <section className="overview-lower-grid">
-        <RecentAlertsPanel loading={loading} alerts={recentAlerts} source={fleetHealth} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
-        <AttentionQueuePanel loading={loading} items={attentionDevices} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
-      </section>
 
       {me?.authenticated && isEvaluation && nearQuota ? (
         <section className="panel quota-callout">
@@ -2064,17 +2142,6 @@ function RegionFleetPanel({ summary, loading }) {
       {!loading && unavailable ? <p className="empty-state">區域資料暫時無法取得。</p> : null}
       {!loading && !unavailable ? (
         <div className="region-fleet-grid">
-          <div className="region-map-vector" aria-label="區域設備分布圖">
-            <svg viewBox="0 0 520 260" role="img" aria-label="設備區域分布">
-              <path d="M38 150 92 118 138 128 166 92 230 106 274 78 334 96 390 72 476 112 450 178 390 184 350 220 275 202 220 232 164 214 100 232 52 202Z" />
-              {regions.slice(0, 8).map(([region, count], index) => {
-                const x = 70 + ((index * 71) % 390);
-                const y = 112 + ((index * 43) % 100);
-                return <g key={region}><circle cx={x} cy={y} r={Math.max(5, Math.min(14, 5 + count / max * 10))} /><text x={x + 10} y={y + 4}>{region}</text></g>;
-              })}
-            </svg>
-            <small>區域示意圖 · 資料依設備回報的區域分類</small>
-          </div>
           <div className="region-bars">
             {regions.slice(0, 8).map(([region, count]) => <div className="region-bar-row" key={region}>
               <div><strong>{region}</strong><span>{count.toLocaleString()} 台</span></div>
@@ -2082,10 +2149,29 @@ function RegionFleetPanel({ summary, loading }) {
             </div>)}
             {!regions.length ? <p className="empty-state">目前沒有區域資料。</p> : null}
           </div>
+          <div className="region-map-desktop"><RegionMap regions={regions} max={max} /></div>
+          <details className="region-map-mobile">
+            <summary>View map</summary>
+            <RegionMap regions={regions} max={max} />
+          </details>
         </div>
       ) : null}
     </section>
   );
+}
+
+function RegionMap({ regions, max }) {
+  return <div className="region-map-vector" aria-label="區域設備分布圖">
+    <svg viewBox="0 0 520 260" role="img" aria-label="設備區域分布">
+      <path d="M38 150 92 118 138 128 166 92 230 106 274 78 334 96 390 72 476 112 450 178 390 184 350 220 275 202 220 232 164 214 100 232 52 202Z" />
+      {regions.slice(0, 8).map(([region, count], index) => {
+        const x = 70 + ((index * 71) % 390);
+        const y = 112 + ((index * 43) % 100);
+        return <g key={region}><circle cx={x} cy={y} r={Math.max(5, Math.min(14, 5 + count / max * 10))} /><text x={x + 10} y={y + 4}>{region}</text></g>;
+      })}
+    </svg>
+    <small>區域示意圖 · 資料依設備回報的區域分類</small>
+  </div>;
 }
 
 function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
@@ -2244,7 +2330,37 @@ function SKUsPage({ loading, data, onRefresh }) {
   const [preview, setPreview] = useState(null);
   const [form, setForm] = useState({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['即時觀看'] });
   const [message, setMessage] = useState('');
-  const canManage = data?.can_manage || items.some((sku) => sku.allowed_actions?.includes('manage_devices'));
+  const [collaborationSKU, setCollaborationSKU] = useState(null);
+  const [collaboration, setCollaboration] = useState(null);
+  const [invite, setInvite] = useState({ email: '', role: 'sku_editor' });
+  const canManage = Boolean(data?.can_manage);
+  async function loadCollaborators(sku) {
+    setCollaborationSKU(sku); setCollaboration(null);
+    const response = await fetch(`/api/skus/${encodeURIComponent(sku.id)}/collaborators`);
+    setCollaboration(response.ok ? await response.json() : { source_status: 'unavailable' });
+  }
+  async function inviteCollaborator(event) {
+    event.preventDefault();
+    const response = await fetch(`/api/skus/${encodeURIComponent(collaborationSKU.id)}/collaborator-invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `sku-invite-${collaborationSKU.id}-${invite.email}` }, body: JSON.stringify(invite) });
+    setMessage(response.ok ? 'SKU 協作者邀請已寄出。' : '無法邀請；請確認此 Email 已註冊且尚未加入這個 SKU。');
+    if (response.ok) { setInvite({ email: '', role: 'sku_editor' }); await loadCollaborators(collaborationSKU); }
+  }
+  async function updateCollaborator(userId, role) {
+    const response = await fetch(`/api/skus/${encodeURIComponent(collaborationSKU.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `sku-role-${collaborationSKU.id}-${userId}-${role}` }, body: JSON.stringify({ role }) });
+    setMessage(response.ok ? '協作者角色已更新。' : '無法更新協作者角色。'); if (response.ok) await loadCollaborators(collaborationSKU);
+  }
+  async function removeCollaborator(userId) {
+    const response = await fetch(`/api/skus/${encodeURIComponent(collaborationSKU.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `sku-remove-${collaborationSKU.id}-${userId}` } });
+    setMessage(response.ok ? '協作者已移除。' : '無法移除協作者。'); if (response.ok) await loadCollaborators(collaborationSKU);
+  }
+  async function transferOwner(userId) {
+    const response = await fetch(`/api/skus/${encodeURIComponent(collaborationSKU.id)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `sku-owner-${collaborationSKU.id}-${userId}` }, body: JSON.stringify({ target_user_id: userId }) });
+    setMessage(response.ok ? 'SKU ownership 已轉移。' : '無法轉移 SKU ownership。'); if (response.ok) { await loadCollaborators(collaborationSKU); onRefresh(); }
+  }
+  async function invitationAction(invitationId, action) {
+    const response = await fetch(`/api/skus/${encodeURIComponent(collaborationSKU.id)}/collaborator-invitations/${encodeURIComponent(invitationId)}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `sku-invite-${action}-${invitationId}-${Date.now()}` } });
+    setMessage(response.ok ? (action === 'resend' ? '邀請已重寄。' : '邀請已取消。') : '無法更新邀請。'); if (response.ok) await loadCollaborators(collaborationSKU);
+  }
   async function createSKU(event) {
     event.preventDefault();
     const response = await fetch(editingSKU ? `/api/skus/${encodeURIComponent(editingSKU.id)}` : '/api/skus', { method: editingSKU ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `sku-write-${editingSKU?.id || form.name}` }, body: JSON.stringify(form) });
@@ -2276,22 +2392,24 @@ function SKUsPage({ loading, data, onRefresh }) {
         <section className="panel">
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>SKU</th><th>產品型號</th><th>設備數量</th><th>生產批次</th><th>可用服務</th><th>設備政策</th><th>韌體政策</th><th>可執行操作</th><th>狀態</th></tr></thead>
+              <thead><tr><th>SKU</th><th>我的角色</th><th>產品型號</th><th>設備數量</th><th>生產批次</th><th>可用服務</th><th>設備政策</th><th>韌體政策</th><th>可執行操作</th><th>狀態</th></tr></thead>
               <tbody>{items.map((sku) => <tr key={sku.id}>
                 <td><strong>{sku.name}</strong><small>{sku.id}</small></td>
+                <td><span className="status-badge neutral">{sku.current_user_role === 'brand_owner' ? 'Brand Owner' : sku.current_user_role === 'sku_owner' ? 'Owner' : sku.current_user_role === 'sku_editor' ? 'Editor' : 'Viewer'}</span>{sku.allowed_actions?.includes('manage_collaborators') ? <button type="button" className="link-button" onClick={() => loadCollaborators(sku)}>協作者 ({sku.collaborator_count || 0})</button> : null}</td>
                 <td>{sku.product_model || sku.category || '—'}</td>
                 <td>{sku.device_count?.toLocaleString?.() || '0'}</td>
                 <td>{(sku.production_run_count || 0).toLocaleString()} 批</td>
                 <td>{sku.service_capabilities?.length ? sku.service_capabilities.join('、') : '未啟用'}</td>
                 <td>{sku.device_policy?.setup_available || sku.device_policy?.binding_available ? '已設定' : '未設定'}</td>
                 <td>{sku.firmware_policy?.ota_enabled ? '允許韌體更新' : '未啟用'}</td>
-                <td>{sku.allowed_actions?.length ? sku.allowed_actions.map((action) => action === 'manage_devices' ? '管理設備' : action === 'manage_updates' ? '管理更新' : action === 'view_reports' ? '查看報表' : '查看').join('、') : '需要聯絡管理者'}{canManage ? <button type="button" className="link-button" onClick={() => { setEditingSKU(sku); setForm({ name: sku.name, product_model: sku.product_model || '', category: sku.category || 'generic', service_capabilities: sku.service_capabilities || [] }); setPreview(null); setShowCreate(true); }}>編輯</button> : null}</td>
-                <td><span className={sku.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{sku.status === 'active' ? '啟用' : '停用'}</span>{sku.status === 'active' && canManage ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/skus/${encodeURIComponent(sku.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `sku-disable-${sku.id}` } }); onRefresh(); }}>停用</button> : null}</td>
+                <td>{sku.allowed_actions?.length ? sku.allowed_actions.map((action) => action === 'manage_devices' ? '管理設備' : action === 'manage_updates' ? '管理更新' : action === 'view_reports' ? '查看報表' : action === 'manage_collaborators' ? '管理協作者' : action === 'edit_sku' ? '編輯 SKU' : '查看').join('、') : '需要聯絡管理者'}{sku.allowed_actions?.includes('edit_sku') ? <button type="button" className="link-button" onClick={() => { setEditingSKU(sku); setForm({ name: sku.name, product_model: sku.product_model || '', category: sku.category || 'generic', service_capabilities: sku.service_capabilities || [] }); setPreview(null); setShowCreate(true); }}>編輯</button> : null}</td>
+                <td><span className={sku.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{sku.status === 'active' ? '啟用' : '停用'}</span>{sku.status === 'active' && sku.allowed_actions?.includes('disable_sku') ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/skus/${encodeURIComponent(sku.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `sku-disable-${sku.id}` } }); onRefresh(); }}>停用</button> : null}</td>
               </tr>)}</tbody>
             </table>
           </div>
         </section>
       ) : null}
+      {collaborationSKU ? <section className="panel" data-testid="sku-collaborators"><div className="panel-head"><div><h3>{collaborationSKU.name} 協作者</h3><p>協作者只會看到被指派的 SKU；Editor 可執行專案工作，Viewer 為唯讀。</p></div><button type="button" className="link-button" onClick={() => { setCollaborationSKU(null); setCollaboration(null); }}>關閉</button></div>{collaboration?.source_status === 'unavailable' ? <p className="notice">協作者資料目前無法取得。</p> : <><form className="inline-form" onSubmit={inviteCollaborator}><input required type="email" placeholder="已註冊的 Developer Email" value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} /><select value={invite.role} onChange={(event) => setInvite({ ...invite, role: event.target.value })}><option value="sku_editor">Editor</option><option value="sku_viewer">Viewer</option></select><button type="submit" className="primary">邀請到此 SKU</button></form><div className="table-wrap"><table className="data-table"><thead><tr><th>Developer</th><th>角色</th><th>操作</th></tr></thead><tbody>{(collaboration?.collaborators || []).map((person) => <tr key={person.user_id}><td><strong>{person.display_name || person.email}</strong><small>{person.email}</small></td><td>{person.role === 'sku_owner' ? 'Owner' : <select value={person.role} onChange={(event) => updateCollaborator(person.user_id, event.target.value)}><option value="sku_editor">Editor</option><option value="sku_viewer">Viewer</option></select>}</td><td>{person.role === 'sku_owner' ? 'Ownership transfer required' : <><button type="button" className="link-button" onClick={() => transferOwner(person.user_id)}>轉移 Owner</button><button type="button" className="link-button" onClick={() => removeCollaborator(person.user_id)}>移除</button></>}</td></tr>)}</tbody></table></div>{(collaboration?.invitations || []).some((item) => item.status === 'pending') ? <div className="chip-list">{collaboration.invitations.filter((item) => item.status === 'pending').map((item) => <span className="status-badge neutral" key={item.id}>{item.target_email} · {item.role === 'sku_editor' ? 'Editor' : 'Viewer'} · 待接受 <button type="button" className="link-button" onClick={() => invitationAction(item.id, 'resend')}>重寄</button><button type="button" className="link-button" onClick={() => invitationAction(item.id, 'cancel')}>取消</button></span>)}</div> : null}</>}</section> : null}
     </section>
   );
 }
@@ -2349,6 +2467,7 @@ function GroupsPage({ data, loading, onRefresh }) {
 }
 
 function BrandCloudMemberInvitationAcceptPage() {
+	const isSKUInvitation = window.location.pathname === '/sku-collaborator-invitation/accept';
   const [token] = useState(() => new URLSearchParams(window.location.search).get('token') || '');
   const [requestKey] = useState(() => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
   const [result, setResult] = useState(null);
@@ -2356,13 +2475,13 @@ function BrandCloudMemberInvitationAcceptPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    window.history.replaceState({}, '', '/brand-cloud-member-invitation/accept');
+    window.history.replaceState({}, '', isSKUInvitation ? '/sku-collaborator-invitation/accept' : '/brand-cloud-member-invitation/accept');
   }, []);
 
   async function acceptInvitation() {
     setBusy(true);
     setMessage('正在驗證邀請…');
-    const response = await fetch('/api/developer/brand-cloud-member-invitations/accept', {
+    const response = await fetch(isSKUInvitation ? '/api/developer/sku-collaborator-invitations/accept' : '/api/developer/brand-cloud-member-invitations/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invitation-accept-${requestKey}` },
       body: JSON.stringify({ token }),
@@ -2370,7 +2489,7 @@ function BrandCloudMemberInvitationAcceptPage() {
     const body = await response.json().catch(() => ({}));
     if (response.ok) {
       setResult(body);
-      setMessage('邀請已接受，Brand Cloud membership 已建立。');
+      setMessage(isSKUInvitation ? '邀請已接受，SKU project access 已建立。' : '邀請已接受，Brand Cloud membership 已建立。');
     } else if (response.status === 404) {
       setMessage('邀請無效、已過期、已使用，或登入帳號不是受邀者。');
     } else if (response.status === 409) {
@@ -2382,7 +2501,7 @@ function BrandCloudMemberInvitationAcceptPage() {
   }
 
   const cloudID = result?.invitation?.brand_cloud_id || '';
-  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">Brand Cloud invitation</p><h1>接受團隊邀請</h1><p>系統會同時驗證 Email invitation token 與目前登入的 Developer 帳號。</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? '驗證中…' : '接受邀請'}</button> : <a className="inline-action" href={`/console/${encodeURIComponent(cloudID)}/access`}>前往 Brand Cloud 團隊頁面</a>}</section></div>;
+  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isSKUInvitation ? 'SKU project invitation' : 'Brand Cloud invitation'}</p><h1>{isSKUInvitation ? '接受 SKU 協作邀請' : '接受團隊邀請'}</h1><p>系統會同時驗證 Email invitation token 與目前登入的 Developer 帳號。</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? '驗證中…' : '接受邀請'}</button> : <a className="inline-action" href={`/console/${encodeURIComponent(cloudID)}/sku-services`}>前往 SKU project</a>}</section></div>;
 }
 
 function TeamAccessPage({ data, loading, activeCloudId, canManage, onRefresh }) {
@@ -5045,51 +5164,13 @@ function HealthDistributionPanel({ loading, current, onFilter, source }) {
   );
 }
 
-function RecentAlertsPanel({ loading, alerts, source, onOpenDevice }) {
-  const available = sourceAvailable(source);
-  return (
-    <section className="panel overview-panel alerts-panel">
-      <div className="panel-head">
-        <div>
-          <h2>Recent alerts</h2>
-          <p>Last 10 telemetry events that resulted in a health change.</p>
-        </div>
-      </div>
-      {!available ? (
-        <p className="empty-state">{sourceMessage(source, 'No telemetry source configured.')}</p>
-      ) : loading && !alerts.length ? (
-        <p className="empty-state">Loading recent alerts.</p>
-      ) : alerts.length ? (
-        <div className="alerts-table">
-          <div className="alerts-table-head">
-            <span>Time</span>
-            <span>Device</span>
-            <span>Signal</span>
-            <span>Health</span>
-          </div>
-          {alerts.map((alert) => (
-            <button type="button" className="alerts-table-row" key={alert.id} onClick={() => onOpenDevice(alert.device_id)}>
-              <time title={alert.occurred_at}>{formatRelativeTime(alert.occurred_at)}</time>
-              <strong>{alert.device_name}</strong>
-              <span>{alert.signal}</span>
-              <StatusBadge value={normalizeStatusKey(alert.health)} label={toTitleCase(alert.health)} />
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="empty-state">No alerts in selected window.</p>
-      )}
-    </section>
-  );
-}
-
 function AttentionQueuePanel({ loading, items, onOpenDevice }) {
   return (
     <section className="panel overview-panel attention-panel">
       <div className="panel-head">
         <div>
-          <h2>Attention Queue ({items.length})</h2>
-          <p>Devices sorted by current health, signal, and alert impact.</p>
+          <h2>Devices that need attention ({items.length})</h2>
+          <p>Prioritized by current health, signal quality, and recent alerts.</p>
         </div>
       </div>
       {loading && !items.length ? (
@@ -6469,17 +6550,6 @@ function formatTierLabel(tier) {
   if (tier === 'evaluation') return 'Evaluation';
   if (tier === 'commercial') return 'Commercial';
   return toTitleCase(String(tier).replaceAll('_', ' '));
-}
-
-function passwordStrength(password) {
-  if (!password) return 'Empty';
-  let score = 0;
-  if (password.length >= 8) score += 1;
-  if (password.length >= 12) score += 1;
-  if (/[A-Z]/.test(password)) score += 1;
-  if (/[0-9]/.test(password)) score += 1;
-  if (/[^A-Za-z0-9]/.test(password)) score += 1;
-  return ['Weak', 'Fair', 'Good', 'Strong', 'Excellent'][Math.min(score, 4)];
 }
 
 function normalizeStatusKey(value) {

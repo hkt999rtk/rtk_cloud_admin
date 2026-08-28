@@ -165,6 +165,26 @@ type BrandCloudMemberInvitation struct {
 	UpdatedAt       string `json:"updated_at"`
 }
 
+type SKUCollaborator struct {
+	AssignmentID string `json:"assignment_id"`
+	SKUID        string `json:"sku_id"`
+	UserID       string `json:"user_id"`
+	Email        string `json:"email"`
+	DisplayName  string `json:"display_name,omitempty"`
+	Role         string `json:"role"`
+	DisabledAt   string `json:"disabled_at,omitempty"`
+	CreatedAt    string `json:"created_at"`
+}
+
+type SKUCollaboratorInvitation struct {
+	ID          string `json:"id"`
+	SKUID       string `json:"sku_id"`
+	TargetEmail string `json:"target_email"`
+	Role        string `json:"role"`
+	Status      string `json:"status"`
+	ExpiresAt   string `json:"expires_at"`
+}
+
 type BrandCloudUserResult struct {
 	Action           string         `json:"action"`
 	BrandCloudUser   BrandCloudUser `json:"brand_cloud_user"`
@@ -229,6 +249,7 @@ type DeviceItemProfile struct {
 	ProvisioningPolicy map[string]any `json:"provisioning_policy"`
 	CreatedAt          string         `json:"created_at"`
 	UpdatedAt          string         `json:"updated_at"`
+	CurrentUserRole    string         `json:"current_user_role,omitempty"`
 }
 
 type DeviceItemProfileRequest struct {
@@ -428,11 +449,7 @@ type SSOProviderConfigRequest struct {
 }
 
 type SignupRequest struct {
-	Email            string `json:"email"`
-	Password         string `json:"password"`
-	DisplayName      string `json:"display_name,omitempty"`
-	OrganizationName string `json:"organization_name"`
-	CaptchaToken     string `json:"captcha_token,omitempty"`
+	Email string `json:"email"`
 }
 
 type SignupResult struct {
@@ -442,6 +459,15 @@ type SignupResult struct {
 
 type AuthTokenRequest struct {
 	Token string `json:"token"`
+}
+
+type VerifyEmailRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+type VerificationStatusResult struct {
+	Status string `json:"status"`
 }
 
 type ResetPasswordRequest struct {
@@ -550,9 +576,15 @@ func (c *Client) Signup(ctx context.Context, req SignupRequest) (SignupResult, e
 	return out, err
 }
 
-func (c *Client) VerifyEmail(ctx context.Context, token string) (VerifyEmailResult, error) {
+func (c *Client) VerifyEmail(ctx context.Context, req VerifyEmailRequest) (VerifyEmailResult, error) {
 	var out VerifyEmailResult
-	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/verify-email", "", AuthTokenRequest{Token: token}, &out)
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/verify-email", "", req, &out)
+	return out, err
+}
+
+func (c *Client) VerificationStatus(ctx context.Context, token string) (VerificationStatusResult, error) {
+	var out VerificationStatusResult
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/verify-email/status", "", AuthTokenRequest{Token: token}, &out)
 	return out, err
 }
 
@@ -832,6 +864,81 @@ func (c *Client) SetDeveloperBrandCloudMemberStatus(ctx context.Context, accessT
 	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/members/" + url.PathEscape(userID) + "/" + action
 	err := c.doJSON(ctx, http.MethodPatch, path, accessToken, nil, &body)
 	return body.Member, err
+}
+
+func (c *Client) SKUCollaborators(ctx context.Context, accessToken, brandCloudID, skuID string) ([]SKUCollaborator, error) {
+	var body struct {
+		Collaborators []SKUCollaborator `json:"collaborators"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/skus/" + url.PathEscape(skuID) + "/collaborators"
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Collaborators, nil
+}
+
+func (c *Client) SKUCollaboratorInvitations(ctx context.Context, accessToken, brandCloudID, skuID string) ([]SKUCollaboratorInvitation, error) {
+	var body struct {
+		Invitations []SKUCollaboratorInvitation `json:"invitations"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/skus/" + url.PathEscape(skuID) + "/collaborator-invitations"
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Invitations, nil
+}
+
+func (c *Client) InviteSKUCollaborator(ctx context.Context, accessToken, brandCloudID, skuID, email, role string) (SKUCollaboratorInvitation, error) {
+	var body struct {
+		Invitation SKUCollaboratorInvitation `json:"invitation"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/skus/" + url.PathEscape(skuID) + "/collaborator-invitations"
+	if err := c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{"email": email, "role": role}, &body); err != nil {
+		return SKUCollaboratorInvitation{}, err
+	}
+	return body.Invitation, nil
+}
+
+func (c *Client) ActOnSKUCollaboratorInvitation(ctx context.Context, accessToken, brandCloudID, skuID, invitationID, action string) (SKUCollaboratorInvitation, error) {
+	var body struct {
+		Invitation SKUCollaboratorInvitation `json:"invitation"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/skus/" + url.PathEscape(skuID) + "/collaborator-invitations/" + url.PathEscape(invitationID) + "/" + url.PathEscape(action)
+	if err := c.doJSON(ctx, http.MethodPost, path, accessToken, nil, &body); err != nil {
+		return SKUCollaboratorInvitation{}, err
+	}
+	return body.Invitation, nil
+}
+
+func (c *Client) UpdateSKUCollaborator(ctx context.Context, accessToken, brandCloudID, skuID, userID, role string) (SKUCollaborator, error) {
+	var body struct {
+		Collaborator SKUCollaborator `json:"collaborator"`
+	}
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/skus/" + url.PathEscape(skuID) + "/collaborators/" + url.PathEscape(userID)
+	if err := c.doJSON(ctx, http.MethodPatch, path, accessToken, map[string]string{"role": role}, &body); err != nil {
+		return SKUCollaborator{}, err
+	}
+	return body.Collaborator, nil
+}
+
+func (c *Client) RemoveSKUCollaborator(ctx context.Context, accessToken, brandCloudID, skuID, userID string) error {
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/skus/" + url.PathEscape(skuID) + "/collaborators/" + url.PathEscape(userID)
+	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)
+}
+
+func (c *Client) TransferSKUOwnership(ctx context.Context, accessToken, brandCloudID, skuID, targetUserID string) error {
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(brandCloudID) + "/skus/" + url.PathEscape(skuID) + "/owner-transfer"
+	return c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{"target_user_id": targetUserID}, nil)
+}
+
+func (c *Client) AcceptSKUCollaboratorInvitation(ctx context.Context, accessToken, token string) (SKUCollaboratorInvitation, error) {
+	var body struct {
+		Invitation SKUCollaboratorInvitation `json:"invitation"`
+	}
+	if err := c.doJSON(ctx, http.MethodPost, "/v1/developer/sku-collaborator-invitations/accept", accessToken, map[string]string{"token": token}, &body); err != nil {
+		return SKUCollaboratorInvitation{}, err
+	}
+	return body.Invitation, nil
 }
 
 func (c *Client) RequestDeveloperOwnerTransfer(ctx context.Context, accessToken, brandCloudID, targetEmail string) (OwnerTransfer, error) {
