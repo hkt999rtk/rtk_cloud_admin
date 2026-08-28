@@ -274,7 +274,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel", s.apiDeveloperOwnerTransfer)
 	s.mux.HandleFunc("POST /api/developer/brand-cloud-owner-transfers/accept", s.apiDeveloperOwnerTransferAccept)
 	s.mux.HandleFunc("POST /api/developer/brand-cloud-member-invitations/accept", s.apiDeveloperBrandCloudInvitationAccept)
-	s.mux.HandleFunc("POST /api/developer/sku-collaborator-invitations/accept", s.apiSKUCollaboratorInvitationAccept)
+	s.mux.HandleFunc("POST /api/developer/product-collaborator-invitations/accept", s.apiProductCollaboratorInvitationAccept)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/app", s.apiDeveloperPKITestAppBundle)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/device", s.apiDeveloperPKITestDeviceBundle)
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
@@ -341,23 +341,23 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/reports", s.apiReports)
 	s.mux.HandleFunc("POST /api/reports", s.apiReports)
 	s.mux.HandleFunc("GET /api/reports/{id}", s.apiReport)
-	s.mux.HandleFunc("GET /api/skus", s.apiSKUs)
-	s.mux.HandleFunc("POST /api/skus", s.apiSKUWrite)
-	s.mux.HandleFunc("GET /api/skus/{id}", s.apiSKU)
-	s.mux.HandleFunc("PATCH /api/skus/{id}", s.apiSKUWrite)
-	s.mux.HandleFunc("GET /api/skus/{id}/releases", s.apiSKUReleases)
-	s.mux.HandleFunc("POST /api/skus/{id}/releases", s.apiSKUReleases)
-	s.mux.HandleFunc("GET /api/skus/{id}/releases/{releaseId}", s.apiSKURelease)
-	s.mux.HandleFunc("POST /api/skus/{id}/releases/{releaseId}/{action}", s.apiSKURelease)
-	s.mux.HandleFunc("POST /api/skus/{id}/disable", s.apiSKUWrite)
-	s.mux.HandleFunc("GET /api/skus/{id}/permissions", s.apiSKUPermissions)
-	s.mux.HandleFunc("POST /api/skus/{id}/impact-preview", s.apiSKUImpactPreview)
-	s.mux.HandleFunc("GET /api/skus/{id}/collaborators", s.apiSKUCollaborators)
-	s.mux.HandleFunc("PATCH /api/skus/{id}/collaborators/{userId}", s.apiSKUCollaborator)
-	s.mux.HandleFunc("DELETE /api/skus/{id}/collaborators/{userId}", s.apiSKUCollaborator)
-	s.mux.HandleFunc("POST /api/skus/{id}/collaborator-invitations", s.apiSKUCollaboratorInvitations)
-	s.mux.HandleFunc("POST /api/skus/{id}/collaborator-invitations/{invitationId}/{action}", s.apiSKUCollaboratorInvitationAction)
-	s.mux.HandleFunc("POST /api/skus/{id}/owner-transfer", s.apiSKUOwnerTransfer)
+	s.mux.HandleFunc("GET /api/products", s.apiProducts)
+	s.mux.HandleFunc("POST /api/products", s.apiProductWrite)
+	s.mux.HandleFunc("GET /api/products/{id}", s.apiProduct)
+	s.mux.HandleFunc("PATCH /api/products/{id}", s.apiProductWrite)
+	s.mux.HandleFunc("GET /api/products/{id}/releases", s.apiProductReleases)
+	s.mux.HandleFunc("POST /api/products/{id}/releases", s.apiProductReleases)
+	s.mux.HandleFunc("GET /api/products/{id}/releases/{releaseId}", s.apiProductRelease)
+	s.mux.HandleFunc("POST /api/products/{id}/releases/{releaseId}/{action}", s.apiProductRelease)
+	s.mux.HandleFunc("POST /api/products/{id}/disable", s.apiProductWrite)
+	s.mux.HandleFunc("GET /api/products/{id}/permissions", s.apiProductPermissions)
+	s.mux.HandleFunc("POST /api/products/{id}/impact-preview", s.apiProductImpactPreview)
+	s.mux.HandleFunc("GET /api/products/{id}/collaborators", s.apiProductCollaborators)
+	s.mux.HandleFunc("PATCH /api/products/{id}/collaborators/{userId}", s.apiProductCollaborator)
+	s.mux.HandleFunc("DELETE /api/products/{id}/collaborators/{userId}", s.apiProductCollaborator)
+	s.mux.HandleFunc("POST /api/products/{id}/collaborator-invitations", s.apiProductCollaboratorInvitations)
+	s.mux.HandleFunc("POST /api/products/{id}/collaborator-invitations/{invitationId}/{action}", s.apiProductCollaboratorInvitationAction)
+	s.mux.HandleFunc("POST /api/products/{id}/owner-transfer", s.apiProductOwnerTransfer)
 	s.mux.HandleFunc("GET /api/admin/devices", s.apiAdminDevices)
 	s.mux.HandleFunc("GET /api/admin/brand-clouds", s.apiAdminBrandClouds)
 	s.mux.HandleFunc("POST /api/admin/brand-clouds", s.apiAdminBrandClouds)
@@ -383,8 +383,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/fleet/health-summary", s.apiFleetHealthSummary)
 	s.mux.HandleFunc("GET /api/fleet/stream-stats", s.apiFleetStreamStats)
 	s.mux.HandleFunc("GET /api/fleet/firmware-distribution", s.apiFleetFirmwareDistribution)
-	s.mux.HandleFunc("GET /api/ota/", s.apiSKUOTA)
-	s.mux.HandleFunc("POST /api/ota/", s.apiSKUOTA)
+	s.mux.HandleFunc("GET /api/ota/", s.apiProductOTA)
+	s.mux.HandleFunc("POST /api/ota/", s.apiProductOTA)
 	s.mux.HandleFunc("GET /api/update-plans", s.apiUpdatePlans)
 	s.mux.HandleFunc("POST /api/update-plans", s.apiUpdatePlans)
 	s.mux.HandleFunc("POST /api/update-plans/scope-preview", s.apiUpdatePlanScopePreview)
@@ -419,7 +419,7 @@ func (s *Server) routes() {
 		"/console/devices",
 		"/console/firmware-ota",
 		"/console/stream-health",
-		"/console/sku-services",
+		"/console/product-services",
 		"/console/chipset-sdk",
 		"/console/jobs",
 		"/console/reports",
@@ -459,9 +459,9 @@ const (
 	capabilityFleetRead                 = "fleet.read"
 	capabilityFleetDeviceManage         = "fleet.device.manage"
 	capabilityFleetBatchManage          = "fleet.batch.manage"
-	capabilitySKURead                   = "sku.read"
-	capabilitySKUManage                 = "sku.manage"
-	capabilitySKUPolicyManage           = "sku.policy.manage"
+	capabilityProductRead               = "product.read"
+	capabilityProductManage             = "product.manage"
+	capabilityProductPolicyManage       = "product.policy.manage"
 	capabilityFirmwareReleaseRead       = "firmware.release.read"
 	capabilityFirmwareReleaseManage     = "firmware.release.manage"
 	capabilityOTAPlanRead               = "ota.plan.read"
@@ -870,7 +870,7 @@ func (s *Server) apiDeveloperBrandCloudInvitationAccept(w http.ResponseWriter, r
 	writeJSON(w, map[string]any{"invitation": invitation, "member": member, "source_status": "available"})
 }
 
-func (s *Server) apiSKUCollaboratorInvitationAccept(w http.ResponseWriter, r *http.Request) {
+func (s *Server) apiProductCollaboratorInvitationAccept(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.requestSession(r)
 	if !ok || strings.TrimSpace(session.AccessToken) == "" {
 		http.Error(w, "developer authentication required", http.StatusUnauthorized)
@@ -886,7 +886,7 @@ func (s *Server) apiSKUCollaboratorInvitationAccept(w http.ResponseWriter, r *ht
 		http.Error(w, "token is required", http.StatusBadRequest)
 		return
 	}
-	invitation, err := s.accountClient.AcceptSKUCollaboratorInvitation(r.Context(), session.AccessToken, strings.TrimSpace(body.Token))
+	invitation, err := s.accountClient.AcceptProductCollaboratorInvitation(r.Context(), session.AccessToken, strings.TrimSpace(body.Token))
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -1528,7 +1528,7 @@ func (s *Server) apiFleetSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.accountClient.Enabled() {
-		writeJSON(w, contracts.FleetSummary{ByStatus: map[string]int{}, BySKU: map[string]int{}, ByModel: map[string]int{}, ByFirmware: map[string]int{}, ByRegion: map[string]int{}, ServiceEnabled: map[string]int{}, SourceStatus: "unconfigured", SourceMessage: "Fleet 資料來源尚未設定。"})
+		writeJSON(w, contracts.FleetSummary{ByStatus: map[string]int{}, ByProduct: map[string]int{}, ByModel: map[string]int{}, ByFirmware: map[string]int{}, ByRegion: map[string]int{}, ServiceEnabled: map[string]int{}, SourceStatus: "unconfigured", SourceMessage: "Fleet 資料來源尚未設定。"})
 		return
 	}
 	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
@@ -1553,8 +1553,8 @@ func (s *Server) apiFleetSummary(w http.ResponseWriter, r *http.Request) {
 		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	writeJSON(w, contracts.FleetSummary{
-		Total: summary.Total, ByStatus: summary.ByStatus, BySKU: summary.BySKU, ByModel: summary.ByModel, ByFirmware: summary.ByFirmware, ByRegion: summary.ByRegion,
-		ServiceEnabled: summary.ServiceEnabled, BySKURegion: summary.BySKURegion, BySKUFirmware: summary.BySKUFirmware, UpdatedAt: summary.UpdatedAt, SourceStatus: "available",
+		Total: summary.Total, ByStatus: summary.ByStatus, ByProduct: summary.ByProduct, ByModel: summary.ByModel, ByFirmware: summary.ByFirmware, ByRegion: summary.ByRegion,
+		ServiceEnabled: summary.ServiceEnabled, ByProductRegion: summary.ByProductRegion, ByProductFirmware: summary.ByProductFirmware, UpdatedAt: summary.UpdatedAt, SourceStatus: "available",
 	})
 }
 
@@ -1935,18 +1935,18 @@ func (s *Server) apiProvisioningValidate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var request struct {
-		SKU           string   `json:"sku_id"`
+		Product       string   `json:"product_id"`
 		ProductionRun string   `json:"production_run"`
 		SourceID      string   `json:"source_id"`
 		DeviceIDs     []string `json:"device_ids"`
 	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.SKU) == "" {
-		http.Error(w, "provisioning validation requires sku_id and device_ids or source_id", http.StatusBadRequest)
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.Product) == "" {
+		http.Error(w, "provisioning validation requires product_id and device_ids or source_id", http.StatusBadRequest)
 		return
 	}
 	if strings.TrimSpace(request.SourceID) != "" {
 		source, sourceErr := s.sources.GetProvisioningSource(org.ID, strings.TrimSpace(request.SourceID))
-		if sourceErr != nil || source.SKU != strings.TrimSpace(request.SKU) {
+		if sourceErr != nil || source.Product != strings.TrimSpace(request.Product) {
 			http.Error(w, "provisioning source is not available for this Brand Cloud", http.StatusBadRequest)
 			return
 		}
@@ -1981,7 +1981,7 @@ func (s *Server) apiProvisioningValidate(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "device_ids cannot be empty", http.StatusBadRequest)
 		return
 	}
-	scope := map[string]any{"sku_id": strings.TrimSpace(request.SKU), "production_run": strings.TrimSpace(request.ProductionRun), "source_id": strings.TrimSpace(request.SourceID), "device_ids": clean, "validation": map[string]any{"duplicate_device_ids": duplicates, "valid": len(duplicates) == 0}, "scope_hash": batchScopeHash(map[string]any{"sku_id": request.SKU, "production_run": request.ProductionRun, "source_id": request.SourceID, "device_ids": clean}), "idempotency_key": key}
+	scope := map[string]any{"product_id": strings.TrimSpace(request.Product), "production_run": strings.TrimSpace(request.ProductionRun), "source_id": strings.TrimSpace(request.SourceID), "device_ids": clean, "validation": map[string]any{"duplicate_device_ids": duplicates, "valid": len(duplicates) == 0}, "scope_hash": batchScopeHash(map[string]any{"product_id": request.Product, "production_run": request.ProductionRun, "source_id": request.SourceID, "device_ids": clean}), "idempotency_key": key}
 	if existing, lookupErr := s.jobs.GetBatchJobByIdempotency(org.ID, key); lookupErr == nil {
 		if existing.Type != "provisioning_validation" || fmt.Sprint(existing.Scope["scope_hash"]) != fmt.Sprint(scope["scope_hash"]) {
 			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different request data."})
@@ -2026,9 +2026,9 @@ func (s *Server) apiProvisioningSource(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "provisioning source upload is invalid", http.StatusBadRequest)
 		return
 	}
-	sku := strings.TrimSpace(r.FormValue("sku_id"))
-	if sku == "" {
-		http.Error(w, "sku_id is required", http.StatusBadRequest)
+	product := strings.TrimSpace(r.FormValue("product_id"))
+	if product == "" {
+		http.Error(w, "product_id is required", http.StatusBadRequest)
 		return
 	}
 	file, header, err := r.FormFile("file")
@@ -2067,14 +2067,14 @@ func (s *Server) apiProvisioningSource(w http.ResponseWriter, r *http.Request) {
 	digest := sha256.Sum256(raw)
 	checksum := fmt.Sprintf("sha256:%x", digest[:])
 	if existing, lookupErr := s.sources.GetProvisioningSourceByIdempotency(org.ID, key); lookupErr == nil {
-		if existing.Checksum != checksum || existing.SKU != sku {
+		if existing.Checksum != checksum || existing.Product != product {
 			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different source data."})
 			return
 		}
 		writeJSONStatus(w, http.StatusCreated, map[string]any{"source": existing, "source_status": "available", "idempotent_replay": true})
 		return
 	}
-	source, err := s.sources.CreateProvisioningSource(contracts.ProvisioningSource{OrganizationID: org.ID, SKU: sku, ProductionRun: strings.TrimSpace(r.FormValue("production_run")), Filename: header.Filename, Checksum: checksum, RowCount: len(ids), DeviceIDs: ids}, key)
+	source, err := s.sources.CreateProvisioningSource(contracts.ProvisioningSource{OrganizationID: org.ID, Product: product, ProductionRun: strings.TrimSpace(r.FormValue("production_run")), Filename: header.Filename, Checksum: checksum, RowCount: len(ids), DeviceIDs: ids}, key)
 	if err != nil {
 		http.Error(w, "provisioning source could not be stored", http.StatusServiceUnavailable)
 		return
@@ -2118,7 +2118,7 @@ func (s *Server) apiProvisioningJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "validation must complete successfully before provisioning", http.StatusConflict)
 		return
 	}
-	scope := map[string]any{"query": map[string]any{}, "device_ids": validation.Scope["device_ids"], "sku_id": validation.Scope["sku_id"], "validation_job_id": validation.ID, "scope_hash": batchScopeHash(validation.Scope), "idempotency_key": key}
+	scope := map[string]any{"query": map[string]any{}, "device_ids": validation.Scope["device_ids"], "product_id": validation.Scope["product_id"], "validation_job_id": validation.ID, "scope_hash": batchScopeHash(validation.Scope), "idempotency_key": key}
 	if existing, lookupErr := s.jobs.GetBatchJobByIdempotency(org.ID, key); lookupErr == nil {
 		if existing.Type != "device_provision" || fmt.Sprint(existing.Scope["scope_hash"]) != fmt.Sprint(scope["scope_hash"]) {
 			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different request data."})
@@ -2419,9 +2419,9 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 		}
 		valid, _ := validation["valid"].(bool)
 		result := make([]map[string]any, 0, job.Total+1)
-		if profileID, _ := job.Scope["sku_id"].(string); strings.TrimSpace(profileID) != "" {
+		if profileID, _ := job.Scope["product_id"].(string); strings.TrimSpace(profileID) != "" {
 			if _, err := s.accountClient.DeviceItemProfile(ctx, accessToken, job.OrganizationID, profileID); err != nil {
-				validation["sku_error"] = "SKU is unavailable"
+				validation["product_error"] = "Product is unavailable"
 				valid = false
 			}
 		}
@@ -2472,7 +2472,7 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 			}
 		}
 		query.Set("limit", "250")
-		byDimension := map[string]map[string]int{"sku": {}, "model": {}, "status": {}, "region": {}}
+		byDimension := map[string]map[string]int{"product": {}, "model": {}, "status": {}, "region": {}}
 		total, offset := 0, 0
 		for {
 			query.Set("offset", strconv.Itoa(offset))
@@ -2486,7 +2486,7 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 					continue
 				}
 				total++
-				byDimension["sku"][device.DeviceItemProfileID]++
+				byDimension["product"][device.DeviceItemProfileID]++
 				byDimension["model"][device.Model]++
 				byDimension["status"][device.Status]++
 				region := "未提供"
@@ -2940,7 +2940,7 @@ func (s *Server) apiReport(w http.ResponseWriter, r *http.Request) {
 
 func fleetDeviceQuery(values url.Values) url.Values {
 	query := make(url.Values)
-	for _, key := range []string{"q", "sku_id", "group_id", "region", "category", "model", "status", "readiness", "firmware", "sort", "direction", "limit", "offset"} {
+	for _, key := range []string{"q", "product_id", "group_id", "region", "category", "model", "status", "readiness", "firmware", "sort", "direction", "limit", "offset"} {
 		if value := strings.TrimSpace(values.Get(key)); value != "" {
 			query.Set(key, value)
 		}
@@ -2951,14 +2951,14 @@ func fleetDeviceQuery(values url.Values) url.Values {
 	return query
 }
 
-func (s *Server) apiSKUs(w http.ResponseWriter, r *http.Request) {
+func (s *Server) apiProducts(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.customerSession(r)
 	if !ok {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
 	if !s.accountClient.Enabled() {
-		writeJSON(w, map[string]any{"skus": []contracts.SKU{}, "source_status": "unconfigured"})
+		writeJSON(w, map[string]any{"products": []contracts.Product{}, "source_status": "unconfigured"})
 		return
 	}
 	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
@@ -2966,7 +2966,7 @@ func (s *Server) apiSKUs(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	if !requireCustomerCapability(w, org, capabilitySKURead, "registry_device.read") {
+	if !requireCustomerCapability(w, org, capabilityProductRead, "registry_device.read") {
 		return
 	}
 	var profiles []accountclient.DeviceItemProfile
@@ -2988,12 +2988,12 @@ func (s *Server) apiSKUs(w http.ResponseWriter, r *http.Request) {
 	if summaryErr != nil {
 		fleetSummary = accountclient.FleetSummary{}
 	}
-	items := make([]contracts.SKU, 0, len(profiles))
+	items := make([]contracts.Product, 0, len(profiles))
 	capabilities := capabilitiesForOrganization(org)
 	for _, profile := range profiles {
-		item := customerSKUWithActionsAndSummary(profile, capabilities, &fleetSummary)
-		if profile.CurrentUserRole == "sku_owner" {
-			if collaborators, collaboratorErr := s.accountClient.SKUCollaborators(r.Context(), tokens.AccessToken, org.ID, profile.ID); collaboratorErr == nil {
+		item := customerProductWithActionsAndSummary(profile, capabilities, &fleetSummary)
+		if profile.CurrentUserRole == "product_owner" {
+			if collaborators, collaboratorErr := s.accountClient.ProductCollaborators(r.Context(), tokens.AccessToken, org.ID, profile.ID); collaboratorErr == nil {
 				item.CollaboratorCount = len(collaborators)
 			}
 		}
@@ -3008,10 +3008,10 @@ func (s *Server) apiSKUs(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, item)
 	}
-	writeJSON(w, map[string]any{"skus": items, "can_manage": org.Role == "owner", "source_status": "available"})
+	writeJSON(w, map[string]any{"products": items, "can_manage": org.Role == "owner", "source_status": "available"})
 }
 
-func (s *Server) skuCollaborationContext(w http.ResponseWriter, r *http.Request) (store.Session, accountclient.Organization, accountclient.Tokens, bool) {
+func (s *Server) productCollaborationContext(w http.ResponseWriter, r *http.Request) (store.Session, accountclient.Organization, accountclient.Tokens, bool) {
 	session, ok := s.customerSession(r)
 	if !ok {
 		http.Error(w, "developer authentication required", http.StatusUnauthorized)
@@ -3025,22 +3025,22 @@ func (s *Server) skuCollaborationContext(w http.ResponseWriter, r *http.Request)
 	return session, org, tokens, true
 }
 
-func (s *Server) apiSKUCollaborators(w http.ResponseWriter, r *http.Request) {
-	session, org, tokens, ok := s.skuCollaborationContext(w, r)
+func (s *Server) apiProductCollaborators(w http.ResponseWriter, r *http.Request) {
+	session, org, tokens, ok := s.productCollaborationContext(w, r)
 	if !ok {
 		return
 	}
-	items, err := s.accountClient.SKUCollaborators(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"))
+	items, err := s.accountClient.ProductCollaborators(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"))
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	invitations, _ := s.accountClient.SKUCollaboratorInvitations(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"))
+	invitations, _ := s.accountClient.ProductCollaboratorInvitations(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"))
 	writeJSON(w, map[string]any{"collaborators": items, "invitations": invitations, "source_status": "available"})
 }
 
-func (s *Server) apiSKUCollaboratorInvitations(w http.ResponseWriter, r *http.Request) {
-	session, org, tokens, ok := s.skuCollaborationContext(w, r)
+func (s *Server) apiProductCollaboratorInvitations(w http.ResponseWriter, r *http.Request) {
+	session, org, tokens, ok := s.productCollaborationContext(w, r)
 	if !ok {
 		return
 	}
@@ -3055,7 +3055,7 @@ func (s *Server) apiSKUCollaboratorInvitations(w http.ResponseWriter, r *http.Re
 		http.Error(w, "email is required", http.StatusBadRequest)
 		return
 	}
-	invitation, err := s.accountClient.InviteSKUCollaborator(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), strings.TrimSpace(body.Email), strings.TrimSpace(body.Role))
+	invitation, err := s.accountClient.InviteProductCollaborator(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), strings.TrimSpace(body.Email), strings.TrimSpace(body.Role))
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -3063,8 +3063,8 @@ func (s *Server) apiSKUCollaboratorInvitations(w http.ResponseWriter, r *http.Re
 	writeJSONStatus(w, http.StatusAccepted, map[string]any{"invitation": invitation, "source_status": "available"})
 }
 
-func (s *Server) apiSKUCollaboratorInvitationAction(w http.ResponseWriter, r *http.Request) {
-	session, org, tokens, ok := s.skuCollaborationContext(w, r)
+func (s *Server) apiProductCollaboratorInvitationAction(w http.ResponseWriter, r *http.Request) {
+	session, org, tokens, ok := s.productCollaborationContext(w, r)
 	if !ok {
 		return
 	}
@@ -3076,7 +3076,7 @@ func (s *Server) apiSKUCollaboratorInvitationAction(w http.ResponseWriter, r *ht
 		http.NotFound(w, r)
 		return
 	}
-	item, err := s.accountClient.ActOnSKUCollaboratorInvitation(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), r.PathValue("invitationId"), action)
+	item, err := s.accountClient.ActOnProductCollaboratorInvitation(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), r.PathValue("invitationId"), action)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -3084,8 +3084,8 @@ func (s *Server) apiSKUCollaboratorInvitationAction(w http.ResponseWriter, r *ht
 	writeJSON(w, map[string]any{"invitation": item, "source_status": "available"})
 }
 
-func (s *Server) apiSKUCollaborator(w http.ResponseWriter, r *http.Request) {
-	session, org, tokens, ok := s.skuCollaborationContext(w, r)
+func (s *Server) apiProductCollaborator(w http.ResponseWriter, r *http.Request) {
+	session, org, tokens, ok := s.productCollaborationContext(w, r)
 	if !ok {
 		return
 	}
@@ -3093,7 +3093,7 @@ func (s *Server) apiSKUCollaborator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodDelete {
-		if err := s.accountClient.RemoveSKUCollaborator(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), r.PathValue("userId")); err != nil {
+		if err := s.accountClient.RemoveProductCollaborator(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), r.PathValue("userId")); err != nil {
 			s.writeCustomerErrorForSession(w, session.ID, err)
 			return
 		}
@@ -3107,7 +3107,7 @@ func (s *Server) apiSKUCollaborator(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "role is required", http.StatusBadRequest)
 		return
 	}
-	item, err := s.accountClient.UpdateSKUCollaborator(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), r.PathValue("userId"), strings.TrimSpace(body.Role))
+	item, err := s.accountClient.UpdateProductCollaborator(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), r.PathValue("userId"), strings.TrimSpace(body.Role))
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -3115,8 +3115,8 @@ func (s *Server) apiSKUCollaborator(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"collaborator": item, "source_status": "available"})
 }
 
-func (s *Server) apiSKUOwnerTransfer(w http.ResponseWriter, r *http.Request) {
-	session, org, tokens, ok := s.skuCollaborationContext(w, r)
+func (s *Server) apiProductOwnerTransfer(w http.ResponseWriter, r *http.Request) {
+	session, org, tokens, ok := s.productCollaborationContext(w, r)
 	if !ok {
 		return
 	}
@@ -3130,14 +3130,14 @@ func (s *Server) apiSKUOwnerTransfer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "target_user_id is required", http.StatusBadRequest)
 		return
 	}
-	if err := s.accountClient.TransferSKUOwnership(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), strings.TrimSpace(body.TargetUserID)); err != nil {
+	if err := s.accountClient.TransferProductOwnership(r.Context(), tokens.AccessToken, org.ID, r.PathValue("id"), strings.TrimSpace(body.TargetUserID)); err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	writeJSON(w, map[string]any{"sku_id": r.PathValue("id"), "owner_user_id": strings.TrimSpace(body.TargetUserID), "source_status": "available"})
+	writeJSON(w, map[string]any{"product_id": r.PathValue("id"), "owner_user_id": strings.TrimSpace(body.TargetUserID), "source_status": "available"})
 }
 
-func (s *Server) apiSKU(w http.ResponseWriter, r *http.Request) {
+func (s *Server) apiProduct(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.customerSession(r)
 	if !ok {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
@@ -3152,7 +3152,7 @@ func (s *Server) apiSKU(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	if !requireCustomerCapability(w, org, capabilitySKURead, "registry_device.read") {
+	if !requireCustomerCapability(w, org, capabilityProductRead, "registry_device.read") {
 		return
 	}
 	var profile accountclient.DeviceItemProfile
@@ -3166,33 +3166,33 @@ func (s *Server) apiSKU(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = tokens
-	writeJSON(w, map[string]any{"sku": customerSKUWithActions(profile, capabilitiesForOrganization(org)), "source_status": "available"})
+	writeJSON(w, map[string]any{"product": customerProductWithActions(profile, capabilitiesForOrganization(org)), "source_status": "available"})
 }
 
-func (s *Server) apiSKUReleases(w http.ResponseWriter, r *http.Request) {
+func (s *Server) apiProductReleases(w http.ResponseWriter, r *http.Request) {
 	clone := r.Clone(r.Context())
-	clone.URL.Path = "/api/ota/skus/" + url.PathEscape(r.PathValue("id")) + "/releases"
-	s.apiSKUOTA(w, clone)
+	clone.URL.Path = "/api/ota/products/" + url.PathEscape(r.PathValue("id")) + "/releases"
+	s.apiProductOTA(w, clone)
 }
 
-func (s *Server) apiSKURelease(w http.ResponseWriter, r *http.Request) {
+func (s *Server) apiProductRelease(w http.ResponseWriter, r *http.Request) {
 	clone := r.Clone(r.Context())
-	upstreamPath := "/api/ota/skus/" + url.PathEscape(r.PathValue("id")) + "/releases/" + url.PathEscape(r.PathValue("releaseId"))
+	upstreamPath := "/api/ota/products/" + url.PathEscape(r.PathValue("id")) + "/releases/" + url.PathEscape(r.PathValue("releaseId"))
 	if action := strings.TrimSpace(r.PathValue("action")); action != "" {
 		upstreamPath += ":" + url.PathEscape(action)
 	}
 	clone.URL.Path = upstreamPath
-	s.apiSKUOTA(w, clone)
+	s.apiProductOTA(w, clone)
 }
 
-func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
+func (s *Server) apiProductWrite(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.customerSession(r)
 	if !ok {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
 	if !s.accountClient.Enabled() {
-		http.Error(w, "SKU 服務尚未設定。", http.StatusServiceUnavailable)
+		http.Error(w, "Product 服務尚未設定。", http.StatusServiceUnavailable)
 		return
 	}
 	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
@@ -3202,17 +3202,17 @@ func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.PathValue("id") == "" {
 		if org.Role != "owner" {
-			writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "BRAND_OWNER_REQUIRED", "message": "Only the Brand Cloud owner can create a SKU."})
+			writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "BRAND_OWNER_REQUIRED", "message": "Only the Brand Cloud owner can create a Product."})
 			return
 		}
 	} else {
-		allowed, checkErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, "registry_device.manage", "sku", r.PathValue("id"))
+		allowed, checkErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, "registry_device.manage", "product", r.PathValue("id"))
 		if checkErr != nil {
 			s.writeCustomerErrorForSession(w, session.ID, checkErr)
 			return
 		}
 		if !allowed {
-			writeJSONStatus(w, http.StatusNotFound, map[string]any{"code": "SKU_NOT_FOUND", "message": "SKU not found."})
+			writeJSONStatus(w, http.StatusNotFound, map[string]any{"code": "PRODUCT_NOT_FOUND", "message": "Product not found."})
 			return
 		}
 	}
@@ -3220,7 +3220,7 @@ func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		ProfileKey          string         `json:"sku_id,omitempty"`
+		ProfileKey          string         `json:"product_id,omitempty"`
 		Name                string         `json:"name,omitempty"`
 		ProductModel        string         `json:"product_model,omitempty"`
 		Category            string         `json:"category,omitempty"`
@@ -3231,7 +3231,7 @@ func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.HasSuffix(r.URL.Path, "/disable") {
 		input = struct {
-			ProfileKey          string         `json:"sku_id,omitempty"`
+			ProfileKey          string         `json:"product_id,omitempty"`
 			Name                string         `json:"name,omitempty"`
 			ProductModel        string         `json:"product_model,omitempty"`
 			Category            string         `json:"category,omitempty"`
@@ -3241,12 +3241,12 @@ func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
 			FirmwarePolicy      map[string]any `json:"firmware_policy,omitempty"`
 		}{}
 	} else if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&input); err != nil {
-		http.Error(w, "SKU 資料格式不正確。", http.StatusBadRequest)
+		http.Error(w, "Product 資料格式不正確。", http.StatusBadRequest)
 		return
 	}
 	request := accountclient.DeviceItemProfileRequest{ProfileKey: strings.TrimSpace(input.ProfileKey), DisplayName: strings.TrimSpace(input.Name), Category: strings.TrimSpace(input.Category), Manufacturer: strings.TrimSpace(input.Manufacturer), Model: strings.TrimSpace(input.ProductModel), ServiceOptions: customerServiceOptions(input.ServiceCapabilities), ClaimPolicy: input.DevicePolicy, ProvisioningPolicy: input.DevicePolicy}
 	if request.ProfileKey == "" && request.DisplayName != "" {
-		request.ProfileKey = "sku-" + strings.ToLower(strings.NewReplacer(" ", "-", "/", "-", "_", "-").Replace(request.DisplayName))
+		request.ProfileKey = "product-" + strings.ToLower(strings.NewReplacer(" ", "-", "/", "-", "_", "-").Replace(request.DisplayName))
 	}
 	if r.Method == http.MethodPost {
 		request.CAProfile = "brand-default"
@@ -3273,7 +3273,7 @@ func (s *Server) apiSKUWrite(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost && r.PathValue("id") == "" {
 		status = http.StatusCreated
 	}
-	writeJSONStatus(w, status, map[string]any{"sku": customerSKUWithActions(profile, capabilitiesForOrganization(org)), "source_status": "available"})
+	writeJSONStatus(w, status, map[string]any{"product": customerProductWithActions(profile, capabilitiesForOrganization(org)), "source_status": "available"})
 }
 
 func customerServiceOptions(labels []string) []string {
@@ -3293,7 +3293,7 @@ func customerServiceOptions(labels []string) []string {
 	return normalizeCapabilities(options)
 }
 
-func (s *Server) apiSKUPermissions(w http.ResponseWriter, r *http.Request) {
+func (s *Server) apiProductPermissions(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.customerSession(r)
 	if !ok {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
@@ -3319,10 +3319,10 @@ func (s *Server) apiSKUPermissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = tokens
-	writeJSON(w, map[string]any{"sku_id": profile.ID, "allowed_actions": skuAllowedActions(capabilitiesForOrganization(org)), "source_status": "available"})
+	writeJSON(w, map[string]any{"product_id": profile.ID, "allowed_actions": productAllowedActions(capabilitiesForOrganization(org)), "source_status": "available"})
 }
 
-func (s *Server) apiSKUImpactPreview(w http.ResponseWriter, r *http.Request) {
+func (s *Server) apiProductImpactPreview(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.customerSession(r)
 	if !ok {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
@@ -3333,7 +3333,7 @@ func (s *Server) apiSKUImpactPreview(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	allowed, checkErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, "registry_device.manage", "sku", r.PathValue("id"))
+	allowed, checkErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, "registry_device.manage", "product", r.PathValue("id"))
 	if checkErr != nil {
 		s.writeCustomerErrorForSession(w, session.ID, checkErr)
 		return
@@ -3351,7 +3351,7 @@ func (s *Server) apiSKUImpactPreview(w http.ResponseWriter, r *http.Request) {
 		FirmwarePolicy      map[string]any `json:"firmware_policy"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&proposed); err != nil {
-		http.Error(w, "SKU 變更資料格式不正確。", http.StatusBadRequest)
+		http.Error(w, "Product 變更資料格式不正確。", http.StatusBadRequest)
 		return
 	}
 	var profile accountclient.DeviceItemProfile
@@ -3378,9 +3378,9 @@ func (s *Server) apiSKUImpactPreview(w http.ResponseWriter, r *http.Request) {
 	proposedServices := customerServiceOptions(proposed.ServiceCapabilities)
 	added, removed := stringSetDiff(proposedServices, currentServices), stringSetDiff(currentServices, proposedServices)
 	writeJSON(w, map[string]any{
-		"sku_id":                   r.PathValue("id"),
-		"affected_devices":         summary.BySKU[r.PathValue("id")],
-		"affected_regions":         summary.BySKURegion[r.PathValue("id")],
+		"product_id":               r.PathValue("id"),
+		"affected_devices":         summary.ByProduct[r.PathValue("id")],
+		"affected_regions":         summary.ByProductRegion[r.PathValue("id")],
 		"current_services":         currentServices,
 		"proposed_services":        proposedServices,
 		"added_services":           added,
@@ -3405,15 +3405,15 @@ func stringSetDiff(left, right []string) []string {
 	return result
 }
 
-func customerSKU(profile accountclient.DeviceItemProfile) contracts.SKU {
-	return customerSKUWithActions(profile, nil)
+func customerProduct(profile accountclient.DeviceItemProfile) contracts.Product {
+	return customerProductWithActions(profile, nil)
 }
 
-func customerSKUWithActions(profile accountclient.DeviceItemProfile, capabilities []string) contracts.SKU {
-	return customerSKUWithActionsAndSummary(profile, capabilities, nil)
+func customerProductWithActions(profile accountclient.DeviceItemProfile, capabilities []string) contracts.Product {
+	return customerProductWithActionsAndSummary(profile, capabilities, nil)
 }
 
-func customerSKUWithActionsAndSummary(profile accountclient.DeviceItemProfile, capabilities []string, summary *accountclient.FleetSummary) contracts.SKU {
+func customerProductWithActionsAndSummary(profile accountclient.DeviceItemProfile, capabilities []string, summary *accountclient.FleetSummary) contracts.Product {
 	services := make([]string, 0, len(profile.ServiceOptions))
 	hasOTA := false
 	for _, option := range profile.ServiceOptions {
@@ -3434,10 +3434,10 @@ func customerSKUWithActionsAndSummary(profile accountclient.DeviceItemProfile, c
 	deviceCount := 0
 	var regionDistribution map[string]int
 	if summary != nil {
-		deviceCount = summary.BySKU[profile.ID]
-		regionDistribution = summary.BySKURegion[profile.ID]
+		deviceCount = summary.ByProduct[profile.ID]
+		regionDistribution = summary.ByProductRegion[profile.ID]
 	}
-	return contracts.SKU{
+	return contracts.Product{
 		ID:                  profile.ID,
 		Name:                profile.DisplayName,
 		ProductModel:        profile.Model,
@@ -3451,7 +3451,7 @@ func customerSKUWithActionsAndSummary(profile accountclient.DeviceItemProfile, c
 		FirmwarePolicy: map[string]any{
 			"ota_enabled": hasOTA,
 		},
-		AllowedActions:     skuAllowedActionsForRole(profile.CurrentUserRole, capabilities),
+		AllowedActions:     productAllowedActionsForRole(profile.CurrentUserRole, capabilities),
 		CurrentUserRole:    profile.CurrentUserRole,
 		UpdatedAt:          profile.UpdatedAt,
 		DeviceCount:        deviceCount,
@@ -3460,27 +3460,27 @@ func customerSKUWithActionsAndSummary(profile accountclient.DeviceItemProfile, c
 			if summary == nil {
 				return nil
 			}
-			return summary.BySKUFirmware[profile.ID]
+			return summary.ByProductFirmware[profile.ID]
 		}(),
 	}
 }
 
-func skuAllowedActionsForRole(role string, capabilities []string) []string {
+func productAllowedActionsForRole(role string, capabilities []string) []string {
 	switch role {
-	case "sku_owner":
-		return []string{"read", "manage_devices", "manage_updates", "view_reports", "edit_sku", "manage_collaborators", "disable_sku"}
+	case "product_owner":
+		return []string{"read", "manage_devices", "manage_updates", "view_reports", "edit_product", "manage_collaborators", "disable_product"}
 	case "brand_owner":
-		return []string{"read", "manage_devices", "manage_updates", "view_reports", "edit_sku", "disable_sku"}
-	case "sku_editor":
-		return []string{"read", "manage_devices", "manage_updates", "view_reports", "edit_sku"}
-	case "sku_viewer":
+		return []string{"read", "manage_devices", "manage_updates", "view_reports", "edit_product", "disable_product"}
+	case "product_editor":
+		return []string{"read", "manage_devices", "manage_updates", "view_reports", "edit_product"}
+	case "product_viewer":
 		return []string{"read", "view_reports"}
 	default:
-		return skuAllowedActions(capabilities)
+		return productAllowedActions(capabilities)
 	}
 }
 
-func skuAllowedActions(capabilities []string) []string {
+func productAllowedActions(capabilities []string) []string {
 	actions := []string{"read"}
 	if hasCapability(capabilities, "registry_device.manage") || hasCapability(capabilities, "customer.devices.provision") {
 		actions = append(actions, "manage_devices")
@@ -3616,27 +3616,27 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	skuID := strings.TrimSpace(r.URL.Query().Get("sku_id"))
-	if len(skuID) > 200 {
-		http.Error(w, "sku_id is too long", http.StatusBadRequest)
+	productID := strings.TrimSpace(r.URL.Query().Get("product_id"))
+	if len(productID) > 200 {
+		http.Error(w, "product_id is too long", http.StatusBadRequest)
 		return
 	}
-	devices = filterDevicesBySKU(devices, skuID)
+	devices = filterDevicesByProduct(devices, productID)
 	if dist, ok, err := s.proxyFirmwareDistribution(r.Context(), devices, orgID); err != nil {
-		writeJSON(w, unavailableFirmwareDistribution(orgID, skuID, "unavailable", "Firmware source is unavailable."))
+		writeJSON(w, unavailableFirmwareDistribution(orgID, productID, "unavailable", "Firmware source is unavailable."))
 		return
 	} else if ok {
-		dist.SKU = skuID
+		dist.Product = productID
 		dist.SourceStatus = "available"
 		dist.SourceMessage = "Firmware source loaded from Video Cloud."
 		writeJSON(w, dist)
 		return
 	}
 	status, message := s.customerFirmwareSourceStatus(devices)
-	writeJSON(w, unavailableFirmwareDistribution(orgID, skuID, status, message))
+	writeJSON(w, unavailableFirmwareDistribution(orgID, productID, status, message))
 }
 
-func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
+func (s *Server) apiProductOTA(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.customerSession(r)
 	if !ok {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
@@ -3653,18 +3653,18 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 		orgID = org.ID
 		capabilities = capabilitiesForOrganization(org)
 		otaParts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/ota/"), "/"), "/")
-		if len(otaParts) >= 2 && otaParts[0] == "skus" && strings.TrimSpace(otaParts[1]) != "" {
+		if len(otaParts) >= 2 && otaParts[0] == "products" && strings.TrimSpace(otaParts[1]) != "" {
 			permission := "registry_device.read"
 			if r.Method != http.MethodGet {
 				permission = "registry_device.manage"
 			}
-			allowed, checkErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, permission, "sku", otaParts[1])
+			allowed, checkErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, permission, "product", otaParts[1])
 			if checkErr != nil {
 				s.writeCustomerErrorForSession(w, session.ID, checkErr)
 				return
 			}
 			if !allowed {
-				writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "RESOURCE_SCOPE_FORBIDDEN", "resource": "sku", "message": "Current membership does not allow this SKU scope."})
+				writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "RESOURCE_SCOPE_FORBIDDEN", "resource": "product", "message": "Current membership does not allow this Product scope."})
 				return
 			}
 		}
@@ -3722,7 +3722,7 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 			result = "rejected"
 		}
 	}
-	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "sku_ota." + strings.ToLower(r.Method), Target: upstreamPath, OrganizationID: orgID, Result: result})
+	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "product_ota." + strings.ToLower(r.Method), Target: upstreamPath, OrganizationID: orgID, Result: result})
 }
 
 func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
@@ -3755,12 +3755,12 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 	upstreamPath := ""
 	var body []byte
 	if r.Method == http.MethodGet && r.PathValue("id") == "" {
-		skuID := strings.TrimSpace(r.URL.Query().Get("sku_id"))
-		if skuID == "" {
-			http.Error(w, "請先選擇 SKU。", http.StatusBadRequest)
+		productID := strings.TrimSpace(r.URL.Query().Get("product_id"))
+		if productID == "" {
+			http.Error(w, "請先選擇 Product。", http.StatusBadRequest)
 			return
 		}
-		upstreamPath = "/api/ota/skus/" + url.PathEscape(skuID) + "/campaigns"
+		upstreamPath = "/api/ota/products/" + url.PathEscape(productID) + "/campaigns"
 	} else if r.PathValue("id") == "" {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -3771,9 +3771,9 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "更新計畫資料格式不正確。", http.StatusBadRequest)
 			return
 		}
-		skuID, _ := payload["sku_id"].(string)
-		if strings.TrimSpace(skuID) == "" {
-			http.Error(w, "更新計畫必須指定 SKU。", http.StatusBadRequest)
+		productID, _ := payload["product_id"].(string)
+		if strings.TrimSpace(productID) == "" {
+			http.Error(w, "更新計畫必須指定 Product。", http.StatusBadRequest)
 			return
 		}
 		if scope, ok := payload["scope"].(map[string]any); ok {
@@ -3785,9 +3785,9 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "OTA plan requires a server-calculated immutable scope", http.StatusBadRequest)
 			return
 		}
-		delete(payload, "sku_id")
+		delete(payload, "product_id")
 		body, _ = json.Marshal(payload)
-		upstreamPath = "/api/ota/skus/" + url.PathEscape(strings.TrimSpace(skuID)) + "/campaigns"
+		upstreamPath = "/api/ota/products/" + url.PathEscape(strings.TrimSpace(productID)) + "/campaigns"
 	} else {
 		id := url.PathEscape(r.PathValue("id"))
 		upstreamPath = "/api/ota/campaigns/" + id
@@ -3804,7 +3804,7 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 	clone := r.Clone(r.Context())
 	clone.URL.Path = upstreamPath
 	clone.Body = io.NopCloser(bytes.NewReader(body))
-	s.apiSKUOTA(w, clone)
+	s.apiProductOTA(w, clone)
 }
 
 func (s *Server) validateImmutableOTAScope(ctx context.Context, accessToken, organizationID string, scope map[string]any) error {
@@ -3890,7 +3890,7 @@ func deviceMatchesScopeQuery(device accountclient.Device, query map[string]any) 
 		}
 		actual := ""
 		switch key {
-		case "sku_id":
+		case "product_id":
 			actual = device.DeviceItemProfileID
 		case "region", "firmware", "group_id", "category", "model", "status", "readiness":
 			if device.Metadata != nil {
@@ -3941,7 +3941,7 @@ func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var request struct {
-		SKU               string         `json:"sku_id"`
+		Product           string         `json:"product_id"`
 		Query             map[string]any `json:"query"`
 		ExcludedDeviceIDs []string       `json:"excluded_device_ids"`
 	}
@@ -3949,8 +3949,8 @@ func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "scope preview data is invalid", http.StatusBadRequest)
 		return
 	}
-	if strings.TrimSpace(request.SKU) == "" {
-		http.Error(w, "sku_id is required", http.StatusBadRequest)
+	if strings.TrimSpace(request.Product) == "" {
+		http.Error(w, "product_id is required", http.StatusBadRequest)
 		return
 	}
 	if len(request.ExcludedDeviceIDs) > 1000 {
@@ -3961,7 +3961,7 @@ func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Reques
 	if queryScope == nil {
 		queryScope = map[string]any{}
 	}
-	queryScope["sku_id"] = strings.TrimSpace(request.SKU)
+	queryScope["product_id"] = strings.TrimSpace(request.Product)
 	uniqueExcluded := make([]string, 0, len(request.ExcludedDeviceIDs))
 	seen := map[string]struct{}{}
 	for _, id := range request.ExcludedDeviceIDs {
@@ -4161,11 +4161,11 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 }
 
 func (s *Server) canonicalFirmwareCampaigns(ctx context.Context, devices []contracts.Device, orgID string) []contracts.FirmwareDistributionCampaign {
-	skus := make(map[string]struct{})
+	products := make(map[string]struct{})
 	deviceByID := make(map[string]contracts.Device, len(devices)*2)
 	for _, device := range devices {
-		if skuID := strings.TrimSpace(device.SKU); skuID != "" {
-			skus[skuID] = struct{}{}
+		if productID := strings.TrimSpace(device.Product); productID != "" {
+			products[productID] = struct{}{}
 		}
 		for _, id := range []string{strings.TrimSpace(device.ID), strings.TrimSpace(device.VideoCloudDevID)} {
 			if id != "" {
@@ -4175,13 +4175,13 @@ func (s *Server) canonicalFirmwareCampaigns(ctx context.Context, devices []contr
 	}
 
 	out := make([]contracts.FirmwareDistributionCampaign, 0)
-	for skuID := range skus {
-		campaigns, err := s.videoClient.ListOTACampaigns(ctx, s.cfg.VideoCloudAdminToken, orgID, skuID)
+	for productID := range products {
+		campaigns, err := s.videoClient.ListOTACampaigns(ctx, s.cfg.VideoCloudAdminToken, orgID, productID)
 		if err != nil {
 			continue
 		}
 		releaseVersions := map[string]string{}
-		if releases, releaseErr := s.videoClient.ListOTAReleases(ctx, s.cfg.VideoCloudAdminToken, orgID, skuID); releaseErr == nil {
+		if releases, releaseErr := s.videoClient.ListOTAReleases(ctx, s.cfg.VideoCloudAdminToken, orgID, productID); releaseErr == nil {
 			for _, release := range releases {
 				releaseVersions[strings.TrimSpace(release.ID)] = strings.TrimSpace(release.Version)
 			}
@@ -4651,10 +4651,10 @@ func unavailableFleetStreamStats(orgID string, window string, status string, mes
 	}
 }
 
-func unavailableFirmwareDistribution(orgID string, skuID string, status string, message string) contracts.FirmwareDistribution {
+func unavailableFirmwareDistribution(orgID string, productID string, status string, message string) contracts.FirmwareDistribution {
 	return contracts.FirmwareDistribution{
 		OrgID:         orgID,
-		SKU:           skuID,
+		Product:       productID,
 		SourceStatus:  status,
 		SourceMessage: message,
 		Versions:      []contracts.FirmwareDistributionVersion{},
@@ -4662,14 +4662,14 @@ func unavailableFirmwareDistribution(orgID string, skuID string, status string, 
 	}
 }
 
-func filterDevicesBySKU(devices []contracts.Device, skuID string) []contracts.Device {
-	skuID = strings.TrimSpace(skuID)
-	if skuID == "" {
+func filterDevicesByProduct(devices []contracts.Device, productID string) []contracts.Device {
+	productID = strings.TrimSpace(productID)
+	if productID == "" {
 		return devices
 	}
 	filtered := make([]contracts.Device, 0, len(devices))
 	for _, device := range devices {
-		if strings.TrimSpace(device.SKU) == skuID {
+		if strings.TrimSpace(device.Product) == productID {
 			filtered = append(filtered, device)
 		}
 	}
@@ -5306,7 +5306,7 @@ func customerSafeDevice(device contracts.Device) contracts.CustomerDevice {
 	return contracts.CustomerDevice{
 		ID:              device.ID,
 		OrganizationID:  device.OrganizationID,
-		SKU:             device.SKU,
+		Product:         device.Product,
 		Organization:    device.Organization,
 		Name:            device.Name,
 		Category:        device.Category,
@@ -6712,9 +6712,9 @@ func fleetManagerCapabilities() []string {
 		capabilityFleetRead,
 		capabilityFleetDeviceManage,
 		capabilityFleetBatchManage,
-		capabilitySKURead,
-		capabilitySKUManage,
-		capabilitySKUPolicyManage,
+		capabilityProductRead,
+		capabilityProductManage,
+		capabilityProductPolicyManage,
 		capabilityFirmwareReleaseRead,
 		capabilityFirmwareReleaseManage,
 		capabilityOTAPlanRead,
@@ -7178,7 +7178,7 @@ func mapUpstreamDevice(org accountclient.Organization, device accountclient.Devi
 	mapped := contracts.Device{
 		ID:              device.ID,
 		OrganizationID:  fallback(device.OrganizationID, org.ID),
-		SKU:             device.DeviceItemProfileID,
+		Product:         device.DeviceItemProfileID,
 		Organization:    fallback(device.Organization, org.Name),
 		Name:            fallback(device.Name, device.ID),
 		Category:        fallback(device.Category, metadataString(device.Metadata, "category", "device")),

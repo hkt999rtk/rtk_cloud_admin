@@ -28,7 +28,7 @@ test('[UI-CA-AUTH-002] checkbox follows the shared console control style @smoke'
   await login(page, 'developer');
   await page.goto('/console/brand-e2e-01/reports');
 
-  const checkbox = page.getByRole('checkbox', { name: 'sku' });
+  const checkbox = page.getByRole('checkbox', { name: 'product' });
   await expect(checkbox).toBeVisible();
   await expect(checkbox).toHaveCSS('appearance', 'none');
   await expect(checkbox).toHaveCSS('width', '18px');

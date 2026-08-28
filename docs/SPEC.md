@@ -71,7 +71,7 @@ Included in v0.1:
   - Brand Fleet Overview for 100K+ devices
   - server-side Devices table with detail drawer and batch actions
   - Groups and Tags
-  - SKU and Services, including product/device specifications and policies
+  - Product and Services, including product/device specifications and policies
   - Firmware Releases and full OTA Update Plans
   - Batch Jobs and Reports
   - async provisioning validation, confirmation, execution, and result views
@@ -219,15 +219,15 @@ Acceptance: Customer login requires at least one customer organization; platform
   injects trusted Grafana auth-proxy identity headers before forwarding.
 - `GET /api/devices`: device list from cache/demo or upstream aggregation.
 - `GET /api/devices/{id}`: device detail.
-- `GET /api/skus`: SKU list with enabled services, policies, counts, and
+- `GET /api/products`: Product list with enabled services, policies, counts, and
   current-user allowed actions.
-- `GET /api/skus/{id}`: SKU detail and affected device/firmware summaries.
-- `GET /api/fleet/summary`: server-side fleet, SKU, service, region, firmware,
+- `GET /api/products/{id}`: Product detail and affected device/firmware summaries.
+- `GET /api/fleet/summary`: server-side fleet, Product, service, region, firmware,
   and batch-job aggregates.
 - `POST /api/devices/{id}/provision`: starts or simulates provisioning.
 - `POST /api/devices/{id}/deactivate`: starts or simulates deactivation.
 
-### [REQ-CA-BFF-ENTITLEMENT-001] Effective SKU actions never infer entitlement from presentation fields
+### [REQ-CA-BFF-ENTITLEMENT-001] Effective Product actions never infer entitlement from presentation fields
 
 <!-- rtk-requirement
 {"acceptance_layer":"integration","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
@@ -235,8 +235,8 @@ Acceptance: Customer login requires at least one customer organization; platform
 
 Acceptance: Cloud Admin composes Account Manager product authorization with Video Cloud release/deployment facts and never infers service entitlement or human permissions from model names, raw ACL labels, or runtime token scopes.
 
-SKU service capabilities and human ACL are separate. Account Manager owns SKU
-profiles, device-to-SKU membership, service capability policy, and product
+Product service capabilities and human ACL are separate. Account Manager owns Product
+profiles, device-to-Product membership, service capability policy, and product
 authorization facts. Video Cloud owns firmware releases, OTA campaigns, and
 deployment results. Cloud Admin presents the effective result and must not
 infer service entitlement or user permissions from model names or runtime
@@ -626,13 +626,13 @@ Acceptance: Customer navigation remains separated from platform navigation.
 
 Acceptance: Developer and release roles can manage release surfaces.
 
-#### [REQ-UI-CA-ROLE-002] Operations role cannot mutate SKU policy or release metadata
+#### [REQ-UI-CA-ROLE-002] Operations role cannot mutate Product policy or release metadata
 
 <!-- rtk-requirement
 {"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
-Acceptance: Operations role cannot mutate SKU policy or release metadata.
+Acceptance: Operations role cannot mutate Product policy or release metadata.
 
 #### [REQ-UI-CA-ROLE-003] Observer role is read-only through UI and API
 

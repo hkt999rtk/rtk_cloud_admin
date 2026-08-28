@@ -76,7 +76,7 @@ identity:
 | Surface | Required functional parity |
 | --- | --- |
 | Overview / Devices | Active-cloud scope, server pagination/filtering, cross-page selection, safe source states |
-| SKU | Service/device/firmware policy, ACL impact preview, capability-gated writes |
+| Product | Service/device/firmware policy, ACL impact preview, capability-gated writes |
 | Firmware / OTA | Release lifecycle, artifact validation, server scope preview, immutable plan, lifecycle controls |
 | Jobs | Bounded query, progress, partial failure, per-item result, retry attempt, CSV/JSON download and expiry |
 | Reports | Async builder with type, dimensions, range, timezone, scope, output, freshness and expiry |
@@ -162,7 +162,7 @@ the production surface.
 | Devices | 我的設備 |
 | Firmware & OTA | 韌體更新 |
 | Stream Health | 影像播放狀況 |
-| Products and Device Profiles | SKU 與服務 |
+| Products and Device Profiles | Product 與服務 |
 
 The English internal names remain valid for routes, code, API fields, and
 documentation references. They are not the primary customer-facing labels.
@@ -177,7 +177,7 @@ documentation references. They are not the primary customer-facing labels.
   update progress. Campaign implementation details are secondary.
 - **影像播放狀況:** playback success, devices with playback problems, and
   devices that have never played successfully. Protocol names are secondary.
-- **SKU 與服務:** connect each SKU to its product/device specification,
+- **Product 與服務:** connect each Product to its product/device specification,
   enabled services, user permissions, device policy, and firmware policy.
   This page is for brand operators, not end users.
 
@@ -198,31 +198,31 @@ Do not require users to understand WebRTC, OTA, readiness, source status,
 campaign, rollout, or raw device identifiers. These values belong in expanded
 details or Platform View diagnostics.
 
-### SKU 與服務
+### Product 與服務
 
-The SKU page follows the shared design defined in
+The Product page follows the shared design defined in
 `admin-dashboard-redesign.md` and must not create a separate product or
-permission vocabulary. Each SKU shows:
+permission vocabulary. Each Product shows:
 
-- 基本資料：SKU、產品名稱、產品型號、產品線、硬體版本。
+- 基本資料：Product、產品名稱、產品型號、產品線、硬體版本。
 - 可用服務：影像服務、即時觀看、錄影與保存、設備回報、韌體更新。
 - 使用者權限：目前角色可以查看或執行的操作。
 - 設備政策：設定、綁定、啟用與停用規則。
 - 韌體政策：可用版本、硬體相容性、OTA 規則、防止回退與更新計畫。
 
-The device drawer links the device to one SKU and shows the services and
-policies inherited from that SKU. A disabled or unsupported service is shown
+The device drawer links the device to one Product and shows the services and
+policies inherited from that Product. A disabled or unsupported service is shown
 as `未啟用`, `不適用`, or `需要聯絡管理者`; raw `service_options`, runtime
 scopes, and ACL permission names remain detail-only.
 
-SKU editing is a guided flow:
+Product editing is a guided flow:
 
 ```
 基本資料 → 產品與硬體規格 → 可用服務 → 設備政策 → 韌體政策
 → ACL 影響預覽 → 關聯設備檢查 → 儲存
 ```
 
-The impact preview must show affected SKU/device counts, region/group scope,
+The impact preview must show affected Product/device counts, region/group scope,
 current service state, and whether reprovisioning or firmware update may be
 required.
 
@@ -314,7 +314,7 @@ The fixed group and item order is:
 | --- | --- |
 | 品牌雲 | 品牌雲首頁 |
 | 設備營運 | 設備、群組與標籤、設備註冊、批次工作 |
-| 產品與更新 | SKU 與服務、ChipSet & SDK、韌體更新 |
+| 產品與更新 | Product 與服務、ChipSet & SDK、韌體更新 |
 | 監控與分析 | 影像播放狀況、報表 |
 | 帳號管理 | 帳務與自動加值 |
 
@@ -620,8 +620,8 @@ Account Manager/Video Cloud contracts.
 
 Required layout:
 
-- SKU selector as the first control. The page does not load or combine firmware
-  status until the operator selects one SKU.
+- Product selector as the first control. The page does not load or combine firmware
+  status until the operator selects one Product.
 - KPI strip with `Latest Version`, `Devices Current`, `Pending Update`, and
   `Failed Rollout`.
 - Firmware distribution panel with version rows, count, percent of fleet, and
@@ -635,16 +635,16 @@ Required layout:
 Behavior notes:
 
 - Firmware distribution, releases, campaigns, rollout details, and risk rows
-  are scoped to the selected SKU. Changing SKU clears campaign selection and
-  scope previews before loading the new SKU state.
-- The selected SKU is preserved in the `sku_id` query parameter for refresh,
+  are scoped to the selected Product. Changing Product clears campaign selection and
+  scope previews before loading the new Product state.
+- The selected Product is preserved in the `product_id` query parameter for refresh,
   direct links, and Back/Forward navigation.
 - Clicking a firmware version should navigate to the Devices page with that
-  firmware and SKU pre-filtered when supported.
+  firmware and Product pre-filtered when supported.
 - Campaign creation, tenant-wide write actions, and policy editing are exposed
   only when the active membership has the corresponding release or OTA
   capability; Operations and Observer users remain read-only for release
-  metadata and SKU policy.
+  metadata and Product policy.
 - Unknown firmware should be visible and sortable as an operational risk.
 - Production firmware distribution must use observed firmware and rollout facts
   from Video Cloud or the normalized telemetry read model, not generated sample

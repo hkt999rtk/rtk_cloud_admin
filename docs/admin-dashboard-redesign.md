@@ -86,7 +86,7 @@ The current Brand Fleet pages use these customer-facing names:
 | OTA Campaign | 更新計畫 |
 | Batch Job | 批次工作 |
 | Report | 報表 |
-| SKU | SKU 與服務 |
+| Product | Product 與服務 |
 | Service Capability | 可用服務 |
 | Product Policy | 設備政策 |
 | Firmware Policy | 韌體政策 |
@@ -168,7 +168,7 @@ Operations roles:
 └─ 批次工作
 
 產品與更新
-├─ SKU 與服務
+├─ Product 與服務
 ├─ ChipSet & SDK
 └─ 韌體更新
 
@@ -190,24 +190,24 @@ remain distinct deep links while sharing the Brand Cloud name, Cloud ID,
 organization selector, and tab strip.
 
 `成員與權限` uses the same scope model as the backend: a role assignment can
-cover the whole organization, one SKU, a region, a device group, or a single
+cover the whole organization, one Product, a region, a device group, or a single
 device. The tab shows role names and readable scope labels; raw permission
 names and internal actor identifiers stay out of the primary workflow. Owner
 transfer and PKI test tools live under `設定`, not in the everyday member list.
 
-SKU collaboration is managed from `SKU 與服務`, not from the tenant-wide team
-table. The Brand Cloud owner alone creates a SKU and becomes its initial owner.
-The SKU owner invites registered developers as Editor or Viewer, changes or
+Product collaboration is managed from `Product 與服務`, not from the tenant-wide team
+table. The Brand Cloud owner alone creates a Product and becomes its initial owner.
+The Product owner invites registered developers as Editor or Viewer, changes or
 removes collaborators, and may explicitly transfer ownership. Cards and tables
-show the current user's effective SKU role and only render server-projected
-`allowed_actions`. A developer with a valid Brand Cloud identity but no SKU
+show the current user's effective Product role and only render server-projected
+`allowed_actions`. A developer with a valid Brand Cloud identity but no Product
 assignment sees an empty project state rather than the tenant's full catalog.
 
-The `SKU 與服務` surface is the source of truth for the operator-facing
-relationship between a SKU, its product/device specification, enabled service
-capabilities, user permissions, device policy, and firmware policy. A SKU is
+The `Product 與服務` surface is the source of truth for the operator-facing
+relationship between a Product, its product/device specification, enabled service
+capabilities, user permissions, device policy, and firmware policy. A Product is
 not a human role: it defines what the device can use, while ACL defines what a
-person may view or operate within the permitted SKU, region, group, or device
+person may view or operate within the permitted Product, region, group, or device
 scope.
 
 Device registration and claim/bind remain part of the provision flow, not a
@@ -215,27 +215,27 @@ Dashboard workflow. Brand Fleet may show setup status, last operation result,
 and a link or instruction to use the approved provisioning path, but it must
 not present a second device-registration form.
 
-### SKU 與服務 UI 設計
+### Product 與服務 UI 設計
 
-The SKU detail view is organized into five operator-facing sections:
+The Product detail view is organized into five operator-facing sections:
 
-1. **基本資料** — SKU name and ID, product name, model, product line, and
+1. **基本資料** — Product name and ID, product name, model, product line, and
    hardware revision.
 2. **可用服務** — 影像服務、即時觀看、錄影與保存、設備回報、韌體更新。
-3. **使用者權限** — what the current role may view or operate for this SKU,
+3. **使用者權限** — what the current role may view or operate for this Product,
    including device settings, update plans, and reports.
 4. **設備政策** — provision/setup rules, claim/bind rules, supported device
    types, activation conditions, and deactivation conditions.
 5. **韌體政策** — eligible versions, hardware compatibility, OTA availability,
    update restrictions, anti-rollback policy, and current update plans.
 
-The device detail view must link each device back to its SKU and show the
+The device detail view must link each device back to its Product and show the
 enabled services, applied device policy, applied firmware policy, and the
-actions allowed by the current user's ACL. The device table adds SKU, product
+actions allowed by the current user's ACL. The device table adds Product, product
 line, service summary, and firmware-policy status where the backend provides
 them.
 
-Creating or editing a SKU follows this sequence:
+Creating or editing a Product follows this sequence:
 
 ```
 基本資料 → 產品與硬體規格 → 選擇可用服務 → 設定設備政策
@@ -243,7 +243,7 @@ Creating or editing a SKU follows this sequence:
 ```
 
 Any change that can affect existing devices or OTA scope must preview the
-affected SKU, device count, region/group scope, current service state, and
+affected Product, device count, region/group scope, current service state, and
 whether reprovisioning or firmware update may be required.
 
 The UI must not expose `service_options`, runtime token scopes, raw ACL

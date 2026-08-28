@@ -18,7 +18,7 @@ export const customerNavGroups = [
     id: 'product-updates',
     label: '產品與更新',
     items: [
-      { id: 'sku-services', label: 'SKU 與服務', path: '/console/sku-services', icon: 'boxes-stacked', capabilities: ['sku.read', 'registry_device.read'] },
+      { id: 'product-services', label: 'Product 與服務', path: '/console/product-services', icon: 'boxes-stacked', capabilities: ['product.read', 'registry_device.read'] },
       { id: 'chipset-sdk', label: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch' },
       { id: 'firmware-ota', label: '韌體更新', path: '/console/firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
     ],
@@ -152,10 +152,10 @@ export function titleFor(active) {
     'signup-verification-expired': 'Verification link expired',
     verify: 'Verify email',
     'brand-cloud-member-invitation-accept': 'Accept Brand Cloud invitation',
-    'sku-collaborator-invitation-accept': 'Accept SKU collaboration invitation',
+    'product-collaborator-invitation-accept': 'Accept Product collaboration invitation',
     overview: '品牌雲',
     devices: '設備',
-    'sku-services': 'SKU 與服務',
+    'product-services': 'Product 與服務',
     'chipset-sdk': 'ChipSet & SDK',
     groups: '群組與標籤',
     access: '品牌雲',
@@ -190,7 +190,7 @@ export function routeFromPath(path) {
   if (path === '/signup/verify' || path.startsWith('/signup/verify/')) return 'verify';
   if (path === '/verify' || path.startsWith('/verify/')) return 'verify';
   if (path === '/brand-cloud-member-invitation/accept') return 'brand-cloud-member-invitation-accept';
-  if (path === '/sku-collaborator-invitation/accept') return 'sku-collaborator-invitation-accept';
+  if (path === '/product-collaborator-invitation/accept') return 'product-collaborator-invitation-accept';
   if (path === '/admin' || path === '/admin/') return 'platform-dashboard';
   if (path === '/admin/grafana' || path.startsWith('/admin/grafana/')) return 'platform-grafana';
   if (path === '/admin/resources' || path.startsWith('/admin/resources/')) return 'platform-dashboard';
@@ -205,10 +205,10 @@ export function routeFromPath(path) {
   if (path.startsWith('/admin/')) return 'platform-dashboard';
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
-  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|sku-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
+  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
   if (scoped) return scoped[2] === 'jobs' ? 'firmware-ota' : scoped[2];
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
-  if (path === '/console/sku-services' || path.startsWith('/console/sku-services/')) return 'sku-services';
+  if (path === '/console/product-services' || path.startsWith('/console/product-services/')) return 'product-services';
   if (path === '/console/chipset-sdk' || path.startsWith('/console/chipset-sdk/')) return 'chipset-sdk';
   if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
   if (path === '/console/access' || path.startsWith('/console/access/')) return 'access';
@@ -230,8 +230,8 @@ export function routeFromPath(path) {
 }
 
 export function cloudIdFromPath(path) {
-  if (/^\/console\/(?:overview|devices|sku-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/.test(String(path || ''))) return '';
-  const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|sku-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
+  if (/^\/console\/(?:overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/.test(String(path || ''))) return '';
+  const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
   return match ? decodeURIComponent(match[1]) : '';
 }
 
@@ -246,14 +246,14 @@ export function canonicalCustomerPath(path) {
   return path;
 }
 
-export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '', skuID = '', q = '', sort = '', direction = '', offset = '' } = {}) {
+export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '', productID = '', q = '', sort = '', direction = '', offset = '' } = {}) {
   const params = new URLSearchParams();
   if (deviceId) params.set('device', deviceId);
   if (health) params.set('health', health);
   if (status) params.set('status', status);
   if (signal) params.set('signal', signal);
   if (firmware) params.set('firmware', firmware);
-  if (skuID) params.set('sku_id', skuID);
+  if (productID) params.set('product_id', productID);
   if (q) params.set('q', q);
   if (sort) params.set('sort', sort);
   if (direction) params.set('direction', direction);

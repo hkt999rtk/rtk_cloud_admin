@@ -804,15 +804,15 @@ main {
   margin-top: 4px;
 }
 
-.sku-create-form {
+.product-create-form {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.sku-create-form input,
-.sku-create-form select {
+.product-create-form input,
+.product-create-form select {
   border: 1px solid var(--line);
   border-radius: 6px;
   min-height: 42px;
@@ -2285,7 +2285,7 @@ p {
   gap: 18px;
 }
 
-.firmware-sku-selector {
+.firmware-product-selector {
   align-items: end;
   background: #f8fafc;
   border: 1px solid var(--line);
@@ -2296,24 +2296,24 @@ p {
   padding: 14px;
 }
 
-.firmware-sku-field {
+.firmware-product-field {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
 
-.firmware-sku-field > span {
+.firmware-product-field > span {
   color: var(--muted);
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.firmware-sku-field .select-control {
+.firmware-product-field .select-control {
   min-height: 42px;
 }
 
-.firmware-sku-selector p {
+.firmware-product-selector p {
   margin: 0 0 8px;
 }
 
@@ -5316,12 +5316,12 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .firmware-sku-selector {
+  .firmware-product-selector {
     align-items: stretch;
     grid-template-columns: 1fr;
   }
 
-  .firmware-sku-selector p {
+  .firmware-product-selector p {
     margin: 0;
   }
 

@@ -32,7 +32,7 @@ type OTAResponse struct {
 
 type OTACampaignRecord struct {
 	ID                  string `json:"campaign_id"`
-	SKUID               string `json:"sku_id"`
+	ProductID           string `json:"product_id"`
 	ReleaseID           string `json:"release_id"`
 	Name                string `json:"name,omitempty"`
 	State               string `json:"state"`
@@ -317,12 +317,12 @@ func (c *Client) DoOTA(ctx context.Context, method, path, adminToken, brandCloud
 	return OTAResponse{StatusCode: resp.StatusCode, Body: raw, Header: resp.Header.Clone()}, nil
 }
 
-func (c *Client) ListOTACampaigns(ctx context.Context, adminToken, brandCloudID, skuID string) ([]OTACampaignRecord, error) {
-	return fetchOTAPage[OTACampaignRecord](ctx, c, "/v1/ota/skus/"+url.PathEscape(strings.TrimSpace(skuID))+"/campaigns", adminToken, brandCloudID)
+func (c *Client) ListOTACampaigns(ctx context.Context, adminToken, brandCloudID, productID string) ([]OTACampaignRecord, error) {
+	return fetchOTAPage[OTACampaignRecord](ctx, c, "/v1/ota/products/"+url.PathEscape(strings.TrimSpace(productID))+"/campaigns", adminToken, brandCloudID)
 }
 
-func (c *Client) ListOTAReleases(ctx context.Context, adminToken, brandCloudID, skuID string) ([]OTAReleaseRecord, error) {
-	return fetchOTAPage[OTAReleaseRecord](ctx, c, "/v1/ota/skus/"+url.PathEscape(strings.TrimSpace(skuID))+"/releases", adminToken, brandCloudID)
+func (c *Client) ListOTAReleases(ctx context.Context, adminToken, brandCloudID, productID string) ([]OTAReleaseRecord, error) {
+	return fetchOTAPage[OTAReleaseRecord](ctx, c, "/v1/ota/products/"+url.PathEscape(strings.TrimSpace(productID))+"/releases", adminToken, brandCloudID)
 }
 
 func (c *Client) ListOTADeployments(ctx context.Context, adminToken, brandCloudID, campaignID string) ([]OTADeploymentRecord, error) {

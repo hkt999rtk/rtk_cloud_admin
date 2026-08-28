@@ -100,7 +100,7 @@ func TestBatchJobsPersistByOrganizationAndCanRetry(t *testing.T) {
 	if err := st.Migrate(); err != nil {
 		t.Fatal(err)
 	}
-	job, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "org-a", Type: "report_export", Name: "設備報表", CreatedBy: "ops@example.com", Scope: map[string]any{"sku_id": "sku-1"}, Total: 42, IdempotencyKey: "report-key-1"})
+	job, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "org-a", Type: "report_export", Name: "設備報表", CreatedBy: "ops@example.com", Scope: map[string]any{"product_id": "product-1"}, Total: 42, IdempotencyKey: "report-key-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestBatchJobsPersistByOrganizationAndCanRetry(t *testing.T) {
 		t.Fatal("expected duplicate idempotency key to fail")
 	}
 	listed, err := st.ListBatchJobs("org-a", 10)
-	if err != nil || len(listed) != 1 || listed[0].Scope["sku_id"] != "sku-1" {
+	if err != nil || len(listed) != 1 || listed[0].Scope["product_id"] != "product-1" {
 		t.Fatalf("unexpected job list: %+v, %v", listed, err)
 	}
 	if _, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "org-a", Type: "device_provision", Name: "Provision", CreatedBy: "release@example.com", Scope: map[string]any{}, State: "failed"}); err != nil {
@@ -599,7 +599,7 @@ func TestProvisioningSourcePersistenceAndIdempotency(t *testing.T) {
 	}
 	want := contracts.ProvisioningSource{
 		OrganizationID: "org-acme",
-		SKU:            "sku-home-hub",
+		Product:        "product-home-hub",
 		Filename:       "devices.csv",
 		Checksum:       "sha256:abc",
 		RowCount:       2,
