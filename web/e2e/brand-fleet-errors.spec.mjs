@@ -6,8 +6,8 @@ test.describe('Brandname source and error states', () => {
   test('[UI-CA-SOURCE-001] empty source renders an empty state @brand-fleet @errors', async ({ page }) => {
     test.skip(process.env.E2E_SCENARIO_MODE !== 'empty', 'run with E2E_SCENARIO_MODE=empty');
     await login(page, 'developer');
-    await page.goto('/console/brand-e2e-01/sku-services');
-    await expect(page.getByText('目前沒有 SKU')).toBeVisible();
+    await page.goto('/console/brand-e2e-01/product-services');
+    await expect(page.getByText('目前沒有 Product')).toBeVisible();
   });
 
   test('[UI-CA-SOURCE-002] stale source keeps data and exposes freshness state @brand-fleet @errors', async ({ page }) => {
@@ -22,7 +22,7 @@ test.describe('Brandname source and error states', () => {
     await login(page, 'developer');
     const shellResponses = new Map([
       ['/api/summary', {}], ['/api/customers', []], ['/api/fleet/devices', { devices: [] }],
-      ['/api/fleet/summary', {}], ['/api/skus', { skus: [], source_status: 'unavailable', source_message: 'SKU 資料暫時無法取得。' }],
+      ['/api/fleet/summary', {}], ['/api/products', { products: [], source_status: 'unavailable', source_message: 'Product 資料暫時無法取得。' }],
     ]);
     await page.route('**/api/**', (route) => {
       const response = shellResponses.get(new URL(route.request().url()).pathname);
@@ -30,9 +30,9 @@ test.describe('Brandname source and error states', () => {
         ? route.continue()
         : route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) });
     });
-    await page.goto('/console/brand-e2e-01/sku-services');
+    await page.goto('/console/brand-e2e-01/product-services');
     await expect(page.getByText(/暫時無法取得|unavailable|無法取得|not configured/i).first()).toBeVisible();
-    await expect(page.getByText('目前沒有 SKU')).toHaveCount(0);
+    await expect(page.getByText('目前沒有 Product')).toHaveCount(0);
   });
 
   test('[UI-CA-SOURCE-004] customer-safe error does not expose upstream credentials @brand-fleet @errors', async ({ page }) => {

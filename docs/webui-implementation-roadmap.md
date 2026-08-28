@@ -366,7 +366,7 @@ distribution, rollout progress, and firmware risk.
 
 ## Scope
 
-- Require an explicit SKU selection before loading firmware state and preserve
+- Require an explicit Product selection before loading firmware state and preserve
   the selection in the URL.
 - Implement KPI strip: Latest Version, Devices Current, Pending Update, Failed
   Rollout.
@@ -395,8 +395,8 @@ distribution, rollout progress, and firmware risk.
 
 ## Acceptance Criteria
 
-- No cross-SKU firmware totals or rollout campaigns are rendered; changing the
-  SKU reloads the distribution and release collections for that SKU only.
+- No cross-Product firmware totals or rollout campaigns are rendered; changing the
+  Product reloads the distribution and release collections for that Product only.
 
 - Campaign data is read-only throughout the page.
 - Firmware version rows can route to filtered Devices views where supported.

@@ -28,7 +28,7 @@ const (
 type Device struct {
 	ID              string         `json:"id"`
 	OrganizationID  string         `json:"organization_id"`
-	SKU             string         `json:"sku_id,omitempty"`
+	Product         string         `json:"product_id,omitempty"`
 	Organization    string         `json:"organization"`
 	Name            string         `json:"name"`
 	Category        string         `json:"category"`
@@ -48,7 +48,7 @@ type Device struct {
 type CustomerDevice struct {
 	ID              string               `json:"id"`
 	OrganizationID  string               `json:"organization_id"`
-	SKU             string               `json:"sku_id,omitempty"`
+	Product         string               `json:"product_id,omitempty"`
 	Organization    string               `json:"organization"`
 	Name            string               `json:"name"`
 	Category        string               `json:"category"`
@@ -64,7 +64,7 @@ type CustomerDevice struct {
 	UpdatedAt       string               `json:"updated_at"`
 }
 
-type SKU struct {
+type Product struct {
 	ID                   string         `json:"id"`
 	Name                 string         `json:"name"`
 	ProductModel         string         `json:"product_model,omitempty"`
@@ -84,18 +84,18 @@ type SKU struct {
 }
 
 type FleetSummary struct {
-	Total          int                       `json:"total"`
-	ByStatus       map[string]int            `json:"by_status"`
-	BySKU          map[string]int            `json:"by_sku"`
-	ByModel        map[string]int            `json:"by_model"`
-	ByFirmware     map[string]int            `json:"by_firmware"`
-	ByRegion       map[string]int            `json:"by_region"`
-	ServiceEnabled map[string]int            `json:"service_enabled"`
-	BySKURegion    map[string]map[string]int `json:"by_sku_region,omitempty"`
-	BySKUFirmware  map[string]map[string]int `json:"by_sku_firmware,omitempty"`
-	UpdatedAt      string                    `json:"updated_at"`
-	SourceStatus   string                    `json:"source_status"`
-	SourceMessage  string                    `json:"source_message,omitempty"`
+	Total             int                       `json:"total"`
+	ByStatus          map[string]int            `json:"by_status"`
+	ByProduct         map[string]int            `json:"by_product"`
+	ByModel           map[string]int            `json:"by_model"`
+	ByFirmware        map[string]int            `json:"by_firmware"`
+	ByRegion          map[string]int            `json:"by_region"`
+	ServiceEnabled    map[string]int            `json:"service_enabled"`
+	ByProductRegion   map[string]map[string]int `json:"by_product_region,omitempty"`
+	ByProductFirmware map[string]map[string]int `json:"by_product_firmware,omitempty"`
+	UpdatedAt         string                    `json:"updated_at"`
+	SourceStatus      string                    `json:"source_status"`
+	SourceMessage     string                    `json:"source_message,omitempty"`
 }
 
 type BatchJob struct {
@@ -123,7 +123,7 @@ type BatchJob struct {
 type ProvisioningSource struct {
 	ID             string   `json:"id"`
 	OrganizationID string   `json:"organization_id"`
-	SKU            string   `json:"sku_id"`
+	Product        string   `json:"product_id"`
 	ProductionRun  string   `json:"production_run,omitempty"`
 	Filename       string   `json:"filename"`
 	Checksum       string   `json:"checksum"`
@@ -561,7 +561,7 @@ type FirmwareDistributionCampaign struct {
 
 type FirmwareDistribution struct {
 	OrgID         string                         `json:"org_id"`
-	SKU           string                         `json:"sku_id,omitempty"`
+	Product       string                         `json:"product_id,omitempty"`
 	SourceStatus  string                         `json:"source_status"`
 	SourceMessage string                         `json:"source_message,omitempty"`
 	Versions      []FirmwareDistributionVersion  `json:"versions"`

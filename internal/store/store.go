@@ -280,7 +280,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_batch_jobs_org_idempotency ON batch_jobs (
 		sql: `CREATE TABLE IF NOT EXISTS provisioning_sources (
 	id TEXT PRIMARY KEY,
 	organization_id TEXT NOT NULL,
-	sku_id TEXT NOT NULL,
+	product_id TEXT NOT NULL,
 	production_run TEXT NOT NULL DEFAULT '',
 	filename TEXT NOT NULL,
 	checksum TEXT NOT NULL,
@@ -636,22 +636,22 @@ func (s *Store) CreateProvisioningSource(source contracts.ProvisioningSource, id
 	if err != nil {
 		return contracts.ProvisioningSource{}, err
 	}
-	_, err = s.db.Exec(`INSERT INTO provisioning_sources (id, organization_id, sku_id, production_run, filename, checksum, row_count, device_ids_json, created_at, expires_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, source.ID, source.OrganizationID, source.SKU, source.ProductionRun, source.Filename, source.Checksum, source.RowCount, string(raw), source.CreatedAt, source.ExpiresAt, idempotencyKey)
+	_, err = s.db.Exec(`INSERT INTO provisioning_sources (id, organization_id, product_id, production_run, filename, checksum, row_count, device_ids_json, created_at, expires_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, source.ID, source.OrganizationID, source.Product, source.ProductionRun, source.Filename, source.Checksum, source.RowCount, string(raw), source.CreatedAt, source.ExpiresAt, idempotencyKey)
 	return source, err
 }
 
 func (s *Store) GetProvisioningSource(organizationID, id string) (contracts.ProvisioningSource, error) {
-	return scanProvisioningSource(s.db.QueryRow(`SELECT id, organization_id, sku_id, production_run, filename, checksum, row_count, device_ids_json, created_at, expires_at FROM provisioning_sources WHERE organization_id = ? AND id = ?`, organizationID, id))
+	return scanProvisioningSource(s.db.QueryRow(`SELECT id, organization_id, product_id, production_run, filename, checksum, row_count, device_ids_json, created_at, expires_at FROM provisioning_sources WHERE organization_id = ? AND id = ?`, organizationID, id))
 }
 
 func (s *Store) GetProvisioningSourceByIdempotency(organizationID, key string) (contracts.ProvisioningSource, error) {
-	return scanProvisioningSource(s.db.QueryRow(`SELECT id, organization_id, sku_id, production_run, filename, checksum, row_count, device_ids_json, created_at, expires_at FROM provisioning_sources WHERE organization_id = ? AND idempotency_key = ?`, organizationID, key))
+	return scanProvisioningSource(s.db.QueryRow(`SELECT id, organization_id, product_id, production_run, filename, checksum, row_count, device_ids_json, created_at, expires_at FROM provisioning_sources WHERE organization_id = ? AND idempotency_key = ?`, organizationID, key))
 }
 
 func scanProvisioningSource(row rowScannerSQL) (contracts.ProvisioningSource, error) {
 	var source contracts.ProvisioningSource
 	var raw string
-	if err := row.Scan(&source.ID, &source.OrganizationID, &source.SKU, &source.ProductionRun, &source.Filename, &source.Checksum, &source.RowCount, &raw, &source.CreatedAt, &source.ExpiresAt); err != nil {
+	if err := row.Scan(&source.ID, &source.OrganizationID, &source.Product, &source.ProductionRun, &source.Filename, &source.Checksum, &source.RowCount, &raw, &source.CreatedAt, &source.ExpiresAt); err != nil {
 		return contracts.ProvisioningSource{}, err
 	}
 	if err := json.Unmarshal([]byte(raw), &source.DeviceIDs); err != nil {

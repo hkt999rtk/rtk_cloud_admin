@@ -59,9 +59,9 @@ test('maps Brand Cloud membership invitation acceptance outside regular console 
   assert.equal(titleFor('brand-cloud-member-invitation-accept'), 'Accept Brand Cloud invitation');
 });
 
-test('maps SKU collaborator invitation acceptance outside regular console navigation', () => {
-  assert.equal(routeFromPath('/sku-collaborator-invitation/accept'), 'sku-collaborator-invitation-accept');
-  assert.equal(titleFor('sku-collaborator-invitation-accept'), 'Accept SKU collaboration invitation');
+test('maps Product collaborator invitation acceptance outside regular console navigation', () => {
+  assert.equal(routeFromPath('/product-collaborator-invitation/accept'), 'product-collaborator-invitation-accept');
+  assert.equal(titleFor('product-collaborator-invitation-accept'), 'Accept Product collaboration invitation');
 });
 
 test('maps customer shell paths to customer routes', () => {
@@ -70,7 +70,7 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/devices'), 'devices');
   assert.equal(routeFromPath('/console/cloud-123/devices'), 'devices');
   assert.equal(cloudIdFromPath('/console/cloud-123/devices'), 'cloud-123');
-  assert.equal(routeFromPath('/console/sku-services'), 'sku-services');
+  assert.equal(routeFromPath('/console/product-services'), 'product-services');
   assert.equal(routeFromPath('/console/chipset-sdk'), 'chipset-sdk');
   assert.equal(routeFromPath('/console/customers'), 'overview');
   assert.equal(routeFromPath('/console/operations'), 'overview');
@@ -109,7 +109,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['品牌雲首頁', '設備', '設備註冊', 'SKU 與服務', 'ChipSet & SDK', '韌體更新', '影像播放狀況', '報表', '帳務與自動加值'],
+    ['品牌雲首頁', '設備', '設備註冊', 'Product 與服務', 'ChipSet & SDK', '韌體更新', '影像播放狀況', '報表', '帳務與自動加值'],
   );
   assert.deepEqual(customerNavGroups.map((group) => group.label), ['品牌雲', '設備營運', '產品與更新', '監控與分析', '帳號管理']);
 });
@@ -123,7 +123,7 @@ test('customer nav is derived from active membership capabilities', () => {
   assert.deepEqual(labels, ['品牌雲首頁', '設備', 'ChipSet & SDK', '影像播放狀況']);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'overview'), true);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), false);
-  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'sku-services'), false);
+  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'product-services'), false);
   assert.equal(navItemsForCapabilities('overview', ['billing_account.read']).some((item) => item.id === 'billing'), true);
 });
 
@@ -196,8 +196,8 @@ test('builds devices URLs with supported filters only', () => {
   assert.equal(devicesPathWithFilters(), '/console/devices');
   assert.equal(devicesPathWithFilters({ deviceId: 'dev-001' }), '/console/devices?device=dev-001');
   assert.equal(
-    devicesPathWithFilters({ health: 'warning', status: 'online', signal: 'poor', firmware: 'v1.2.4', skuID: 'sku-alpha', ignored: 'x' }),
-    '/console/devices?health=warning&status=online&signal=poor&firmware=v1.2.4&sku_id=sku-alpha',
+    devicesPathWithFilters({ health: 'warning', status: 'online', signal: 'poor', firmware: 'v1.2.4', productID: 'product-alpha', ignored: 'x' }),
+    '/console/devices?health=warning&status=online&signal=poor&firmware=v1.2.4&product_id=product-alpha',
   );
 });
 
@@ -240,7 +240,7 @@ test('provides titles for all public shell routes', () => {
     'settings',
     'devices',
     'billing',
-    'sku-services',
+    'product-services',
     'firmware-ota',
     'stream-health',
     'reports',

@@ -4,7 +4,7 @@ import { expectPageTitle, login } from './fixtures/session.mjs';
 const pages = [
   ['overview', '設備總覽'],
   ['devices', '設備'],
-  ['sku-services', 'SKU 與服務'],
+  ['product-services', 'Product 與服務'],
   ['firmware-ota', '韌體更新'],
   ['reports', '報表'],
   ['access', '成員與權限'],
@@ -130,7 +130,7 @@ test('[UI-CA-FLEETPAGE-006] report builder uses shared form controls @brand-flee
   expect(selectStyles.height).toBeGreaterThanOrEqual(42);
 
   await expect(page.getByRole('button', { name: '建立報表' })).toHaveClass(/primary-button/);
-  const dimension = page.getByRole('checkbox', { name: 'sku' });
+  const dimension = page.getByRole('checkbox', { name: 'product' });
   const checkboxStyles = await dimension.evaluate((element) => {
     const styles = getComputedStyle(element);
     return { appearance: styles.appearance, width: element.getBoundingClientRect().width, borderRadius: styles.borderRadius };
@@ -140,7 +140,7 @@ test('[UI-CA-FLEETPAGE-006] report builder uses shared form controls @brand-flee
   expect(checkboxStyles.borderRadius).toBe('5px');
 });
 
-test('[UI-CA-FLEETPAGE-007] firmware status loads only after selecting a SKU @brand-fleet @smoke', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-007] firmware status loads only after selecting a Product @brand-fleet @smoke', async ({ page }) => {
   await login(page, 'developer');
   const distributionRequests = [];
   page.on('request', (request) => {
@@ -148,27 +148,27 @@ test('[UI-CA-FLEETPAGE-007] firmware status loads only after selecting a SKU @br
   });
   await page.goto('/console/brand-e2e-01/firmware-ota');
 
-  const skuSelector = page.getByLabel('選擇 Firmware SKU');
-  await expect(skuSelector).toHaveClass(/select-control/);
-  await expect(page.getByRole('heading', { name: '請先選擇 SKU' })).toBeVisible();
+  const productSelector = page.getByLabel('選擇 Firmware Product');
+  await expect(productSelector).toHaveClass(/select-control/);
+  await expect(page.getByRole('heading', { name: '請先選擇 Product' })).toBeVisible();
   await expect(page.getByText('最新版本', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Firmware data window')).toHaveCount(0);
   expect(distributionRequests).toHaveLength(0);
 
-  await skuSelector.selectOption('sku-alpha');
-  await expect(page).toHaveURL(/firmware-ota\?sku_id=sku-alpha$/);
-  await expect.poll(() => distributionRequests.some((url) => url.includes('sku_id=sku-alpha'))).toBeTruthy();
+  await productSelector.selectOption('product-alpha');
+  await expect(page).toHaveURL(/firmware-ota\?product_id=product-alpha$/);
+  await expect.poll(() => distributionRequests.some((url) => url.includes('product_id=product-alpha'))).toBeTruthy();
   await expect(page.getByText('最新版本', { exact: true })).toBeVisible();
-  await expect(page.getByText(/目前顯示 E2E sku-alpha Camera/)).toBeVisible();
+  await expect(page.getByText(/目前顯示 E2E product-alpha Camera/)).toBeVisible();
 
   await page.reload();
-  await expect(skuSelector).toHaveValue('sku-alpha');
+  await expect(productSelector).toHaveValue('product-alpha');
   await page.goBack();
   await expect(page).toHaveURL(/firmware-ota$/);
-  await expect(page.getByRole('heading', { name: '請先選擇 SKU' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '請先選擇 Product' })).toBeVisible();
   await page.goForward();
-  await expect(page).toHaveURL(/firmware-ota\?sku_id=sku-alpha$/);
-  await expect(skuSelector).toHaveValue('sku-alpha');
+  await expect(page).toHaveURL(/firmware-ota\?product_id=product-alpha$/);
+  await expect(productSelector).toHaveValue('product-alpha');
 });
 
 test('[UI-CA-FLEETPAGE-004] overview world map supports country hover zoom and pan @brand-fleet', async ({ page }) => {
@@ -190,22 +190,22 @@ test('[UI-CA-FLEETPAGE-004] overview world map supports country hover zoom and p
   await expect.poll(() => map.getAttribute('viewBox')).not.toBe(beforePan);
 });
 
-test('[UI-CA-FLEETPAGE-008] SKU form uses styled buttons, checkboxes, and select controls @brand-fleet', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-008] Product form uses styled buttons, checkboxes, and select controls @brand-fleet', async ({ page }) => {
   await login(page, 'customer');
-  await page.route('**/api/skus', async (route) => {
+  await page.route('**/api/products', async (route) => {
     if (route.request().method() !== 'GET') return route.continue();
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ skus: [], can_manage: true, source_status: 'available' }) });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ products: [], can_manage: true, source_status: 'available' }) });
   });
-  await page.goto('/console/brand-e2e-01/sku-services');
-  const createButton = page.getByRole('button', { name: '＋ 新增 SKU' });
+  await page.goto('/console/brand-e2e-01/product-services');
+  const createButton = page.getByRole('button', { name: '＋ 新增 Product' });
   await expect(createButton).toHaveCSS('background-color', 'rgb(0, 104, 183)');
   await createButton.click();
 
-  const category = page.locator('.sku-create-form select');
+  const category = page.locator('.product-create-form select');
   const liveView = page.getByRole('checkbox', { name: '即時觀看' });
   await expect(category).toHaveCSS('appearance', 'none');
   await expect(category).not.toHaveCSS('background-image', 'none');
   await expect(liveView).toHaveCSS('appearance', 'none');
   await expect(liveView).toHaveCSS('background-color', 'rgb(0, 104, 183)');
-  await expect(page.getByRole('button', { name: '儲存 SKU' })).toHaveCSS('background-color', 'rgb(0, 104, 183)');
+  await expect(page.getByRole('button', { name: '儲存 Product' })).toHaveCSS('background-color', 'rgb(0, 104, 183)');
 });

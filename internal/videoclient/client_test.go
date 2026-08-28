@@ -400,7 +400,7 @@ func TestFirmwareDistributionQueries(t *testing.T) {
 
 func TestDoOTAInjectsTrustedBrandAndIdempotencyHeaders(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/ota/skus/sku-1/releases" || r.Method != http.MethodPost {
+		if r.URL.Path != "/v1/ota/products/product-1/releases" || r.Method != http.MethodPost {
 			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
 		}
 		if r.Header.Get("Authorization") != "Bearer admin-token" || r.Header.Get("X-Brand-Cloud-ID") != "brand-1" || r.Header.Get("Idempotency-Key") != "idem-key" {
@@ -411,7 +411,7 @@ func TestDoOTAInjectsTrustedBrandAndIdempotencyHeaders(t *testing.T) {
 		_, _ = w.Write([]byte(`{"release_id":"rel-1"}`))
 	}))
 	defer upstream.Close()
-	response, err := New(upstream.URL).DoOTA(t.Context(), http.MethodPost, "/v1/ota/skus/sku-1/releases", "admin-token", "brand-1", "idem-key", []byte(`{"version":"1"}`))
+	response, err := New(upstream.URL).DoOTA(t.Context(), http.MethodPost, "/v1/ota/products/product-1/releases", "admin-token", "brand-1", "idem-key", []byte(`{"version":"1"}`))
 	if err != nil || response.StatusCode != http.StatusCreated || !strings.Contains(string(response.Body), "rel-1") {
 		t.Fatalf("DoOTA = %#v, %v", response, err)
 	}
@@ -427,13 +427,13 @@ func TestCanonicalOTAReadMethodsFollowPagesAndDecodeStatus(t *testing.T) {
 			t.Fatalf("trusted OTA headers = %#v", r.Header)
 		}
 		switch r.URL.Path {
-		case "/v1/ota/skus/sku-1/campaigns":
+		case "/v1/ota/products/product-1/campaigns":
 			if r.URL.Query().Get("cursor") == "1" {
-				_, _ = w.Write([]byte(`{"items":[{"campaign_id":"campaign-2","sku_id":"sku-1","release_id":"release-1","state":"completed"}]}`))
+				_, _ = w.Write([]byte(`{"items":[{"campaign_id":"campaign-2","product_id":"product-1","release_id":"release-1","state":"completed"}]}`))
 				return
 			}
-			_, _ = w.Write([]byte(`{"items":[{"campaign_id":"campaign-1","sku_id":"sku-1","release_id":"release-1","state":"active"}],"next_cursor":"1"}`))
-		case "/v1/ota/skus/sku-1/releases":
+			_, _ = w.Write([]byte(`{"items":[{"campaign_id":"campaign-1","product_id":"product-1","release_id":"release-1","state":"active"}],"next_cursor":"1"}`))
+		case "/v1/ota/products/product-1/releases":
 			_, _ = w.Write([]byte(`{"items":[{"release_id":"release-1","version":"v1.2.4"}]}`))
 		case "/v1/ota/campaigns/campaign-1/deployments":
 			_, _ = w.Write([]byte(`{"items":[{"device_id":"device-1","status":"failed","current_version":"v1.2.3","target_version":"v1.2.4","error_reason":"checksum","updated_at":"2026-08-28T01:05:00Z"}]}`))
@@ -445,11 +445,11 @@ func TestCanonicalOTAReadMethodsFollowPagesAndDecodeStatus(t *testing.T) {
 	}))
 	defer upstream.Close()
 	client := New(upstream.URL)
-	campaigns, err := client.ListOTACampaigns(t.Context(), "secret", "brand-1", "sku-1")
+	campaigns, err := client.ListOTACampaigns(t.Context(), "secret", "brand-1", "product-1")
 	if err != nil || len(campaigns) != 2 || campaigns[1].State != "completed" {
 		t.Fatalf("ListOTACampaigns = %#v, %v", campaigns, err)
 	}
-	releases, err := client.ListOTAReleases(t.Context(), "secret", "brand-1", "sku-1")
+	releases, err := client.ListOTAReleases(t.Context(), "secret", "brand-1", "product-1")
 	if err != nil || len(releases) != 1 || releases[0].Version != "v1.2.4" {
 		t.Fatalf("ListOTAReleases = %#v, %v", releases, err)
 	}

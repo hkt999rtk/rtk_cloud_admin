@@ -2752,10 +2752,10 @@ func TestFleetFirmwareDistributionRequiresCustomerSession(t *testing.T) {
 	}
 }
 
-func TestSKUOTAProxyInjectsActiveOrganizationAndAudits(t *testing.T) {
+func TestProductOTAProxyInjectsActiveOrganizationAndAudits(t *testing.T) {
 	t.Parallel()
 	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/ota/skus/sku-1/releases" || r.Method != http.MethodPost {
+		if r.URL.Path != "/v1/ota/products/product-1/releases" || r.Method != http.MethodPost {
 			t.Fatalf("upstream request=%s %s", r.Method, r.URL.Path)
 		}
 		if r.Header.Get("Authorization") != "Bearer vc-secret" || r.Header.Get("X-Brand-Cloud-ID") != "org-acme" || r.Header.Get("Idempotency-Key") != "release-key" {
@@ -2783,7 +2783,7 @@ func TestSKUOTAProxyInjectsActiveOrganizationAndAudits(t *testing.T) {
 	}
 	srv := NewWithOptions(st, Options{Config: config.Config{VideoCloudBaseURL: videoUpstream.URL, VideoCloudAdminToken: "vc-secret"}, VideoClient: videoclient.New(videoUpstream.URL)})
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/ota/skus/sku-1/releases", strings.NewReader(`{"version":"1"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/ota/products/product-1/releases", strings.NewReader(`{"version":"1"}`))
 	req.Header.Set("Idempotency-Key", "release-key")
 	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	srv.ServeHTTP(rec, req)
@@ -2796,12 +2796,12 @@ func TestSKUOTAProxyInjectsActiveOrganizationAndAudits(t *testing.T) {
 	}
 	found := false
 	for _, event := range events {
-		if event.Action == "sku_ota.post" && event.OrganizationID == "org-acme" {
+		if event.Action == "product_ota.post" && event.OrganizationID == "org-acme" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("missing SKU OTA audit event: %+v", events)
+		t.Fatalf("missing Product OTA audit event: %+v", events)
 	}
 }
 
@@ -2827,7 +2827,7 @@ func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 	}
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/fleet/firmware-distribution?sku_id=sku-camera", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/firmware-distribution?product_id=product-camera", nil)
 	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -2841,8 +2841,8 @@ func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 	if payload.OrgID != "org-acme" {
 		t.Fatalf("org_id = %q, want org-acme", payload.OrgID)
 	}
-	if payload.SKU != "sku-camera" {
-		t.Fatalf("sku_id = %q, want sku-camera", payload.SKU)
+	if payload.Product != "product-camera" {
+		t.Fatalf("product_id = %q, want product-camera", payload.Product)
 	}
 	if payload.SourceStatus != "not_configured" {
 		t.Fatalf("source_status = %q, want not_configured", payload.SourceStatus)
@@ -2855,19 +2855,19 @@ func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 	}
 }
 
-func TestFilterDevicesBySKUNarrowsFirmwareScope(t *testing.T) {
+func TestFilterDevicesByProductNarrowsFirmwareScope(t *testing.T) {
 	t.Parallel()
 
 	devices := []contracts.Device{
-		{ID: "camera-1", SKU: "sku-camera"},
-		{ID: "camera-2", SKU: "sku-camera"},
-		{ID: "sensor-1", SKU: "sku-sensor"},
+		{ID: "camera-1", Product: "product-camera"},
+		{ID: "camera-2", Product: "product-camera"},
+		{ID: "sensor-1", Product: "product-sensor"},
 	}
-	filtered := filterDevicesBySKU(devices, "sku-camera")
+	filtered := filterDevicesByProduct(devices, "product-camera")
 	if len(filtered) != 2 || filtered[0].ID != "camera-1" || filtered[1].ID != "camera-2" {
-		t.Fatalf("filtered devices = %+v, want only sku-camera devices", filtered)
+		t.Fatalf("filtered devices = %+v, want only product-camera devices", filtered)
 	}
-	if unfiltered := filterDevicesBySKU(devices, ""); len(unfiltered) != len(devices) {
+	if unfiltered := filterDevicesByProduct(devices, ""); len(unfiltered) != len(devices) {
 		t.Fatalf("unfiltered devices length = %d, want %d", len(unfiltered), len(devices))
 	}
 }
@@ -3059,7 +3059,7 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 		case "/v1/me":
 			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
 		case "/v1/orgs/org-acme/devices":
-			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","device_item_profile_id":"sku-alpha","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"},{"id":"dev-001","name":"cam-a-001","model":"RTK-CAM-A","device_item_profile_id":"sku-alpha","serial_number":"ACME-A-001","readiness":"online","status":"online","video_cloud_devid":"device-1"}]}`))
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","device_item_profile_id":"product-alpha","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"},{"id":"dev-001","name":"cam-a-001","model":"RTK-CAM-A","device_item_profile_id":"product-alpha","serial_number":"ACME-A-001","readiness":"online","status":"online","video_cloud_devid":"device-1"}]}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -3097,9 +3097,9 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 			_, _ = w.Write([]byte(`{"status":"ok","campaigns":[{"campaign_id":"campaign-2026-04","model":"RTK-CAM-A","target_version":"v1.2.4","policy":{"name":"normal"},"state":"active","created_at":"2026-04-01T00:00:00Z","updated_at":"2026-04-01T00:00:00Z"}]}`))
 		case "/query_firmware_rollout":
 			_, _ = w.Write([]byte(`{"status":"ok","model":"RTK-CAM-A","target":"v1.2.4","rollouts":[{"account_device_id":"device-1","device_name":"cam-a-001","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.4","rollout_status":"applied","updated_at":"2026-04-01T00:00:00Z"},{"device_id":"device-2","device_name":"cam-a-002","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.3","rollout_status":"pending","updated_at":"2026-04-01T01:00:00Z"}]}`))
-		case "/v1/ota/skus/sku-alpha/campaigns":
-			_, _ = w.Write([]byte(`{"items":[{"campaign_id":"ota-campaign-1","sku_id":"sku-alpha","release_id":"release-1","state":"completed","target_snapshot_count":2,"created_at":"2026-04-02T00:00:00Z","activated_at":"2026-04-02T00:01:00Z","updated_at":"2026-04-02T00:05:00Z"}]}`))
-		case "/v1/ota/skus/sku-alpha/releases":
+		case "/v1/ota/products/product-alpha/campaigns":
+			_, _ = w.Write([]byte(`{"items":[{"campaign_id":"ota-campaign-1","product_id":"product-alpha","release_id":"release-1","state":"completed","target_snapshot_count":2,"created_at":"2026-04-02T00:00:00Z","activated_at":"2026-04-02T00:01:00Z","updated_at":"2026-04-02T00:05:00Z"}]}`))
+		case "/v1/ota/products/product-alpha/releases":
 			_, _ = w.Write([]byte(`{"items":[{"release_id":"release-1","version":"v1.2.4"}]}`))
 		case "/v1/ota/campaigns/ota-campaign-1/deployments":
 			_, _ = w.Write([]byte(`{"items":[{"device_id":"device-1","status":"succeeded","current_version":"v1.2.4","target_version":"v1.2.4","updated_at":"2026-04-02T00:04:00Z"},{"device_id":"device-2","status":"failed","current_version":"v1.2.3","target_version":"v1.2.4","error_reason":"checksum","updated_at":"2026-04-02T00:05:00Z"}]}`))
@@ -3137,8 +3137,8 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
 	loadedDevices, err := srv.customerDevices(t.Context(), session)
-	if err != nil || len(loadedDevices) != 2 || loadedDevices[0].SKU != "sku-alpha" {
-		t.Fatalf("customer device SKU mapping = %#v, %v", loadedDevices, err)
+	if err != nil || len(loadedDevices) != 2 || loadedDevices[0].Product != "product-alpha" {
+		t.Fatalf("customer device Product mapping = %#v, %v", loadedDevices, err)
 	}
 
 	rec := httptest.NewRecorder()
@@ -4821,7 +4821,7 @@ func TestCustomerLifecycleRequiresAccountManagerCapability(t *testing.T) {
 	}
 }
 
-func TestSKUReleaseWriteRequiresFirmwareManageCapability(t *testing.T) {
+func TestProductReleaseWriteRequiresFirmwareManageCapability(t *testing.T) {
 	t.Parallel()
 
 	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4866,7 +4866,7 @@ func TestSKUReleaseWriteRequiresFirmwareManageCapability(t *testing.T) {
 	}
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/skus/sku-alpha/releases", strings.NewReader(`{"version":"forbidden"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/products/product-alpha/releases", strings.NewReader(`{"version":"forbidden"}`))
 	req.Header.Set("Idempotency-Key", "release-key")
 	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	srv.ServeHTTP(rec, req)
