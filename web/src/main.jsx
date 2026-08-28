@@ -884,23 +884,19 @@ function App() {
     const message = `${errors.customer?.message || ''}\n${errors.platform?.message || ''}`;
     if (order[0] === 'platform' && message.includes('platform password sign-in is disabled')) {
       const nextError = 'Platform password sign-in is not enabled for this environment.';
-      setError(nextError);
       throw new Error(nextError);
     }
     if (order[0] === 'customer' && message.includes('customer password sign-in is disabled')) {
       const nextError = 'Password sign-in is not enabled for this environment.';
-      setError(nextError);
       throw new Error(nextError);
     }
     if (((errors.customer?.status === 401 || errors.customer?.status === 403) &&
       (errors.platform?.status === 401 || errors.platform?.status === 403)) ||
       /invalid credentials/i.test(message)) {
       const nextError = 'Email or password is incorrect.';
-      setError(nextError);
       throw new Error(nextError);
     }
     const nextError = 'Sign-in is temporarily unavailable. Please try again later.';
-    setError(nextError);
     throw new Error(nextError);
   }
 
@@ -912,7 +908,6 @@ function App() {
       return result;
     } catch (err) {
       const nextError = userFacingLoginActivationError(err);
-      setError(nextError);
       throw new Error(nextError);
     }
   }
@@ -923,7 +918,6 @@ function App() {
       return await postJSON('/api/auth/brand-cloud/activate', payload);
     } catch (err) {
       const nextError = userFacingLoginActivationError(err);
-      setError(nextError);
       throw new Error(nextError);
     }
   }
@@ -935,7 +929,6 @@ function App() {
       return true;
     } catch (err) {
       const nextError = userFacingPasswordResetError(err);
-      setError(nextError);
       throw new Error(nextError);
     }
   }
@@ -947,7 +940,6 @@ function App() {
       return true;
     } catch (err) {
       const nextError = userFacingPasswordResetError(err);
-      setError(nextError);
       throw new Error(nextError);
     }
   }
