@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { feature } from 'topojson-client';
+import worldAtlas from 'world-atlas/countries-110m.json';
 import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs';
 import {
   billingSubpaths,
@@ -15,6 +17,7 @@ import {
   titleFor,
 } from './routes.mjs';
 import {
+  isExpiredVerificationError,
   postJSON,
   putJSON,
   startSSOLogin,
@@ -614,14 +617,6 @@ function App() {
   }, [isLoginRoute, isPublicRoute]);
 
   useEffect(() => {
-    if (isPublicRoute) return undefined;
-    const timer = window.setInterval(() => {
-      setRefreshTick((tick) => tick + 1);
-    }, 20_000);
-    return () => window.clearInterval(timer);
-  }, [isPublicRoute]);
-
-  useEffect(() => {
     const onPopState = () => {
       const nextRoute = routeFromLocation();
       setActive(nextRoute);
@@ -884,23 +879,19 @@ function App() {
     const message = `${errors.customer?.message || ''}\n${errors.platform?.message || ''}`;
     if (order[0] === 'platform' && message.includes('platform password sign-in is disabled')) {
       const nextError = 'Platform password sign-in is not enabled for this environment.';
-      setError(nextError);
       throw new Error(nextError);
     }
     if (order[0] === 'customer' && message.includes('customer password sign-in is disabled')) {
       const nextError = 'Password sign-in is not enabled for this environment.';
-      setError(nextError);
       throw new Error(nextError);
     }
     if (((errors.customer?.status === 401 || errors.customer?.status === 403) &&
       (errors.platform?.status === 401 || errors.platform?.status === 403)) ||
       /invalid credentials/i.test(message)) {
       const nextError = 'Email or password is incorrect.';
-      setError(nextError);
       throw new Error(nextError);
     }
     const nextError = 'Sign-in is temporarily unavailable. Please try again later.';
-    setError(nextError);
     throw new Error(nextError);
   }
 
@@ -912,7 +903,6 @@ function App() {
       return result;
     } catch (err) {
       const nextError = userFacingLoginActivationError(err);
-      setError(nextError);
       throw new Error(nextError);
     }
   }
@@ -923,7 +913,6 @@ function App() {
       return await postJSON('/api/auth/brand-cloud/activate', payload);
     } catch (err) {
       const nextError = userFacingLoginActivationError(err);
-      setError(nextError);
       throw new Error(nextError);
     }
   }
@@ -935,14 +924,18 @@ function App() {
       return true;
     } catch (err) {
       const nextError = userFacingPasswordResetError(err);
-      setError(nextError);
       throw new Error(nextError);
     }
   }
 
   async function handleResetPassword(payload) {
     setError('');
-    return postJSON('/api/auth/reset-password', payload);
+    try {
+      return await postJSON('/api/auth/reset-password', payload);
+    } catch (err) {
+      const nextError = userFacingPasswordResetError(err);
+      throw new Error(nextError);
+    }
   }
 
   async function handleSignup(payload) {
@@ -965,6 +958,11 @@ function App() {
       }
       return result;
     } catch (err) {
+      if (isExpiredVerificationError(err)) {
+        window.history.replaceState({}, '', '/signup/verification-expired');
+        setActive('signup-verification-expired');
+        return null;
+      }
       setError(userFacingVerificationError(err));
       throw err;
     }
@@ -972,12 +970,21 @@ function App() {
 
   async function handleVerificationStatus(token) {
     setError('');
-    const result = await postJSON('/api/auth/customer/verification-status', { token });
-    if (result?.status === 'expired') {
-      window.history.replaceState({}, '', '/signup/verification-expired');
-      setActive('signup-verification-expired');
+    try {
+      const result = await postJSON('/api/auth/customer/verification-status', { token });
+      if (result?.status === 'expired') {
+        window.history.replaceState({}, '', '/signup/verification-expired');
+        setActive('signup-verification-expired');
+      }
+      return result;
+    } catch (err) {
+      if (isExpiredVerificationError(err)) {
+        window.history.replaceState({}, '', '/signup/verification-expired');
+        setActive('signup-verification-expired');
+        return { status: 'expired' };
+      }
+      throw err;
     }
-    return result;
   }
 
   async function handleResendVerification(email) {
@@ -1158,9 +1165,6 @@ function App() {
                 ))}
               </select>
             ) : null}
-            {active === 'overview' ? <WindowToggle value={overviewWindow} onChange={setOverviewWindow} label="Fleet health window" disabled={!sourceAvailable(fleetHealth)} /> : null}
-            {active === 'stream-health' ? <WindowToggle value={streamWindow} onChange={setStreamWindow} label="Stream health window" disabled={!sourceAvailable(streamStats)} /> : null}
-            {active === 'firmware-ota' ? <StaticWindowToggle /> : null}
             {me?.authenticated ? <button type="button" className="ghost-button icon-text-button" onClick={handleLogout}><Icon name="right-from-bracket" />Logout</button> : null}
           </div>
         </header>
@@ -1728,16 +1732,21 @@ function ExpiredVerificationPage() {
 }
 
 function VerifyForm({ token, onCheckVerification, onVerify }) {
+  const [tokenValue] = useState(() => token);
   const [password, setPassword] = useState('');
-  const [linkStatus, setLinkStatus] = useState(token ? 'checking' : 'invalid');
-  const [status, setStatus] = useState(token ? 'Checking verification link…' : 'This verification link is invalid.');
+  const [linkStatus, setLinkStatus] = useState(tokenValue ? 'checking' : 'invalid');
+  const [status, setStatus] = useState(tokenValue ? 'Checking verification link…' : 'This verification link is invalid.');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!token) return undefined;
+    removeQueryParameterFromAddress(window.location, window.history, 'token');
+  }, []);
+
+  useEffect(() => {
+    if (!tokenValue) return undefined;
     let active = true;
-    onCheckVerification(token)
+    onCheckVerification(tokenValue)
       .then((result) => {
         if (!active || result?.status === 'expired') return;
         const nextStatus = result?.status === 'valid' ? 'valid' : 'invalid';
@@ -1750,14 +1759,14 @@ function VerifyForm({ token, onCheckVerification, onVerify }) {
         setLocalError(userFacingVerificationError(err));
       });
     return () => { active = false; };
-  }, [onCheckVerification, token]);
+  }, [onCheckVerification, tokenValue]);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
     setLocalError('');
     try {
-      const result = await onVerify({ token, new_password: password });
+      const result = await onVerify({ token: tokenValue, new_password: password });
       if (!result) {
         setLocalError('Verification failed. Check the token and try again.');
       } else if (result.tokens?.access_token) {
@@ -1780,7 +1789,7 @@ function VerifyForm({ token, onCheckVerification, onVerify }) {
           New password
           <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
         </label>
-        <button type="submit" disabled={busy || !token}>{busy ? 'Verifying' : 'Verify and continue'}</button>
+        <button type="submit" disabled={busy || !tokenValue}>{busy ? 'Verifying' : 'Verify and continue'}</button>
       </form> : null}
       <p className="auth-status">{status}</p>
       {error ? <p className="error">{error}</p> : null}
@@ -1990,17 +1999,148 @@ function RegionFleetPanel({ summary, loading }) {
 }
 
 function RegionMap({ regions, max }) {
+  const [viewport, setViewport] = useState(WORLD_VIEWPORT);
+  const [hoveredRegion, setHoveredRegion] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef(null);
+  const zoom = 1000 / viewport.width;
+  const regionPoints = regions.slice(0, 8).map(([region, count]) => ({ region, count, point: regionMapPoint(region) })).filter(({ point }) => point);
+
+  function zoomBy(factor, anchorX = .5, anchorY = .5) {
+    setViewport((current) => {
+      const nextZoom = Math.max(1, Math.min(8, 1000 / current.width * factor));
+      const width = 1000 / nextZoom;
+      const height = 500 / nextZoom;
+      return clampWorldViewport({
+        x: current.x + (current.width - width) * anchorX,
+        y: current.y + (current.height - height) * anchorY,
+        width,
+        height,
+      });
+    });
+  }
+
+  function handleWheel(event) {
+    event.preventDefault();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    zoomBy(event.deltaY < 0 ? 1.25 : .8, (event.clientX - bounds.left) / bounds.width, (event.clientY - bounds.top) / bounds.height);
+  }
+
+  function handlePointerDown(event) {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { clientX: event.clientX, clientY: event.clientY, viewport };
+    setDragging(true);
+  }
+
+  function handlePointerMove(event) {
+    if (!dragRef.current) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const start = dragRef.current;
+    setViewport(clampWorldViewport({
+      ...start.viewport,
+      x: start.viewport.x - (event.clientX - start.clientX) / bounds.width * start.viewport.width,
+      y: start.viewport.y - (event.clientY - start.clientY) / bounds.height * start.viewport.height,
+    }));
+  }
+
+  function handlePointerUp(event) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    dragRef.current = null;
+    setDragging(false);
+  }
+
+  function showCountry(event, country) {
+    if (dragRef.current) return;
+    const bounds = event.currentTarget.ownerSVGElement.getBoundingClientRect();
+    setHoveredRegion({ name: country.properties.name, x: event.clientX - bounds.left, y: event.clientY - bounds.top });
+  }
+
   return <div className="region-map-vector" aria-label="區域設備分布圖">
-    <svg viewBox="0 0 520 260" role="img" aria-label="設備區域分布">
-      <path d="M38 150 92 118 138 128 166 92 230 106 274 78 334 96 390 72 476 112 450 178 390 184 350 220 275 202 220 232 164 214 100 232 52 202Z" />
-      {regions.slice(0, 8).map(([region, count], index) => {
-        const x = 70 + ((index * 71) % 390);
-        const y = 112 + ((index * 43) % 100);
-        return <g key={region}><circle cx={x} cy={y} r={Math.max(5, Math.min(14, 5 + count / max * 10))} /><text x={x + 10} y={y + 4}>{region}</text></g>;
-      })}
-    </svg>
-    <small>區域示意圖 · 資料依設備回報的區域分類</small>
+    <div className="region-map-toolbar" aria-label="地圖控制">
+      <button type="button" onClick={() => zoomBy(1.4)} aria-label="放大地圖">＋</button>
+      <button type="button" onClick={() => zoomBy(1 / 1.4)} aria-label="縮小地圖" disabled={zoom <= 1}>−</button>
+      <button type="button" onClick={() => setViewport(WORLD_VIEWPORT)} disabled={zoom <= 1}>重設</button>
+      <span>{Math.round(zoom * 100)}%</span>
+    </div>
+    <div className="region-map-stage">
+      <svg
+        className={dragging ? 'is-dragging' : ''}
+        viewBox={`${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`}
+        role="img"
+        aria-label="可縮放及拖曳的世界設備分布地圖"
+        onWheel={handleWheel}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPointerLeave={() => setHoveredRegion(null)}
+      >
+        <g className="world-countries">
+          {WORLD_COUNTRIES.map((country) => <path
+            key={country.id}
+            d={worldGeometryPath(country.geometry)}
+            onPointerEnter={(event) => showCountry(event, country)}
+            onPointerMove={(event) => showCountry(event, country)}
+            onPointerLeave={() => setHoveredRegion(null)}
+          ><title>{country.properties.name}</title></path>)}
+        </g>
+        <g className="region-map-markers">
+          {regionPoints.map(({ region, count, point: [x, y] }) => <g key={region}>
+            <circle cx={x} cy={y} r={Math.max(9, Math.min(22, 9 + count / max * 13)) / zoom} />
+            <text x={x + 18 / zoom} y={y + 5 / zoom} style={{ fontSize: `${12 / zoom}px` }}>{region}</text>
+          </g>)}
+        </g>
+      </svg>
+      {hoveredRegion ? <div className="region-map-tooltip" style={{ left: hoveredRegion.x, top: hoveredRegion.y }}>{hoveredRegion.name}</div> : null}
+    </div>
+    <small>{regions.length ? '拖曳平移、滾輪縮放；圓點大小代表設備數量' : '拖曳平移、滾輪縮放；移到國家／地區可查看名稱'}</small>
   </div>;
+}
+
+const WORLD_VIEWPORT = Object.freeze({ x: 0, y: 0, width: 1000, height: 500 });
+const WORLD_COUNTRIES = feature(worldAtlas, worldAtlas.objects.countries).features;
+const REGION_MAP_COORDINATES = {
+  na: [-105, 43], 'north america': [-105, 43], '北美': [-105, 43],
+  sa: [-60, -17], 'south america': [-60, -17], '南美': [-60, -17],
+  eu: [15, 51], europe: [15, 51], '歐洲': [15, 51],
+  africa: [20, 3], af: [20, 3], '非洲': [20, 3],
+  asia: [100, 36], apac: [112, 8], '亞洲': [100, 36], '亞太': [112, 8],
+  oceania: [135, -25], anz: [135, -25], '大洋洲': [135, -25], '澳紐': [135, -25],
+  taiwan: [121, 23.7], tw: [121, 23.7], twn: [121, 23.7], '台灣': [121, 23.7], '臺灣': [121, 23.7],
+};
+
+function projectWorldPoint([longitude, latitude]) {
+  return [(longitude + 180) / 360 * 1000, (90 - latitude) / 180 * 500];
+}
+
+function worldGeometryPath(geometry) {
+  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  return polygons.map((polygon) => polygon.map((ring) => ring.map((coordinate, index) => {
+    const [x, y] = projectWorldPoint(coordinate);
+    return `${index ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(' ') + 'Z').join(' ')).join(' ');
+}
+
+function clampWorldViewport(viewport) {
+  return {
+    ...viewport,
+    x: Math.max(0, Math.min(1000 - viewport.width, viewport.x)),
+    y: Math.max(0, Math.min(500 - viewport.height, viewport.y)),
+  };
+}
+
+function regionMapPoint(region) {
+  const normalized = String(region).trim().toLowerCase();
+  const knownCoordinates = REGION_MAP_COORDINATES[normalized];
+  if (knownCoordinates) return projectWorldPoint(knownCoordinates);
+  const country = WORLD_COUNTRIES.find((candidate) => candidate.properties.name.toLowerCase() === normalized);
+  if (!country) return null;
+  const coordinates = country.geometry.type === 'Polygon' ? country.geometry.coordinates.flat(1) : country.geometry.coordinates.flat(2);
+  return projectWorldPoint([
+    (Math.min(...coordinates.map(([longitude]) => longitude)) + Math.max(...coordinates.map(([longitude]) => longitude))) / 2,
+    (Math.min(...coordinates.map(([, latitude]) => latitude)) + Math.max(...coordinates.map(([, latitude]) => latitude))) / 2,
+  ]);
 }
 
 function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
@@ -2357,12 +2497,12 @@ function AccessPage({ data, loading, activeCloudId, canManage, canIssuePKITest, 
     return '指定範圍';
   };
   return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>團隊與權限</h2><p>角色決定可以做什麼，範圍決定可以管理哪些 SKU、區域、群組或設備。</p></div>{canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setMessage('請使用下方表單邀請成員。')}>＋ 邀請成員</button> : null}</div>
-    {canManage && activeCloudId ? <section className="panel"><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invite-${email}-${role}` }, body: JSON.stringify({ email, role }) }); setMessage(response.ok ? '邀請已寄出，對方接受前不會成為成員。' : '邀請目前無法寄出。'); if (response.ok) { setEmail(''); onRefresh(); } }}><input required type="email" placeholder="成員 Email" value={email} onChange={(event) => setEmail(event.target.value)} /><select value={role} onChange={(event) => setRole(event.target.value)}><option value="member">Member</option><option value="admin">Admin</option></select><button type="submit" className="primary">送出邀請</button></form></section> : null}
+    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>團隊與權限</h2><p>角色決定可以做什麼，範圍決定可以管理哪些 SKU、區域、群組或設備。</p></div>{canManage && activeCloudId ? <button type="button" className="primary-button" onClick={() => setMessage('請使用下方表單邀請成員。')}>＋ 邀請成員</button> : null}</div>
+    {canManage && activeCloudId ? <section className="panel"><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/members/invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invite-${email}-${role}` }, body: JSON.stringify({ email, role }) }); setMessage(response.ok ? '邀請已寄出，對方接受前不會成為成員。' : '邀請目前無法寄出。'); if (response.ok) { setEmail(''); onRefresh(); } }}><input className="input" required type="email" placeholder="成員 Email" value={email} onChange={(event) => setEmail(event.target.value)} /><select className="input" value={role} onChange={(event) => setRole(event.target.value)}><option value="member">Member</option><option value="admin">Admin</option></select><button type="submit" className="primary-button">送出邀請</button></form></section> : null}
     {message ? <div className="notice">{message}</div> : null}
     {canIssuePKITest && activeCloudId ? <PKITestBundleTool activeCloudId={activeCloudId} /> : null}
-    <section className="panel"><div className="panel-head"><div><h3>Accept owner transfer</h3><p>貼上 owner transfer email 中的 token，完成 ownership 轉移。</p></div></div><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch('/api/developer/brand-cloud-owner-transfers/accept', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-accept-${transferToken}` }, body: JSON.stringify({ token: transferToken }) }); setMessage(response.ok ? 'Owner transfer 已接受。' : 'Owner transfer token 無效或已過期。'); if (response.ok) { setTransferToken(''); onRefresh(); } }}><input required placeholder="Owner transfer token" value={transferToken} onChange={(event) => setTransferToken(event.target.value)} /><button type="submit" className="primary">接受轉移</button></form></section>
-    {canManage && activeCloudId ? <section className="panel"><div className="panel-head"><div><h3>Owner transfer</h3><p>轉移需由目標 developer 使用 email token 接受；pending transfer 可取消。</p></div></div><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-${transferEmail}` }, body: JSON.stringify({ target_email: transferEmail }) }); const body = await response.json().catch(() => ({})); setMessage(response.ok ? 'Owner transfer 已建立。' : 'Owner transfer 目前無法建立。'); if (response.ok) { setOwnerTransfer(body.owner_transfer); setTransferEmail(''); } }}><input required type="email" placeholder="目標 developer Email" value={transferEmail} onChange={(event) => setTransferEmail(event.target.value)} /><button type="submit" className="primary">建立轉移</button></form>{ownerTransfer ? <p className="notice">{ownerTransfer.status} · {ownerTransfer.id} {ownerTransfer.status === 'pending' ? <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/owner-transfer/${encodeURIComponent(ownerTransfer.id)}/cancel`, { method: 'POST', headers: { 'Idempotency-Key': `owner-transfer-cancel-${ownerTransfer.id}` } }); if (response.ok) setOwnerTransfer((current) => ({ ...current, status: 'canceled' })); }}>取消</button> : null}</p> : null}</section> : null}
+    <section className="panel"><div className="panel-head"><div><h3>Accept owner transfer</h3><p>貼上 owner transfer email 中的 token，完成 ownership 轉移。</p></div></div><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch('/api/developer/brand-cloud-owner-transfers/accept', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-accept-${transferToken}` }, body: JSON.stringify({ token: transferToken }) }); setMessage(response.ok ? 'Owner transfer 已接受。' : 'Owner transfer token 無效或已過期。'); if (response.ok) { setTransferToken(''); onRefresh(); } }}><input className="input" required placeholder="Owner transfer token" value={transferToken} onChange={(event) => setTransferToken(event.target.value)} /><button type="submit" className="primary-button">接受轉移</button></form></section>
+    {canManage && activeCloudId ? <section className="panel"><div className="panel-head"><div><h3>Owner transfer</h3><p>轉移需由目標 developer 使用 email token 接受；pending transfer 可取消。</p></div></div><form className="inline-form" onSubmit={async (event) => { event.preventDefault(); const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-${transferEmail}` }, body: JSON.stringify({ target_email: transferEmail }) }); const body = await response.json().catch(() => ({})); setMessage(response.ok ? 'Owner transfer 已建立。' : 'Owner transfer 目前無法建立。'); if (response.ok) { setOwnerTransfer(body.owner_transfer); setTransferEmail(''); } }}><input className="input" required type="email" placeholder="目標 developer Email" value={transferEmail} onChange={(event) => setTransferEmail(event.target.value)} /><button type="submit" className="primary-button">建立轉移</button></form>{ownerTransfer ? <p className="notice">{ownerTransfer.status} · {ownerTransfer.id} {ownerTransfer.status === 'pending' ? <button type="button" className="link-button" onClick={async () => { const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/owner-transfer/${encodeURIComponent(ownerTransfer.id)}/cancel`, { method: 'POST', headers: { 'Idempotency-Key': `owner-transfer-cancel-${ownerTransfer.id}` } }); if (response.ok) setOwnerTransfer((current) => ({ ...current, status: 'canceled' })); }}>取消</button> : null}</p> : null}</section> : null}
     {loading ? <section className="panel split-panel"><div><h3>正在載入權限</h3></div></section> : null}
     {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>權限資料暫時無法取得</h3><p>{data?.source_message || '請稍後再試。'}</p></div></section> : null}
     {!loading && data?.source_status === 'available' ? <>

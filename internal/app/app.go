@@ -3637,7 +3637,6 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 	}
 	orgID := strings.TrimSpace(session.ActiveOrgID)
 	capabilities := fleetManagerCapabilities()
-	resourceAllowed := false
 	if s.accountClient.Enabled() {
 		org, tokens, err := s.activeCustomerOrg(r.Context(), session)
 		if err != nil {
@@ -3661,7 +3660,6 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 				writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "RESOURCE_SCOPE_FORBIDDEN", "resource": "sku", "message": "Current membership does not allow this SKU scope."})
 				return
 			}
-			resourceAllowed = true
 		}
 	}
 	required := capabilityCustomerFirmwareRead
@@ -3681,7 +3679,7 @@ func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
 			required = capabilityCustomerFirmwareManage
 		}
 	}
-	if !resourceAllowed && !hasCapability(capabilities, required) && !(required == capabilityFirmwareReleaseRead && hasCapability(capabilities, capabilityCustomerFirmwareRead)) && !(required == capabilityOTAPlanRead && hasCapability(capabilities, capabilityCustomerFirmwareRead)) {
+	if !hasCapability(capabilities, required) && !(required == capabilityFirmwareReleaseRead && hasCapability(capabilities, capabilityCustomerFirmwareRead)) && !(required == capabilityOTAPlanRead && hasCapability(capabilities, capabilityCustomerFirmwareRead)) {
 		writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "CAPABILITY_REQUIRED", "required_capability": required, "message": "Current membership does not allow this action."})
 		return
 	}

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './fixtures/session.mjs';
+import { expectPageTitle, login } from './fixtures/session.mjs';
 import { assertServerScope, waitForJob } from './fixtures/brand-fleet.mjs';
 
 test.describe('Brandname async workflows', () => {
@@ -29,7 +29,7 @@ test.describe('Brandname async workflows', () => {
   test('[UI-CA-OTA-001] OTA scope preview is server calculated and immutable @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/firmware-ota');
-    await expect(page.getByRole('heading', { name: '韌體更新' }).first()).toBeVisible();
+    await expectPageTitle(page, '韌體更新');
     const preview = await page.request.post('/api/update-plans/scope-preview', {
       headers: { 'Content-Type': 'application/json' },
       data: { sku_id: 'sku-alpha', query: { region: ['na'], firmware: ['v3.8.0'] }, excluded_device_ids: ['dev-e2e-001'] },

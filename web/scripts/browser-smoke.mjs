@@ -573,6 +573,7 @@ async function runAuthSmoke(browserContext) {
   }
   await screenshot(page, 'desktop-verification-expired.png');
   await page.goto(`${baseURL}/verify?token=verification-token`, { waitUntil: 'networkidle' });
+  await page.waitForURL(`${baseURL}/verify`);
   if (await page.getByLabel('Verification token').count()) {
     throw new Error('Verification page must not render the token as a field.');
   }
@@ -646,7 +647,9 @@ async function runDesktopSmoke(page) {
   await expectText(page, 'Create account');
   await gotoAndAssert(page, '/signup/check-email?email=fleet.manager%40example.com', 'Check your email');
   await expectText(page, 'Resend');
-  await gotoAndAssert(page, '/verify?token=visual-check-token', 'Verify email');
+  await page.goto(`${baseURL}/verify?token=visual-check-token`, { waitUntil: 'networkidle' });
+  await page.waitForURL(`${baseURL}/verify`);
+  await expectText(page, 'Verify email');
   await expectText(page, 'Create your password to finish verification');
   if ((await page.locator('body').innerText()).includes('visual-check-token')) {
     throw new Error('Verification page screenshot state must not render the token value.');

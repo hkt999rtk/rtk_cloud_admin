@@ -94,7 +94,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '群組與標籤', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表', '設備註冊', '帳務與自動加值'],
+    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表', '設備註冊', '帳務與自動加值'],
   );
 });
 
@@ -104,7 +104,7 @@ test('customer nav is derived from active membership capabilities', () => {
     'customer.devices.read',
     'customer.stream.read',
   ]).map((item) => item.label);
-  assert.deepEqual(labels, ['設備總覽', '設備', 'ChipSet & SDK', '群組與標籤', '影像播放狀況', '批次工作']);
+  assert.deepEqual(labels, ['設備總覽', '設備', 'ChipSet & SDK', '影像播放狀況', '批次工作']);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), true);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'sku-services'), false);
   assert.equal(navItemsForCapabilities('overview', ['billing_account.read']).some((item) => item.id === 'billing'), true);
