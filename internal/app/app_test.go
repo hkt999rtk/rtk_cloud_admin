@@ -870,7 +870,7 @@ func TestEmailActivationAuthBFFSetsCustomerSessionCookie(t *testing.T) {
 			w.WriteHeader(http.StatusAccepted)
 		case "/v1/auth/reset-password":
 			resetCalls++
-			w.WriteHeader(http.StatusNoContent)
+			_, _ = w.Write([]byte(`{"email":"user@example.com"}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -927,7 +927,7 @@ func TestEmailActivationAuthBFFSetsCustomerSessionCookie(t *testing.T) {
 	}
 	reset := httptest.NewRecorder()
 	srv.ServeHTTP(reset, httptest.NewRequest(http.MethodPost, "/api/auth/reset-password", strings.NewReader(`{"token":"reset-token","new_password":"new-password123"}`)))
-	if reset.Code != http.StatusNoContent || resetCalls != 1 {
+	if reset.Code != http.StatusOK || resetCalls != 1 || !strings.Contains(reset.Body.String(), `"email":"user@example.com"`) {
 		t.Fatalf("reset status=%d calls=%d body=%s", reset.Code, resetCalls, reset.Body.String())
 	}
 }
@@ -3034,6 +3034,9 @@ func TestFleetFirmwareDistributionProxyMode(t *testing.T) {
 	if campaign.Applied != 1 || campaign.Pending != 1 || campaign.Total != 2 {
 		t.Fatalf("campaign summary = %+v, want applied=1 pending=1 total=2", campaign)
 	}
+	if campaign.UpdatedAt != "2026-04-01T01:00:00Z" {
+		t.Fatalf("campaign updated_at = %q, want latest rollout timestamp", campaign.UpdatedAt)
+	}
 	if len(campaign.Rollouts) != 2 {
 		t.Fatalf("campaign rollouts length = %d, want 2", len(campaign.Rollouts))
 	}
@@ -3056,7 +3059,7 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 		case "/v1/me":
 			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"customer@example.com","name":"Customer"},"organizations":[{"id":"org-acme","name":"Acme Smart Camera","role":"owner"}]}`))
 		case "/v1/orgs/org-acme/devices":
-			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"},{"id":"dev-001","name":"cam-a-001","model":"RTK-CAM-A","serial_number":"ACME-A-001","readiness":"online","status":"online","video_cloud_devid":"device-1"}]}`))
+			_, _ = w.Write([]byte(`{"devices":[{"id":"dev-002","name":"cam-a-002","model":"RTK-CAM-A","device_item_profile_id":"sku-alpha","serial_number":"ACME-A-002","readiness":"activated","status":"online","video_cloud_devid":"device-2"},{"id":"dev-001","name":"cam-a-001","model":"RTK-CAM-A","device_item_profile_id":"sku-alpha","serial_number":"ACME-A-001","readiness":"online","status":"online","video_cloud_devid":"device-1"}]}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -3094,6 +3097,14 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 			_, _ = w.Write([]byte(`{"status":"ok","campaigns":[{"campaign_id":"campaign-2026-04","model":"RTK-CAM-A","target_version":"v1.2.4","policy":{"name":"normal"},"state":"active","created_at":"2026-04-01T00:00:00Z","updated_at":"2026-04-01T00:00:00Z"}]}`))
 		case "/query_firmware_rollout":
 			_, _ = w.Write([]byte(`{"status":"ok","model":"RTK-CAM-A","target":"v1.2.4","rollouts":[{"account_device_id":"device-1","device_name":"cam-a-001","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.4","rollout_status":"applied","updated_at":"2026-04-01T00:00:00Z"},{"device_id":"device-2","device_name":"cam-a-002","campaign_id":"campaign-2026-04","target_version":"v1.2.4","current_version":"v1.2.3","rollout_status":"pending","updated_at":"2026-04-01T01:00:00Z"}]}`))
+		case "/v1/ota/skus/sku-alpha/campaigns":
+			_, _ = w.Write([]byte(`{"items":[{"campaign_id":"ota-campaign-1","sku_id":"sku-alpha","release_id":"release-1","state":"completed","target_snapshot_count":2,"created_at":"2026-04-02T00:00:00Z","activated_at":"2026-04-02T00:01:00Z","updated_at":"2026-04-02T00:05:00Z"}]}`))
+		case "/v1/ota/skus/sku-alpha/releases":
+			_, _ = w.Write([]byte(`{"items":[{"release_id":"release-1","version":"v1.2.4"}]}`))
+		case "/v1/ota/campaigns/ota-campaign-1/deployments":
+			_, _ = w.Write([]byte(`{"items":[{"device_id":"device-1","status":"succeeded","current_version":"v1.2.4","target_version":"v1.2.4","updated_at":"2026-04-02T00:04:00Z"},{"device_id":"device-2","status":"failed","current_version":"v1.2.3","target_version":"v1.2.4","error_reason":"checksum","updated_at":"2026-04-02T00:05:00Z"}]}`))
+		case "/v1/ota/campaigns/ota-campaign-1/summary":
+			_, _ = w.Write([]byte(`{"campaign_id":"ota-campaign-1","state":"completed","total":2,"by_status":{"succeeded":1,"failed":1},"updated_at":"2026-04-02T00:05:00Z"}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -3125,6 +3136,10 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
+	loadedDevices, err := srv.customerDevices(t.Context(), session)
+	if err != nil || len(loadedDevices) != 2 || loadedDevices[0].SKU != "sku-alpha" {
+		t.Fatalf("customer device SKU mapping = %#v, %v", loadedDevices, err)
+	}
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/fleet/firmware-distribution", nil)
@@ -3144,15 +3159,15 @@ func TestFleetFirmwareDistributionProxyModeUsesAlternateRolloutKeys(t *testing.T
 	if payload.Versions[0].Version != "v1.2.4" || !payload.Versions[0].IsLatest {
 		t.Fatalf("first version = %+v, want latest v1.2.4", payload.Versions[0])
 	}
-	if len(payload.Campaigns) != 1 {
-		t.Fatalf("campaigns length = %d, want 1", len(payload.Campaigns))
+	if len(payload.Campaigns) != 2 {
+		t.Fatalf("campaigns = %#v, want canonical and legacy campaigns", payload.Campaigns)
 	}
 	campaign := payload.Campaigns[0]
-	if campaign.CampaignID != "campaign-2026-04" {
-		t.Fatalf("campaign id = %q, want campaign-2026-04", campaign.CampaignID)
+	if campaign.CampaignID != "ota-campaign-1" || campaign.State != "completed" {
+		t.Fatalf("canonical campaign = %#v", campaign)
 	}
-	if campaign.Applied != 1 || campaign.Pending != 1 || campaign.Total != 2 {
-		t.Fatalf("campaign summary = %+v, want applied=1 pending=1 total=2", campaign)
+	if campaign.Applied != 1 || campaign.Failed != 1 || campaign.Total != 2 || campaign.Rollouts[0].FailureReason != "checksum" {
+		t.Fatalf("canonical campaign summary = %+v", campaign)
 	}
 }
 
@@ -4803,6 +4818,66 @@ func TestCustomerLifecycleRequiresAccountManagerCapability(t *testing.T) {
 	}
 	if upstreamProvisionCalls != 0 {
 		t.Fatalf("blocked lifecycle should not call upstream, got %d calls", upstreamProvisionCalls)
+	}
+}
+
+func TestSKUReleaseWriteRequiresFirmwareManageCapability(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"operations@example.com","name":"Operations"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"operations","capabilities":["firmware.release.read","ota.plan.manage"]}]}`))
+		case r.URL.Path == "/v1/orgs/org-up/access/check":
+			_, _ = w.Write([]byte(`{"allowed":true}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	videoCalls := 0
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		videoCalls++
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL: accountUpstream.URL,
+			VideoCloudBaseURL:     videoUpstream.URL,
+			VideoCloudAdminToken:  "vc-secret",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+	session, err := st.CreateSession("customer", "u1", "operations@example.com", "access", "refresh", "org-up", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/skus/sku-alpha/releases", strings.NewReader(`{"version":"forbidden"}`))
+	req.Header.Set("Idempotency-Key", "release-key")
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("release write status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), capabilityFirmwareReleaseManage) {
+		t.Fatalf("forbidden body should name missing capability: %s", rec.Body.String())
+	}
+	if videoCalls != 0 {
+		t.Fatalf("blocked release write should not call video upstream, got %d calls", videoCalls)
 	}
 }
 

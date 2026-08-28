@@ -21,6 +21,7 @@ test('[UI-CA-DASH-001] platform admin can triage platform dashboard @smoke', asy
   await expect(page.getByRole('link', { name: /View all operations/ })).toHaveAttribute('href', '/admin/ops');
   await expect(page.getByRole('button', { name: /refresh|重新整理/i })).toHaveCount(0);
   await expect(page.locator('.platform-dashboard .fa-solid:visible').first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /View service health/ }).first()).toBeVisible();
 
   await page.goto('/console/overview');
   await expect(page.getByRole('heading', { name: 'Platform admin cannot use the Brand Cloud console', exact: true })).toBeVisible();

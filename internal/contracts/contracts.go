@@ -555,6 +555,7 @@ type FirmwareDistributionCampaign struct {
 	Skipped       int                           `json:"skipped"`
 	Total         int                           `json:"total"`
 	StartedAt     string                        `json:"started_at"`
+	UpdatedAt     string                        `json:"updated_at,omitempty"`
 	Rollouts      []FirmwareDistributionRollout `json:"rollouts,omitempty"`
 }
 

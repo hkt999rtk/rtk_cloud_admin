@@ -110,7 +110,8 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	_, err := client.ActivateLogin(ctx, "token")
 	check("ActivateLogin", err)
 	check("ForgotPassword", client.ForgotPassword(ctx, "user@example.com"))
-	check("ResetPassword", client.ResetPassword(ctx, "token", "new-password"))
+	_, err = client.ResetPassword(ctx, "token", "new-password")
+	check("ResetPassword", err)
 
 	_, _, err = client.ChipsetProvider(ctx, "access", "provider/1")
 	check("ChipsetProvider", err)
@@ -148,6 +149,20 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	check("DisableDeveloperBrandCloudMember", err)
 	_, err = client.SetDeveloperBrandCloudMemberStatus(ctx, "access", "brand/1", "user/1", true)
 	check("EnableDeveloperBrandCloudMember", err)
+	_, err = client.SKUCollaborators(ctx, "access", "brand/1", "sku/1")
+	check("SKUCollaborators", err)
+	_, err = client.SKUCollaboratorInvitations(ctx, "access", "brand/1", "sku/1")
+	check("SKUCollaboratorInvitations", err)
+	_, err = client.InviteSKUCollaborator(ctx, "access", "brand/1", "sku/1", "collaborator@example.com", "sku_editor")
+	check("InviteSKUCollaborator", err)
+	_, err = client.ActOnSKUCollaboratorInvitation(ctx, "access", "brand/1", "sku/1", "invitation/1", "cancel")
+	check("ActOnSKUCollaboratorInvitation", err)
+	_, err = client.UpdateSKUCollaborator(ctx, "access", "brand/1", "sku/1", "user/1", "sku_viewer")
+	check("UpdateSKUCollaborator", err)
+	check("RemoveSKUCollaborator", client.RemoveSKUCollaborator(ctx, "access", "brand/1", "sku/1", "user/1"))
+	check("TransferSKUOwnership", client.TransferSKUOwnership(ctx, "access", "brand/1", "sku/1", "user/1"))
+	_, err = client.AcceptSKUCollaboratorInvitation(ctx, "access", "invitation-token")
+	check("AcceptSKUCollaboratorInvitation", err)
 	_, err = client.RequestDeveloperOwnerTransfer(ctx, "access", "brand/1", "owner@example.com")
 	check("RequestDeveloperOwnerTransfer", err)
 	_, err = client.DeveloperOwnerTransfer(ctx, "access", "brand/1", "transfer/1")
@@ -206,7 +221,7 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	_, err = client.DisableDeviceItemProfile(ctx, "access", "org/1", "profile/1")
 	check("DisableDeviceItemProfile", err)
 
-	if requests < 47 {
+	if requests < 55 {
 		t.Fatalf("requests = %d, want broad wrapper coverage", requests)
 	}
 }

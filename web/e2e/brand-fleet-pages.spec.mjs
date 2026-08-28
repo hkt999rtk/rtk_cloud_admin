@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { login } from './fixtures/session.mjs';
+import { expectPageTitle, login } from './fixtures/session.mjs';
 
 const pages = [
   ['overview', '設備總覽'],
   ['devices', '設備'],
   ['sku-services', 'SKU 與服務'],
   ['firmware-ota', '韌體更新'],
-  ['jobs', '批次工作'],
   ['reports', '報表'],
   ['access', '成員與權限'],
   ['settings', '設定'],
@@ -17,11 +16,11 @@ test('[UI-CA-FLEETPAGE-001] Brandname customer pages load through the real BFF @
   await login(page, 'developer');
   for (const [route, heading] of pages) {
     await page.goto(`/console/brand-e2e-01/${route}`);
-    await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible();
+    await expectPageTitle(page, heading);
   }
 });
 
-test('[UI-CA-FLEETPAGE-003] Brand Cloud overview access and settings share one navigation entry @brand-fleet @smoke', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-005] Brand Cloud overview access and settings share one navigation entry @brand-fleet @smoke', async ({ page }) => {
   await login(page, 'developer');
   await page.goto('/console/brand-e2e-01/overview');
   const brandCloudEntry = page.getByRole('button', { name: '品牌雲首頁' });
@@ -54,6 +53,14 @@ test('[UI-CA-FLEETPAGE-003] Brand Cloud overview access and settings share one n
   await expect(page).toHaveURL(/\/console\/brand-e2e-01\/access$/);
 });
 
+test('[UI-CA-FLEETPAGE-003] retired batch work route opens firmware upgrade status @brand-fleet', async ({ page }) => {
+  await login(page, 'developer');
+  await page.goto('/console/brand-e2e-01/jobs');
+  await expect(page.getByRole('heading', { name: '韌體更新' }).first()).toBeVisible();
+  await expect(page).toHaveURL(/\/console\/brand-e2e-01\/firmware-ota$/);
+  await expect(page.getByRole('button', { name: '批次工作' })).toHaveCount(0);
+});
+
 test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading the whole fleet @brand-fleet @smoke', async ({ page }, testInfo) => {
   await login(page, 'developer');
   const requests = [];
@@ -76,6 +83,8 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
   });
   await page.goto('/console/brand-e2e-01/devices');
   await expect(page.getByRole('heading', { name: '設備' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /批次設定|批次停用|選取全部/ })).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: /^選取 / })).toHaveCount(0);
   await expect.poll(() => requests.length).toBeGreaterThan(0);
   expect(requests.some((url) => /limit=\d+/.test(url))).toBeTruthy();
   expect(requests.some((url) => /offset=/.test(url))).toBeFalsy();
@@ -106,7 +115,7 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
   await expect(topPagination).toContainText('第 6 / 10 頁');
 });
 
-test('[UI-CA-FLEETPAGE-004] report builder uses shared form controls @brand-fleet @smoke', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-006] report builder uses shared form controls @brand-fleet @smoke', async ({ page }) => {
   await login(page, 'developer');
   await page.goto('/console/brand-e2e-01/reports');
 
@@ -131,7 +140,7 @@ test('[UI-CA-FLEETPAGE-004] report builder uses shared form controls @brand-flee
   expect(checkboxStyles.borderRadius).toBe('5px');
 });
 
-test('[UI-CA-FLEETPAGE-005] firmware status loads only after selecting a SKU @brand-fleet @smoke', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-007] firmware status loads only after selecting a SKU @brand-fleet @smoke', async ({ page }) => {
   await login(page, 'developer');
   const distributionRequests = [];
   page.on('request', (request) => {
@@ -142,14 +151,14 @@ test('[UI-CA-FLEETPAGE-005] firmware status loads only after selecting a SKU @br
   const skuSelector = page.getByLabel('選擇 Firmware SKU');
   await expect(skuSelector).toHaveClass(/select-control/);
   await expect(page.getByRole('heading', { name: '請先選擇 SKU' })).toBeVisible();
-  await expect(page.getByText('Latest Version', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('最新版本', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Firmware data window')).toHaveCount(0);
   expect(distributionRequests).toHaveLength(0);
 
   await skuSelector.selectOption('sku-alpha');
   await expect(page).toHaveURL(/firmware-ota\?sku_id=sku-alpha$/);
   await expect.poll(() => distributionRequests.some((url) => url.includes('sku_id=sku-alpha'))).toBeTruthy();
-  await expect(page.getByText('Latest Version', { exact: true })).toBeVisible();
+  await expect(page.getByText('最新版本', { exact: true })).toBeVisible();
   await expect(page.getByText(/目前顯示 E2E sku-alpha Camera/)).toBeVisible();
 
   await page.reload();
@@ -160,4 +169,43 @@ test('[UI-CA-FLEETPAGE-005] firmware status loads only after selecting a SKU @br
   await page.goForward();
   await expect(page).toHaveURL(/firmware-ota\?sku_id=sku-alpha$/);
   await expect(skuSelector).toHaveValue('sku-alpha');
+});
+
+test('[UI-CA-FLEETPAGE-004] overview world map supports country hover zoom and pan @brand-fleet', async ({ page }) => {
+  await login(page, 'developer');
+  await page.goto('/console/brand-e2e-01/overview');
+  const map = page.getByRole('img', { name: '可縮放及拖曳的世界設備分布地圖' });
+  await expect(map).toBeVisible();
+  await expect(map.locator('.world-countries path')).toHaveCount(177);
+  await map.locator('.world-countries path').nth(10).hover();
+  await expect(page.locator('.region-map-tooltip')).toBeVisible();
+  await page.getByRole('button', { name: '放大地圖' }).click();
+  await expect(page.getByText('140%', { exact: true })).toBeVisible();
+  const beforePan = await map.getAttribute('viewBox');
+  const bounds = await map.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width * .65, bounds.y + bounds.height * .5);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width * .45, bounds.y + bounds.height * .5);
+  await page.mouse.up();
+  await expect.poll(() => map.getAttribute('viewBox')).not.toBe(beforePan);
+});
+
+test('[UI-CA-FLEETPAGE-008] SKU form uses styled buttons, checkboxes, and select controls @brand-fleet', async ({ page }) => {
+  await login(page, 'customer');
+  await page.route('**/api/skus', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ skus: [], can_manage: true, source_status: 'available' }) });
+  });
+  await page.goto('/console/brand-e2e-01/sku-services');
+  const createButton = page.getByRole('button', { name: '＋ 新增 SKU' });
+  await expect(createButton).toHaveCSS('background-color', 'rgb(0, 104, 183)');
+  await createButton.click();
+
+  const category = page.locator('.sku-create-form select');
+  const liveView = page.getByRole('checkbox', { name: '即時觀看' });
+  await expect(category).toHaveCSS('appearance', 'none');
+  await expect(category).not.toHaveCSS('background-image', 'none');
+  await expect(liveView).toHaveCSS('appearance', 'none');
+  await expect(liveView).toHaveCSS('background-color', 'rgb(0, 104, 183)');
+  await expect(page.getByRole('button', { name: '儲存 SKU' })).toHaveCSS('background-color', 'rgb(0, 104, 183)');
 });

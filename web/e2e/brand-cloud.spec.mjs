@@ -1,18 +1,17 @@
 import { test, expect } from '@playwright/test';
-import { enterPlatform, login } from './fixtures/session.mjs';
+import { expectPageTitle, login } from './fixtures/session.mjs';
 
 test.describe('Brand Clouds', () => {
   test.describe.configure({ mode: 'serial' });
 
   test.beforeEach(async ({ page }) => {
     await login(page, 'platform_admin');
-    await enterPlatform(page);
-    await page.getByRole('button', { name: '品牌雲管理', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Brand Clouds' }).first()).toBeVisible();
+    await page.goto('/admin/brand-clouds');
+    await expectPageTitle(page, 'Brand Clouds');
   });
 
   test('[UI-CA-CLOUD-001] list filters and detail reload show Account Manager data @smoke', async ({ page }) => {
-    await expect(page.getByText('Brand Clouds', { exact: true }).first()).toBeVisible();
+    await expectPageTitle(page, 'Brand Clouds');
     await expect(page.getByText('E2E Alpha Cloud', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'View', exact: true }).first().click();
     await expect(page.getByRole('dialog', { name: 'Brand Cloud detail' })).toBeVisible();

@@ -74,7 +74,7 @@ export function userFacingSignupError(error) {
 
 export function userFacingVerificationError(error) {
   const message = String(error?.message || error || '');
-  if (/expired/i.test(message)) {
+  if (isExpiredVerificationError(error)) {
     return 'Verification link expired. Request a new verification email.';
   }
   if (/already verified|already_verified/i.test(message)) {
@@ -87,6 +87,10 @@ export function userFacingVerificationError(error) {
     return 'Verification service is temporarily unavailable. Please try again later.';
   }
   return 'Verification could not be completed. Please try again.';
+}
+
+export function isExpiredVerificationError(error) {
+  return /expired/i.test(String(error?.message || error || ''));
 }
 
 export function userFacingLoginActivationError(error) {

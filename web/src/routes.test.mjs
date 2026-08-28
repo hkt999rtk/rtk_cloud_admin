@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   billingSubpaths,
   canAccessCustomerRoute,
+  canonicalCustomerPath,
   customerNavGroups,
   customerNavItems,
   defaultBrandCloudRoute,
@@ -76,7 +77,11 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/operations/history'), 'overview');
   assert.equal(routeFromPath('/console/firmware-ota'), 'firmware-ota');
   assert.equal(routeFromPath('/console/stream-health'), 'stream-health');
-  assert.equal(routeFromPath('/console/jobs'), 'jobs');
+  assert.equal(routeFromPath('/console/jobs'), 'firmware-ota');
+  assert.equal(routeFromPath('/console/cloud-123/jobs'), 'firmware-ota');
+  assert.equal(cloudIdFromPath('/console/cloud-123/jobs'), 'cloud-123');
+  assert.equal(canonicalCustomerPath('/console/jobs'), '/console/firmware-ota');
+  assert.equal(canonicalCustomerPath('/console/cloud-123/jobs'), '/console/cloud-123/firmware-ota');
   assert.equal(routeFromPath('/console/reports'), 'reports');
   assert.equal(routeFromPath('/console/groups'), 'groups');
   assert.equal(routeFromPath('/console/groups/legacy'), 'groups');
@@ -104,7 +109,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['品牌雲首頁', '設備', '群組與標籤', '設備註冊', '批次工作', 'SKU 與服務', 'ChipSet & SDK', '韌體更新', '影像播放狀況', '報表', '帳務與自動加值'],
+    ['品牌雲首頁', '設備', '設備註冊', 'SKU 與服務', 'ChipSet & SDK', '韌體更新', '影像播放狀況', '報表', '帳務與自動加值'],
   );
   assert.deepEqual(customerNavGroups.map((group) => group.label), ['品牌雲', '設備營運', '產品與更新', '監控與分析', '帳號管理']);
 });
@@ -115,7 +120,7 @@ test('customer nav is derived from active membership capabilities', () => {
     'customer.devices.read',
     'customer.stream.read',
   ]).map((item) => item.label);
-  assert.deepEqual(labels, ['品牌雲首頁', '設備', '群組與標籤', '批次工作', 'ChipSet & SDK', '影像播放狀況']);
+  assert.deepEqual(labels, ['品牌雲首頁', '設備', 'ChipSet & SDK', '影像播放狀況']);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'overview'), true);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), false);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'sku-services'), false);
@@ -143,6 +148,8 @@ test('retired customer pages are not exposed in section navigation', () => {
   assert.equal(customerLabels.includes('Groups'), false);
   assert.equal(customerLabels.includes('Customers'), false);
   assert.equal(customerLabels.includes('Operations'), false);
+  assert.equal(customerLabels.includes('群組與標籤'), false);
+  assert.equal(customerLabels.includes('批次工作'), false);
   assert.equal(platformLabels.includes('Groups'), false);
   assert.equal(platformLabels.includes('Customers'), false);
 });
@@ -236,7 +243,6 @@ test('provides titles for all public shell routes', () => {
     'sku-services',
     'firmware-ota',
     'stream-health',
-    'jobs',
     'reports',
     'platform-dashboard',
     'platform-grafana',

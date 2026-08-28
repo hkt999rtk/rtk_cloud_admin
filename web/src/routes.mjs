@@ -11,9 +11,7 @@ export const customerNavGroups = [
     label: '設備營運',
     items: [
       { id: 'devices', label: '設備', path: '/console/devices', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
-      { id: 'groups', label: '群組與標籤', path: '/console/groups', icon: 'layer-group', capabilities: ['fleet.read', 'device_group.read', 'device_group.manage'] },
       { id: 'provisioning', label: '設備註冊', path: '/console/provisioning', icon: 'plug-circle-bolt', capabilities: ['provisioning.read', 'provisioning.create'] },
-      { id: 'jobs', label: '批次工作', path: '/console/jobs', icon: 'list-check', capabilities: ['fleet.read', 'fleet.batch.manage', 'fleet.batch.read'] },
     ],
   },
   {
@@ -164,7 +162,6 @@ export function titleFor(active) {
     settings: '品牌雲',
     'firmware-ota': '韌體更新',
     'stream-health': '影像播放狀況',
-    jobs: '批次工作',
     reports: '報表',
     provisioning: '設備註冊',
     billing: '帳務與自動加值',
@@ -209,7 +206,7 @@ export function routeFromPath(path) {
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
   const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|sku-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
-  if (scoped) return scoped[2];
+  if (scoped) return scoped[2] === 'jobs' ? 'firmware-ota' : scoped[2];
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
   if (path === '/console/sku-services' || path.startsWith('/console/sku-services/')) return 'sku-services';
   if (path === '/console/chipset-sdk' || path.startsWith('/console/chipset-sdk/')) return 'chipset-sdk';
@@ -218,7 +215,7 @@ export function routeFromPath(path) {
   if (path === '/console/settings' || path.startsWith('/console/settings/')) return 'settings';
   if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';
   if (path === '/console/stream-health' || path.startsWith('/console/stream-health/')) return 'stream-health';
-  if (path === '/console/jobs' || path.startsWith('/console/jobs/')) return 'jobs';
+  if (path === '/console/jobs' || path.startsWith('/console/jobs/')) return 'firmware-ota';
   if (path === '/console/reports' || path.startsWith('/console/reports/')) return 'reports';
   if (path === '/console/provisioning' || path.startsWith('/console/provisioning/')) return 'provisioning';
   if (
@@ -240,6 +237,13 @@ export function cloudIdFromPath(path) {
 
 export function routeFromLocation() {
   return routeFromPath(window.location.pathname);
+}
+
+export function canonicalCustomerPath(path) {
+  const scoped = String(path || '').match(/^\/console\/([^/]+)\/jobs(?:\/.*)?$/);
+  if (scoped) return `/console/${scoped[1]}/firmware-ota`;
+  if (path === '/console/jobs' || String(path || '').startsWith('/console/jobs/')) return '/console/firmware-ota';
+  return path;
 }
 
 export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '', skuID = '', q = '', sort = '', direction = '', offset = '' } = {}) {
