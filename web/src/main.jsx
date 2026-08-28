@@ -2010,6 +2010,8 @@ function BrandCloudPage({
     /> : null}
     {active === 'access' ? <TeamAccessPage
       data={access}
+      me={me}
+      cloudName={cloud.name}
       loading={loading}
       activeCloudId={cloud.id}
       canManage={canManageTeam}
@@ -2545,7 +2547,7 @@ function SKUsPage({ loading, data, onRefresh }) {
           <h2>SKU 與服務</h2>
           <p>查看每種產品可以使用哪些服務，以及目前角色可以管理哪些內容。</p>
         </div>
-        {canManage ? <button type="button" className="primary" onClick={() => { setEditingSKU(null); setPreview(null); setShowCreate((value) => !value); }}>＋ 新增 SKU</button> : null}
+        {canManage ? <button type="button" className="primary-button" onClick={() => { setEditingSKU(null); setPreview(null); setShowCreate((value) => !value); }}>＋ 新增 SKU</button> : null}
       </div>
       {message ? <div className="notice">{message}</div> : null}
       {showCreate ? <section className="panel"><form className="sku-create-form" onSubmit={createSKU}><input required placeholder="SKU 名稱" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input required placeholder="產品型號" value={form.product_model} onChange={(event) => setForm({ ...form, product_model: event.target.value })} /><select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="ip_camera">影像設備</option><option value="mqtt_device">回報設備</option><option value="generic">一般設備</option></select><div className="service-checks">{['即時觀看', '錄影與保存', '設備回報'].map((service) => <label key={service}><input type="checkbox" checked={form.service_capabilities.includes(service)} onChange={(event) => setForm({ ...form, service_capabilities: event.target.checked ? [...form.service_capabilities, service] : form.service_capabilities.filter((item) => item !== service) })} />{service}</label>)}</div>{editingSKU ? <button type="button" className="ghost-button" onClick={previewSKU}>先看變更影響</button> : null}<button type="submit" className="primary">{editingSKU ? '儲存變更' : '儲存 SKU'}</button>{preview ? <p className="notice">{preview.source_status === 'available' ? `會影響 ${(preview.affected_devices || 0).toLocaleString()} 台設備；${preview.requires_reprovision ? '可能需要重新設定。' : '不需要重新設定。'}` : '影響預覽目前無法取得。'}</p> : null}</form></section> : null}
@@ -2646,15 +2648,18 @@ function BrandCloudMemberInvitationAcceptPage() {
   return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isSKUInvitation ? 'SKU project invitation' : 'Brand Cloud invitation'}</p><h1>{isSKUInvitation ? '接受 SKU 協作邀請' : '接受團隊邀請'}</h1><p>系統會同時驗證 Email invitation token 與目前登入的 Developer 帳號。</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? '驗證中…' : '接受邀請'}</button> : <a className="inline-action" href={`/console/${encodeURIComponent(cloudID)}/sku-services`}>前往 SKU project</a>}</section></div>;
 }
 
-function TeamAccessPage({ data, loading, activeCloudId, canManage, onRefresh }) {
+function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage, onRefresh }) {
   const members = data?.members || [];
   const invitations = (data?.invitations || []).filter((invitation) => invitation.status === 'pending');
   const assignments = data?.role_assignments || [];
-  const roles = data?.roles || [];
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('member');
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [message, setMessage] = useState('');
+  const activeMembership = getActiveMembership(me);
+  const currentMember = members.find((member) => member.email === me?.email);
+  const currentRole = activeMembership?.role || currentMember?.role || assignments[0]?.role_name || '';
+  const currentRoleDetails = userRoleDetails(currentRole);
   const sourceAvailableFor = (key) => !data || data[key] !== 'unavailable';
   const scopeLabel = (assignment) => {
     if (assignment.scope_type === 'organization') return '整個品牌帳號';
@@ -2719,7 +2724,7 @@ function TeamAccessPage({ data, loading, activeCloudId, canManage, onRefresh }) 
     {canManage && sourceAvailableFor('invitations_source_status') ? <section className="panel"><div className="panel-head"><div><h3>待接受邀請</h3><p>邀請連結有效 30 分鐘；重寄後舊連結立即失效。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Email</th><th>角色</th><th>狀態</th><th>到期時間</th><th>操作</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td>{invitation.target_email}</td><td>{invitation.role}</td><td><span className="status-badge neutral">待接受</span></td><td>{new Date(invitation.expires_at).toLocaleString()}</td><td><button type="button" className="link-button" onClick={() => invitationAction(invitation, 'resend')}>重寄</button> <button type="button" className="link-button" onClick={() => invitationAction(invitation, 'cancel')}>取消</button></td></tr>)}</tbody></table>{!invitations.length ? <p className="empty-state">目前沒有待接受邀請。</p> : null}</div></section> : null}
     {sourceAvailableFor('members_source_status') ? <section className="panel"><div className="panel-head"><div><h3>Brand Cloud 成員</h3><p>成員資料與 membership scope 由 Account Manager 提供。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>成員</th><th>角色</th><th>狀態</th>{canManage ? <th>操作</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong><small>{member.email}</small></td><td>{canManage && member.role !== 'owner' ? <select value={member.role} onChange={(event) => updateMember(member, 'role', event.target.value)}><option value="admin">Admin</option><option value="member">Member</option></select> : member.role}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}>{member.disabled_at ? '停用' : '啟用'}</span></td>{canManage ? <td>{member.role === 'owner' ? 'Owner transfer only' : <><button type="button" className="link-button" onClick={() => updateMember(member, member.disabled_at ? 'enable' : 'disable')}>{member.disabled_at ? '啟用' : '停用'}</button> <button type="button" className="link-button" onClick={() => updateMember(member, 'remove')}>移除</button></>}</td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">目前沒有 Brand Cloud 成員。</p> : null}</div></section> : null}
     {sourceAvailableFor('assignments_source_status') ? <>
-      <section className="panel"><div className="panel-head"><div><h3>可用角色</h3><p>Developer、Operations 等角色的可用操作由平台設定。</p></div></div><div className="chip-list">{roles.map((availableRole) => <span className="status-badge neutral" key={availableRole.id}>{availableRole.name}</span>)}{!roles.length ? <p className="empty-state">目前沒有額外角色。</p> : null}</div></section>
+      <section className="panel current-role-panel"><div className="panel-head"><div><h3>你的角色與權限</h3><p>以下說明以你目前登入的帳號為準；實際可管理的資料仍受品牌、SKU、區域或群組範圍限制。</p></div><span className="status-badge good">目前使用中</span></div><div className="current-role-card"><div className="current-role-icon"><Icon name={currentRoleDetails.icon} /></div><div><div className="current-role-title"><h4>{currentRoleDetails.title}</h4>{currentRole ? <code>{currentRole}</code> : null}</div><p>{currentRoleDetails.description}</p><ul className="current-role-actions">{currentRoleDetails.actions.map((action) => <li key={action}><Icon name="circle-check" />{action}</li>)}</ul>{cloudName || activeMembership?.organization ? <p className="current-role-scope"><strong>目前套用：</strong>{cloudName || activeMembership.organization}</p> : null}</div></div>{canManage ? <p className="field-help">你可以在上方邀請或調整團隊成員；品牌擁有者只能透過「所有權轉移」交接。</p> : <p className="field-help">若需要更多操作權限，請聯絡品牌擁有者或管理員調整你的角色與管理範圍。</p>}</section>
       <section className="panel"><div className="panel-head"><div><h3>目前的權限範圍</h3><p>這裡只顯示管理範圍，不顯示內部權限代碼。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>角色</th><th>管理範圍</th><th>狀態</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{assignment.role_name}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good">啟用</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">目前沒有額外的範圍指派。</p> : null}</div></section>
     </> : <section className="panel split-panel"><div><h3>角色與管理範圍暫時無法取得</h3><p>{data?.source_message || '請稍後再試。'}</p></div></section>}
   </section>;
@@ -6603,6 +6608,84 @@ function roleLabel(role) {
     readonly: 'Read-only Observer',
   };
   return labels[normalized] || toTitleCase(role || 'Customer User');
+}
+
+function userRoleDetails(role) {
+  const normalized = String(role || '').toLowerCase().replaceAll('-', '_');
+  const roles = {
+    owner: {
+      title: '品牌擁有者',
+      icon: 'crown',
+      description: '你負責這個 Brand Cloud 的最終管理與所有權交接。',
+      actions: ['管理團隊成員與角色', '管理品牌下的設備、SKU 與營運功能', '將品牌所有權安全地轉移給其他成員'],
+    },
+    admin: {
+      title: '品牌管理員',
+      icon: 'user-shield',
+      description: '你協助品牌擁有者管理團隊與日常營運，但不能轉移品牌所有權。',
+      actions: ['邀請、停用或移除團隊成員', '管理設備、SKU 與營運設定', '查看品牌層級的報表與狀態'],
+    },
+    member: {
+      title: '團隊成員',
+      icon: 'user',
+      description: '你可以使用團隊開放給你的功能；可見資料會依指派範圍而不同。',
+      actions: ['查看被授權的設備與 SKU', '使用角色允許的日常操作', '查看與自己管理範圍相關的狀態'],
+    },
+    tenant_admin: {
+      title: '組織管理員',
+      icon: 'user-shield',
+      description: '你負責品牌帳號、使用者與整體設備營運管理。',
+      actions: ['管理組織成員與權限', '管理整體設備與營運設定', '查看組織層級的狀態與報表'],
+    },
+    fleet_manager: {
+      title: '設備營運管理員',
+      icon: 'gauge-high',
+      description: '你負責指定範圍內設備的日常營運與維護。',
+      actions: ['管理設備註冊與生命週期', '查看設備與串流健康狀態', '執行允許的韌體更新作業'],
+    },
+    installer: {
+      title: '安裝與佈署人員',
+      icon: 'screwdriver-wrench',
+      description: '你負責指定場域或群組的設備安裝、綁定與啟用。',
+      actions: ['註冊與綁定指定設備', '完成設備初始設定', '確認設備是否已準備就緒'],
+    },
+    firmware_operator: {
+      title: '韌體更新管理員',
+      icon: 'microchip',
+      description: '你負責指定範圍的韌體版本與更新計畫。',
+      actions: ['查看韌體版本與覆蓋狀態', '管理更新計畫與發布節奏', '監控或取消進行中的更新'],
+    },
+    read_only_observer: {
+      title: '唯讀檢視者',
+      icon: 'eye',
+      description: '你可以查看營運資訊，但不能修改設備、設定或成員資料。',
+      actions: ['查看設備與健康狀態', '查看韌體、遙測與就緒資訊', '查看被授權範圍的報表'],
+    },
+    sku_owner: {
+      title: 'SKU 擁有者',
+      icon: 'boxes-stacked',
+      description: '你負責指定 SKU 的設定、協作者與相關設備作業。',
+      actions: ['管理 SKU 設定與協作者', '管理 SKU 下的設備與更新', '查看 SKU 相關報表'],
+    },
+    sku_editor: {
+      title: 'SKU 編輯者',
+      icon: 'pen-to-square',
+      description: '你可以維護指定 SKU 與執行專案工作，但不能交接所有權。',
+      actions: ['編輯指定 SKU', '管理相關設備與更新', '查看 SKU 相關報表'],
+    },
+    sku_viewer: {
+      title: 'SKU 檢視者',
+      icon: 'eye',
+      description: '你可以查看指定 SKU 與報表，但不能變更設定。',
+      actions: ['查看指定 SKU', '查看相關設備資訊', '查看 SKU 相關報表'],
+    },
+  };
+  return roles[normalized] || {
+    title: normalized ? roleLabel(normalized) : '尚未取得角色資料',
+    icon: 'circle-user',
+    description: normalized ? '你的可用功能由目前角色與管理範圍共同決定。' : '重新整理後仍未顯示時，請聯絡品牌管理員確認成員設定。',
+    actions: ['只顯示目前帳號已獲授權的功能', '資料與操作範圍由平台權限即時判斷'],
+  };
 }
 
 function sourceFactLayerLabel(layer) {
