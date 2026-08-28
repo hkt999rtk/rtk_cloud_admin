@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   billingSubpaths,
+  canonicalCustomerPath,
   customerNavItems,
   devicesPathWithFilters,
   isPlatformRouteId,
@@ -70,7 +71,11 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/operations/history'), 'overview');
   assert.equal(routeFromPath('/console/firmware-ota'), 'firmware-ota');
   assert.equal(routeFromPath('/console/stream-health'), 'stream-health');
-  assert.equal(routeFromPath('/console/jobs'), 'jobs');
+  assert.equal(routeFromPath('/console/jobs'), 'firmware-ota');
+  assert.equal(routeFromPath('/console/cloud-123/jobs'), 'firmware-ota');
+  assert.equal(cloudIdFromPath('/console/cloud-123/jobs'), 'cloud-123');
+  assert.equal(canonicalCustomerPath('/console/jobs'), '/console/firmware-ota');
+  assert.equal(canonicalCustomerPath('/console/cloud-123/jobs'), '/console/cloud-123/firmware-ota');
   assert.equal(routeFromPath('/console/reports'), 'reports');
   assert.equal(routeFromPath('/console/groups'), 'groups');
   assert.equal(routeFromPath('/console/groups/legacy'), 'groups');
@@ -94,7 +99,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表', '設備註冊', '帳務與自動加值'],
+    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '團隊與權限', '韌體更新', '影像播放狀況', '報表', '設備註冊', '帳務與自動加值'],
   );
 });
 
@@ -104,7 +109,7 @@ test('customer nav is derived from active membership capabilities', () => {
     'customer.devices.read',
     'customer.stream.read',
   ]).map((item) => item.label);
-  assert.deepEqual(labels, ['設備總覽', '設備', 'ChipSet & SDK', '影像播放狀況', '批次工作']);
+  assert.deepEqual(labels, ['設備總覽', '設備', 'ChipSet & SDK', '影像播放狀況']);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), true);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'sku-services'), false);
   assert.equal(navItemsForCapabilities('overview', ['billing_account.read']).some((item) => item.id === 'billing'), true);
@@ -189,7 +194,6 @@ test('provides titles for all public shell routes', () => {
     'sku-services',
     'firmware-ota',
     'stream-health',
-    'jobs',
     'reports',
     'platform-dashboard',
     'platform-grafana',

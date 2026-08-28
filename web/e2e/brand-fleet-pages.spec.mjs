@@ -6,7 +6,6 @@ const pages = [
   ['devices', '設備'],
   ['sku-services', 'SKU 與服務'],
   ['firmware-ota', '韌體更新'],
-  ['jobs', '批次工作'],
   ['reports', '報表'],
   ['access', '團隊與權限'],
   ['provisioning', '設備註冊'],
@@ -20,12 +19,22 @@ test('[UI-CA-FLEETPAGE-001] Brandname customer pages load through the real BFF @
   }
 });
 
+test('[UI-CA-FLEETPAGE-003] retired batch work route opens firmware upgrade status @brand-fleet', async ({ page }) => {
+  await login(page, 'developer');
+  await page.goto('/console/brand-e2e-01/jobs');
+  await expect(page.getByRole('heading', { name: '韌體更新' }).first()).toBeVisible();
+  await expect(page).toHaveURL(/\/console\/brand-e2e-01\/firmware-ota$/);
+  await expect(page.getByRole('button', { name: '批次工作' })).toHaveCount(0);
+});
+
 test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading the whole fleet @brand-fleet', async ({ page }) => {
   await login(page, 'developer');
   const requests = [];
   page.on('request', (request) => { if (request.url().includes('/api/fleet/devices')) requests.push(request.url()); });
   await page.goto('/console/brand-e2e-01/devices');
   await expect(page.getByRole('heading', { name: '設備' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /批次設定|批次停用|選取全部/ })).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: /^選取 / })).toHaveCount(0);
   await expect.poll(() => requests.length).toBeGreaterThan(0);
   expect(requests.some((url) => /limit=\d+/.test(url))).toBeTruthy();
   expect(requests.some((url) => /offset=/.test(url))).toBeFalsy();
