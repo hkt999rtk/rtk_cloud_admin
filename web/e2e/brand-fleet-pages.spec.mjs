@@ -30,3 +30,23 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
   expect(requests.some((url) => /limit=\d+/.test(url))).toBeTruthy();
   expect(requests.some((url) => /offset=/.test(url))).toBeFalsy();
 });
+
+test('[UI-CA-FLEETPAGE-003] SKU form uses styled buttons, checkboxes, and select controls @brand-fleet', async ({ page }) => {
+  await login(page, 'customer');
+  await page.route('**/api/skus', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ skus: [], can_manage: true, source_status: 'available' }) });
+  });
+  await page.goto('/console/brand-e2e-01/sku-services');
+  const createButton = page.getByRole('button', { name: '＋ 新增 SKU' });
+  await expect(createButton).toHaveCSS('background-color', 'rgb(0, 104, 183)');
+  await createButton.click();
+
+  const category = page.locator('.sku-create-form select');
+  const liveView = page.getByRole('checkbox', { name: '即時觀看' });
+  await expect(category).toHaveCSS('appearance', 'none');
+  await expect(category).not.toHaveCSS('background-image', 'none');
+  await expect(liveView).toHaveCSS('appearance', 'none');
+  await expect(liveView).toHaveCSS('background-color', 'rgb(0, 104, 183)');
+  await expect(page.getByRole('button', { name: '儲存 SKU' })).toHaveCSS('background-color', 'rgb(0, 104, 183)');
+});
