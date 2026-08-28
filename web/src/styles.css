@@ -920,28 +920,104 @@ main {
   padding: 8px;
 }
 
-.region-map-vector svg {
-  display: block;
-  width: 100%;
-  min-height: 220px;
+.region-map-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  padding: 0 0 8px;
 }
 
-.region-map-vector path {
+.region-map-toolbar button {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--navy);
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 34px;
+  padding: 4px 9px;
+}
+
+.region-map-toolbar button:disabled {
+  cursor: default;
+  opacity: .45;
+}
+
+.region-map-toolbar span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.region-map-stage {
+  background: #eaf3f8;
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+}
+
+.region-map-vector svg {
+  aspect-ratio: 2 / 1;
+  cursor: grab;
+  display: block;
+  min-height: 220px;
+  touch-action: none;
+  user-select: none;
+  width: 100%;
+}
+
+.region-map-vector svg.is-dragging {
+  cursor: grabbing;
+}
+
+.region-map-vector .world-countries path {
   fill: #dcebf3;
-  stroke: #9bbdce;
-  stroke-width: 2;
+  stroke: #91b3c5;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.region-map-vector .world-countries path:hover {
+  fill: #bcd8e7;
 }
 
 .region-map-vector circle {
   fill: var(--brand);
   stroke: #fff;
   stroke-width: 2;
+  vector-effect: non-scaling-stroke;
 }
 
 .region-map-vector text {
   fill: var(--navy);
   font-size: 12px;
   font-weight: 700;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+}
+
+.region-map-markers {
+  pointer-events: none;
+}
+
+.region-map-tooltip {
+  background: rgba(24, 47, 67, .94);
+  border-radius: 5px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  max-width: 180px;
+  padding: 5px 8px;
+  pointer-events: none;
+  position: absolute;
+  transform: translate(10px, calc(-100% - 8px));
+  white-space: nowrap;
+  z-index: 2;
 }
 
 .region-map-vector small {
