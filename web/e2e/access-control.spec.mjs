@@ -16,5 +16,11 @@ test('[UI-CA-ACCESS-002] customer cannot read platform admin API', async ({ page
 test('[UI-CA-ACCESS-003] customer view is separated from platform navigation', async ({ page }) => {
   await login(page, 'customer');
   await page.goto('/console');
-  await expect(page.getByText('Brand Clouds', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Connect+ Ops', { exact: true })).toBeVisible();
+  await expect(page.getByText('品牌雲管理', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('平台總覽', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Switch to/i })).toHaveCount(0);
+
+  await page.goto('/admin/health');
+  await expect(page.getByRole('heading', { name: 'Platform access denied', exact: true })).toBeVisible();
 });

@@ -561,6 +561,7 @@ type FirmwareDistributionCampaign struct {
 
 type FirmwareDistribution struct {
 	OrgID         string                         `json:"org_id"`
+	SKU           string                         `json:"sku_id,omitempty"`
 	SourceStatus  string                         `json:"source_status"`
 	SourceMessage string                         `json:"source_message,omitempty"`
 	Versions      []FirmwareDistributionVersion  `json:"versions"`

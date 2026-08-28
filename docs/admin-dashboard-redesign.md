@@ -59,9 +59,9 @@ operators while preserving a clean internal view for Tier 1 roles.
 
 1. Surface the data Tier 2 operators actually need to manage their fleet.
 2. Remove internal implementation vocabulary (`cloud_activation_pending`, `dead_lettered`, `video_cloud_devid`, etc.) from Customer View routes.
-3. Ensure no Customer View route exposes Platform View data, and Platform View
-   routes are reachable only through a visually separated, role-gated view
-   switcher or direct `/admin` route.
+3. Ensure no Customer View route exposes Platform View data. Both roles use one
+   Connect+ Ops shell, while role-gated `/console/*` and `/admin/*` routes,
+   navigation hierarchies, and backend payloads remain separated.
 4. Ground all new data surfaces in existing contracts (TELEMETRY_INSIGHTS,
    FIRMWARE_CAMPAIGN) to avoid inventing new vocabulary.
 
@@ -155,24 +155,45 @@ Platform Admin   →  customer count + service health
 Operations roles:
 
 ```
-設備總覽
-設備
-群組與標籤
-SKU 與服務
-韌體版本
-更新計畫
-批次工作
-報表
-團隊與權限
+品牌雲
+└─ 品牌雲首頁
+   ├─ 總覽
+   ├─ 成員與權限
+   └─ 設定
+
+設備營運
+├─ 設備
+├─ 群組與標籤
+├─ 設備註冊
+└─ 批次工作
+
+產品與更新
+├─ SKU 與服務
+├─ ChipSet & SDK
+└─ 韌體更新
+
+監控與分析
+├─ 影像播放狀況
+└─ 報表
+
+帳號管理
+└─ 帳務與自動加值
 ```
 
 Device Groups, Tags, Products, Device Profiles, Batch Jobs, and Reports are
 required Brand Fleet surfaces because the target tenant manages 100K+ devices.
 
-`團隊與權限` uses the same scope model as the backend: a role assignment can
+The groups are fixed and non-collapsible. `團隊與權限` is no longer a separate
+sidebar destination: it is an addressable tab in `品牌雲首頁`, alongside fleet
+overview and low-frequency settings. `/overview`, `/access`, and `/settings`
+remain distinct deep links while sharing the Brand Cloud name, Cloud ID,
+organization selector, and tab strip.
+
+`成員與權限` uses the same scope model as the backend: a role assignment can
 cover the whole organization, one SKU, a region, a device group, or a single
-device. The page shows role names and readable scope labels; raw permission
-names and internal actor identifiers stay out of the primary workflow.
+device. The tab shows role names and readable scope labels; raw permission
+names and internal actor identifiers stay out of the primary workflow. Owner
+transfer and PKI test tools live under `設定`, not in the everyday member list.
 
 SKU collaboration is managed from `SKU 與服務`, not from the tenant-wide team
 table. The Brand Cloud owner alone creates a SKU and becomes its initial owner.
@@ -230,20 +251,19 @@ permission names, `video_cloud`, or other internal service identifiers as
 primary customer copy. Unsupported services are shown as `未啟用`, `不適用`,
 or `需要聯絡管理者`.
 
-**Platform View** — Tier 1 Platform Admin only:
+**Platform administration** — Tier 1 Platform Admin only:
 
 ```
-Dashboard        →  cross-tenant summary + curated Prometheus-backed metrics
-Service Health   →  moved from customer view
-SSO Providers    →  Account Manager-backed provider status/settings
-Operations       →  operations log (existing, refined)
-Audit Log        →  new section (uses existing audit_events table)
+平台總覽       └─ 平台首頁
+監控與診斷     ├─ Grafana、服務健康、服務日誌
+組織與產品     ├─ 品牌雲管理、ChipSet & SDK 供應商、SSO 供應商
+營運與稽核     └─ 營運紀錄、稽核紀錄
 ```
 
-The two views should have clearly differentiated entry points. A visually
-separate view switcher is acceptable when it is gated by role and route guards;
-it is not part of the Customer View section navigation. Do not intermix Tier 2
-customer content and Tier 1 platform content on the same page.
+Both roles use the same dark `Connect+ Ops` shell, topbar, account summary, and
+responsive behavior. Session kind selects one navigation hierarchy and there
+is no view switcher. Do not intermix Tier 2 customer content and Tier 1 platform
+content on the same page or in the same API payload.
 
 ---
 
@@ -801,8 +821,9 @@ For each new frontend section, the implementation must verify:
 - Empty states are defined (e.g., "No campaigns active", "No stream requests in selected window")
 - Tables show the most actionable items first (worst-performing devices at top)
 - Color usage follows FRONTEND_STYLE.md tokens
-- Platform View content does not appear in any Customer View route, and Platform
-  View links appear only in the visually separated, role-gated view switcher.
+- Platform content does not appear in any Customer route. Customer sessions
+  render only Customer navigation, Platform Admin sessions render only Platform
+  navigation, and wrong-role deep links show access gates.
 - Customer View payloads omit customer-hidden fields at the backend boundary,
   not only in React rendering.
 - The backend route handler for each section returns 403 for any session whose

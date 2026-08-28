@@ -40,10 +40,55 @@ dependency note only and was not opened as part of this batch.
 
 This roadmap tracks the completed first WebUI implementation sequence for
 Customer View, auth, Platform View pages, and Platform Dashboard. Brand Fleet
-Management remains the next large product sequence for brand sub-tenants.
+Management remains the larger product sequence for brand sub-tenants. The
+Brand Cloud navigation and overview/access/settings integration described below
+is complete as of 2026-08-28.
 Platform Dashboard and Brand Clouds already have an implemented baseline; their
 remaining design/API work is tracked in
 [platform-admin-implementation-plan.md](platform-admin-implementation-plan.md).
+
+## Completed Follow-up: Unified Customer And Platform Shell
+
+Customer Developer and Platform Admin sessions now share one `Connect+ Ops`
+shell, topbar, account summary, focus states, and responsive navigation. The
+former view switcher and Platform-only shell styling were removed.
+
+The login/session kind selects exactly one fixed navigation hierarchy. Customer
+keeps its five existing groups. Platform Admin uses four Chinese groups:
+平台總覽、監控與診斷、組織與產品、營運與稽核. Platform login lands on
+`/admin`; all existing `/admin/*` and `/console/*` deep links remain unchanged.
+Opening a wrong-role route shows an access gate while keeping the signed-in
+role's navigation. No Platform API, Customer payload, session kind, capability,
+or backend authorization contract was changed.
+
+## Completed Follow-up: Brand Cloud Overview And Access Integration
+
+The Customer View shell now uses fixed groups: 品牌雲、設備營運、產品與更新、
+監控與分析、帳號管理. 品牌雲首頁 is the only Brand Cloud sidebar entry and owns
+three independently addressable tabs:
+
+- `/console/{cloudId}/overview` — fleet overview plus capability-gated team
+  summary.
+- `/console/{cloudId}/access` — members, invitations, roles, and management
+  scopes.
+- `/console/{cloudId}/settings` — owner transfer and PKI test tools.
+
+The unscoped compatibility routes remain supported. Navigation visibility and
+route authorization are separate, tab changes participate in browser history,
+and existing backend routes/schema are unchanged. The frontend composes
+members, invitations, and role assignments with panel-level failure isolation.
+
+Implementation anchors:
+
+- `web/src/main.jsx`
+- `web/src/routes.mjs`
+- `web/src/styles.css`
+- `web/src/routes.test.mjs`
+- `web/e2e/brand-fleet-pages.spec.mjs`
+- `web/e2e/brand-fleet-team.spec.mjs`
+
+The original milestone sequence below remains historical traceability and must
+not be used to replace the current grouped navigation.
 
 ## Issue Body Template
 
@@ -84,8 +129,8 @@ before page-level implementation continues.
   through nav, mobile nav, or direct route fallback.
 - Confirm `/console/groups`, `/console/customers`, `/console/operations`, and
   other retired Customer View paths route to a safe Customer View landing state.
-- Ensure Platform View links appear only in the visually separated, role-gated
-  view switcher.
+- Render one session-specific navigation hierarchy inside the shared shell; do
+  not expose a cross-role view switcher.
 - Ensure customer sessions never receive Platform View data and platform admin
   sessions see a Customer View guard unless future impersonation is explicitly
   implemented.
@@ -112,8 +157,8 @@ before page-level implementation continues.
 - No visible or reachable Groups placeholder is present.
 - Wrong-role routes show access gates instead of empty dashboards or cross-role
   data.
-- Platform View remains reachable only through `/admin` routes or the separated
-  role-gated view switcher.
+- Platform management remains reachable only through role-gated `/admin/*`
+  routes; Customer management remains on `/console/*`.
 - Existing direct links to retired Customer View paths fall back safely.
 
 ## Required Tests
@@ -257,6 +302,11 @@ workflow.
 - Keep table columns aligned to Device, Organization, Model, Firmware, Health,
   Status, Signal, Last Seen, and Actions.
 - Implement selected-row highlight and right-side detail drawer behavior.
+- Render the server-side page selector above and below the device list. Show all
+  practical page targets in a compact segmented control and cap the token set at
+  seven using first/last/current-neighborhood ellipses.
+- Scope high-density row styling to the Devices table: 42–46 px desktop rows,
+  compact semantic badges/actions, and 48–72 px narrow-screen list rows.
 - Complete drawer Overview content: identity, health, firmware, readiness/source
   facts, RSSI, uptime, recent telemetry, and active stream status.
 - Make Streams and Events read-only only when backed by documented source data.
@@ -287,13 +337,17 @@ workflow.
   write actions.
 - Drawer partial telemetry unavailability preserves safe identity, readiness,
   source facts, and available action context.
+- Desktop and mobile expose both pagination controls, direct page selection,
+  previous/next actions, and the current page without horizontal page overflow.
+- Device density changes do not alter Billing, Audit, Operations, or other
+  shared tables.
 
 ## Required Tests
 
 - `cd web && npm test`
 - `cd web && npm run build`
 - `cd web && npm run browser:smoke`
-- Add/update device action, route, and drawer workflow tests.
+- Add/update device action, route, pagination, and drawer workflow tests.
 - `go test ./...` if backend guards or DTO behavior are changed.
 
 ## References
@@ -312,6 +366,8 @@ distribution, rollout progress, and firmware risk.
 
 ## Scope
 
+- Require an explicit SKU selection before loading firmware state and preserve
+  the selection in the URL.
 - Implement KPI strip: Latest Version, Devices Current, Pending Update, Failed
   Rollout.
 - Implement firmware distribution with version rows, count, percent of fleet,
@@ -338,6 +394,9 @@ distribution, rollout progress, and firmware risk.
   facts from Video Cloud or normalized telemetry read model.
 
 ## Acceptance Criteria
+
+- No cross-SKU firmware totals or rollout campaigns are rendered; changing the
+  SKU reloads the distribution and release collections for that SKU only.
 
 - Campaign data is read-only throughout the page.
 - Firmware version rows can route to filtered Devices views where supported.

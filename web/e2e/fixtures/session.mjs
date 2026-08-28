@@ -50,10 +50,5 @@ export async function loginWithStagingSession(page, kind = 'platform') {
 
 export async function enterPlatform(page) {
   await page.goto('/admin');
-  const switchButton = page.getByRole('button', { name: 'Switch to Platform View' });
-  try {
-    await switchButton.waitFor({ state: 'visible', timeout: 10_000 });
-    await switchButton.click();
-  } catch {}
-  await expectPageTitle(page, 'Platform Dashboard');
+  await page.getByRole('heading', { name: '平台首頁', exact: true }).waitFor();
 }

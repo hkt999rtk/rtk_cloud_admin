@@ -1,15 +1,46 @@
-export const customerNavItems = [
-  { id: 'overview', label: '設備總覽', path: '/console/overview', icon: 'gauge-high', capabilities: ['fleet.read', 'customer.devices.read'] },
-  { id: 'devices', label: '設備', path: '/console/devices', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
-  { id: 'sku-services', label: 'SKU 與服務', path: '/console/sku-services', icon: 'boxes-stacked', capabilities: ['sku.read', 'registry_device.read'] },
-  { id: 'chipset-sdk', label: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch' },
-  { id: 'access', label: '團隊與權限', path: '/console/access', icon: 'user-shield', capabilities: ['team.read', 'role_assignment.read'] },
-  { id: 'firmware-ota', label: '韌體更新', path: '/console/firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
-  { id: 'stream-health', label: '影像播放狀況', path: '/console/stream-health', icon: 'tower-broadcast', capabilities: ['customer.stream.read'] },
-  { id: 'reports', label: '報表', path: '/console/reports', icon: 'chart-column', capabilities: ['reports.read', 'report.read', 'customer.reports.read'] },
-  { id: 'provisioning', label: '設備註冊', path: '/console/provisioning', icon: 'plug-circle-bolt', capabilities: ['provisioning.read', 'provisioning.create'] },
-  { id: 'billing', label: '帳務與自動加值', path: '/console/billing', icon: 'credit-card', capabilities: ['billing_account.read'] },
+export const customerNavGroups = [
+  {
+    id: 'brand-cloud',
+    label: '品牌雲',
+    items: [
+      { id: 'overview', label: '品牌雲首頁', path: '/console/overview', icon: 'gauge-high', capabilities: ['fleet.read', 'customer.devices.read'], activeRoutes: ['overview', 'access', 'settings'], alwaysVisible: true },
+    ],
+  },
+  {
+    id: 'device-operations',
+    label: '設備營運',
+    items: [
+      { id: 'devices', label: '設備', path: '/console/devices', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
+      { id: 'provisioning', label: '設備註冊', path: '/console/provisioning', icon: 'plug-circle-bolt', capabilities: ['provisioning.read', 'provisioning.create'] },
+    ],
+  },
+  {
+    id: 'product-updates',
+    label: '產品與更新',
+    items: [
+      { id: 'sku-services', label: 'SKU 與服務', path: '/console/sku-services', icon: 'boxes-stacked', capabilities: ['sku.read', 'registry_device.read'] },
+      { id: 'chipset-sdk', label: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch' },
+      { id: 'firmware-ota', label: '韌體更新', path: '/console/firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
+    ],
+  },
+  {
+    id: 'monitoring-analytics',
+    label: '監控與分析',
+    items: [
+      { id: 'stream-health', label: '影像播放狀況', path: '/console/stream-health', icon: 'tower-broadcast', capabilities: ['customer.stream.read'] },
+      { id: 'reports', label: '報表', path: '/console/reports', icon: 'chart-column', capabilities: ['reports.read', 'report.read', 'customer.reports.read'] },
+    ],
+  },
+  {
+    id: 'account-management',
+    label: '帳號管理',
+    items: [
+      { id: 'billing', label: '帳務與自動加值', path: '/console/billing', icon: 'credit-card', capabilities: ['billing_account.read'] },
+    ],
+  },
 ];
+
+export const customerNavItems = customerNavGroups.flatMap((group) => group.items);
 
 export const billingSubpaths = Object.freeze({
   overview: '/console/billing',
@@ -19,17 +50,43 @@ export const billingSubpaths = Object.freeze({
   profile: '/console/billing/profile',
 });
 
-export const platformNavItems = [
-  { id: 'platform-dashboard', label: 'Platform Dashboard', path: '/admin', icon: 'gauge-high' },
-  { id: 'platform-grafana', label: 'Grafana', path: '/admin/grafana', icon: 'chart-simple' },
-  { id: 'platform-health', label: 'Service Health', path: '/admin/health', icon: 'heart-pulse' },
-  { id: 'platform-brand-clouds', label: 'Brand Clouds', path: '/admin/brand-clouds', icon: 'cloud' },
-  { id: 'platform-chipset-providers', label: 'ChipSet & SDK Providers', path: '/admin/chipset-providers', icon: 'code-branch', capabilities: ['platform.chipset_sdk.read', 'platform.chipset_sdk.edit', 'platform.chipset_sdk.publish'] },
-  { id: 'platform-sso', label: 'SSO Providers', path: '/admin/sso', icon: 'key' },
-  { id: 'platform-logs', label: 'Service Logs', path: '/admin/logs', icon: 'file-lines' },
-  { id: 'platform-operations', label: 'Operations Log', path: '/admin/ops', icon: 'list-check' },
-  { id: 'platform-audit', label: 'Audit Log', path: '/admin/audit', icon: 'shield-halved' },
+export const platformNavGroups = [
+  {
+    id: 'platform-overview',
+    label: '平台總覽',
+    items: [
+      { id: 'platform-dashboard', label: '平台首頁', path: '/admin', icon: 'gauge-high' },
+    ],
+  },
+  {
+    id: 'platform-observability',
+    label: '監控與診斷',
+    items: [
+      { id: 'platform-grafana', label: 'Grafana', path: '/admin/grafana', icon: 'chart-simple' },
+      { id: 'platform-health', label: '服務健康', path: '/admin/health', icon: 'heart-pulse' },
+      { id: 'platform-logs', label: '服務日誌', path: '/admin/logs', icon: 'file-lines' },
+    ],
+  },
+  {
+    id: 'platform-organizations-products',
+    label: '組織與產品',
+    items: [
+      { id: 'platform-brand-clouds', label: '品牌雲管理', path: '/admin/brand-clouds', icon: 'cloud' },
+      { id: 'platform-chipset-providers', label: 'ChipSet & SDK 供應商', path: '/admin/chipset-providers', icon: 'code-branch', capabilities: ['platform.chipset_sdk.read', 'platform.chipset_sdk.edit', 'platform.chipset_sdk.publish'] },
+      { id: 'platform-sso', label: 'SSO 供應商', path: '/admin/sso', icon: 'key' },
+    ],
+  },
+  {
+    id: 'platform-operations-audit',
+    label: '營運與稽核',
+    items: [
+      { id: 'platform-operations', label: '營運紀錄', path: '/admin/ops', icon: 'list-check' },
+      { id: 'platform-audit', label: '稽核紀錄', path: '/admin/audit', icon: 'shield-halved' },
+    ],
+  },
 ];
+
+export const platformNavItems = platformNavGroups.flatMap((group) => group.items);
 
 const publicRouteIds = new Set(['login', 'login-check-email', 'login-activate', 'brand-cloud-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'signup-verification-expired', 'verify']);
 
@@ -49,7 +106,37 @@ export function navItemsForRoute(route) {
 export function navItemsForCapabilities(route, capabilities) {
   const items = navItemsForRoute(route);
   const values = new Set(Array.isArray(capabilities) ? capabilities : []);
-  return items.filter((item) => !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability)));
+  return items.filter((item) => item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability)));
+}
+
+export function navGroupsForCapabilities(route, capabilities) {
+  if (isPublicRouteId(route)) return [];
+  const groups = isPlatformRouteId(route) ? platformNavGroups : customerNavGroups;
+  const values = new Set(Array.isArray(capabilities) ? capabilities : []);
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability))),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+export function isCustomerNavItemActive(item, route) {
+  return (item.activeRoutes || [item.id]).includes(route);
+}
+
+export function canAccessCustomerRoute(route, capabilities) {
+  const values = new Set(Array.isArray(capabilities) ? capabilities : []);
+  if (route === 'settings') return true;
+  if (route === 'access') return ['team.read', 'role_assignment.read'].some((capability) => values.has(capability));
+  const item = customerNavItems.find((candidate) => candidate.id === route);
+  return Boolean(item && (!item.capabilities?.length || item.capabilities.some((capability) => values.has(capability))));
+}
+
+export function defaultBrandCloudRoute(capabilities) {
+  if (canAccessCustomerRoute('overview', capabilities)) return 'overview';
+  if (canAccessCustomerRoute('access', capabilities)) return 'access';
+  return 'settings';
 }
 
 export function titleFor(active) {
@@ -66,26 +153,27 @@ export function titleFor(active) {
     verify: 'Verify email',
     'brand-cloud-member-invitation-accept': 'Accept Brand Cloud invitation',
     'sku-collaborator-invitation-accept': 'Accept SKU collaboration invitation',
-    overview: '設備總覽',
+    overview: '品牌雲',
     devices: '設備',
     'sku-services': 'SKU 與服務',
     'chipset-sdk': 'ChipSet & SDK',
     groups: '群組與標籤',
-    access: '團隊與權限',
+    access: '品牌雲',
+    settings: '品牌雲',
     'firmware-ota': '韌體更新',
     'stream-health': '影像播放狀況',
     reports: '報表',
     provisioning: '設備註冊',
     billing: '帳務與自動加值',
-    'platform-dashboard': 'Platform Dashboard',
+    'platform-dashboard': '平台首頁',
     'platform-grafana': 'Grafana',
-    'platform-health': 'Service Health',
-    'platform-brand-clouds': 'Brand Clouds',
-    'platform-chipset-providers': 'ChipSet & SDK Providers',
-    'platform-sso': 'SSO Providers',
-    'platform-logs': 'Service Logs',
-    'platform-operations': 'Operations',
-    'platform-audit': 'Audit Log',
+    'platform-health': '服務健康',
+    'platform-brand-clouds': '品牌雲管理',
+    'platform-chipset-providers': 'ChipSet & SDK 供應商',
+    'platform-sso': 'SSO 供應商',
+    'platform-logs': '服務日誌',
+    'platform-operations': '營運紀錄',
+    'platform-audit': '稽核紀錄',
   }[active];
 }
 
@@ -116,19 +204,20 @@ export function routeFromPath(path) {
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
   if (path.startsWith('/admin/')) return 'platform-dashboard';
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
-  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|sku-services|chipset-sdk|groups|access|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
+  if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
+  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|sku-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
   if (scoped) return scoped[2] === 'jobs' ? 'firmware-ota' : scoped[2];
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
   if (path === '/console/sku-services' || path.startsWith('/console/sku-services/')) return 'sku-services';
   if (path === '/console/chipset-sdk' || path.startsWith('/console/chipset-sdk/')) return 'chipset-sdk';
   if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
   if (path === '/console/access' || path.startsWith('/console/access/')) return 'access';
+  if (path === '/console/settings' || path.startsWith('/console/settings/')) return 'settings';
   if (path === '/console/firmware-ota' || path.startsWith('/console/firmware-ota/')) return 'firmware-ota';
   if (path === '/console/stream-health' || path.startsWith('/console/stream-health/')) return 'stream-health';
   if (path === '/console/jobs' || path.startsWith('/console/jobs/')) return 'firmware-ota';
   if (path === '/console/reports' || path.startsWith('/console/reports/')) return 'reports';
   if (path === '/console/provisioning' || path.startsWith('/console/provisioning/')) return 'provisioning';
-  if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
   if (
     path === '/console/customers' ||
     path === '/console/audit' ||
@@ -141,7 +230,8 @@ export function routeFromPath(path) {
 }
 
 export function cloudIdFromPath(path) {
-  const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|sku-services|chipset-sdk|groups|access|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
+  if (/^\/console\/(?:overview|devices|sku-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/.test(String(path || ''))) return '';
+  const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|sku-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
   return match ? decodeURIComponent(match[1]) : '';
 }
 
@@ -156,13 +246,14 @@ export function canonicalCustomerPath(path) {
   return path;
 }
 
-export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '', q = '', sort = '', direction = '', offset = '' } = {}) {
+export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '', skuID = '', q = '', sort = '', direction = '', offset = '' } = {}) {
   const params = new URLSearchParams();
   if (deviceId) params.set('device', deviceId);
   if (health) params.set('health', health);
   if (status) params.set('status', status);
   if (signal) params.set('signal', signal);
   if (firmware) params.set('firmware', firmware);
+  if (skuID) params.set('sku_id', skuID);
   if (q) params.set('q', q);
   if (sort) params.set('sort', sort);
   if (direction) params.set('direction', direction);

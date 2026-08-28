@@ -2827,7 +2827,7 @@ func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 	}
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/fleet/firmware-distribution", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/fleet/firmware-distribution?sku_id=sku-camera", nil)
 	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -2841,6 +2841,9 @@ func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 	if payload.OrgID != "org-acme" {
 		t.Fatalf("org_id = %q, want org-acme", payload.OrgID)
 	}
+	if payload.SKU != "sku-camera" {
+		t.Fatalf("sku_id = %q, want sku-camera", payload.SKU)
+	}
 	if payload.SourceStatus != "not_configured" {
 		t.Fatalf("source_status = %q, want not_configured", payload.SourceStatus)
 	}
@@ -2849,6 +2852,23 @@ func TestFleetFirmwareDistributionDemoPayload(t *testing.T) {
 	}
 	if len(payload.Versions) != 0 || len(payload.Campaigns) != 0 {
 		t.Fatalf("unconfigured firmware source should not include demo data: %+v", payload)
+	}
+}
+
+func TestFilterDevicesBySKUNarrowsFirmwareScope(t *testing.T) {
+	t.Parallel()
+
+	devices := []contracts.Device{
+		{ID: "camera-1", SKU: "sku-camera"},
+		{ID: "camera-2", SKU: "sku-camera"},
+		{ID: "sensor-1", SKU: "sku-sensor"},
+	}
+	filtered := filterDevicesBySKU(devices, "sku-camera")
+	if len(filtered) != 2 || filtered[0].ID != "camera-1" || filtered[1].ID != "camera-2" {
+		t.Fatalf("filtered devices = %+v, want only sku-camera devices", filtered)
+	}
+	if unfiltered := filterDevicesBySKU(devices, ""); len(unfiltered) != len(devices) {
+		t.Fatalf("unfiltered devices length = %d, want %d", len(unfiltered), len(devices))
 	}
 }
 

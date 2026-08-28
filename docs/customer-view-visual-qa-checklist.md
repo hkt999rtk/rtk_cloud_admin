@@ -12,12 +12,16 @@ against the approved design assets in `docs/assets/webui-design/`.
 
 - Sidebar uses the Realtek Ops Console navy background and primary blue active
   nav state.
-- The current Brand Fleet navigation contains 設備總覽、設備、設備註冊、群組與
-  標籤、產品與設備規格、韌體版本、更新計畫、批次工作、報表、團隊與權限。
-  The four-page Customer View navigation below is historical and must not be
-  used as the current brand-tenant acceptance target.
-- Platform View switcher is visually separated from Customer View navigation and
-  remains role/route gated.
+- Sidebar groups are fixed and non-collapsible, in this order: 品牌雲、設備營運、
+  產品與更新、監控與分析、帳號管理.
+- Group items appear in the approved order: 品牌雲首頁; 設備、群組與標籤、
+  設備註冊、批次工作; SKU 與服務、ChipSet & SDK、韌體更新; 影像播放狀況、
+  報表; 帳務與自動加值.
+- 團隊與權限 is not a separate sidebar item. 品牌雲首頁 remains active for the
+  總覽、成員與權限、設定 tabs.
+- No `Switch to Platform View` or `Switch to Customer View` control is present.
+  Customer and Platform sessions use the same Connect+ Ops shell, but each
+  session renders only its own grouped navigation.
 - Sidebar account summary shows role and email only; it does not repeat the
   active organization name.
 - Header contains page title, relevant window control, refresh action, and
@@ -39,6 +43,27 @@ against the approved design assets in `docs/assets/webui-design/`.
 - Loading, empty, filtered-empty, source-unavailable, and gateway-error states
   are handled at panel level without leaking raw upstream payloads.
 
+## Brand Cloud Shell And Tabs
+
+- `/console/{cloudId}/overview`, `/access`, and `/settings` render the same
+  Brand Cloud name, Cloud ID, organization selector, and tab strip.
+- Direct navigation, refresh, Back, and Forward preserve the URL and selected
+  tab. Existing unscoped `/console/overview`, `/console/access`, and
+  `/console/settings` routes remain usable.
+- Clicking 品牌雲首頁 opens the first accessible tab in the order 總覽、成員與
+  權限、設定. Sidebar active state is present on every Brand Cloud tab.
+- 總覽 shows the team summary only when team or role-assignment read access is
+  available. A failed team source does not hide fleet KPIs or fleet panels.
+- 成員與權限 shows members, pending invitations, roles, and readable management
+  scopes. Invite/member mutation controls are absent for read-only users.
+- 設定 always exposes owner-transfer token acceptance to authenticated customer
+  developers. Owner-transfer management requires `team.manage`; PKI test bundle
+  issuance requires `pki.test.issue`.
+- A failed fleet source does not hide usable team administration. Members,
+  invitations, and role-assignment source failures are rendered independently.
+- On mobile, grouped navigation and tabs remain usable without converting the
+  three routes into a single long page.
+
 ## Fleet Health Overview
 
 Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 設備總覽
@@ -58,6 +83,12 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 設備
 Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 我的設備
 
 - Search and filters are visible above the table.
+- Page selectors are visible above and below the list; all practical page
+  numbers are direct targets in one gapless segmented control, current page is
+  distinct, and narrow screens keep the strip usable without widening the
+  document.
+- Desktop device rows remain approximately 42–46 px and narrow-screen rows stay
+  compact; status badges and inspect actions do not determine row height.
 - Table columns are Device, Organization, Model, Firmware, Health, Status,
   Signal, Last Seen, and Actions.
 - Selected row uses a pale blue highlight.
@@ -132,16 +163,19 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 影像
 - Platform password login is Account Manager-backed and appears only for
   platform routes
   by deployment configuration.
-- Customer sessions cannot see Platform View data; Platform View routes and
-  switcher targets show an access gate for the wrong role. Platform Admin
-  sessions cannot see Customer View data unless future impersonation is
-  explicitly implemented.
+- Customer sessions cannot see Platform View data; direct `/admin/*` links show
+  an access gate while retaining Customer navigation. Platform Admin sessions
+  opening `/console/*` see a Customer access gate while retaining Platform
+  navigation. Future impersonation must be explicitly designed and authorized.
 
 ## Platform View Boundary
 
-- Customer View concept images do not complete Platform View design.
-- Platform View contains Platform Dashboard, Service Health, SSO Providers,
-  Operations Log, and Audit Log for Tier 1 only.
+- Platform Admin uses the same dark Connect+ Ops shell and responsive behavior
+  as Customer, with fixed groups: 平台總覽、監控與診斷、組織與產品、營運與稽核.
+- Platform navigation contains 平台首頁; Grafana、服務健康、服務日誌; 品牌雲管理、
+  ChipSet & SDK 供應商、SSO 供應商; 營運紀錄、稽核紀錄, in that order.
+- Platform content remains Tier 1 only and stays on `/admin/*`; Customer content
+  remains on `/console/*`. A unified shell does not imply shared payloads.
 - Platform Dashboard follows `docs/platform-view-dashboard-design.md`: curated
   cross-tenant metrics, Prometheus scrape health, and source-unavailable states,
   not a raw Prometheus or Grafana replacement UI.
@@ -159,14 +193,14 @@ Use this mapping when reviewing developer issues opened from
 
 | Roadmap milestone | QA focus |
 | --- | --- |
-| 1. WebUI foundation cleanup and route guards | Global shell, hidden Groups, role-gated Platform switcher, wrong-role route gates |
+| 1. WebUI foundation cleanup and route guards | Unified shell, session-specific grouped navigation, wrong-role route gates |
 | 2. Customer View source-aware page states | Loading, empty, filtered-empty, source-unavailable, gateway-error, and read-only panel states |
 | 3. Fleet Health Overview completion | Overview KPI strip, health distribution, trend chart, combined attention list, region summary, quota callout |
 | 4. Devices table and detail drawer completion | Device filters, selected row, drawer overview, source facts, telemetry panels, provision/deactivate states |
 | 5. Firmware & OTA read-only workflows | Firmware distribution, campaign summary/table, read-only drill-down, unsupported policies, firmware risk queue |
 | 6. Stream Health read-only workflows | Stream KPIs, trend, source-backed By Mode rows, per-device table, attention routing |
 | 7. Public auth, signup, verification, and quota UX polish | Email/password login, signup/check-email/verify states, quota request states, platform login routing |
-| 8. Platform View polish | Platform Dashboard, Service Health, SSO Providers, Operations Log, Audit Log, Tier 1-only boundaries |
+| 8. Platform View polish | Shared shell, grouped Platform navigation, dashboard and drill-downs, Tier 1-only boundaries |
 | 9. Final WebUI browser QA and documentation signoff | Desktop/mobile browser smoke, visual checklist closure, documented remaining upstream blockers |
 
 ## Responsive Checks
