@@ -15,6 +15,7 @@ import {
   titleFor,
 } from './routes.mjs';
 import {
+  isExpiredVerificationError,
   postJSON,
   putJSON,
   startSSOLogin,
@@ -972,6 +973,11 @@ function App() {
       }
       return result;
     } catch (err) {
+      if (isExpiredVerificationError(err)) {
+        window.history.replaceState({}, '', '/signup/verification-expired');
+        setActive('signup-verification-expired');
+        return null;
+      }
       setError(userFacingVerificationError(err));
       throw err;
     }
@@ -979,12 +985,21 @@ function App() {
 
   async function handleVerificationStatus(token) {
     setError('');
-    const result = await postJSON('/api/auth/customer/verification-status', { token });
-    if (result?.status === 'expired') {
-      window.history.replaceState({}, '', '/signup/verification-expired');
-      setActive('signup-verification-expired');
+    try {
+      const result = await postJSON('/api/auth/customer/verification-status', { token });
+      if (result?.status === 'expired') {
+        window.history.replaceState({}, '', '/signup/verification-expired');
+        setActive('signup-verification-expired');
+      }
+      return result;
+    } catch (err) {
+      if (isExpiredVerificationError(err)) {
+        window.history.replaceState({}, '', '/signup/verification-expired');
+        setActive('signup-verification-expired');
+        return { status: 'expired' };
+      }
+      throw err;
     }
-    return result;
   }
 
   async function handleResendVerification(email) {
@@ -1729,16 +1744,21 @@ function ExpiredVerificationPage() {
 }
 
 function VerifyForm({ token, onCheckVerification, onVerify }) {
+  const [tokenValue] = useState(() => token);
   const [password, setPassword] = useState('');
-  const [linkStatus, setLinkStatus] = useState(token ? 'checking' : 'invalid');
-  const [status, setStatus] = useState(token ? 'Checking verification link…' : 'This verification link is invalid.');
+  const [linkStatus, setLinkStatus] = useState(tokenValue ? 'checking' : 'invalid');
+  const [status, setStatus] = useState(tokenValue ? 'Checking verification link…' : 'This verification link is invalid.');
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!token) return undefined;
+    removeQueryParameterFromAddress(window.location, window.history, 'token');
+  }, []);
+
+  useEffect(() => {
+    if (!tokenValue) return undefined;
     let active = true;
-    onCheckVerification(token)
+    onCheckVerification(tokenValue)
       .then((result) => {
         if (!active || result?.status === 'expired') return;
         const nextStatus = result?.status === 'valid' ? 'valid' : 'invalid';
@@ -1751,14 +1771,14 @@ function VerifyForm({ token, onCheckVerification, onVerify }) {
         setLocalError(userFacingVerificationError(err));
       });
     return () => { active = false; };
-  }, [onCheckVerification, token]);
+  }, [onCheckVerification, tokenValue]);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
     setLocalError('');
     try {
-      const result = await onVerify({ token, new_password: password });
+      const result = await onVerify({ token: tokenValue, new_password: password });
       if (!result) {
         setLocalError('Verification failed. Check the token and try again.');
       } else if (result.tokens?.access_token) {
@@ -1781,7 +1801,7 @@ function VerifyForm({ token, onCheckVerification, onVerify }) {
           New password
           <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
         </label>
-        <button type="submit" disabled={busy || !token}>{busy ? 'Verifying' : 'Verify and continue'}</button>
+        <button type="submit" disabled={busy || !tokenValue}>{busy ? 'Verifying' : 'Verify and continue'}</button>
       </form> : null}
       <p className="auth-status">{status}</p>
       {error ? <p className="error">{error}</p> : null}
