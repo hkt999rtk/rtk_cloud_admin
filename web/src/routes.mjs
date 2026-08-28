@@ -3,7 +3,6 @@ export const customerNavItems = [
   { id: 'devices', label: '設備', path: '/console/devices', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
   { id: 'sku-services', label: 'SKU 與服務', path: '/console/sku-services', icon: 'boxes-stacked', capabilities: ['sku.read', 'registry_device.read'] },
   { id: 'chipset-sdk', label: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch' },
-  { id: 'groups', label: '群組與標籤', path: '/console/groups', icon: 'layer-group', capabilities: ['fleet.read', 'device_group.read', 'device_group.manage'] },
   { id: 'access', label: '團隊與權限', path: '/console/access', icon: 'user-shield', capabilities: ['team.read', 'role_assignment.read'] },
   { id: 'firmware-ota', label: '韌體更新', path: '/console/firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
   { id: 'stream-health', label: '影像播放狀況', path: '/console/stream-health', icon: 'tower-broadcast', capabilities: ['customer.stream.read'] },
