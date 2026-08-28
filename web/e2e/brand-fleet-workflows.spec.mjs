@@ -53,7 +53,7 @@ test.describe('Brandname async workflows', () => {
 
   test('[UI-CA-OTA-002] firmware page shows upgrade progress and device results @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
-    await page.route('**/api/fleet/firmware-distribution', async (route) => {
+    await page.route('**/api/fleet/firmware-distribution?*', async (route) => {
       await route.fulfill({ json: {
         source_status: 'available',
         versions: [{ version: 'v1.2.4', count: 2, pct: 100, is_latest: true }],
@@ -68,7 +68,7 @@ test.describe('Brandname async workflows', () => {
         }],
       } });
     });
-    await page.goto('/console/brand-e2e-01/firmware-ota');
+    await page.goto('/console/brand-e2e-01/firmware-ota?sku_id=sku-alpha');
     await expect(page.getByRole('heading', { name: '韌體更新狀態' })).toBeVisible();
     await expect(page.getByText('upgrade-e2e-1').first()).toBeVisible();
     await expect(page.getByText('已完成', { exact: true }).first()).toBeVisible();

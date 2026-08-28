@@ -463,6 +463,36 @@ func TestCanonicalOTAReadMethodsFollowPagesAndDecodeStatus(t *testing.T) {
 	}
 }
 
+func TestGetOTACampaignSummaryRejectsBadResponses(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		statusCode int
+		body       string
+		wantStatus bool
+	}{
+		{name: "upstream status", statusCode: http.StatusBadGateway, body: `upstream unavailable`, wantStatus: true},
+		{name: "invalid JSON", statusCode: http.StatusOK, body: `{`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.statusCode)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer upstream.Close()
+			_, err := New(upstream.URL).GetOTACampaignSummary(t.Context(), "secret", "brand-1", "campaign-1")
+			if err == nil {
+				t.Fatal("GetOTACampaignSummary returned nil error")
+			}
+			if _, ok := err.(HTTPStatusError); ok != tc.wantStatus {
+				t.Fatalf("HTTPStatusError = %v, want %v: %v", ok, tc.wantStatus, err)
+			}
+		})
+	}
+}
+
 func TestDeviceTelemetry(t *testing.T) {
 	t.Parallel()
 
