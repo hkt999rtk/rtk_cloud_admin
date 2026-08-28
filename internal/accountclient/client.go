@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -480,6 +481,10 @@ type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password"`
 }
 
+type ResetPasswordResult struct {
+	Email string `json:"email"`
+}
+
 type VerifyEmailResult struct {
 	User   User   `json:"user"`
 	Tokens Tokens `json:"tokens,omitempty"`
@@ -601,11 +606,16 @@ func (c *Client) ForgotPassword(ctx context.Context, email string) error {
 	return c.doJSON(ctx, http.MethodPost, "/v1/auth/forgot-password", "", EmailRequest{Email: email}, nil)
 }
 
-func (c *Client) ResetPassword(ctx context.Context, token, newPassword string) error {
-	return c.doJSON(ctx, http.MethodPost, "/v1/auth/reset-password", "", ResetPasswordRequest{
+func (c *Client) ResetPassword(ctx context.Context, token, newPassword string) (ResetPasswordResult, error) {
+	var out ResetPasswordResult
+	status, err := c.doJSONStatus(ctx, http.MethodPost, "/v1/auth/reset-password", "", ResetPasswordRequest{
 		Token:       token,
 		NewPassword: newPassword,
-	}, nil)
+	}, &out)
+	if errors.Is(err, io.EOF) && status == http.StatusNoContent {
+		return ResetPasswordResult{}, nil
+	}
+	return out, err
 }
 
 func (c *Client) Refresh(ctx context.Context, refreshToken string) (RefreshResult, error) {

@@ -931,8 +931,7 @@ function App() {
   async function handleResetPassword(payload) {
     setError('');
     try {
-      await postJSON('/api/auth/reset-password', payload);
-      return true;
+      return await postJSON('/api/auth/reset-password', payload);
     } catch (err) {
       const nextError = userFacingPasswordResetError(err);
       throw new Error(nextError);
@@ -1314,9 +1313,9 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onBrandC
   ) : active === 'forgot-password' ? (
     <ForgotPasswordView email={email} onForgotPassword={onForgotPassword} />
   ) : active === 'reset-password' ? (
-    <ResetPasswordView token={token} onResetPassword={onResetPassword} />
+    <ResetPasswordView token={token} email={email} onResetPassword={onResetPassword} />
   ) : (
-    <LoginEntryForm onSignup={onSignup} onPasswordLogin={onPasswordLogin} disabled={loading} />
+    <LoginEntryForm initialEmail={email} onSignup={onSignup} onPasswordLogin={onPasswordLogin} disabled={loading} />
   );
   return (
     <div className="login-shell">
@@ -1366,7 +1365,7 @@ function BrandCloudActivateView({ token, tenant, onActivate }) {
   );
 }
 
-function LoginEntryForm({ onSignup, onPasswordLogin, disabled }) {
+function LoginEntryForm({ initialEmail, onSignup, onPasswordLogin, disabled }) {
   const [mode, setMode] = useState('login');
   return (
     <div className="auth-stack">
@@ -1393,14 +1392,14 @@ function LoginEntryForm({ onSignup, onPasswordLogin, disabled }) {
       {mode === 'signup' ? (
         <SignupForm onSignup={onSignup} disabled={disabled} />
       ) : (
-        <LoginPasswordForm onPasswordLogin={onPasswordLogin} disabled={disabled} />
+        <LoginPasswordForm initialEmail={initialEmail} onPasswordLogin={onPasswordLogin} disabled={disabled} />
       )}
     </div>
   );
 }
 
-function LoginPasswordForm({ onPasswordLogin, disabled }) {
-  const [email, setEmail] = useState('');
+function LoginPasswordForm({ initialEmail = '', onPasswordLogin, disabled }) {
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState('');
@@ -1521,11 +1520,12 @@ function ForgotPasswordView({ email, onForgotPassword }) {
   );
 }
 
-function ResetPasswordView({ token, onResetPassword }) {
+function ResetPasswordView({ token, email, onResetPassword }) {
   const [tokenValue, setTokenValue] = useState(() => token);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [completed, setCompleted] = useState(false);
+  const [completedEmail, setCompletedEmail] = useState(email);
   const [error, setLocalError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -1535,6 +1535,10 @@ function ResetPasswordView({ token, onResetPassword }) {
 
   async function submit(event) {
     event.preventDefault();
+    if (Array.from(password).length < 8) {
+      setLocalError('Password must be at least 8 characters.');
+      return;
+    }
     if (password !== confirmPassword) {
       setLocalError('Passwords do not match.');
       return;
@@ -1542,7 +1546,8 @@ function ResetPasswordView({ token, onResetPassword }) {
     setBusy(true);
     setLocalError('');
     try {
-      await onResetPassword({ token: tokenValue, new_password: password });
+      const result = await onResetPassword({ token: tokenValue, new_password: password });
+      setCompletedEmail(result?.email || email);
       setTokenValue('');
       setPassword('');
       setConfirmPassword('');
@@ -1564,7 +1569,7 @@ function ResetPasswordView({ token, onResetPassword }) {
             <p>Your new password is ready. You can now sign in to your account.</p>
           </div>
         </div>
-        <a className="auth-primary-action" href="/login">Continue to sign in</a>
+        <a className="auth-primary-action" href={`/login${completedEmail ? `?email=${encodeURIComponent(completedEmail)}` : ''}`}>Continue to sign in</a>
       </div>
     );
   }

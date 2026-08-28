@@ -479,7 +479,7 @@ async function installApiMocks(page, { sessionForPath } = {}) {
       if (JSON.stringify(payload) !== JSON.stringify(expected)) {
         throw new Error('Unexpected password reset payload.');
       }
-      return route.fulfill({ status: 204, body: '' });
+      return route.fulfill({ json: { email: 'existing.customer@example.com' } });
     }
     if (pathName === '/api/summary' || pathName === '/api/admin/summary') return route.fulfill({ json: summary });
     if (pathName === '/api/developer/brand-clouds') return route.fulfill({ json: { brand_clouds: [] } });
@@ -597,6 +597,11 @@ async function runAuthSmoke(browserContext) {
   await screenshot(page, 'desktop-reset-password.png');
   await page.getByRole('button', { name: 'Update password', exact: true }).click();
   await expectText(page, 'Password updated');
+  await page.getByRole('link', { name: 'Continue to sign in', exact: true }).click();
+  await page.waitForURL(`${baseURL}/login?email=existing.customer%40example.com`);
+  if (await page.getByLabel('Email').inputValue() !== 'existing.customer@example.com') {
+    throw new Error('Login page must preserve the password-reset email.');
+  }
   await page.goto(`${baseURL}/reset-password`, { waitUntil: 'networkidle' });
   await expectText(page, 'This reset link is not valid');
   if (await page.getByLabel('New password', { exact: true }).count()) {

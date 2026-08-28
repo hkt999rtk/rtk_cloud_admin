@@ -110,7 +110,8 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	_, err := client.ActivateLogin(ctx, "token")
 	check("ActivateLogin", err)
 	check("ForgotPassword", client.ForgotPassword(ctx, "user@example.com"))
-	check("ResetPassword", client.ResetPassword(ctx, "token", "new-password"))
+	_, err = client.ResetPassword(ctx, "token", "new-password")
+	check("ResetPassword", err)
 
 	_, _, err = client.ChipsetProvider(ctx, "access", "provider/1")
 	check("ChipsetProvider", err)

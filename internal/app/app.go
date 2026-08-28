@@ -1222,11 +1222,12 @@ func (s *Server) apiAuthResetPassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "token and new_password are required", http.StatusBadRequest)
 		return
 	}
-	if err := s.accountClient.ResetPassword(r.Context(), strings.TrimSpace(body.Token), body.NewPassword); err != nil {
+	result, err := s.accountClient.ResetPassword(r.Context(), strings.TrimSpace(body.Token), body.NewPassword)
+	if err != nil {
 		s.writeAuthProxyError(w, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	writeJSONStatus(w, http.StatusOK, result)
 }
 
 func (s *Server) apiSSOStart(w http.ResponseWriter, r *http.Request) {
