@@ -537,6 +537,12 @@ Required layout:
   - Actions
 - Selected row uses a pale blue highlight.
 - Right-side detail drawer opens from a selected row.
+- Server pagination appears both above and below the device rows so an operator
+  never needs to cross the full list just to change pages.
+- When the total is small enough, show every page number as a direct target
+  (`‹ 1 2 3 … ›`). Large result sets retain the first page, last page, and the
+  current-page neighborhood with ellipses. The page-number strip may scroll
+  horizontally on narrow screens, but the page itself must not overflow.
 
 Detail drawer content:
 
@@ -575,6 +581,8 @@ Behavior notes:
   lifecycle operations, while Video Cloud owns activation and current transport.
   Demo/cache facts must remain visibly local projections.
 - Filters must preserve table scan speed and avoid card-wall layouts.
+- Page-number actions preserve the active server-side search, sort, and filter
+  query while changing only the offset; current page uses `aria-current=page`.
 - Read-only Observer sessions must be enforced by the backend before any
   provision or deactivate action is accepted.
 - Device action menus must not expose operation IDs, raw upstream errors,

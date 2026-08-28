@@ -54,15 +54,45 @@ test('[UI-CA-FLEETPAGE-003] Brand Cloud overview access and settings share one n
   await expect(page).toHaveURL(/\/console\/brand-e2e-01\/access$/);
 });
 
-test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading the whole fleet @brand-fleet', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading the whole fleet @brand-fleet @smoke', async ({ page }) => {
   await login(page, 'developer');
   const requests = [];
   page.on('request', (request) => { if (request.url().includes('/api/fleet/devices')) requests.push(request.url()); });
+  await page.route('**/api/fleet/devices**', async (route) => {
+    const response = await route.fetch();
+    const payload = await response.json();
+    const url = new URL(route.request().url());
+    await route.fulfill({
+      response,
+      json: {
+        ...payload,
+        pagination: {
+          limit: 100,
+          offset: Number(url.searchParams.get('offset') || 0),
+          total: 1000,
+        },
+      },
+    });
+  });
   await page.goto('/console/brand-e2e-01/devices');
   await expect(page.getByRole('heading', { name: '設備' })).toBeVisible();
   await expect.poll(() => requests.length).toBeGreaterThan(0);
   expect(requests.some((url) => /limit=\d+/.test(url))).toBeTruthy();
   expect(requests.some((url) => /offset=/.test(url))).toBeFalsy();
+
+  const topPagination = page.getByRole('navigation', { name: '設備分頁（上方）' });
+  const bottomPagination = page.getByRole('navigation', { name: '設備分頁（下方）' });
+  await expect(topPagination).toBeVisible();
+  await expect(bottomPagination).toBeVisible();
+  await expect(topPagination.getByRole('button', { name: /^第 \d+ 頁$/ })).toHaveCount(10);
+  await expect(bottomPagination.getByRole('button', { name: /^第 \d+ 頁$/ })).toHaveCount(10);
+
+  await topPagination.getByRole('button', { name: '第 5 頁' }).click();
+  await expect(page).toHaveURL(/devices\?offset=400$/);
+  await expect(bottomPagination.getByRole('button', { name: '第 5 頁' })).toHaveAttribute('aria-current', 'page');
+  await bottomPagination.getByRole('button', { name: '下一頁' }).click();
+  await expect(page).toHaveURL(/devices\?offset=500$/);
+  await expect(topPagination).toContainText('第 6 / 10 頁');
 });
 
 test('[UI-CA-FLEETPAGE-004] report builder uses shared form controls @brand-fleet @smoke', async ({ page }) => {

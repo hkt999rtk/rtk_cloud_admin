@@ -4086,9 +4086,33 @@ th {
 .pagination {
   align-items: center;
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
+  gap: 14px;
+  justify-content: space-between;
   margin-top: 14px;
+  min-width: 0;
+}
+
+.pagination-top {
+  border-bottom: 1px solid var(--line);
+  margin: 4px 0 14px;
+  padding-bottom: 12px;
+}
+
+.pagination-bottom {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.pagination-page-list {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 2px;
+  scrollbar-width: thin;
 }
 
 .pagination button {
@@ -4097,8 +4121,29 @@ th {
   border-radius: 8px;
   color: var(--brand-dark);
   cursor: pointer;
-  min-height: 34px;
-  padding: 6px 12px;
+  flex: 0 0 auto;
+  font-weight: 700;
+  height: 38px;
+  min-width: 38px;
+  padding: 6px 10px;
+}
+
+.pagination button:hover:not(:disabled),
+.pagination button:focus-visible {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.pagination button.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.pagination button.pagination-arrow {
+  font-size: 22px;
+  line-height: 1;
+  min-width: 42px;
 }
 
 .pagination button:disabled {
@@ -4107,9 +4152,20 @@ th {
   opacity: 0.55;
 }
 
-.pagination span {
+.pagination-summary,
+.pagination-ellipsis {
   color: var(--muted);
   font-size: 13px;
+}
+
+.pagination-summary {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.pagination-ellipsis {
+  flex: 0 0 18px;
+  text-align: center;
 }
 
 .operation-list {
@@ -4615,8 +4671,7 @@ th {
     justify-self: stretch;
   }
 
-  .device-table-panel table,
-  .device-table-panel .pagination {
+  .device-table-panel table {
     display: none;
   }
 
@@ -4675,6 +4730,11 @@ th {
     align-items: stretch;
     display: grid;
     justify-content: stretch;
+  }
+
+  .pagination-page-list {
+    justify-content: flex-start;
+    width: 100%;
   }
 
   .drawer-panel {

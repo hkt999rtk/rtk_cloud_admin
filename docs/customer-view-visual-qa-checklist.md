@@ -83,6 +83,9 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 設備
 Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 我的設備
 
 - Search and filters are visible above the table.
+- Page selectors are visible above and below the list; all practical page
+  numbers are direct targets, current page is distinct, and narrow screens keep
+  the page-number strip usable without widening the document.
 - Table columns are Device, Organization, Model, Firmware, Health, Status,
   Signal, Last Seen, and Actions.
 - Selected row uses a pale blue highlight.

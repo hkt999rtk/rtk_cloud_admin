@@ -5479,23 +5479,26 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
           onServerSearch={(value) => updateServerQuery({ q: value, offset: 0 })}
           onServerSort={(key, direction) => updateServerQuery({ sort: key, direction, offset: 0 })}
           onServerPage={(offset) => updateServerQuery({ offset })}
+          paginationLabel="設備"
+          mobileContent={(
+            <div className="mobile-device-list" aria-label="Compact device list">
+              {tableRows.map((device) => (
+                <button key={device.id} type="button" className="mobile-device-row" onClick={() => setSelectedDeviceId(device.id)}>
+                  <span>
+                    <strong>{device.name}</strong>
+                    <small>{device.serial_number}</small>
+                  </span>
+                  <span>
+                    <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />
+                    <StatusBadge value={normalizeStatusKey(device.readiness)} label={device.readiness_display} />
+                  </span>
+                  <time title={device.last_seen_at || ''}>{device.last_seen_at ? formatRelativeTime(device.last_seen_at) : 'No transport evidence'}</time>
+                  <span className="mobile-row-action">Inspect</span>
+                </button>
+              ))}
+            </div>
+          )}
         />
-        <div className="mobile-device-list" aria-label="Compact device list">
-          {tableRows.length ? tableRows.map((device) => (
-            <button key={device.id} type="button" className="mobile-device-row" onClick={() => setSelectedDeviceId(device.id)}>
-              <span>
-                <strong>{device.name}</strong>
-                <small>{device.serial_number}</small>
-              </span>
-              <span>
-                <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />
-                <StatusBadge value={normalizeStatusKey(device.readiness)} label={device.readiness_display} />
-              </span>
-              <time title={device.last_seen_at || ''}>{device.last_seen_at ? formatRelativeTime(device.last_seen_at) : 'No transport evidence'}</time>
-              <span className="mobile-row-action">Inspect</span>
-            </button>
-          )) : <p className="empty-state">No devices match the current filter.</p>}
-        </div>
       </div>
       {deviceDrawerOpen ? (
         <DeviceDrawer
@@ -6014,6 +6017,8 @@ function DataTable({
   onServerSearch,
   onServerSort,
   onServerPage,
+  paginationLabel = '清單',
+  mobileContent = null,
 }) {
   const [serverFilter, setServerFilter] = useState('');
   const {
@@ -6027,6 +6032,10 @@ function DataTable({
     maxPage,
     setPage,
   } = useTableControls(rows, columns, initialSortKey, initialDirection, pageSize);
+  const safeServerPageSize = Math.max(1, serverPageSize);
+  const currentServerPage = Math.floor(serverOffset / safeServerPageSize) + 1;
+  const maxServerPage = Math.max(1, Math.ceil(serverTotal / safeServerPageSize));
+  const goToServerPage = (nextPage) => onServerPage?.((nextPage - 1) * safeServerPageSize);
 
   return (
     <>
@@ -6041,6 +6050,15 @@ function DataTable({
         }} placeholder={searchPlaceholder} />
         <span>{serverMode ? `${serverTotal} 台設備` : `${totalRows} of ${rows.length}`}</span>
       </div>
+      {serverMode ? (
+        <PaginationControls
+          currentPage={currentServerPage}
+          totalPages={maxServerPage}
+          onPage={goToServerPage}
+          ariaLabel={`${paginationLabel}分頁（上方）`}
+          position="top"
+        />
+      ) : null}
       <table className={tableClassName}>
         <thead>
           <tr>
@@ -6079,24 +6097,83 @@ function DataTable({
           ))}
         </tbody>
       </table>
+      {mobileContent}
       {!(serverMode ? rows : visibleRows).length ? <p className="empty-table">{emptyLabel}</p> : null}
-      <div className="pagination">
-        {serverMode ? (() => {
-          const currentPage = Math.floor(serverOffset / serverPageSize) + 1;
-          const maxServerPage = Math.max(1, Math.ceil(serverTotal / serverPageSize));
-          return <>
-            <button disabled={currentPage <= 1} onClick={() => onServerPage?.(Math.max(0, serverOffset - serverPageSize))}>上一頁</button>
-            <span>第 {currentPage} / {maxServerPage} 頁</span>
-            <button disabled={currentPage >= maxServerPage} onClick={() => onServerPage?.(serverOffset + serverPageSize)}>下一頁</button>
-          </>;
-        })() : <>
-          <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
-          <span>Page {page} of {maxPage}</span>
-          <button disabled={page >= maxPage} onClick={() => setPage(page + 1)}>Next</button>
-        </>}
-      </div>
+      <PaginationControls
+        currentPage={serverMode ? currentServerPage : page}
+        totalPages={serverMode ? maxServerPage : maxPage}
+        onPage={serverMode ? goToServerPage : setPage}
+        ariaLabel={`${paginationLabel}分頁（下方）`}
+        position="bottom"
+      />
     </>
   );
+}
+
+function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, position }) {
+  const items = paginationItems(currentPage, totalPages);
+  return (
+    <nav className={`pagination pagination-${position}`} aria-label={ariaLabel}>
+      <span className="pagination-summary">第 {currentPage} / {totalPages} 頁</span>
+      <div className="pagination-page-list">
+        <button
+          type="button"
+          className="pagination-arrow"
+          aria-label="上一頁"
+          disabled={currentPage <= 1}
+          onClick={() => onPage(Math.max(1, currentPage - 1))}
+        >
+          ‹
+        </button>
+        {items.map((item, index) => item === 'ellipsis' ? (
+          <span className="pagination-ellipsis" aria-hidden="true" key={`ellipsis-${index}`}>…</span>
+        ) : (
+          <button
+            type="button"
+            className={item === currentPage ? 'active' : ''}
+            aria-label={`第 ${item} 頁`}
+            aria-current={item === currentPage ? 'page' : undefined}
+            key={item}
+            onClick={() => onPage(item)}
+          >
+            {item}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="pagination-arrow"
+          aria-label="下一頁"
+          disabled={currentPage >= totalPages}
+          onClick={() => onPage(Math.min(totalPages, currentPage + 1))}
+        >
+          ›
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+function paginationItems(currentPage, totalPages, maxVisible = 11) {
+  if (totalPages <= maxVisible) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const edgeCount = maxVisible - 2;
+  if (currentPage <= Math.ceil(edgeCount / 2) + 1) {
+    return [...Array.from({ length: edgeCount }, (_, index) => index + 1), 'ellipsis', totalPages];
+  }
+  if (currentPage >= totalPages - Math.floor(edgeCount / 2)) {
+    return [1, 'ellipsis', ...Array.from({ length: edgeCount }, (_, index) => totalPages - edgeCount + index + 1)];
+  }
+
+  const siblingCount = Math.floor((maxVisible - 4) / 2);
+  return [
+    1,
+    'ellipsis',
+    ...Array.from({ length: siblingCount * 2 + 1 }, (_, index) => currentPage - siblingCount + index),
+    'ellipsis',
+    totalPages,
+  ];
 }
 
 function useTableControls(rows, columns, initialSortKey, initialDirection, pageSize) {

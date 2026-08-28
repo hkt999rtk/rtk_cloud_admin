@@ -302,6 +302,9 @@ workflow.
 - Keep table columns aligned to Device, Organization, Model, Firmware, Health,
   Status, Signal, Last Seen, and Actions.
 - Implement selected-row highlight and right-side detail drawer behavior.
+- Render the server-side page selector above and below the device list. Show all
+  page numbers when practical and use first/last/current-neighborhood ellipses
+  only for large page counts.
 - Complete drawer Overview content: identity, health, firmware, readiness/source
   facts, RSSI, uptime, recent telemetry, and active stream status.
 - Make Streams and Events read-only only when backed by documented source data.
@@ -332,13 +335,15 @@ workflow.
   write actions.
 - Drawer partial telemetry unavailability preserves safe identity, readiness,
   source facts, and available action context.
+- Desktop and mobile expose both pagination controls, direct page selection,
+  previous/next actions, and the current page without horizontal page overflow.
 
 ## Required Tests
 
 - `cd web && npm test`
 - `cd web && npm run build`
 - `cd web && npm run browser:smoke`
-- Add/update device action, route, and drawer workflow tests.
+- Add/update device action, route, pagination, and drawer workflow tests.
 - `go test ./...` if backend guards or DTO behavior are changed.
 
 ## References
