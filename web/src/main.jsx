@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { feature } from 'topojson-client';
+import worldAtlas from 'world-atlas/countries-110m.json';
 import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs';
 import {
   billingSubpaths,
@@ -1991,17 +1993,148 @@ function RegionFleetPanel({ summary, loading }) {
 }
 
 function RegionMap({ regions, max }) {
+  const [viewport, setViewport] = useState(WORLD_VIEWPORT);
+  const [hoveredRegion, setHoveredRegion] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef(null);
+  const zoom = 1000 / viewport.width;
+  const regionPoints = regions.slice(0, 8).map(([region, count]) => ({ region, count, point: regionMapPoint(region) })).filter(({ point }) => point);
+
+  function zoomBy(factor, anchorX = .5, anchorY = .5) {
+    setViewport((current) => {
+      const nextZoom = Math.max(1, Math.min(8, 1000 / current.width * factor));
+      const width = 1000 / nextZoom;
+      const height = 500 / nextZoom;
+      return clampWorldViewport({
+        x: current.x + (current.width - width) * anchorX,
+        y: current.y + (current.height - height) * anchorY,
+        width,
+        height,
+      });
+    });
+  }
+
+  function handleWheel(event) {
+    event.preventDefault();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    zoomBy(event.deltaY < 0 ? 1.25 : .8, (event.clientX - bounds.left) / bounds.width, (event.clientY - bounds.top) / bounds.height);
+  }
+
+  function handlePointerDown(event) {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { clientX: event.clientX, clientY: event.clientY, viewport };
+    setDragging(true);
+  }
+
+  function handlePointerMove(event) {
+    if (!dragRef.current) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const start = dragRef.current;
+    setViewport(clampWorldViewport({
+      ...start.viewport,
+      x: start.viewport.x - (event.clientX - start.clientX) / bounds.width * start.viewport.width,
+      y: start.viewport.y - (event.clientY - start.clientY) / bounds.height * start.viewport.height,
+    }));
+  }
+
+  function handlePointerUp(event) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    dragRef.current = null;
+    setDragging(false);
+  }
+
+  function showCountry(event, country) {
+    if (dragRef.current) return;
+    const bounds = event.currentTarget.ownerSVGElement.getBoundingClientRect();
+    setHoveredRegion({ name: country.properties.name, x: event.clientX - bounds.left, y: event.clientY - bounds.top });
+  }
+
   return <div className="region-map-vector" aria-label="區域設備分布圖">
-    <svg viewBox="0 0 520 260" role="img" aria-label="設備區域分布">
-      <path d="M38 150 92 118 138 128 166 92 230 106 274 78 334 96 390 72 476 112 450 178 390 184 350 220 275 202 220 232 164 214 100 232 52 202Z" />
-      {regions.slice(0, 8).map(([region, count], index) => {
-        const x = 70 + ((index * 71) % 390);
-        const y = 112 + ((index * 43) % 100);
-        return <g key={region}><circle cx={x} cy={y} r={Math.max(5, Math.min(14, 5 + count / max * 10))} /><text x={x + 10} y={y + 4}>{region}</text></g>;
-      })}
-    </svg>
-    <small>區域示意圖 · 資料依設備回報的區域分類</small>
+    <div className="region-map-toolbar" aria-label="地圖控制">
+      <button type="button" onClick={() => zoomBy(1.4)} aria-label="放大地圖">＋</button>
+      <button type="button" onClick={() => zoomBy(1 / 1.4)} aria-label="縮小地圖" disabled={zoom <= 1}>−</button>
+      <button type="button" onClick={() => setViewport(WORLD_VIEWPORT)} disabled={zoom <= 1}>重設</button>
+      <span>{Math.round(zoom * 100)}%</span>
+    </div>
+    <div className="region-map-stage">
+      <svg
+        className={dragging ? 'is-dragging' : ''}
+        viewBox={`${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`}
+        role="img"
+        aria-label="可縮放及拖曳的世界設備分布地圖"
+        onWheel={handleWheel}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPointerLeave={() => setHoveredRegion(null)}
+      >
+        <g className="world-countries">
+          {WORLD_COUNTRIES.map((country) => <path
+            key={country.id}
+            d={worldGeometryPath(country.geometry)}
+            onPointerEnter={(event) => showCountry(event, country)}
+            onPointerMove={(event) => showCountry(event, country)}
+            onPointerLeave={() => setHoveredRegion(null)}
+          ><title>{country.properties.name}</title></path>)}
+        </g>
+        <g className="region-map-markers">
+          {regionPoints.map(({ region, count, point: [x, y] }) => <g key={region}>
+            <circle cx={x} cy={y} r={Math.max(9, Math.min(22, 9 + count / max * 13)) / zoom} />
+            <text x={x + 18 / zoom} y={y + 5 / zoom} style={{ fontSize: `${12 / zoom}px` }}>{region}</text>
+          </g>)}
+        </g>
+      </svg>
+      {hoveredRegion ? <div className="region-map-tooltip" style={{ left: hoveredRegion.x, top: hoveredRegion.y }}>{hoveredRegion.name}</div> : null}
+    </div>
+    <small>{regions.length ? '拖曳平移、滾輪縮放；圓點大小代表設備數量' : '拖曳平移、滾輪縮放；移到國家／地區可查看名稱'}</small>
   </div>;
+}
+
+const WORLD_VIEWPORT = Object.freeze({ x: 0, y: 0, width: 1000, height: 500 });
+const WORLD_COUNTRIES = feature(worldAtlas, worldAtlas.objects.countries).features;
+const REGION_MAP_COORDINATES = {
+  na: [-105, 43], 'north america': [-105, 43], '北美': [-105, 43],
+  sa: [-60, -17], 'south america': [-60, -17], '南美': [-60, -17],
+  eu: [15, 51], europe: [15, 51], '歐洲': [15, 51],
+  africa: [20, 3], af: [20, 3], '非洲': [20, 3],
+  asia: [100, 36], apac: [112, 8], '亞洲': [100, 36], '亞太': [112, 8],
+  oceania: [135, -25], anz: [135, -25], '大洋洲': [135, -25], '澳紐': [135, -25],
+  taiwan: [121, 23.7], tw: [121, 23.7], twn: [121, 23.7], '台灣': [121, 23.7], '臺灣': [121, 23.7],
+};
+
+function projectWorldPoint([longitude, latitude]) {
+  return [(longitude + 180) / 360 * 1000, (90 - latitude) / 180 * 500];
+}
+
+function worldGeometryPath(geometry) {
+  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  return polygons.map((polygon) => polygon.map((ring) => ring.map((coordinate, index) => {
+    const [x, y] = projectWorldPoint(coordinate);
+    return `${index ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(' ') + 'Z').join(' ')).join(' ');
+}
+
+function clampWorldViewport(viewport) {
+  return {
+    ...viewport,
+    x: Math.max(0, Math.min(1000 - viewport.width, viewport.x)),
+    y: Math.max(0, Math.min(500 - viewport.height, viewport.y)),
+  };
+}
+
+function regionMapPoint(region) {
+  const normalized = String(region).trim().toLowerCase();
+  const knownCoordinates = REGION_MAP_COORDINATES[normalized];
+  if (knownCoordinates) return projectWorldPoint(knownCoordinates);
+  const country = WORLD_COUNTRIES.find((candidate) => candidate.properties.name.toLowerCase() === normalized);
+  if (!country) return null;
+  const coordinates = country.geometry.type === 'Polygon' ? country.geometry.coordinates.flat(1) : country.geometry.coordinates.flat(2);
+  return projectWorldPoint([
+    (Math.min(...coordinates.map(([longitude]) => longitude)) + Math.max(...coordinates.map(([longitude]) => longitude))) / 2,
+    (Math.min(...coordinates.map(([, latitude]) => latitude)) + Math.max(...coordinates.map(([, latitude]) => latitude))) / 2,
+  ]);
 }
 
 function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {

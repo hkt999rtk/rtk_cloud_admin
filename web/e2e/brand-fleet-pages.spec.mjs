@@ -30,3 +30,22 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
   expect(requests.some((url) => /limit=\d+/.test(url))).toBeTruthy();
   expect(requests.some((url) => /offset=/.test(url))).toBeFalsy();
 });
+
+test('[UI-CA-FLEETPAGE-003] overview world map supports country hover zoom and pan @brand-fleet', async ({ page }) => {
+  await login(page, 'developer');
+  await page.goto('/console/brand-e2e-01/overview');
+  const map = page.getByRole('img', { name: '可縮放及拖曳的世界設備分布地圖' });
+  await expect(map).toBeVisible();
+  await expect(map.locator('.world-countries path')).toHaveCount(177);
+  await map.locator('.world-countries path').nth(10).hover();
+  await expect(page.locator('.region-map-tooltip')).toBeVisible();
+  await page.getByRole('button', { name: '放大地圖' }).click();
+  await expect(page.getByText('140%', { exact: true })).toBeVisible();
+  const beforePan = await map.getAttribute('viewBox');
+  const bounds = await map.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width * .65, bounds.y + bounds.height * .5);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width * .45, bounds.y + bounds.height * .5);
+  await page.mouse.up();
+  await expect.poll(() => map.getAttribute('viewBox')).not.toBe(beforePan);
+});
