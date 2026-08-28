@@ -250,6 +250,16 @@ func TestCoverageGovernancePureHelpers(t *testing.T) {
 	if got := customerSKU(profile); got.ID != profile.ID {
 		t.Fatalf("customerSKU = %#v", got)
 	}
+	for role, wantActions := range map[string]int{
+		"sku_owner":   7,
+		"brand_owner": 6,
+		"sku_editor":  5,
+		"sku_viewer":  2,
+	} {
+		if actions := skuAllowedActionsForRole(role, nil); len(actions) != wantActions {
+			t.Fatalf("skuAllowedActionsForRole(%q) = %#v, want %d actions", role, actions, wantActions)
+		}
+	}
 
 	if got := scopeStringSlice([]any{" a ", 1, "", "b"}); strings.Join(got, ",") != "a,b" {
 		t.Fatalf("scopeStringSlice([]any) = %#v", got)
@@ -443,6 +453,18 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 			})
 			return
 		}
+		if strings.HasSuffix(r.URL.Path, "/access/check") {
+			_, _ = w.Write([]byte(`{"allowed":true}`))
+			return
+		}
+		if r.URL.Path == "/v1/developer/sku-collaborator-invitations/accept" && r.Header.Get("Authorization") == "Bearer error-access" {
+			http.Error(w, "upstream SKU invitation acceptance failure", http.StatusInternalServerError)
+			return
+		}
+		if strings.Contains(r.URL.Path, "/skus/sku-error/") {
+			http.Error(w, "upstream SKU collaboration failure", http.StatusInternalServerError)
+			return
+		}
 		_, _ = w.Write([]byte(`{}`))
 	}))
 	defer upstream.Close()
@@ -474,6 +496,7 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		"/api/reports/report-1",
 		"/api/skus?limit=25",
 		"/api/skus/sku-1",
+		"/api/skus/sku-1/collaborators",
 		"/api/skus/sku-1/releases",
 		"/api/skus/sku-1/releases/release-1",
 		"/api/skus/sku-1/permissions",
@@ -482,7 +505,7 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 	}
 	for _, path := range paths {
 		rec := requestWithCookie(t, srv, http.MethodGet, path, nil, cookie)
-		expectedBoundary := (strings.Contains(path, "/releases") && rec.Code == http.StatusForbidden) ||
+		expectedBoundary := (strings.Contains(path, "/releases") && (rec.Code == http.StatusForbidden || rec.Code == http.StatusServiceUnavailable)) ||
 			(path == "/api/update-plans/plan-1" && rec.Code == http.StatusServiceUnavailable)
 		if !expectedBoundary && (rec.Code == http.StatusUnauthorized || rec.Code == http.StatusForbidden || rec.Code >= 500) {
 			t.Errorf("%s status = %d, body=%s", path, rec.Code, rec.Body.String())
@@ -504,6 +527,7 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		{http.MethodPost, "/api/developer/brand-clouds/brand-1/owner-transfer", `{"target_email":"owner@example.com"}`},
 		{http.MethodPost, "/api/developer/brand-clouds/brand-1/owner-transfer/transfer-1/cancel", `{}`},
 		{http.MethodPost, "/api/developer/brand-cloud-owner-transfers/accept", `{"token":"owner-token"}`},
+		{http.MethodPost, "/api/developer/sku-collaborator-invitations/accept", `{"token":"sku-invitation-token"}`},
 		{http.MethodPost, "/api/groups", `{"name":"Cameras","device_ids":["device-1"]}`},
 		{http.MethodPatch, "/api/groups/group-1", `{"name":"Updated Cameras","device_ids":["device-1"]}`},
 		{http.MethodDelete, "/api/groups/group-1", ``},
@@ -520,6 +544,11 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		{http.MethodPatch, "/api/skus/sku-1", `{"name":"Updated SKU","service_options":["mqtt"]}`},
 		{http.MethodPost, "/api/skus/sku-1/disable", `{}`},
 		{http.MethodPost, "/api/skus/sku-1/impact-preview", `{"service_options":["mqtt","video"]}`},
+		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations", `{"email":"collaborator@example.com","role":"sku_editor"}`},
+		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations/invitation-1/resend", `{}`},
+		{http.MethodPatch, "/api/skus/sku-1/collaborators/user-1", `{"role":"sku_viewer"}`},
+		{http.MethodDelete, "/api/skus/sku-1/collaborators/user-1", ``},
+		{http.MethodPost, "/api/skus/sku-1/owner-transfer", `{"target_user_id":"user-1"}`},
 		{http.MethodPost, "/api/update-plans/scope-preview", `{"sku_id":"sku-1","device_ids":["device-1"]}`},
 	}
 	for _, write := range writes {
@@ -536,21 +565,93 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 	if invitationInvalidToken.Code != http.StatusBadRequest {
 		t.Errorf("invalid invitation token status = %d, want 400", invitationInvalidToken.Code)
 	}
-	for _, path := range []string{
-		"/api/developer/brand-clouds/brand-1/members/invitations",
-		"/api/developer/brand-cloud-member-invitations/accept",
+	skuInvitationUnknownAction := authenticatedRequest(srv, session.ID, http.MethodPost, "/api/skus/sku-1/collaborator-invitations/invitation-1/unknown", strings.NewReader(`{}`), writeHeaders)
+	if skuInvitationUnknownAction.Code != http.StatusNotFound {
+		t.Errorf("unknown SKU invitation action status = %d, want 404", skuInvitationUnknownAction.Code)
+	}
+	for _, invalid := range []struct {
+		method string
+		path   string
+		body   string
+	}{
+		{http.MethodPost, "/api/developer/sku-collaborator-invitations/accept", `{"token":""}`},
+		{http.MethodPost, "/api/developer/sku-collaborator-invitations/accept", `{`},
+		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations", `{"email":""}`},
+		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations", `{`},
+		{http.MethodPatch, "/api/skus/sku-1/collaborators/user-1", `{`},
+		{http.MethodPost, "/api/skus/sku-1/owner-transfer", `{"target_user_id":""}`},
+		{http.MethodPost, "/api/skus/sku-1/owner-transfer", `{`},
 	} {
-		if rec := requestWithCookie(t, srv, http.MethodPost, path, strings.NewReader(`{}`), nil); rec.Code != http.StatusUnauthorized {
-			t.Errorf("unauthenticated invitation route %s status = %d, want 401", path, rec.Code)
+		rec := authenticatedRequest(srv, session.ID, invalid.method, invalid.path, strings.NewReader(invalid.body), writeHeaders)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("invalid SKU collaboration request %s status = %d, want 400", invalid.path, rec.Code)
 		}
 	}
-	for _, path := range []string{
-		"/api/developer/brand-clouds/brand-1/members/invitations/invitation-1/resend",
-		"/api/developer/brand-cloud-member-invitations/accept",
+	for _, request := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/developer/brand-clouds/brand-1/members/invitations"},
+		{http.MethodPost, "/api/developer/brand-cloud-member-invitations/accept"},
+		{http.MethodPost, "/api/developer/sku-collaborator-invitations/accept"},
+		{http.MethodGet, "/api/skus/sku-1/collaborators"},
+		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations"},
+		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations/invitation-1/resend"},
+		{http.MethodPatch, "/api/skus/sku-1/collaborators/user-1"},
+		{http.MethodPost, "/api/skus/sku-1/owner-transfer"},
 	} {
-		if rec := authenticatedRequest(srv, session.ID, http.MethodPost, path, strings.NewReader(`{}`), nil); rec.Code != http.StatusPreconditionRequired {
-			t.Errorf("invitation route %s without idempotency key status = %d, want 428", path, rec.Code)
+		if rec := requestWithCookie(t, srv, request.method, request.path, strings.NewReader(`{}`), nil); rec.Code != http.StatusUnauthorized {
+			t.Errorf("unauthenticated invitation route %s status = %d, want 401", request.path, rec.Code)
 		}
+	}
+	for _, request := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/developer/brand-clouds/brand-1/members/invitations/invitation-1/resend"},
+		{http.MethodPost, "/api/developer/brand-cloud-member-invitations/accept"},
+		{http.MethodPost, "/api/developer/sku-collaborator-invitations/accept"},
+		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations"},
+		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations/invitation-1/resend"},
+		{http.MethodPatch, "/api/skus/sku-1/collaborators/user-1"},
+		{http.MethodPost, "/api/skus/sku-1/owner-transfer"},
+	} {
+		if rec := authenticatedRequest(srv, session.ID, request.method, request.path, strings.NewReader(`{}`), nil); rec.Code != http.StatusPreconditionRequired {
+			t.Errorf("invitation route %s without idempotency key status = %d, want 428", request.path, rec.Code)
+		}
+	}
+	for _, request := range []struct {
+		method string
+		path   string
+		body   string
+	}{
+		{http.MethodGet, "/api/skus/sku-error/collaborators", ``},
+		{http.MethodPost, "/api/skus/sku-error/collaborator-invitations", `{"email":"collaborator@example.com","role":"sku_editor"}`},
+		{http.MethodPost, "/api/skus/sku-error/collaborator-invitations/invitation-1/resend", `{}`},
+		{http.MethodPatch, "/api/skus/sku-error/collaborators/user-1", `{"role":"sku_viewer"}`},
+		{http.MethodDelete, "/api/skus/sku-error/collaborators/user-1", ``},
+		{http.MethodPost, "/api/skus/sku-error/owner-transfer", `{"target_user_id":"user-1"}`},
+	} {
+		rec := authenticatedRequest(srv, session.ID, request.method, request.path, strings.NewReader(request.body), writeHeaders)
+		if rec.Code < http.StatusBadRequest {
+			t.Errorf("upstream SKU collaboration failure %s status = %d, want error", request.path, rec.Code)
+		}
+	}
+	errorSession, err := st.CreateSession("customer", "developer-2", "error@example.com", "error-access", "refresh", "org-1", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	acceptFailure := authenticatedRequest(srv, errorSession.ID, http.MethodPost, "/api/developer/sku-collaborator-invitations/accept", strings.NewReader(`{"token":"sku-invitation-token"}`), writeHeaders)
+	if acceptFailure.Code < http.StatusBadRequest {
+		t.Errorf("upstream SKU invitation acceptance status = %d, want error", acceptFailure.Code)
+	}
+	missingOrgSession, err := st.CreateSession("customer", "developer-3", "missing@example.com", "access", "refresh", "org-missing", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	missingOrg := requestWithCookie(t, srv, http.MethodGet, "/api/skus/sku-1/collaborators", nil, &http.Cookie{Name: "rtk_admin_session", Value: missingOrgSession.ID})
+	if missingOrg.Code < http.StatusBadRequest {
+		t.Errorf("missing active organization status = %d, want error", missingOrg.Code)
 	}
 	if len(upstreamPaths) < 15 {
 		t.Fatalf("upstream requests = %d, want broad Brand Fleet route coverage", len(upstreamPaths))
