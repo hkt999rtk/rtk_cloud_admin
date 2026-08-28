@@ -12,7 +12,7 @@ test.describe('Brand Clouds', () => {
   });
 
   test('[UI-CA-CLOUD-001] list filters and detail reload show Account Manager data @smoke', async ({ page }) => {
-    await expect(page.getByText('Brand Clouds', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Brand Clouds', level: 1 })).toBeVisible();
     await expect(page.getByText('E2E Alpha Cloud', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'View', exact: true }).first().click();
     await expect(page.getByRole('dialog', { name: 'Brand Cloud detail' })).toBeVisible();
