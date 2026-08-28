@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  isExpiredVerificationError,
   postJSON,
   putJSON,
   startSSOLogin,
@@ -211,6 +212,8 @@ test('public signup errors use evaluation-tier safe copy', () => {
 });
 
 test('verification errors distinguish token and service states without raw payloads', () => {
+  assert.equal(isExpiredVerificationError(new Error('Invalid or expired verification token')), true);
+  assert.equal(isExpiredVerificationError(new Error('invalid verification token')), false);
   assert.equal(
     userFacingVerificationError(new Error('expired verification token')),
     'Verification link expired. Request a new verification email.',

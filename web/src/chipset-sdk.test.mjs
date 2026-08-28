@@ -17,7 +17,7 @@ const providers = [
   { id: 'realtek', name: 'Realtek', status: 'published', chipset_count: 3, sdk_release_count: 5, last_successful_refresh_at: '2026-07-19T03:00:00Z' },
   { id: 'partner', name: 'Partner Lab', status: 'draft', unavailable: true },
 ];
-const chipsets = [{ name: 'AmebaPro2', vendor: 'Realtek', family: 'Ameba', sdk_releases: [{ name: 'Arduino', version: '4.0.8', recommended: true, supported_models: ['AMB82-Mini'], endpoints: [{}, {}] }] }];
+const chipsets = [{ name: 'AmebaPro2', vendor: 'Realtek', family: 'Ameba', resources: [{ type: 'forum', title: 'Ameba Forum', url: 'https://forum.example.com' }, { type: 'video', title: 'Start Here', url: 'https://www.youtube.com/playlist' }], sdk_releases: [{ name: 'Arduino', version: '4.0.8', recommended: true, supported_models: ['AMB82-Mini'], endpoints: [{ type: 'github', title: 'Source' }, {}] }] }];
 
 test('provider dashboard helpers compute and filter design data', () => {
   assert.deepEqual(providerKPIs(providers), { total: 3, published: 2, publishedChipsets: 4, publishedSDKs: 7, lastSuccess: '2026-07-19T03:00:00Z', needsAttention: 2 });
@@ -33,7 +33,10 @@ test('provider dashboard helpers compute and filter design data', () => {
 test('developer catalog helpers filter releases and summarize cards', () => {
   assert.deepEqual(chipsetVendors(chipsets), ['Realtek']);
   assert.equal(filterChipsets(chipsets, 'AMB82', 'Realtek', true).length, 1);
+  assert.equal(filterChipsets(chipsets, 'forum', 'all', false).length, 1);
+  assert.equal(filterChipsets(chipsets, 'github', 'all', false).length, 1);
+  assert.equal(filterChipsets(chipsets, 'YouTube', 'all', false).length, 1);
   assert.equal(filterChipsets(chipsets, 'missing', 'all', false).length, 0);
-  assert.equal(providerEndpointCount(chipsets), 2);
+  assert.equal(providerEndpointCount(chipsets), 4);
   assert.equal(vendorInitials(chipsets[0]), 'AME');
 });

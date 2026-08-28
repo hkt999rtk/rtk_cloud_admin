@@ -1,0 +1,153 @@
+{
+  "$schema": "./chipset-resource-package-v1.schema.json",
+  "manifest_version": "1",
+  "provider": {
+    "name": "Realtek Ameba IoT",
+    "updated_at": "2026-08-28T00:00:00Z"
+  },
+  "chipsets": [
+    {
+      "chipset_key": "realtek-amebapro2",
+      "vendor": "Realtek",
+      "name": "AmebaPro2",
+      "family": "Ameba",
+      "description": "RTL8735B-based AI video SoC development resources for AmebaPro2 and AMB82 MINI.",
+      "resources": [
+        {
+          "type": "product",
+          "title": "AmebaPro2 product and boards",
+          "url": "https://www.amebaiot.com/en/amebapro2/",
+          "source": "official",
+          "languages": ["en"],
+          "verified_at": "2026-08-28T00:00:00Z",
+          "summary": "Product overview, boards, modules, and hardware capabilities."
+        },
+        {
+          "type": "datasheet",
+          "title": "AMB82 MINI datasheets",
+          "url": "https://www.amebaiot.com/en/datasheet-download-amb82-mini/",
+          "source": "official",
+          "languages": ["en"],
+          "verified_at": "2026-08-28T00:00:00Z"
+        },
+        {
+          "type": "forum",
+          "title": "Ameba developer forum",
+          "url": "https://forum.amebaiot.com/",
+          "source": "official",
+          "languages": ["en", "zh-TW", "zh-CN"],
+          "verified_at": "2026-08-28T00:00:00Z"
+        },
+        {
+          "type": "video",
+          "title": "AMB82 Mini Maker Projects",
+          "url": "https://www.youtube.com/playlist?list=PLEQfNjOZQRyPWhySw16ZgBOPWnzLWDAjz",
+          "source": "official",
+          "languages": ["en"],
+          "verified_at": "2026-08-28T00:00:00Z",
+          "summary": "Community projects curated by the official Ameba documentation."
+        }
+      ],
+      "sdk_releases": [
+        {
+          "name": "Ameba Arduino Pro2",
+          "version": "4.1.0",
+          "summary": "Arduino SDK, board package, examples, and developer support for AMB82 MINI.",
+          "recommended": true,
+          "supported_models": ["AMB82 MINI"],
+          "endpoints": [
+            {
+              "type": "github",
+              "title": "Ameba Arduino Pro2 GitHub",
+              "url": "https://github.com/Ameba-AIoT/ameba-arduino-pro2",
+              "source": "official",
+              "languages": ["en"],
+              "verified_at": "2026-08-28T00:00:00Z"
+            },
+            {
+              "type": "download",
+              "title": "Arduino Boards Manager stable index",
+              "url": "https://github.com/Ameba-AIoT/ameba-arduino-pro2/raw/main/Arduino_package/package_realtek_amebapro2_index.json",
+              "source": "official",
+              "languages": ["en"],
+              "verified_at": "2026-08-28T00:00:00Z"
+            },
+            {
+              "type": "getting_started",
+              "title": "AMB82 MINI Arduino getting started",
+              "url": "https://ameba-doc-arduino-sdk.readthedocs-hosted.com/en/latest/ameba_pro2/amb82-mini/index.html",
+              "source": "official",
+              "languages": ["en"],
+              "verified_at": "2026-08-28T00:00:00Z"
+            },
+            {
+              "type": "documentation",
+              "title": "Arduino release notes",
+              "url": "https://github.com/Ameba-AIoT/ameba-arduino-pro2/releases",
+              "source": "official",
+              "languages": ["en"],
+              "verified_at": "2026-08-28T00:00:00Z"
+            },
+            {
+              "type": "support",
+              "title": "Arduino SDK issues",
+              "url": "https://github.com/Ameba-AIoT/ameba-arduino-pro2/issues",
+              "source": "official",
+              "languages": ["en"],
+              "verified_at": "2026-08-28T00:00:00Z"
+            }
+          ]
+        },
+        {
+          "name": "Ameba FreeRTOS Pro2 SDK",
+          "version": "main",
+          "summary": "Official FreeRTOS-based SDK, application notes, toolchain, and image programming tools.",
+          "recommended": false,
+          "supported_models": ["AMB82 MINI"],
+          "endpoints": [
+            {
+              "type": "github",
+              "title": "Ameba FreeRTOS Pro2 GitHub",
+              "url": "https://github.com/Ameba-AIoT/ameba-rtos-pro2",
+              "source": "official",
+              "languages": ["en"],
+              "verified_at": "2026-08-28T00:00:00Z"
+            },
+            {
+              "type": "documentation",
+              "title": "FreeRTOS Pro2 Application Notes",
+              "url": "https://ameba-doc-rtos-pro2-sdk.readthedocs-hosted.com/en/latest/",
+              "source": "official",
+              "languages": ["en"],
+              "verified_at": "2026-08-28T00:00:00Z"
+            },
+            {
+              "type": "getting_started",
+              "title": "Standard SDK getting started for AMB82 MINI",
+              "url": "https://www.amebaiot.com/en/ameba-sdk-getting-started-amb82-mini/",
+              "source": "official",
+              "languages": ["en"],
+              "verified_at": "2026-08-28T00:00:00Z"
+            },
+            {
+              "type": "tool",
+              "title": "Ameba Pro2 toolchain 10.3.0",
+              "url": "https://github.com/Ameba-AIoT/ameba-toolchain/releases/tag/V10.3.0-amebe-rtos-pro2",
+              "source": "official",
+              "languages": ["en"],
+              "verified_at": "2026-08-28T00:00:00Z"
+            },
+            {
+              "type": "tool",
+              "title": "Pro2 image programming tool",
+              "url": "https://github.com/Ameba-AIoT/ameba-rtos-pro2/tree/main/tools/Pro2_PG_tool_v1.4.3",
+              "source": "official",
+              "languages": ["en"],
+              "verified_at": "2026-08-28T00:00:00Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

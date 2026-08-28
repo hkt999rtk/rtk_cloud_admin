@@ -870,7 +870,7 @@ func TestEmailActivationAuthBFFSetsCustomerSessionCookie(t *testing.T) {
 			w.WriteHeader(http.StatusAccepted)
 		case "/v1/auth/reset-password":
 			resetCalls++
-			w.WriteHeader(http.StatusNoContent)
+			_, _ = w.Write([]byte(`{"email":"user@example.com"}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -927,7 +927,7 @@ func TestEmailActivationAuthBFFSetsCustomerSessionCookie(t *testing.T) {
 	}
 	reset := httptest.NewRecorder()
 	srv.ServeHTTP(reset, httptest.NewRequest(http.MethodPost, "/api/auth/reset-password", strings.NewReader(`{"token":"reset-token","new_password":"new-password123"}`)))
-	if reset.Code != http.StatusNoContent || resetCalls != 1 {
+	if reset.Code != http.StatusOK || resetCalls != 1 || !strings.Contains(reset.Body.String(), `"email":"user@example.com"`) {
 		t.Fatalf("reset status=%d calls=%d body=%s", reset.Code, resetCalls, reset.Body.String())
 	}
 }
@@ -4798,6 +4798,66 @@ func TestCustomerLifecycleRequiresAccountManagerCapability(t *testing.T) {
 	}
 	if upstreamProvisionCalls != 0 {
 		t.Fatalf("blocked lifecycle should not call upstream, got %d calls", upstreamProvisionCalls)
+	}
+}
+
+func TestSKUReleaseWriteRequiresFirmwareManageCapability(t *testing.T) {
+	t.Parallel()
+
+	accountUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/me":
+			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"operations@example.com","name":"Operations"},"organizations":[{"id":"org-up","name":"Upstream Org","role":"operations","capabilities":["firmware.release.read","ota.plan.manage"]}]}`))
+		case r.URL.Path == "/v1/orgs/org-up/access/check":
+			_, _ = w.Write([]byte(`{"allowed":true}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer accountUpstream.Close()
+
+	videoCalls := 0
+	videoUpstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		videoCalls++
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer videoUpstream.Close()
+
+	st, err := store.Open(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatalf("Migrate returned error: %v", err)
+	}
+	srv := NewWithOptions(st, Options{
+		Config: config.Config{
+			AccountManagerBaseURL: accountUpstream.URL,
+			VideoCloudBaseURL:     videoUpstream.URL,
+			VideoCloudAdminToken:  "vc-secret",
+		},
+		AccountClient: accountclient.New(accountUpstream.URL),
+		VideoClient:   videoclient.New(videoUpstream.URL),
+	})
+	session, err := st.CreateSession("customer", "u1", "operations@example.com", "access", "refresh", "org-up", time.Hour)
+	if err != nil {
+		t.Fatalf("CreateSession returned error: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/skus/sku-alpha/releases", strings.NewReader(`{"version":"forbidden"}`))
+	req.Header.Set("Idempotency-Key", "release-key")
+	req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("release write status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), capabilityFirmwareReleaseManage) {
+		t.Fatalf("forbidden body should name missing capability: %s", rec.Body.String())
+	}
+	if videoCalls != 0 {
+		t.Fatalf("blocked release write should not call video upstream, got %d calls", videoCalls)
 	}
 }
 
