@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './fixtures/session.mjs';
+import { expectPageTitle, login } from './fixtures/session.mjs';
 
 const pages = [
   ['overview', '設備總覽'],
@@ -16,7 +16,7 @@ test('[UI-CA-FLEETPAGE-001] Brandname customer pages load through the real BFF @
   await login(page, 'developer');
   for (const [route, heading] of pages) {
     await page.goto(`/console/brand-e2e-01/${route}`);
-    await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible();
+    await expectPageTitle(page, heading);
   }
 });
 
