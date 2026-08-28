@@ -2835,7 +2835,8 @@ p {
   text-transform: uppercase;
 }
 
-.device-filter select {
+.device-filter select,
+.select-control {
   appearance: none;
   background:
     linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(100% - 15px) 50% / 6px 6px no-repeat,
@@ -2852,7 +2853,8 @@ p {
   width: 100%;
 }
 
-.device-filter select:focus {
+.device-filter select:focus,
+.select-control:focus {
   border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(0, 104, 183, 0.12);
   outline: none;
@@ -3823,6 +3825,35 @@ input[type='checkbox']:indeterminate:disabled {
   border-color: var(--line);
   color: var(--muted);
   cursor: not-allowed;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #005a9e;
+  border-color: #005a9e;
+}
+
+.primary-button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(0, 104, 183, 0.16);
+  outline: none;
+}
+
+.brand-cloud-settings-page .inline-form {
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.brand-cloud-settings-page .inline-form > input,
+.brand-cloud-settings-page .select-control {
+  flex: 1 1 220px;
+  min-height: 42px;
+}
+
+.brand-cloud-settings-page .inline-form > .primary-button {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 42px;
+  white-space: nowrap;
 }
 
 .table-toolbar {

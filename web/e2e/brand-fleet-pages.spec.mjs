@@ -38,6 +38,18 @@ test('[UI-CA-FLEETPAGE-003] Brand Cloud overview access and settings share one n
   await page.mouse.click(settingsBox.x + settingsBox.width / 2, settingsBox.y + settingsBox.height / 2);
   await expect(page).toHaveURL(/\/console\/brand-e2e-01\/settings$/);
   await expect(page.getByRole('heading', { name: '設定', exact: true })).toBeVisible();
+  const certificateType = page.getByLabel('憑證類型');
+  await expect(certificateType).toHaveClass(/select-control/);
+  const selectStyles = await certificateType.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return { appearance: styles.appearance, backgroundImage: styles.backgroundImage, height: element.getBoundingClientRect().height };
+  });
+  expect(selectStyles.appearance).toBe('none');
+  expect(selectStyles.backgroundImage).not.toBe('none');
+  expect(selectStyles.height).toBeGreaterThanOrEqual(42);
+  await expect(page.getByRole('button', { name: '接受轉移', exact: true })).toHaveClass(/primary-button/);
+  await expect(page.getByRole('button', { name: '建立轉移', exact: true })).toHaveClass(/primary-button/);
+  await expect(page.getByRole('button', { name: '產生並下載', exact: true })).toHaveClass(/primary-button/);
   await page.goBack();
   await expect(page).toHaveURL(/\/console\/brand-e2e-01\/access$/);
 });
