@@ -20,9 +20,9 @@ test.describe('Brandname source and error states', () => {
   test('[UI-CA-SOURCE-003] source mode renders unavailable instead of empty @brand-fleet @errors', async ({ page }) => {
     test.skip(process.env.E2E_SCENARIO_MODE !== 'unavailable', 'run with E2E_SCENARIO_MODE=unavailable');
     await login(page, 'developer');
-    await page.goto('/console/brand-e2e-01/jobs');
-    await expect(page.getByText(/暫時無法取得|unavailable|無法取得/i).first()).toBeVisible();
-    await expect(page.getByText('目前沒有批次工作。')).toHaveCount(0);
+    await page.goto('/console/brand-e2e-01/firmware-ota');
+    await expect(page.getByText(/暫時無法取得|unavailable|無法取得|not configured/i).first()).toBeVisible();
+    await expect(page.getByText('目前沒有韌體更新紀錄。')).toHaveCount(0);
   });
 
   test('[UI-CA-SOURCE-004] customer-safe error does not expose upstream credentials @brand-fleet @errors', async ({ page }) => {

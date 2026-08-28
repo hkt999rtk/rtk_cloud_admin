@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { firmwareCampaignDetailRows, firmwarePolicyLabel, firmwareRiskRows, firmwareVersionFilterValue } from './firmware.mjs';
+import {
+  firmwareCampaignActions,
+  firmwareCampaignDetailRows,
+  firmwareCampaignNeedsPolling,
+  firmwareCampaignProgress,
+  firmwareCampaignStatusLabel,
+  firmwarePolicyLabel,
+  firmwareRiskRows,
+  firmwareRolloutStatusLabel,
+  firmwareVersionFilterValue,
+} from './firmware.mjs';
 
 const campaign = {
   campaign_id: 'campaign-1',
@@ -47,4 +57,32 @@ test('firmwarePolicyLabel marks unsupported policy values explicitly', () => {
   assert.equal(firmwarePolicyLabel('normal'), 'Normal');
   assert.equal(firmwarePolicyLabel('region_canary'), 'Unsupported policy: region_canary');
   assert.equal(firmwarePolicyLabel(''), 'Normal');
+});
+
+test('firmware status helpers use upgrade-specific Traditional Chinese labels', () => {
+  assert.equal(firmwareCampaignStatusLabel('active'), '更新中');
+  assert.equal(firmwareCampaignStatusLabel('completed'), '已完成');
+  assert.equal(firmwareRolloutStatusLabel('waiting_for_window'), '等待更新時段');
+  assert.equal(firmwareRolloutStatusLabel('failed'), '更新失敗');
+});
+
+test('firmware campaign progress counts terminal device outcomes', () => {
+  assert.deepEqual(firmwareCampaignProgress({ total: 10, applied: 6, failed: 1, skipped: 1 }), { total: 10, completed: 8, pct: 80 });
+  assert.deepEqual(firmwareCampaignProgress({}), { total: 0, completed: 0, pct: 0 });
+});
+
+test('firmware campaign actions follow campaign state and permission', () => {
+  assert.deepEqual(firmwareCampaignActions({ state: 'draft' }), ['start']);
+  assert.deepEqual(firmwareCampaignActions({ state: 'active' }), ['pause', 'cancel']);
+  assert.deepEqual(firmwareCampaignActions({ state: 'paused' }), ['resume', 'cancel']);
+  assert.deepEqual(firmwareCampaignActions({ state: 'completed', failed: 2 }), ['retry']);
+  assert.deepEqual(firmwareCampaignActions({ state: 'completed', failed: 0 }), []);
+  assert.deepEqual(firmwareCampaignActions({ state: 'active' }, false), []);
+});
+
+test('only progressing firmware campaigns need polling', () => {
+  assert.equal(firmwareCampaignNeedsPolling({ state: 'active' }), true);
+  assert.equal(firmwareCampaignNeedsPolling({ state: 'scheduled' }), true);
+  assert.equal(firmwareCampaignNeedsPolling({ state: 'paused' }), false);
+  assert.equal(firmwareCampaignNeedsPolling({ state: 'completed' }), false);
 });

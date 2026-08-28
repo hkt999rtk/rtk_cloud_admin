@@ -420,6 +420,49 @@ func TestDoOTAInjectsTrustedBrandAndIdempotencyHeaders(t *testing.T) {
 	}
 }
 
+func TestCanonicalOTAReadMethodsFollowPagesAndDecodeStatus(t *testing.T) {
+	t.Parallel()
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Brand-Cloud-ID") != "brand-1" || r.Header.Get("Authorization") != "Bearer secret" {
+			t.Fatalf("trusted OTA headers = %#v", r.Header)
+		}
+		switch r.URL.Path {
+		case "/v1/ota/skus/sku-1/campaigns":
+			if r.URL.Query().Get("cursor") == "1" {
+				_, _ = w.Write([]byte(`{"items":[{"campaign_id":"campaign-2","sku_id":"sku-1","release_id":"release-1","state":"completed"}]}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"items":[{"campaign_id":"campaign-1","sku_id":"sku-1","release_id":"release-1","state":"active"}],"next_cursor":"1"}`))
+		case "/v1/ota/skus/sku-1/releases":
+			_, _ = w.Write([]byte(`{"items":[{"release_id":"release-1","version":"v1.2.4"}]}`))
+		case "/v1/ota/campaigns/campaign-1/deployments":
+			_, _ = w.Write([]byte(`{"items":[{"device_id":"device-1","status":"failed","current_version":"v1.2.3","target_version":"v1.2.4","error_reason":"checksum","updated_at":"2026-08-28T01:05:00Z"}]}`))
+		case "/v1/ota/campaigns/campaign-1/summary":
+			_, _ = w.Write([]byte(`{"campaign_id":"campaign-1","state":"active","total":2,"by_status":{"failed":1,"pending":1},"updated_at":"2026-08-28T01:05:00Z"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+	client := New(upstream.URL)
+	campaigns, err := client.ListOTACampaigns(t.Context(), "secret", "brand-1", "sku-1")
+	if err != nil || len(campaigns) != 2 || campaigns[1].State != "completed" {
+		t.Fatalf("ListOTACampaigns = %#v, %v", campaigns, err)
+	}
+	releases, err := client.ListOTAReleases(t.Context(), "secret", "brand-1", "sku-1")
+	if err != nil || len(releases) != 1 || releases[0].Version != "v1.2.4" {
+		t.Fatalf("ListOTAReleases = %#v, %v", releases, err)
+	}
+	deployments, err := client.ListOTADeployments(t.Context(), "secret", "brand-1", "campaign-1")
+	if err != nil || len(deployments) != 1 || deployments[0].ErrorReason != "checksum" {
+		t.Fatalf("ListOTADeployments = %#v, %v", deployments, err)
+	}
+	summary, err := client.GetOTACampaignSummary(t.Context(), "secret", "brand-1", "campaign-1")
+	if err != nil || summary.Total != 2 || summary.ByStatus["failed"] != 1 {
+		t.Fatalf("GetOTACampaignSummary = %#v, %v", summary, err)
+	}
+}
+
 func TestDeviceTelemetry(t *testing.T) {
 	t.Parallel()
 

@@ -51,10 +51,38 @@ test.describe('Brandname async workflows', () => {
     expect(rejected.status()).toBe(409);
   });
 
+  test('[UI-CA-OTA-002] firmware page shows upgrade progress and device results @brand-fleet @smoke', async ({ page }) => {
+    await login(page, 'developer');
+    await page.route('**/api/fleet/firmware-distribution', async (route) => {
+      await route.fulfill({ json: {
+        source_status: 'available',
+        versions: [{ version: 'v1.2.4', count: 2, pct: 100, is_latest: true }],
+        campaigns: [{
+          campaign_id: 'upgrade-e2e-1', target_version: 'v1.2.4', policy: 'normal', state: 'completed',
+          applied: 1, pending: 0, failed: 1, skipped: 0, total: 2,
+          started_at: '2026-08-28T01:00:00Z', updated_at: '2026-08-28T01:05:00Z',
+          rollouts: [
+            { device_id: 'dev-ok', device_name: 'Camera OK', current_version: 'v1.2.4', target_version: 'v1.2.4', rollout_status: 'applied', last_updated: '2026-08-28T01:04:00Z' },
+            { device_id: 'dev-failed', device_name: 'Camera Failed', current_version: 'v1.2.3', target_version: 'v1.2.4', rollout_status: 'failed', failure_reason: 'checksum mismatch', last_updated: '2026-08-28T01:05:00Z' },
+          ],
+        }],
+      } });
+    });
+    await page.goto('/console/brand-e2e-01/firmware-ota');
+    await expect(page.getByRole('heading', { name: '韌體更新狀態' })).toBeVisible();
+    await expect(page.getByText('upgrade-e2e-1').first()).toBeVisible();
+    await expect(page.getByText('已完成', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Camera Failed', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('更新失敗', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('checksum mismatch')).toBeVisible();
+    await expect(page.getByRole('button', { name: '重試失敗設備' })).toBeVisible();
+  });
+
   test('[UI-CA-REPORT-004] reports preserve scope metadata and expose async result download @brand-fleet', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/reports');
     await expect(page.getByRole('heading', { name: '報表' }).first()).toBeVisible();
+    await expect(page.getByLabel('報表類型').locator('option[value="batch_jobs"]')).toHaveCount(0);
     const response = await page.request.post('/api/reports', {
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-report-1' },
       data: { name: 'E2E fleet report', report_type: 'fleet_status', dimensions: ['sku', 'region'], timezone: 'Asia/Taipei', format: 'json', scope: { query: { region: ['na'] } } },

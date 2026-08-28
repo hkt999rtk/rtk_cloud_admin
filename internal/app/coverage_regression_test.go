@@ -696,8 +696,15 @@ func TestFirmwareReadModelHelpers(t *testing.T) {
 	if got := latestFirmwareVersion(videoclient.FirmwareEnumResponse{Releases: []videoclient.FirmwareRelease{{Version: "v1.2.9"}, {Version: "v1.10.0"}, {Version: ""}}}); got != "v1.10.0" {
 		t.Fatalf("latestFirmwareVersion releases = %q", got)
 	}
-	if !isVisibleFirmwareCampaignState(" scheduled ") || isVisibleFirmwareCampaignState("archived") {
-		t.Fatalf("visible campaign state mapping failed")
+	for _, state := range []string{"draft", "scheduled", "active", "paused", "completed", "canceled"} {
+		if !isVisibleFirmwareCampaignState(state) {
+			t.Fatalf("campaign state %q should be visible", state)
+		}
+	}
+	for _, state := range []string{"archived", "unknown", ""} {
+		if isVisibleFirmwareCampaignState(state) {
+			t.Fatalf("campaign state %q should not be visible", state)
+		}
 	}
 
 	rollouts := []videoclient.FirmwareRolloutRecord{
@@ -712,6 +719,9 @@ func TestFirmwareReadModelHelpers(t *testing.T) {
 	}
 	if campaign.Applied != 1 || campaign.Failed != 1 || campaign.Pending != 2 || campaign.Total != 4 {
 		t.Fatalf("campaign counts = %#v", campaign)
+	}
+	if campaign.UpdatedAt != "2026-05-09T00:00:00Z" {
+		t.Fatalf("campaign updated_at = %q", campaign.UpdatedAt)
 	}
 	if campaign.Rollouts[0].DeviceName != "Camera B" || campaign.Rollouts[1].FailureReason != "offline" {
 		t.Fatalf("rollout ordering/details = %#v", campaign.Rollouts)
@@ -741,6 +751,35 @@ func TestFirmwareReadModelHelpers(t *testing.T) {
 	keys := firmwareCampaignKeys("camp-1", " ", "camp-1", "camp-2")
 	if len(keys) != 2 || keys[0] != "camp-1" || keys[1] != "camp-2" {
 		t.Fatalf("firmwareCampaignKeys = %#v", keys)
+	}
+}
+
+func TestCanonicalFirmwareCampaignSummary(t *testing.T) {
+	t.Parallel()
+	campaign := videoclient.OTACampaignRecord{ID: "ota-1", ReleaseID: "release-1", State: "completed", TargetSnapshotCount: 4, CreatedAt: "2026-08-28T01:00:00Z", UpdatedAt: "2026-08-28T01:04:00Z", ActivatedAt: "2026-08-28T01:01:00Z"}
+	deployments := []videoclient.OTADeploymentRecord{
+		{DeviceID: "device-1", Status: "succeeded", CurrentVersion: "v1.2.4", TargetVersion: "v1.2.4", UpdatedAt: "2026-08-28T01:03:00Z"},
+		{DeviceID: "device-2", Status: "failed", CurrentVersion: "v1.2.3", ErrorReason: "checksum", UpdatedAt: "2026-08-28T01:05:00Z"},
+	}
+	summary := videoclient.OTACampaignSummary{CampaignID: "ota-1", State: "completed", Total: 4, ByStatus: map[string]int{"succeeded": 1, "failed": 1, "skipped": 1, "pending": 1}, UpdatedAt: "2026-08-28T01:04:00Z"}
+	devices := map[string]contracts.Device{"device-1": {ID: "device-1", Name: "Camera A"}, "device-2": {ID: "device-2", Name: "Camera B"}}
+	got := summarizeCanonicalFirmwareCampaign(campaign, "v1.2.4", deployments, summary, devices)
+	if got.CampaignID != "ota-1" || got.TargetVersion != "v1.2.4" || got.State != "completed" {
+		t.Fatalf("canonical campaign identity = %#v", got)
+	}
+	if got.Applied != 1 || got.Failed != 1 || got.Skipped != 1 || got.Pending != 1 || got.Total != 4 {
+		t.Fatalf("canonical campaign counts = %#v", got)
+	}
+	if got.UpdatedAt != "2026-08-28T01:05:00Z" || got.Rollouts[0].DeviceName != "Camera B" || got.Rollouts[0].FailureReason != "checksum" {
+		t.Fatalf("canonical rollout details = %#v", got)
+	}
+	for input, want := range map[string]string{"succeeded": "applied", "offered": "eligible", "failed": "failed", "timed_out": "failed", "rolled_back": "failed", "skipped": "skipped", "canceled": "canceled", "downloading": "downloading", "installing": "downloading"} {
+		if value := canonicalDeploymentRolloutStatus(input); value != want {
+			t.Fatalf("canonicalDeploymentRolloutStatus(%q) = %q, want %q", input, value, want)
+		}
+	}
+	if got := canonicalDeploymentSummaryBucket("canceled"); got != "skipped" {
+		t.Fatalf("canonicalDeploymentSummaryBucket(canceled) = %q", got)
 	}
 }
 

@@ -4061,7 +4061,11 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 	}
 
 	latestVersions := map[string]bool{}
-	campaigns := make([]contracts.FirmwareDistributionCampaign, 0)
+	campaigns := s.canonicalFirmwareCampaigns(ctx, devices, orgID)
+	canonicalCampaignIDs := make(map[string]struct{}, len(campaigns))
+	for _, campaign := range campaigns {
+		canonicalCampaignIDs[campaign.CampaignID] = struct{}{}
+	}
 	for model := range models {
 		enumResp, err := s.videoClient.EnumFirmware(ctx, s.cfg.VideoCloudAdminToken, model)
 		if err != nil {
@@ -4123,6 +4127,9 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 			if !isVisibleFirmwareCampaignState(campaign.State) {
 				continue
 			}
+			if _, exists := canonicalCampaignIDs[firstNonEmpty(strings.TrimSpace(campaign.ID), strings.TrimSpace(campaign.CampaignID))]; exists {
+				continue
+			}
 			rollouts := make([]videoclient.FirmwareRolloutRecord, 0)
 			for _, campaignID := range firmwareCampaignKeys(campaign.ID, campaign.CampaignID) {
 				rollouts = append(rollouts, rolloutsByCampaign[campaignID]...)
@@ -4143,6 +4150,130 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 	}
 	dist := buildFirmwareDistribution(orgID, devices, facts, latestVersions, campaigns)
 	return dist, true, nil
+}
+
+func (s *Server) canonicalFirmwareCampaigns(ctx context.Context, devices []contracts.Device, orgID string) []contracts.FirmwareDistributionCampaign {
+	skus := make(map[string]struct{})
+	deviceByID := make(map[string]contracts.Device, len(devices)*2)
+	for _, device := range devices {
+		if skuID := strings.TrimSpace(device.SKU); skuID != "" {
+			skus[skuID] = struct{}{}
+		}
+		for _, id := range []string{strings.TrimSpace(device.ID), strings.TrimSpace(device.VideoCloudDevID)} {
+			if id != "" {
+				deviceByID[id] = device
+			}
+		}
+	}
+
+	out := make([]contracts.FirmwareDistributionCampaign, 0)
+	for skuID := range skus {
+		campaigns, err := s.videoClient.ListOTACampaigns(ctx, s.cfg.VideoCloudAdminToken, orgID, skuID)
+		if err != nil {
+			continue
+		}
+		releaseVersions := map[string]string{}
+		if releases, releaseErr := s.videoClient.ListOTAReleases(ctx, s.cfg.VideoCloudAdminToken, orgID, skuID); releaseErr == nil {
+			for _, release := range releases {
+				releaseVersions[strings.TrimSpace(release.ID)] = strings.TrimSpace(release.Version)
+			}
+		}
+		for _, campaign := range campaigns {
+			if !isVisibleFirmwareCampaignState(campaign.State) {
+				continue
+			}
+			deployments, _ := s.videoClient.ListOTADeployments(ctx, s.cfg.VideoCloudAdminToken, orgID, campaign.ID)
+			summary, summaryErr := s.videoClient.GetOTACampaignSummary(ctx, s.cfg.VideoCloudAdminToken, orgID, campaign.ID)
+			if summaryErr != nil {
+				summary = videoclient.OTACampaignSummary{CampaignID: campaign.ID, State: campaign.State, Total: campaign.TargetSnapshotCount, ByStatus: map[string]int{}, UpdatedAt: campaign.UpdatedAt}
+			}
+			out = append(out, summarizeCanonicalFirmwareCampaign(campaign, releaseVersions[campaign.ReleaseID], deployments, summary, deviceByID))
+		}
+	}
+	return out
+}
+
+func summarizeCanonicalFirmwareCampaign(campaign videoclient.OTACampaignRecord, targetVersion string, deployments []videoclient.OTADeploymentRecord, summary videoclient.OTACampaignSummary, deviceByID map[string]contracts.Device) contracts.FirmwareDistributionCampaign {
+	result := contracts.FirmwareDistributionCampaign{
+		CampaignID:    strings.TrimSpace(campaign.ID),
+		TargetVersion: strings.TrimSpace(targetVersion),
+		Policy:        "normal",
+		State:         strings.TrimSpace(campaign.State),
+		StartedAt:     firstNonEmpty(strings.TrimSpace(campaign.ActivatedAt), strings.TrimSpace(campaign.CreatedAt)),
+		UpdatedAt:     firstNonEmpty(strings.TrimSpace(summary.UpdatedAt), strings.TrimSpace(campaign.UpdatedAt)),
+		Total:         summary.Total,
+		Rollouts:      make([]contracts.FirmwareDistributionRollout, 0, len(deployments)),
+	}
+	if result.Total == 0 {
+		result.Total = campaign.TargetSnapshotCount
+	}
+	if result.Total == 0 && len(deployments) > 0 {
+		result.Total = len(deployments)
+	}
+	for status, count := range summary.ByStatus {
+		switch canonicalDeploymentSummaryBucket(status) {
+		case "applied":
+			result.Applied += count
+		case "failed":
+			result.Failed += count
+		case "skipped":
+			result.Skipped += count
+		}
+	}
+	result.Pending = max(result.Total-result.Applied-result.Failed-result.Skipped, 0)
+	for _, deployment := range deployments {
+		device := deviceByID[strings.TrimSpace(deployment.DeviceID)]
+		currentVersion := firstNonEmpty(strings.TrimSpace(deployment.CurrentVersion), strings.TrimSpace(device.FirmwareVersion))
+		deploymentTarget := firstNonEmpty(strings.TrimSpace(deployment.TargetVersion), result.TargetVersion)
+		if result.TargetVersion == "" {
+			result.TargetVersion = deploymentTarget
+		}
+		if parseFirmwareTimestamp(deployment.UpdatedAt).After(parseFirmwareTimestamp(result.UpdatedAt)) {
+			result.UpdatedAt = deployment.UpdatedAt
+		}
+		result.Rollouts = append(result.Rollouts, contracts.FirmwareDistributionRollout{
+			DeviceID:       strings.TrimSpace(deployment.DeviceID),
+			DeviceName:     firstNonEmpty(strings.TrimSpace(device.Name), strings.TrimSpace(deployment.DeviceID)),
+			CurrentVersion: currentVersion,
+			TargetVersion:  deploymentTarget,
+			RolloutStatus:  canonicalDeploymentRolloutStatus(deployment.Status),
+			FailureReason:  strings.TrimSpace(deployment.ErrorReason),
+			LastUpdated:    strings.TrimSpace(deployment.UpdatedAt),
+		})
+	}
+	sort.Slice(result.Rollouts, func(i, j int) bool {
+		if result.Rollouts[i].LastUpdated != result.Rollouts[j].LastUpdated {
+			return result.Rollouts[i].LastUpdated > result.Rollouts[j].LastUpdated
+		}
+		return result.Rollouts[i].DeviceName < result.Rollouts[j].DeviceName
+	})
+	return result
+}
+
+func canonicalDeploymentRolloutStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "succeeded":
+		return "applied"
+	case "offered":
+		return "eligible"
+	case "downloading", "downloaded", "installing", "rebooting", "verifying":
+		return "downloading"
+	case "failed", "timed_out", "rolled_back":
+		return "failed"
+	case "skipped":
+		return "skipped"
+	case "canceled":
+		return "canceled"
+	default:
+		return "pending"
+	}
+}
+
+func canonicalDeploymentSummaryBucket(status string) string {
+	if strings.EqualFold(strings.TrimSpace(status), "canceled") {
+		return "skipped"
+	}
+	return canonicalDeploymentRolloutStatus(status)
 }
 
 func buildFirmwareDistribution(orgID string, devices []contracts.Device, currentVersions map[string]string, latestVersions map[string]bool, campaigns []contracts.FirmwareDistributionCampaign) contracts.FirmwareDistribution {
@@ -4242,6 +4373,7 @@ func summarizeFirmwareCampaign(campaign videoclient.FirmwareCampaignRecord, roll
 		Policy:        strings.TrimSpace(campaign.Policy.Name),
 		State:         strings.TrimSpace(campaign.State),
 		StartedAt:     campaign.CreatedAt,
+		UpdatedAt:     campaign.UpdatedAt,
 	}
 	if summary.Policy == "" {
 		summary.Policy = "normal"
@@ -4255,9 +4387,16 @@ func summarizeFirmwareCampaign(campaign videoclient.FirmwareCampaignRecord, roll
 	if summary.StartedAt == "" {
 		summary.StartedAt = campaign.UpdatedAt
 	}
+	if summary.UpdatedAt == "" {
+		summary.UpdatedAt = summary.StartedAt
+	}
 	summary.Rollouts = make([]contracts.FirmwareDistributionRollout, 0, len(rollouts))
 	for _, rollout := range rollouts {
 		status := rolloutStatus(rollout)
+		lastUpdated := firstNonEmpty(strings.TrimSpace(rollout.UpdatedAt), strings.TrimSpace(rollout.LastUpdated))
+		if parseFirmwareTimestamp(lastUpdated).After(parseFirmwareTimestamp(summary.UpdatedAt)) {
+			summary.UpdatedAt = lastUpdated
+		}
 		summary.Total++
 		switch strings.ToLower(status) {
 		case "applied":
@@ -4278,7 +4417,7 @@ func summarizeFirmwareCampaign(campaign videoclient.FirmwareCampaignRecord, roll
 			TargetVersion:  strings.TrimSpace(rollout.TargetVersion),
 			RolloutStatus:  firstNonEmpty(status, "pending"),
 			FailureReason:  strings.TrimSpace(rollout.Reason),
-			LastUpdated:    firstNonEmpty(strings.TrimSpace(rollout.UpdatedAt), strings.TrimSpace(rollout.LastUpdated)),
+			LastUpdated:    lastUpdated,
 		})
 	}
 	sort.Slice(summary.Rollouts, func(i, j int) bool {
@@ -4298,7 +4437,7 @@ func summarizeFirmwareCampaign(campaign videoclient.FirmwareCampaignRecord, roll
 
 func isVisibleFirmwareCampaignState(state string) bool {
 	switch strings.ToLower(strings.TrimSpace(state)) {
-	case "active", "scheduled":
+	case "draft", "scheduled", "active", "paused", "completed", "canceled":
 		return true
 	default:
 		return false

@@ -865,20 +865,6 @@ main {
   padding: 8px 11px;
 }
 
-.bulk-selection-bar {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 10px 0 12px;
-}
-
-.bulk-selection-bar span {
-  color: var(--navy);
-  font-weight: 700;
-  margin-left: auto;
-}
-
 .link-button {
   background: none;
   border: 0;
@@ -2247,12 +2233,17 @@ p {
   gap: 8px;
 }
 
+.campaign-table {
+  overflow-x: auto;
+}
+
 .campaign-table-head,
 .campaign-table-row {
   align-items: center;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(120px, 1fr) 80px 120px 110px 96px 96px 80px 110px;
+  grid-template-columns: minmax(140px, 1fr) 90px 110px 90px 72px 72px 96px 110px 110px;
+  min-width: 1040px;
 }
 
 .campaign-table-head,
@@ -4578,6 +4569,7 @@ th {
   }
 
   .firmware-layout,
+  .firmware-lower-grid,
   .firmware-page-metrics {
     grid-template-columns: 1fr;
   }
