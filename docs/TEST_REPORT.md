@@ -4,7 +4,7 @@
 
 | Item | Result |
 |---|---|
-| Go total coverage | 79.7% |
+| Go total coverage | 79.8% |
 | Go coverage gate | >= 65.0% |
 | Report source | CI-generated canonical candidate |
 | Raw logs | GitHub Actions artifact only |
@@ -35,7 +35,7 @@
 | `rtk_cloud_admin/internal/correlation` | 90.5% |
 | `rtk_cloud_admin/internal/readinessfacts` | 86.0% |
 | `rtk_cloud_admin/internal/store` | 80.2% |
-| `rtk_cloud_admin/internal/videoclient` | 85.4% |
+| `rtk_cloud_admin/internal/videoclient` | 86.3% |
 
 ## Artifact Policy
 
