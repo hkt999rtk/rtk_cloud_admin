@@ -64,3 +64,28 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
   expect(requests.some((url) => /limit=\d+/.test(url))).toBeTruthy();
   expect(requests.some((url) => /offset=/.test(url))).toBeFalsy();
 });
+
+test('[UI-CA-FLEETPAGE-004] report builder uses shared form controls @brand-fleet @smoke', async ({ page }) => {
+  await login(page, 'developer');
+  await page.goto('/console/brand-e2e-01/reports');
+
+  const reportType = page.getByLabel('報表類型');
+  await expect(reportType).toHaveClass(/select-control/);
+  const selectStyles = await reportType.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return { appearance: styles.appearance, backgroundImage: styles.backgroundImage, height: element.getBoundingClientRect().height };
+  });
+  expect(selectStyles.appearance).toBe('none');
+  expect(selectStyles.backgroundImage).not.toBe('none');
+  expect(selectStyles.height).toBeGreaterThanOrEqual(42);
+
+  await expect(page.getByRole('button', { name: '建立報表' })).toHaveClass(/primary-button/);
+  const dimension = page.getByRole('checkbox', { name: 'sku' });
+  const checkboxStyles = await dimension.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return { appearance: styles.appearance, width: element.getBoundingClientRect().width, borderRadius: styles.borderRadius };
+  });
+  expect(checkboxStyles.appearance).toBe('none');
+  expect(checkboxStyles.width).toBe(18);
+  expect(checkboxStyles.borderRadius).toBe('5px');
+});

@@ -589,17 +589,49 @@ main {
 }
 
 .report-builder {
-  flex-wrap: wrap;
+  align-items: stretch;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.report-builder > input,
+.report-builder > .select-control,
+.report-date-field,
+.dimension-picker {
+  min-width: 0;
+  width: 100%;
+}
+
+.report-builder > input,
+.report-builder > .select-control,
+.report-date-field input {
+  min-height: 42px;
+}
+
+.report-date-field {
+  align-items: center;
+  color: var(--navy);
+  display: grid;
+  font-weight: 700;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.report-date-field input {
+  min-width: 0;
+  width: 100%;
 }
 
 .dimension-picker {
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 0;
-  padding: 8px 10px;
+  min-height: 42px;
+  padding: 7px 10px 8px;
 }
 
 .dimension-picker legend {
@@ -611,6 +643,14 @@ main {
 .dimension-picker label {
   color: var(--muted);
   font-size: 12px;
+}
+
+.report-builder-actions {
+  grid-column: 1 / -1;
+}
+
+.report-builder-actions .primary-button {
+  min-height: 42px;
 }
 
 .validation-detail-list {
@@ -4444,6 +4484,14 @@ th {
     display: grid;
   }
 
+  .report-builder {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-builder .dimension-picker {
+    grid-column: 1 / -1;
+  }
+
   .sidebar-account {
     display: none;
   }
@@ -4869,6 +4917,18 @@ th {
 }
 
 @media (max-width: 680px) {
+  .report-builder {
+    grid-template-columns: 1fr;
+  }
+
+  .report-builder .dimension-picker {
+    grid-column: auto;
+  }
+
+  .report-builder-actions .primary-button {
+    width: 100%;
+  }
+
   .billing-metrics {
     grid-template-columns: 1fr;
   }
