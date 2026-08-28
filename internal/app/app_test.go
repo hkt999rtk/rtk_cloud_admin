@@ -870,7 +870,7 @@ func TestEmailActivationAuthBFFSetsCustomerSessionCookie(t *testing.T) {
 			w.WriteHeader(http.StatusAccepted)
 		case "/v1/auth/reset-password":
 			resetCalls++
-			w.WriteHeader(http.StatusNoContent)
+			_, _ = w.Write([]byte(`{"email":"user@example.com"}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -927,7 +927,7 @@ func TestEmailActivationAuthBFFSetsCustomerSessionCookie(t *testing.T) {
 	}
 	reset := httptest.NewRecorder()
 	srv.ServeHTTP(reset, httptest.NewRequest(http.MethodPost, "/api/auth/reset-password", strings.NewReader(`{"token":"reset-token","new_password":"new-password123"}`)))
-	if reset.Code != http.StatusNoContent || resetCalls != 1 {
+	if reset.Code != http.StatusOK || resetCalls != 1 || !strings.Contains(reset.Body.String(), `"email":"user@example.com"`) {
 		t.Fatalf("reset status=%d calls=%d body=%s", reset.Code, resetCalls, reset.Body.String())
 	}
 }

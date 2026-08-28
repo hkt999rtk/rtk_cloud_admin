@@ -936,7 +936,7 @@ func TestPublicAuthProxySuccessFailureAndValidation(t *testing.T) {
 		{"/api/auth/customer/resend-verification", `{"email":"owner@example.com"}`, http.StatusAccepted, `{"email":"fail@example.com"}`},
 		{"/api/auth/sign-in", `{"email":"owner@example.com"}`, http.StatusAccepted, `{"email":"fail@example.com"}`},
 		{"/api/auth/forgot-password", `{"email":"owner@example.com"}`, http.StatusAccepted, `{"email":"fail@example.com"}`},
-		{"/api/auth/reset-password", `{"token":"reset-token","new_password":"password123"}`, http.StatusNoContent, `{"token":"fail-token","new_password":"password123"}`},
+		{"/api/auth/reset-password", `{"token":"reset-token","new_password":"password123"}`, http.StatusOK, `{"token":"fail-token","new_password":"password123"}`},
 	} {
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.successBody)))
