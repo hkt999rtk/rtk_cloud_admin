@@ -45,10 +45,10 @@ export function filterChipsets(chipsets = [], query = '', vendor = 'all', recomm
     const releases = chipset.sdk_releases || [];
     const haystack = [
 		chipset.name, chipset.vendor, chipset.family, chipset.description,
-		...(chipset.resources || []).flatMap((resource) => [resource.type, resource.title, resource.summary, ...(resource.languages || [])]),
+		...(chipset.resources || []).flatMap((resource) => [resource.type, resource.title, resource.url, resource.summary, ...(resource.languages || [])]),
 		...releases.flatMap((release) => [
 			release.name, release.version, release.summary, ...(release.supported_models || []),
-			...(release.endpoints || []).flatMap((endpoint) => [endpoint.type, endpoint.title, endpoint.summary, ...(endpoint.languages || [])]),
+			...(release.endpoints || []).flatMap((endpoint) => [endpoint.type, endpoint.title, endpoint.url, endpoint.summary, ...(endpoint.languages || [])]),
 		]),
     ].filter(Boolean).join(' ').toLowerCase();
     return (vendor === 'all' || chipset.vendor === vendor)
