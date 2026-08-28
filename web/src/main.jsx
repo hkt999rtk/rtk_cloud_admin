@@ -103,6 +103,7 @@ import {
   vendorInitials,
 } from './chipset-sdk.mjs';
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import '@fontsource-variable/noto-sans-tc';
 import './styles.css';
 
 const DEFAULT_PAGE_SIZE = 8;
