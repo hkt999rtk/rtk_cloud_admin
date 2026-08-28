@@ -8,7 +8,7 @@ test.describe('Brandname provisioning failure paths', () => {
     await page.goto('/console/brand-e2e-01/provisioning');
     const response = await page.request.post('/api/provisioning/validate', {
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `e2e-invalid-validation-${Date.now()}` },
-      data: { sku_id: 'sku-alpha', production_run: 'run-invalid', device_ids: ['dev-does-not-exist'] },
+      data: { product_id: 'product-alpha', production_run: 'run-invalid', device_ids: ['dev-does-not-exist'] },
     });
     expect(response.status()).toBe(202);
     const validation = (await response.json()).validation_job;
@@ -28,13 +28,13 @@ test.describe('Brandname provisioning failure paths', () => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/provisioning');
     const headers = { 'Idempotency-Key': 'e2e-source-replay' };
-    const multipart = { sku_id: 'sku-alpha', production_run: 'run-replay', file: { name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from('device_id\ndev-e2e-001\n') } };
+    const multipart = { product_id: 'product-alpha', production_run: 'run-replay', file: { name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from('device_id\ndev-e2e-001\n') } };
     const first = await page.request.post('/api/provisioning/sources', { headers, multipart });
     expect(first.status()).toBe(201);
     const replay = await page.request.post('/api/provisioning/sources', { headers, multipart });
     expect(replay.status()).toBe(201);
     expect((await replay.json()).idempotent_replay).toBeTruthy();
-    const conflict = await page.request.post('/api/provisioning/sources', { headers, multipart: { ...multipart, sku_id: 'sku-other' } });
+    const conflict = await page.request.post('/api/provisioning/sources', { headers, multipart: { ...multipart, product_id: 'product-other' } });
     expect(conflict.status()).toBe(409);
   });
 
@@ -42,7 +42,7 @@ test.describe('Brandname provisioning failure paths', () => {
     await login(page, 'observer');
     await page.goto('/console/brand-e2e-01/provisioning');
     await expect(page.getByText('沒有 provisioning 權限')).toBeVisible();
-    const response = await page.request.post('/api/provisioning/sources', { headers: { 'Idempotency-Key': 'e2e-observer-source' }, multipart: { sku_id: 'sku-alpha', file: { name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from('device_id\ndev-e2e-001\n') } } });
+    const response = await page.request.post('/api/provisioning/sources', { headers: { 'Idempotency-Key': 'e2e-observer-source' }, multipart: { product_id: 'product-alpha', file: { name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from('device_id\ndev-e2e-001\n') } } });
     expect(response.status()).toBe(403);
   });
 });

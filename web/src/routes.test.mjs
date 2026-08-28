@@ -2,12 +2,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   billingSubpaths,
+  canAccessCustomerRoute,
+  canonicalCustomerPath,
+  customerNavGroups,
   customerNavItems,
+  defaultBrandCloudRoute,
   devicesPathWithFilters,
+  isCustomerNavItemActive,
   isPlatformRouteId,
   isPublicRouteId,
+  navGroupsForCapabilities,
   navItemsForCapabilities,
   navItemsForRoute,
+  platformNavGroups,
   platformNavItems,
   routeFromPath,
   cloudIdFromPath,
@@ -52,9 +59,9 @@ test('maps Brand Cloud membership invitation acceptance outside regular console 
   assert.equal(titleFor('brand-cloud-member-invitation-accept'), 'Accept Brand Cloud invitation');
 });
 
-test('maps SKU collaborator invitation acceptance outside regular console navigation', () => {
-  assert.equal(routeFromPath('/sku-collaborator-invitation/accept'), 'sku-collaborator-invitation-accept');
-  assert.equal(titleFor('sku-collaborator-invitation-accept'), 'Accept SKU collaboration invitation');
+test('maps Product collaborator invitation acceptance outside regular console navigation', () => {
+  assert.equal(routeFromPath('/product-collaborator-invitation/accept'), 'product-collaborator-invitation-accept');
+  assert.equal(titleFor('product-collaborator-invitation-accept'), 'Accept Product collaboration invitation');
 });
 
 test('maps customer shell paths to customer routes', () => {
@@ -63,18 +70,25 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath('/console/devices'), 'devices');
   assert.equal(routeFromPath('/console/cloud-123/devices'), 'devices');
   assert.equal(cloudIdFromPath('/console/cloud-123/devices'), 'cloud-123');
-  assert.equal(routeFromPath('/console/sku-services'), 'sku-services');
+  assert.equal(routeFromPath('/console/product-services'), 'product-services');
   assert.equal(routeFromPath('/console/chipset-sdk'), 'chipset-sdk');
   assert.equal(routeFromPath('/console/customers'), 'overview');
   assert.equal(routeFromPath('/console/operations'), 'overview');
   assert.equal(routeFromPath('/console/operations/history'), 'overview');
   assert.equal(routeFromPath('/console/firmware-ota'), 'firmware-ota');
   assert.equal(routeFromPath('/console/stream-health'), 'stream-health');
-  assert.equal(routeFromPath('/console/jobs'), 'jobs');
+  assert.equal(routeFromPath('/console/jobs'), 'firmware-ota');
+  assert.equal(routeFromPath('/console/cloud-123/jobs'), 'firmware-ota');
+  assert.equal(cloudIdFromPath('/console/cloud-123/jobs'), 'cloud-123');
+  assert.equal(canonicalCustomerPath('/console/jobs'), '/console/firmware-ota');
+  assert.equal(canonicalCustomerPath('/console/cloud-123/jobs'), '/console/cloud-123/firmware-ota');
   assert.equal(routeFromPath('/console/reports'), 'reports');
   assert.equal(routeFromPath('/console/groups'), 'groups');
   assert.equal(routeFromPath('/console/groups/legacy'), 'groups');
   assert.equal(routeFromPath('/console/access'), 'access');
+  assert.equal(routeFromPath('/console/settings'), 'settings');
+  assert.equal(routeFromPath('/console/cloud-123/settings'), 'settings');
+  assert.equal(cloudIdFromPath('/console/cloud-123/settings'), 'cloud-123');
   assert.equal(routeFromPath('/console/billing'), 'billing');
   assert.equal(routeFromPath('/console/cloud-123/billing'), 'billing');
   assert.equal(cloudIdFromPath('/console/cloud-123/billing'), 'cloud-123');
@@ -89,13 +103,15 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
     '/console/billing/profile',
   ]);
   for (const path of Object.values(billingSubpaths)) assert.equal(routeFromPath(path), 'billing');
+  assert.equal(cloudIdFromPath('/console/billing/settings'), '');
 });
 
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['設備總覽', '設備', 'SKU 與服務', 'ChipSet & SDK', '群組與標籤', '團隊與權限', '韌體更新', '影像播放狀況', '批次工作', '報表', '設備註冊', '帳務與自動加值'],
+    ['品牌雲首頁', '設備', '設備註冊', 'Product 與服務', 'ChipSet & SDK', '韌體更新', '影像播放狀況', '報表', '帳務與自動加值'],
   );
+  assert.deepEqual(customerNavGroups.map((group) => group.label), ['品牌雲', '設備營運', '產品與更新', '監控與分析', '帳號管理']);
 });
 
 test('customer nav is derived from active membership capabilities', () => {
@@ -104,10 +120,25 @@ test('customer nav is derived from active membership capabilities', () => {
     'customer.devices.read',
     'customer.stream.read',
   ]).map((item) => item.label);
-  assert.deepEqual(labels, ['設備總覽', '設備', 'ChipSet & SDK', '群組與標籤', '影像播放狀況', '批次工作']);
-  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), true);
-  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'sku-services'), false);
+  assert.deepEqual(labels, ['品牌雲首頁', '設備', 'ChipSet & SDK', '影像播放狀況']);
+  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'overview'), true);
+  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), false);
+  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'product-services'), false);
   assert.equal(navItemsForCapabilities('overview', ['billing_account.read']).some((item) => item.id === 'billing'), true);
+});
+
+test('Brand Cloud navigation and route access are evaluated independently', () => {
+  const brandCloudItem = customerNavItems[0];
+  assert.equal(isCustomerNavItemActive(brandCloudItem, 'overview'), true);
+  assert.equal(isCustomerNavItemActive(brandCloudItem, 'access'), true);
+  assert.equal(isCustomerNavItemActive(brandCloudItem, 'settings'), true);
+  assert.equal(canAccessCustomerRoute('overview', ['team.read']), false);
+  assert.equal(canAccessCustomerRoute('access', ['team.read']), true);
+  assert.equal(canAccessCustomerRoute('settings', []), true);
+  assert.equal(defaultBrandCloudRoute(['fleet.read']), 'overview');
+  assert.equal(defaultBrandCloudRoute(['team.read']), 'access');
+  assert.equal(defaultBrandCloudRoute([]), 'settings');
+  assert.deepEqual(navGroupsForCapabilities('overview', ['team.read']).map((group) => group.label), ['品牌雲', '產品與更新']);
 });
 
 test('retired customer pages are not exposed in section navigation', () => {
@@ -117,19 +148,30 @@ test('retired customer pages are not exposed in section navigation', () => {
   assert.equal(customerLabels.includes('Groups'), false);
   assert.equal(customerLabels.includes('Customers'), false);
   assert.equal(customerLabels.includes('Operations'), false);
+  assert.equal(customerLabels.includes('群組與標籤'), false);
+  assert.equal(customerLabels.includes('批次工作'), false);
   assert.equal(platformLabels.includes('Groups'), false);
   assert.equal(platformLabels.includes('Customers'), false);
 });
 
-test('platform nav follows the Platform Dashboard landing order', () => {
+test('platform nav follows the unified shell group order', () => {
+  assert.deepEqual(platformNavGroups.map((group) => group.label), ['平台總覽', '監控與診斷', '組織與產品', '營運與稽核']);
   assert.deepEqual(
     platformNavItems.map((item) => item.label),
-    ['Platform Dashboard', 'Grafana', 'Service Health', 'Brand Clouds', 'ChipSet & SDK Providers', 'SSO Providers', 'Service Logs', 'Operations Log', 'Audit Log'],
+    ['平台首頁', 'Grafana', '服務健康', '服務日誌', '品牌雲管理', 'ChipSet & SDK 供應商', 'SSO 供應商', '營運紀錄', '稽核紀錄'],
   );
   assert.deepEqual(
     platformNavItems.map((item) => item.path),
-    ['/admin', '/admin/grafana', '/admin/health', '/admin/brand-clouds', '/admin/chipset-providers', '/admin/sso', '/admin/logs', '/admin/ops', '/admin/audit'],
+    ['/admin', '/admin/grafana', '/admin/health', '/admin/logs', '/admin/brand-clouds', '/admin/chipset-providers', '/admin/sso', '/admin/ops', '/admin/audit'],
   );
+});
+
+test('route kind selects one capability-filtered navigation hierarchy', () => {
+  assert.deepEqual(navGroupsForCapabilities('overview', []).map((group) => group.label), ['品牌雲', '產品與更新']);
+  assert.deepEqual(navGroupsForCapabilities('platform-dashboard', []).map((group) => group.label), ['平台總覽', '監控與診斷', '組織與產品', '營運與稽核']);
+  assert.equal(navGroupsForCapabilities('platform-dashboard', [])[2].items.some((item) => item.id === 'platform-chipset-providers'), false);
+  assert.equal(navGroupsForCapabilities('platform-dashboard', ['platform.chipset_sdk.read'])[2].items.some((item) => item.id === 'platform-chipset-providers'), true);
+  assert.deepEqual(navGroupsForCapabilities('login', []), []);
 });
 
 test('public auth routes stay outside Customer and Platform section navigation', () => {
@@ -154,13 +196,23 @@ test('builds devices URLs with supported filters only', () => {
   assert.equal(devicesPathWithFilters(), '/console/devices');
   assert.equal(devicesPathWithFilters({ deviceId: 'dev-001' }), '/console/devices?device=dev-001');
   assert.equal(
-    devicesPathWithFilters({ health: 'warning', status: 'online', signal: 'poor', firmware: 'v1.2.4', ignored: 'x' }),
-    '/console/devices?health=warning&status=online&signal=poor&firmware=v1.2.4',
+    devicesPathWithFilters({ health: 'warning', status: 'online', signal: 'poor', firmware: 'v1.2.4', productID: 'product-alpha', ignored: 'x' }),
+    '/console/devices?health=warning&status=online&signal=poor&firmware=v1.2.4&product_id=product-alpha',
   );
 });
 
-test('uses fleet health overview title for the customer landing page', () => {
-  assert.equal(titleFor('overview'), '設備總覽');
+test('uses the shared Brand Cloud title for integrated routes', () => {
+  assert.equal(titleFor('overview'), '品牌雲');
+  assert.equal(titleFor('access'), '品牌雲');
+  assert.equal(titleFor('settings'), '品牌雲');
+});
+
+test('uses Chinese platform route titles in the unified shell', () => {
+  assert.equal(titleFor('platform-dashboard'), '平台首頁');
+  assert.equal(titleFor('platform-health'), '服務健康');
+  assert.equal(titleFor('platform-brand-clouds'), '品牌雲管理');
+  assert.equal(titleFor('platform-operations'), '營運紀錄');
+  assert.equal(titleFor('platform-audit'), '稽核紀錄');
 });
 
 test('falls back unknown paths to the customer overview route', () => {
@@ -184,12 +236,13 @@ test('provides titles for all public shell routes', () => {
     'forgot-password',
     'reset-password',
     'overview',
+    'access',
+    'settings',
     'devices',
     'billing',
-    'sku-services',
+    'product-services',
     'firmware-ota',
     'stream-health',
-    'jobs',
     'reports',
     'platform-dashboard',
     'platform-grafana',

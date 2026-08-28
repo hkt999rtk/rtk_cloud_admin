@@ -479,15 +479,15 @@ async function installApiMocks(page, { sessionForPath } = {}) {
       if (JSON.stringify(payload) !== JSON.stringify(expected)) {
         throw new Error('Unexpected password reset payload.');
       }
-      return route.fulfill({ status: 204, body: '' });
+      return route.fulfill({ json: { email: 'existing.customer@example.com' } });
     }
     if (pathName === '/api/summary' || pathName === '/api/admin/summary') return route.fulfill({ json: summary });
     if (pathName === '/api/developer/brand-clouds') return route.fulfill({ json: { brand_clouds: [] } });
     if (pathName === '/api/customers' || pathName === '/api/admin/customers') return route.fulfill({ json: customers });
     if (pathName === '/api/devices' || pathName === '/api/admin/devices') return route.fulfill({ json: devices });
     if (pathName === '/api/fleet/devices') return route.fulfill({ json: { devices, pagination: { limit: 100, offset: 0, total: devices.length }, query: { server_side: true } } });
-    if (pathName === '/api/fleet/summary') return route.fulfill({ json: { total: devices.length, by_status: { online: 2, offline: 1 }, by_sku: { 'sku-camera': devices.length }, by_model: { 'RTL-CAM-A1': devices.length }, by_firmware: { '1.4.2': 2, '1.3.9': 1 }, by_region: { '台灣': devices.length }, service_enabled: { video_streaming: devices.length }, source_status: 'available' } });
-    if (pathName === '/api/skus') return route.fulfill({ json: { skus: [], source_status: 'available' } });
+    if (pathName === '/api/fleet/summary') return route.fulfill({ json: { total: devices.length, by_status: { online: 2, offline: 1 }, by_product: { 'product-camera': devices.length }, by_model: { 'RTL-CAM-A1': devices.length }, by_firmware: { '1.4.2': 2, '1.3.9': 1 }, by_region: { '台灣': devices.length }, service_enabled: { video_streaming: devices.length }, source_status: 'available' } });
+    if (pathName === '/api/products') return route.fulfill({ json: { products: [], source_status: 'available' } });
     if (pathName === '/api/groups') return route.fulfill({ json: { groups: [], source_status: 'available' } });
     if (pathName === '/api/jobs') return route.fulfill({ json: { jobs: [], source_status: 'available' } });
     if (pathName === '/api/reports') return route.fulfill({ json: { reports: [], source_status: 'available' } });
@@ -597,6 +597,11 @@ async function runAuthSmoke(browserContext) {
   await screenshot(page, 'desktop-reset-password.png');
   await page.getByRole('button', { name: 'Update password', exact: true }).click();
   await expectText(page, 'Password updated');
+  await page.getByRole('link', { name: 'Continue to sign in', exact: true }).click();
+  await page.waitForURL(`${baseURL}/login?email=existing.customer%40example.com`);
+  if (await page.getByLabel('Email').inputValue() !== 'existing.customer@example.com') {
+    throw new Error('Login page must preserve the password-reset email.');
+  }
   await page.goto(`${baseURL}/reset-password`, { waitUntil: 'networkidle' });
   await expectText(page, 'This reset link is not valid');
   if (await page.getByLabel('New password', { exact: true }).count()) {

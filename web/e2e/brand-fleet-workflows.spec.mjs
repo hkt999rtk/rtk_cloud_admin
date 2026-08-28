@@ -19,7 +19,7 @@ test.describe('Brandname async workflows', () => {
   test('[UI-CA-PROV-004] provisioning CSV upload starts validation from the browser @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/provisioning');
-    await page.getByPlaceholder('SKU ID').fill('sku-alpha');
+    await page.getByPlaceholder('Product ID').fill('product-alpha');
     await page.getByPlaceholder('Production run（選填）').fill('run-browser');
     await page.getByLabel('設備清單 CSV').setInputFiles({ name: 'browser-devices.csv', mimeType: 'text/csv', buffer: Buffer.from('device_id\ndev-e2e-001\n') });
     await page.getByRole('button', { name: '開始驗證' }).click();
@@ -32,7 +32,7 @@ test.describe('Brandname async workflows', () => {
     await expectPageTitle(page, '韌體更新');
     const preview = await page.request.post('/api/update-plans/scope-preview', {
       headers: { 'Content-Type': 'application/json' },
-      data: { sku_id: 'sku-alpha', query: { region: ['na'], firmware: ['v3.8.0'] }, excluded_device_ids: ['dev-e2e-001'] },
+      data: { product_id: 'product-alpha', query: { region: ['na'], firmware: ['v3.8.0'] }, excluded_device_ids: ['dev-e2e-001'] },
     });
     const scopeBody = await assertServerScope(preview, ['scope_hash', 'target_count']);
     expect(scopeBody.scope.excluded_device_ids).toEqual(['dev-e2e-001']);
@@ -40,24 +40,52 @@ test.describe('Brandname async workflows', () => {
 
     const plan = await page.request.post('/api/update-plans', {
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-ota-plan-1' },
-      data: { sku_id: 'sku-alpha', release_id: 'release-e2e-1', name: 'E2E OTA plan', scope: scopeBody.scope },
+      data: { product_id: 'product-alpha', release_id: 'release-e2e-1', name: 'E2E OTA plan', scope: scopeBody.scope },
     });
     expect([201, 202]).toContain(plan.status());
     const tampered = { ...scopeBody.scope, target_count: 999999 };
     const rejected = await page.request.post('/api/update-plans', {
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-ota-plan-tampered' },
-      data: { sku_id: 'sku-alpha', release_id: 'release-e2e-1', name: 'tampered', scope: tampered },
+      data: { product_id: 'product-alpha', release_id: 'release-e2e-1', name: 'tampered', scope: tampered },
     });
     expect(rejected.status()).toBe(409);
+  });
+
+  test('[UI-CA-OTA-002] firmware page shows upgrade progress and device results @brand-fleet @smoke', async ({ page }) => {
+    await login(page, 'developer');
+    await page.route('**/api/fleet/firmware-distribution?*', async (route) => {
+      await route.fulfill({ json: {
+        source_status: 'available',
+        versions: [{ version: 'v1.2.4', count: 2, pct: 100, is_latest: true }],
+        campaigns: [{
+          campaign_id: 'upgrade-e2e-1', target_version: 'v1.2.4', policy: 'normal', state: 'completed',
+          applied: 1, pending: 0, failed: 1, skipped: 0, total: 2,
+          started_at: '2026-08-28T01:00:00Z', updated_at: '2026-08-28T01:05:00Z',
+          rollouts: [
+            { device_id: 'dev-ok', device_name: 'Camera OK', current_version: 'v1.2.4', target_version: 'v1.2.4', rollout_status: 'applied', last_updated: '2026-08-28T01:04:00Z' },
+            { device_id: 'dev-failed', device_name: 'Camera Failed', current_version: 'v1.2.3', target_version: 'v1.2.4', rollout_status: 'failed', failure_reason: 'checksum mismatch', last_updated: '2026-08-28T01:05:00Z' },
+          ],
+        }],
+      } });
+    });
+    await page.goto('/console/brand-e2e-01/firmware-ota?product_id=product-alpha');
+    await expect(page.getByRole('heading', { name: '韌體更新狀態' })).toBeVisible();
+    await expect(page.getByText('upgrade-e2e-1').first()).toBeVisible();
+    await expect(page.getByText('已完成', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Camera Failed', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('更新失敗', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('checksum mismatch')).toBeVisible();
+    await expect(page.getByRole('button', { name: '重試失敗設備' })).toBeVisible();
   });
 
   test('[UI-CA-REPORT-004] reports preserve scope metadata and expose async result download @brand-fleet', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/reports');
     await expect(page.getByRole('heading', { name: '報表' }).first()).toBeVisible();
+    await expect(page.getByLabel('報表類型').locator('option[value="batch_jobs"]')).toHaveCount(0);
     const response = await page.request.post('/api/reports', {
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-report-1' },
-      data: { name: 'E2E fleet report', report_type: 'fleet_status', dimensions: ['sku', 'region'], timezone: 'Asia/Taipei', format: 'json', scope: { query: { region: ['na'] } } },
+      data: { name: 'E2E fleet report', report_type: 'fleet_status', dimensions: ['product', 'region'], timezone: 'Asia/Taipei', format: 'json', scope: { query: { region: ['na'] } } },
     });
     expect(response.status()).toBe(202);
     const job = (await response.json()).report;
@@ -88,13 +116,13 @@ test.describe('Brandname async workflows', () => {
     await expect(page.getByRole('heading', { name: '設備註冊' }).first()).toBeVisible();
     const sourceResponse = await page.request.post('/api/provisioning/sources', {
       headers: { 'Idempotency-Key': 'e2e-source-1' },
-      multipart: { sku_id: 'sku-alpha', production_run: 'run-e2e-1', file: { name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from('device_id\ndev-e2e-001\ndev-e2e-003\n') } },
+      multipart: { product_id: 'product-alpha', production_run: 'run-e2e-1', file: { name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from('device_id\ndev-e2e-001\ndev-e2e-003\n') } },
     });
     expect(sourceResponse.status()).toBe(201);
     const source = (await sourceResponse.json()).source;
     const validationResponse = await page.request.post('/api/provisioning/validate', {
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-validation-1' },
-      data: { sku_id: 'sku-alpha', source_id: source.id },
+      data: { product_id: 'product-alpha', source_id: source.id },
     });
     expect(validationResponse.status()).toBe(202);
     const validation = (await validationResponse.json()).validation_job;

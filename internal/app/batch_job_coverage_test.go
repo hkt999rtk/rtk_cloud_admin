@@ -30,13 +30,13 @@ func TestRunBatchJobOperationMatrix(t *testing.T) {
 		case strings.Contains(path, "/fleet/devices"):
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"devices": []map[string]any{
-					{"id": "dev-ok", "name": "Camera A", "category": "camera", "model": "RTK-A", "status": "online", "device_item_profile_id": "sku-1", "metadata": map[string]any{"region": "jp-east"}},
-					{"id": "dev-fail", "name": "Camera B", "category": "camera", "model": "RTK-B", "status": "offline", "device_item_profile_id": "sku-1", "metadata": map[string]any{}},
+					{"id": "dev-ok", "name": "Camera A", "category": "camera", "model": "RTK-A", "status": "online", "device_item_profile_id": "product-1", "metadata": map[string]any{"region": "jp-east"}},
+					{"id": "dev-fail", "name": "Camera B", "category": "camera", "model": "RTK-B", "status": "offline", "device_item_profile_id": "product-1", "metadata": map[string]any{}},
 				},
 				"pagination": map[string]any{"limit": 250, "offset": 0, "total": 2},
 			})
 		case strings.Contains(path, "/device-item-profiles/"):
-			_ = json.NewEncoder(w).Encode(map[string]any{"device_item_profile": map[string]any{"id": "sku-1", "display_name": "Camera"}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"device_item_profile": map[string]any{"id": "product-1", "display_name": "Camera"}})
 		case r.Method == http.MethodGet && strings.Contains(path, "/devices/"):
 			id := path[strings.LastIndex(path, "/")+1:]
 			if id == "dev-missing" {
@@ -87,7 +87,7 @@ func TestRunBatchJobOperationMatrix(t *testing.T) {
 	}
 
 	invalidValidation := run(create("provisioning_validation", map[string]any{
-		"sku_id":     "sku-1",
+		"product_id": "product-1",
 		"device_ids": []any{"dev-ok", "", "dev-missing"},
 		"validation": map[string]any{"valid": true},
 	}, 2))
@@ -95,7 +95,7 @@ func TestRunBatchJobOperationMatrix(t *testing.T) {
 		t.Fatalf("invalid validation = %+v", invalidValidation)
 	}
 	validValidation := run(create("provisioning_validation", map[string]any{
-		"sku_id":     "sku-1",
+		"product_id": "product-1",
 		"device_ids": []any{"dev-ok"},
 		"validation": map[string]any{"valid": true},
 	}, 1))
@@ -207,7 +207,7 @@ func TestBatchProvisioningHTTPWorkflow(t *testing.T) {
 				},
 			}}})
 		case strings.Contains(r.URL.Path, "/device-item-profiles/"):
-			_ = json.NewEncoder(w).Encode(map[string]any{"device_item_profile": map[string]any{"id": "sku-1"}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"device_item_profile": map[string]any{"id": "product-1"}})
 		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/devices/"):
 			id := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
 			_ = json.NewEncoder(w).Encode(map[string]any{"device": map[string]any{
@@ -260,17 +260,17 @@ func TestBatchProvisioningHTTPWorkflow(t *testing.T) {
 		}
 	}
 
-	if rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(`{"sku_id":"sku-1","device_ids":["dev-1","dev-1",""]}`), "validate-1"); rec.Code != http.StatusAccepted {
+	if rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(`{"product_id":"product-1","device_ids":["dev-1","dev-1",""]}`), "validate-1"); rec.Code != http.StatusAccepted {
 		t.Fatalf("validate status = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	validation := waitJob("validate-1")
 	if validation.State != "failed" {
 		t.Fatalf("duplicate validation = %+v", validation)
 	}
-	if rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(`{"sku_id":"sku-1","device_ids":["dev-1","dev-1",""]}`), "validate-1"); rec.Code != http.StatusAccepted {
+	if rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(`{"product_id":"product-1","device_ids":["dev-1","dev-1",""]}`), "validate-1"); rec.Code != http.StatusAccepted {
 		t.Fatalf("validate replay status = %d, body=%s", rec.Code, rec.Body.String())
 	}
-	if rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(`{"sku_id":"sku-2","device_ids":["dev-1"]}`), "validate-1"); rec.Code != http.StatusConflict {
+	if rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(`{"product_id":"product-2","device_ids":["dev-1"]}`), "validate-1"); rec.Code != http.StatusConflict {
 		t.Fatalf("validate conflict status = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	for _, tc := range []struct {
@@ -279,10 +279,10 @@ func TestBatchProvisioningHTTPWorkflow(t *testing.T) {
 		want int
 	}{
 		{`{`, "bad-json", http.StatusBadRequest},
-		{`{"sku_id":"sku-1"}`, "no-devices", http.StatusBadRequest},
-		{`{"sku_id":"sku-1","device_ids":[" "]}`, "blank-devices", http.StatusBadRequest},
-		{`{"sku_id":"sku-1","source_id":"missing"}`, "missing-source", http.StatusBadRequest},
-		{`{"sku_id":"sku-1","device_ids":["dev-1"]}`, "", http.StatusPreconditionRequired},
+		{`{"product_id":"product-1"}`, "no-devices", http.StatusBadRequest},
+		{`{"product_id":"product-1","device_ids":[" "]}`, "blank-devices", http.StatusBadRequest},
+		{`{"product_id":"product-1","source_id":"missing"}`, "missing-source", http.StatusBadRequest},
+		{`{"product_id":"product-1","device_ids":["dev-1"]}`, "", http.StatusPreconditionRequired},
 	} {
 		rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(tc.body), tc.key)
 		if rec.Code != tc.want {
@@ -294,7 +294,7 @@ func TestBatchProvisioningHTTPWorkflow(t *testing.T) {
 		t.Helper()
 		var body bytes.Buffer
 		writer := multipart.NewWriter(&body)
-		if err := writer.WriteField("sku_id", "sku-1"); err != nil {
+		if err := writer.WriteField("product_id", "product-1"); err != nil {
 			t.Fatal(err)
 		}
 		if err := writer.WriteField("production_run", "run-1"); err != nil {
@@ -338,7 +338,7 @@ func TestBatchProvisioningHTTPWorkflow(t *testing.T) {
 
 	completedValidation, err := st.CreateBatchJob(contracts.BatchJob{
 		Type: "provisioning_validation", Name: "ready", OrganizationID: "org-acme", CreatedBy: "owner@example.com",
-		Scope: map[string]any{"validation": map[string]any{"valid": true}, "device_ids": []any{"dev-1"}, "sku_id": "sku-1"},
+		Scope: map[string]any{"validation": map[string]any{"valid": true}, "device_ids": []any{"dev-1"}, "product_id": "product-1"},
 		State: "completed", Total: 1, Completed: 1,
 	})
 	if err != nil {
@@ -411,7 +411,7 @@ func TestBatchProvisioningHTTPWorkflow(t *testing.T) {
 		t.Fatalf("completed retry status = %d, body=%s", rec.Code, rec.Body.String())
 	}
 
-	reportRequest := `{"name":"Fleet qualification","dimensions":["sku","region"],"timezone":"UTC","format":"csv","scope":{"status":"online"}}`
+	reportRequest := `{"name":"Fleet qualification","dimensions":["product","region"],"timezone":"UTC","format":"csv","scope":{"status":"online"}}`
 	if rec := request(http.MethodPost, "/api/reports", strings.NewReader(reportRequest), "report-1"); rec.Code != http.StatusAccepted {
 		t.Fatalf("report create status = %d, body=%s", rec.Code, rec.Body.String())
 	}
@@ -501,9 +501,9 @@ func TestOTAUpdatePlanProxyAndFirmwareRetry(t *testing.T) {
 	}
 
 	if rec := request(http.MethodGet, "/api/update-plans", "", ""); rec.Code != http.StatusBadRequest {
-		t.Fatalf("missing SKU list status = %d, body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("missing Product list status = %d, body=%s", rec.Code, rec.Body.String())
 	}
-	if rec := request(http.MethodGet, "/api/update-plans?sku_id=sku-1", "", ""); rec.Code != http.StatusOK {
+	if rec := request(http.MethodGet, "/api/update-plans?product_id=product-1", "", ""); rec.Code != http.StatusOK {
 		t.Fatalf("plan list status = %d, body=%s", rec.Code, rec.Body.String())
 	}
 	if rec := request(http.MethodGet, "/api/update-plans/campaign-1", "", ""); rec.Code != http.StatusOK {
@@ -525,7 +525,7 @@ func TestOTAUpdatePlanProxyAndFirmwareRetry(t *testing.T) {
 		"target_count":        0,
 	}
 	scope["scope_hash"] = batchScopeHash(map[string]any{"query": query, "excluded_device_ids": excluded})
-	payload, err := json.Marshal(map[string]any{"sku_id": "sku-1", "name": "Qualification", "scope": scope})
+	payload, err := json.Marshal(map[string]any{"product_id": "product-1", "name": "Qualification", "scope": scope})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -538,8 +538,8 @@ func TestOTAUpdatePlanProxyAndFirmwareRetry(t *testing.T) {
 		want int
 	}{
 		{`{`, "plan-json", http.StatusBadRequest},
-		{`{"name":"missing sku"}`, "plan-sku", http.StatusBadRequest},
-		{`{"sku_id":"sku-1"}`, "plan-scope", http.StatusBadRequest},
+		{`{"name":"missing product"}`, "plan-product", http.StatusBadRequest},
+		{`{"product_id":"product-1"}`, "plan-scope", http.StatusBadRequest},
 		{string(payload), "", http.StatusPreconditionRequired},
 	} {
 		rec := request(http.MethodPost, "/api/update-plans", tc.body, tc.key)
@@ -804,7 +804,7 @@ func TestCustomerCatalogACLAndGroupProxyMatrix(t *testing.T) {
 				"id": "org-acme", "name": "Acme", "role": "owner", "capabilities": fleetManagerCapabilities(),
 			}}})
 		case r.URL.Path == "/v1/orgs/org-acme/fleet/summary":
-			_ = json.NewEncoder(w).Encode(map[string]any{"total": 2, "by_status": map[string]int{"online": 2}, "by_sku": map[string]int{"sku-1": 2}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"total": 2, "by_status": map[string]int{"online": 2}, "by_product": map[string]int{"product-1": 2}})
 		case r.URL.Path == "/v1/orgs/org-acme/tags":
 			_ = json.NewEncoder(w).Encode(map[string]any{"tags": []map[string]any{{"tag": "qualification", "device_count": 2}}})
 		case r.URL.Path == "/v1/orgs/org-acme/roles":
@@ -828,7 +828,7 @@ func TestCustomerCatalogACLAndGroupProxyMatrix(t *testing.T) {
 		case r.URL.Path == "/v1/orgs/org-acme/device-groups/group-1" && r.Method == http.MethodDelete:
 			w.WriteHeader(http.StatusNoContent)
 		case r.URL.Path == "/v1/orgs/org-acme/device-item-profiles":
-			_ = json.NewEncoder(w).Encode(map[string]any{"device_item_profiles": []map[string]any{{"id": "sku-1", "display_name": "Camera", "status": "active"}}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"device_item_profiles": []map[string]any{{"id": "product-1", "display_name": "Camera", "status": "active"}}})
 		case strings.Contains(r.URL.Path, "/production-runs"):
 			_ = json.NewEncoder(w).Encode(map[string]any{"production_runs": []map[string]any{{"id": "run-1"}}})
 		default:
@@ -864,7 +864,7 @@ func TestCustomerCatalogACLAndGroupProxyMatrix(t *testing.T) {
 		"/api/role-assignments",
 		"/api/groups",
 		"/api/groups/group-1",
-		"/api/skus",
+		"/api/products",
 	} {
 		if rec := request(http.MethodGet, path, "", ""); rec.Code != http.StatusOK {
 			t.Fatalf("%s status = %d, body=%s", path, rec.Code, rec.Body.String())
@@ -936,7 +936,7 @@ func TestPublicAuthProxySuccessFailureAndValidation(t *testing.T) {
 		{"/api/auth/customer/resend-verification", `{"email":"owner@example.com"}`, http.StatusAccepted, `{"email":"fail@example.com"}`},
 		{"/api/auth/sign-in", `{"email":"owner@example.com"}`, http.StatusAccepted, `{"email":"fail@example.com"}`},
 		{"/api/auth/forgot-password", `{"email":"owner@example.com"}`, http.StatusAccepted, `{"email":"fail@example.com"}`},
-		{"/api/auth/reset-password", `{"token":"reset-token","new_password":"password123"}`, http.StatusNoContent, `{"token":"fail-token","new_password":"password123"}`},
+		{"/api/auth/reset-password", `{"token":"reset-token","new_password":"password123"}`, http.StatusOK, `{"token":"fail-token","new_password":"password123"}`},
 	} {
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.successBody)))

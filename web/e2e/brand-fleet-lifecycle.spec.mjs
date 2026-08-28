@@ -15,7 +15,6 @@ test.describe('Brandname job lifecycle', () => {
   test('[UI-CA-BATCH-001] partial failure keeps per-item results and creates a new retry attempt @brand-fleet @full', async ({ page }) => {
     test.skip(process.env.E2E_SCENARIO_MODE !== 'partial_failure', 'run with E2E_SCENARIO_MODE=partial_failure');
     await login(page, 'operations');
-    await page.goto('/console/brand-e2e-01/jobs');
     const job = await createBatch(page, `e2e-partial-${Date.now()}`);
     await waitForJob(page, job.id, ['partial_failed']);
     const failed = await page.request.get(`/api/jobs/${job.id}/result`);
@@ -33,7 +32,6 @@ test.describe('Brandname job lifecycle', () => {
   test('[UI-CA-BATCH-002] pause, resume and cancel are valid state transitions @brand-fleet @full', async ({ page }) => {
     test.skip(process.env.E2E_SCENARIO_MODE !== 'slow', 'run with E2E_SCENARIO_MODE=slow');
     await login(page, 'operations');
-    await page.goto('/console/brand-e2e-01/jobs');
     const job = await createBatch(page, `e2e-transition-${Date.now()}`);
     const pause = await page.request.post(`/api/jobs/${job.id}/pause`, { headers: { 'Idempotency-Key': `pause-${job.id}` } });
     expect([202, 409]).toContain(pause.status());

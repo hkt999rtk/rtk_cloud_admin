@@ -17,7 +17,7 @@ func TestScopeStringSliceNormalizesJSONAndGoSlices(t *testing.T) {
 func TestDeviceMatchesScopeQueryUsesServerDeviceFacts(t *testing.T) {
 	device := accountclient.Device{
 		ID:                  "dev-1",
-		DeviceItemProfileID: "sku-1",
+		DeviceItemProfileID: "product-1",
 		Category:            "camera",
 		Model:               "model-a",
 		Status:              "warning",
@@ -29,10 +29,10 @@ func TestDeviceMatchesScopeQueryUsesServerDeviceFacts(t *testing.T) {
 	}
 
 	if !deviceMatchesScopeQuery(device, map[string]any{
-		"sku_id":   "sku-1",
-		"region":   []any{"na"},
-		"firmware": []any{"v3.8.0"},
-		"status":   []any{"warning"},
+		"product_id": "product-1",
+		"region":     []any{"na"},
+		"firmware":   []any{"v3.8.0"},
+		"status":     []any{"warning"},
 	}) {
 		t.Fatal("expected device to match its immutable scope")
 	}

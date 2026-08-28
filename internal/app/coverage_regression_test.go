@@ -224,7 +224,7 @@ func TestCoverageGovernancePureHelpers(t *testing.T) {
 	}
 
 	profile := accountclient.DeviceItemProfile{
-		ID:                 "sku-1",
+		ID:                 "product-1",
 		DisplayName:        "Camera",
 		Model:              "RTK-CAM",
 		Category:           "camera",
@@ -235,29 +235,29 @@ func TestCoverageGovernancePureHelpers(t *testing.T) {
 		UpdatedAt:          "2026-07-24T00:00:00Z",
 	}
 	summary := &accountclient.FleetSummary{
-		BySKU:         map[string]int{"sku-1": 7},
-		BySKURegion:   map[string]map[string]int{"sku-1": {"ap-northeast": 7}},
-		BySKUFirmware: map[string]map[string]int{"sku-1": {"1.0.0": 7}},
+		ByProduct:         map[string]int{"product-1": 7},
+		ByProductRegion:   map[string]map[string]int{"product-1": {"ap-northeast": 7}},
+		ByProductFirmware: map[string]map[string]int{"product-1": {"1.0.0": 7}},
 	}
-	sku := customerSKUWithActionsAndSummary(profile, []string{
+	product := customerProductWithActionsAndSummary(profile, []string{
 		"registry_device.manage",
 		"ota_campaign:create",
 		"report.read",
 	}, summary)
-	if sku.ID != "sku-1" || sku.DeviceCount != 7 || len(sku.ServiceCapabilities) != 5 || len(sku.AllowedActions) != 4 {
-		t.Fatalf("customerSKUWithActionsAndSummary = %#v", sku)
+	if product.ID != "product-1" || product.DeviceCount != 7 || len(product.ServiceCapabilities) != 5 || len(product.AllowedActions) != 4 {
+		t.Fatalf("customerProductWithActionsAndSummary = %#v", product)
 	}
-	if got := customerSKU(profile); got.ID != profile.ID {
-		t.Fatalf("customerSKU = %#v", got)
+	if got := customerProduct(profile); got.ID != profile.ID {
+		t.Fatalf("customerProduct = %#v", got)
 	}
 	for role, wantActions := range map[string]int{
-		"sku_owner":   7,
-		"brand_owner": 6,
-		"sku_editor":  5,
-		"sku_viewer":  2,
+		"product_owner":  7,
+		"brand_owner":    6,
+		"product_editor": 5,
+		"product_viewer": 2,
 	} {
-		if actions := skuAllowedActionsForRole(role, nil); len(actions) != wantActions {
-			t.Fatalf("skuAllowedActionsForRole(%q) = %#v, want %d actions", role, actions, wantActions)
+		if actions := productAllowedActionsForRole(role, nil); len(actions) != wantActions {
+			t.Fatalf("productAllowedActionsForRole(%q) = %#v, want %d actions", role, actions, wantActions)
 		}
 	}
 
@@ -268,7 +268,7 @@ func TestCoverageGovernancePureHelpers(t *testing.T) {
 		t.Fatalf("scopeStringSlice([]string) = %#v", got)
 	}
 	device := accountclient.Device{
-		DeviceItemProfileID: "sku-1",
+		DeviceItemProfileID: "product-1",
 		Category:            "camera",
 		Model:               "RTK-CAM",
 		Status:              "online",
@@ -276,7 +276,7 @@ func TestCoverageGovernancePureHelpers(t *testing.T) {
 		Metadata:            map[string]any{"region": "ap-northeast", "firmware": "1.0.0"},
 	}
 	if !deviceMatchesScopeQuery(device, map[string]any{
-		"sku_id": "sku-1", "region": []string{"ap-northeast"}, "status": "online",
+		"product_id": "product-1", "region": []string{"ap-northeast"}, "status": "online",
 	}) {
 		t.Fatal("deviceMatchesScopeQuery rejected matching device")
 	}
@@ -306,7 +306,7 @@ func TestImmutableOTAScopeValidationWithoutUpstream(t *testing.T) {
 
 	st := mustOpenStore(t)
 	srv := NewWithOptions(st, Options{AccountClient: accountclient.New("")})
-	query := map[string]any{"sku_id": "sku-1", "region": []any{"ap-northeast"}}
+	query := map[string]any{"product_id": "product-1", "region": []any{"ap-northeast"}}
 	scope := map[string]any{
 		"expires_at":          time.Now().UTC().Add(time.Hour).Format(time.RFC3339),
 		"query":               query,
@@ -441,7 +441,7 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 					"id": "org-1", "name": "Brand One", "role": "owner",
 					"capabilities": []string{
 						capabilityFleetRead, capabilityFleetDeviceManage, capabilityFleetBatchManage,
-						capabilitySKURead, capabilitySKUManage, capabilitySKUPolicyManage,
+						capabilityProductRead, capabilityProductManage, capabilityProductPolicyManage,
 						capabilityFirmwareReleaseRead, capabilityFirmwareReleaseManage,
 						capabilityOTAPlanRead, capabilityOTAPlanManage,
 						capabilityReportsRead, capabilityReportsCreate,
@@ -457,12 +457,12 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 			_, _ = w.Write([]byte(`{"allowed":true}`))
 			return
 		}
-		if r.URL.Path == "/v1/developer/sku-collaborator-invitations/accept" && r.Header.Get("Authorization") == "Bearer error-access" {
-			http.Error(w, "upstream SKU invitation acceptance failure", http.StatusInternalServerError)
+		if r.URL.Path == "/v1/developer/product-collaborator-invitations/accept" && r.Header.Get("Authorization") == "Bearer error-access" {
+			http.Error(w, "upstream Product invitation acceptance failure", http.StatusInternalServerError)
 			return
 		}
-		if strings.Contains(r.URL.Path, "/skus/sku-error/") {
-			http.Error(w, "upstream SKU collaboration failure", http.StatusInternalServerError)
+		if strings.Contains(r.URL.Path, "/products/product-error/") {
+			http.Error(w, "upstream Product collaboration failure", http.StatusInternalServerError)
 			return
 		}
 		_, _ = w.Write([]byte(`{}`))
@@ -494,12 +494,12 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		"/api/jobs?limit=25",
 		"/api/reports?limit=25",
 		"/api/reports/report-1",
-		"/api/skus?limit=25",
-		"/api/skus/sku-1",
-		"/api/skus/sku-1/collaborators",
-		"/api/skus/sku-1/releases",
-		"/api/skus/sku-1/releases/release-1",
-		"/api/skus/sku-1/permissions",
+		"/api/products?limit=25",
+		"/api/products/product-1",
+		"/api/products/product-1/collaborators",
+		"/api/products/product-1/releases",
+		"/api/products/product-1/releases/release-1",
+		"/api/products/product-1/permissions",
 		"/api/update-plans?limit=25",
 		"/api/update-plans/plan-1",
 	}
@@ -527,7 +527,7 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		{http.MethodPost, "/api/developer/brand-clouds/brand-1/owner-transfer", `{"target_email":"owner@example.com"}`},
 		{http.MethodPost, "/api/developer/brand-clouds/brand-1/owner-transfer/transfer-1/cancel", `{}`},
 		{http.MethodPost, "/api/developer/brand-cloud-owner-transfers/accept", `{"token":"owner-token"}`},
-		{http.MethodPost, "/api/developer/sku-collaborator-invitations/accept", `{"token":"sku-invitation-token"}`},
+		{http.MethodPost, "/api/developer/product-collaborator-invitations/accept", `{"token":"product-invitation-token"}`},
 		{http.MethodPost, "/api/groups", `{"name":"Cameras","device_ids":["device-1"]}`},
 		{http.MethodPatch, "/api/groups/group-1", `{"name":"Updated Cameras","device_ids":["device-1"]}`},
 		{http.MethodDelete, "/api/groups/group-1", ``},
@@ -536,20 +536,20 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		{http.MethodPost, "/api/jobs", `{"type":"report_export","name":"Coverage job","scope":{"device_ids":["device-1"]}}`},
 		{http.MethodPost, "/api/jobs/job-1/retry", `{}`},
 		{http.MethodPost, "/api/jobs/job-1/cancel", `{}`},
-		{http.MethodPost, "/api/provisioning/validate", `{"filename":"devices.csv","content":"device_id,sku\ndevice-1,sku-1"}`},
-		{http.MethodPost, "/api/provisioning/sources", `{"sku":"sku-1","filename":"devices.csv","device_ids":["device-1"]}`},
+		{http.MethodPost, "/api/provisioning/validate", `{"filename":"devices.csv","content":"device_id,product\ndevice-1,product-1"}`},
+		{http.MethodPost, "/api/provisioning/sources", `{"product":"product-1","filename":"devices.csv","device_ids":["device-1"]}`},
 		{http.MethodPost, "/api/provisioning/jobs", `{"source_id":"source-1","name":"Provision devices"}`},
 		{http.MethodPost, "/api/reports", `{"name":"Coverage report","type":"fleet","scope":{"device_ids":["device-1"]}}`},
-		{http.MethodPost, "/api/skus", `{"id":"sku-coverage","name":"Coverage SKU","service_options":["mqtt"]}`},
-		{http.MethodPatch, "/api/skus/sku-1", `{"name":"Updated SKU","service_options":["mqtt"]}`},
-		{http.MethodPost, "/api/skus/sku-1/disable", `{}`},
-		{http.MethodPost, "/api/skus/sku-1/impact-preview", `{"service_options":["mqtt","video"]}`},
-		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations", `{"email":"collaborator@example.com","role":"sku_editor"}`},
-		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations/invitation-1/resend", `{}`},
-		{http.MethodPatch, "/api/skus/sku-1/collaborators/user-1", `{"role":"sku_viewer"}`},
-		{http.MethodDelete, "/api/skus/sku-1/collaborators/user-1", ``},
-		{http.MethodPost, "/api/skus/sku-1/owner-transfer", `{"target_user_id":"user-1"}`},
-		{http.MethodPost, "/api/update-plans/scope-preview", `{"sku_id":"sku-1","device_ids":["device-1"]}`},
+		{http.MethodPost, "/api/products", `{"id":"product-coverage","name":"Coverage Product","service_options":["mqtt"]}`},
+		{http.MethodPatch, "/api/products/product-1", `{"name":"Updated Product","service_options":["mqtt"]}`},
+		{http.MethodPost, "/api/products/product-1/disable", `{}`},
+		{http.MethodPost, "/api/products/product-1/impact-preview", `{"service_options":["mqtt","video"]}`},
+		{http.MethodPost, "/api/products/product-1/collaborator-invitations", `{"email":"collaborator@example.com","role":"product_editor"}`},
+		{http.MethodPost, "/api/products/product-1/collaborator-invitations/invitation-1/resend", `{}`},
+		{http.MethodPatch, "/api/products/product-1/collaborators/user-1", `{"role":"product_viewer"}`},
+		{http.MethodDelete, "/api/products/product-1/collaborators/user-1", ``},
+		{http.MethodPost, "/api/products/product-1/owner-transfer", `{"target_user_id":"user-1"}`},
+		{http.MethodPost, "/api/update-plans/scope-preview", `{"product_id":"product-1","device_ids":["device-1"]}`},
 	}
 	for _, write := range writes {
 		rec := authenticatedRequest(srv, session.ID, write.method, write.path, strings.NewReader(write.body), writeHeaders)
@@ -565,26 +565,26 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 	if invitationInvalidToken.Code != http.StatusBadRequest {
 		t.Errorf("invalid invitation token status = %d, want 400", invitationInvalidToken.Code)
 	}
-	skuInvitationUnknownAction := authenticatedRequest(srv, session.ID, http.MethodPost, "/api/skus/sku-1/collaborator-invitations/invitation-1/unknown", strings.NewReader(`{}`), writeHeaders)
-	if skuInvitationUnknownAction.Code != http.StatusNotFound {
-		t.Errorf("unknown SKU invitation action status = %d, want 404", skuInvitationUnknownAction.Code)
+	productInvitationUnknownAction := authenticatedRequest(srv, session.ID, http.MethodPost, "/api/products/product-1/collaborator-invitations/invitation-1/unknown", strings.NewReader(`{}`), writeHeaders)
+	if productInvitationUnknownAction.Code != http.StatusNotFound {
+		t.Errorf("unknown Product invitation action status = %d, want 404", productInvitationUnknownAction.Code)
 	}
 	for _, invalid := range []struct {
 		method string
 		path   string
 		body   string
 	}{
-		{http.MethodPost, "/api/developer/sku-collaborator-invitations/accept", `{"token":""}`},
-		{http.MethodPost, "/api/developer/sku-collaborator-invitations/accept", `{`},
-		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations", `{"email":""}`},
-		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations", `{`},
-		{http.MethodPatch, "/api/skus/sku-1/collaborators/user-1", `{`},
-		{http.MethodPost, "/api/skus/sku-1/owner-transfer", `{"target_user_id":""}`},
-		{http.MethodPost, "/api/skus/sku-1/owner-transfer", `{`},
+		{http.MethodPost, "/api/developer/product-collaborator-invitations/accept", `{"token":""}`},
+		{http.MethodPost, "/api/developer/product-collaborator-invitations/accept", `{`},
+		{http.MethodPost, "/api/products/product-1/collaborator-invitations", `{"email":""}`},
+		{http.MethodPost, "/api/products/product-1/collaborator-invitations", `{`},
+		{http.MethodPatch, "/api/products/product-1/collaborators/user-1", `{`},
+		{http.MethodPost, "/api/products/product-1/owner-transfer", `{"target_user_id":""}`},
+		{http.MethodPost, "/api/products/product-1/owner-transfer", `{`},
 	} {
 		rec := authenticatedRequest(srv, session.ID, invalid.method, invalid.path, strings.NewReader(invalid.body), writeHeaders)
 		if rec.Code != http.StatusBadRequest {
-			t.Errorf("invalid SKU collaboration request %s status = %d, want 400", invalid.path, rec.Code)
+			t.Errorf("invalid Product collaboration request %s status = %d, want 400", invalid.path, rec.Code)
 		}
 	}
 	for _, request := range []struct {
@@ -593,12 +593,12 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 	}{
 		{http.MethodPost, "/api/developer/brand-clouds/brand-1/members/invitations"},
 		{http.MethodPost, "/api/developer/brand-cloud-member-invitations/accept"},
-		{http.MethodPost, "/api/developer/sku-collaborator-invitations/accept"},
-		{http.MethodGet, "/api/skus/sku-1/collaborators"},
-		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations"},
-		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations/invitation-1/resend"},
-		{http.MethodPatch, "/api/skus/sku-1/collaborators/user-1"},
-		{http.MethodPost, "/api/skus/sku-1/owner-transfer"},
+		{http.MethodPost, "/api/developer/product-collaborator-invitations/accept"},
+		{http.MethodGet, "/api/products/product-1/collaborators"},
+		{http.MethodPost, "/api/products/product-1/collaborator-invitations"},
+		{http.MethodPost, "/api/products/product-1/collaborator-invitations/invitation-1/resend"},
+		{http.MethodPatch, "/api/products/product-1/collaborators/user-1"},
+		{http.MethodPost, "/api/products/product-1/owner-transfer"},
 	} {
 		if rec := requestWithCookie(t, srv, request.method, request.path, strings.NewReader(`{}`), nil); rec.Code != http.StatusUnauthorized {
 			t.Errorf("unauthenticated invitation route %s status = %d, want 401", request.path, rec.Code)
@@ -610,11 +610,11 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 	}{
 		{http.MethodPost, "/api/developer/brand-clouds/brand-1/members/invitations/invitation-1/resend"},
 		{http.MethodPost, "/api/developer/brand-cloud-member-invitations/accept"},
-		{http.MethodPost, "/api/developer/sku-collaborator-invitations/accept"},
-		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations"},
-		{http.MethodPost, "/api/skus/sku-1/collaborator-invitations/invitation-1/resend"},
-		{http.MethodPatch, "/api/skus/sku-1/collaborators/user-1"},
-		{http.MethodPost, "/api/skus/sku-1/owner-transfer"},
+		{http.MethodPost, "/api/developer/product-collaborator-invitations/accept"},
+		{http.MethodPost, "/api/products/product-1/collaborator-invitations"},
+		{http.MethodPost, "/api/products/product-1/collaborator-invitations/invitation-1/resend"},
+		{http.MethodPatch, "/api/products/product-1/collaborators/user-1"},
+		{http.MethodPost, "/api/products/product-1/owner-transfer"},
 	} {
 		if rec := authenticatedRequest(srv, session.ID, request.method, request.path, strings.NewReader(`{}`), nil); rec.Code != http.StatusPreconditionRequired {
 			t.Errorf("invitation route %s without idempotency key status = %d, want 428", request.path, rec.Code)
@@ -625,31 +625,31 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 		path   string
 		body   string
 	}{
-		{http.MethodGet, "/api/skus/sku-error/collaborators", ``},
-		{http.MethodPost, "/api/skus/sku-error/collaborator-invitations", `{"email":"collaborator@example.com","role":"sku_editor"}`},
-		{http.MethodPost, "/api/skus/sku-error/collaborator-invitations/invitation-1/resend", `{}`},
-		{http.MethodPatch, "/api/skus/sku-error/collaborators/user-1", `{"role":"sku_viewer"}`},
-		{http.MethodDelete, "/api/skus/sku-error/collaborators/user-1", ``},
-		{http.MethodPost, "/api/skus/sku-error/owner-transfer", `{"target_user_id":"user-1"}`},
+		{http.MethodGet, "/api/products/product-error/collaborators", ``},
+		{http.MethodPost, "/api/products/product-error/collaborator-invitations", `{"email":"collaborator@example.com","role":"product_editor"}`},
+		{http.MethodPost, "/api/products/product-error/collaborator-invitations/invitation-1/resend", `{}`},
+		{http.MethodPatch, "/api/products/product-error/collaborators/user-1", `{"role":"product_viewer"}`},
+		{http.MethodDelete, "/api/products/product-error/collaborators/user-1", ``},
+		{http.MethodPost, "/api/products/product-error/owner-transfer", `{"target_user_id":"user-1"}`},
 	} {
 		rec := authenticatedRequest(srv, session.ID, request.method, request.path, strings.NewReader(request.body), writeHeaders)
 		if rec.Code < http.StatusBadRequest {
-			t.Errorf("upstream SKU collaboration failure %s status = %d, want error", request.path, rec.Code)
+			t.Errorf("upstream Product collaboration failure %s status = %d, want error", request.path, rec.Code)
 		}
 	}
 	errorSession, err := st.CreateSession("customer", "developer-2", "error@example.com", "error-access", "refresh", "org-1", time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
-	acceptFailure := authenticatedRequest(srv, errorSession.ID, http.MethodPost, "/api/developer/sku-collaborator-invitations/accept", strings.NewReader(`{"token":"sku-invitation-token"}`), writeHeaders)
+	acceptFailure := authenticatedRequest(srv, errorSession.ID, http.MethodPost, "/api/developer/product-collaborator-invitations/accept", strings.NewReader(`{"token":"product-invitation-token"}`), writeHeaders)
 	if acceptFailure.Code < http.StatusBadRequest {
-		t.Errorf("upstream SKU invitation acceptance status = %d, want error", acceptFailure.Code)
+		t.Errorf("upstream Product invitation acceptance status = %d, want error", acceptFailure.Code)
 	}
 	missingOrgSession, err := st.CreateSession("customer", "developer-3", "missing@example.com", "access", "refresh", "org-missing", time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
-	missingOrg := requestWithCookie(t, srv, http.MethodGet, "/api/skus/sku-1/collaborators", nil, &http.Cookie{Name: "rtk_admin_session", Value: missingOrgSession.ID})
+	missingOrg := requestWithCookie(t, srv, http.MethodGet, "/api/products/product-1/collaborators", nil, &http.Cookie{Name: "rtk_admin_session", Value: missingOrgSession.ID})
 	if missingOrg.Code < http.StatusBadRequest {
 		t.Errorf("missing active organization status = %d, want error", missingOrg.Code)
 	}
@@ -797,8 +797,15 @@ func TestFirmwareReadModelHelpers(t *testing.T) {
 	if got := latestFirmwareVersion(videoclient.FirmwareEnumResponse{Releases: []videoclient.FirmwareRelease{{Version: "v1.2.9"}, {Version: "v1.10.0"}, {Version: ""}}}); got != "v1.10.0" {
 		t.Fatalf("latestFirmwareVersion releases = %q", got)
 	}
-	if !isVisibleFirmwareCampaignState(" scheduled ") || isVisibleFirmwareCampaignState("archived") {
-		t.Fatalf("visible campaign state mapping failed")
+	for _, state := range []string{"draft", "scheduled", "active", "paused", "completed", "canceled"} {
+		if !isVisibleFirmwareCampaignState(state) {
+			t.Fatalf("campaign state %q should be visible", state)
+		}
+	}
+	for _, state := range []string{"archived", "unknown", ""} {
+		if isVisibleFirmwareCampaignState(state) {
+			t.Fatalf("campaign state %q should not be visible", state)
+		}
 	}
 
 	rollouts := []videoclient.FirmwareRolloutRecord{
@@ -813,6 +820,9 @@ func TestFirmwareReadModelHelpers(t *testing.T) {
 	}
 	if campaign.Applied != 1 || campaign.Failed != 1 || campaign.Pending != 2 || campaign.Total != 4 {
 		t.Fatalf("campaign counts = %#v", campaign)
+	}
+	if campaign.UpdatedAt != "2026-05-09T00:00:00Z" {
+		t.Fatalf("campaign updated_at = %q", campaign.UpdatedAt)
 	}
 	if campaign.Rollouts[0].DeviceName != "Camera B" || campaign.Rollouts[1].FailureReason != "offline" {
 		t.Fatalf("rollout ordering/details = %#v", campaign.Rollouts)
@@ -842,6 +852,35 @@ func TestFirmwareReadModelHelpers(t *testing.T) {
 	keys := firmwareCampaignKeys("camp-1", " ", "camp-1", "camp-2")
 	if len(keys) != 2 || keys[0] != "camp-1" || keys[1] != "camp-2" {
 		t.Fatalf("firmwareCampaignKeys = %#v", keys)
+	}
+}
+
+func TestCanonicalFirmwareCampaignSummary(t *testing.T) {
+	t.Parallel()
+	campaign := videoclient.OTACampaignRecord{ID: "ota-1", ReleaseID: "release-1", State: "completed", TargetSnapshotCount: 4, CreatedAt: "2026-08-28T01:00:00Z", UpdatedAt: "2026-08-28T01:04:00Z", ActivatedAt: "2026-08-28T01:01:00Z"}
+	deployments := []videoclient.OTADeploymentRecord{
+		{DeviceID: "device-1", Status: "succeeded", CurrentVersion: "v1.2.4", TargetVersion: "v1.2.4", UpdatedAt: "2026-08-28T01:03:00Z"},
+		{DeviceID: "device-2", Status: "failed", CurrentVersion: "v1.2.3", ErrorReason: "checksum", UpdatedAt: "2026-08-28T01:05:00Z"},
+	}
+	summary := videoclient.OTACampaignSummary{CampaignID: "ota-1", State: "completed", Total: 4, ByStatus: map[string]int{"succeeded": 1, "failed": 1, "skipped": 1, "pending": 1}, UpdatedAt: "2026-08-28T01:04:00Z"}
+	devices := map[string]contracts.Device{"device-1": {ID: "device-1", Name: "Camera A"}, "device-2": {ID: "device-2", Name: "Camera B"}}
+	got := summarizeCanonicalFirmwareCampaign(campaign, "v1.2.4", deployments, summary, devices)
+	if got.CampaignID != "ota-1" || got.TargetVersion != "v1.2.4" || got.State != "completed" {
+		t.Fatalf("canonical campaign identity = %#v", got)
+	}
+	if got.Applied != 1 || got.Failed != 1 || got.Skipped != 1 || got.Pending != 1 || got.Total != 4 {
+		t.Fatalf("canonical campaign counts = %#v", got)
+	}
+	if got.UpdatedAt != "2026-08-28T01:05:00Z" || got.Rollouts[0].DeviceName != "Camera B" || got.Rollouts[0].FailureReason != "checksum" {
+		t.Fatalf("canonical rollout details = %#v", got)
+	}
+	for input, want := range map[string]string{"succeeded": "applied", "offered": "eligible", "failed": "failed", "timed_out": "failed", "rolled_back": "failed", "skipped": "skipped", "canceled": "canceled", "downloading": "downloading", "installing": "downloading"} {
+		if value := canonicalDeploymentRolloutStatus(input); value != want {
+			t.Fatalf("canonicalDeploymentRolloutStatus(%q) = %q, want %q", input, value, want)
+		}
+	}
+	if got := canonicalDeploymentSummaryBucket("canceled"); got != "skipped" {
+		t.Fatalf("canonicalDeploymentSummaryBucket(canceled) = %q", got)
 	}
 }
 

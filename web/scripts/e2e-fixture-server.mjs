@@ -97,10 +97,10 @@ function customerProfile(req) {
   const capabilitySets = {
     platform_admin: ['platform.chipset_sdk.read', 'platform.chipset_sdk.edit', 'platform.chipset_sdk.publish'],
     platform_reader: ['platform.chipset_sdk.read'],
-    developer: ['fleet.read', 'sku.read', 'sku.manage', 'sku.policy.manage', 'firmware.release.read', 'firmware.release.manage', 'ota.plan.read', 'ota.plan.manage', 'reports.read', 'reports.create', 'team.read', 'team.manage', 'provisioning.read', 'provisioning.create', 'billing_account.read', 'billing_ledger.read', 'billing_summary.read', 'billing_usage.read', 'invoice.read', 'invoice_document.read', 'billing_activity.read', 'billing_profile.read', 'billing_profile.manage', 'billing_statement.export', 'payment_method.read', 'payment_method.manage', 'payment_intent.read', 'payment_intent.create', 'auto_topup.read', 'auto_topup.manage'],
+    developer: ['fleet.read', 'product.read', 'product.manage', 'product.policy.manage', 'firmware.release.read', 'firmware.release.manage', 'ota.plan.read', 'ota.plan.manage', 'reports.read', 'reports.create', 'team.read', 'team.manage', 'pki.test.issue', 'provisioning.read', 'provisioning.create', 'billing_account.read', 'billing_ledger.read', 'billing_summary.read', 'billing_usage.read', 'invoice.read', 'invoice_document.read', 'billing_activity.read', 'billing_profile.read', 'billing_profile.manage', 'billing_statement.export', 'payment_method.read', 'payment_method.manage', 'payment_intent.read', 'payment_intent.create', 'auto_topup.read', 'auto_topup.manage'],
     operations: ['fleet.read', 'fleet.device.manage', 'fleet.batch.manage', 'fleet.batch.read', 'ota.plan.read', 'ota.plan.manage', 'reports.read', 'team.read', 'provisioning.read'],
-    observer: ['fleet.read', 'sku.read', 'firmware.release.read', 'ota.plan.read', 'reports.read', 'team.read', 'provisioning.read'],
-    customer: ['fleet.read', 'sku.read', 'firmware.release.read', 'ota.plan.read', 'reports.read', 'team.read', 'provisioning.read'],
+    observer: ['fleet.read', 'product.read', 'firmware.release.read', 'ota.plan.read', 'reports.read', 'team.read', 'provisioning.read'],
+    customer: ['fleet.read', 'product.read', 'firmware.release.read', 'ota.plan.read', 'reports.read', 'team.read', 'provisioning.read'],
     outsider: [],
   };
   const capabilities = capabilitySets[role] || [];
@@ -126,12 +126,12 @@ function cloudDevices(orgID) {
     readiness: device.readiness || 'ready',
     last_seen_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    device_item_profile_id: device.device_item_profile_id || `sku-${orgID === 'brand-e2e-02' ? 'beta' : 'alpha'}`,
+    device_item_profile_id: device.device_item_profile_id || `product-${orgID === 'brand-e2e-02' ? 'beta' : 'alpha'}`,
     metadata: { region: orgID === 'brand-e2e-02' ? 'eu' : 'na', firmware_version: index % 2 ? 'v3.7.0' : 'v3.8.0', group_id: `group-${orgID}` },
   }));
 }
 
-function profileFor(orgID, id = `sku-${orgID === 'brand-e2e-02' ? 'beta' : 'alpha'}`) {
+function profileFor(orgID, id = `product-${orgID === 'brand-e2e-02' ? 'beta' : 'alpha'}`) {
   return { id, brand_cloud_id: orgID, profile_key: id, display_name: `E2E ${id} Camera`, status: 'active', category: 'camera', model: 'RTK-CAM-A', service_options: ['stream', 'record'], claim_policy: {}, provisioning_policy: {}, metadata_defaults: {}, metadata_schema: {}, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
 }
 
@@ -289,7 +289,7 @@ async function handleCustomerResource(req, res, url) {
     const offset = Number(query.get('offset') || 0);
     return send(res, 200, { devices: filtered.slice(offset, offset + limit), pagination: { limit, offset, total: filtered.length }, query: { server_side: true } });
   }
-  if (suffix === '/fleet/summary' && req.method === 'GET') return send(res, 200, { total: devices.length, by_status: { online: devices.length }, by_sku: { [`sku-${orgID === 'brand-e2e-02' ? 'beta' : 'alpha'}`]: devices.length }, by_model: { 'RTK-CAM-A': devices.length }, by_firmware: { 'v3.8.0': devices.length }, by_region: { [orgID === 'brand-e2e-02' ? 'eu' : 'na']: devices.length }, service_enabled: {}, by_sku_region: {}, by_sku_firmware: {}, updated_at: mode === 'stale' ? '2020-01-01T00:00:00Z' : new Date().toISOString() });
+  if (suffix === '/fleet/summary' && req.method === 'GET') return send(res, 200, { total: devices.length, by_status: { online: devices.length }, by_product: { [`product-${orgID === 'brand-e2e-02' ? 'beta' : 'alpha'}`]: devices.length }, by_model: { 'RTK-CAM-A': devices.length }, by_firmware: { 'v3.8.0': devices.length }, by_region: { [orgID === 'brand-e2e-02' ? 'eu' : 'na']: devices.length }, service_enabled: {}, by_product_region: {}, by_product_firmware: {}, updated_at: mode === 'stale' ? '2020-01-01T00:00:00Z' : new Date().toISOString() });
   if (suffix === '/devices' && req.method === 'GET') return send(res, 200, { devices });
   const deviceMatch = suffix.match(/^\/devices\/([^/]+)$/);
   if (deviceMatch && req.method === 'GET') {
@@ -304,7 +304,7 @@ async function handleCustomerResource(req, res, url) {
   if (suffix === '/device-item-profiles' && req.method === 'GET') return send(res, 200, { device_item_profiles: mode === 'empty' ? [] : [profileFor(orgID)] });
   if (suffix === '/device-item-profiles' && req.method === 'POST') {
     const body = await readBody(req);
-    const profile = { ...profileFor(orgID, body.profile_key || `sku-${orgID}-created`), ...body };
+    const profile = { ...profileFor(orgID, body.profile_key || `product-${orgID}-created`), ...body };
     return send(res, 201, { device_item_profile: profile });
   }
   const profileMatch = suffix.match(/^\/device-item-profiles\/([^/]+)$/);
@@ -326,7 +326,7 @@ async function handleCustomerResource(req, res, url) {
     const allowed = role === 'developer' || (role === 'operations' && ['registry_device.read', 'registry_device.manage'].includes(permission));
     return send(res, 200, { allowed, permission, scope_type: url.searchParams.get('scope_type'), scope_id: url.searchParams.get('scope_id') });
   }
-  if (suffix === '/roles' && req.method === 'GET') return send(res, 200, { roles: [{ id: 'role-owner', name: 'Developer / Release', capabilities: ['sku.manage', 'ota.plan.manage'] }, { id: 'role-operations', name: 'Operations', capabilities: ['fleet.device.manage', 'fleet.batch.manage'] }, { id: 'role-observer', name: 'Observer', capabilities: ['fleet.read'] }] });
+  if (suffix === '/roles' && req.method === 'GET') return send(res, 200, { roles: [{ id: 'role-owner', name: 'Developer / Release', capabilities: ['product.manage', 'ota.plan.manage'] }, { id: 'role-operations', name: 'Operations', capabilities: ['fleet.device.manage', 'fleet.batch.manage'] }, { id: 'role-observer', name: 'Observer', capabilities: ['fleet.read'] }] });
   if (suffix === '/permissions' && req.method === 'GET') return send(res, 200, { permissions: [] });
   if (suffix === '/role-assignments' && req.method === 'GET') return send(res, 200, { assignments: [] });
   if (suffix === '/role-assignments' && req.method === 'POST') { const body = await readBody(req); return send(res, 201, { role_assignment: { id: `assignment-${Date.now()}`, organization_id: orgID, ...body } }); }
@@ -418,7 +418,7 @@ function publicInvitation(invitation) {
 }
 
 async function handleOTA(req, res, url) {
-  if (req.method === 'GET') return send(res, 200, { items: [{ id: 'release-e2e-1', release_id: 'release-e2e-1', sku_id: 'sku-brand-e2e-01', version: 'v3.8.0', state: 'published' }] });
+  if (req.method === 'GET') return send(res, 200, { items: [{ id: 'release-e2e-1', release_id: 'release-e2e-1', product_id: 'product-brand-e2e-01', version: 'v3.8.0', state: 'published' }] });
   return send(res, 202, { status: 'accepted', id: `ota-${Date.now()}`, state: 'queued' });
 }
 

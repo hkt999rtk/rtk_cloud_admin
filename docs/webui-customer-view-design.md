@@ -27,7 +27,9 @@ async validation-then-execution workflow.
 > Manager and Operations users managing 100K+ devices. The authoritative
 > prototype is `brand-fleet-management-mock.html`.
 
-Date: 2026-05-09
+Original date: 2026-05-09
+
+Last updated: 2026-08-28 — unified Customer and Platform app shell
 
 Audience:
 
@@ -74,7 +76,7 @@ identity:
 | Surface | Required functional parity |
 | --- | --- |
 | Overview / Devices | Active-cloud scope, server pagination/filtering, cross-page selection, safe source states |
-| SKU | Service/device/firmware policy, ACL impact preview, capability-gated writes |
+| Product | Service/device/firmware policy, ACL impact preview, capability-gated writes |
 | Firmware / OTA | Release lifecycle, artifact validation, server scope preview, immutable plan, lifecycle controls |
 | Jobs | Bounded query, progress, partial failure, per-item result, retry attempt, CSV/JSON download and expiry |
 | Reports | Async builder with type, dimensions, range, timezone, scope, output, freshness and expiry |
@@ -90,8 +92,8 @@ removed from the production UI.
 
 | Surface | Required for v0.1 | Visual source | Status in this design |
 | --- | --- | --- | --- |
-| Brand Fleet shell | Yes | `brand-fleet-management-mock.html` plus this document | Planned, with role-specific navigation |
-| Fleet Overview | Yes | `brand-fleet-management-mock.html` | Approved large-fleet direction |
+| Brand Fleet shell | Yes | `brand-fleet-management-mock.html` plus this document | Implemented with fixed grouped navigation |
+| Fleet Overview | Yes | `brand-fleet-management-mock.html` | Implemented inside the Brand Cloud tab shell |
 | Devices + Detail Drawer | Yes | `brand-fleet-management-mock.html` | Approved server-side query direction |
 | Firmware Releases + Update Plans | Yes | `brand-fleet-management-mock.html` | Approved Developer / Operations workflow |
 | Batch Jobs + Reports | Yes | `brand-fleet-management-mock.html` | Approved asynchronous operations direction |
@@ -103,8 +105,9 @@ removed from the production UI.
 | Platform View: Audit Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Brand-cloud management UI | No | [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md) plus backend/BFF contract | Platform View draft, outside Customer View |
 | ChipSet & SDK resource center | Yes | [chipset-sdk-information-provider-mock.html](assets/webui-design/chipset-sdk-information-provider-mock.html) | Developer read-only resource center; global published catalog |
-| Groups and Tags | Yes | `brand-fleet-management-mock.html` | Required for large-fleet targeting |
-| Batch Jobs and Reports | Yes | `brand-fleet-management-mock.html` | Required for asynchronous fleet operations |
+| Brand Cloud members and settings | Yes | This document plus backend/BFF contracts | Implemented as addressable page tabs |
+| Groups and Tags | Yes | `brand-fleet-management-mock.html` | Implemented for large-fleet targeting |
+| Batch Jobs and Reports | Yes | `brand-fleet-management-mock.html` | Implemented asynchronous operations surfaces |
 
 ## Review Mockup
 
@@ -159,7 +162,7 @@ the production surface.
 | Devices | 我的設備 |
 | Firmware & OTA | 韌體更新 |
 | Stream Health | 影像播放狀況 |
-| Products and Device Profiles | SKU 與服務 |
+| Products and Device Profiles | Product 與服務 |
 
 The English internal names remain valid for routes, code, API fields, and
 documentation references. They are not the primary customer-facing labels.
@@ -174,7 +177,7 @@ documentation references. They are not the primary customer-facing labels.
   update progress. Campaign implementation details are secondary.
 - **影像播放狀況:** playback success, devices with playback problems, and
   devices that have never played successfully. Protocol names are secondary.
-- **SKU 與服務:** connect each SKU to its product/device specification,
+- **Product 與服務:** connect each Product to its product/device specification,
   enabled services, user permissions, device policy, and firmware policy.
   This page is for brand operators, not end users.
 
@@ -195,31 +198,31 @@ Do not require users to understand WebRTC, OTA, readiness, source status,
 campaign, rollout, or raw device identifiers. These values belong in expanded
 details or Platform View diagnostics.
 
-### SKU 與服務
+### Product 與服務
 
-The SKU page follows the shared design defined in
+The Product page follows the shared design defined in
 `admin-dashboard-redesign.md` and must not create a separate product or
-permission vocabulary. Each SKU shows:
+permission vocabulary. Each Product shows:
 
-- 基本資料：SKU、產品名稱、產品型號、產品線、硬體版本。
+- 基本資料：Product、產品名稱、產品型號、產品線、硬體版本。
 - 可用服務：影像服務、即時觀看、錄影與保存、設備回報、韌體更新。
 - 使用者權限：目前角色可以查看或執行的操作。
 - 設備政策：設定、綁定、啟用與停用規則。
 - 韌體政策：可用版本、硬體相容性、OTA 規則、防止回退與更新計畫。
 
-The device drawer links the device to one SKU and shows the services and
-policies inherited from that SKU. A disabled or unsupported service is shown
+The device drawer links the device to one Product and shows the services and
+policies inherited from that Product. A disabled or unsupported service is shown
 as `未啟用`, `不適用`, or `需要聯絡管理者`; raw `service_options`, runtime
 scopes, and ACL permission names remain detail-only.
 
-SKU editing is a guided flow:
+Product editing is a guided flow:
 
 ```
 基本資料 → 產品與硬體規格 → 可用服務 → 設備政策 → 韌體政策
 → ACL 影響預覽 → 關聯設備檢查 → 儲存
 ```
 
-The impact preview must show affected SKU/device counts, region/group scope,
+The impact preview must show affected Product/device counts, region/group scope,
 current service state, and whether reprovisioning or firmware update may be
 required.
 
@@ -265,6 +268,10 @@ Shape and surface:
 - Use fine borders over heavy shadows.
 - Avoid nested cards unless the inner surface is a genuine table, drawer block,
   chart area, or repeated row group.
+- Checkboxes use the shared 18px console control: white surface and neutral
+  border when unchecked, primary blue with a white check when selected, and a
+  visible blue focus ring. They must not inherit text-input width, height, or
+  padding; disabled and indeterminate states remain visually distinct.
 
 Status color usage:
 
@@ -275,22 +282,46 @@ Status color usage:
 
 ## App Shell
 
-The Customer View shell uses a fixed left sidebar and a full-height work area on
-desktop. Below 1024px, it uses a sticky top app bar and an off-canvas navigation
-drawer; the full sidebar must not consume the first mobile viewport.
+Customer Developers and Platform Admins use the same `Connect+ Ops` app shell:
+a dark fixed sidebar, common topbar, account summary, focus treatment, and
+responsive mobile navigation. The authenticated session selects one navigation
+hierarchy; the UI does not expose a view switcher or combine cross-role data.
+On desktop the shell uses a fixed left sidebar and a full-height work area.
+Below 1024px, it uses a sticky top app bar and an off-canvas navigation drawer;
+the full sidebar must not consume the first mobile viewport.
 
 Sidebar:
 
 - Brand label: `Connect+ Ops`.
-- Brand Fleet nav items are role-aware: `設備總覽`, `設備`,
-  `群組與標籤`, `SKU 與服務`, `韌體版本`, `更新計畫`, `批次工作`,
-  `報表`, and `團隊與權限`.
+- Brand Fleet navigation uses fixed, non-collapsible groups: `品牌雲`,
+  `設備營運`, `產品與更新`, `監控與分析`, and `帳號管理`.
+- `品牌雲首頁` is the single sidebar entry for the Brand Cloud resource. Its
+  page-level tabs are `總覽`, `成員與權限`, and `設定`; the entry remains active
+  across all three routes.
+- Navigation items and Brand Cloud tabs are role-aware. Hidden affordances do
+  not replace backend authorization checks.
 - Active nav item uses primary blue fill.
-- Platform View switcher is visually separated from Customer View navigation and
-  routes only to role-gated Platform View pages.
+- Customer sessions show only Customer groups. Platform Admin sessions show
+  only Platform groups, including when the current deep link is rejected by a
+  wrong-role access gate.
 - Platform View content must not appear inside Customer View pages.
 - Sidebar account summary shows the signed-in role and email only. It does not
   repeat the active organization name.
+
+The fixed group and item order is:
+
+| Group | Items |
+| --- | --- |
+| 品牌雲 | 品牌雲首頁 |
+| 設備營運 | 設備、群組與標籤、設備註冊、批次工作 |
+| 產品與更新 | Product 與服務、ChipSet & SDK、韌體更新 |
+| 監控與分析 | 影像播放狀況、報表 |
+| 帳號管理 | 帳務與自動加值 |
+
+Groups are always expanded. Capability filtering removes unavailable items but
+does not reorder the remaining items or collapse the group hierarchy. The
+`品牌雲首頁` item is always the navigation entry for the active Brand Cloud;
+route authorization independently chooses its first accessible tab.
 
 Main header:
 
@@ -301,6 +332,72 @@ Main header:
 - Refresh affordance and signed-in actions on the right.
 - Do not show a passive active-organization label or global last-updated
   timestamp in the header.
+
+Brand Cloud page:
+
+- `/console/{cloudId}/overview`, `/access`, and `/settings` share one Brand
+  Cloud header and tab shell while remaining independently addressable.
+- Overview includes a team summary when team read capability is available.
+- Members and access contains invitations, members, roles, and scope
+  assignments. Settings contains ownership transfer and PKI test tooling.
+
+### Brand Cloud route and tab contract
+
+The three tabs preserve their own URLs instead of using a query parameter or a
+single long page:
+
+| Tab | Scoped route | Unscoped compatibility route | Minimum frontend access |
+| --- | --- | --- | --- |
+| 總覽 | `/console/{cloudId}/overview` | `/console/overview` | `fleet.read` or `customer.devices.read` |
+| 成員與權限 | `/console/{cloudId}/access` | `/console/access` | `team.read` or `role_assignment.read` |
+| 設定 | `/console/{cloudId}/settings` | `/console/settings` | Any authenticated customer developer; individual tools remain capability-gated |
+
+Opening `品牌雲首頁` selects the first accessible route in the order above.
+The sidebar item stays active on all three routes. Navigation visibility and
+route access are separate decisions: removing an `access` sidebar item must not
+make `/access` inaccessible or bypass its capability guard.
+
+Tab changes use browser history navigation. Direct links, refresh, Back, and
+Forward must restore the same active tab. Existing invitation acceptance links
+continue to land on `/console/{cloudId}/access`; no redirect or backend contract
+change is required.
+
+### Shared Brand Cloud shell
+
+All tabs share the Brand Cloud name, Cloud ID, active-organization selector,
+and tab strip. The content responsibilities are:
+
+- **總覽:** fleet KPIs, health trend, region distribution, attention devices,
+  and a compact team summary with member count, owner, pending invitations, and
+  the current user's role.
+- **成員與權限:** members, pending invitations, available roles, and readable
+  management scopes. The invitation form expands from an explicit action;
+  read-only users do not see write controls.
+- **設定:** owner-transfer create/cancel for `team.manage`, owner-transfer token
+  acceptance for every authenticated customer developer, and PKI test bundle
+  issuance for `pki.test.issue`.
+
+The organization selector remains the single authority for active scope. The
+page header must not introduce a second Brand Cloud picker.
+
+### Access data composition and failure isolation
+
+The WebUI composes existing APIs; there is no new aggregate backend endpoint:
+
+- Overview requests members and invitations only when `team.read` or
+  `role_assignment.read` is present and reduces them into the team summary.
+- Members and access loads members, invitations, and `/api/role-assignments`
+  concurrently, then joins role and scope facts into one view model.
+- Each source retains its own availability status. Team-source failure affects
+  only the summary/access panels; it cannot hide Fleet Overview. Fleet-source
+  failure cannot remove team administration.
+- Existing idempotency keys, request paths, success/error messages, and backend
+  authorization remain authoritative for every write action.
+
+On mobile, fixed groups remain visible in a compact horizontal navigation area
+above the work area. The Brand Cloud tabs may scroll horizontally but must keep
+the active tab, Cloud ID, and primary content readable without changing route
+semantics.
 
 Login page:
 
@@ -369,10 +466,11 @@ Capability and role behavior:
   enforcement boundary for provision, deactivate, quota, and any future tenant
   write action.
 - Customer sessions must not receive Platform View data. If they open a
-  Platform View route or switcher target, the UI shows a role/access gate rather
-  than platform content.
+  Platform View route directly, the UI shows a role/access gate rather than
+  platform content and keeps Customer navigation visible.
 - Platform Admin sessions must see a guard if they open Customer View directly,
-  with a route back to Platform View rather than customer data.
+  with a route back to `/admin` rather than customer data and with Platform
+  navigation still visible.
 
 Auth and access states:
 
@@ -457,6 +555,18 @@ Required layout:
   - Actions
 - Selected row uses a pale blue highlight.
 - Right-side detail drawer opens from a selected row.
+- The desktop table is a high-density operations surface: normal rows target
+  42–46 px, use vertically centered 12–13 px content, compact 22 px status
+  badges, and a 28–30 px inspect action. Long identity fields truncate with a
+  native title while device name and serial retain a compact two-line hierarchy.
+- Below the table breakpoint, use compact list rows rather than tall cards;
+  target approximately 48–72 px depending on available width.
+- Server pagination appears both above and below the device rows so an operator
+  never needs to cross the full list just to change pages.
+- Page numbers form one compact segmented control with no gaps. Show at most
+  seven page tokens: first page, last page, and the current-page neighborhood
+  (`‹ 1 2 3 4 5 … 100 ›` or `‹ 1 … 49 50 51 … 100 ›`). The control may scroll
+  horizontally on narrow screens, but the page itself must not overflow.
 
 Detail drawer content:
 
@@ -495,6 +605,8 @@ Behavior notes:
   lifecycle operations, while Video Cloud owns activation and current transport.
   Demo/cache facts must remain visibly local projections.
 - Filters must preserve table scan speed and avoid card-wall layouts.
+- Page-number actions preserve the active server-side search, sort, and filter
+  query while changing only the offset; current page uses `aria-current=page`.
 - Read-only Observer sessions must be enforced by the backend before any
   provision or deactivate action is accepted.
 - Device action menus must not expose operation IDs, raw upstream errors,
@@ -508,6 +620,8 @@ Account Manager/Video Cloud contracts.
 
 Required layout:
 
+- Product selector as the first control. The page does not load or combine firmware
+  status until the operator selects one Product.
 - KPI strip with `Latest Version`, `Devices Current`, `Pending Update`, and
   `Failed Rollout`.
 - Firmware distribution panel with version rows, count, percent of fleet, and
@@ -520,12 +634,17 @@ Required layout:
 
 Behavior notes:
 
+- Firmware distribution, releases, campaigns, rollout details, and risk rows
+  are scoped to the selected Product. Changing Product clears campaign selection and
+  scope previews before loading the new Product state.
+- The selected Product is preserved in the `product_id` query parameter for refresh,
+  direct links, and Back/Forward navigation.
 - Clicking a firmware version should navigate to the Devices page with that
-  firmware pre-filtered when supported.
+  firmware and Product pre-filtered when supported.
 - Campaign creation, tenant-wide write actions, and policy editing are exposed
   only when the active membership has the corresponding release or OTA
   capability; Operations and Observer users remain read-only for release
-  metadata and SKU policy.
+  metadata and Product policy.
 - Unknown firmware should be visible and sortable as an operational risk.
 - Production firmware distribution must use observed firmware and rollout facts
   from Video Cloud or the normalized telemetry read model, not generated sample

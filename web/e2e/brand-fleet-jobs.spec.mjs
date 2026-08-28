@@ -4,8 +4,6 @@ import { waitForJob } from './fixtures/brand-fleet.mjs';
 
 test('[UI-CA-JOBS-001] batch job uses server scope, idempotency and result lifecycle @brand-fleet', async ({ page }, testInfo) => {
   await login(page, 'operations');
-  await page.goto('/console/brand-e2e-01/jobs');
-  await expect(page.getByRole('heading', { name: '批次工作' }).first()).toBeVisible();
   const attemptKey = `e2e-batch-job-${Date.now()}-${testInfo.retry}`;
   const headers = { 'Content-Type': 'application/json', 'Idempotency-Key': attemptKey };
   const payload = { type: 'device_settings', name: 'E2E device settings', scope: { query: { region: ['na'] }, excluded_device_ids: [] } };

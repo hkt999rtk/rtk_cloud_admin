@@ -5,7 +5,7 @@ test('[UI-CA-LOGS-001] platform admin can inspect recent service-log incident co
   await login(page, 'platform_admin');
   await enterPlatform(page);
   await page.goto('/admin/logs');
-  await expect(page.getByRole('heading', { name: 'Service Logs', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '服務日誌', exact: true })).toBeVisible();
   await expect(page.getByText('E2E operation failed while calling upstream.', { exact: true })).toBeVisible();
   await expect(page.getByText('trace-e2e-001', { exact: true })).toBeVisible();
   await expect(page.getByText('request-e2e-001', { exact: true })).toBeVisible();

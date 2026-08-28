@@ -8,9 +8,8 @@ test('[UI-CA-STAGING-002] Brandname staging read-only smoke @staging @brand-flee
   for (const [path, heading] of [
     [`/console/${cloudId}/overview`, '設備總覽'],
     [`/console/${cloudId}/devices`, '設備'],
-    [`/console/${cloudId}/sku-services`, 'SKU 與服務'],
+    [`/console/${cloudId}/product-services`, 'Product 與服務'],
     [`/console/${cloudId}/firmware-ota`, '韌體更新'],
-    [`/console/${cloudId}/jobs`, '批次工作'],
     [`/console/${cloudId}/reports`, '報表'],
   ]) {
     await page.goto(path);

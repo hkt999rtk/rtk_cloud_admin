@@ -162,38 +162,38 @@ Cloud team membership, while Platform Admin Brand Cloud management remains in
 the `/api/admin/*` namespace.
 
 This is a Tier 2 brand-cloud role focused on product and release configuration.
-It manages SKU and product/device profiles, enabled service capabilities,
+It manages Product and product/device profiles, enabled service capabilities,
 production runs, device and firmware policies, firmware releases, OTA target
-selection, schedules, and release reporting. It may configure SKU policy, but
-it does not receive device access merely because a SKU exists. Release and
+selection, schedules, and release reporting. It may configure Product policy, but
+it does not receive device access merely because a Product exists. Release and
 update-plan writes require the corresponding Account Manager-projected
 capabilities.
 
 ### Brand Fleet Operations Manager
 
 This is a Tier 2 brand-cloud role focused on large-scale fleet operations. It
-manages server-side device search and filtering, SKU-scoped device access,
+manages server-side device search and filtering, Product-scoped device access,
 provisioning status review, groups and tags, batch work, health triage, and
 pausing, resuming, cancelling, or retrying existing update plans. It does not
-edit SKU service policy, firmware artifacts, or release metadata unless
+edit Product service policy, firmware artifacts, or release metadata unless
 explicitly granted the developer capability.
 
 ### Capability contract
 
-### SKU project collaboration
+### Product project collaboration
 
-Brand Cloud membership is not SKU visibility. The Brand Cloud owner has audited
-governance access and is the only actor allowed to create a SKU. Each SKU has
+Brand Cloud membership is not Product visibility. The Brand Cloud owner has audited
+governance access and is the only actor allowed to create a Product. Each Product has
 one explicit, transferable owner plus Editors and Viewers:
 
-| SKU role | Project access | Collaboration authority |
+| Product role | Project access | Collaboration authority |
 |---|---|---|
-| Owner | Full SKU, device, firmware, OTA, provisioning, batch, and report access | Invite, change, remove, disable, and transfer ownership |
+| Owner | Full Product, device, firmware, OTA, provisioning, batch, and report access | Invite, change, remove, disable, and transfer ownership |
 | Editor | Read/write project operations | None |
 | Viewer | Read-only project resources | None |
 
-Unassigned SKUs are omitted from lists and direct access fails without revealing
-whether the SKU exists. Organization-wide admin/member roles do not override
+Unassigned Products are omitted from lists and direct access fails without revealing
+whether the Product exists. Organization-wide admin/member roles do not override
 this rule.
 
 The active membership must project these machine-readable capabilities. Display
@@ -202,7 +202,7 @@ roles are only labels:
 | Surface | Read | Write |
 |---|---|---|
 | Fleet/devices | `fleet.read` | `fleet.device.manage`, `fleet.batch.manage` |
-| SKU | `sku.read` | `sku.manage`, `sku.policy.manage` |
+| Product | `product.read` | `product.manage`, `product.policy.manage` |
 | Firmware release | `firmware.release.read` | `firmware.release.manage` |
 | OTA plan | `ota.plan.read` | `ota.plan.manage` |
 | Reports | `reports.read` | `reports.create` |
@@ -210,7 +210,7 @@ roles are only labels:
 | Provisioning | `provisioning.read` | `provisioning.create` |
 
 Every BFF write route checks the smallest applicable capability and then
-enforces the SKU, group, region, or device resource scope. The UI may hide
+enforces the Product, group, region, or device resource scope. The UI may hide
 actions for usability, but it is never the authorization boundary.
 
 All OTA, batch, report, and provisioning writes also require a server-side
@@ -274,9 +274,9 @@ Capability checks are enforced in both layers:
 - UI actions use `/api/me.capabilities` or active membership capabilities to
   enable or disable controls.
 
-SKU service capability and human ACL are separate concepts. SKU capability
+Product service capability and human ACL are separate concepts. Product capability
 answers which services a device may use; ACL answers which user may view or
-operate a SKU, region, group, or device. Runtime Video Cloud token scopes are
+operate a Product, region, group, or device. Runtime Video Cloud token scopes are
 not human roles and must not be displayed as ACL labels.
 - Local Cloud Admin break-glass `platform_admin` is not supported. Emergency
   deployment control belongs in Linode, SSH, and operator tooling, not in an

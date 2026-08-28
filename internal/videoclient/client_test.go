@@ -400,7 +400,7 @@ func TestFirmwareDistributionQueries(t *testing.T) {
 
 func TestDoOTAInjectsTrustedBrandAndIdempotencyHeaders(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/ota/skus/sku-1/releases" || r.Method != http.MethodPost {
+		if r.URL.Path != "/v1/ota/products/product-1/releases" || r.Method != http.MethodPost {
 			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
 		}
 		if r.Header.Get("Authorization") != "Bearer admin-token" || r.Header.Get("X-Brand-Cloud-ID") != "brand-1" || r.Header.Get("Idempotency-Key") != "idem-key" {
@@ -411,12 +411,85 @@ func TestDoOTAInjectsTrustedBrandAndIdempotencyHeaders(t *testing.T) {
 		_, _ = w.Write([]byte(`{"release_id":"rel-1"}`))
 	}))
 	defer upstream.Close()
-	response, err := New(upstream.URL).DoOTA(t.Context(), http.MethodPost, "/v1/ota/skus/sku-1/releases", "admin-token", "brand-1", "idem-key", []byte(`{"version":"1"}`))
+	response, err := New(upstream.URL).DoOTA(t.Context(), http.MethodPost, "/v1/ota/products/product-1/releases", "admin-token", "brand-1", "idem-key", []byte(`{"version":"1"}`))
 	if err != nil || response.StatusCode != http.StatusCreated || !strings.Contains(string(response.Body), "rel-1") {
 		t.Fatalf("DoOTA = %#v, %v", response, err)
 	}
 	if _, err := New(upstream.URL).DoOTA(t.Context(), http.MethodPost, "/download_firmware", "admin-token", "brand-1", "idem", nil); err == nil {
 		t.Fatal("expected non-canonical path rejection")
+	}
+}
+
+func TestCanonicalOTAReadMethodsFollowPagesAndDecodeStatus(t *testing.T) {
+	t.Parallel()
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Brand-Cloud-ID") != "brand-1" || r.Header.Get("Authorization") != "Bearer secret" {
+			t.Fatalf("trusted OTA headers = %#v", r.Header)
+		}
+		switch r.URL.Path {
+		case "/v1/ota/products/product-1/campaigns":
+			if r.URL.Query().Get("cursor") == "1" {
+				_, _ = w.Write([]byte(`{"items":[{"campaign_id":"campaign-2","product_id":"product-1","release_id":"release-1","state":"completed"}]}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"items":[{"campaign_id":"campaign-1","product_id":"product-1","release_id":"release-1","state":"active"}],"next_cursor":"1"}`))
+		case "/v1/ota/products/product-1/releases":
+			_, _ = w.Write([]byte(`{"items":[{"release_id":"release-1","version":"v1.2.4"}]}`))
+		case "/v1/ota/campaigns/campaign-1/deployments":
+			_, _ = w.Write([]byte(`{"items":[{"device_id":"device-1","status":"failed","current_version":"v1.2.3","target_version":"v1.2.4","error_reason":"checksum","updated_at":"2026-08-28T01:05:00Z"}]}`))
+		case "/v1/ota/campaigns/campaign-1/summary":
+			_, _ = w.Write([]byte(`{"campaign_id":"campaign-1","state":"active","total":2,"by_status":{"failed":1,"pending":1},"updated_at":"2026-08-28T01:05:00Z"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+	client := New(upstream.URL)
+	campaigns, err := client.ListOTACampaigns(t.Context(), "secret", "brand-1", "product-1")
+	if err != nil || len(campaigns) != 2 || campaigns[1].State != "completed" {
+		t.Fatalf("ListOTACampaigns = %#v, %v", campaigns, err)
+	}
+	releases, err := client.ListOTAReleases(t.Context(), "secret", "brand-1", "product-1")
+	if err != nil || len(releases) != 1 || releases[0].Version != "v1.2.4" {
+		t.Fatalf("ListOTAReleases = %#v, %v", releases, err)
+	}
+	deployments, err := client.ListOTADeployments(t.Context(), "secret", "brand-1", "campaign-1")
+	if err != nil || len(deployments) != 1 || deployments[0].ErrorReason != "checksum" {
+		t.Fatalf("ListOTADeployments = %#v, %v", deployments, err)
+	}
+	summary, err := client.GetOTACampaignSummary(t.Context(), "secret", "brand-1", "campaign-1")
+	if err != nil || summary.Total != 2 || summary.ByStatus["failed"] != 1 {
+		t.Fatalf("GetOTACampaignSummary = %#v, %v", summary, err)
+	}
+}
+
+func TestGetOTACampaignSummaryRejectsBadResponses(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		statusCode int
+		body       string
+		wantStatus bool
+	}{
+		{name: "upstream status", statusCode: http.StatusBadGateway, body: `upstream unavailable`, wantStatus: true},
+		{name: "invalid JSON", statusCode: http.StatusOK, body: `{`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.statusCode)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer upstream.Close()
+			_, err := New(upstream.URL).GetOTACampaignSummary(t.Context(), "secret", "brand-1", "campaign-1")
+			if err == nil {
+				t.Fatal("GetOTACampaignSummary returned nil error")
+			}
+			if _, ok := err.(HTTPStatusError); ok != tc.wantStatus {
+				t.Fatalf("HTTPStatusError = %v, want %v: %v", ok, tc.wantStatus, err)
+			}
+		})
 	}
 }
 

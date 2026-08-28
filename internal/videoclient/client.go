@@ -30,6 +30,40 @@ type OTAResponse struct {
 	Header     http.Header
 }
 
+type OTACampaignRecord struct {
+	ID                  string `json:"campaign_id"`
+	ProductID           string `json:"product_id"`
+	ReleaseID           string `json:"release_id"`
+	Name                string `json:"name,omitempty"`
+	State               string `json:"state"`
+	TargetSnapshotCount int    `json:"target_snapshot_count"`
+	CreatedAt           string `json:"created_at"`
+	UpdatedAt           string `json:"updated_at"`
+	ActivatedAt         string `json:"activated_at,omitempty"`
+}
+
+type OTAReleaseRecord struct {
+	ID      string `json:"release_id"`
+	Version string `json:"version"`
+}
+
+type OTADeploymentRecord struct {
+	DeviceID       string `json:"device_id"`
+	Status         string `json:"status"`
+	CurrentVersion string `json:"current_version,omitempty"`
+	TargetVersion  string `json:"target_version,omitempty"`
+	ErrorReason    string `json:"error_reason,omitempty"`
+	UpdatedAt      string `json:"updated_at"`
+}
+
+type OTACampaignSummary struct {
+	CampaignID string         `json:"campaign_id"`
+	State      string         `json:"state"`
+	Total      int            `json:"total"`
+	ByStatus   map[string]int `json:"by_status"`
+	UpdatedAt  string         `json:"updated_at"`
+}
+
 func (e HTTPStatusError) Error() string {
 	if strings.TrimSpace(e.Body) != "" {
 		return fmt.Sprintf("status %d: %s", e.StatusCode, strings.TrimSpace(e.Body))
@@ -281,6 +315,63 @@ func (c *Client) DoOTA(ctx context.Context, method, path, adminToken, brandCloud
 		return OTAResponse{}, err
 	}
 	return OTAResponse{StatusCode: resp.StatusCode, Body: raw, Header: resp.Header.Clone()}, nil
+}
+
+func (c *Client) ListOTACampaigns(ctx context.Context, adminToken, brandCloudID, productID string) ([]OTACampaignRecord, error) {
+	return fetchOTAPage[OTACampaignRecord](ctx, c, "/v1/ota/products/"+url.PathEscape(strings.TrimSpace(productID))+"/campaigns", adminToken, brandCloudID)
+}
+
+func (c *Client) ListOTAReleases(ctx context.Context, adminToken, brandCloudID, productID string) ([]OTAReleaseRecord, error) {
+	return fetchOTAPage[OTAReleaseRecord](ctx, c, "/v1/ota/products/"+url.PathEscape(strings.TrimSpace(productID))+"/releases", adminToken, brandCloudID)
+}
+
+func (c *Client) ListOTADeployments(ctx context.Context, adminToken, brandCloudID, campaignID string) ([]OTADeploymentRecord, error) {
+	return fetchOTAPage[OTADeploymentRecord](ctx, c, "/v1/ota/campaigns/"+url.PathEscape(strings.TrimSpace(campaignID))+"/deployments", adminToken, brandCloudID)
+}
+
+func (c *Client) GetOTACampaignSummary(ctx context.Context, adminToken, brandCloudID, campaignID string) (OTACampaignSummary, error) {
+	response, err := c.DoOTA(ctx, http.MethodGet, "/v1/ota/campaigns/"+url.PathEscape(strings.TrimSpace(campaignID))+"/summary", adminToken, brandCloudID, "", nil)
+	if err != nil {
+		return OTACampaignSummary{}, err
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return OTACampaignSummary{}, HTTPStatusError{StatusCode: response.StatusCode, Body: string(response.Body)}
+	}
+	var summary OTACampaignSummary
+	if err := json.Unmarshal(response.Body, &summary); err != nil {
+		return OTACampaignSummary{}, err
+	}
+	return summary, nil
+}
+
+func fetchOTAPage[T any](ctx context.Context, c *Client, path, adminToken, brandCloudID string) ([]T, error) {
+	items := make([]T, 0)
+	cursor := ""
+	for {
+		pagePath := path + "?page_size=200"
+		if cursor != "" {
+			pagePath += "&cursor=" + url.QueryEscape(cursor)
+		}
+		response, err := c.DoOTA(ctx, http.MethodGet, pagePath, adminToken, brandCloudID, "", nil)
+		if err != nil {
+			return nil, err
+		}
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			return nil, HTTPStatusError{StatusCode: response.StatusCode, Body: string(response.Body)}
+		}
+		var page struct {
+			Items      []T    `json:"items"`
+			NextCursor string `json:"next_cursor"`
+		}
+		if err := json.Unmarshal(response.Body, &page); err != nil {
+			return nil, err
+		}
+		items = append(items, page.Items...)
+		if strings.TrimSpace(page.NextCursor) == "" || page.NextCursor == cursor {
+			return items, nil
+		}
+		cursor = page.NextCursor
+	}
 }
 
 func (c *Client) Health(ctx context.Context) error {
