@@ -303,8 +303,10 @@ workflow.
   Status, Signal, Last Seen, and Actions.
 - Implement selected-row highlight and right-side detail drawer behavior.
 - Render the server-side page selector above and below the device list. Show all
-  page numbers when practical and use first/last/current-neighborhood ellipses
-  only for large page counts.
+  practical page targets in a compact segmented control and cap the token set at
+  seven using first/last/current-neighborhood ellipses.
+- Scope high-density row styling to the Devices table: 42–46 px desktop rows,
+  compact semantic badges/actions, and 48–72 px narrow-screen list rows.
 - Complete drawer Overview content: identity, health, firmware, readiness/source
   facts, RSSI, uptime, recent telemetry, and active stream status.
 - Make Streams and Events read-only only when backed by documented source data.
@@ -337,6 +339,8 @@ workflow.
   source facts, and available action context.
 - Desktop and mobile expose both pagination controls, direct page selection,
   previous/next actions, and the current page without horizontal page overflow.
+- Device density changes do not alter Billing, Audit, Operations, or other
+  shared tables.
 
 ## Required Tests
 

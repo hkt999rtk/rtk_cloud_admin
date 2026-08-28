@@ -54,7 +54,7 @@ test('[UI-CA-FLEETPAGE-003] Brand Cloud overview access and settings share one n
   await expect(page).toHaveURL(/\/console\/brand-e2e-01\/access$/);
 });
 
-test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading the whole fleet @brand-fleet @smoke', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading the whole fleet @brand-fleet @smoke', async ({ page }, testInfo) => {
   await login(page, 'developer');
   const requests = [];
   page.on('request', (request) => { if (request.url().includes('/api/fleet/devices')) requests.push(request.url()); });
@@ -84,8 +84,19 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
   const bottomPagination = page.getByRole('navigation', { name: '設備分頁（下方）' });
   await expect(topPagination).toBeVisible();
   await expect(bottomPagination).toBeVisible();
-  await expect(topPagination.getByRole('button', { name: /^第 \d+ 頁$/ })).toHaveCount(10);
-  await expect(bottomPagination.getByRole('button', { name: /^第 \d+ 頁$/ })).toHaveCount(10);
+  await expect(topPagination.getByRole('button', { name: /^第 \d+ 頁$/ })).toHaveCount(6);
+  await expect(bottomPagination.getByRole('button', { name: /^第 \d+ 頁$/ })).toHaveCount(6);
+  await expect(topPagination.locator('.pagination-ellipsis')).toHaveCount(1);
+  const paginationBox = await topPagination.locator('.pagination-page-list').boundingBox();
+  expect(paginationBox.width).toBeLessThan(320);
+
+  if (testInfo.project.name === 'mobile') {
+    const mobileRow = await page.locator('.mobile-device-row').first().boundingBox();
+    expect(mobileRow.height).toBeLessThan(75);
+  } else {
+    const desktopRow = await page.locator('.device-table tbody tr').first().boundingBox();
+    expect(desktopRow.height).toBeLessThan(55);
+  }
 
   await topPagination.getByRole('button', { name: '第 5 頁' }).click();
   await expect(page).toHaveURL(/devices\?offset=400$/);

@@ -5270,14 +5270,14 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
       value: (device) => device.name,
       render: (device) => (
         <>
-          <strong>{device.name}</strong>
-          <small>{device.serial_number}</small>
+          <strong title={device.name}>{device.name}</strong>
+          <small title={device.serial_number}>{device.serial_number}</small>
         </>
       ),
     },
-    { key: 'sku', label: 'SKU', value: (device) => device.sku_id || '未設定', render: (device) => device.sku_id || '未設定' },
-    { key: 'organization', label: '區域／組織', value: (device) => device.organization },
-    { key: 'model', label: '產品型號', value: (device) => device.model },
+    { key: 'sku', label: 'SKU', value: (device) => device.sku_id || '未設定', render: (device) => <span title={device.sku_id || '未設定'}>{device.sku_id || '未設定'}</span> },
+    { key: 'organization', label: '區域／組織', value: (device) => device.organization, render: (device) => <span title={device.organization}>{device.organization}</span> },
+    { key: 'model', label: '產品型號', value: (device) => device.model, render: (device) => <span title={device.model}>{device.model}</span> },
     {
       key: 'firmware',
       label: '韌體版本',
@@ -5470,6 +5470,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
           initialSortKey="name"
           searchPlaceholder="Search devices"
           emptyLabel="No devices match the current filter."
+          tableClassName="device-table"
           rowClassName={(device) => deviceDrawerOpen && selectedDevice?.id === device.id ? 'selected-row' : ''}
           onRowClick={(device) => setSelectedDeviceId(device.id)}
           serverMode={Boolean(serverPage)}
@@ -5486,14 +5487,14 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
                 <button key={device.id} type="button" className="mobile-device-row" onClick={() => setSelectedDeviceId(device.id)}>
                   <span>
                     <strong>{device.name}</strong>
-                    <small>{device.serial_number}</small>
+                    <small>{device.sku_id || '未設定 SKU'} · {device.serial_number}</small>
                   </span>
                   <span>
                     <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />
                     <StatusBadge value={normalizeStatusKey(device.readiness)} label={device.readiness_display} />
                   </span>
                   <time title={device.last_seen_at || ''}>{device.last_seen_at ? formatRelativeTime(device.last_seen_at) : 'No transport evidence'}</time>
-                  <span className="mobile-row-action">Inspect</span>
+                  <span className="mobile-row-action" aria-hidden="true">›</span>
                 </button>
               ))}
             </div>
@@ -6059,44 +6060,46 @@ function DataTable({
           position="top"
         />
       ) : null}
-      <table className={tableClassName}>
-        <thead>
-          <tr>
-            {columns.map((column) => (
-              <th key={column.key}>
-                {column.sortable === false ? (
-                  column.label
-                ) : (
-                    <button className="sort-button" onClick={() => {
-                      if (serverMode) {
-                        const nextDirection = sort.key === column.key && sort.direction === 'asc' ? 'desc' : 'asc';
-                        onServerSort?.(column.key, nextDirection);
-                      } else {
-                        requestSort(column.key);
-                      }
-                    }}>
-                    <span>{column.label}</span>
-                    <span aria-hidden="true">{sort.key === column.key ? (sort.direction === 'asc' ? '^' : 'v') : '-'}</span>
-                  </button>
-                )}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {(serverMode ? rows : visibleRows).map((row) => (
-            <tr
-              key={rowKey(row)}
-              className={[onRowClick ? 'clickable-row' : '', rowClassName ? rowClassName(row) : ''].filter(Boolean).join(' ')}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-            >
+      <div className="table-scroll-region">
+        <table className={tableClassName}>
+          <thead>
+            <tr>
               {columns.map((column) => (
-                <td key={column.key}>{column.render ? column.render(row) : displayValue(column.value(row))}</td>
+                <th key={column.key}>
+                  {column.sortable === false ? (
+                    column.label
+                  ) : (
+                      <button className="sort-button" onClick={() => {
+                        if (serverMode) {
+                          const nextDirection = sort.key === column.key && sort.direction === 'asc' ? 'desc' : 'asc';
+                          onServerSort?.(column.key, nextDirection);
+                        } else {
+                          requestSort(column.key);
+                        }
+                      }}>
+                      <span>{column.label}</span>
+                      <span aria-hidden="true">{sort.key === column.key ? (sort.direction === 'asc' ? '^' : 'v') : '-'}</span>
+                    </button>
+                  )}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {(serverMode ? rows : visibleRows).map((row) => (
+              <tr
+                key={rowKey(row)}
+                className={[onRowClick ? 'clickable-row' : '', rowClassName ? rowClassName(row) : ''].filter(Boolean).join(' ')}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+              >
+                {columns.map((column) => (
+                  <td key={column.key}>{column.render ? column.render(row) : displayValue(column.value(row))}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {mobileContent}
       {!(serverMode ? rows : visibleRows).length ? <p className="empty-table">{emptyLabel}</p> : null}
       <PaginationControls
@@ -6153,7 +6156,7 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
   );
 }
 
-function paginationItems(currentPage, totalPages, maxVisible = 11) {
+function paginationItems(currentPage, totalPages, maxVisible = 7) {
   if (totalPages <= maxVisible) {
     return Array.from({ length: totalPages }, (_, index) => index + 1);
   }

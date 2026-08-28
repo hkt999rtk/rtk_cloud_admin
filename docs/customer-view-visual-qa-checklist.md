@@ -84,8 +84,11 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 我的
 
 - Search and filters are visible above the table.
 - Page selectors are visible above and below the list; all practical page
-  numbers are direct targets, current page is distinct, and narrow screens keep
-  the page-number strip usable without widening the document.
+  numbers are direct targets in one gapless segmented control, current page is
+  distinct, and narrow screens keep the strip usable without widening the
+  document.
+- Desktop device rows remain approximately 42–46 px and narrow-screen rows stay
+  compact; status badges and inspect actions do not determine row height.
 - Table columns are Device, Organization, Model, Firmware, Health, Status,
   Signal, Last Seen, and Actions.
 - Selected row uses a pale blue highlight.

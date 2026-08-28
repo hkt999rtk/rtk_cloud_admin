@@ -537,11 +537,17 @@ Required layout:
   - Actions
 - Selected row uses a pale blue highlight.
 - Right-side detail drawer opens from a selected row.
+- The desktop table is a high-density operations surface: normal rows target
+  42–46 px, use vertically centered 12–13 px content, compact 22 px status
+  badges, and a 28–30 px inspect action. Long identity fields truncate with a
+  native title while device name and serial retain a compact two-line hierarchy.
+- Below the table breakpoint, use compact list rows rather than tall cards;
+  target approximately 48–72 px depending on available width.
 - Server pagination appears both above and below the device rows so an operator
   never needs to cross the full list just to change pages.
-- When the total is small enough, show every page number as a direct target
-  (`‹ 1 2 3 … ›`). Large result sets retain the first page, last page, and the
-  current-page neighborhood with ellipses. The page-number strip may scroll
+- Page numbers form one compact segmented control with no gaps. Show at most
+  seven page tokens: first page, last page, and the current-page neighborhood
+  (`‹ 1 2 3 4 5 … 100 ›` or `‹ 1 … 49 50 51 … 100 ›`). The control may scroll
   horizontally on narrow screens, but the page itself must not overflow.
 
 Detail drawer content:
