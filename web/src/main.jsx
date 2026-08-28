@@ -614,14 +614,6 @@ function App() {
   }, [isLoginRoute, isPublicRoute]);
 
   useEffect(() => {
-    if (isPublicRoute) return undefined;
-    const timer = window.setInterval(() => {
-      setRefreshTick((tick) => tick + 1);
-    }, 20_000);
-    return () => window.clearInterval(timer);
-  }, [isPublicRoute]);
-
-  useEffect(() => {
     const onPopState = () => {
       const nextRoute = routeFromLocation();
       setActive(nextRoute);

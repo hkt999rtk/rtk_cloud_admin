@@ -72,6 +72,21 @@ test('[UI-CA-CHIPSET-003] provider and developer pages expose upstream unavailab
   await expect(page.getByRole('heading', { name: '資源暫時無法取得' })).toBeVisible();
 });
 
+test('[UI-CA-CHIPSET-007] developer resources do not install a global refresh timer @chipset-sdk', async ({ page }) => {
+  await page.addInitScript(() => {
+    const nativeSetInterval = window.setInterval.bind(window);
+    window.__scheduledIntervals = [];
+    window.setInterval = (callback, delay, ...args) => {
+      window.__scheduledIntervals.push(delay);
+      return nativeSetInterval(callback, delay, ...args);
+    };
+  });
+  await login(page, 'developer');
+  await page.goto('/console/chipset-sdk');
+  await expect(page.getByRole('heading', { level: 2, name: 'ChipSet & SDK' })).toBeVisible();
+  expect(await page.evaluate(() => window.__scheduledIntervals)).toEqual([]);
+});
+
 test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpublish flow @chipset-sdk @smoke', async ({ page }, testInfo) => {
   const providerName = `Ameba IoT Qualification Candidate repeat-${testInfo.repeatEachIndex}-attempt-${testInfo.retry}`;
   const shellResponses = new Map([
