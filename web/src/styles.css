@@ -674,6 +674,92 @@ main {
   width: 18px;
 }
 
+.current-role-panel {
+  overflow: visible;
+}
+
+.current-role-card {
+  align-items: start;
+  background: var(--brand-soft);
+  border: 1px solid rgba(0, 104, 183, 0.18);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  padding: 16px;
+}
+
+.current-role-icon {
+  align-items: center;
+  background: var(--brand);
+  border-radius: 8px;
+  color: #fff;
+  display: flex;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.current-role-title {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.current-role-title h4,
+.current-role-card p {
+  margin: 0;
+}
+
+.current-role-title h4 {
+  color: var(--navy);
+  font-size: 16px;
+}
+
+.current-role-title code {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(0, 104, 183, 0.16);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 2px 7px;
+}
+
+.current-role-card p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 5px;
+}
+
+.current-role-actions {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.current-role-actions li {
+  align-items: flex-start;
+  color: var(--text);
+  display: flex;
+  font-size: 13px;
+  gap: 7px;
+}
+
+.current-role-actions .fa-solid {
+  color: var(--brand);
+  margin-top: 4px;
+}
+
+.current-role-card .current-role-scope {
+  border-top: 1px solid rgba(0, 104, 183, 0.14);
+  margin-top: 14px;
+  padding-top: 10px;
+}
+
 .report-builder-actions {
   grid-column: 1 / -1;
 }
