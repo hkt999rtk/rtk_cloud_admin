@@ -183,8 +183,8 @@ test('builds devices URLs with supported filters only', () => {
   assert.equal(devicesPathWithFilters(), '/console/devices');
   assert.equal(devicesPathWithFilters({ deviceId: 'dev-001' }), '/console/devices?device=dev-001');
   assert.equal(
-    devicesPathWithFilters({ health: 'warning', status: 'online', signal: 'poor', firmware: 'v1.2.4', ignored: 'x' }),
-    '/console/devices?health=warning&status=online&signal=poor&firmware=v1.2.4',
+    devicesPathWithFilters({ health: 'warning', status: 'online', signal: 'poor', firmware: 'v1.2.4', skuID: 'sku-alpha', ignored: 'x' }),
+    '/console/devices?health=warning&status=online&signal=poor&firmware=v1.2.4&sku_id=sku-alpha',
   );
 });
 

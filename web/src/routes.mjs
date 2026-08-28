@@ -238,13 +238,14 @@ export function routeFromLocation() {
   return routeFromPath(window.location.pathname);
 }
 
-export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '', q = '', sort = '', direction = '', offset = '' } = {}) {
+export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '', skuID = '', q = '', sort = '', direction = '', offset = '' } = {}) {
   const params = new URLSearchParams();
   if (deviceId) params.set('device', deviceId);
   if (health) params.set('health', health);
   if (status) params.set('status', status);
   if (signal) params.set('signal', signal);
   if (firmware) params.set('firmware', firmware);
+  if (skuID) params.set('sku_id', skuID);
   if (q) params.set('q', q);
   if (sort) params.set('sort', sort);
   if (direction) params.set('direction', direction);

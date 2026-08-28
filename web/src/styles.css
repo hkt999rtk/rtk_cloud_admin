@@ -2088,6 +2088,71 @@ p {
   gap: 18px;
 }
 
+.firmware-sku-selector {
+  align-items: end;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(260px, 420px) minmax(0, 1fr);
+  padding: 14px;
+}
+
+.firmware-sku-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.firmware-sku-field > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.firmware-sku-field .select-control {
+  min-height: 42px;
+}
+
+.firmware-sku-selector p {
+  margin: 0 0 8px;
+}
+
+.firmware-selection-empty {
+  align-items: center;
+  background: #fbfdfe;
+  border: 1px dashed #b8c8d5;
+  border-radius: 8px;
+  color: var(--muted);
+  display: flex;
+  gap: 14px;
+  min-height: 132px;
+  padding: 24px;
+}
+
+.firmware-selection-empty > .fa-solid {
+  align-items: center;
+  background: var(--brand-soft);
+  border-radius: 8px;
+  color: var(--brand);
+  display: inline-flex;
+  font-size: 22px;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.firmware-selection-empty h3,
+.firmware-selection-empty p {
+  margin: 0;
+}
+
+.firmware-selection-empty h3 {
+  color: var(--navy);
+}
+
 .firmware-page-metrics {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -2108,6 +2173,28 @@ p {
   display: grid;
   gap: 14px;
   min-width: 0;
+}
+
+.firmware-panel .inline-form {
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.firmware-panel .inline-form > input,
+.firmware-panel .inline-form > .select-control,
+.firmware-panel .inline-form > details {
+  flex: 1 1 220px;
+  min-height: 42px;
+  min-width: 0;
+}
+
+.firmware-panel .inline-form > .wide-input {
+  flex-basis: 100%;
+}
+
+.firmware-panel .inline-form > .primary-button,
+.firmware-panel .inline-form > .ghost-button {
+  min-height: 42px;
 }
 
 .firmware-version-list,
@@ -4603,6 +4690,19 @@ th {
   .firmware-layout,
   .firmware-page-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .firmware-sku-selector {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .firmware-sku-selector p {
+    margin: 0;
+  }
+
+  .firmware-panel .inline-form {
+    display: grid;
   }
 
   .stream-health-layout,

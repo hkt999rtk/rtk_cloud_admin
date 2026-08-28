@@ -3387,17 +3387,24 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	skuID := strings.TrimSpace(r.URL.Query().Get("sku_id"))
+	if len(skuID) > 200 {
+		http.Error(w, "sku_id is too long", http.StatusBadRequest)
+		return
+	}
+	devices = filterDevicesBySKU(devices, skuID)
 	if dist, ok, err := s.proxyFirmwareDistribution(r.Context(), devices, orgID); err != nil {
-		writeJSON(w, unavailableFirmwareDistribution(orgID, "unavailable", "Firmware source is unavailable."))
+		writeJSON(w, unavailableFirmwareDistribution(orgID, skuID, "unavailable", "Firmware source is unavailable."))
 		return
 	} else if ok {
+		dist.SKU = skuID
 		dist.SourceStatus = "available"
 		dist.SourceMessage = "Firmware source loaded from Video Cloud."
 		writeJSON(w, dist)
 		return
 	}
 	status, message := s.customerFirmwareSourceStatus(devices)
-	writeJSON(w, unavailableFirmwareDistribution(orgID, status, message))
+	writeJSON(w, unavailableFirmwareDistribution(orgID, skuID, status, message))
 }
 
 func (s *Server) apiSKUOTA(w http.ResponseWriter, r *http.Request) {
@@ -3845,6 +3852,7 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 		if err != nil {
 			return contracts.FirmwareDistribution{}, true, err
 		}
+		scopedRollouts := make([]videoclient.FirmwareRolloutRecord, 0, len(rolloutResp.Rollouts))
 		for _, rollout := range rolloutResp.Rollouts {
 			version := strings.TrimSpace(rollout.CurrentVersion)
 			if version == "" {
@@ -3872,10 +3880,8 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 				}
 				matched = true
 			}
-			if !matched {
-				if prev, ok := deviceVersions[rollout.DeviceID]; !ok || updatedAt.After(prev.updatedAt) || prev.version == "" {
-					deviceVersions[rollout.DeviceID] = deviceVersion{version: version, updatedAt: updatedAt}
-				}
+			if matched {
+				scopedRollouts = append(scopedRollouts, rollout)
 			}
 		}
 
@@ -3884,7 +3890,7 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 			return contracts.FirmwareDistribution{}, true, err
 		}
 		rolloutsByCampaign := make(map[string][]videoclient.FirmwareRolloutRecord)
-		for _, rollout := range rolloutResp.Rollouts {
+		for _, rollout := range scopedRollouts {
 			for _, campaignID := range firmwareCampaignKeys(rollout.CampaignID) {
 				rolloutsByCampaign[campaignID] = append(rolloutsByCampaign[campaignID], rollout)
 			}
@@ -3896,6 +3902,9 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 			rollouts := make([]videoclient.FirmwareRolloutRecord, 0)
 			for _, campaignID := range firmwareCampaignKeys(campaign.ID, campaign.CampaignID) {
 				rollouts = append(rollouts, rolloutsByCampaign[campaignID]...)
+			}
+			if len(rollouts) == 0 {
+				continue
 			}
 			if campaignSummary := summarizeFirmwareCampaign(campaign, rollouts); campaignSummary.CampaignID != "" {
 				campaigns = append(campaigns, campaignSummary)
@@ -4274,14 +4283,29 @@ func unavailableFleetStreamStats(orgID string, window string, status string, mes
 	}
 }
 
-func unavailableFirmwareDistribution(orgID string, status string, message string) contracts.FirmwareDistribution {
+func unavailableFirmwareDistribution(orgID string, skuID string, status string, message string) contracts.FirmwareDistribution {
 	return contracts.FirmwareDistribution{
 		OrgID:         orgID,
+		SKU:           skuID,
 		SourceStatus:  status,
 		SourceMessage: message,
 		Versions:      []contracts.FirmwareDistributionVersion{},
 		Campaigns:     []contracts.FirmwareDistributionCampaign{},
 	}
+}
+
+func filterDevicesBySKU(devices []contracts.Device, skuID string) []contracts.Device {
+	skuID = strings.TrimSpace(skuID)
+	if skuID == "" {
+		return devices
+	}
+	filtered := make([]contracts.Device, 0, len(devices))
+	for _, device := range devices {
+		if strings.TrimSpace(device.SKU) == skuID {
+			filtered = append(filtered, device)
+		}
+	}
+	return filtered
 }
 
 func filterDevicesByOrg(devices []contracts.Device, orgID string) []contracts.Device {

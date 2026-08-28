@@ -89,3 +89,34 @@ test('[UI-CA-FLEETPAGE-004] report builder uses shared form controls @brand-flee
   expect(checkboxStyles.width).toBe(18);
   expect(checkboxStyles.borderRadius).toBe('5px');
 });
+
+test('[UI-CA-FLEETPAGE-005] firmware status loads only after selecting a SKU @brand-fleet @smoke', async ({ page }) => {
+  await login(page, 'developer');
+  const distributionRequests = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/fleet/firmware-distribution')) distributionRequests.push(request.url());
+  });
+  await page.goto('/console/brand-e2e-01/firmware-ota');
+
+  const skuSelector = page.getByLabel('選擇 Firmware SKU');
+  await expect(skuSelector).toHaveClass(/select-control/);
+  await expect(page.getByRole('heading', { name: '請先選擇 SKU' })).toBeVisible();
+  await expect(page.getByText('Latest Version', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Firmware data window')).toHaveCount(0);
+  expect(distributionRequests).toHaveLength(0);
+
+  await skuSelector.selectOption('sku-alpha');
+  await expect(page).toHaveURL(/firmware-ota\?sku_id=sku-alpha$/);
+  await expect.poll(() => distributionRequests.some((url) => url.includes('sku_id=sku-alpha'))).toBeTruthy();
+  await expect(page.getByText('Latest Version', { exact: true })).toBeVisible();
+  await expect(page.getByText(/目前顯示 E2E sku-alpha Camera/)).toBeVisible();
+
+  await page.reload();
+  await expect(skuSelector).toHaveValue('sku-alpha');
+  await page.goBack();
+  await expect(page).toHaveURL(/firmware-ota$/);
+  await expect(page.getByRole('heading', { name: '請先選擇 SKU' })).toBeVisible();
+  await page.goForward();
+  await expect(page).toHaveURL(/firmware-ota\?sku_id=sku-alpha$/);
+  await expect(skuSelector).toHaveValue('sku-alpha');
+});

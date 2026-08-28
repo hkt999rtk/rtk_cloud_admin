@@ -588,6 +588,8 @@ Account Manager/Video Cloud contracts.
 
 Required layout:
 
+- SKU selector as the first control. The page does not load or combine firmware
+  status until the operator selects one SKU.
 - KPI strip with `Latest Version`, `Devices Current`, `Pending Update`, and
   `Failed Rollout`.
 - Firmware distribution panel with version rows, count, percent of fleet, and
@@ -600,8 +602,13 @@ Required layout:
 
 Behavior notes:
 
+- Firmware distribution, releases, campaigns, rollout details, and risk rows
+  are scoped to the selected SKU. Changing SKU clears campaign selection and
+  scope previews before loading the new SKU state.
+- The selected SKU is preserved in the `sku_id` query parameter for refresh,
+  direct links, and Back/Forward navigation.
 - Clicking a firmware version should navigate to the Devices page with that
-  firmware pre-filtered when supported.
+  firmware and SKU pre-filtered when supported.
 - Campaign creation, tenant-wide write actions, and policy editing are exposed
   only when the active membership has the corresponding release or OTA
   capability; Operations and Observer users remain read-only for release

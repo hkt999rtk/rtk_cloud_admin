@@ -224,6 +224,7 @@ function App() {
   const [chipsets, setChipsets] = useState(null);
   const [chipsetProviders, setChipsetProviders] = useState(null);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
+  const [firmwareSKUId, setFirmwareSKUId] = useState(() => new URLSearchParams(window.location.search).get('sku_id') || '');
   const [skus, setSKUs] = useState(null);
   const [releases, setReleases] = useState([]);
   const [jobs, setJobs] = useState(null);
@@ -276,6 +277,7 @@ function App() {
     setChipsets(null);
     setChipsetProviders(null);
     setFirmwareDistribution(null);
+    setFirmwareSKUId('');
     setSKUs(null);
     setJobs(null);
     setReports(null);
@@ -481,8 +483,8 @@ function App() {
         } else {
           setChipsets(null);
         }
-        if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin') {
-          const nextFirmwareDistribution = await fetchJSON('/api/fleet/firmware-distribution')
+        if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin' && firmwareSKUId) {
+          const nextFirmwareDistribution = await fetchJSON(`/api/fleet/firmware-distribution?sku_id=${encodeURIComponent(firmwareSKUId)}`)
             .catch((err) => {
               if (err.isAuthError) throw err;
               return sourceUnavailableFromError('firmware', err);
@@ -500,18 +502,14 @@ function App() {
           });
           if (!alive) return;
           setSKUs(nextSKUs);
-          if (active === 'firmware-ota' && nextSKUs?.skus?.length) {
-            const releaseResults = await Promise.all(nextSKUs.skus.map(async (sku) => {
-              try {
-                const result = await fetchJSON(`/api/skus/${encodeURIComponent(sku.id)}/releases`);
-                return (result?.items || result?.releases || []).map((release) => ({ ...release, sku_id: sku.id, sku_name: sku.name }));
-              } catch (err) {
-                if (err.isAuthError) throw err;
-                return [];
-              }
-            }));
+          if (active === 'firmware-ota' && firmwareSKUId && nextSKUs?.skus?.some((sku) => sku.id === firmwareSKUId)) {
+            const selectedSKU = nextSKUs.skus.find((sku) => sku.id === firmwareSKUId);
+            const releaseResult = await fetchJSON(`/api/skus/${encodeURIComponent(firmwareSKUId)}/releases`).catch((err) => {
+              if (err.isAuthError) throw err;
+              return { items: [], releases: [] };
+            });
             if (!alive) return;
-            setReleases(releaseResults.flat());
+            setReleases((releaseResult?.items || releaseResult?.releases || []).map((release) => ({ ...release, sku_id: selectedSKU.id, sku_name: selectedSKU.name })));
           } else {
             setReleases([]);
           }
@@ -624,7 +622,7 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, brandCloudPagination.limit, brandCloudPagination.offset, brandCloudQuery, brandCloudStatus, brandCloudTierFilter, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
+  }, [active, brandCloudPagination.limit, brandCloudPagination.offset, brandCloudQuery, brandCloudStatus, brandCloudTierFilter, firmwareSKUId, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
 
   useEffect(() => {
     if (!isPublicRoute || isLoginRoute) return;
@@ -644,6 +642,7 @@ function App() {
     setBrandCloudDrawerMode('');
     setSSOProviders([]);
     setFirmwareDistribution(null);
+    setFirmwareSKUId('');
     setSKUs(null);
     setFleetHealth(null);
     setStreamStats(null);
@@ -663,6 +662,7 @@ function App() {
     const onPopState = () => {
       const nextRoute = routeFromLocation();
       setActive(nextRoute);
+      setFirmwareSKUId(nextRoute === 'firmware-ota' ? new URLSearchParams(window.location.search).get('sku_id') || '' : '');
       const deviceId = deviceIdFromLocation();
       setSelectedDeviceId(deviceId);
       setDeviceDrawerOpen(Boolean(deviceId));
@@ -684,7 +684,21 @@ function App() {
     const targetPath = targetRoute === item.id ? item.path : `/console/${targetRoute}`;
     const path = cloudId && targetPath.startsWith('/console/') ? `/console/${encodeURIComponent(cloudId)}/${targetPath.slice('/console/'.length)}` : targetPath;
     window.history.pushState({}, '', path);
+    if (targetRoute === 'firmware-ota') {
+      setFirmwareDistribution(null);
+      setFirmwareSKUId('');
+    }
     setActive(targetRoute);
+  }
+
+  function selectFirmwareSKU(skuID) {
+    const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
+    const path = cloudId ? `/console/${encodeURIComponent(cloudId)}/firmware-ota` : '/console/firmware-ota';
+    const params = new URLSearchParams();
+    if (skuID) params.set('sku_id', skuID);
+    window.history.pushState({}, '', `${path}${params.size ? `?${params.toString()}` : ''}`);
+    setFirmwareDistribution(null);
+    setFirmwareSKUId(skuID);
   }
 
   function navigateBrandCloudTab(targetRoute) {
@@ -711,10 +725,10 @@ function App() {
     updateDevicesLocation({ deviceId: '' });
   }
 
-  function openDevicesForFirmware(version) {
+  function openDevicesForFirmware(version, skuID) {
     setSelectedDeviceId('');
     setDeviceDrawerOpen(false);
-    updateDevicesLocation({ deviceId: '', health: '', firmware: firmwareVersionFilterValue(version) });
+    updateDevicesLocation({ deviceId: '', health: '', firmware: firmwareVersionFilterValue(version), skuID });
     setActive('devices');
   }
 
@@ -1146,7 +1160,6 @@ function App() {
             ) : null}
             {active === 'overview' ? <WindowToggle value={overviewWindow} onChange={setOverviewWindow} label="Fleet health window" disabled={!sourceAvailable(fleetHealth)} /> : null}
             {active === 'stream-health' ? <WindowToggle value={streamWindow} onChange={setStreamWindow} label="Stream health window" disabled={!sourceAvailable(streamStats)} /> : null}
-            {active === 'firmware-ota' ? <StaticWindowToggle /> : null}
             {me?.authenticated ? <button type="button" className="ghost-button icon-text-button" onClick={handleLogout}><Icon name="right-from-bracket" />Logout</button> : null}
           </div>
         </header>
@@ -1204,12 +1217,14 @@ function App() {
           <FirmwareOTAPage
             loading={loading}
             distribution={firmwareDistribution}
+            selectedSKUId={firmwareSKUId}
             skus={skus?.skus || []}
             releases={releases}
             onViewDevices={openDevicesForFirmware}
             onCampaignAction={runUpdatePlanAction}
             canRelease={canUseCapability({ capabilities: me?.capabilities || [] }, 'firmware.release.manage')}
             canManageOTA={canUseCapability({ capabilities: me?.capabilities || [] }, 'ota.plan.manage')}
+            onSelectSKU={selectFirmwareSKU}
             onRefresh={() => setRefreshTick((tick) => tick + 1)}
           />
         ) : null}
@@ -2896,11 +2911,12 @@ function ReportsPage({ data, skus, loading, canCreate, onRefresh }) {
   </section>;
 }
 
-function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices, onCampaignAction, canRelease, canManageOTA, onRefresh }) {
+function FirmwareOTAPage({ loading, distribution, selectedSKUId, skus, releases, onViewDevices, onCampaignAction, canRelease, canManageOTA, onSelectSKU, onRefresh }) {
   const versions = distribution?.versions || [];
   const campaigns = distribution?.campaigns || [];
+  const selectedSKU = skus.find((sku) => sku.id === selectedSKUId) || null;
+  const hasSelection = Boolean(selectedSKUId && selectedSKU);
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
-  const [releaseSKU, setReleaseSKU] = useState('');
   const [releaseVersion, setReleaseVersion] = useState('');
   const [releaseBuild, setReleaseBuild] = useState('');
   const [releaseSize, setReleaseSize] = useState('');
@@ -2916,9 +2932,18 @@ function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices,
   const [excludedDeviceText, setExcludedDeviceText] = useState('');
   const [scopePreview, setScopePreview] = useState(null);
   const [scopeLoading, setScopeLoading] = useState(false);
+  function selectSKU(event) {
+    const skuID = event.target.value;
+    setSelectedCampaignId('');
+    setPlanRelease('');
+    setPlanMessage('');
+    setScopePreview(null);
+    setReleaseMessage('');
+    onSelectSKU(skuID);
+  }
   async function publishRelease(event) {
     event.preventDefault();
-    if (!releaseSKU || !releaseVersion.trim()) return;
+    if (!selectedSKUId || !releaseVersion.trim()) return;
     const file = event.currentTarget.elements.artifact?.files?.[0];
     let artifactSize = Number(releaseSize);
     let artifactSHA = releaseSHA.trim();
@@ -2931,8 +2956,8 @@ function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices,
       setReleaseMessage('請上傳韌體檔案，或填寫檔案大小與 SHA-256。');
       return;
     }
-    const response = await fetch(`/api/skus/${encodeURIComponent(releaseSKU)}/releases`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-${releaseSKU}-${releaseVersion.trim()}` },
+    const response = await fetch(`/api/skus/${encodeURIComponent(selectedSKUId)}/releases`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-${selectedSKUId}-${releaseVersion.trim()}` },
       body: JSON.stringify({ version: releaseVersion.trim(), build_number: releaseBuild.trim(), artifact_size: artifactSize, artifact_sha256: artifactSHA, hardware_revisions: releaseHardware.split(',').map((item) => item.trim()).filter(Boolean), content_type: file?.type || 'application/octet-stream' }),
     });
     if (response.ok && file) {
@@ -3026,21 +3051,34 @@ function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices,
         </div>
       </div>
 
-      <section className="metrics firmware-page-metrics">
-        <MetricCard icon="microchip" label="Latest Version" value={available ? latestVersion : 'Unavailable'} hint={available ? 'Current target release' : unavailableText} tone="info" />
-        <MetricCard icon="circle-check" label="Devices Current" value={available ? currentDevices : 'Unavailable'} hint={available ? `${formatPercent(latestVersionRow?.pct || 0)} of fleet` : unavailableText} tone="good" />
-        <MetricCard icon="cloud-arrow-up" label="Pending Update" value={available ? pendingUpdate : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? pendingUpdate / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone="info" />
-        <MetricCard icon="circle-exclamation" label="Failed Rollout" value={available ? failedRollout : 'Unavailable'} hint={available ? (primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout') : unavailableText} tone={failedRollout ? 'danger' : 'good'} />
+      <section className="firmware-sku-selector" aria-label="Firmware SKU selector">
+        <label className="firmware-sku-field">
+          <span>SKU</span>
+          <select className="select-control" aria-label="選擇 Firmware SKU" value={selectedSKUId} onChange={selectSKU} disabled={!skus.length}>
+            <option value="">請先選擇 SKU</option>
+            {skus.map((sku) => <option value={sku.id} key={sku.id}>{sku.name}</option>)}
+          </select>
+        </label>
+        <p>{selectedSKU ? `目前顯示 ${selectedSKU.name} 的韌體版本、設備分布與 OTA 更新狀態。` : '選擇 SKU 後才會載入對應的韌體與 OTA 狀態。'}</p>
       </section>
 
-      {canRelease && skus.some((sku) => sku.allowed_actions?.includes('manage_updates')) ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>新增韌體版本</h3><p>先把版本登記到指定 SKU，再建立更新計畫。檔案上傳與簽章仍依品牌的發布流程完成。</p></div></div><form className="inline-form" onSubmit={publishRelease}><select required value={releaseSKU} onChange={(event) => setReleaseSKU(event.target.value)}><option value="">選擇 SKU</option>{skus.filter((sku) => sku.allowed_actions?.includes('manage_updates')).map((sku) => <option value={sku.id} key={sku.id}>{sku.name}</option>)}</select><input required placeholder="版本，例如 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input required placeholder="Build 編號" value={releaseBuild} onChange={(event) => setReleaseBuild(event.target.value)} /><input name="artifact" type="file" accept="application/octet-stream,.bin" aria-label="韌體檔案（可選）" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setReleaseSize(String(file.size)); } }} /><input type="number" min="1" placeholder="檔案大小（沒有檔案時填寫）" value={releaseSize} onChange={(event) => setReleaseSize(event.target.value)} /><input pattern="[a-fA-F0-9]{64}" placeholder="SHA-256（沒有檔案時填寫）" value={releaseSHA} onChange={(event) => setReleaseSHA(event.target.value)} /><input required placeholder="硬體版本（逗號分隔）" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} /><details><summary>簽章設定（進階）</summary><input placeholder="簽章金鑰名稱" value={releaseSigningKey} onChange={(event) => setReleaseSigningKey(event.target.value)} /><input placeholder="簽章內容" value={releaseSignature} onChange={(event) => setReleaseSignature(event.target.value)} /></details><button type="submit" className="primary">建立版本</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
-      {canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>建立更新計畫</h3><p>先取得 server scope preview，再建立 immutable OTA plan；browser 不決定 target count。</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">選擇韌體版本</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.sku_name || release.sku_id} · {release.version}</option>)}</select><input placeholder="計畫名稱（選填）" value={planName} onChange={(event) => setPlanName(event.target.value)} /><input placeholder="區域（逗號分隔）" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="群組 ID（逗號分隔）" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="韌體版本（逗號分隔）" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="健康狀態（逗號分隔）" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="排除 device IDs（逗號或空白分隔）" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? '計算範圍中…' : 'Preview server scope'}</button><button type="submit" className="primary" disabled={!scopePreview?.scope}>建立更新計畫</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{Number(scopePreview.target_count || 0).toLocaleString()}</strong></span><span>Excluded <strong>{Number(scopePreview.excluded_count || 0).toLocaleString()}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
-      {releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>韌體版本</h3><p>版本必須先完成上傳與檢查，才能發布給更新計畫使用。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>SKU</th><th>版本</th><th>狀態</th><th>操作</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.sku_id}:${release.id || release.release_id}`}><td>{release.sku_name || release.sku_id}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>發布</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>撤回</button> : null}{!canRelease ? <span className="muted">唯讀</span> : null}</td></tr>)}</tbody></table></div></section> : null}
+      {!hasSelection ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3>請先選擇 SKU</h3><p>不同 SKU 的硬體型號、韌體版本與更新計畫彼此獨立。</p></div></section> : null}
 
-      {loading && !distribution ? <p className="empty-state">Loading firmware distribution.</p> : null}
-      {distribution && !available ? <SourceBlockedState title={pageState.title} message={unavailableText} /> : null}
+      {hasSelection && available ? <section className="metrics firmware-page-metrics">
+        <MetricCard icon="microchip" label="Latest Version" value={latestVersion} hint="Current target release" tone="info" />
+        <MetricCard icon="circle-check" label="Devices Current" value={currentDevices} hint={`${formatPercent(latestVersionRow?.pct || 0)} of selected SKU`} tone="good" />
+        <MetricCard icon="cloud-arrow-up" label="Pending Update" value={pendingUpdate} hint={primaryCampaign ? `${formatPercent(primaryCampaign.total ? pendingUpdate / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout'} tone="info" />
+        <MetricCard icon="circle-exclamation" label="Failed Rollout" value={failedRollout} hint={primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of rollout` : 'No active rollout'} tone={failedRollout ? 'danger' : 'good'} />
+      </section> : null}
 
-      {distribution && available ? (
+      {hasSelection && canRelease && selectedSKU.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>新增韌體版本</h3><p>版本會登記到 {selectedSKU.name}，再由同一個 SKU 建立更新計畫。</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="版本，例如 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input required placeholder="Build 編號" value={releaseBuild} onChange={(event) => setReleaseBuild(event.target.value)} /><input name="artifact" type="file" accept="application/octet-stream,.bin" aria-label="韌體檔案（可選）" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setReleaseSize(String(file.size)); } }} /><input type="number" min="1" placeholder="檔案大小（沒有檔案時填寫）" value={releaseSize} onChange={(event) => setReleaseSize(event.target.value)} /><input pattern="[a-fA-F0-9]{64}" placeholder="SHA-256（沒有檔案時填寫）" value={releaseSHA} onChange={(event) => setReleaseSHA(event.target.value)} /><input required placeholder="硬體版本（逗號分隔）" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} /><details><summary>簽章設定（進階）</summary><input placeholder="簽章金鑰名稱" value={releaseSigningKey} onChange={(event) => setReleaseSigningKey(event.target.value)} /><input placeholder="簽章內容" value={releaseSignature} onChange={(event) => setReleaseSignature(event.target.value)} /></details><button type="submit" className="primary-button">建立版本</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
+      {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>建立更新計畫</h3><p>先取得 server scope preview，再建立 immutable OTA plan；browser 不決定 target count。</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">選擇韌體版本</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder="計畫名稱（選填）" value={planName} onChange={(event) => setPlanName(event.target.value)} /><input placeholder="區域（逗號分隔）" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="群組 ID（逗號分隔）" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="韌體版本（逗號分隔）" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="健康狀態（逗號分隔）" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="排除 device IDs（逗號或空白分隔）" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? '計算範圍中…' : 'Preview server scope'}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope}>建立更新計畫</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{Number(scopePreview.target_count || 0).toLocaleString()}</strong></span><span>Excluded <strong>{Number(scopePreview.excluded_count || 0).toLocaleString()}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
+      {hasSelection && releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>韌體版本</h3><p>版本必須先完成上傳與檢查，才能發布給更新計畫使用。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>SKU</th><th>版本</th><th>狀態</th><th>操作</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.sku_id}:${release.id || release.release_id}`}><td>{selectedSKU.name}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>發布</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>撤回</button> : null}{!canRelease ? <span className="muted">唯讀</span> : null}</td></tr>)}</tbody></table></div></section> : null}
+
+      {hasSelection && loading && !distribution ? <p className="empty-state">正在載入 {selectedSKU.name} 的韌體狀態。</p> : null}
+      {hasSelection && distribution && !available ? <SourceBlockedState title={pageState.title} message={unavailableText} /> : null}
+
+      {hasSelection && distribution && available ? (
         <>
         <div className="firmware-layout">
           <section className="panel firmware-panel">
@@ -3057,7 +3095,7 @@ function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices,
                     key={version.version}
                     type="button"
                     className={`firmware-version-row${version.is_latest ? ' is-latest' : ''}`}
-                    onClick={() => onViewDevices(version.version)}
+                    onClick={() => onViewDevices(version.version, selectedSKUId)}
                   >
                     <div className="firmware-version-row__meta">
                       <div>
@@ -3127,14 +3165,10 @@ function FirmwareOTAPage({ loading, distribution, skus, releases, onViewDevices,
           </section>
 
           <FirmwareCampaignDetail campaign={selectedCampaign} onAction={canManageOTA ? onCampaignAction : null} canManage={canManageOTA} />
-          <FirmwareRiskQueue campaigns={campaigns} onViewDevices={onViewDevices} />
+          <FirmwareRiskQueue campaigns={campaigns} onViewDevices={(version) => onViewDevices(version, selectedSKUId)} />
         </div>
         </>
-      ) : !distribution ? (
-        <p className="empty-state">No firmware distribution data available.</p>
-      ) : (
-        <p className="empty-state">{unavailableText}</p>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -4880,15 +4914,6 @@ function WindowToggle({ value, onChange, label, disabled = false, options = ['7d
           {option}
         </button>
       ))}
-    </div>
-  );
-}
-
-function StaticWindowToggle() {
-  return (
-    <div className="window-toggle" aria-label="Firmware data window">
-      <button type="button" className="active">7d</button>
-      <button type="button">30d</button>
     </div>
   );
 }
@@ -6682,7 +6707,7 @@ function filterQueryValue(value) {
   return String(value).toLowerCase().replaceAll(/\s+/g, '_');
 }
 
-function updateDevicesLocation({ deviceId, health, status, signal, firmware, q, sort, direction, offset } = {}) {
+function updateDevicesLocation({ deviceId, health, status, signal, firmware, skuID, q, sort, direction, offset } = {}) {
   const current = new URLSearchParams(window.location.search);
   const path = devicesPathWithFilters({
     deviceId: deviceId === undefined ? current.get('device') || '' : deviceId,
@@ -6690,6 +6715,7 @@ function updateDevicesLocation({ deviceId, health, status, signal, firmware, q, 
     status: status === undefined ? current.get('status') || '' : status,
     signal: signal === undefined ? current.get('signal') || '' : signal,
     firmware: firmware === undefined ? current.get('firmware') || '' : firmware,
+    skuID: skuID === undefined ? current.get('sku_id') || '' : skuID,
     q: q === undefined ? current.get('q') || '' : q,
     sort: sort === undefined ? current.get('sort') || '' : sort,
     direction: direction === undefined ? current.get('direction') || '' : direction,
