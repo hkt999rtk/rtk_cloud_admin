@@ -43,7 +43,6 @@ type Server struct {
 	projections         projectionStore
 	lifecycleOperations lifecycleOperationStore
 	jobs                batchJobStore
-	sources             provisioningSourceStore
 	mux                 *http.ServeMux
 	handler             http.Handler
 	cfg                 config.Config
@@ -102,7 +101,6 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 		projections:         st,
 		lifecycleOperations: st,
 		jobs:                st,
-		sources:             st,
 		mux:                 http.NewServeMux(),
 		cfg:                 opts.Config,
 		accountClient:       opts.AccountClient,
@@ -336,9 +334,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/jobs/{id}/retry", s.apiJobRetry)
 	s.mux.HandleFunc("POST /api/jobs/{id}/{action}", s.apiJobAction)
 	s.mux.HandleFunc("GET /api/jobs/{id}/result", s.apiJobResult)
-	s.mux.HandleFunc("POST /api/provisioning/validate", s.apiProvisioningValidate)
-	s.mux.HandleFunc("POST /api/provisioning/sources", s.apiProvisioningSource)
-	s.mux.HandleFunc("POST /api/provisioning/jobs", s.apiProvisioningJob)
 	s.mux.HandleFunc("GET /api/reports", s.apiReports)
 	s.mux.HandleFunc("POST /api/reports", s.apiReports)
 	s.mux.HandleFunc("GET /api/reports/{id}", s.apiReport)
@@ -424,7 +419,6 @@ func (s *Server) routes() {
 		"/console/chipset-sdk",
 		"/console/jobs",
 		"/console/reports",
-		"/console/provisioning",
 		"/console/billing",
 		"/console/groups",
 		"/console/customers",
@@ -1914,227 +1908,6 @@ func (s *Server) apiJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	go s.runBatchJob(job, tokens.AccessToken)
 	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "fleet.batch_job.create", Target: job.ID, OrganizationID: org.ID, Result: "accepted", RequestID: correlation.FromContext(r.Context()).RequestID})
-	writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": job, "source_status": "available"})
-}
-
-func (s *Server) apiProvisioningValidate(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "customer authentication required", http.StatusUnauthorized)
-		return
-	}
-	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	if !requireCustomerCapability(w, org, capabilityProvisioningCreate) {
-		return
-	}
-	key, ok := requireIdempotencyKey(w, r)
-	if !ok {
-		return
-	}
-	var request struct {
-		Product       string   `json:"product_id"`
-		ProductionRun string   `json:"production_run"`
-		SourceID      string   `json:"source_id"`
-		DeviceIDs     []string `json:"device_ids"`
-	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.Product) == "" {
-		http.Error(w, "provisioning validation requires product_id and device_ids or source_id", http.StatusBadRequest)
-		return
-	}
-	if strings.TrimSpace(request.SourceID) != "" {
-		source, sourceErr := s.sources.GetProvisioningSource(org.ID, strings.TrimSpace(request.SourceID))
-		if sourceErr != nil || source.Product != strings.TrimSpace(request.Product) {
-			http.Error(w, "provisioning source is not available for this Brand Cloud", http.StatusBadRequest)
-			return
-		}
-		expiresAt, parseErr := time.Parse(time.RFC3339, source.ExpiresAt)
-		if parseErr != nil || !expiresAt.After(time.Now().UTC()) {
-			http.Error(w, "provisioning source has expired", http.StatusGone)
-			return
-		}
-		request.ProductionRun = source.ProductionRun
-		request.DeviceIDs = source.DeviceIDs
-	}
-	if len(request.DeviceIDs) == 0 {
-		http.Error(w, "provisioning validation requires device_ids or source_id", http.StatusBadRequest)
-		return
-	}
-	seen := map[string]bool{}
-	clean := make([]any, 0, len(request.DeviceIDs))
-	duplicates := []string{}
-	for _, id := range request.DeviceIDs {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			continue
-		}
-		if seen[id] {
-			duplicates = append(duplicates, id)
-			continue
-		}
-		seen[id] = true
-		clean = append(clean, id)
-	}
-	if len(clean) == 0 {
-		http.Error(w, "device_ids cannot be empty", http.StatusBadRequest)
-		return
-	}
-	scope := map[string]any{"product_id": strings.TrimSpace(request.Product), "production_run": strings.TrimSpace(request.ProductionRun), "source_id": strings.TrimSpace(request.SourceID), "device_ids": clean, "validation": map[string]any{"duplicate_device_ids": duplicates, "valid": len(duplicates) == 0}, "scope_hash": batchScopeHash(map[string]any{"product_id": request.Product, "production_run": request.ProductionRun, "source_id": request.SourceID, "device_ids": clean}), "idempotency_key": key}
-	if existing, lookupErr := s.jobs.GetBatchJobByIdempotency(org.ID, key); lookupErr == nil {
-		if existing.Type != "provisioning_validation" || fmt.Sprint(existing.Scope["scope_hash"]) != fmt.Sprint(scope["scope_hash"]) {
-			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different request data."})
-			return
-		}
-		writeJSONStatus(w, http.StatusAccepted, map[string]any{"validation_job": existing, "source_status": "available", "idempotent_replay": true})
-		return
-	}
-	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: "provisioning_validation", Name: "Provisioning validation", OrganizationID: org.ID, CreatedBy: session.Email, Scope: scope, State: "queued", Total: len(clean), IdempotencyKey: key})
-	if err != nil {
-		http.Error(w, "validation job unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	go s.runBatchJob(job, tokens.AccessToken)
-	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "provisioning.validation.create", Target: job.ID, OrganizationID: org.ID, Result: "accepted"})
-	writeJSONStatus(w, http.StatusAccepted, map[string]any{"validation_job": job, "source_status": "available"})
-}
-
-func (s *Server) apiProvisioningSource(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "customer authentication required", http.StatusUnauthorized)
-		return
-	}
-	org, _, err := s.activeCustomerOrg(r.Context(), session)
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	if !requireCustomerCapability(w, org, capabilityProvisioningCreate) {
-		return
-	}
-	key, ok := requireIdempotencyKey(w, r)
-	if !ok {
-		return
-	}
-	if r.ContentLength > 16<<20 {
-		http.Error(w, "provisioning source exceeds the 16 MiB limit", http.StatusRequestEntityTooLarge)
-		return
-	}
-	if err := r.ParseMultipartForm(16 << 20); err != nil {
-		http.Error(w, "provisioning source upload is invalid", http.StatusBadRequest)
-		return
-	}
-	product := strings.TrimSpace(r.FormValue("product_id"))
-	if product == "" {
-		http.Error(w, "product_id is required", http.StatusBadRequest)
-		return
-	}
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		http.Error(w, "provisioning source file is required", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-	raw, err := io.ReadAll(io.LimitReader(file, 16<<20+1))
-	if err != nil || len(raw) > 16<<20 {
-		http.Error(w, "provisioning source exceeds the 16 MiB limit", http.StatusRequestEntityTooLarge)
-		return
-	}
-	reader := csv.NewReader(bytes.NewReader(raw))
-	reader.FieldsPerRecord = -1
-	ids := make([]string, 0, 1024)
-	for len(ids) <= 100000 {
-		record, readErr := reader.Read()
-		if errors.Is(readErr, io.EOF) {
-			break
-		}
-		if readErr != nil || len(record) == 0 {
-			http.Error(w, "provisioning source CSV is invalid", http.StatusBadRequest)
-			return
-		}
-		id := strings.Trim(strings.TrimSpace(record[0]), "\"")
-		if id == "" || strings.EqualFold(id, "device_id") || strings.EqualFold(id, "device id") || strings.EqualFold(id, "id") {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if len(ids) == 0 || len(ids) > 100000 {
-		http.Error(w, "provisioning source must contain between 1 and 100000 device IDs", http.StatusBadRequest)
-		return
-	}
-	digest := sha256.Sum256(raw)
-	checksum := fmt.Sprintf("sha256:%x", digest[:])
-	if existing, lookupErr := s.sources.GetProvisioningSourceByIdempotency(org.ID, key); lookupErr == nil {
-		if existing.Checksum != checksum || existing.Product != product {
-			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different source data."})
-			return
-		}
-		writeJSONStatus(w, http.StatusCreated, map[string]any{"source": existing, "source_status": "available", "idempotent_replay": true})
-		return
-	}
-	source, err := s.sources.CreateProvisioningSource(contracts.ProvisioningSource{OrganizationID: org.ID, Product: product, ProductionRun: strings.TrimSpace(r.FormValue("production_run")), Filename: header.Filename, Checksum: checksum, RowCount: len(ids), DeviceIDs: ids}, key)
-	if err != nil {
-		http.Error(w, "provisioning source could not be stored", http.StatusServiceUnavailable)
-		return
-	}
-	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "provisioning.source.create", Target: source.ID, OrganizationID: org.ID, Result: "accepted"})
-	writeJSONStatus(w, http.StatusCreated, map[string]any{"source": source, "source_status": "available"})
-}
-
-func (s *Server) apiProvisioningJob(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "customer authentication required", http.StatusUnauthorized)
-		return
-	}
-	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	if !requireCustomerCapability(w, org, capabilityProvisioningCreate) {
-		return
-	}
-	key, ok := requireIdempotencyKey(w, r)
-	if !ok {
-		return
-	}
-	var request struct {
-		ValidationJobID string `json:"validation_job_id"`
-	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.ValidationJobID) == "" {
-		http.Error(w, "validation_job_id is required", http.StatusBadRequest)
-		return
-	}
-	validation, err := s.jobs.GetBatchJob(org.ID, request.ValidationJobID)
-	if err != nil || validation.Type != "provisioning_validation" {
-		http.Error(w, "validation job not found", http.StatusNotFound)
-		return
-	}
-	valid, _ := validation.Scope["validation"].(map[string]any)
-	if ok, _ := valid["valid"].(bool); !ok || validation.State != "completed" {
-		http.Error(w, "validation must complete successfully before provisioning", http.StatusConflict)
-		return
-	}
-	scope := map[string]any{"query": map[string]any{}, "device_ids": validation.Scope["device_ids"], "product_id": validation.Scope["product_id"], "validation_job_id": validation.ID, "scope_hash": batchScopeHash(validation.Scope), "idempotency_key": key}
-	if existing, lookupErr := s.jobs.GetBatchJobByIdempotency(org.ID, key); lookupErr == nil {
-		if existing.Type != "device_provision" || fmt.Sprint(existing.Scope["scope_hash"]) != fmt.Sprint(scope["scope_hash"]) {
-			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED", "message": "Idempotency-Key was already used with different request data."})
-			return
-		}
-		writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": existing, "source_status": "available", "idempotent_replay": true})
-		return
-	}
-	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: "device_provision", Name: "Provisioning execution", OrganizationID: org.ID, CreatedBy: session.Email, Scope: scope, State: "queued", Total: validation.Total, IdempotencyKey: key})
-	if err != nil {
-		http.Error(w, "provisioning job unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	go s.runBatchJob(job, tokens.AccessToken)
-	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "provisioning.execution.create", Target: job.ID, OrganizationID: org.ID, Result: "accepted"})
 	writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": job, "source_status": "available"})
 }
 

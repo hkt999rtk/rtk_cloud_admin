@@ -582,20 +582,7 @@ main {
   flex: 1 1 100%;
 }
 
-.provisioning-form {
-  flex-wrap: wrap;
-}
-
-.provisioning-form textarea {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  min-height: 72px;
-  min-width: 360px;
-  padding: 9px 11px;
-}
-
-.field-help,
-.validation-detail-list {
+.field-help {
   color: var(--muted);
   font-size: 12px;
   margin: 10px 0 0;
@@ -766,19 +753,6 @@ main {
 
 .report-builder-actions .primary-button {
   min-height: 42px;
-}
-
-.validation-detail-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.validation-detail-list span {
-  background: var(--surface-muted);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 5px 8px;
 }
 
 .scope-preview-grid {

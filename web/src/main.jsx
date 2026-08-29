@@ -1322,7 +1322,6 @@ function App() {
           />
         ) : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} products={products?.products || []} loading={loading} canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'reports.create')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'provisioning' ? <ProvisioningPage canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'provisioning.create')} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <BillingPage data={billing} loading={loading} capabilities={me?.capabilities || []} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
@@ -3109,86 +3108,6 @@ function PKITestBundleTool({ activeCloudId }) {
     finally { setBusy(false); }
   }
   return <section className="panel"><div className="panel-head"><div><h3>PKI Test Bundle</h3><p>本機產生 exportable P-256 key；只將 CSR 送往後端。固定有效期 30 天，僅供 local/staging。</p></div></div><form className="inline-form pki-test-form" onSubmit={issue}><select className="select-control" aria-label="憑證類型" value={kind} onChange={(event) => setKind(event.target.value)}><option value="app">App mTLS</option><option value="device">Device mTLS</option></select>{kind === 'app' ? <select className="select-control" aria-label="App 身分類型" value={targetType} onChange={(event) => setTargetType(event.target.value)}><option value="brand_cloud_user">Brand Cloud user</option><option value="end_user">End user</option></select> : null}<input required placeholder={kind === 'device' ? 'Device ID' : 'User ID'} value={targetId} onChange={(event) => setTargetId(event.target.value)} />{kind === 'device' ? <><input required placeholder="Device item profile ID" value={profileId} onChange={(event) => setProfileId(event.target.value)} /><input required placeholder="Serial number" value={serial} onChange={(event) => setSerial(event.target.value)} /></> : null}<button type="submit" className="primary-button" disabled={busy}>{busy ? '建立中…' : '產生並下載'}</button></form>{message ? <p className="notice" role="status">{message}</p> : null}</section>;
-}
-
-function ProvisioningPage({ canCreate }) {
-  const [productId, setProductId] = useState('');
-  const [productionRun, setProductionRun] = useState('');
-  const [deviceText, setDeviceText] = useState('');
-  const [deviceFile, setDeviceFile] = useState(null);
-  const [validationJob, setValidationJob] = useState(null);
-  const [executionJob, setExecutionJob] = useState(null);
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  useEffect(() => {
-    const job = executionJob || validationJob;
-    if (!job || ['completed', 'failed', 'cancelled', 'partial_failed'].includes(job.state)) return undefined;
-    const timer = window.setInterval(async () => {
-      const next = await refreshJob(job);
-      if (executionJob) setExecutionJob(next);
-      else setValidationJob(next);
-    }, 2500);
-    return () => window.clearInterval(timer);
-  }, [validationJob?.id, validationJob?.state, executionJob?.id, executionJob?.state]);
-  async function refreshJob(job) {
-    const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}`);
-    if (!response.ok) return job;
-    const result = await response.json();
-    return result.job || job;
-  }
-  async function validate(event) {
-    event.preventDefault();
-    const deviceIds = deviceFile ? [] : deviceText.split(/[\r\n,\s]+/).map((item) => item.trim().replace(/^"|"$/g, '')).filter((item) => item && !/^device(_| )?id$/i.test(item));
-    if (!productId.trim() || (!deviceFile && !deviceIds.length)) { setMessage('請填寫 Product，並提供 CSV 或至少一個設備 ID。'); return; }
-    setLoading(true);
-    let sourceId = '';
-    if (deviceFile) {
-      const sourceForm = new FormData();
-      sourceForm.append('product_id', productId.trim());
-      sourceForm.append('production_run', productionRun.trim());
-      sourceForm.append('file', deviceFile);
-      const sourceResponse = await fetch('/api/provisioning/sources', { method: 'POST', headers: { 'Idempotency-Key': `provision-source-${deviceFile.name}-${deviceFile.size}-${deviceFile.lastModified}` }, body: sourceForm });
-      const sourceBody = await sourceResponse.json().catch(() => ({}));
-      if (!sourceResponse.ok) { setLoading(false); setMessage(sourceBody.message || '設備清單 source 無法上傳。'); return; }
-      sourceId = sourceBody.source?.id || '';
-    }
-    const validationPayload = sourceId ? { product_id: productId.trim(), production_run: productionRun.trim(), source_id: sourceId } : { product_id: productId.trim(), production_run: productionRun.trim(), device_ids: deviceIds };
-    const response = await fetch('/api/provisioning/validate', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `provision-validation-${sourceId || `${productId.trim()}-${deviceIds.join(',')}`}` }, body: JSON.stringify(validationPayload) });
-    const body = await response.json().catch(() => ({}));
-    setLoading(false);
-    if (!response.ok) { setMessage(body.message || 'Validation job 無法建立。'); return; }
-    setValidationJob(body.validation_job);
-    setExecutionJob(null);
-    setMessage(`Validation job 已建立（${deviceFile ? `${deviceFile.name} upload` : 'JSON device IDs'}），正在等待 immutable validation result。`);
-  }
-  async function confirmProvisioning() {
-    if (!validationJob) return;
-    const current = await refreshJob(validationJob);
-    setValidationJob(current);
-    if (current.state !== 'completed') { setMessage(current.state === 'failed' ? 'Validation 失敗，請修正設備清單後重新驗證。' : 'Validation 尚未完成，請稍後再確認。'); return; }
-    const response = await fetch('/api/provisioning/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `provision-execution-${current.id}` }, body: JSON.stringify({ validation_job_id: current.id }) });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) { setMessage(body.message || 'Provisioning job 無法建立。'); return; }
-    setExecutionJob(body.job);
-    setMessage('Provisioning execution 已建立，可在此查看逐筆結果與重試狀態。');
-  }
-  async function jobAction(job, action) {
-    const endpoint = action === 'retry' ? `/api/jobs/${encodeURIComponent(job.id)}/retry` : `/api/jobs/${encodeURIComponent(job.id)}/${action}`;
-    const response = await fetch(endpoint, { method: 'POST', headers: { 'Idempotency-Key': `provision-${action}-${job.id}` } });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) { setMessage(body.message || `Provisioning ${action} 目前無法執行。`); return; }
-    if (action === 'retry') setExecutionJob(body.job || null);
-    else if (executionJob?.id === job.id) setExecutionJob(body.job || { ...job, state: action === 'cancel' ? 'cancelled' : job.state });
-    else setValidationJob(body.job || { ...job, state: action === 'cancel' ? 'cancelled' : job.state });
-    setMessage(action === 'retry' ? '失敗項目已建立新的 provisioning retry attempt。' : `Provisioning job 已${action === 'cancel' ? '取消' : '更新'}。`);
-  }
-  return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Onboarding</p><h2>設備註冊</h2><p>先建立 immutable validation result，再確認並執行 provisioning。預計數量不由 browser 視為真實 target count。</p></div></div>
-    {!canCreate ? <section className="panel split-panel"><div><h3>沒有 provisioning 權限</h3><p>目前 membership 只能查看既有 validation 與 execution 結果。</p></div></section> : <section className="panel"><form className="inline-form provisioning-form" onSubmit={validate}><input required placeholder="Product ID" value={productId} onChange={(event) => setProductId(event.target.value)} /><input placeholder="Production run（選填）" value={productionRun} onChange={(event) => setProductionRun(event.target.value)} /><input type="file" accept=".csv,text/csv" aria-label="設備清單 CSV" onChange={(event) => setDeviceFile(event.target.files?.[0] || null)} /><textarea placeholder="相容模式：設備 ID，一行或以空白分隔" value={deviceText} onChange={(event) => setDeviceText(event.target.value)} /><button type="submit" className="primary" disabled={loading}>{loading ? '驗證中…' : '開始驗證'}</button></form><p className="field-help">CSV upload 與 JSON device IDs 二選一；target count、duplicate 與 validation result 由 server 計算。</p></section>}
-    {message ? <div className="notice">{message}</div> : null}
-    {validationJob ? <section className="panel"><div className="panel-head"><div><h3>Immutable validation result</h3><p>{validationJob.id} · {validationJob.state} · scope hash {validationJob.scope?.scope_hash || '—'}</p></div><div className="inline-actions"><button type="button" className="primary" disabled={!canCreate || validationJob.state !== 'completed' || validationJob.scope?.validation?.valid === false} onClick={confirmProvisioning}>確認並建立 Provisioning job</button>{canCreate && ['queued', 'running'].includes(validationJob.state) ? <button type="button" className="link-button" onClick={() => jobAction(validationJob, 'cancel')}>取消 validation</button> : null}</div></div><div className="status-grid"><div><small>Server target count</small><strong>{validationJob.total?.toLocaleString?.() || 0}</strong></div><div><small>Validated / completed</small><strong>{validationJob.completed?.toLocaleString?.() || 0}</strong></div><div><small>Failed</small><strong>{validationJob.failed?.toLocaleString?.() || 0}</strong></div><div><small>Retryable</small><strong>{validationJob.retryable ? '是' : '否'}</strong></div></div><div className="validation-detail-list"><span>duplicate：{validationJob.scope?.validation?.duplicate_device_ids?.length || 0}</span><span>Product/hardware mismatch：{validationJob.scope?.validation?.product_hardware_mismatch || 0}</span><span>existing device：{validationJob.scope?.validation?.existing_device_ids || 0}</span><span>missing field：{validationJob.scope?.validation?.missing_fields || 0}</span></div></section> : null}
-    {executionJob ? <section className="panel"><div className="panel-head"><div><h3>Provisioning execution</h3><p>{executionJob.id} · {executionJob.state} · expires {executionJob.expires_at || '—'}</p></div><div className="inline-actions"><a className="inline-action" href={`/api/jobs/${encodeURIComponent(executionJob.id)}/result`}>查看 JSON</a><a className="inline-action" href={`/api/jobs/${encodeURIComponent(executionJob.id)}/result?format=csv`}>下載 CSV</a>{canCreate && executionJob.failed > 0 ? <button type="button" className="ghost-button" onClick={() => jobAction(executionJob, 'retry')}>重試失敗項目</button> : null}{canCreate && !['completed', 'failed', 'cancelled', 'partial_failed'].includes(executionJob.state) ? <button type="button" className="danger-button" onClick={() => jobAction(executionJob, 'cancel')}>取消 execution</button> : null}</div></div><div className="status-grid"><div><small>Progress</small><strong>{executionJob.completed || 0} / {executionJob.total || 0}</strong></div><div><small>Success</small><strong>{Math.max((executionJob.completed || 0) - (executionJob.failed || 0), 0)}</strong></div><div><small>Failed</small><strong>{executionJob.failed || 0}</strong></div><div><small>Skipped / retryable</small><strong>{executionJob.skipped || 0} / {executionJob.retryable ? '是' : '否'}</strong></div></div><p>逐筆成功、失敗、跳過與 retryability 會保留在 execution job，不會覆寫 validation history。</p></section> : null}
-  </section>;
 }
 
 function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
@@ -6695,7 +6614,7 @@ function userRoleDetails(role) {
       title: '設備營運管理員',
       icon: 'gauge-high',
       description: '你負責指定範圍內設備的日常營運與維護。',
-      actions: ['管理設備註冊與生命週期', '查看設備與串流健康狀態', '執行允許的韌體更新作業'],
+      actions: ['管理設備生命週期', '查看設備與串流健康狀態', '執行允許的韌體更新作業'],
     },
     installer: {
       title: '安裝與佈署人員',

@@ -15,7 +15,7 @@ against the approved design assets in `docs/assets/webui-design/`.
 - Sidebar groups are fixed and non-collapsible, in this order: 品牌雲、設備營運、
   產品與更新、監控與分析、帳號管理.
 - Group items appear in the approved order: 品牌雲首頁; 設備、群組與標籤、
-  設備註冊、批次工作; Product 與服務、ChipSet & SDK、韌體更新; 影像播放狀況、
+  批次工作; Product 與服務、ChipSet & SDK、韌體更新; 影像播放狀況、
   報表; 帳務與自動加值.
 - 團隊與權限 is not a separate sidebar item. 品牌雲首頁 remains active for the
   總覽、成員與權限、設定 tabs.
