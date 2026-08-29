@@ -1,6 +1,6 @@
 module rtk_cloud_admin
 
-go 1.26.3
+go 1.25.13
 
 require (
 	github.com/hkt999rtk/rtk_cloud_logger v0.0.0-20260724133957-e03921322662
