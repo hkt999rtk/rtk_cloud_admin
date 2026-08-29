@@ -11,7 +11,6 @@ export const customerNavGroups = [
     label: '設備營運',
     items: [
       { id: 'devices', label: '設備', path: '/console/devices', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
-      { id: 'provisioning', label: '設備註冊', path: '/console/provisioning', icon: 'plug-circle-bolt', capabilities: ['provisioning.read', 'provisioning.create'] },
     ],
   },
   {
@@ -164,7 +163,6 @@ export function titleFor(active) {
     'firmware-ota': '韌體更新',
     'stream-health': '影像播放狀況',
     reports: '報表',
-    provisioning: '設備註冊',
     billing: '帳務與自動加值',
     'platform-dashboard': '平台首頁',
     'platform-grafana': 'Grafana',
@@ -206,7 +204,7 @@ export function routeFromPath(path) {
   if (path.startsWith('/admin/')) return 'platform-dashboard';
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
-  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
+  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|billing)(?:\/|$)/);
   if (scoped) return scoped[2] === 'jobs' ? 'firmware-ota' : scoped[2];
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
   if (path === '/console/product-services' || path.startsWith('/console/product-services/')) return 'product-services';
@@ -218,7 +216,6 @@ export function routeFromPath(path) {
   if (path === '/console/stream-health' || path.startsWith('/console/stream-health/')) return 'stream-health';
   if (path === '/console/jobs' || path.startsWith('/console/jobs/')) return 'firmware-ota';
   if (path === '/console/reports' || path.startsWith('/console/reports/')) return 'reports';
-  if (path === '/console/provisioning' || path.startsWith('/console/provisioning/')) return 'provisioning';
   if (
     path === '/console/customers' ||
     path === '/console/audit' ||

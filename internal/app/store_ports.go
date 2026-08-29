@@ -48,17 +48,10 @@ type batchJobStore interface {
 	UpdateBatchJobResult(organizationID, id string, result []map[string]any) (contracts.BatchJob, error)
 }
 
-type provisioningSourceStore interface {
-	CreateProvisioningSource(source contracts.ProvisioningSource, idempotencyKey string) (contracts.ProvisioningSource, error)
-	GetProvisioningSource(organizationID, id string) (contracts.ProvisioningSource, error)
-	GetProvisioningSourceByIdempotency(organizationID, key string) (contracts.ProvisioningSource, error)
-}
-
 var (
 	_ sessionStore            = (*store.Store)(nil)
 	_ auditStore              = (*store.Store)(nil)
 	_ projectionStore         = (*store.Store)(nil)
 	_ lifecycleOperationStore = (*store.Store)(nil)
 	_ batchJobStore           = (*store.Store)(nil)
-	_ provisioningSourceStore = (*store.Store)(nil)
 )

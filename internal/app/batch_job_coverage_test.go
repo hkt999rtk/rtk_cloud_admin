@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -260,103 +259,19 @@ func TestBatchProvisioningHTTPWorkflow(t *testing.T) {
 		}
 	}
 
-	if rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(`{"product_id":"product-1","device_ids":["dev-1","dev-1",""]}`), "validate-1"); rec.Code != http.StatusAccepted {
-		t.Fatalf("validate status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-	validation := waitJob("validate-1")
-	if validation.State != "failed" {
-		t.Fatalf("duplicate validation = %+v", validation)
-	}
-	if rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(`{"product_id":"product-1","device_ids":["dev-1","dev-1",""]}`), "validate-1"); rec.Code != http.StatusAccepted {
-		t.Fatalf("validate replay status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-	if rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(`{"product_id":"product-2","device_ids":["dev-1"]}`), "validate-1"); rec.Code != http.StatusConflict {
-		t.Fatalf("validate conflict status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-	for _, tc := range []struct {
-		body string
-		key  string
-		want int
-	}{
-		{`{`, "bad-json", http.StatusBadRequest},
-		{`{"product_id":"product-1"}`, "no-devices", http.StatusBadRequest},
-		{`{"product_id":"product-1","device_ids":[" "]}`, "blank-devices", http.StatusBadRequest},
-		{`{"product_id":"product-1","source_id":"missing"}`, "missing-source", http.StatusBadRequest},
-		{`{"product_id":"product-1","device_ids":["dev-1"]}`, "", http.StatusPreconditionRequired},
-	} {
-		rec := request(http.MethodPost, "/api/provisioning/validate", strings.NewReader(tc.body), tc.key)
-		if rec.Code != tc.want {
-			t.Fatalf("validate %s status = %d, want %d; body=%s", tc.key, rec.Code, tc.want, rec.Body.String())
+	for _, path := range []string{"/api/provisioning/validate", "/api/provisioning/sources", "/api/provisioning/jobs"} {
+		if rec := request(http.MethodPost, path, strings.NewReader(`{}`), "removed-feature"); rec.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("removed provisioning endpoint %s status = %d, body=%s", path, rec.Code, rec.Body.String())
 		}
 	}
 
-	sourceBody := func(contents string) (*bytes.Buffer, string) {
-		t.Helper()
-		var body bytes.Buffer
-		writer := multipart.NewWriter(&body)
-		if err := writer.WriteField("product_id", "product-1"); err != nil {
-			t.Fatal(err)
-		}
-		if err := writer.WriteField("production_run", "run-1"); err != nil {
-			t.Fatal(err)
-		}
-		part, err := writer.CreateFormFile("file", "devices.csv")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := io.WriteString(part, contents); err != nil {
-			t.Fatal(err)
-		}
-		if err := writer.Close(); err != nil {
-			t.Fatal(err)
-		}
-		return &body, writer.FormDataContentType()
-	}
-	upload := func(contents, key string) *httptest.ResponseRecorder {
-		t.Helper()
-		body, contentType := sourceBody(contents)
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/api/provisioning/sources", body)
-		req.AddCookie(cookie)
-		req.Header.Set("Idempotency-Key", key)
-		req.Header.Set("Content-Type", contentType)
-		srv.ServeHTTP(rec, req)
-		return rec
-	}
-	if rec := upload("device_id\ndev-1\ndev-2\n", "source-1"); rec.Code != http.StatusCreated {
-		t.Fatalf("source upload status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-	if rec := upload("device_id\ndev-1\ndev-2\n", "source-1"); rec.Code != http.StatusCreated {
-		t.Fatalf("source replay status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-	if rec := upload("device_id\ndev-3\n", "source-1"); rec.Code != http.StatusConflict {
-		t.Fatalf("source conflict status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-	if rec := upload("device_id\n\n", "source-empty"); rec.Code != http.StatusBadRequest {
-		t.Fatalf("empty source status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-
-	completedValidation, err := st.CreateBatchJob(contracts.BatchJob{
-		Type: "provisioning_validation", Name: "ready", OrganizationID: "org-acme", CreatedBy: "owner@example.com",
-		Scope: map[string]any{"validation": map[string]any{"valid": true}, "device_ids": []any{"dev-1"}, "product_id": "product-1"},
-		State: "completed", Total: 1, Completed: 1,
+	provision, err := st.CreateBatchJob(contracts.BatchJob{
+		Type: "device_provision", Name: "completed provision", OrganizationID: "org-acme", CreatedBy: "owner@example.com",
+		Scope: map[string]any{"device_ids": []any{"dev-1"}}, State: "completed", Total: 1, Completed: 1,
+		Result: []map[string]any{{"device_id": "dev-1", "status": "completed"}},
 	})
 	if err != nil {
 		t.Fatal(err)
-	}
-	provisionBody := fmt.Sprintf(`{"validation_job_id":%q}`, completedValidation.ID)
-	if rec := request(http.MethodPost, "/api/provisioning/jobs", strings.NewReader(provisionBody), "provision-1"); rec.Code != http.StatusAccepted {
-		t.Fatalf("provision status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-	provision := waitJob("provision-1")
-	if provision.State != "completed" {
-		t.Fatalf("provision job = %+v", provision)
-	}
-	if rec := request(http.MethodPost, "/api/provisioning/jobs", strings.NewReader(provisionBody), "provision-1"); rec.Code != http.StatusAccepted {
-		t.Fatalf("provision replay status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-	if rec := request(http.MethodPost, "/api/provisioning/jobs", strings.NewReader(`{"validation_job_id":"missing"}`), "provision-missing"); rec.Code != http.StatusNotFound {
-		t.Fatalf("missing validation status = %d, body=%s", rec.Code, rec.Body.String())
 	}
 
 	if rec := request(http.MethodGet, "/api/jobs/"+provision.ID, nil, ""); rec.Code != http.StatusOK {

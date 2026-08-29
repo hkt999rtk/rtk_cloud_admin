@@ -110,7 +110,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.label),
-    ['品牌雲首頁', '設備', '設備註冊', 'Product 與服務', 'ChipSet & SDK', '韌體更新', '影像播放狀況', '報表', '帳務與自動加值'],
+    ['品牌雲首頁', '設備', 'Product 與服務', 'ChipSet & SDK', '韌體更新', '影像播放狀況', '報表', '帳務與自動加值'],
   );
   assert.deepEqual(customerNavGroups.map((group) => group.label), ['品牌雲', '設備營運', '產品與更新', '監控與分析', '帳號管理']);
 });
@@ -219,6 +219,8 @@ test('uses Chinese platform route titles in the unified shell', () => {
 test('falls back unknown paths to the customer overview route', () => {
   assert.equal(routeFromPath('/'), 'overview');
   assert.equal(routeFromPath('/console/unknown'), 'overview');
+  assert.equal(routeFromPath('/console/provisioning'), 'overview');
+  assert.equal(routeFromPath('/console/cloud-123/provisioning'), 'overview');
 });
 
 test('falls back unknown platform paths inside Platform View', () => {
