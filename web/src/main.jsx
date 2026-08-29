@@ -2797,6 +2797,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   const policy = data?.policy?.auto_topup || data?.account?.auto_topup || null;
   const providers = data?.account?.payment_providers || [];
   const setupProvider = providers.find((provider) => provider.capabilities?.hosted_setup);
+  const hostedChargeProvider = providers.find((provider) => provider.capabilities?.hosted_charge);
   const policyState = autoTopUpAssessment(policy);
   const activeMethod = methods.find((method) => method.status === 'active') || methods[0];
   const canManageMethods = capabilities.includes('payment_method.manage');
@@ -2807,9 +2808,11 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   const [dailyAmount, setDailyAmount] = useState(String(policy?.daily_amount_limit_minor || 1000));
   const [dailyAttempts, setDailyAttempts] = useState(String(policy?.daily_attempt_limit || 2));
   const [paymentConsentAccepted, setPaymentConsentAccepted] = useState(false);
+  const [autoConsentAccepted, setAutoConsentAccepted] = useState(false);
+  const [manualAmount, setManualAmount] = useState('300');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [billingView, setBillingView] = useState(() => window.location.pathname.match(/\/billing\/(invoices|activity|settings|profile)(?:\/|$)/)?.[1] || 'overview');
+  const [billingView, setBillingView] = useState(() => window.location.pathname.match(/\/billing\/(usage|invoices|activity|settings|profile)(?:\/|$)/)?.[1] || 'overview');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedActivity, setSelectedActivity] = useState(null);
 
@@ -2877,7 +2880,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
 
   function savePolicy(event) {
     event.preventDefault();
-    if (!activeMethod || !chargeQualified) {
+    if (!activeMethod || !chargeQualified || !autoConsentAccepted) {
       setMessage(billingErrorMessage({ code: 'PAYMENT_CAPABILITY_UNSUPPORTED' }));
       return;
     }
@@ -2892,6 +2895,44 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       cooldown_seconds: policy?.cooldown_seconds || 3600,
       consent: AUTO_TOPUP_CONSENT,
     }, { 'If-Match': data?.policyEtag || '"0"' });
+  }
+
+  async function createManualTopUp(event) {
+    event.preventDefault();
+    const amount = Math.round(Number(manualAmount));
+    if (!Number.isSafeInteger(amount) || amount < 1) {
+      setMessage(billingErrorMessage({ code: 'PAYMENT_AMOUNT_INVALID' }));
+      return;
+    }
+    const idempotency = crypto.randomUUID();
+    if (hostedChargeProvider) {
+      const result = await mutate('POST', '/api/billing/topups/checkout', {
+        amount_minor: amount,
+        currency: account?.currency || 'TWD',
+        provider: hostedChargeProvider.name,
+      }, { 'Idempotency-Key': idempotency });
+      const action = result?.payment_action;
+      if (action?.method === 'POST' && action.url && action.fields) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = action.url;
+        for (const [name, value] of Object.entries(action.fields)) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.value = String(value);
+          form.append(input);
+        }
+        document.body.append(form);
+        form.submit();
+      }
+      return;
+    }
+    if (!activeMethod || !chargeQualified) {
+      setMessage(billingErrorMessage({ code: 'PAYMENT_CAPABILITY_UNSUPPORTED' }));
+      return;
+    }
+    await mutate('POST', '/api/billing/topups', { amount_minor: amount, currency: account?.currency || 'TWD', payment_method_id: activeMethod.id }, { 'Idempotency-Key': idempotency });
   }
 
   async function setupPaymentMethod() {
@@ -2917,7 +2958,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   if (data?.source_status === 'unavailable') return <section className="panel split-panel"><div><h2>帳務資料暫時無法取得</h2><p>{data.source_message}</p></div></section>;
 
   const billingTabs = <nav className="billing-tabs" aria-label="帳務頁面">
-    {[['overview', '帳務總覽'], ['invoices', '發票'], ['activity', '帳務活動'], ['settings', '付款與自動加值'], ['profile', '帳單資料']].map(([id, label]) => <button key={id} type="button" className={billingView === id ? 'active' : ''} onClick={() => selectBillingView(id)}>{label}</button>)}
+    {[['overview', '帳務總覽'], ['usage', '用量與預估'], ['invoices', '發票'], ['activity', '帳務活動'], ['settings', '付款與自動加值'], ['profile', '帳單資料']].map(([id, label]) => <button key={id} type="button" className={billingView === id ? 'active' : ''} onClick={() => selectBillingView(id)}>{label}</button>)}
   </nav>;
 
   if (selectedInvoice) return <BillingInvoiceDetail invoice={selectedInvoice} onBack={() => { setSelectedInvoice(null); selectBillingView('invoices'); }} />;
@@ -2935,7 +2976,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
           <p>Realtek 負責雲端建置、託管、維護與平台營運；客戶依實際服務使用量付費。正式費率與計價單位將另行確認，本頁不代表價格承諾。</p>
         </div>
         <div className="inline-actions">
-          <a className="primary button-link" href="#billing-usage">查看本月用量與費用</a>
+          <button type="button" className="primary" onClick={() => selectBillingView('usage')}>查看本月用量與費用</button>
           <button type="button" className="ghost-button" onClick={() => selectBillingView('invoices')}>查看發票</button>
           <button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>付款設定</button>
         </div>
@@ -2948,6 +2989,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     <div className="metric-grid billing-overview-metrics">
       <MetricCard icon="wallet" label="可用餘額" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={summary.runway?.state === 'available' ? `預估可用 ${summary.runway.projected_days} 天` : '用量不足，尚無法估算可用天數'} tone="info" />
       <MetricCard icon="chart-column" label="本月費用" value={formatMinorAmount(usage.total_minor, usage.currency || account?.currency)} hint={`${formatProviderTimestamp(usage.period_start)} 起 · 目前為估算值`} tone="neutral" />
+      <MetricCard icon="chart-line" label="月底預估" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency || account?.currency) : '資料不足'} hint={summary.forecast?.state === 'available' ? `${summary.forecast.confidence === 'medium' ? '中' : '低'}信心 · ${summary.forecast.observation_days} 個觀察日` : '累積至少一個完整觀察日後提供'} tone="neutral" />
       <MetricCard icon="credit-card" label="付款方式" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? '狀態正常' : '尚未設定付款方式'} tone={activeMethod?.status === 'active' ? 'good' : 'warning'} />
     </div>
     <div className="billing-overview-grid">
@@ -2958,6 +3000,17 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       <section className="panel"><div className="panel-head"><div><h3>查看發票</h3><p>已開立發票與不可變 PDF 文件。</p></div><button type="button" className="link-button" onClick={() => selectBillingView('invoices')}>全部發票</button></div><BillingInvoiceTable invoices={invoices.slice(0, 3)} onSelect={openBillingInvoice} /></section>
       <section className="panel"><div className="panel-head"><div><h3>近期帳務活動</h3><p>加值、發票扣款與需要處理的狀態。</p></div><button type="button" className="link-button" onClick={() => selectBillingView('activity')}>全部活動</button></div><BillingActivityTable activities={activities.slice(0, 4)} onSelect={openBillingActivity} /></section>
     </div>
+  </section>;
+
+  if (billingView === 'usage') return <section className="page-content billing-page" data-testid="billing-usage-page">
+    <div className="page-intro"><div><h2>用量與預估</h2><p>費用由 Billing server 依 pricing version 試算；月底預估不是最終發票。</p></div><small>資料截止：{formatProviderTimestamp(usage.usage_through)}</small></div>
+    {billingTabs}
+    <div className="metric-grid billing-overview-metrics">
+      <MetricCard icon="chart-column" label="本月至今" value={formatMinorAmount(usage.total_minor, usage.currency)} hint={`${usage.fact_count || 0} 筆用量事實`} tone="info" />
+      <MetricCard icon="chart-line" label="月底預估" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency) : '資料不足'} hint={summary.forecast?.state === 'available' ? `尚餘約 ${formatMinorAmount(summary.forecast.projected_remaining_minor, usage.currency)} · ${summary.forecast.confidence === 'medium' ? '中' : '低'}信心` : '至少需要一個完整觀察日'} tone="neutral" />
+      <MetricCard icon="wallet" label="餘額 Runway" value={summary.runway?.state === 'available' ? `${summary.runway.projected_days} 天` : '資料不足'} hint={summary.runway?.state === 'available' ? `平均每日 ${formatMinorAmount(summary.runway.average_daily_cost_minor, usage.currency)}` : '尚無法估算'} tone="neutral" />
+    </div>
+    <section className="panel billing-usage-card"><div className="panel-head"><div><h3>本月費用明細（依服務類別）</h3><p>{formatProviderTimestamp(usage.period_start)} ～ {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description} · {line.quantity} {line.unit}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>本月至今</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
   </section>;
 
   if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page"><div className="page-intro"><div><h2>發票</h2><p>查詢帳期、金額、付款狀態與下載 PDF。</p></div><a className="ghost-button" href="/api/billing/statements">匯出對帳單</a></div>{billingTabs}<section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section></section>;
@@ -2983,15 +3036,15 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
           <label>每次加值（TWD）<input type="number" min="1" step="1" value={topUpAmount} onChange={(event) => setTopUpAmount(event.target.value)} /></label>
           <label>每日金額上限（TWD）<input type="number" min="1" step="1" value={dailyAmount} onChange={(event) => setDailyAmount(event.target.value)} /></label>
           <label>每日扣款最高次數<input type="number" min="1" max="10" step="1" value={dailyAttempts} onChange={(event) => setDailyAttempts(event.target.value)} /></label>
-          <label className="billing-consent"><input type="checkbox" checked readOnly />{AUTO_TOPUP_CONSENT_TEXT}</label>
-          <div className="inline-actions"><button type="submit" className="primary" disabled={busy || !canManagePolicy || !chargeQualified}>{busy ? '更新中…' : '儲存並啟用'}</button>{policy?.enabled ? <button type="button" className="ghost-button" disabled={busy || !canManagePolicy} onClick={() => mutate('DELETE', '/api/billing/auto-topup', { reason: 'customer disabled automatic top-up' }, { 'If-Match': data?.policyEtag || `"${policy.version}"` })}>停用自動加值</button> : null}</div>
+          <label className="billing-consent"><input type="checkbox" checked={autoConsentAccepted} onChange={(event) => setAutoConsentAccepted(event.target.checked)} />{AUTO_TOPUP_CONSENT_TEXT}</label>
+          <div className="inline-actions"><button type="submit" className="primary" disabled={busy || !canManagePolicy || !chargeQualified || !autoConsentAccepted}>{busy ? '更新中…' : '儲存並啟用'}</button>{policy?.enabled ? <button type="button" className="ghost-button" disabled={busy || !canManagePolicy} onClick={() => mutate('DELETE', '/api/billing/auto-topup', { reason: 'customer disabled automatic top-up' }, { 'If-Match': data?.policyEtag || `"${policy.version}"` })}>停用自動加值</button> : null}</div>
         </form>
         {!chargeQualified ? <p className="notice">付款方式尚未具備 merchant-initiated charge 能力；儲存按鈕保持停用，不會送出扣款。</p> : null}
         {message ? <p className="notice" role="status">{message}</p> : null}
       </section>
 
       <section className="panel"><div className="panel-head"><div><h3>付款方式</h3><p>只保存 provider、品牌、末四碼與到期月份等安全 metadata。</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : '到期日未提供'}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{method.status}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>撤銷</button> : null}</div>)}</div> : <p className="empty-state">目前沒有已驗證的付款方式。</p>}
-        <button type="button" className="ghost-button" disabled title="第一階段由自動加值流程建立付款意圖">立即加值（後續開放）</button>
+        <form className="inline-form" onSubmit={createManualTopUp}><label>加值金額（TWD）<input type="number" min="1" step="1" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} /></label><button type="submit" className="ghost-button" disabled={busy || (!hostedChargeProvider && (!activeMethod || !chargeQualified)) || !capabilities.includes('payment_intent.create')}>{hostedChargeProvider ? '前往刷卡加值' : '立即加值'}</button></form>
       </section>
     </div>
 

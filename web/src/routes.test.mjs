@@ -97,6 +97,7 @@ test('maps customer shell paths to customer routes', () => {
 test('billing subpaths remain addressable inside the tenant billing section', () => {
   assert.deepEqual(Object.values(billingSubpaths), [
     '/console/billing',
+    '/console/billing/usage',
     '/console/billing/invoices',
     '/console/billing/activity',
     '/console/billing/settings',

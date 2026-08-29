@@ -44,6 +44,7 @@ export const customerNavItems = customerNavGroups.flatMap((group) => group.items
 
 export const billingSubpaths = Object.freeze({
   overview: '/console/billing',
+  usage: '/console/billing/usage',
   invoices: '/console/billing/invoices',
   activity: '/console/billing/activity',
   settings: '/console/billing/settings',

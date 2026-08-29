@@ -36,3 +36,26 @@ func TestBillingClientFailsClosedWithoutCredential(t *testing.T) {
 		t.Fatal("short service credential enabled client")
 	}
 }
+
+func TestCreateHostedTopUpUsesEncryptedCheckoutRouteAndPermission(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/orgs/org-1/topups/checkout" {
+			t.Fatalf("request=%s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("Idempotency-Key") != "checkout-1" || r.Header.Get("X-Billing-Permissions") != "payment_intent.create" {
+			t.Fatalf("headers=%v", r.Header)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"payment_intent":{"id":"intent-1"},"payment_action":{"method":"POST","url":"https://provider.example/pay","fields":{"TradeInfo":"encrypted"}}}`))
+	}))
+	defer server.Close()
+
+	client := New(server.URL, strings.Repeat("b", 32))
+	result, err := client.CreateHostedTopUp(context.Background(), "user-1", "org-1", "checkout-1", map[string]any{"amount_minor": 500})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.PaymentIntent.ID != "intent-1" || result.PaymentAction == nil || result.PaymentAction.Fields["TradeInfo"] != "encrypted" {
+		t.Fatalf("result=%+v", result)
+	}
+}

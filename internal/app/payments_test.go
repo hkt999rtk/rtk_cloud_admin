@@ -74,6 +74,16 @@ func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T)
 			}
 			w.WriteHeader(http.StatusAccepted)
 			_, _ = w.Write([]byte(`{"payment_intent":{"id":"intent-1","state":"created"},"duplicate":false}`))
+		case "/v1/orgs/org-safe/topups/checkout":
+			if r.Header.Get("Idempotency-Key") != "checkout-bff-1" {
+				t.Fatalf("checkout idempotency=%q", r.Header.Get("Idempotency-Key"))
+			}
+			body, _ := io.ReadAll(r.Body)
+			if strings.Contains(string(body), "card_number") || !strings.Contains(string(body), `"provider":"newebpay"`) {
+				t.Fatalf("unsafe hosted checkout body=%s", body)
+			}
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"payment_intent":{"id":"intent-hosted","state":"processing"},"payment_action":{"method":"POST","url":"https://ccore.newebpay.com/MPG/mpg_gateway","fields":{"TradeInfo":"encrypted"}}}`))
 		case "/v1/orgs/org-safe/payment-intents":
 			_, _ = w.Write([]byte(`{"payment_intents":[{"id":"intent-1","state":"created"}],"pagination":{"limit":25,"offset":0,"total":1}}`))
 		case "/v1/orgs/org-safe/payment-intents/intent-1":
@@ -159,6 +169,9 @@ func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T)
 	}
 	if response := request(http.MethodPost, "/api/billing/topups", `{"amount_minor":10000,"currency":"TWD","payment_method_id":"method-1"}`, map[string]string{"Idempotency-Key": "topup-bff-1"}); response.Code != http.StatusAccepted {
 		t.Fatalf("topup status/body=%d/%s", response.Code, response.Body.String())
+	}
+	if response := request(http.MethodPost, "/api/billing/topups/checkout", `{"amount_minor":10000,"currency":"TWD","provider":"newebpay"}`, map[string]string{"Idempotency-Key": "checkout-bff-1"}); response.Code != http.StatusAccepted || !strings.Contains(response.Body.String(), `"TradeInfo":"encrypted"`) {
+		t.Fatalf("checkout status/body=%d/%s", response.Code, response.Body.String())
 	}
 	if response := request(http.MethodGet, "/api/billing/payment-intents?limit=25", "", nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "intent-1") {
 		t.Fatalf("intents status/body=%d/%s", response.Code, response.Body.String())

@@ -31,6 +31,7 @@ type CommercialAccount struct {
 }
 type ProviderCapabilities struct {
 	HostedSetup             bool `json:"hosted_setup"`
+	HostedCharge            bool `json:"hosted_charge"`
 	MerchantInitiatedCharge bool `json:"merchant_initiated_charge"`
 	StatusQuery             bool `json:"status_query"`
 	Webhook                 bool `json:"webhook"`
@@ -131,6 +132,12 @@ type PaymentIntentResponse struct {
 	PaymentIntent PaymentIntent    `json:"payment_intent"`
 	Attempts      []PaymentAttempt `json:"attempts,omitempty"`
 	Duplicate     bool             `json:"duplicate,omitempty"`
+	PaymentAction *PaymentAction   `json:"payment_action,omitempty"`
+}
+type PaymentAction struct {
+	Method string            `json:"method"`
+	URL    string            `json:"url"`
+	Fields map[string]string `json:"fields"`
 }
 type BillingDownload struct {
 	ContentType, ContentDisposition, ETag string
@@ -243,6 +250,11 @@ func (c *Client) DisableAutoTopUp(ctx context.Context, actorID, orgID, version s
 func (c *Client) CreateManualTopUp(ctx context.Context, actorID, orgID, key string, request any) (PaymentIntentResponse, error) {
 	var out PaymentIntentResponse
 	err := c.do(ctx, "POST", orgPath(orgID, "/topups"), actorID, "payment_intent.create", request, &out, map[string]string{"Idempotency-Key": key})
+	return out, err
+}
+func (c *Client) CreateHostedTopUp(ctx context.Context, actorID, orgID, key string, request any) (PaymentIntentResponse, error) {
+	var out PaymentIntentResponse
+	err := c.do(ctx, "POST", orgPath(orgID, "/topups/checkout"), actorID, "payment_intent.create", request, &out, map[string]string{"Idempotency-Key": key})
 	return out, err
 }
 func (c *Client) PaymentIntents(ctx context.Context, actorID, orgID string, query url.Values) (PaymentIntentsResponse, error) {

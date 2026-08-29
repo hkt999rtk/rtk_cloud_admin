@@ -422,6 +422,31 @@ func (s *Server) apiManualTopUp(w http.ResponseWriter, r *http.Request) {
 	writeJSONStatus(w, http.StatusAccepted, result)
 }
 
+func (s *Server) apiHostedTopUp(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.paymentContext(w, r, "payment_intent.create")
+	if !ok {
+		return
+	}
+	idempotencyKey, ok := requireIdempotencyKey(w, r)
+	if !ok {
+		return
+	}
+	var request struct {
+		AmountMinor int64  `json:"amount_minor"`
+		Currency    string `json:"currency"`
+		Provider    string `json:"provider"`
+	}
+	if !decodePaymentRequest(w, r, &request) {
+		return
+	}
+	result, err := s.billingClient.CreateHostedTopUp(r.Context(), ctx.actorID, ctx.org.ID, idempotencyKey, request)
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	writeJSONStatus(w, http.StatusAccepted, result)
+}
+
 func (s *Server) apiPaymentIntents(w http.ResponseWriter, r *http.Request) {
 	ctx, ok := s.paymentContext(w, r, "payment_intent.read")
 	if !ok {
