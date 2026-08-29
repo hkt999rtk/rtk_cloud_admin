@@ -1479,7 +1479,7 @@ func (s *Server) apiFleetDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.accountClient.Enabled() {
-		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"source_status": "unconfigured", "source_message": "設備查詢服務尚未設定。"})
+		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"source_status": "unconfigured", "source_message": "The device query service is not configured."})
 		return
 	}
 	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
@@ -1523,7 +1523,7 @@ func (s *Server) apiFleetSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.accountClient.Enabled() {
-		writeJSON(w, contracts.FleetSummary{ByStatus: map[string]int{}, ByProduct: map[string]int{}, ByModel: map[string]int{}, ByFirmware: map[string]int{}, ByRegion: map[string]int{}, ServiceEnabled: map[string]int{}, SourceStatus: "unconfigured", SourceMessage: "Fleet 資料來源尚未設定。"})
+		writeJSON(w, contracts.FleetSummary{ByStatus: map[string]int{}, ByProduct: map[string]int{}, ByModel: map[string]int{}, ByFirmware: map[string]int{}, ByRegion: map[string]int{}, ServiceEnabled: map[string]int{}, SourceStatus: "unconfigured", SourceMessage: "The fleet data source is not configured."})
 		return
 	}
 	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
@@ -1600,7 +1600,7 @@ func (s *Server) apiGroups(w http.ResponseWriter, r *http.Request) {
 	}
 	var request accountclient.DeviceGroupRequest
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.Name) == "" {
-		http.Error(w, "群組資料格式不正確。", http.StatusBadRequest)
+		http.Error(w, "Group data is malformed.", http.StatusBadRequest)
 		return
 	}
 	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
@@ -1649,7 +1649,7 @@ func (s *Server) apiGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.accountClient.Enabled() {
-		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"source_status": "unconfigured", "source_message": "群組服務尚未設定。"})
+		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"source_status": "unconfigured", "source_message": "The group service has not been configured."})
 		return
 	}
 	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
@@ -1675,7 +1675,7 @@ func (s *Server) apiGroup(w http.ResponseWriter, r *http.Request) {
 		}
 		var request accountclient.DeviceGroupRequest
 		if decodeErr := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); decodeErr != nil || strings.TrimSpace(request.Name) == "" {
-			http.Error(w, "群組資料格式不正確。", http.StatusBadRequest)
+			http.Error(w, "Group data is malformed.", http.StatusBadRequest)
 			return
 		}
 		tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
@@ -1782,7 +1782,7 @@ func (s *Server) apiRoleAssignments(w http.ResponseWriter, r *http.Request) {
 	}
 	var request accountclient.RoleAssignmentRequest
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.RoleName) == "" || strings.TrimSpace(request.ActorID) == "" || strings.TrimSpace(request.ScopeType) == "" {
-		http.Error(w, "權限指派資料格式不正確。", http.StatusBadRequest)
+		http.Error(w, "Permission assignment data is malformed.", http.StatusBadRequest)
 		return
 	}
 	assignment, err := s.accountClient.CreateRoleAssignment(r.Context(), tokens.AccessToken, org.ID, request)
@@ -1838,7 +1838,7 @@ func (s *Server) apiJobs(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		page, err := s.jobs.ListBatchJobsPage(org.ID, batchJobQueryFromRequest(r))
 		if err != nil {
-			http.Error(w, "批次工作暫時無法取得。", http.StatusServiceUnavailable)
+			http.Error(w, "Batch jobs are temporarily unavailable.", http.StatusServiceUnavailable)
 			return
 		}
 		writeJSON(w, map[string]any{"jobs": page.Jobs, "pagination": map[string]any{"limit": page.Limit, "offset": page.Offset, "total": page.Total}, "source_status": "available"})
@@ -1850,12 +1850,12 @@ func (s *Server) apiJobs(w http.ResponseWriter, r *http.Request) {
 		Scope map[string]any `json:"scope"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
-		http.Error(w, "批次工作資料格式不正確。", http.StatusBadRequest)
+		http.Error(w, "Batch job data is malformed.", http.StatusBadRequest)
 		return
 	}
 	allowed := map[string]bool{"device_settings": true, "device_provision": true, "device_deactivation": true, "tag_update": true, "group_update": true, "firmware_retry": true, "report_export": true}
 	if !allowed[strings.TrimSpace(request.Type)] || strings.TrimSpace(request.Name) == "" {
-		http.Error(w, "批次工作類型或名稱不正確。", http.StatusBadRequest)
+		http.Error(w, "Batch job type or name is incorrect.", http.StatusBadRequest)
 		return
 	}
 	if request.Scope == nil {
@@ -1898,12 +1898,12 @@ func (s *Server) apiJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	total, _ := request.Scope["estimated_total"].(int)
 	if total < 0 {
-		http.Error(w, "批次工作範圍不正確。", http.StatusBadRequest)
+		http.Error(w, "The batch job scope is invalid.", http.StatusBadRequest)
 		return
 	}
 	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: strings.TrimSpace(request.Type), Name: strings.TrimSpace(request.Name), OrganizationID: org.ID, CreatedBy: session.Email, Scope: request.Scope, State: "queued", Total: total, IdempotencyKey: key})
 	if err != nil {
-		http.Error(w, "批次工作無法建立。", http.StatusServiceUnavailable)
+		http.Error(w, "Batch job could not be created.", http.StatusServiceUnavailable)
 		return
 	}
 	go s.runBatchJob(job, tokens.AccessToken)
@@ -1977,11 +1977,11 @@ func (s *Server) apiJob(w http.ResponseWriter, r *http.Request) {
 	}
 	job, err := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, "找不到這個批次工作。", http.StatusNotFound)
+		http.Error(w, "The batch job was not found.", http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		http.Error(w, "批次工作暫時無法取得。", http.StatusServiceUnavailable)
+		http.Error(w, "Batch jobs are temporarily unavailable.", http.StatusServiceUnavailable)
 		return
 	}
 	if job.Type == "provisioning_validation" || job.Type == "device_provision" {
@@ -2019,15 +2019,15 @@ func (s *Server) apiJobRetry(w http.ResponseWriter, r *http.Request) {
 	}
 	job, err = s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, "找不到這個批次工作。", http.StatusNotFound)
+		http.Error(w, "The batch job was not found.", http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		http.Error(w, "批次工作暫時無法取得。", http.StatusServiceUnavailable)
+		http.Error(w, "Batch jobs are temporarily unavailable.", http.StatusServiceUnavailable)
 		return
 	}
 	if job.Failed == 0 {
-		http.Error(w, "目前沒有可重試的失敗項目。", http.StatusConflict)
+		http.Error(w, "There are no failed items to retry at this time.", http.StatusConflict)
 		return
 	}
 	if existing, lookupErr := s.jobs.GetBatchJobByIdempotency(org.ID, key); lookupErr == nil {
@@ -2049,7 +2049,7 @@ func (s *Server) apiJobRetry(w http.ResponseWriter, r *http.Request) {
 	retryScope["attempt"] = attempt
 	job, err = s.jobs.CreateBatchJob(contracts.BatchJob{Type: job.Type, Name: job.Name + " (retry)", OrganizationID: org.ID, CreatedBy: session.Email, Scope: retryScope, State: "queued", Total: job.Failed, IdempotencyKey: key})
 	if err != nil {
-		http.Error(w, "批次工作無法重試。", http.StatusServiceUnavailable)
+		http.Error(w, "Batch job could not be retried.", http.StatusServiceUnavailable)
 		return
 	}
 	go s.runBatchJob(job, tokens.AccessToken)
@@ -2081,16 +2081,16 @@ func (s *Server) apiJobAction(w http.ResponseWriter, r *http.Request) {
 	}
 	job, err = s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, "找不到這個批次工作。", http.StatusNotFound)
+		http.Error(w, "The batch job was not found.", http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		http.Error(w, "批次工作暫時無法取得。", http.StatusServiceUnavailable)
+		http.Error(w, "Batch jobs are temporarily unavailable.", http.StatusServiceUnavailable)
 		return
 	}
 	state := map[string]string{"pause": "paused", "resume": "running", "cancel": "cancelled"}[r.PathValue("action")]
 	if state == "" {
-		http.Error(w, "不支援的批次工作操作。", http.StatusBadRequest)
+		http.Error(w, "Unsupported batch job operation.", http.StatusBadRequest)
 		return
 	}
 	allowed := map[string]map[string]bool{
@@ -2099,12 +2099,12 @@ func (s *Server) apiJobAction(w http.ResponseWriter, r *http.Request) {
 		"cancelled": {"queued": true, "running": true, "paused": true},
 	}
 	if !allowed[state][job.State] {
-		http.Error(w, "批次工作目前無法執行這個操作。", http.StatusConflict)
+		http.Error(w, "This operation is not available in the batch job’s current state.", http.StatusConflict)
 		return
 	}
 	job, err = s.jobs.UpdateBatchJobState(org.ID, job.ID, state)
 	if err != nil {
-		http.Error(w, "批次工作狀態無法更新。", http.StatusServiceUnavailable)
+		http.Error(w, "The batch job status could not be updated.", http.StatusServiceUnavailable)
 		return
 	}
 	_ = s.audit.CreateAuditEventWithMetadata(store.AuditEventInput{Actor: session.Email, ActorKind: session.Kind, Action: "fleet.batch_job." + r.PathValue("action"), Target: job.ID, OrganizationID: org.ID, Result: "accepted", RequestID: correlation.FromContext(r.Context()).RequestID})
@@ -2124,11 +2124,11 @@ func (s *Server) apiJobResult(w http.ResponseWriter, r *http.Request) {
 	}
 	job, err := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, "找不到這個批次工作。", http.StatusNotFound)
+		http.Error(w, "The batch job was not found.", http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		http.Error(w, "批次結果暫時無法取得。", http.StatusServiceUnavailable)
+		http.Error(w, "Batch results are temporarily unavailable.", http.StatusServiceUnavailable)
 		return
 	}
 	if job.Type == "provisioning_validation" || job.Type == "device_provision" {
@@ -2595,7 +2595,7 @@ func (s *Server) apiReports(w http.ResponseWriter, r *http.Request) {
 		query.Type = "report_export"
 		page, err := s.jobs.ListBatchJobsPage(org.ID, query)
 		if err != nil {
-			http.Error(w, "報表暫時無法取得。", http.StatusServiceUnavailable)
+			http.Error(w, "Reports are temporarily unavailable.", http.StatusServiceUnavailable)
 			return
 		}
 		reports := make([]contracts.BatchJob, 0)
@@ -2617,7 +2617,7 @@ func (s *Server) apiReports(w http.ResponseWriter, r *http.Request) {
 		Scope      map[string]any `json:"scope"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil || strings.TrimSpace(request.Name) == "" {
-		http.Error(w, "報表條件不正確。", http.StatusBadRequest)
+		http.Error(w, "The report criteria are invalid.", http.StatusBadRequest)
 		return
 	}
 	if request.ReportType == "" {
@@ -2627,7 +2627,7 @@ func (s *Server) apiReports(w http.ResponseWriter, r *http.Request) {
 		request.Format = "json"
 	}
 	if request.Format != "json" && request.Format != "csv" {
-		http.Error(w, "報表格式不正確。", http.StatusBadRequest)
+		http.Error(w, "The report format is invalid.", http.StatusBadRequest)
 		return
 	}
 	filterScope := request.Scope
@@ -2661,7 +2661,7 @@ func (s *Server) apiReports(w http.ResponseWriter, r *http.Request) {
 	}
 	job, err := s.jobs.CreateBatchJob(contracts.BatchJob{Type: "report_export", Name: strings.TrimSpace(request.Name), OrganizationID: org.ID, CreatedBy: session.Email, Scope: request.Scope, State: "queued", IdempotencyKey: key})
 	if err != nil {
-		http.Error(w, "報表無法建立。", http.StatusServiceUnavailable)
+		http.Error(w, "Report could not be created.", http.StatusServiceUnavailable)
 		return
 	}
 	go s.runBatchJob(job, tokens.AccessToken)
@@ -2685,11 +2685,11 @@ func (s *Server) apiReport(w http.ResponseWriter, r *http.Request) {
 	}
 	job, err := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
 	if errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, "找不到這份報表。", http.StatusNotFound)
+		http.Error(w, "The report was not found.", http.StatusNotFound)
 		return
 	}
 	if err != nil || job.Type != "report_export" {
-		http.Error(w, "報表暫時無法取得。", http.StatusServiceUnavailable)
+		http.Error(w, "The report is temporarily unavailable.", http.StatusServiceUnavailable)
 		return
 	}
 	if expiresAt, parseErr := time.Parse(time.RFC3339, job.ExpiresAt); parseErr == nil && !expiresAt.After(time.Now().UTC()) {
@@ -2966,7 +2966,7 @@ func (s *Server) apiProductWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.accountClient.Enabled() {
-		http.Error(w, "Product 服務尚未設定。", http.StatusServiceUnavailable)
+		http.Error(w, "The Product service is not configured.", http.StatusServiceUnavailable)
 		return
 	}
 	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
@@ -3015,7 +3015,7 @@ func (s *Server) apiProductWrite(w http.ResponseWriter, r *http.Request) {
 			FirmwarePolicy      map[string]any `json:"firmware_policy,omitempty"`
 		}{}
 	} else if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&input); err != nil {
-		http.Error(w, "Product 資料格式不正確。", http.StatusBadRequest)
+		http.Error(w, "Product data is malformed.", http.StatusBadRequest)
 		return
 	}
 	request := accountclient.DeviceItemProfileRequest{ProfileKey: strings.TrimSpace(input.ProfileKey), DisplayName: strings.TrimSpace(input.Name), Category: strings.TrimSpace(input.Category), Manufacturer: strings.TrimSpace(input.Manufacturer), Model: strings.TrimSpace(input.ProductModel), ServiceOptions: customerServiceOptions(input.ServiceCapabilities), ClaimPolicy: input.DevicePolicy, ProvisioningPolicy: input.DevicePolicy}
@@ -3054,14 +3054,16 @@ func customerServiceOptions(labels []string) []string {
 	options := make([]string, 0, len(labels))
 	for _, label := range labels {
 		switch strings.TrimSpace(label) {
-		case "影像服務":
+		case "video_streaming", "影像服務":
 			options = append(options, "video_streaming")
 		case "即時觀看":
 			options = append(options, "video_streaming")
-		case "錄影與保存":
+		case "video_storage", "錄影與保存":
 			options = append(options, "video_storage")
-		case "設備回報":
+		case "mqtt", "設備回報":
 			options = append(options, "mqtt")
+		case "ota", "韌體更新":
+			options = append(options, "ota")
 		}
 	}
 	return normalizeCapabilities(options)
@@ -3125,7 +3127,7 @@ func (s *Server) apiProductImpactPreview(w http.ResponseWriter, r *http.Request)
 		FirmwarePolicy      map[string]any `json:"firmware_policy"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&proposed); err != nil {
-		http.Error(w, "Product 變更資料格式不正確。", http.StatusBadRequest)
+		http.Error(w, "Product update data is malformed.", http.StatusBadRequest)
 		return
 	}
 	var profile accountclient.DeviceItemProfile
@@ -3193,15 +3195,15 @@ func customerProductWithActionsAndSummary(profile accountclient.DeviceItemProfil
 	for _, option := range profile.ServiceOptions {
 		switch strings.TrimSpace(option) {
 		case "video", "video_cloud", "camera":
-			services = append(services, "影像服務")
+			services = append(services, "video_streaming")
 		case "streaming", "webrtc", "stream":
-			services = append(services, "即時觀看")
+			services = append(services, "video_streaming")
 		case "recording", "clips", "media":
-			services = append(services, "錄影與保存")
+			services = append(services, "video_storage")
 		case "telemetry", "device_health", "mqtt":
-			services = append(services, "設備回報")
+			services = append(services, "mqtt")
 		case "firmware", "ota":
-			services = append(services, "韌體更新")
+			services = append(services, "ota")
 			hasOTA = true
 		}
 	}
@@ -3531,7 +3533,7 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet && r.PathValue("id") == "" {
 		productID := strings.TrimSpace(r.URL.Query().Get("product_id"))
 		if productID == "" {
-			http.Error(w, "請先選擇 Product。", http.StatusBadRequest)
+			http.Error(w, "Select a Product first.", http.StatusBadRequest)
 			return
 		}
 		upstreamPath = "/api/ota/products/" + url.PathEscape(productID) + "/campaigns"
@@ -3542,12 +3544,12 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 		}
 		var payload map[string]any
 		if err := json.NewDecoder(io.LimitReader(r.Body, 2<<20)).Decode(&payload); err != nil {
-			http.Error(w, "更新計畫資料格式不正確。", http.StatusBadRequest)
+			http.Error(w, "The update plan data is malformed.", http.StatusBadRequest)
 			return
 		}
 		productID, _ := payload["product_id"].(string)
 		if strings.TrimSpace(productID) == "" {
-			http.Error(w, "更新計畫必須指定 Product。", http.StatusBadRequest)
+			http.Error(w, "The update plan must specify a Product.", http.StatusBadRequest)
 			return
 		}
 		if scope, ok := payload["scope"].(map[string]any); ok {

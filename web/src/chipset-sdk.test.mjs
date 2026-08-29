@@ -9,6 +9,7 @@ import {
   providerEndpointCount,
   providerKPIs,
   providerSyncHealth,
+  providerValidationErrorMessage,
   vendorInitials,
 } from './chipset-sdk.mjs';
 
@@ -25,6 +26,10 @@ test('provider dashboard helpers compute and filter design data', () => {
   assert.equal(filterProviders(providers, '', 'stale')[0].id, 'ameba');
   assert.equal(providerSyncHealth(providers[0]).key, 'stale');
   assert.equal(providerSyncHealth(providers[2]).key, 'unavailable');
+  assert.equal(providerSyncHealth({ stale: true, validation_error: 'internal timeout: host=secret' }).detail, 'The latest synchronization failed. The last valid snapshot remains available.');
+  assert.equal(providerValidationErrorMessage({ stale: true, validation_error: 'internal timeout: host=secret' }), 'Manifest validation failed. The last valid synchronized snapshot remains available.');
+  assert.equal(providerValidationErrorMessage({ unavailable: true, validation_error: 'internal timeout: host=secret' }), 'Manifest validation failed and no valid synchronized snapshot is available.');
+  assert.equal(providerValidationErrorMessage(null), '');
   assert.equal(compactHash('1234567890abcdef'), '12345678…');
   assert.equal(formatProviderTimestamp('2026-07-19T03:04:05Z'), '2026-07-19 03:04 UTC');
   assert.equal(formatProviderTimestamp(''), '—');

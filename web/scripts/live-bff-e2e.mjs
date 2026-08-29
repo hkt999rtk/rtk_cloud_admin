@@ -32,7 +32,7 @@ try {
   await expectText(customerPage, 'Provision device');
   await screenshot(customerPage, 'customer-devices-drawer.png');
 
-  await gotoAndAssert(customerPage, '/console/firmware-ota', 'Firmware & OTA');
+  await gotoAndAssert(customerPage, '/console/firmware-ota', 'Firmware Update');
   await expectText(customerPage, 'Firmware distribution');
   await expectText(customerPage, 'Rollout Campaigns');
   await screenshot(customerPage, 'customer-firmware.png');

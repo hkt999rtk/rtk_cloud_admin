@@ -6,11 +6,11 @@ test('[UI-CA-STAGING-002] Brandname staging read-only smoke @staging @brand-flee
   test.skip(!cloudId, 'E2E_BRAND_CLOUD_ID is required');
   await loginWithStagingSession(page, 'customer');
   for (const [path, heading] of [
-    [`/console/${cloudId}/overview`, '設備總覽'],
-    [`/console/${cloudId}/devices`, '設備'],
-    [`/console/${cloudId}/product-services`, 'Product 與服務'],
-    [`/console/${cloudId}/firmware-ota`, '韌體更新'],
-    [`/console/${cloudId}/reports`, '報表'],
+    [`/console/${cloudId}/overview`, 'Device Overview'],
+    [`/console/${cloudId}/devices`, 'Devices'],
+    [`/console/${cloudId}/product-services`, 'Products and Services'],
+    [`/console/${cloudId}/firmware-ota`, 'Firmware Update'],
+    [`/console/${cloudId}/reports`, 'Reports'],
   ]) {
     await page.goto(path);
     await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible();

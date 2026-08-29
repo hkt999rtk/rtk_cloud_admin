@@ -11,10 +11,10 @@ export function auditCoverageCopy() {
 
 export function grafanaEmbedState(status) {
   if (!status?.enabled) {
-    return { ready: false, iframeURL: '', message: status?.source_message || 'Grafana is not configured.' };
+    return { ready: false, iframeURL: '', message: 'Grafana is not configured.' };
   }
   if (status.source_status !== 'configured') {
-    return { ready: false, iframeURL: '', message: status.source_message || 'Grafana is unavailable.' };
+    return { ready: false, iframeURL: '', message: 'Grafana is unavailable.' };
   }
   const iframeURL = String(status.iframe_url || '');
   if (!iframeURL.startsWith('/api/admin/grafana/')) {
@@ -25,17 +25,17 @@ export function grafanaEmbedState(status) {
 
 export function formatResourcePercent(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return 'Unavailable';
-  return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+  return `${formatNumber(value, { maximumFractionDigits: 1 })}%`;
 }
 
 export function formatThroughputBPS(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return 'Unavailable';
   const number = Number(value);
   const abs = Math.abs(number);
-  if (abs >= 1_000_000_000) return `${(number / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })} Gb/s`;
-  if (abs >= 1_000_000) return `${(number / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })} Mb/s`;
-  if (abs >= 1_000) return `${(number / 1_000).toLocaleString(undefined, { maximumFractionDigits: 1 })} Kb/s`;
-  return `${number.toLocaleString(undefined, { maximumFractionDigits: 1 })} b/s`;
+  if (abs >= 1_000_000_000) return `${formatNumber(number / 1_000_000_000, { maximumFractionDigits: 1 })} Gb/s`;
+  if (abs >= 1_000_000) return `${formatNumber(number / 1_000_000, { maximumFractionDigits: 1 })} Mb/s`;
+  if (abs >= 1_000) return `${formatNumber(number / 1_000, { maximumFractionDigits: 1 })} Kb/s`;
+  return `${formatNumber(number, { maximumFractionDigits: 1 })} b/s`;
 }
 
 export function resourceStatusLabel(status) {
@@ -95,3 +95,4 @@ export function workloadStatusTone(status) {
   if (normalized === 'unmonitored' || normalized === 'unavailable' || normalized === 'unconfigured') return 'unavailable';
   return 'unknown';
 }
+import { formatNumber } from './i18n/index.mjs';

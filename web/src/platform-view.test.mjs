@@ -88,7 +88,7 @@ test('grafanaEmbedState accepts only configured same-origin iframe URLs', () => 
   );
   assert.deepEqual(
     grafanaEmbedState({ enabled: true, source_status: 'unavailable', source_message: 'Grafana source is unavailable.' }),
-    { ready: false, iframeURL: '', message: 'Grafana source is unavailable.' },
+    { ready: false, iframeURL: '', message: 'Grafana is unavailable.' },
   );
 });
 

@@ -19,7 +19,7 @@ export async function assertSourceState(page, state, text = '') {
 }
 
 export async function assertForbiddenRoute(page) {
-  await expect(page.getByText(/capability|required|forbidden|權限/i).first()).toBeVisible();
+  await expect(page.getByText(/capability|required|forbidden|Permissions/i) .first ()) .toBeVisible ();
 }
 
 export async function assertNoCrossCloudData(page, forbiddenText) {

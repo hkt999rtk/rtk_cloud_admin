@@ -22,21 +22,23 @@ test('payment method display exposes only safe metadata', () => {
 });
 
 test('automatic top-up copy reflects crossing and armed state', () => {
-  assert.equal(autoTopUpAssessment(null).label, '尚未設定');
-  assert.equal(autoTopUpAssessment({ enabled: true, armed: true }).label, '監看中');
-  assert.equal(autoTopUpAssessment({ enabled: true, armed: true, consecutive_failure_count: 2 }).label, '扣款重試中');
-  assert.match(autoTopUpAssessment({ enabled: true, armed: false }).detail, /門檻以上/);
+  assert.equal(autoTopUpAssessment(null).label, 'Not configured');
+  assert.equal(autoTopUpAssessment({ enabled: true, armed: true }).label, 'Monitoring');
+  assert.equal(autoTopUpAssessment({ enabled: true, armed: true, consecutive_failure_count: 2 }).label, 'Retrying charge');
+  assert.match(autoTopUpAssessment({ enabled: true, armed: false }).detail, /above the threshold/);
 });
 
 test('intent states and payment failures are normalized for customers', () => {
   assert.equal(paymentIntentState('succeeded').tone, 'good');
-  assert.equal(paymentIntentState('unknown').label, '待對帳');
-  assert.match(billingErrorMessage({ code: 'PAYMENT_CAPABILITY_UNSUPPORTED' }), /不會送出扣款/);
+  assert.equal(paymentIntentState('unknown').label, 'Reconciliation pending');
+  assert.match(billingErrorMessage({ code: 'PAYMENT_CAPABILITY_UNSUPPORTED' }), /no charge was submitted/i);
   assert.doesNotMatch(billingErrorMessage({ code: 'RAW_PROVIDER_SECRET', message: 'secret' }), /secret/);
 });
 
 test('consent evidence is versioned and digest-shaped', () => {
   assert.equal(AUTO_TOPUP_CONSENT.accepted, true);
+  assert.equal(AUTO_TOPUP_CONSENT.locale, 'en');
+  assert.match(AUTO_TOPUP_CONSENT.text_version, /-en-v1$/);
   assert.match(AUTO_TOPUP_CONSENT.text_sha256, /^[a-f0-9]{64}$/);
   assert.match(PAYMENT_METHOD_CONSENT.text_sha256, /^[a-f0-9]{64}$/);
 });

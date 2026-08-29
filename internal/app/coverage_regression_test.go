@@ -222,6 +222,9 @@ func TestCoverageGovernancePureHelpers(t *testing.T) {
 	if got := customerServiceOptions([]string{"影像服務", "即時觀看", "錄影與保存", "設備回報", "unknown"}); len(got) != 3 {
 		t.Fatalf("customerServiceOptions = %#v", got)
 	}
+	if got := customerServiceOptions([]string{"video_streaming", "video_storage", "mqtt", "ota"}); len(got) != 4 {
+		t.Fatalf("stable customer service option codes must remain accepted: %#v", got)
+	}
 
 	profile := accountclient.DeviceItemProfile{
 		ID:                 "product-1",

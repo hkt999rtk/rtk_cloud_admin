@@ -1,3 +1,5 @@
+import { translate } from './i18n/index.mjs';
+
 export function providerKPIs(providers = []) {
   const published = providers.filter((provider) => provider.status === 'published');
   const successes = providers.map((provider) => provider.last_successful_refresh_at).filter(Boolean).sort();
@@ -23,10 +25,16 @@ export function filterProviders(providers = [], query = '', filter = 'all') {
 }
 
 export function providerSyncHealth(provider = {}) {
-  if (provider.unavailable) return { key: 'unavailable', label: 'Unavailable', detail: provider.validation_error || 'No valid snapshot' };
-  if (provider.stale) return { key: 'stale', label: 'Stale', detail: provider.validation_error || 'Last refresh failed' };
-  if (provider.last_successful_refresh_at) return { key: 'healthy', label: 'Healthy', detail: '' };
-  return { key: 'pending', label: 'Pending', detail: 'Not synchronized' };
+  if (provider.unavailable) return { key: 'unavailable', label: translate('Unavailable'), detail: translate('No valid synchronized snapshot is available.') };
+  if (provider.stale) return { key: 'stale', label: translate('Stale'), detail: translate('The latest synchronization failed. The last valid snapshot remains available.') };
+  if (provider.last_successful_refresh_at) return { key: 'healthy', label: translate('Healthy'), detail: '' };
+  return { key: 'pending', label: translate('Pending'), detail: translate('Not synchronized') };
+}
+
+export function providerValidationErrorMessage(provider = {}) {
+  if (!provider?.validation_error) return '';
+  if (provider?.unavailable) return translate('Manifest validation failed and no valid synchronized snapshot is available.');
+  return translate('Manifest validation failed. The last valid synchronized snapshot remains available.');
 }
 
 export function providerEndpointCount(chipsets = []) {

@@ -75,7 +75,7 @@ required.
 Brandname customer flows use the same real Go BFF harness with customer-role
 fixture identities. The suite covers cloud switching, cross-cloud isolation,
 Developer / Release, Operations and Observer capabilities, server-side device
-pagination, OTA immutable scope preview, batch jobs, reports, provisioning,
+pagination, OTA immutable scope preview, batch jobs, reports,
 team membership and owner transfer.
 
 Local identities are `developer@example.com`, `operations@example.com`,

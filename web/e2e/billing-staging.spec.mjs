@@ -21,7 +21,7 @@ test('[UI-CA-BILLING-STG-001] real staging overview is tenant scoped and provide
   await page.goto(`/console/${encodeURIComponent(organizationID)}/billing`);
   await expect(page.getByTestId('billing-page')).toBeVisible();
   await expect(page.getByTestId('managed-cloud-plan')).toContainText('Realtek Managed Cloud');
-  await expect(page.getByRole('heading', { name: '帳務總覽' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Billing overview' }).first()).toBeVisible();
   await expect(page.locator('input[name="card_number"], input[autocomplete="cc-number"], input[autocomplete="cc-csc"]')).toHaveCount(0);
   await testInfo.attach('staging-billing-overview', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 });
@@ -38,7 +38,7 @@ test('[UI-CA-BILLING-STG-002] real staging invoice detail serves immutable PDF e
   await expect(page.getByTestId('billing-invoices-page')).toBeVisible();
   await page.getByRole('button', { name: invoice.invoice_number, exact: true }).click();
   await expect(page.getByTestId('billing-invoice-detail')).toBeVisible();
-  await expect(page.getByTestId('billing-invoice-detail')).toContainText('本發票由預付餘額結算');
+  await expect(page.getByTestId('billing-invoice-detail')).toContainText('This invoice is settled with a prepaid balance');
 
   const pdfResponse = await page.request.get(`/api/billing/invoices/${encodeURIComponent(invoiceID)}/pdf`);
   expect(pdfResponse.ok()).toBeTruthy();
@@ -57,10 +57,10 @@ test('[UI-CA-BILLING-STG-003] real staging activity and profile remain customer 
   await page.goto(`/console/${encodeURIComponent(organizationID)}/billing/activity`);
   await expect(page.getByTestId('billing-activity-page')).toBeVisible();
   await page.getByRole('button', { name: activityPage.activities[0].customer_reference, exact: true }).click();
-  await expect(page.getByTestId('billing-activity-detail')).toContainText('處理時間軸');
+  await expect(page.getByTestId('billing-activity-detail')).toContainText('Processing Timeline');
   await expect(page.getByTestId('billing-activity-detail')).not.toContainText('provider_transaction_reference');
 
   await page.goto(`/console/${encodeURIComponent(organizationID)}/billing/profile`);
-  await expect(page.getByTestId('billing-profile-page')).toContainText('既有文件');
+  await expect(page.getByTestId('billing-profile-page')).toContainText('Existing Documents');
   await testInfo.attach('staging-billing-activity-profile', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 });

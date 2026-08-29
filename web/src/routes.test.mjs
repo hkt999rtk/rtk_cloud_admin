@@ -109,10 +109,10 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
-    customerNavItems.map((item) => item.label),
-    ['品牌雲首頁', '設備', 'Product 與服務', 'ChipSet & SDK', '韌體更新', '影像播放狀況', '報表', '帳務與自動加值'],
+    customerNavItems.map((item) => item.labelKey),
+    ['Brand Cloud Home', 'Devices', 'Products and Services', 'ChipSet & SDK', 'Firmware Updates', 'Video Streaming Health', 'Reports', 'Billing and Automatic Top-Up'],
   );
-  assert.deepEqual(customerNavGroups.map((group) => group.label), ['品牌雲', '設備營運', '產品與更新', '監控與分析', '帳號管理']);
+  assert.deepEqual(customerNavGroups.map((group) => group.labelKey), ['Brand Cloud', 'Device Operations', 'Products and Updates', 'Monitoring and Analytics', 'Account Management']);
 });
 
 test('customer nav is derived from active membership capabilities', () => {
@@ -120,8 +120,8 @@ test('customer nav is derived from active membership capabilities', () => {
     'fleet.read',
     'customer.devices.read',
     'customer.stream.read',
-  ]).map((item) => item.label);
-  assert.deepEqual(labels, ['品牌雲首頁', '設備', 'ChipSet & SDK', '影像播放狀況']);
+  ]).map((item) => item.labelKey);
+  assert.deepEqual(labels, ['Brand Cloud Home', 'Devices', 'ChipSet & SDK', 'Video Streaming Health']);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'overview'), true);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), false);
   assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'product-services'), false);
@@ -139,27 +139,25 @@ test('Brand Cloud navigation and route access are evaluated independently', () =
   assert.equal(defaultBrandCloudRoute(['fleet.read']), 'overview');
   assert.equal(defaultBrandCloudRoute(['team.read']), 'access');
   assert.equal(defaultBrandCloudRoute([]), 'settings');
-  assert.deepEqual(navGroupsForCapabilities('overview', ['team.read']).map((group) => group.label), ['品牌雲', '產品與更新']);
+  assert.deepEqual(navGroupsForCapabilities('overview', ['team.read']).map((group) => group.labelKey), ['Brand Cloud', 'Products and Updates']);
 });
 
 test('retired customer pages are not exposed in section navigation', () => {
-  const customerLabels = customerNavItems.map((item) => item.label);
-  const platformLabels = platformNavItems.map((item) => item.label);
+  const customerLabels = customerNavItems.map((item) => item.labelKey);
+  const platformLabels = platformNavItems.map((item) => item.labelKey);
 
   assert.equal(customerLabels.includes('Groups'), false);
   assert.equal(customerLabels.includes('Customers'), false);
   assert.equal(customerLabels.includes('Operations'), false);
-  assert.equal(customerLabels.includes('群組與標籤'), false);
-  assert.equal(customerLabels.includes('批次工作'), false);
   assert.equal(platformLabels.includes('Groups'), false);
   assert.equal(platformLabels.includes('Customers'), false);
 });
 
 test('platform nav follows the unified shell group order', () => {
-  assert.deepEqual(platformNavGroups.map((group) => group.label), ['平台總覽', '監控與診斷', '組織與產品', '營運與稽核']);
+  assert.deepEqual(platformNavGroups.map((group) => group.labelKey), ['Platform Overview', 'Monitoring and Diagnostics', 'Organizations and Products', 'Operations and Audit']);
   assert.deepEqual(
-    platformNavItems.map((item) => item.label),
-    ['平台首頁', 'Grafana', '服務健康', '服務日誌', '品牌雲管理', 'ChipSet & SDK 供應商', 'SSO 供應商', '營運紀錄', '稽核紀錄'],
+    platformNavItems.map((item) => item.labelKey),
+    ['Platform Home', 'Grafana', 'Service Health', 'Service Logs', 'Brand Cloud Management', 'ChipSet & SDK Providers', 'SSO Providers', 'Operations Log', 'Audit Log'],
   );
   assert.deepEqual(
     platformNavItems.map((item) => item.path),
@@ -168,8 +166,8 @@ test('platform nav follows the unified shell group order', () => {
 });
 
 test('route kind selects one capability-filtered navigation hierarchy', () => {
-  assert.deepEqual(navGroupsForCapabilities('overview', []).map((group) => group.label), ['品牌雲', '產品與更新']);
-  assert.deepEqual(navGroupsForCapabilities('platform-dashboard', []).map((group) => group.label), ['平台總覽', '監控與診斷', '組織與產品', '營運與稽核']);
+  assert.deepEqual(navGroupsForCapabilities('overview', []).map((group) => group.labelKey), ['Brand Cloud', 'Products and Updates']);
+  assert.deepEqual(navGroupsForCapabilities('platform-dashboard', []).map((group) => group.labelKey), ['Platform Overview', 'Monitoring and Diagnostics', 'Organizations and Products', 'Operations and Audit']);
   assert.equal(navGroupsForCapabilities('platform-dashboard', [])[2].items.some((item) => item.id === 'platform-chipset-providers'), false);
   assert.equal(navGroupsForCapabilities('platform-dashboard', ['platform.chipset_sdk.read'])[2].items.some((item) => item.id === 'platform-chipset-providers'), true);
   assert.deepEqual(navGroupsForCapabilities('login', []), []);
@@ -203,17 +201,17 @@ test('builds devices URLs with supported filters only', () => {
 });
 
 test('uses the shared Brand Cloud title for integrated routes', () => {
-  assert.equal(titleFor('overview'), '品牌雲');
-  assert.equal(titleFor('access'), '品牌雲');
-  assert.equal(titleFor('settings'), '品牌雲');
+  assert.equal(titleFor('overview'), 'Brand Cloud');
+  assert.equal(titleFor('access'), 'Brand Cloud');
+  assert.equal(titleFor('settings'), 'Brand Cloud');
 });
 
-test('uses Chinese platform route titles in the unified shell', () => {
-  assert.equal(titleFor('platform-dashboard'), '平台首頁');
-  assert.equal(titleFor('platform-health'), '服務健康');
-  assert.equal(titleFor('platform-brand-clouds'), '品牌雲管理');
-  assert.equal(titleFor('platform-operations'), '營運紀錄');
-  assert.equal(titleFor('platform-audit'), '稽核紀錄');
+test('uses English platform route titles in the unified shell', () => {
+  assert.equal(titleFor('platform-dashboard'), 'Platform Home');
+  assert.equal(titleFor('platform-health'), 'Service Health');
+  assert.equal(titleFor('platform-brand-clouds'), 'Brand Cloud Management');
+  assert.equal(titleFor('platform-operations'), 'Operations Log');
+  assert.equal(titleFor('platform-audit'), 'Audit Log');
 });
 
 test('falls back unknown paths to the customer overview route', () => {

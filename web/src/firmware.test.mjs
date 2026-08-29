@@ -59,11 +59,11 @@ test('firmwarePolicyLabel marks unsupported policy values explicitly', () => {
   assert.equal(firmwarePolicyLabel(''), 'Normal');
 });
 
-test('firmware status helpers use upgrade-specific Traditional Chinese labels', () => {
-  assert.equal(firmwareCampaignStatusLabel('active'), '更新中');
-  assert.equal(firmwareCampaignStatusLabel('completed'), '已完成');
-  assert.equal(firmwareRolloutStatusLabel('waiting_for_window'), '等待更新時段');
-  assert.equal(firmwareRolloutStatusLabel('failed'), '更新失敗');
+test('firmware status helpers use upgrade-specific English labels', () => {
+  assert.equal(firmwareCampaignStatusLabel('active'), 'Updating');
+  assert.equal(firmwareCampaignStatusLabel('completed'), 'Completed');
+  assert.equal(firmwareRolloutStatusLabel('waiting_for_window'), 'Waiting for update window');
+  assert.equal(firmwareRolloutStatusLabel('failed'), 'Update failed');
 });
 
 test('firmware campaign progress counts terminal device outcomes', () => {

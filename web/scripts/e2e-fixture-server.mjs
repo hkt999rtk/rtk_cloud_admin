@@ -208,9 +208,9 @@ function providerChipsets(provider) {
     id: `${provider.id}-amebapro2`, provider_name: provider.name, chipset_key: 'realtek-amebapro2', vendor: 'Realtek', name: 'AmebaPro2', family: 'Ameba',
     description: 'AmebaPro2 ChipSet information and SDK resources.', stale: provider.stale, last_successful_refresh_at: provider.last_successful_refresh_at,
     resources: [
-      { type: 'product', title: 'AmebaPro2 產品與開發板', url: 'https://www.amebaiot.com/en/amebapro2/', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
+      { type: 'product', title: 'AmebaPro2 Product & Development Boards', url: 'https://www.amebaiot.com/en/amebapro2/', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
       { type: 'datasheet', title: 'AMB82 Mini Datasheet', url: 'https://www.amebaiot.com/en/datasheet-download-amb82-mini/', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
-      { type: 'forum', title: 'Ameba 開發者論壇', url: 'https://forum.amebaiot.com/', source: 'official', languages: ['en', 'zh-TW'], verified_at: '2026-08-28' },
+      { type: 'forum', title: 'Ameba Developer Forum', url: 'https://forum.amebaiot.com/', source: 'official', languages: ['en', 'zh-TW'], verified_at: '2026-08-28' },
     ],
     sdk_releases: [
       { name: 'Ameba Arduino Pro2', version: provider.snapshot_version, summary: 'Arduino SDK and examples for AmebaPro2.', recommended: true, supported_models: ['AMB82 MINI'], endpoints: [
@@ -248,9 +248,9 @@ async function handleCustomerResource(req, res, url) {
     amount_settled_minor: 842, amount_due_minor: 0, issued_at: '2026-05-23T02:30:00Z', settled_at: '2026-05-23T02:31:00Z', version: 2,
     recipient: { legal_name: 'ACME Corp.', tax_identifier: '12345678', billing_address: 'Taipei, Taiwan', contact_email: 'billing@example.com', locale: 'zh-TW', timezone: 'Asia/Taipei', delivery_preference: 'portal', version: 1 },
     lines: [
-      { id: 'line-video', service_code: 'video', metric_code: 'relay_minutes', description: '串流、錄影與頻寬', quantity: 271, unit: 'minute', unit_price_minor: 2, subtotal_minor: 542, tax_minor: 0, total_minor: 542 },
-      { id: 'line-storage', service_code: 'storage', metric_code: 'gb_month', description: '影像儲存與對象儲存', quantity: 105, unit: 'GB-month', unit_price_minor: 2, subtotal_minor: 210, tax_minor: 0, total_minor: 210 },
-      { id: 'line-mqtt', service_code: 'mqtt', metric_code: 'messages', description: '訊息傳輸與連線', quantity: 90, unit: '1000 messages', unit_price_minor: 1, subtotal_minor: 90, tax_minor: 0, total_minor: 90 },
+      { id: 'line-video', service_code: 'video', metric_code: 'relay_minutes', description: 'Streaming, recording, and bandwidth', quantity: 271, unit: 'minute', unit_price_minor: 2, subtotal_minor: 542, tax_minor: 0, total_minor: 542 },
+      { id: 'line-storage', service_code: 'storage', metric_code: 'gb_month', description: 'Saving Images and Saving Objects', quantity: 105, unit: 'GB-month', unit_price_minor: 2, subtotal_minor: 210, tax_minor: 0, total_minor: 210 },
+      { id: 'line-mqtt', service_code: 'mqtt', metric_code: 'messages', description: 'Messaging & Connections', quantity: 90, unit: '1000 messages', unit_price_minor: 1, subtotal_minor: 90, tax_minor: 0, total_minor: 90 },
     ],
     document: { content_type: 'application/pdf', byte_length: 1024, sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', generated_at: '2026-05-23T02:31:00Z' },
   };
