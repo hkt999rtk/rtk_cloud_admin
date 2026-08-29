@@ -311,6 +311,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PUT /api/billing/auto-topup", s.apiAutoTopUp)
 	s.mux.HandleFunc("DELETE /api/billing/auto-topup", s.apiAutoTopUp)
 	s.mux.HandleFunc("POST /api/billing/topups", s.apiManualTopUp)
+	s.mux.HandleFunc("POST /api/billing/topups/checkout", s.apiHostedTopUp)
 	s.mux.HandleFunc("GET /api/billing/payment-intents", s.apiPaymentIntents)
 	s.mux.HandleFunc("GET /api/billing/payment-intents/{intentId}", s.apiPaymentIntent)
 	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)

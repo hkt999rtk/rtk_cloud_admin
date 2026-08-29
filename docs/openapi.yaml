@@ -2058,6 +2058,32 @@ paths:
         "400": { $ref: "#/components/responses/PaymentError" }
         "409": { $ref: "#/components/responses/PaymentError" }
 
+  /api/billing/topups/checkout:
+    post:
+      operationId: postApiBillingHostedTopUp
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids:
+        - REQ-CA-BILLING-001
+      tags: [Billing]
+      summary: Persist a manual top-up and return a provider-hosted POST action.
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [amount_minor, currency, provider]
+              properties:
+                amount_minor: { type: integer, minimum: 1, format: int64 }
+                currency: { type: string, enum: [TWD] }
+                provider: { type: string, pattern: '^[a-z0-9_]{1,32}$' }
+      responses:
+        "202": { description: Hosted card checkout action accepted. }
+        "400": { $ref: "#/components/responses/PaymentError" }
+        "409": { $ref: "#/components/responses/PaymentError" }
+
   /api/billing/payment-intents:
     get:
       operationId: getApiBillingPaymentIntents
