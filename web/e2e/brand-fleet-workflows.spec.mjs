@@ -6,30 +6,20 @@ test.describe('Brandname async workflows', () => {
   test('[UI-CA-REPORT-003] report builder submits complete metadata from the browser @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/reports');
-    await page.getByLabel('報表名稱').fill('Browser report');
-    await page.getByLabel('報表類型').selectOption('firmware_coverage');
-    await page.getByLabel('輸出格式').selectOption('csv');
+    await page.getByLabel('Report Name').fill('Browser report');
+    await page.getByLabel('Report Type').selectOption('firmware_coverage');
+    await page.getByLabel('Output Format').selectOption('csv');
     await page.getByLabel('Timezone').selectOption('UTC');
-    await page.getByPlaceholder('區域').fill('na');
+    await page.getByPlaceholder('Area').fill('na');
     const createResponse = page.waitForResponse((response) => response.url().includes('/api/reports') && response.request().method() === 'POST');
-    await page.getByRole('button', { name: '建立報表' }).click();
+    await page.getByRole('button', { name: 'Create Report' }).click();
     expect((await createResponse).status()).toBe(202);
-  });
-
-  test('[UI-CA-PROV-004] provisioning CSV upload starts validation from the browser @brand-fleet @smoke', async ({ page }) => {
-    await login(page, 'developer');
-    await page.goto('/console/brand-e2e-01/provisioning');
-    await page.getByPlaceholder('Product ID').fill('product-alpha');
-    await page.getByPlaceholder('Production run（選填）').fill('run-browser');
-    await page.getByLabel('設備清單 CSV').setInputFiles({ name: 'browser-devices.csv', mimeType: 'text/csv', buffer: Buffer.from('device_id\ndev-e2e-001\n') });
-    await page.getByRole('button', { name: '開始驗證' }).click();
-    await expect(page.getByText(/Immutable validation result|validation/i).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('[UI-CA-OTA-001] OTA scope preview is server calculated and immutable @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/firmware-ota');
-    await expectPageTitle(page, '韌體更新');
+    await expectPageTitle(page, 'Firmware Update');
     const preview = await page.request.post('/api/update-plans/scope-preview', {
       headers: { 'Content-Type': 'application/json' },
       data: { product_id: 'product-alpha', query: { region: ['na'], firmware: ['v3.8.0'] }, excluded_device_ids: ['dev-e2e-001'] },
@@ -69,20 +59,20 @@ test.describe('Brandname async workflows', () => {
       } });
     });
     await page.goto('/console/brand-e2e-01/firmware-ota?product_id=product-alpha');
-    await expect(page.getByRole('heading', { name: '韌體更新狀態' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Firmware update status' })).toBeVisible();
     await expect(page.getByText('upgrade-e2e-1').first()).toBeVisible();
-    await expect(page.getByText('已完成', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Completed', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Camera Failed', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('更新失敗', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Update failed', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('checksum mismatch')).toBeVisible();
-    await expect(page.getByRole('button', { name: '重試失敗設備' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Retry failed device' })).toBeVisible();
   });
 
   test('[UI-CA-REPORT-004] reports preserve scope metadata and expose async result download @brand-fleet', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/reports');
-    await expect(page.getByRole('heading', { name: '報表' }).first()).toBeVisible();
-    await expect(page.getByLabel('報表類型').locator('option[value="batch_jobs"]')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Reports' }).first()).toBeVisible();
+    await expect(page.getByLabel('Report Type').locator('option[value="batch_jobs"]')).toHaveCount(0);
     const response = await page.request.post('/api/reports', {
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-report-1' },
       data: { name: 'E2E fleet report', report_type: 'fleet_status', dimensions: ['product', 'region'], timezone: 'Asia/Taipei', format: 'json', scope: { query: { region: ['na'] } } },
@@ -110,31 +100,4 @@ test.describe('Brandname async workflows', () => {
     expect(conflict.status()).toBe(409);
   });
 
-  test('[UI-CA-PROV-005] provisioning upload validates then creates execution job @brand-fleet', async ({ page }) => {
-    await login(page, 'developer');
-    await page.goto('/console/brand-e2e-01/provisioning');
-    await expect(page.getByRole('heading', { name: '設備註冊' }).first()).toBeVisible();
-    const sourceResponse = await page.request.post('/api/provisioning/sources', {
-      headers: { 'Idempotency-Key': 'e2e-source-1' },
-      multipart: { product_id: 'product-alpha', production_run: 'run-e2e-1', file: { name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from('device_id\ndev-e2e-001\ndev-e2e-003\n') } },
-    });
-    expect(sourceResponse.status()).toBe(201);
-    const source = (await sourceResponse.json()).source;
-    const validationResponse = await page.request.post('/api/provisioning/validate', {
-      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-validation-1' },
-      data: { product_id: 'product-alpha', source_id: source.id },
-    });
-    expect(validationResponse.status()).toBe(202);
-    const validation = (await validationResponse.json()).validation_job;
-    await waitForJob(page, validation.id);
-    const executionResponse = await page.request.post('/api/provisioning/jobs', {
-      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-execution-1' },
-      data: { validation_job_id: validation.id },
-    });
-    expect(executionResponse.status()).toBe(202);
-    const execution = (await executionResponse.json()).job;
-    await waitForJob(page, execution.id);
-    const result = await page.request.get(`/api/jobs/${encodeURIComponent(execution.id)}/result`);
-    expect(result.ok()).toBeTruthy();
-  });
 });

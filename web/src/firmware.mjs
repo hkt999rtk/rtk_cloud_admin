@@ -1,3 +1,5 @@
+import { translate } from './i18n/index.mjs';
+
 const statusPriority = {
   failed: 0,
   skipped: 1,
@@ -10,24 +12,24 @@ const statusPriority = {
 const supportedPolicies = new Set(['normal', 'staged', 'maintenance_window', 'manual']);
 
 const campaignStatusLabels = {
-  draft: '尚未啟動',
-  scheduled: '已排程',
-  active: '更新中',
-  paused: '已暫停',
-  completed: '已完成',
-  canceled: '已取消',
+  draft: 'Not started',
+  scheduled: 'Scheduled',
+  active: 'Updating',
+  paused: 'Paused',
+  completed: 'Completed',
+  canceled: 'Canceled',
 };
 
 const rolloutStatusLabels = {
-  pending: '等待更新',
-  eligible: '符合更新條件',
-  downloading: '下載中',
-  waiting_for_window: '等待更新時段',
-  waiting_for_user: '等待使用者確認',
-  applied: '更新完成',
-  failed: '更新失敗',
-  canceled: '已取消',
-  skipped: '已跳過',
+  pending: 'Waiting for update',
+  eligible: 'Eligible for update',
+  downloading: 'Downloading',
+  waiting_for_window: 'Waiting for update window',
+  waiting_for_user: 'Waiting for user confirmation',
+  applied: 'Update completed',
+  failed: 'Update failed',
+  canceled: 'Canceled',
+  skipped: 'Skipped',
 };
 
 export function firmwareVersionFilterValue(version) {
@@ -47,12 +49,12 @@ export function firmwarePolicyLabel(policy) {
 
 export function firmwareCampaignStatusLabel(status) {
   const normalized = String(status || '').trim().toLowerCase();
-  return campaignStatusLabels[normalized] || (normalized ? `未知狀態（${normalized}）` : '未知狀態');
+  return translate(campaignStatusLabels[normalized] || (normalized ? 'Unknown status ({{status}})' : 'Unknown status'), { status: normalized });
 }
 
 export function firmwareRolloutStatusLabel(status) {
   const normalized = String(status || 'pending').trim().toLowerCase();
-  return rolloutStatusLabels[normalized] || `未知狀態（${normalized}）`;
+  return translate(rolloutStatusLabels[normalized] || 'Unknown status ({{status}})', { status: normalized });
 }
 
 export function firmwareCampaignProgress(campaign = {}) {

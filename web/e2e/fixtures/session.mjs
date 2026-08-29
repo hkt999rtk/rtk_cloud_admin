@@ -32,6 +32,11 @@ export async function expectPageTitle(page, title) {
   await expect(page.getByRole('heading', { name: title }).first()).toBeVisible();
 }
 
+export async function expectNoCJKText(page) {
+  const renderedText = await page.locator('body').innerText();
+  expect(renderedText).not.toMatch(/[\u3400-\u9fff]/);
+}
+
 export async function waitForJobState(page, jobId, states = ['completed'], timeout = 15_000) {
   const pattern = new RegExp(`^(?:${states.join('|')})$`);
   await expect.poll(async () => {
@@ -50,5 +55,5 @@ export async function loginWithStagingSession(page, kind = 'platform') {
 
 export async function enterPlatform(page) {
   await page.goto('/admin');
-  await page.getByRole('heading', { name: '平台首頁', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Platform Home', exact: true }).waitFor();
 }

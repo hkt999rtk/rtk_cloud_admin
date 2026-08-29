@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
 import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs';
@@ -100,13 +101,38 @@ import {
   providerEndpointCount,
   providerKPIs,
   providerSyncHealth,
+  providerValidationErrorMessage,
   vendorInitials,
 } from './chipset-sdk.mjs';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import '@fontsource-variable/noto-sans-tc';
 import './styles.css';
+import i18n, { FORMAT_LOCALE, formatNumber, translate } from './i18n/index.mjs';
 
 const DEFAULT_PAGE_SIZE = 8;
+
+const PRODUCT_SERVICE_CAPABILITIES = Object.freeze([
+  { code: 'video_streaming', label: 'Live View' },
+  { code: 'video_storage', label: 'Recording and Storage' },
+  { code: 'mqtt', label: 'Device Telemetry' },
+]);
+
+function normalizeProductServiceCapability(value) {
+  const aliases = {
+    '即時觀看': 'video_streaming',
+    '影像服務': 'video_streaming',
+    '錄影與保存': 'video_storage',
+    '設備回報': 'mqtt',
+    '韌體更新': 'ota',
+  };
+  return aliases[value] || value;
+}
+
+function productServiceCapabilityLabel(value) {
+  const code = normalizeProductServiceCapability(value);
+  return PRODUCT_SERVICE_CAPABILITIES.find((item) => item.code === code)?.label
+    || (code === 'ota' ? 'Firmware Updates' : code);
+}
 
 function brandCloudsURL({ query, status, tier, limit, offset }) {
   const params = new URLSearchParams();
@@ -173,16 +199,16 @@ async function fetchBrandCloudAccessData(cloudId, { includeAssignments = false }
   const unavailable = (message) => ({ source_status: 'unavailable', source_message: message });
   const read = async (path, fallback) => fetchJSON(path).catch((err) => {
     if (err.isAuthError) throw err;
-    return unavailable(err.message || fallback);
+    return unavailable(fallback);
   });
   const membersRequest = cloudId
-    ? read(`/api/developer/brand-clouds/${encodeURIComponent(cloudId)}/members`, '成員資料暫時無法取得。')
-    : Promise.resolve(unavailable('尚未選擇 Brand Cloud。'));
+    ? read(`/api/developer/brand-clouds/${encodeURIComponent(cloudId)}/members`, translate('Member data is temporarily unavailable.'))
+    : Promise.resolve(unavailable(translate('No Brand Cloud is selected.')));
   const invitationsRequest = cloudId
-    ? read(`/api/developer/brand-clouds/${encodeURIComponent(cloudId)}/members/invitations`, '邀請資料暫時無法取得。')
-    : Promise.resolve(unavailable('尚未選擇 Brand Cloud。'));
+    ? read(`/api/developer/brand-clouds/${encodeURIComponent(cloudId)}/members/invitations`, translate('Invitation data is temporarily unavailable.'))
+    : Promise.resolve(unavailable(translate('No Brand Cloud is selected.')));
   const assignmentsRequest = includeAssignments
-    ? read('/api/role-assignments', '角色與管理範圍暫時無法取得。')
+    ? read('/api/role-assignments', translate('Roles and management scopes are temporarily unavailable.'))
     : Promise.resolve({ source_status: 'not_loaded' });
   const [membersResult, invitationsResult, assignmentsResult] = await Promise.all([
     membersRequest,
@@ -269,6 +295,10 @@ function App() {
   const customerViewPending = !isPlatformView && !isPublicRoute && me === null;
   const customerCapabilityBlocked = !isMemberInvitationAccept && !isPlatformView && !isPublicRoute && me?.authenticated && me.kind === 'customer' && !canAccessCustomerRoute(active, me.capabilities);
   const customerViewBlocked = !isPlatformView && !isPublicRoute && me !== null && (me.authenticated === false || me.kind === 'platform_admin' || customerCapabilityBlocked);
+
+  useEffect(() => {
+    document.title = `${titleFor(active)} · RTK Cloud`;
+  }, [active]);
 
   useEffect(() => {
     const canonicalPath = canonicalCustomerPath(window.location.pathname);
@@ -397,7 +427,7 @@ function App() {
         if (active === 'overview' && nextMe.kind !== 'platform_admin') {
           const nextFleetSummary = await fetchJSON('/api/fleet/summary').catch((err) => {
             if (err.isAuthError) throw err;
-            return { source_status: 'unavailable', source_message: err.message || 'Fleet 統計暫時無法取得。' };
+            return { source_status: 'unavailable', source_message: translate('Fleet statistics are temporarily unavailable.') };
           });
           if (!alive) return;
           setFleetSummary(nextFleetSummary);
@@ -409,7 +439,7 @@ function App() {
         if (active === 'devices' && nextMe.kind !== 'platform_admin') {
           const nextFleetDevices = await fetchJSON(fleetDevicesURL(window.location.search)).catch((err) => {
             if (err.isAuthError) throw err;
-            return { devices: [], pagination: { limit: 100, offset: 0, total: 0 }, source_status: 'unavailable', source_message: err.message || '設備查詢服務暫時無法使用。' };
+            return { devices: [], pagination: { limit: 100, offset: 0, total: 0 }, source_status: 'unavailable', source_message: translate('The device query service is temporarily unavailable.') };
           });
           if (!alive) return;
           setFleetDevices(nextFleetDevices);
@@ -421,7 +451,7 @@ function App() {
         if (useAdminApi && ['platform-dashboard', 'platform-logs'].includes(active)) {
           const logs = await fetchJSON('/api/admin/service-logs?service=workspace-readiness').catch((err) => ({
             status: 'degraded',
-            message: err.message || 'Central service logging is unavailable.',
+            message: 'Central service logging is unavailable.',
             events: [],
           }));
           if (!alive) return;
@@ -437,7 +467,7 @@ function App() {
             return {
               enabled: false,
               source_status: 'unavailable',
-              source_message: err.message || 'Grafana status is unavailable.',
+              source_message: 'Grafana status is unavailable.',
             };
           });
           if (!alive) return;
@@ -490,7 +520,7 @@ function App() {
         if (useAdminApi && active === 'platform-chipset-providers') {
           const result = await fetchJSON('/api/admin/chipset-providers').catch((err) => {
             if (err.isAuthError) throw err;
-            return { providers: [], source_status: 'unavailable', source_message: err.message || 'Provider catalog is unavailable.' };
+            return { providers: [], source_status: 'unavailable', source_message: 'Provider catalog is unavailable.' };
           });
           if (!alive) return;
           setChipsetProviders(result);
@@ -500,7 +530,7 @@ function App() {
         if (!useAdminApi && active === 'chipset-sdk' && nextMe.kind === 'customer') {
           const result = await fetchJSON('/api/developer/chipsets').catch((err) => {
             if (err.isAuthError) throw err;
-            return { chipsets: [], source_status: 'unavailable', source_message: err.message || 'ChipSet resources are unavailable.' };
+            return { chipsets: [], source_status: 'unavailable', source_message: 'ChipSet resources are unavailable.' };
           });
           if (!alive) return;
           setChipsets(result);
@@ -522,7 +552,7 @@ function App() {
         if (['product-services', 'firmware-ota', 'reports'].includes(active) && nextMe.kind !== 'platform_admin') {
           const nextProducts = await fetchJSON('/api/products').catch((err) => {
             if (err.isAuthError) throw err;
-            return { products: [], source_status: 'unavailable', source_message: err.message || 'Product 資料暫時無法取得。' };
+            return { products: [], source_status: 'unavailable', source_message: translate('Product data is temporarily unavailable.') };
           });
           if (!alive) return;
           setProducts(nextProducts);
@@ -545,7 +575,7 @@ function App() {
           const endpoint = active === 'reports' ? '/api/reports' : '/api/groups';
           const result = await fetchJSON(endpoint).catch((err) => {
             if (err.isAuthError) throw err;
-            return { [active]: [], source_status: 'unavailable', source_message: err.message || '資料暫時無法取得。' };
+            return { [active]: [], source_status: 'unavailable', source_message: translate('Data is temporarily unavailable.') };
           });
           if (!alive) return;
           if (active === 'reports') setReports(result);
@@ -567,7 +597,7 @@ function App() {
         if (active === 'billing' && nextMe.kind === 'customer') {
           const nextBilling = await fetchBillingData().catch((err) => {
             if (err.isAuthError) throw err;
-            return { source_status: 'unavailable', source_message: '帳務資料暫時無法取得，沒有送出任何扣款。' };
+            return { source_status: 'unavailable', source_message: translate('Billing data is temporarily unavailable. No charge was submitted.') };
           });
           if (!alive) return;
           setBilling(nextBilling);
@@ -635,7 +665,7 @@ function App() {
           setStreamStats(null);
           setRecentAlerts([]);
         }
-        if (alive) setError(active === 'platform-brand-clouds' ? userFacingBrandCloudError(err) : err.message);
+        if (alive) setError(active === 'platform-brand-clouds' ? userFacingBrandCloudError(err) : 'The requested data could not be loaded. Please try again.');
       } finally {
         if (alive) setLoading(false);
       }
@@ -804,7 +834,7 @@ function App() {
     const response = await fetch(`/api/update-plans/${encodeURIComponent(campaignId)}/${action}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `ui-${campaignId}-${action}-${Date.now()}` },
-      body: JSON.stringify({ reason: '由營運人員在 Fleet Management 執行' }),
+      body: JSON.stringify({ reason: 'Executed by an operator in Fleet Management' }),
     });
     if (!response.ok) {
       setError(`${action} failed with ${response.status}`);
@@ -1083,7 +1113,7 @@ function App() {
     try {
       return await postJSON(`/api/orgs/${encodeURIComponent(orgId)}/quota-raise-requests`, payload);
     } catch (err) {
-      setError(err.message);
+      setError(quotaRaiseErrorMessage(err));
       throw err;
     }
   }
@@ -1207,10 +1237,10 @@ function App() {
         </div>
         <nav className="sidebar-nav-groups">
           {visibleNavGroups.map((group) => <section className="sidebar-nav-group" key={group.id}>
-            <p className="sidebar-section-label">{group.label}</p>
+            <p className="sidebar-section-label">{translate(group.labelKey)}</p>
             {group.items.map((item) => <button type="button" key={item.id} className={isCustomerNavItemActive(item, active) ? 'active' : ''} onClick={() => navigate(item)}>
               {item.icon ? <Icon name={item.icon} /> : null}
-              {item.label}
+              {translate(item.labelKey)}
             </button>)}
           </section>)}
         </nav>
@@ -1492,7 +1522,7 @@ function LoginPasswordForm({ initialEmail = '', onPasswordLogin, disabled }) {
     try {
       await onPasswordLogin({ email, password });
     } catch (err) {
-      setLocalError(err?.message || 'Sign-in is temporarily unavailable. Please try again later.');
+      setLocalError(err?.message || 'Sign-in could not be completed. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -1967,9 +1997,9 @@ function BrandCloudPage({
 }) {
   const capabilities = me?.capabilities || [];
   const tabs = [
-    { id: 'overview', label: '總覽' },
-    { id: 'access', label: '成員與權限' },
-    { id: 'settings', label: '設定' },
+    { id: 'overview', label: translate('Overview') },
+    { id: 'access', label: translate('Members and Access') },
+    { id: 'settings', label: translate('Settings') },
   ].filter((tab) => canAccessCustomerRoute(tab.id, capabilities));
   const canManageTeam = canUseCapability({ capabilities }, 'team.manage');
   const canIssuePKITest = canUseCapability({ capabilities }, 'pki.test.issue');
@@ -1979,7 +2009,7 @@ function BrandCloudPage({
       <div>
         <p className="eyebrow">Brand Cloud</p>
         <h2>{cloud.name}</h2>
-        <p>{cloud.id || '尚未選擇 Brand Cloud'}</p>
+        <p>{cloud.id || translate('No Brand Cloud selected')}</p>
       </div>
     </header>
     <nav className="brand-cloud-tabs" aria-label="Brand Cloud sections">
@@ -2032,21 +2062,21 @@ function TeamSummaryCard({ data, loading, me, onOpen }) {
   const owner = members.find((member) => member.role === 'owner');
   const membership = getActiveMembership(me);
   const currentMember = members.find((member) => member.email && member.email === me?.email);
-  const role = currentMember?.role || membership?.role || '未指定';
+  const role = currentMember?.role || membership?.role || translate('Not specified');
   const unavailable = data && data.source_status === 'unavailable';
 
   return <section className="panel team-summary-card">
     <div className="panel-head">
-      <div><h2>團隊摘要</h2><p>快速確認成員、邀請與目前角色。</p></div>
-      <button type="button" className="ghost-button" onClick={onOpen}>管理成員與權限</button>
+      <div><h2>{translate('Team Summary')}</h2><p>{translate('Review members, invitations, and your current role.')}</p></div>
+      <button type="button" className="ghost-button" onClick={onOpen}>{translate('Manage Members and Access')}</button>
     </div>
-    {loading && !data ? <p className="empty-state">正在取得團隊資料。</p> : null}
-    {unavailable ? <p className="empty-state">{data.source_message || '團隊資料暫時無法取得。'}</p> : null}
+    {loading && !data ? <p className="empty-state">{translate('Loading team data.')}</p> : null}
+    {unavailable ? <p className="empty-state">{sourceMessage(data, translate('Team data is temporarily unavailable.'))}</p> : null}
     {!loading && !unavailable ? <div className="team-summary-grid">
-      <div><small>成員</small><strong>{members.length}</strong></div>
+      <div><small>{translate('Members')}</small><strong>{members.length}</strong></div>
       <div><small>Owner</small><strong>{owner?.display_name || owner?.email || '—'}</strong></div>
-      <div><small>待接受邀請</small><strong>{pendingInvitations.length}</strong></div>
-      <div><small>我的角色</small><strong>{role}</strong></div>
+      <div><small>{translate('Pending Invitations')}</small><strong>{pendingInvitations.length}</strong></div>
+      <div><small>{translate('My Role')}</small><strong>{role}</strong></div>
     </div> : null}
   </section>;
 }
@@ -2104,7 +2134,7 @@ function Overview({
 
   return (
     <div className="overview-layout">
-      <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>設備總覽</h2><p>快速了解設備狀況與需要處理的工作。</p></div></div>
+      <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
       <section className="metrics overview-metrics">
         <MetricCard icon="video" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
         <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
@@ -2165,20 +2195,20 @@ function RegionFleetPanel({ summary, loading }) {
     <section className="panel region-fleet-panel">
       <div className="panel-head">
         <div>
-          <h2>各區域設備狀況</h2>
-          <p>用地圖快速定位，再用數量比較各區域的設備規模。</p>
+          <h2>{translate('Device Status by Region')}</h2>
+          <p>{translate('Use the map to locate regions and compare fleet size by device count.')}</p>
         </div>
       </div>
-      {loading ? <p className="empty-state">正在取得區域資料。</p> : null}
-      {!loading && unavailable ? <p className="empty-state">區域資料暫時無法取得。</p> : null}
+      {loading ? <p className="empty-state">{translate('Loading regional data.')}</p> : null}
+      {!loading && unavailable ? <p className="empty-state">{translate('Regional data is temporarily unavailable.')}</p> : null}
       {!loading && !unavailable ? (
         <div className="region-fleet-grid">
           <div className="region-bars">
             {regions.slice(0, 8).map(([region, count]) => <div className="region-bar-row" key={region}>
-              <div><strong>{region}</strong><span>{count.toLocaleString()} 台</span></div>
+              <div><strong>{region}</strong><span>{translate('{{count}} devices', { count: formatNumber(count) })}</span></div>
               <div className="region-bar-track"><span style={{ width: `${Math.max(4, count / max * 100)}%` }} /></div>
             </div>)}
-            {!regions.length ? <p className="empty-state">目前沒有區域資料。</p> : null}
+            {!regions.length ? <p className="empty-state">{translate('No regional data is available.')}</p> : null}
           </div>
           <div className="region-map-desktop"><RegionMap regions={regions} max={max} /></div>
           <details className="region-map-mobile">
@@ -2249,11 +2279,11 @@ function RegionMap({ regions, max }) {
     setHoveredRegion({ name: country.properties.name, x: event.clientX - bounds.left, y: event.clientY - bounds.top });
   }
 
-  return <div className="region-map-vector" aria-label="區域設備分布圖">
-    <div className="region-map-toolbar" aria-label="地圖控制">
-      <button type="button" onClick={() => zoomBy(1.4)} aria-label="放大地圖">＋</button>
-      <button type="button" onClick={() => zoomBy(1 / 1.4)} aria-label="縮小地圖" disabled={zoom <= 1}>−</button>
-      <button type="button" onClick={() => setViewport(WORLD_VIEWPORT)} disabled={zoom <= 1}>重設</button>
+  return <div className="region-map-vector" aria-label={translate('Regional device distribution map')}>
+    <div className="region-map-toolbar" aria-label={translate('Map controls')}>
+      <button type="button" onClick={() => zoomBy(1.4)} aria-label={translate('Zoom in')}>＋</button>
+      <button type="button" onClick={() => zoomBy(1 / 1.4)} aria-label={translate('Zoom out')} disabled={zoom <= 1}>−</button>
+      <button type="button" onClick={() => setViewport(WORLD_VIEWPORT)} disabled={zoom <= 1}>{translate('Reset')}</button>
       <span>{Math.round(zoom * 100)}%</span>
     </div>
     <div className="region-map-stage">
@@ -2261,7 +2291,7 @@ function RegionMap({ regions, max }) {
         className={dragging ? 'is-dragging' : ''}
         viewBox={`${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`}
         role="img"
-        aria-label="可縮放及拖曳的世界設備分布地圖"
+        aria-label={translate('Zoomable and draggable world device distribution map')}
         onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -2270,8 +2300,8 @@ function RegionMap({ regions, max }) {
         onPointerLeave={() => setHoveredRegion(null)}
       >
         <g className="world-countries">
-          {WORLD_COUNTRIES.map((country) => <path
-            key={country.id}
+          {WORLD_COUNTRIES.map((country, index) => <path
+            key={country.id || country.properties.name || index}
             d={worldGeometryPath(country.geometry)}
             onPointerEnter={(event) => showCountry(event, country)}
             onPointerMove={(event) => showCountry(event, country)}
@@ -2287,7 +2317,7 @@ function RegionMap({ regions, max }) {
       </svg>
       {hoveredRegion ? <div className="region-map-tooltip" style={{ left: hoveredRegion.x, top: hoveredRegion.y }}>{hoveredRegion.name}</div> : null}
     </div>
-    <small>{regions.length ? '拖曳平移、滾輪縮放；圓點大小代表設備數量' : '拖曳平移、滾輪縮放；移到國家／地區可查看名稱'}</small>
+    <small>{regions.length ? translate('Drag to pan and scroll to zoom. Marker size represents device count.') : translate('Drag to pan and scroll to zoom. Hover over a country or region to view its name.')}</small>
   </div>;
 }
 
@@ -2354,25 +2384,25 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
       method: 'POST', headers: { 'Idempotency-Key': `chipset-provider-${provider.id}-${action}-${Date.now()}` },
     });
     const body = response.ok ? await response.json().catch(() => null) : null;
-    setMessage(response.ok ? (body?.audit_result === 'accepted' ? `Provider ${action} 已完成。` : `Provider ${action} 已完成，但 audit record 寫入失敗。`) : await response.text());
+    setMessage(response.ok ? (body?.audit_result === 'accepted' ? translate('Provider {{action}} completed.', { action }) : translate('Provider {{action}} completed, but the audit record could not be written.', { action })) : translate('The provider action could not be completed.'));
     if (response.ok) onRefresh();
   }
   return <section className="page-content chipset-provider-page" data-testid="chipset-provider-page">
-    <div className="page-intro"><div><p className="eyebrow">Developer Enablement</p><h2>ChipSet &amp; SDK Providers</h2><p>上架外部 Information Provider manifest。平台只管理來源、發布狀態與同步健康，不直接修改解析後的 SDK endpoint。</p></div><div className="page-intro-actions"><button type="button" className="ghost-button" onClick={onRefresh}>重新整理狀態</button>{canEdit ? <button type="button" className="primary-button" onClick={() => setDrawer({ mode: 'create', provider: null })}>新增 Provider</button> : null}</div></div>
+    <div className="page-intro"><div><p className="eyebrow">Developer Enablement</p><h2>ChipSet &amp; SDK Providers</h2><p>{translate('Publish external Information Provider manifests. The platform manages sources, publication state, and synchronization health without modifying parsed SDK endpoints.')}</p></div><div className="page-intro-actions"><button type="button" className="ghost-button" onClick={onRefresh}>{translate('Refresh Status')}</button>{canEdit ? <button type="button" className="primary-button" onClick={() => setDrawer({ mode: 'create', provider: null })}>{translate('Add Provider')}</button> : null}</div></div>
     <section className="metrics chipset-provider-kpis" aria-label="ChipSet provider summary">
       <MetricCard icon="database" label="Providers" value={kpis.total} hint={`${kpis.published} published · ${kpis.total - kpis.published} not published`} tone="info" />
       <MetricCard icon="microchip" label="Published ChipSets" value={kpis.publishedChipsets} hint={`${kpis.publishedSDKs} SDK releases`} tone="info" />
       <MetricCard icon="clock-rotate-left" label="Last successful sync" value={kpis.lastSuccess ? formatRelativeTime(kpis.lastSuccess) : '—'} hint={kpis.lastSuccess ? 'background refresh healthy' : 'No successful sync'} tone="good" />
       <MetricCard icon="triangle-exclamation" label="Needs attention" value={kpis.needsAttention} hint="last-known-good remains available" tone={kpis.needsAttention ? 'warn' : 'good'} />
     </section>
-    {staleProviders.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>{staleProviders[0].name} manifest 已延遲</strong><span>最後有效資料仍會提供給 Developer；請檢查 provider endpoint。</span></div><button type="button" className="link-button" onClick={() => setDrawer({ mode: 'preview', provider: staleProviders[0] })}>查看錯誤</button></div> : null}
+    {staleProviders.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>{translate('{{name}} manifest is delayed', { name: staleProviders[0].name })}</strong><span>{translate('The last valid data remains available to developers. Check the provider endpoint.')}</span></div><button type="button" className="link-button" onClick={() => setDrawer({ mode: 'preview', provider: staleProviders[0] })}>{translate('View Error')}</button></div> : null}
     {message ? <div className="notice">{message}</div> : null}
-    {loading && !data ? <section className="panel chipset-loading-state"><p>正在載入 providers…</p></section> : null}
+    {loading && !data ? <section className="panel chipset-loading-state"><p>{translate('Loading providers…')}</p></section> : null}
     {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Provider catalog unavailable</h3><p>{data.source_message}</p></div></section> : null}
-    {data?.source_status !== 'unavailable' ? <section className="panel chipset-provider-list-panel"><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜尋 provider、ChipSet 或 manifest version" aria-label="搜尋 ChipSet providers" /><div className="chipset-filter-tabs" role="group" aria-label="Provider status filter">{[['all', '全部'], ['published', 'Published'], ['draft', 'Draft'], ['stale', 'Stale']].map(([value, label]) => <button type="button" className={filter === value ? 'active' : ''} aria-pressed={filter === value} onClick={() => setFilter(value)} key={value}>{label}</button>)}</div></div><div className="table-wrap"><table className="data-table chipset-provider-table"><thead><tr><th>Provider</th><th>Status</th><th>Manifest</th><th>Resources</th><th>Last success</th><th>Sync health</th><th>Actions</th></tr></thead><tbody>{visibleProviders.map((provider) => {
+    {data?.source_status !== 'unavailable' ? <section className="panel chipset-provider-list-panel"><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search providers, ChipSets, or manifest versions')} aria-label={translate('Search ChipSet providers')} /><div className="chipset-filter-tabs" role="group" aria-label="Provider status filter">{[['all', translate('All')], ['published', 'Published'], ['draft', 'Draft'], ['stale', 'Stale']].map(([value, label]) => <button type="button" className={filter === value ? 'active' : ''} aria-pressed={filter === value} onClick={() => setFilter(value)} key={value}>{label}</button>)}</div></div><div className="table-wrap"><table className="data-table chipset-provider-table"><thead><tr><th>Provider</th><th>Status</th><th>Manifest</th><th>Resources</th><th>Last success</th><th>Sync health</th><th>Actions</th></tr></thead><tbody>{visibleProviders.map((provider) => {
       const health = providerSyncHealth(provider);
-      return <tr key={provider.id}><td><strong>{provider.name}</strong><small>{provider.id} · HTTPS allowlisted</small></td><td><span className={`status-badge ${provider.status === 'published' ? 'good' : 'neutral'}`}>{provider.status}</span></td><td><strong>v{provider.manifest_version || '—'} · {compactHash(provider.manifest_sha256)}</strong><small>{provider.etag ? `ETag ${provider.etag}` : provider.last_modified ? `Last-Modified ${provider.last_modified}` : 'No cache validator'}</small></td><td>{provider.chipset_count || 0} ChipSets · {provider.sdk_release_count || 0} SDKs</td><td>{formatProviderTimestamp(provider.last_successful_refresh_at)}</td><td><span className={`status-badge ${health.key === 'healthy' ? 'good' : health.key === 'stale' ? 'warning' : health.key === 'unavailable' ? 'danger' : 'neutral'}`}>{health.label}</span>{health.detail ? <small className={health.key === 'healthy' ? '' : 'provider-error'}>{health.detail}</small> : null}</td><td><div className="chipset-row-actions"><button className="link-button" type="button" onClick={() => setDrawer({ mode: 'preview', provider })}>預覽</button>{canEdit && provider.status !== 'published' ? <button className="link-button" type="button" onClick={() => setDrawer({ mode: 'edit', provider })}>編輯</button> : null}{canPublish ? <>{provider.status === 'published' ? <button className="link-button" type="button" onClick={() => act(provider, 'unpublish')}>下架</button> : <button className="link-button" type="button" onClick={() => act(provider, 'publish')}>發布</button>}<button className="link-button" type="button" onClick={() => act(provider, 'refresh')}>刷新</button></> : null}</div></td></tr>;
-    })}</tbody></table>{!providers.length ? <p className="empty-state">目前沒有 Information Provider。新增 Provider 後，先完成 validation preview 再發布。</p> : null}{providers.length && !visibleProviders.length ? <p className="empty-state">沒有符合目前搜尋或篩選條件的 Provider。</p> : null}</div></section> : null}
+      return <tr key={provider.id}><td><strong>{provider.name}</strong><small>{provider.id} · HTTPS allowlisted</small></td><td><span className={`status-badge ${provider.status === 'published' ? 'good' : 'neutral'}`}>{provider.status}</span></td><td><strong>v{provider.manifest_version || '—'} · {compactHash(provider.manifest_sha256)}</strong><small>{provider.etag ? `ETag ${provider.etag}` : provider.last_modified ? `Last-Modified ${provider.last_modified}` : 'No cache validator'}</small></td><td>{provider.chipset_count || 0} ChipSets · {provider.sdk_release_count || 0} SDKs</td><td>{formatProviderTimestamp(provider.last_successful_refresh_at)}</td><td><span className={`status-badge ${health.key === 'healthy' ? 'good' : health.key === 'stale' ? 'warning' : health.key === 'unavailable' ? 'danger' : 'neutral'}`}>{health.label}</span>{health.detail ? <small className={health.key === 'healthy' ? '' : 'provider-error'}>{health.detail}</small> : null}</td><td><div className="chipset-row-actions"><button className="link-button" type="button" onClick={() => setDrawer({ mode: 'preview', provider })}>{translate('Preview')}</button>{canEdit && provider.status !== 'published' ? <button className="link-button" type="button" onClick={() => setDrawer({ mode: 'edit', provider })}>{translate('Edit')}</button> : null}{canPublish ? <>{provider.status === 'published' ? <button className="link-button" type="button" onClick={() => act(provider, 'unpublish')}>{translate('Unpublish')}</button> : <button className="link-button" type="button" onClick={() => act(provider, 'publish')}>{translate('Publish')}</button>}<button className="link-button" type="button" onClick={() => act(provider, 'refresh')}>{translate('Refresh')}</button></> : null}</div></td></tr>;
+    })}</tbody></table>{!providers.length ? <p className="empty-state">{translate('No Information Providers are available. Add a provider and complete validation preview before publishing.')}</p> : null}{providers.length && !visibleProviders.length ? <p className="empty-state">{translate('No providers match the current search or filters.')}</p> : null}</div></section> : null}
     {drawer ? <ChipsetProviderDrawer mode={drawer.mode} initialProvider={drawer.provider} canEdit={canEdit} canPublish={canPublish} onClose={() => setDrawer(null)} onRefresh={onRefresh} onMessage={setMessage} /> : null}
   </section>;
 }
@@ -2386,17 +2416,17 @@ function DeveloperChipsetResources({ data, loading }) {
   const visibleChipsets = useMemo(() => filterChipsets(chipsets, query, vendor, recommendedOnly), [chipsets, query, vendor, recommendedOnly]);
   const staleChipsets = chipsets.filter((chipset) => chipset.stale);
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
-    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><h2>ChipSet &amp; SDK</h2><p>查看平台已發布的晶片與開發資源。這些資訊由原廠 Information Provider 同步，SDK 與外部連結會在新分頁開啟。</p></div><button type="button" className="ghost-button">開發支援說明</button></div>
-    {staleChipsets.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>部分資訊可能不是最新版本</strong><span>{staleChipsets[0].name} 最後成功同步於 {formatProviderTimestamp(staleChipsets[0].last_successful_refresh_at)}；目前仍顯示最後有效資料。</span></div></div> : null}
+    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><h2>ChipSet &amp; SDK</h2><p>{translate('Browse published ChipSets and development resources synchronized from official Information Providers. SDK and external links open in a new tab.')}</p></div><button type="button" className="ghost-button">{translate('Developer Support Guide')}</button></div>
+    {staleChipsets.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>{translate('Some information may be out of date')}</strong><span>{translate('{{name}} last synchronized successfully at {{time}}. The last valid data remains visible.', { name: staleChipsets[0].name, time: formatProviderTimestamp(staleChipsets[0].last_successful_refresh_at) })}</span></div></div> : null}
     {loading && !data ? <ChipsetCardSkeletons /> : null}
-    {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>資源暫時無法取得</h3><p>{data.source_message}</p></div></section> : null}
-    {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>目前沒有已發布資源</h3><p>Platform 發布 Information Provider 後，ChipSet 與 SDK 會顯示在這裡。</p></div></section> : null}
-    {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜尋 ChipSet、vendor、SDK 或 supported model" aria-label="搜尋 ChipSet 與 SDK" /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>全部</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>找不到符合條件的資源</h3><p>請調整搜尋文字或篩選條件。</p></div></section> : null}</> : null}
+    {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p></div></section> : null}
+    {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
+    {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
   </section>;
 }
 
 function ChipsetCards({ chipsets, showFreshness }) {
-	return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id || chipset.chipset_key}><div className="chipset-card-heading"><div className="chipset-vendor-mark" aria-hidden="true">{vendorInitials(chipset)}</div><div><h3>{chipset.name}</h3><p className="chipset-vendor-line">{chipset.vendor}{chipset.family ? ` · ${chipset.family} family` : ''}</p></div><span className={`status-badge ${chipset.stale ? 'warning' : 'good'}`}>{chipset.stale ? 'Stale' : 'Current'}</span></div><p>{chipset.description || 'ChipSet developer information'}</p><div className="chipset-card-meta"><span>{chipset.resources?.length || 0} product resources</span><span>{chipset.sdk_releases?.length || 0} SDK releases</span>{showFreshness ? <span>最後同步：{chipset.last_successful_refresh_at ? formatRelativeTime(chipset.last_successful_refresh_at) : 'unknown'}</span> : null}</div>{chipset.resources?.length ? <section className="chipset-product-resources"><h4>產品與支援</h4><ResourceLinks resources={chipset.resources} /></section> : null}{chipset.sdk_releases?.length ? <h4 className="chipset-sdk-heading">SDK</h4> : null}{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{release.summary}</small> : null}</div>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div>{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="chipset-model-chip" key={model}>{model}</span>)}</div> : null}<ResourceLinks resources={release.endpoints} compact /></section>)}{showFreshness ? <small className="chipset-provider-attribution">Information provided by {chipset.provider_name}</small> : null}</article>)}</div>;
+	return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id || chipset.chipset_key}><div className="chipset-card-heading"><div className="chipset-vendor-mark" aria-hidden="true">{vendorInitials(chipset)}</div><div><h3>{chipset.name}</h3><p className="chipset-vendor-line">{chipset.vendor}{chipset.family ? ` · ${chipset.family} family` : ''}</p></div><span className={`status-badge ${chipset.stale ? 'warning' : 'good'}`}>{chipset.stale ? 'Stale' : 'Current'}</span></div><p>{chipset.description || 'ChipSet developer information'}</p><div className="chipset-card-meta"><span>{chipset.resources?.length || 0} product resources</span><span>{chipset.sdk_releases?.length || 0} SDK releases</span>{showFreshness ? <span>{translate('Last synchronized: {{time}}', { time: chipset.last_successful_refresh_at ? formatRelativeTime(chipset.last_successful_refresh_at) : 'unknown' })}</span> : null}</div>{chipset.resources?.length ? <section className="chipset-product-resources"><h4>{translate('Products and Support')}</h4><ResourceLinks resources={chipset.resources} /></section> : null}{chipset.sdk_releases?.length ? <h4 className="chipset-sdk-heading">SDK</h4> : null}{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{release.summary}</small> : null}</div>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div>{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="chipset-model-chip" key={model}>{model}</span>)}</div> : null}<ResourceLinks resources={release.endpoints} compact /></section>)}{showFreshness ? <small className="chipset-provider-attribution">Information provided by {chipset.provider_name}</small> : null}</article>)}</div>;
 }
 
 function ResourceLinks({ resources = [], compact = false }) {
@@ -2405,7 +2435,7 @@ function ResourceLinks({ resources = [], compact = false }) {
 }
 
 function ChipsetCardSkeletons() {
-  return <div className="chipset-resource-grid" aria-label="正在載入開發資源">{[0, 1].map((index) => <article className="panel chipset-card chipset-card-skeleton" key={index}><span /><span /><span /><span /></article>)}</div>;
+  return <div className="chipset-resource-grid" aria-label={translate('Loading developer resources')}>{[0, 1].map((index) => <article className="panel chipset-card chipset-card-skeleton" key={index}><span /><span /><span /><span /></article>)}</div>;
 }
 
 function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onClose, onRefresh, onMessage }) {
@@ -2420,7 +2450,7 @@ function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onC
     if (!target?.id) return null;
     const response = await fetch(`/api/admin/chipset-providers/${encodeURIComponent(target.id)}`);
     const text = await response.text();
-    if (!response.ok) throw new Error(text || 'Preview 無法取得。');
+    if (!response.ok) throw new Error(text || translate('Preview is unavailable.'));
     const body = text ? JSON.parse(text) : null;
     setProvider(body?.provider || target);
     setPreview(body);
@@ -2428,7 +2458,7 @@ function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onC
   }
 
   useEffect(() => {
-    if (initialProvider?.id) loadPreview(initialProvider).catch((err) => setError(err.message));
+    if (initialProvider?.id) loadPreview(initialProvider).catch(() => setError('The provider preview is temporarily unavailable.'));
   }, [initialProvider?.id]);
 
   async function saveDraft() {
@@ -2440,11 +2470,11 @@ function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onC
       body: JSON.stringify(form),
     });
     const text = await response.text();
-    if (!response.ok) throw new Error(text || 'Provider draft 無法儲存。');
+    if (!response.ok) throw new Error(text || translate('The provider draft could not be saved.'));
     const body = text ? JSON.parse(text) : null;
     const saved = body?.provider;
     setProvider(saved);
-    onMessage(body?.audit_result === 'accepted' ? 'Provider draft 已儲存。' : 'Provider 已儲存，但 audit record 寫入失敗。');
+    onMessage(body?.audit_result === 'accepted' ? translate('Provider draft saved.') : translate('Provider saved, but the audit record could not be written.'));
     onRefresh();
     return saved;
   }
@@ -2462,7 +2492,7 @@ function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onC
   async function submit(event) {
     event.preventDefault();
     setBusy(true); setError('');
-    try { await saveDraft(); onClose(); } catch (err) { setError(err.message); } finally { setBusy(false); }
+    try { await saveDraft(); onClose(); } catch (_) { setError('The provider draft could not be saved. Please try again.'); } finally { setBusy(false); }
   }
 
   async function validatePreview() {
@@ -2471,8 +2501,8 @@ function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onC
       const saved = mode === 'create' || mode === 'edit' ? await saveDraft() : provider;
       const refreshed = await runAction('refresh', saved);
       await loadPreview(refreshed);
-      onMessage('Provider validation preview 已更新。');
-    } catch (err) { setError(err.message); } finally { setBusy(false); }
+      onMessage(translate('Provider validation preview updated.'));
+    } catch (_) { setError('The provider validation preview could not be updated. Please try again.'); } finally { setBusy(false); }
   }
 
   async function publish() {
@@ -2480,13 +2510,14 @@ function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onC
     try {
       const saved = mode === 'create' || mode === 'edit' ? await saveDraft() : provider;
       await runAction('publish', saved);
-      onMessage('Provider publish 已完成。'); onClose();
-    } catch (err) { setError(err.message); } finally { setBusy(false); }
+      onMessage(translate('Provider publishing completed.')); onClose();
+    } catch (_) { setError('The provider could not be published. Please try again.'); } finally { setBusy(false); }
   }
 
   const detailProvider = preview?.provider || provider;
   const endpointCount = providerEndpointCount(preview?.chipsets || []);
-  return <div className="drawer-backdrop" role="presentation" onClick={onClose}><aside className="drawer-panel chipset-provider-drawer" role="dialog" aria-modal="true" aria-label="ChipSet provider drawer" onClick={(event) => event.stopPropagation()}><div className="drawer-header"><div><h2>{mode === 'create' ? '新增 Information Provider' : mode === 'edit' ? '編輯 Information Provider' : 'Manifest 解析預覽'}</h2><p>建立 draft，發布前同步抓取並驗證 manifest。</p></div><button type="button" className="drawer-close" onClick={onClose} aria-label="關閉 Provider drawer">×</button></div><form className="drawer-form" onSubmit={submit}><label>Provider display name<input className="input" required disabled={readOnly} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>Manifest URL<input className="input" required disabled={readOnly} type="url" pattern="https://.*" value={form.manifest_url} onChange={(event) => setForm({ ...form, manifest_url: event.target.value })} /></label>{detailProvider ? <section className="chipset-validation-preview"><div className="panel-head"><div><h3>Validation preview</h3><p>{detailProvider.validation_error || '確認 manifest schema 與 normalized resources。'}</p></div></div><div className="chipset-validation-grid"><div><span>Manifest</span><strong className={detailProvider.manifest_version ? 'good' : ''}>Version {detailProvider.manifest_version || '—'}</strong></div><div><span>ChipSets</span><strong>{detailProvider.chipset_count || 0}</strong></div><div><span>SDK releases</span><strong>{detailProvider.sdk_release_count || 0}</strong></div><div><span>Endpoints</span><strong>{endpointCount}</strong></div></div>{detailProvider.validation_error ? <p className="drawer-error">{detailProvider.validation_error}</p> : null}{preview?.chipsets?.length ? <ChipsetCards chipsets={preview.chipsets} showFreshness={false} /> : <p className="empty-state">尚未建立 normalized preview。請執行 Validate Preview。</p>}</section> : null}{error ? <p className="drawer-error">{error}</p> : null}<div className="drawer-actions"><button type="button" className="ghost-button" onClick={onClose}>取消</button>{!readOnly ? <button type="submit" className="ghost-button" disabled={busy}>儲存 Draft</button> : null}{canPublish ? <button type="button" className="ghost-button" disabled={busy || (!provider?.id && readOnly)} onClick={validatePreview}>Validate Preview</button> : null}{canPublish && detailProvider?.status !== 'published' ? <button type="button" className="primary-button" disabled={busy || (!provider?.id && readOnly)} onClick={publish}>Publish</button> : null}</div></form></aside></div>;
+  const validationError = providerValidationErrorMessage(detailProvider);
+  return <div className="drawer-backdrop" role="presentation" onClick={onClose}><aside className="drawer-panel chipset-provider-drawer" role="dialog" aria-modal="true" aria-label="ChipSet provider drawer" onClick={(event) => event.stopPropagation()}><div className="drawer-header"><div><h2>{mode === 'create' ? translate('Add Information Provider') : mode === 'edit' ? translate('Edit Information Provider') : translate('Manifest Parsing Preview')}</h2><p>{translate('Create a draft, then synchronize and validate the manifest before publishing.')}</p></div><button type="button" className="drawer-close" onClick={onClose} aria-label={translate('Close provider drawer')}>×</button></div><form className="drawer-form" onSubmit={submit}><label>Provider display name<input className="input" required disabled={readOnly} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>Manifest URL<input className="input" required disabled={readOnly} type="url" pattern="https://.*" value={form.manifest_url} onChange={(event) => setForm({ ...form, manifest_url: event.target.value })} /></label>{detailProvider ? <section className="chipset-validation-preview"><div className="panel-head"><div><h3>Validation preview</h3><p>{validationError || translate('Review the manifest schema and normalized resources.')}</p></div></div><div className="chipset-validation-grid"><div><span>Manifest</span><strong className={detailProvider.manifest_version ? 'good' : ''}>Version {detailProvider.manifest_version || '—'}</strong></div><div><span>ChipSets</span><strong>{detailProvider.chipset_count || 0}</strong></div><div><span>SDK releases</span><strong>{detailProvider.sdk_release_count || 0}</strong></div><div><span>Endpoints</span><strong>{endpointCount}</strong></div></div>{validationError ? <p className="drawer-error">{validationError}</p> : null}{preview?.chipsets?.length ? <ChipsetCards chipsets={preview.chipsets} showFreshness={false} /> : <p className="empty-state">{translate('No normalized preview is available. Run Validate Preview.')}</p>}</section> : null}{error ? <p className="drawer-error">{error}</p> : null}<div className="drawer-actions"><button type="button" className="ghost-button" onClick={onClose}>{translate('Cancel')}</button>{!readOnly ? <button type="submit" className="ghost-button" disabled={busy}>{translate('Save Draft')}</button> : null}{canPublish ? <button type="button" className="ghost-button" disabled={busy || (!provider?.id && readOnly)} onClick={validatePreview}>Validate Preview</button> : null}{canPublish && detailProvider?.status !== 'published' ? <button type="button" className="primary-button" disabled={busy || (!provider?.id && readOnly)} onClick={publish}>Publish</button> : null}</div></form></aside></div>;
 }
 
 function ProductsPage({ loading, data, onRefresh }) {
@@ -2494,7 +2525,7 @@ function ProductsPage({ loading, data, onRefresh }) {
   const [showCreate, setShowCreate] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [form, setForm] = useState({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['即時觀看'] });
+  const [form, setForm] = useState({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['video_streaming'] });
   const [message, setMessage] = useState('');
   const [collaborationProduct, setCollaborationProduct] = useState(null);
   const [collaboration, setCollaboration] = useState(null);
@@ -2508,29 +2539,29 @@ function ProductsPage({ loading, data, onRefresh }) {
   async function inviteCollaborator(event) {
     event.preventDefault();
     const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborator-invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-invite-${collaborationProduct.id}-${invite.email}` }, body: JSON.stringify(invite) });
-    setMessage(response.ok ? 'Product 協作者邀請已寄出。' : '無法邀請；請確認此 Email 已註冊且尚未加入這個 Product。');
+    setMessage(response.ok ? 'Product collaborator invitation sent.' : 'The invitation could not be sent. Confirm that the email belongs to a registered Developer who is not already a collaborator.');
     if (response.ok) { setInvite({ email: '', role: 'product_editor' }); await loadCollaborators(collaborationProduct); }
   }
   async function updateCollaborator(userId, role) {
     const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-role-${collaborationProduct.id}-${userId}-${role}` }, body: JSON.stringify({ role }) });
-    setMessage(response.ok ? '協作者角色已更新。' : '無法更新協作者角色。'); if (response.ok) await loadCollaborators(collaborationProduct);
+    setMessage(response.ok ? 'Collaborator role updated.' : 'Could not update collaborator role.'); if (response.ok) await loadCollaborators(collaborationProduct);
   }
   async function removeCollaborator(userId) {
     const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `product-remove-${collaborationProduct.id}-${userId}` } });
-    setMessage(response.ok ? '協作者已移除。' : '無法移除協作者。'); if (response.ok) await loadCollaborators(collaborationProduct);
+    setMessage(response.ok ? 'Collaborator removed.' : 'Could not remove collaborator.'); if (response.ok) await loadCollaborators(collaborationProduct);
   }
   async function transferOwner(userId) {
     const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-owner-${collaborationProduct.id}-${userId}` }, body: JSON.stringify({ target_user_id: userId }) });
-    setMessage(response.ok ? 'Product ownership 已轉移。' : '無法轉移 Product ownership。'); if (response.ok) { await loadCollaborators(collaborationProduct); onRefresh(); }
+    setMessage(response.ok ? 'Product ownership transferred.' : 'Product ownership could not be transferred.'); if (response.ok) { await loadCollaborators(collaborationProduct); onRefresh(); }
   }
   async function invitationAction(invitationId, action) {
     const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborator-invitations/${encodeURIComponent(invitationId)}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `product-invite-${action}-${invitationId}-${Date.now()}` } });
-    setMessage(response.ok ? (action === 'resend' ? '邀請已重寄。' : '邀請已取消。') : '無法更新邀請。'); if (response.ok) await loadCollaborators(collaborationProduct);
+    setMessage(response.ok ? (action === 'resend' ? 'Invitation resent.' : 'Invitation canceled.') : 'The invitation could not be updated.'); if (response.ok) await loadCollaborators(collaborationProduct);
   }
   async function createProduct(event) {
     event.preventDefault();
     const response = await fetch(editingProduct ? `/api/products/${encodeURIComponent(editingProduct.id)}` : '/api/products', { method: editingProduct ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-write-${editingProduct?.id || form.name}` }, body: JSON.stringify(form) });
-    setMessage(response.ok ? (editingProduct ? 'Product 已更新。' : 'Product 已建立。') : 'Product 目前無法儲存。');
+    setMessage(response.ok ? (editingProduct ? 'Product updated.' : 'Product created.') : 'The Product cannot be saved right now.');
     if (response.ok) { setShowCreate(false); setEditingProduct(null); setPreview(null); onRefresh(); }
   }
   async function previewProduct() {
@@ -2544,38 +2575,38 @@ function ProductsPage({ loading, data, onRefresh }) {
       <div className="page-intro">
         <div>
           <p className="eyebrow">Brand Fleet</p>
-          <h2>Product 與服務</h2>
-          <p>查看每種產品可以使用哪些服務，以及目前角色可以管理哪些內容。</p>
+          <h2>Products and Services</h2>
+          <p>See what services are available for each product and what your current role can manage.</p>
         </div>
-        {canManage ? <button type="button" className="primary-button" onClick={() => { setEditingProduct(null); setPreview(null); setShowCreate((value) => !value); }}>＋ 新增 Product</button> : null}
+        {canManage ? <button type="button" className="primary-button" onClick={() => { setEditingProduct(null); setPreview(null); setShowCreate((value) => !value); }}>＋ Add Product</button> : null}
       </div>
       {message ? <div className="notice">{message}</div> : null}
-      {showCreate ? <section className="panel"><form className="product-create-form" onSubmit={createProduct}><input required placeholder="Product 名稱" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input required placeholder="產品型號" value={form.product_model} onChange={(event) => setForm({ ...form, product_model: event.target.value })} /><select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="ip_camera">影像設備</option><option value="mqtt_device">回報設備</option><option value="generic">一般設備</option></select><div className="service-checks">{['即時觀看', '錄影與保存', '設備回報'].map((service) => <label key={service}><input type="checkbox" checked={form.service_capabilities.includes(service)} onChange={(event) => setForm({ ...form, service_capabilities: event.target.checked ? [...form.service_capabilities, service] : form.service_capabilities.filter((item) => item !== service) })} />{service}</label>)}</div>{editingProduct ? <button type="button" className="ghost-button" onClick={previewProduct}>先看變更影響</button> : null}<button type="submit" className="primary">{editingProduct ? '儲存變更' : '儲存 Product'}</button>{preview ? <p className="notice">{preview.source_status === 'available' ? `會影響 ${(preview.affected_devices || 0).toLocaleString()} 台設備；${preview.requires_reprovision ? '可能需要重新設定。' : '不需要重新設定。'}` : '影響預覽目前無法取得。'}</p> : null}</form></section> : null}
-      {loading ? <section className="panel split-panel"><div><h3>正在載入 Product</h3><p>正在取得產品與服務設定。</p></div></section> : null}
-      {!loading && unavailable ? <section className="panel split-panel"><div><h3>Product 資料暫時無法取得</h3><p>{data?.source_message || '請稍後再試，或確認品牌帳號已完成產品設定。'}</p></div></section> : null}
-      {!loading && !unavailable && items.length === 0 ? <section className="panel split-panel"><div><h3>目前沒有 Product</h3><p>完成產品設定後，Product 與可用服務會顯示在這裡。</p></div></section> : null}
+      {showCreate ? <section className="panel"><form className="product-create-form" onSubmit={createProduct}><input required placeholder="Product Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input required placeholder="Product Model" value={form.product_model} onChange={(event) => setForm({ ...form, product_model: event.target.value })} /><select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="ip_camera">Imaging Device</option><option value="mqtt_device">Telemetry Device</option><option value="generic">General Device</option></select><div className="service-checks">{PRODUCT_SERVICE_CAPABILITIES.map((service) => <label key={service.code}><input type="checkbox" checked={form.service_capabilities.includes(service.code)} onChange={(event) => setForm({ ...form, service_capabilities: event.target.checked ? [...form.service_capabilities, service.code] : form.service_capabilities.filter((item) => item !== service.code) })} />{translate(service.label)}</label>)}</div>{editingProduct ? <button type="button" className="ghost-button" onClick={previewProduct}>{translate('Preview Change Impact')}</button> : null}<button type="submit" className="primary">{editingProduct ? translate('Save Changes') : translate('Save Product')}</button>{preview ? <p className="notice">{preview.source_status === 'available' ? translate('{{count}} devices will be affected. {{impact}}', { count: formatNumber(preview.affected_devices || 0), impact: preview.requires_reprovision ? 'Reconfiguration may be required.' : 'No reconfiguration is required.' }) : translate('Impact preview is currently unavailable.')}</p> : null}</form></section> : null}
+      {loading ? <section className="panel split-panel"><div><h3>Loading Product</h3><p>Getting product and service settings.</p></div></section> : null}
+      {!loading && unavailable ? <section className="panel split-panel"><div><h3>Product data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later or make sure your Brand Cloud is configured.')}</p></div></section> : null}
+      {!loading && !unavailable && items.length === 0 ? <section className="panel split-panel"><div><h3>No Products yet</h3><p>Products and their available services will appear here after setup.</p></div></section> : null}
       {!loading && !unavailable && items.length > 0 ? (
         <section className="panel">
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>Product</th><th>我的角色</th><th>產品型號</th><th>設備數量</th><th>生產批次</th><th>可用服務</th><th>設備政策</th><th>韌體政策</th><th>可執行操作</th><th>狀態</th></tr></thead>
+              <thead><tr><th>Product</th><th>My Role</th><th>Product Model</th><th>Devices</th><th>Production Runs</th><th>Available Services</th><th>Device Policy</th><th>Firmware Policy</th><th>Available Actions</th><th>Status</th></tr></thead>
               <tbody>{items.map((product) => <tr key={product.id}>
                 <td><strong>{product.name}</strong><small>{product.id}</small></td>
-                <td><span className="status-badge neutral">{product.current_user_role === 'brand_owner' ? 'Brand Owner' : product.current_user_role === 'product_owner' ? 'Owner' : product.current_user_role === 'product_editor' ? 'Editor' : 'Viewer'}</span>{product.allowed_actions?.includes('manage_collaborators') ? <button type="button" className="link-button" onClick={() => loadCollaborators(product)}>協作者 ({product.collaborator_count || 0})</button> : null}</td>
+                <td><span className="status-badge neutral">{product.current_user_role === 'brand_owner' ? 'Brand Owner' : product.current_user_role === 'product_owner' ? 'Owner' : product.current_user_role === 'product_editor' ? 'Editor' : 'Viewer'}</span>{product.allowed_actions?.includes('manage_collaborators') ? <button type="button" className="link-button" onClick={() => loadCollaborators(product)}>Collaborators ({product.collaborator_count || 0})</button> : null}</td>
                 <td>{product.product_model || product.category || '—'}</td>
-                <td>{product.device_count?.toLocaleString?.() || '0'}</td>
-                <td>{(product.production_run_count || 0).toLocaleString()} 批</td>
-                <td>{product.service_capabilities?.length ? product.service_capabilities.join('、') : '未啟用'}</td>
-                <td>{product.device_policy?.setup_available || product.device_policy?.binding_available ? '已設定' : '未設定'}</td>
-                <td>{product.firmware_policy?.ota_enabled ? '允許韌體更新' : '未啟用'}</td>
-                <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? '管理設備' : action === 'manage_updates' ? '管理更新' : action === 'view_reports' ? '查看報表' : action === 'manage_collaborators' ? '管理協作者' : action === 'edit_product' ? '編輯 Product' : '查看').join('、') : '需要聯絡管理者'}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: product.service_capabilities || [] }); setPreview(null); setShowCreate(true); }}>編輯</button> : null}</td>
-                <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{product.status === 'active' ? '啟用' : '停用'}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}>停用</button> : null}</td>
+                <td>{formatNumber(product.device_count || 0)}</td>
+                <td>{formatNumber(product.production_run_count || 0)} production runs</td>
+                <td>{product.service_capabilities?.length ? product.service_capabilities.map(productServiceCapabilityLabel).join(', ') : 'Inactive'}</td>
+                <td>{product.device_policy?.setup_available || product.device_policy?.binding_available ? 'Set' : 'Not set'}</td>
+                <td>{product.firmware_policy?.ota_enabled ? 'Allow firmware updates' : 'Inactive'}</td>
+                <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? 'Manage Devices' : action === 'manage_updates' ? 'Manage Updates' : action === 'view_reports' ? 'View Reports' : action === 'manage_collaborators' ? 'Manage Collaborators' : action === 'edit_product' ? 'Edit Product' : 'View').join(', ') : 'Contact an administrator'}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: (product.service_capabilities || []).map(normalizeProductServiceCapability) }); setPreview(null); setShowCreate(true); }}>Edit</button> : null}</td>
+                <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{product.status === 'active' ? 'Activate' : 'Deactivate'}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}>Deactivate</button> : null}</td>
               </tr>)}</tbody>
             </table>
           </div>
         </section>
       ) : null}
-      {collaborationProduct ? <section className="panel" data-testid="product-collaborators"><div className="panel-head"><div><h3>{collaborationProduct.name} 協作者</h3><p>協作者只會看到被指派的 Product；Editor 可執行專案工作，Viewer 為唯讀。</p></div><button type="button" className="link-button" onClick={() => { setCollaborationProduct(null); setCollaboration(null); }}>關閉</button></div>{collaboration?.source_status === 'unavailable' ? <p className="notice">協作者資料目前無法取得。</p> : <><form className="inline-form" onSubmit={inviteCollaborator}><input required type="email" placeholder="已註冊的 Developer Email" value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} /><select value={invite.role} onChange={(event) => setInvite({ ...invite, role: event.target.value })}><option value="product_editor">Editor</option><option value="product_viewer">Viewer</option></select><button type="submit" className="primary">邀請到此 Product</button></form><div className="table-wrap"><table className="data-table"><thead><tr><th>Developer</th><th>角色</th><th>操作</th></tr></thead><tbody>{(collaboration?.collaborators || []).map((person) => <tr key={person.user_id}><td><strong>{person.display_name || person.email}</strong><small>{person.email}</small></td><td>{person.role === 'product_owner' ? 'Owner' : <select value={person.role} onChange={(event) => updateCollaborator(person.user_id, event.target.value)}><option value="product_editor">Editor</option><option value="product_viewer">Viewer</option></select>}</td><td>{person.role === 'product_owner' ? 'Ownership transfer required' : <><button type="button" className="link-button" onClick={() => transferOwner(person.user_id)}>轉移 Owner</button><button type="button" className="link-button" onClick={() => removeCollaborator(person.user_id)}>移除</button></>}</td></tr>)}</tbody></table></div>{(collaboration?.invitations || []).some((item) => item.status === 'pending') ? <div className="chip-list">{collaboration.invitations.filter((item) => item.status === 'pending').map((item) => <span className="status-badge neutral" key={item.id}>{item.target_email} · {item.role === 'product_editor' ? 'Editor' : 'Viewer'} · 待接受 <button type="button" className="link-button" onClick={() => invitationAction(item.id, 'resend')}>重寄</button><button type="button" className="link-button" onClick={() => invitationAction(item.id, 'cancel')}>取消</button></span>)}</div> : null}</>}</section> : null}
+      {collaborationProduct ? <section className="panel" data-testid="product-collaborators"><div className="panel-head"><div><h3>{collaborationProduct.name} Collaborators</h3><p>Collaborators will only see the assigned Product; the Editor can perform project work and the Viewer is read-only.</p></div><button type="button" className="link-button" onClick={() => { setCollaborationProduct(null); setCollaboration(null); }}>Close</button></div>{collaboration?.source_status === 'unavailable' ? <p className="notice">Collaborator data is currently unavailable.</p> : <><form className="inline-form" onSubmit={inviteCollaborator}><input required type="email" placeholder="Registered Developer Email" value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} /><select value={invite.role} onChange={(event) => setInvite({ ...invite, role: event.target.value })}><option value="product_editor">Editor</option><option value="product_viewer">Viewer</option></select><button type="submit" className="primary">Invite to this Product</button></form><div className="table-wrap"><table className="data-table"><thead><tr><th>Developer</th><th>Role</th><th>Action</th></tr></thead><tbody>{(collaboration?.collaborators || []).map((person) => <tr key={person.user_id}><td><strong>{person.display_name || person.email}</strong><small>{person.email}</small></td><td>{person.role === 'product_owner' ? 'Owner' : <select value={person.role} onChange={(event) => updateCollaborator(person.user_id, event.target.value)}><option value="product_editor">Editor</option><option value="product_viewer">Viewer</option></select>}</td><td>{person.role === 'product_owner' ? 'Ownership transfer required' : <><button type="button" className="link-button" onClick={() => transferOwner(person.user_id)}>Transfer Owner</button><button type="button" className="link-button" onClick={() => removeCollaborator(person.user_id)}>Remove</button></>}</td></tr>)}</tbody></table></div>{(collaboration?.invitations || []).some((item) => item.status === 'pending') ? <div className="chip-list">{collaboration.invitations.filter((item) => item.status === 'pending').map((item) => <span className="status-badge neutral" key={item.id}>{item.target_email} · {item.role === 'product_editor' ? 'Editor' : 'Viewer'} · Pending Acceptance <button type="button" className="link-button" onClick={() => invitationAction(item.id, 'resend')}>Resend</button><button type="button" className="link-button" onClick={() => invitationAction(item.id, 'cancel')}>Cancel</button></span>)}</div> : null}</>}</section> : null}
     </section>
   );
 }
@@ -2590,23 +2621,23 @@ function GroupsPage({ data, loading, onRefresh }) {
   async function createGroup(event) {
     event.preventDefault();
     const response = await fetch('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `group-create-${form.name}` }, body: JSON.stringify(form) });
-    setMessage(response.ok ? '群組已建立。' : '群組目前無法建立。');
+    setMessage(response.ok ? 'Group created.' : 'The group could not be created at this time.');
     if (response.ok) { setForm({ name: '', description: '' }); setShowCreate(false); onRefresh(); }
   }
   async function deleteGroup(group) {
-    if (!window.confirm(`確定要刪除「${group.name}」嗎？`)) return;
+    if (!window.confirm(`Are you sure you want to delete “${group.name}”?`)) return;
     const response = await fetch(`/api/groups/${encodeURIComponent(group.id)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `group-delete-${group.id}` } });
-    setMessage(response.ok ? '群組已刪除。' : '群組目前無法刪除。');
+    setMessage(response.ok ? 'Group deleted.' : 'The group cannot be deleted at this time.');
     if (response.ok) onRefresh();
   }
   return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Organization</p><h2>群組與標籤</h2><p>用群組把設備整理成韌體更新和報表的管理範圍。</p></div>{canManage ? <button type="button" className="primary" onClick={() => setShowCreate((value) => !value)}>＋ 新增群組</button> : null}</div>
+    <div className="page-intro"><div><p className="eyebrow">Fleet Organization</p><h2>Groups and Tags</h2><p>Organize devices into groups to manage firmware updates and reports.</p></div>{canManage ? <button type="button" className="primary" onClick={() => setShowCreate((value) => !value)}>＋ Add Group</button> : null}</div>
     {message ? <div className="notice">{message}</div> : null}
-    {showCreate ? <section className="panel"><form className="inline-form" onSubmit={createGroup}><input required placeholder="群組名稱" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input placeholder="說明（選填）" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /><button type="submit" className="primary">儲存群組</button></form></section> : null}
-    {loading ? <section className="panel split-panel"><div><h3>正在載入群組</h3></div></section> : null}
-    {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>群組資料暫時無法取得</h3><p>{data?.source_message || '請稍後再試。'}</p></div></section> : null}
-    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>群組</th><th>說明</th><th>設備數量</th>{canManage ? <th>操作</th> : null}</tr></thead><tbody>{groups.map((group) => <tr key={group.id}><td><strong>{group.name}</strong><small>{group.id}</small></td><td>{group.description || '—'}</td><td>{(group.device_count || 0).toLocaleString()} 台</td>{canManage ? <td><button type="button" className="link-button" onClick={() => deleteGroup(group)}>刪除</button></td> : null}</tr>)}</tbody></table>{!groups.length ? <p className="empty-state">目前沒有群組。</p> : null}</div></section> : null}
-    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="panel-head"><div><h3>標籤</h3><p>標籤可用來搜尋設備與設定韌體更新範圍。</p></div></div><div className="chip-list">{tags.map((tag) => <span className="status-badge neutral" key={tag.tag}>{tag.tag} · {tag.device_count.toLocaleString()} 台</span>)}</div>{!tags.length ? <p className="empty-state">目前沒有標籤。</p> : null}</section> : null}
+    {showCreate ? <section className="panel"><form className="inline-form" onSubmit={createGroup}><input required placeholder="Group name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input placeholder="Description (optional)" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /><button type="submit" className="primary">Save Group</button></form></section> : null}
+    {loading ? <section className="panel split-panel"><div><h3>Loading groups</h3></div></section> : null}
+    {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>Group data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
+    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Group</th><th>Description</th><th>Devices</th>{canManage ? <th>Action</th> : null}</tr></thead><tbody>{groups.map((group) => <tr key={group.id}><td><strong>{group.name}</strong><small>{group.id}</small></td><td>{group.description || '—'}</td><td>{formatNumber(group.device_count || 0)} devices</td>{canManage ? <td><button type="button" className="link-button" onClick={() => deleteGroup(group)}>Delete</button></td> : null}</tr>)}</tbody></table>{!groups.length ? <p className="empty-state">No groups yet.</p> : null}</div></section> : null}
+    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="panel-head"><div><h3>Tags</h3><p>Tags can be used to search for devices and define firmware update scopes.</p></div></div><div className="chip-list">{tags.map((tag) => <span className="status-badge neutral" key={tag.tag}>{tag.tag} · {formatNumber(tag.device_count)} devices</span>)}</div>{!tags.length ? <p className="empty-state">No tags yet.</p> : null}</section> : null}
   </section>;
 }
 
@@ -2615,7 +2646,7 @@ function BrandCloudMemberInvitationAcceptPage() {
   const [token] = useState(() => new URLSearchParams(window.location.search).get('token') || '');
   const [requestKey] = useState(() => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
   const [result, setResult] = useState(null);
-  const [message, setMessage] = useState(token ? '確認後即可加入 Brand Cloud。' : '邀請連結缺少 token。');
+  const [message, setMessage] = useState(token ? 'Confirm to join Brand Cloud.' : 'The invitation link is missing a token.');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -2624,7 +2655,7 @@ function BrandCloudMemberInvitationAcceptPage() {
 
   async function acceptInvitation() {
     setBusy(true);
-    setMessage('正在驗證邀請…');
+    setMessage('Verifying invitation…');
     const response = await fetch(isProductInvitation ? '/api/developer/product-collaborator-invitations/accept' : '/api/developer/brand-cloud-member-invitations/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invitation-accept-${requestKey}` },
@@ -2633,19 +2664,19 @@ function BrandCloudMemberInvitationAcceptPage() {
     const body = await response.json().catch(() => ({}));
     if (response.ok) {
       setResult(body);
-      setMessage(isProductInvitation ? '邀請已接受，Product project access 已建立。' : '邀請已接受，Brand Cloud membership 已建立。');
+      setMessage(isProductInvitation ? 'Invitation accepted. Product access has been granted.' : 'Invitation accepted. Brand Cloud membership has been created.');
     } else if (response.status === 404) {
-      setMessage('邀請無效、已過期、已使用，或登入帳號不是受邀者。');
+      setMessage('The invitation is invalid, expired, used, or the login account is not the invitee.');
     } else if (response.status === 409) {
-      setMessage('邀請已取消、已過期，或 membership 已存在。');
+      setMessage('Invitation canceled, expired, or membership already exists.');
     } else {
-      setMessage('目前無法接受邀請，請稍後再試。');
+      setMessage('Unable to accept invitation at this time, please try again later.');
     }
     setBusy(false);
   }
 
   const cloudID = result?.invitation?.brand_cloud_id || '';
-  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isProductInvitation ? 'Product project invitation' : 'Brand Cloud invitation'}</p><h1>{isProductInvitation ? '接受 Product 協作邀請' : '接受團隊邀請'}</h1><p>系統會同時驗證 Email invitation token 與目前登入的 Developer 帳號。</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? '驗證中…' : '接受邀請'}</button> : <a className="inline-action" href={`/console/${encodeURIComponent(cloudID)}/product-services`}>前往 Product project</a>}</section></div>;
+  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isProductInvitation ? 'Product invitation' : 'Brand Cloud invitation'}</p><h1>{isProductInvitation ? 'Accept Product collaboration invitation' : 'Accept team invitation'}</h1><p>We’ll verify both the invitation token and the signed-in Developer account.</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? 'Verifying…' : 'Accept invitation'}</button> : <a className="inline-action" href={`/console/${encodeURIComponent(cloudID)}/product-services`}>Go to Product</a>}</section></div>;
 }
 
 function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage, onRefresh }) {
@@ -2662,12 +2693,12 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
   const currentRoleDetails = userRoleDetails(currentRole);
   const sourceAvailableFor = (key) => !data || data[key] !== 'unavailable';
   const scopeLabel = (assignment) => {
-    if (assignment.scope_type === 'organization') return '整個品牌帳號';
-    if (assignment.scope_type === 'product') return `Product：${assignment.scope_id}`;
-    if (assignment.scope_type === 'region') return `區域：${assignment.scope_id}`;
-    if (assignment.scope_type === 'group') return `群組：${assignment.scope_id}`;
-    if (assignment.scope_type === 'device') return '指定設備';
-    return '指定範圍';
+    if (assignment.scope_type === 'organization') return 'Entire Brand Account';
+    if (assignment.scope_type === 'product') return `Product: ${assignment.scope_id}`;
+    if (assignment.scope_type === 'region') return `Area:${assignment.scope_id}`;
+    if (assignment.scope_type === 'group') return `Group:${assignment.scope_id}`;
+    if (assignment.scope_type === 'device') return 'Designated Devices';
+    return 'Assign Scope';
   };
 
   async function inviteMember(event) {
@@ -2677,7 +2708,7 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invite-${email}-${role}` },
       body: JSON.stringify({ email, role }),
     });
-    setMessage(response.ok ? '邀請已寄出，對方接受前不會成為成員。' : '邀請目前無法寄出。');
+    setMessage(response.ok ? 'The invitation has been sent and they won’t be a member until they accept.' : 'Invitations can’t be sent right now.');
     if (response.ok) {
       setEmail('');
       setShowInviteForm(false);
@@ -2690,7 +2721,7 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
       method: 'POST',
       headers: { 'Idempotency-Key': `member-invite-${action}-${invitation.id}-${Date.now()}` },
     });
-    setMessage(response.ok ? (action === 'resend' ? '邀請已重新寄出。' : '邀請已取消。') : '邀請目前無法更新。');
+    setMessage(response.ok ? (action === 'resend' ? 'Invitation resent.' : 'Invitation canceled.') : 'Invitations can’t be updated at this time.');
     if (response.ok) onRefresh();
   }
 
@@ -2704,29 +2735,29 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
       },
       body: roleUpdate ? JSON.stringify({ role: nextRole }) : undefined,
     });
-    setMessage(response.ok ? '成員資料已更新。' : '成員資料目前無法更新。');
+    setMessage(response.ok ? 'Member information updated.' : 'Member information cannot be updated at this time.');
     if (response.ok) onRefresh();
   }
 
   return <section className="page-content team-access-page">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>成員與權限</h2><p>角色決定可以做什麼，範圍決定可以管理哪些 Product、區域、群組或設備。</p></div>
-      {canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setShowInviteForm((visible) => !visible)}>＋ 邀請成員</button> : null}
+    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>Members & Permissions</h2><p>The role determines what can be done, and the scope determines which Products, Regions, Groups, or Devices can be managed.</p></div>
+      {canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setShowInviteForm((visible) => !visible)}>＋ Invite members</button> : null}
     </div>
     {showInviteForm ? <section className="panel invite-member-panel"><form className="inline-form" onSubmit={inviteMember}>
-      <input required type="email" placeholder="成員 Email" value={email} onChange={(event) => setEmail(event.target.value)} />
+      <input required type="email" placeholder="Member Email" value={email} onChange={(event) => setEmail(event.target.value)} />
       <select value={role} onChange={(event) => setRole(event.target.value)}><option value="member">Member</option><option value="admin">Admin</option></select>
-      <button type="submit" className="primary">送出邀請</button>
-      <button type="button" className="ghost-button" onClick={() => setShowInviteForm(false)}>取消</button>
+      <button type="submit" className="primary">Send invitation</button>
+      <button type="button" className="ghost-button" onClick={() => setShowInviteForm(false)}>Cancel</button>
     </form></section> : null}
     {message ? <div className="notice">{message}</div> : null}
-    {loading && !data ? <section className="panel split-panel"><div><h3>正在載入權限</h3></div></section> : null}
-    {!loading && data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>權限資料暫時無法取得</h3><p>{data.source_message || '請稍後再試。'}</p></div></section> : null}
-    {canManage && sourceAvailableFor('invitations_source_status') ? <section className="panel"><div className="panel-head"><div><h3>待接受邀請</h3><p>邀請連結有效 30 分鐘；重寄後舊連結立即失效。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Email</th><th>角色</th><th>狀態</th><th>到期時間</th><th>操作</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td>{invitation.target_email}</td><td>{invitation.role}</td><td><span className="status-badge neutral">待接受</span></td><td>{new Date(invitation.expires_at).toLocaleString()}</td><td><button type="button" className="link-button" onClick={() => invitationAction(invitation, 'resend')}>重寄</button> <button type="button" className="link-button" onClick={() => invitationAction(invitation, 'cancel')}>取消</button></td></tr>)}</tbody></table>{!invitations.length ? <p className="empty-state">目前沒有待接受邀請。</p> : null}</div></section> : null}
-    {sourceAvailableFor('members_source_status') ? <section className="panel"><div className="panel-head"><div><h3>Brand Cloud 成員</h3><p>成員資料與 membership scope 由 Account Manager 提供。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>成員</th><th>角色</th><th>狀態</th>{canManage ? <th>操作</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong><small>{member.email}</small></td><td>{canManage && member.role !== 'owner' ? <select value={member.role} onChange={(event) => updateMember(member, 'role', event.target.value)}><option value="admin">Admin</option><option value="member">Member</option></select> : member.role}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}>{member.disabled_at ? '停用' : '啟用'}</span></td>{canManage ? <td>{member.role === 'owner' ? 'Owner transfer only' : <><button type="button" className="link-button" onClick={() => updateMember(member, member.disabled_at ? 'enable' : 'disable')}>{member.disabled_at ? '啟用' : '停用'}</button> <button type="button" className="link-button" onClick={() => updateMember(member, 'remove')}>移除</button></>}</td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">目前沒有 Brand Cloud 成員。</p> : null}</div></section> : null}
+    {loading && !data ? <section className="panel split-panel"><div><h3>Loading permissions</h3></div></section> : null}
+    {!loading && data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Permission data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
+    {canManage && sourceAvailableFor('invitations_source_status') ? <section className="panel"><div className="panel-head"><div><h3>Pending invitations</h3><p>Invitation links are valid for 30 minutes. Resending immediately expires the previous link.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expires</th><th>Action</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td>{invitation.target_email}</td><td>{invitation.role}</td><td><span className="status-badge neutral">Pending acceptance</span></td><td>{formatProviderTimestamp(invitation.expires_at)}</td><td><button type="button" className="link-button" onClick={() => invitationAction(invitation, 'resend')}>Resend</button> <button type="button" className="link-button" onClick={() => invitationAction(invitation, 'cancel')}>Cancel</button></td></tr>)}</tbody></table>{!invitations.length ? <p className="empty-state">No pending invitations.</p> : null}</div></section> : null}
+    {sourceAvailableFor('members_source_status') ? <section className="panel"><div className="panel-head"><div><h3>Brand Cloud Members</h3><p>Member data and membership scope are provided by the Account Manager.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Members</th><th>Role</th><th>Status</th>{canManage ? <th>Action</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong><small>{member.email}</small></td><td>{canManage && member.role !== 'owner' ? <select value={member.role} onChange={(event) => updateMember(member, 'role', event.target.value)}><option value="admin">Admin</option><option value="member">Member</option></select> : member.role}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}>{member.disabled_at ? 'Deactivate' : 'Activate'}</span></td>{canManage ? <td>{member.role === 'owner' ? 'Owner transfer only' : <><button type="button" className="link-button" onClick={() => updateMember(member, member.disabled_at ? 'enable' : 'disable')}>{member.disabled_at ? 'Activate' : 'Deactivate'}</button> <button type="button" className="link-button" onClick={() => updateMember(member, 'remove')}>Remove</button></>}</td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">There are currently no Brand Cloud members.</p> : null}</div></section> : null}
     {sourceAvailableFor('assignments_source_status') ? <>
-      <section className="panel current-role-panel"><div className="panel-head"><div><h3>你的角色與權限</h3><p>以下說明以你目前登入的帳號為準；實際可管理的資料仍受品牌、Product、區域或群組範圍限制。</p></div><span className="status-badge good">目前使用中</span></div><div className="current-role-card"><div className="current-role-icon"><Icon name={currentRoleDetails.icon} /></div><div><div className="current-role-title"><h4>{currentRoleDetails.title}</h4>{currentRole ? <code>{currentRole}</code> : null}</div><p>{currentRoleDetails.description}</p><ul className="current-role-actions">{currentRoleDetails.actions.map((action) => <li key={action}><Icon name="circle-check" />{action}</li>)}</ul>{cloudName || activeMembership?.organization ? <p className="current-role-scope"><strong>目前套用：</strong>{cloudName || activeMembership.organization}</p> : null}</div></div>{canManage ? <p className="field-help">你可以在上方邀請或調整團隊成員；品牌擁有者只能透過「所有權轉移」交接。</p> : <p className="field-help">若需要更多操作權限，請聯絡品牌擁有者或管理員調整你的角色與管理範圍。</p>}</section>
-      <section className="panel"><div className="panel-head"><div><h3>目前的權限範圍</h3><p>這裡只顯示管理範圍，不顯示內部權限代碼。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>角色</th><th>管理範圍</th><th>狀態</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{assignment.role_name}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good">啟用</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">目前沒有額外的範圍指派。</p> : null}</div></section>
-    </> : <section className="panel split-panel"><div><h3>角色與管理範圍暫時無法取得</h3><p>{data?.source_message || '請稍後再試。'}</p></div></section>}
+      <section className="panel current-role-panel"><div className="panel-head"><div><h3>Your Roles and Permissions</h3><p>The instructions below are based on the account you are currently logged into; actual manageable data is still limited by brand, product, region, or group scope.</p></div><span className="status-badge good">Currently in use</span></div><div className="current-role-card"><div className="current-role-icon"><Icon name={currentRoleDetails.icon} /></div><div><div className="current-role-title"><h4>{currentRoleDetails.title}</h4>{currentRole ? <code>{currentRole}</code> : null}</div><p>{currentRoleDetails.description}</p><ul className="current-role-actions">{currentRoleDetails.actions.map((action) => <li key={action}><Icon name="circle-check" />{action}</li>)}</ul>{cloudName || activeMembership?.organization ? <p className="current-role-scope"><strong>Currently Applied:</strong>{cloudName || activeMembership.organization}</p> : null}</div></div>{canManage ? <p className="field-help">You can invite or adjust team members above; brand owners can only pass through the Ownership Transfer.</p> : <p className="field-help">If you need more access, contact your brand owner or administrator to adjust your role and scope.</p>}</section>
+      <section className="panel"><div className="panel-head"><div><h3>Current Permission Scope</h3><p>Only administrative scopes are shown here, not internal permission codes.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Role</th><th>Manage Scope</th><th>Status</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{assignment.role_name}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good">Activate</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">There are currently no additional range assignments.</p> : null}</div></section>
+    </> : <section className="panel split-panel"><div><h3>Roles and scopes are temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section>}
   </section>;
 }
 
@@ -2743,7 +2774,7 @@ function BrandCloudSettingsPage({ activeCloudId, canManage, canIssuePKITest, onR
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-accept-${transferToken}` },
       body: JSON.stringify({ token: transferToken }),
     });
-    setMessage(response.ok ? 'Owner transfer 已接受。' : 'Owner transfer token 無效或已過期。');
+    setMessage(response.ok ? 'Ownership transfer accepted.' : 'The ownership transfer token is invalid or expired.');
     if (response.ok) {
       setTransferToken('');
       onRefresh();
@@ -2758,7 +2789,7 @@ function BrandCloudSettingsPage({ activeCloudId, canManage, canIssuePKITest, onR
       body: JSON.stringify({ target_email: transferEmail }),
     });
     const body = await response.json().catch(() => ({}));
-    setMessage(response.ok ? 'Owner transfer 已建立。' : 'Owner transfer 目前無法建立。');
+    setMessage(response.ok ? 'Ownership transfer created.' : 'The ownership transfer could not be created. Please try again later.');
     if (response.ok) {
       setOwnerTransfer(body.owner_transfer);
       setTransferEmail('');
@@ -2770,15 +2801,15 @@ function BrandCloudSettingsPage({ activeCloudId, canManage, canIssuePKITest, onR
       method: 'POST',
       headers: { 'Idempotency-Key': `owner-transfer-cancel-${ownerTransfer.id}` },
     });
-    setMessage(response.ok ? 'Owner transfer 已取消。' : 'Owner transfer 目前無法取消。');
+    setMessage(response.ok ? 'Ownership transfer canceled.' : 'The ownership transfer could not be canceled. Please try again later.');
     if (response.ok) setOwnerTransfer((current) => ({ ...current, status: 'canceled' }));
   }
 
   return <section className="page-content brand-cloud-settings-page">
-    <div className="page-intro"><div><p className="eyebrow">Brand Cloud Administration</p><h2>設定</h2><p>管理 ownership 轉移與開發測試工具。</p></div></div>
+    <div className="page-intro"><div><p className="eyebrow">Brand Cloud Administration</p><h2>Settings</h2><p>Manage ownership transfers and develop test tools.</p></div></div>
     {message ? <div className="notice">{message}</div> : null}
-    <section className="panel"><div className="panel-head"><div><h3>Accept owner transfer</h3><p>貼上 owner transfer email 中的 token，完成 ownership 轉移。</p></div></div><form className="inline-form settings-action-form" onSubmit={acceptTransfer}><input required placeholder="Owner transfer token" value={transferToken} onChange={(event) => setTransferToken(event.target.value)} /><button type="submit" className="primary-button">接受轉移</button></form></section>
-    {canManage && activeCloudId ? <section className="panel"><div className="panel-head"><div><h3>Owner transfer</h3><p>轉移需由目標 developer 使用 email token 接受；pending transfer 可取消。</p></div></div><form className="inline-form settings-action-form" onSubmit={createTransfer}><input required type="email" placeholder="目標 developer Email" value={transferEmail} onChange={(event) => setTransferEmail(event.target.value)} /><button type="submit" className="primary-button">建立轉移</button></form>{ownerTransfer ? <p className="notice">{ownerTransfer.status} · {ownerTransfer.id} {ownerTransfer.status === 'pending' ? <button type="button" className="link-button" onClick={cancelTransfer}>取消</button> : null}</p> : null}</section> : null}
+    <section className="panel"><div className="panel-head"><div><h3>Accept owner transfer</h3><p>Paste the token in the owner transfer email to complete the ownership transfer.</p></div></div><form className="inline-form settings-action-form" onSubmit={acceptTransfer}><input required placeholder="Owner transfer token" value={transferToken} onChange={(event) => setTransferToken(event.target.value)} /><button type="submit" className="primary-button">Accept Transfer</button></form></section>
+    {canManage && activeCloudId ? <section className="panel"><div className="panel-head"><div><h3>Owner transfer</h3><p>The transfer needs to be accepted by the target developer using email token; pending transfer can be canceled.</p></div></div><form className="inline-form settings-action-form" onSubmit={createTransfer}><input required type="email" placeholder="Target developer Email" value={transferEmail} onChange={(event) => setTransferEmail(event.target.value)} /><button type="submit" className="primary-button">Create transfer</button></form>{ownerTransfer ? <p className="notice">{ownerTransfer.status} · {ownerTransfer.id} {ownerTransfer.status === 'pending' ? <button type="button" className="link-button" onClick={cancelTransfer}>Cancel</button> : null}</p> : null}</section> : null}
     {canIssuePKITest && activeCloudId ? <PKITestBundleTool activeCloudId={activeCloudId} /> : null}
   </section>;
 }
@@ -2866,7 +2897,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
         error.code = result.code;
         throw error;
       }
-      setMessage('帳務設定已更新，系統已保留操作與 consent evidence。');
+      setMessage('Accounting settings have been updated and action and consent evidence have been retained.');
       onRefresh();
       return result;
     } catch (error) {
@@ -2953,122 +2984,122 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     }
   }
 
-  if (loading && !data) return <section className="panel split-panel"><div><h2>正在載入帳務資料</h2><p>只讀取目前 active Brand Cloud 的安全帳務摘要。</p></div></section>;
-  if (data?.source_status === 'unavailable') return <section className="panel split-panel"><div><h2>帳務資料暫時無法取得</h2><p>{data.source_message}</p></div></section>;
+  if (loading && !data) return <section className="panel split-panel"><div><h2>Loading billing information</h2><p>Read only the secure account summary of the current active Brand Cloud.</p></div></section>;
+  if (data?.source_status === 'unavailable') return <section className="panel split-panel"><div><h2>Billing information temporarily unavailable</h2><p>{data.source_message}</p></div></section>;
 
-  const billingTabs = <nav className="billing-tabs" aria-label="帳務頁面">
-    {[['overview', '帳務總覽'], ['usage', '用量與預估'], ['invoices', '發票'], ['activity', '帳務活動'], ['settings', '付款與自動加值'], ['profile', '帳單資料']].map(([id, label]) => <button key={id} type="button" className={billingView === id ? 'active' : ''} onClick={() => selectBillingView(id)}>{label}</button>)}
+  const billingTabs = <nav className="billing-tabs" aria-label="Billing Pages">
+    {[['overview', 'Billing Overview'], ['usage', 'Usage and Forecast'], ['invoices', 'Invoices'], ['activity', 'Billing Activity'], ['settings', 'Payments and Automatic Top-Up'], ['profile', 'Billing Profile']].map(([id, label]) => <button key={id} type="button" className={billingView === id ? 'active' : ''} onClick={() => selectBillingView(id)}>{label}</button>)}
   </nav>;
 
   if (selectedInvoice) return <BillingInvoiceDetail invoice={selectedInvoice} onBack={() => { setSelectedInvoice(null); selectBillingView('invoices'); }} />;
   if (selectedActivity) return <BillingActivityDetail activity={selectedActivity} onBack={() => { setSelectedActivity(null); selectBillingView('activity'); }} />;
 
   if (billingView === 'overview') return <section className="page-content billing-page" data-testid="billing-page">
-    <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>帳務總覽</h2><p>掌握可用餘額、本月估算費用、發票與最近的帳務異動。</p></div><small>更新時間：{formatProviderTimestamp(summary.calculated_at || account?.updated_at)}</small></div>
+    <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>Billing overview</h2><p>Keep track of available balances, estimated charges for the month, invoices, and recent billing changes.</p></div><small>Updated {formatProviderTimestamp(summary.calculated_at || account?.updated_at)}</small></div>
     {billingTabs}
     <section className="panel managed-cloud-plan" data-testid="managed-cloud-plan">
       <div className="managed-cloud-plan-main">
-        <span className="managed-cloud-plan-badge">推薦方案</span>
+        <span className="managed-cloud-plan-badge">Recommended plan</span>
         <div>
           <p className="eyebrow">Realtek Managed Cloud</p>
-          <h3>由 Realtek 託管營運，使用多少、支付多少</h3>
-          <p>Realtek 負責雲端建置、託管、維護與平台營運；客戶依實際服務使用量付費。正式費率與計價單位將另行確認，本頁不代表價格承諾。</p>
+          <h3>Hosted and operated by Realtek. Pay only for what you use.</h3>
+          <p>Realtek manages cloud deployment, hosting, maintenance, and platform operations. Customers pay for actual service usage. Official rates and pricing units will be confirmed separately; this page does not represent a price commitment.</p>
         </div>
         <div className="inline-actions">
-          <button type="button" className="primary" onClick={() => selectBillingView('usage')}>查看本月用量與費用</button>
-          <button type="button" className="ghost-button" onClick={() => selectBillingView('invoices')}>查看發票</button>
-          <button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>付款設定</button>
+          <button type="button" className="primary" onClick={() => selectBillingView('usage')}>View This Month’s Usage and Costs</button>
+          <button type="button" className="ghost-button" onClick={() => selectBillingView('invoices')}>View Invoice</button>
+          <button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>Payment Settings</button>
         </div>
       </div>
       <aside className="managed-cloud-private-option">
         <span><Icon name="cloud" /></span>
-        <div><strong>需要 Private Cloud？</strong><p>若需要客戶自有基礎架構、資料位置或治理邊界，請聯絡 Realtek 洽詢專屬部署方案。</p></div>
+        <div><strong>Need Private Cloud?</strong><p>If you need a customer’s own infrastructure, data location, or governance boundaries, contact Realtek for a dedicated deployment plan.</p></div>
       </aside>
     </section>
     <div className="metric-grid billing-overview-metrics">
-      <MetricCard icon="wallet" label="可用餘額" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={summary.runway?.state === 'available' ? `預估可用 ${summary.runway.projected_days} 天` : '用量不足，尚無法估算可用天數'} tone="info" />
-      <MetricCard icon="chart-column" label="本月費用" value={formatMinorAmount(usage.total_minor, usage.currency || account?.currency)} hint={`${formatProviderTimestamp(usage.period_start)} 起 · 目前為估算值`} tone="neutral" />
-      <MetricCard icon="chart-line" label="月底預估" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency || account?.currency) : '資料不足'} hint={summary.forecast?.state === 'available' ? `${summary.forecast.confidence === 'medium' ? '中' : '低'}信心 · ${summary.forecast.observation_days} 個觀察日` : '累積至少一個完整觀察日後提供'} tone="neutral" />
-      <MetricCard icon="credit-card" label="付款方式" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? '狀態正常' : '尚未設定付款方式'} tone={activeMethod?.status === 'active' ? 'good' : 'warning'} />
+      <MetricCard icon="wallet" label="Available Balance" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={summary.runway?.state === 'available' ? `Estimated availability ${summary.runway.projected_days} days` : 'Insufficient usage to estimate available days'} tone="info" />
+      <MetricCard icon="chart-column" label="Estimated Cost This Month" value={formatMinorAmount(usage.total_minor, usage.currency || account?.currency)} hint={`From ${formatProviderTimestamp(usage.period_start)} · Estimate`} tone="neutral" />
+      <MetricCard icon="chart-line" label="End-of-Month Forecast" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency || account?.currency) : 'Insufficient data'} hint={summary.forecast?.state === 'available' ? `${summary.forecast.confidence === 'medium' ? 'Medium' : 'Low'} confidence · ${summary.forecast.observation_days} observation days` : 'Available after at least one complete observation day'} tone="neutral" />
+      <MetricCard icon="credit-card" label="Payment method" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? 'Status is OK' : 'No payment method set'} tone={activeMethod?.status === 'active' ? 'good' : 'warning'} />
     </div>
     <div className="billing-overview-grid">
-      <section className="panel billing-auto-card"><div className="panel-head"><div><h3>自動加值{policy?.enabled ? '已啟用' : '未啟用'}</h3><p>{policy ? `低於 ${formatMinorAmount(policy.threshold_minor, policy.currency)} 時加值 ${formatMinorAmount(policy.top_up_amount_minor, policy.currency)}` : '設定門檻與付款方式後即可啟用。'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>{policy?.last_succeeded_at ? <p>上次加值 {formatProviderTimestamp(policy.last_succeeded_at)}</p> : null}<button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>管理自動加值</button></section>
-      <section className="panel billing-usage-card" id="billing-usage"><div className="panel-head"><div><h3>本月費用明細（依服務類別）</h3><p>定價版本鎖定後，結帳結果會成為不可變發票。</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>總計</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
+      <section className="panel billing-auto-card"><div className="panel-head"><div><h3>Automatic Top-Up · {policy?.enabled ? 'Enabled' : 'Disabled'}</h3><p>{policy ? `Top up ${formatMinorAmount(policy.top_up_amount_minor, policy.currency)} when the balance falls below ${formatMinorAmount(policy.threshold_minor, policy.currency)}.` : 'Set a threshold and payment method to enable automatic top-up.'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>{policy?.last_succeeded_at ? <p>Last top-up: {formatProviderTimestamp(policy.last_succeeded_at)}</p> : null}<button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>Manage Automatic Top-Up</button></section>
+      <section className="panel billing-usage-card" id="billing-usage"><div className="panel-head"><div><h3>Estimated Cost by Service Category</h3><p>Once the pricing version is locked, the settlement result becomes an immutable invoice.</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>Total</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
     </div>
     <div className="billing-overview-grid lower">
-      <section className="panel"><div className="panel-head"><div><h3>查看發票</h3><p>已開立發票與不可變 PDF 文件。</p></div><button type="button" className="link-button" onClick={() => selectBillingView('invoices')}>全部發票</button></div><BillingInvoiceTable invoices={invoices.slice(0, 3)} onSelect={openBillingInvoice} /></section>
-      <section className="panel"><div className="panel-head"><div><h3>近期帳務活動</h3><p>加值、發票扣款與需要處理的狀態。</p></div><button type="button" className="link-button" onClick={() => selectBillingView('activity')}>全部活動</button></div><BillingActivityTable activities={activities.slice(0, 4)} onSelect={openBillingActivity} /></section>
+      <section className="panel"><div className="panel-head"><div><h3>View Invoice</h3><p>Invoiced and immutable PDF documents.</p></div><button type="button" className="link-button" onClick={() => selectBillingView('invoices')}>All invoices</button></div><BillingInvoiceTable invoices={invoices.slice(0, 3)} onSelect={openBillingInvoice} /></section>
+      <section className="panel"><div className="panel-head"><div><h3>Recent Billing Activity</h3><p>Top-ups, invoice charges, and statuses to be processed.</p></div><button type="button" className="link-button" onClick={() => selectBillingView('activity')}>All Events</button></div><BillingActivityTable activities={activities.slice(0, 4)} onSelect={openBillingActivity} /></section>
     </div>
   </section>;
 
   if (billingView === 'usage') return <section className="page-content billing-page" data-testid="billing-usage-page">
-    <div className="page-intro"><div><h2>用量與預估</h2><p>費用由 Billing server 依 pricing version 試算；月底預估不是最終發票。</p></div><small>資料截止：{formatProviderTimestamp(usage.usage_through)}</small></div>
+    <div className="page-intro"><div><h2>Usage and Forecast</h2><p>The Billing server estimates costs using the applicable pricing version. The end-of-month forecast is not a final invoice.</p></div><small>Data through {formatProviderTimestamp(usage.usage_through)}</small></div>
     {billingTabs}
     <div className="metric-grid billing-overview-metrics">
-      <MetricCard icon="chart-column" label="本月至今" value={formatMinorAmount(usage.total_minor, usage.currency)} hint={`${usage.fact_count || 0} 筆用量事實`} tone="info" />
-      <MetricCard icon="chart-line" label="月底預估" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency) : '資料不足'} hint={summary.forecast?.state === 'available' ? `尚餘約 ${formatMinorAmount(summary.forecast.projected_remaining_minor, usage.currency)} · ${summary.forecast.confidence === 'medium' ? '中' : '低'}信心` : '至少需要一個完整觀察日'} tone="neutral" />
-      <MetricCard icon="wallet" label="餘額 Runway" value={summary.runway?.state === 'available' ? `${summary.runway.projected_days} 天` : '資料不足'} hint={summary.runway?.state === 'available' ? `平均每日 ${formatMinorAmount(summary.runway.average_daily_cost_minor, usage.currency)}` : '尚無法估算'} tone="neutral" />
+      <MetricCard icon="chart-column" label="Month to Date" value={formatMinorAmount(usage.total_minor, usage.currency)} hint={`${formatNumber(usage.fact_count || 0)} usage records`} tone="info" />
+      <MetricCard icon="chart-line" label="End-of-Month Forecast" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency) : 'Insufficient data'} hint={summary.forecast?.state === 'available' ? `Approximately ${formatMinorAmount(summary.forecast.projected_remaining_minor, usage.currency)} remaining · ${summary.forecast.confidence === 'medium' ? 'Medium' : 'Low'} confidence` : 'At least one complete observation day is required'} tone="neutral" />
+      <MetricCard icon="wallet" label="Balance Runway" value={summary.runway?.state === 'available' ? `${summary.runway.projected_days} days` : 'Insufficient data'} hint={summary.runway?.state === 'available' ? `Average daily cost ${formatMinorAmount(summary.runway.average_daily_cost_minor, usage.currency)}` : 'Cannot be estimated yet'} tone="neutral" />
     </div>
-    <section className="panel billing-usage-card"><div className="panel-head"><div><h3>本月費用明細（依服務類別）</h3><p>{formatProviderTimestamp(usage.period_start)} ～ {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description} · {line.quantity} {line.unit}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>本月至今</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
+    <section className="panel billing-usage-card"><div className="panel-head"><div><h3>Cost This Month by Service Category</h3><p>{formatProviderTimestamp(usage.period_start)} – {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description} · {line.quantity} {line.unit}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>Month to Date</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
   </section>;
 
-  if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page"><div className="page-intro"><div><h2>發票</h2><p>查詢帳期、金額、付款狀態與下載 PDF。</p></div><a className="ghost-button" href="/api/billing/statements">匯出對帳單</a></div>{billingTabs}<section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section></section>;
-  if (billingView === 'activity') return <section className="page-content billing-page" data-testid="billing-activity-page"><div className="page-intro"><div><h2>帳務活動</h2><p>使用一致狀態追蹤加值、發票扣款、重試與對帳。</p></div></div>{billingTabs}<section className="panel"><BillingActivityTable activities={activities} onSelect={openBillingActivity} /></section></section>;
+  if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page"><div className="page-intro"><div><h2>Invoice</h2><p>Check the billing period, amount, payment status, and download PDF.</p></div><a className="ghost-button" href="/api/billing/statements">Export statement</a></div>{billingTabs}<section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section></section>;
+  if (billingView === 'activity') return <section className="page-content billing-page" data-testid="billing-activity-page"><div className="page-intro"><div><h2>Billing Activity</h2><p>Track top-ups, invoice charges, retries, and reconciliations with consistent status.</p></div></div>{billingTabs}<section className="panel"><BillingActivityTable activities={activities} onSelect={openBillingActivity} /></section></section>;
   if (billingView === 'profile') return <BillingProfilePage profile={billingProfile} tabs={billingTabs} canManage={capabilities.includes('billing_profile.manage')} onRefresh={onRefresh} />;
 
   return <section className="page-content billing-page" data-testid="billing-page">
-    <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>付款與自動加值</h2><p>餘額嚴格低於門檻時才建立一次加值意圖；金額、次數、冷卻與 consent 均由後端驗證。</p></div></div>
+    <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>Payments and Automatic Top-Up</h2><p>A top-up intent is created only when the balance falls strictly below the threshold. The backend validates the amount, attempt limits, cooldown, and consent.</p></div></div>
     {billingTabs}
     <div className="metric-grid billing-metrics">
-      <MetricCard icon="wallet" label="可用餘額" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={`帳戶 ${account?.state || 'unavailable'} · 最後更新 ${formatProviderTimestamp(account?.updated_at)}`} tone="info" />
-      <MetricCard icon="arrows-rotate" label="自動加值" value={policyState.label} hint={policyState.detail} tone={policyState.tone} />
-      <MetricCard icon="credit-card" label="付款方式" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? `狀態：${activeMethod.status}` : '不在本頁輸入卡號或 CVV'} tone={activeMethod?.status === 'active' ? 'good' : 'neutral'} />
-      <MetricCard icon="clock-rotate-left" label="近期意圖" value={String(intents.length)} hint="包含成功、失敗、待對帳與處理中" tone="neutral" />
+      <MetricCard icon="wallet" label="Available Balance" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={`Account ${account?.state || 'unavailable'} · Last updated ${formatProviderTimestamp(account?.updated_at)}`} tone="info" />
+      <MetricCard icon="arrows-rotate" label="Automatic Top-Up" value={policyState.label} hint={policyState.detail} tone={policyState.tone} />
+      <MetricCard icon="credit-card" label="Payment method" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? `Status: ${activeMethod.status}` : 'Don’t enter a card number or CVV on this page'} tone={activeMethod?.status === 'active' ? 'good' : 'neutral'} />
+      <MetricCard icon="clock-rotate-left" label="Recent Intents" value={String(intents.length)} hint="Includes succeeded, failed, reconciliation-pending, and processing states" tone="neutral" />
     </div>
 
-    <section className="panel billing-safety" data-testid="billing-provider-gate"><div className="panel-head"><div><h3>付款服務資格狀態</h3><p>{setupProvider?.environment === 'simulated' ? '目前使用 staging 虛擬金流；不會產生真實扣款。' : '目前未提供已驗證的 hosted payment setup。'}</p></div><span className={`status-badge ${setupProvider ? 'good' : 'warning'}`}>{setupProvider ? 'READY' : 'BLOCKED'}</span></div><p>付款資料只在 provider hosted page 操作；RTK Cloud 不接收卡號或 CVV。</p><label className="billing-consent"><input type="checkbox" checked={paymentConsentAccepted} onChange={(event) => setPaymentConsentAccepted(event.target.checked)} />{PAYMENT_METHOD_CONSENT_TEXT}</label><button type="button" className="primary" disabled={busy || !canManageMethods || !setupProvider || !paymentConsentAccepted} onClick={setupPaymentMethod}>{busy ? '準備中…' : '新增付款方式'}</button></section>
+    <section className="panel billing-safety" data-testid="billing-provider-gate"><div className="panel-head"><div><h3>Payment Service Eligibility Status</h3><p>{setupProvider?.environment === 'simulated' ? 'Currently using staging virtual cash flow; no real charge will be generated.' : 'Verified hosted payment setup is not currently available.'}</p></div><span className={`status-badge ${setupProvider ? 'good' : 'warning'}`}>{setupProvider ? 'READY' : 'BLOCKED'}</span></div><p>Payment information is only processed on the provider hosted page; RTK Cloud does not receive card numbers or CVVs.</p><label className="billing-consent"><input type="checkbox" checked={paymentConsentAccepted} onChange={(event) => setPaymentConsentAccepted(event.target.checked)} />{PAYMENT_METHOD_CONSENT_TEXT}</label><button type="button" className="primary" disabled={busy || !canManageMethods || !setupProvider || !paymentConsentAccepted} onClick={setupPaymentMethod}>{busy ? 'Preparing…' : 'Add payment method'}</button></section>
 
     <div className="billing-columns">
-      <section className="panel"><div className="panel-head"><div><h3>自動加值政策</h3><p>每日限制以 {policy?.limit_timezone || 'Asia/Taipei'} 計算，下一次重設：{policy?.limit_reset_at ? formatProviderTimestamp(policy.limit_reset_at) : '—'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>
+      <section className="panel"><div className="panel-head"><div><h3>Automatic top-up policy</h3><p>Daily limits use {policy?.limit_timezone || 'Asia/Taipei'}. Next reset: {policy?.limit_reset_at ? formatProviderTimestamp(policy.limit_reset_at) : '—'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>
         <form className="billing-policy-form" onSubmit={savePolicy}>
-          <label>低餘額門檻（TWD）<input type="number" min="1" step="1" value={threshold} onChange={(event) => setThreshold(event.target.value)} /></label>
-          <label>每次加值（TWD）<input type="number" min="1" step="1" value={topUpAmount} onChange={(event) => setTopUpAmount(event.target.value)} /></label>
-          <label>每日金額上限（TWD）<input type="number" min="1" step="1" value={dailyAmount} onChange={(event) => setDailyAmount(event.target.value)} /></label>
-          <label>每日扣款最高次數<input type="number" min="1" max="10" step="1" value={dailyAttempts} onChange={(event) => setDailyAttempts(event.target.value)} /></label>
+          <label>Low Balance Threshold (TWD)<input type="number" min="1" step="1" value={threshold} onChange={(event) => setThreshold(event.target.value)} /></label>
+          <label>Top-up amount (TWD)<input type="number" min="1" step="1" value={topUpAmount} onChange={(event) => setTopUpAmount(event.target.value)} /></label>
+          <label>Maximum Daily Value (TWD)<input type="number" min="1" step="1" value={dailyAmount} onChange={(event) => setDailyAmount(event.target.value)} /></label>
+          <label>Maximum daily charges<input type="number" min="1" max="10" step="1" value={dailyAttempts} onChange={(event) => setDailyAttempts(event.target.value)} /></label>
           <label className="billing-consent"><input type="checkbox" checked={autoConsentAccepted} onChange={(event) => setAutoConsentAccepted(event.target.checked)} />{AUTO_TOPUP_CONSENT_TEXT}</label>
-          <div className="inline-actions"><button type="submit" className="primary" disabled={busy || !canManagePolicy || !chargeQualified || !autoConsentAccepted}>{busy ? '更新中…' : '儲存並啟用'}</button>{policy?.enabled ? <button type="button" className="ghost-button" disabled={busy || !canManagePolicy} onClick={() => mutate('DELETE', '/api/billing/auto-topup', { reason: 'customer disabled automatic top-up' }, { 'If-Match': data?.policyEtag || `"${policy.version}"` })}>停用自動加值</button> : null}</div>
+          <div className="inline-actions"><button type="submit" className="primary" disabled={busy || !canManagePolicy || !chargeQualified || !autoConsentAccepted}>{busy ? 'Updating…' : 'Save and Enable'}</button>{policy?.enabled ? <button type="button" className="ghost-button" disabled={busy || !canManagePolicy} onClick={() => mutate('DELETE', '/api/billing/auto-topup', { reason: 'customer disabled automatic top-up' }, { 'If-Match': data?.policyEtag || `"${policy.version}"` })}>Disable Automatic Top-Up</button> : null}</div>
         </form>
-        {!chargeQualified ? <p className="notice">付款方式尚未具備 merchant-initiated charge 能力；儲存按鈕保持停用，不會送出扣款。</p> : null}
+        {!chargeQualified ? <p className="notice">The payment method does not yet have merchant-initiated charge capability; the save button remains disabled and no charge will be submitted.</p> : null}
         {message ? <p className="notice" role="status">{message}</p> : null}
       </section>
 
-      <section className="panel"><div className="panel-head"><div><h3>付款方式</h3><p>只保存 provider、品牌、末四碼與到期月份等安全 metadata。</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : '到期日未提供'}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{method.status}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>撤銷</button> : null}</div>)}</div> : <p className="empty-state">目前沒有已驗證的付款方式。</p>}
-        <form className="inline-form" onSubmit={createManualTopUp}><label>加值金額（TWD）<input type="number" min="1" step="1" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} /></label><button type="submit" className="ghost-button" disabled={busy || (!hostedChargeProvider && (!activeMethod || !chargeQualified)) || !capabilities.includes('payment_intent.create')}>{hostedChargeProvider ? '前往刷卡加值' : '立即加值'}</button></form>
+      <section className="panel"><div className="panel-head"><div><h3>Payment Methods</h3><p>Only safe metadata such as provider, brand, last four digits, and expiration month is stored.</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : 'Expiration date not provided'}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{method.status}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>Revoke</button> : null}</div>)}</div> : <p className="empty-state">No verified payment methods are available.</p>}
+        <form className="inline-form" onSubmit={createManualTopUp}><label>Manual Top-Up Amount (TWD)<input type="number" min="1" step="1" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} /></label><button type="submit" className="ghost-button" disabled={busy || (!hostedChargeProvider && (!activeMethod || !chargeQualified)) || !capabilities.includes('payment_intent.create')}>{hostedChargeProvider ? 'Continue to Card Top-Up' : 'Top Up Now'}</button></form>
       </section>
     </div>
 
-    <section className="panel"><div className="panel-head"><div><h3>付款意圖</h3><p>normalized 狀態供客戶追蹤；provider 交易參考與 payload 不會顯示。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>建立時間</th><th>原因</th><th>金額</th><th>狀態</th></tr></thead><tbody>{intents.map((intent) => { const state = paymentIntentState(intent.state); return <tr key={intent.id}><td>{formatProviderTimestamp(intent.created_at)}</td><td>{intent.reason === 'auto_top_up' ? '自動加值' : '手動加值'}</td><td>{formatMinorAmount(intent.amount_minor, intent.currency)}</td><td><span className={`status-badge ${state.tone}`}>{state.label}</span></td></tr>; })}</tbody></table>{!intents.length ? <p className="empty-state">目前沒有付款意圖。</p> : null}</div></section>
+    <section className="panel"><div className="panel-head"><div><h3>Payment Intents</h3><p>Normalized states are shown for customer tracking. Provider transaction references and payloads are not displayed.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Created</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody>{intents.map((intent) => { const state = paymentIntentState(intent.state); return <tr key={intent.id}><td>{formatProviderTimestamp(intent.created_at)}</td><td>{intent.reason === 'auto_top_up' ? 'Automatic Top-Up' : 'Manual Top-Up'}</td><td>{formatMinorAmount(intent.amount_minor, intent.currency)}</td><td><span className={`status-badge ${state.tone}`}>{state.label}</span></td></tr>; })}</tbody></table>{!intents.length ? <p className="empty-state">No payment intents are available.</p> : null}</div></section>
 
-    <section className="panel"><div className="panel-head"><div><h3>餘額異動</h3><p>不可覆寫的 ledger，只顯示客戶安全欄位。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>時間</th><th>原因</th><th>異動</th><th>異動後餘額</th></tr></thead><tbody>{ledger.map((entry) => <tr key={entry.id}><td>{formatProviderTimestamp(entry.created_at)}</td><td>{entry.reason}</td><td>{entry.direction === 'debit' ? '−' : '+'}{formatMinorAmount(entry.amount_minor, entry.currency)}</td><td>{formatMinorAmount(entry.balance_after_minor, entry.currency)}</td></tr>)}</tbody></table>{!ledger.length ? <p className="empty-state">目前沒有餘額異動。</p> : null}</div></section>
+    <section className="panel"><div className="panel-head"><div><h3>Balance changes</h3><p>Non-overwritable ledger, only customer safety fields are displayed.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Time</th><th>Reason</th><th>Transfers</th><th>Balance after change</th></tr></thead><tbody>{ledger.map((entry) => <tr key={entry.id}><td>{formatProviderTimestamp(entry.created_at)}</td><td>{entry.reason}</td><td>{entry.direction === 'debit' ? '−' : '+'}{formatMinorAmount(entry.amount_minor, entry.currency)}</td><td>{formatMinorAmount(entry.balance_after_minor, entry.currency)}</td></tr>)}</tbody></table>{!ledger.length ? <p className="empty-state">There are currently no balance changes.</p> : null}</div></section>
   </section>;
 }
 
 function BillingInvoiceTable({ invoices, onSelect }) {
-  if (!invoices.length) return <p className="empty-state">目前沒有發票。</p>;
-  return <div className="table-wrap"><table className="data-table"><thead><tr><th>發票編號</th><th>帳單期間</th><th>金額</th><th>狀態</th><th>文件</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button type="button" className="link-button" onClick={() => onSelect(invoice)}>{invoice.invoice_number}</button></td><td>{formatProviderTimestamp(invoice.period_start)} ～ {formatProviderTimestamp(invoice.period_end)}</td><td>{formatMinorAmount(invoice.total_minor, invoice.currency)}</td><td><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? '已付款' : invoice.state}</span></td><td>{invoice.document ? <a className="icon-download" aria-label={`下載 ${invoice.invoice_number} PDF`} href={`/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`}><i className="fa-solid fa-download" /></a> : '—'}</td></tr>)}</tbody></table></div>;
+  if (!invoices.length) return <p className="empty-state">There are currently no invoices.</p>;
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>Invoice number</th><th>Billing period</th><th>Amount</th><th>Status</th><th>File</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button type="button" className="link-button" onClick={() => onSelect(invoice)}>{invoice.invoice_number}</button></td><td>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</td><td>{formatMinorAmount(invoice.total_minor, invoice.currency)}</td><td><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? 'Paid' : invoice.state}</span></td><td>{invoice.document ? <a className="icon-download" aria-label={`Download ${invoice.invoice_number} PDF`} href={`/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`}><i className="fa-solid fa-download" /></a> : '—'}</td></tr>)}</tbody></table></div>;
 }
 
 function BillingActivityTable({ activities, onSelect }) {
-  if (!activities.length) return <p className="empty-state">目前沒有帳務活動。</p>;
-  return <div className="table-wrap"><table className="data-table"><thead><tr><th>時間</th><th>類型</th><th>參考編號</th><th>金額</th><th>狀態</th></tr></thead><tbody>{activities.map((activity) => <tr key={activity.id}><td>{formatProviderTimestamp(activity.occurred_at)}</td><td>{activity.type === 'invoice' ? '發票' : activity.type === 'auto_top_up' ? '自動加值' : activity.type}</td><td><button type="button" className="link-button" onClick={() => onSelect(activity)}>{activity.customer_reference}</button></td><td className={activity.balance_effect === 'credit' ? 'money-credit' : ''}>{activity.balance_effect === 'credit' ? '+' : '−'}{formatMinorAmount(activity.amount_minor, activity.currency)}</td><td><span className={`status-badge ${activity.state === 'completed' ? 'good' : activity.state === 'failed' ? 'danger' : 'warning'}`}>{activity.state === 'completed' ? '成功' : activity.state}</span></td></tr>)}</tbody></table></div>;
+  if (!activities.length) return <p className="empty-state">There is currently no billing activity.</p>;
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>Time</th><th>Type</th><th>Reference</th><th>Amount</th><th>Status</th></tr></thead><tbody>{activities.map((activity) => <tr key={activity.id}><td>{formatProviderTimestamp(activity.occurred_at)}</td><td>{activity.type === 'invoice' ? 'Invoice' : activity.type === 'auto_top_up' ? 'Automatic Top-Up' : activity.type}</td><td><button type="button" className="link-button" onClick={() => onSelect(activity)}>{activity.customer_reference}</button></td><td className={activity.balance_effect === 'credit' ? 'money-credit' : ''}>{activity.balance_effect === 'credit' ? '+' : '−'}{formatMinorAmount(activity.amount_minor, activity.currency)}</td><td><span className={`status-badge ${activity.state === 'completed' ? 'good' : activity.state === 'failed' ? 'danger' : 'warning'}`}>{activity.state === 'completed' ? 'Succeeded' : activity.state}</span></td></tr>)}</tbody></table></div>;
 }
 
 function BillingInvoiceDetail({ invoice, onBack }) {
-  return <section className="page-content billing-page" data-testid="billing-invoice-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← 返回發票</button><div className="page-intro"><div><p className="eyebrow">Invoice</p><h2>{invoice.invoice_number}</h2><p>{formatProviderTimestamp(invoice.period_start)} ～ {formatProviderTimestamp(invoice.period_end)}</p></div><div className="inline-actions"><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? '已付款' : invoice.state}</span>{invoice.document ? <a className="primary button-link" href={`/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`}>下載 PDF</a> : null}</div></div><section className="panel invoice-paper"><div className="invoice-parties"><div><small>帳單收件人</small><strong>{invoice.recipient?.legal_name || '—'}</strong><span>{invoice.recipient?.tax_identifier || ''}</span><span>{invoice.recipient?.billing_address || ''}</span></div><div><small>開立日期</small><strong>{formatProviderTimestamp(invoice.issued_at)}</strong><small>總金額</small><strong>{formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>服務</th><th>說明</th><th>用量</th><th>小計</th></tr></thead><tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td>{line.service_code}</td><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{formatMinorAmount(line.total_minor, invoice.currency)}</td></tr>)}</tbody></table></div><div className="invoice-totals"><span>未稅 {formatMinorAmount(invoice.subtotal_minor, invoice.currency)}</span><span>稅額 {formatMinorAmount(invoice.tax_minor, invoice.currency)}</span><strong>總計 {formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div><p className="notice">本發票由預付餘額結算；付款方式加值與發票扣款是兩筆獨立帳務事件。</p></section></section>;
+  return <section className="page-content billing-page" data-testid="billing-invoice-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← Back to invoices</button><div className="page-intro"><div><p className="eyebrow">Invoice</p><h2>{invoice.invoice_number}</h2><p>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</p></div><div className="inline-actions"><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? 'Paid' : invoice.state}</span>{invoice.document ? <a className="primary button-link" href={`/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`}>Download PDF</a> : null}</div></div><section className="panel invoice-paper"><div className="invoice-parties"><div><small>Billing recipient</small><strong>{invoice.recipient?.legal_name || '—'}</strong><span>{invoice.recipient?.tax_identifier || ''}</span><span>{invoice.recipient?.billing_address || ''}</span></div><div><small>Issue date</small><strong>{formatProviderTimestamp(invoice.issued_at)}</strong><small>Total</small><strong>{formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Service</th><th>Description</th><th>Usage</th><th>Subtotal</th></tr></thead><tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td>{line.service_code}</td><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{formatMinorAmount(line.total_minor, invoice.currency)}</td></tr>)}</tbody></table></div><div className="invoice-totals"><span>Subtotal {formatMinorAmount(invoice.subtotal_minor, invoice.currency)}</span><span>Tax {formatMinorAmount(invoice.tax_minor, invoice.currency)}</span><strong>Total {formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div><p className="notice">This invoice is settled from a prepaid balance; the payment-method top-up and invoice charge are separate accounting events.</p></section></section>;
 }
 
 function BillingActivityDetail({ activity, onBack }) {
-  return <section className="page-content billing-page" data-testid="billing-activity-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← 返回帳務活動</button><div className="page-intro"><div><p className="eyebrow">Billing activity</p><h2>{activity.customer_reference}</h2><p>{activity.type === 'invoice' ? '發票扣款' : '自動加值'} · {formatMinorAmount(activity.amount_minor, activity.currency)}</p></div><span className={`status-badge ${activity.state === 'completed' ? 'good' : 'warning'}`}>{activity.state === 'completed' ? '成功' : activity.state}</span></div><section className="panel"><h3>處理時間軸</h3><ol className="billing-timeline">{(activity.steps?.length ? activity.steps : [{ kind: activity.type, state: activity.state, occurred_at: activity.occurred_at, customer_reference: activity.customer_reference }]).map((step, index) => <li key={`${step.kind}-${index}`}><i className="fa-solid fa-circle-check" /><div><strong>{step.kind}</strong><p>{step.state} · {formatProviderTimestamp(step.occurred_at)}</p><small>{step.customer_reference}</small></div></li>)}</ol></section></section>;
+  return <section className="page-content billing-page" data-testid="billing-activity-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← Back to billing activity</button><div className="page-intro"><div><p className="eyebrow">Billing activity</p><h2>{activity.customer_reference}</h2><p>{activity.type === 'invoice' ? 'Invoice charge' : 'Automatic top-up'} · {formatMinorAmount(activity.amount_minor, activity.currency)}</p></div><span className={`status-badge ${activity.state === 'completed' ? 'good' : 'warning'}`}>{activity.state === 'completed' ? 'Completed' : activity.state}</span></div><section className="panel"><h3>Processing timeline</h3><ol className="billing-timeline">{(activity.steps?.length ? activity.steps : [{ kind: activity.type, state: activity.state, occurred_at: activity.occurred_at, customer_reference: activity.customer_reference }]).map((step, index) => <li key={`${step.kind}-${index}`}><i className="fa-solid fa-circle-check" /><div><strong>{step.kind}</strong><p>{step.state} · {formatProviderTimestamp(step.occurred_at)}</p><small>{step.customer_reference}</small></div></li>)}</ol></section></section>;
 }
 
 function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
@@ -3078,10 +3109,10 @@ function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
   async function submit(event) {
     event.preventDefault();
     const response = await fetch('/api/billing/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': `"${form.version}"` }, body: JSON.stringify(form) });
-    setMessage(response.ok ? '帳單資料已更新；既有發票快照不會被改寫。' : '帳單資料更新失敗，請重新整理後再試。');
+    setMessage(response.ok ? 'Billing information has been updated; existing invoice snapshots will not be overwritten.' : 'Failed to update billing information, please refresh and try again.');
     if (response.ok) onRefresh();
   }
-  return <section className="page-content billing-page" data-testid="billing-profile-page"><div className="page-intro"><div><h2>帳單資料</h2><p>新發票會保存開立當下的收件人快照，後續修改不會改寫既有文件。</p></div></div>{tabs}<section className="panel"><form className="billing-profile-form" onSubmit={submit}><label>公司／法定名稱<input value={form.legal_name || ''} onChange={(event) => setForm({ ...form, legal_name: event.target.value })} required /></label><label>統一編號<input value={form.tax_identifier || ''} onChange={(event) => setForm({ ...form, tax_identifier: event.target.value })} /></label><label>帳單 Email<input type="email" value={form.contact_email || ''} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} /></label><label className="wide">帳單地址<textarea value={form.billing_address || ''} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} /></label><label>語系<input value={form.locale || 'zh-TW'} onChange={(event) => setForm({ ...form, locale: event.target.value })} /></label><label>帳務時區<input value={form.timezone || 'Asia/Taipei'} onChange={(event) => setForm({ ...form, timezone: event.target.value })} /></label><label>交付方式<select value={form.delivery_preference || 'portal'} onChange={(event) => setForm({ ...form, delivery_preference: event.target.value })}><option value="portal">Portal</option><option value="portal_and_email">Portal + Email</option></select></label><div className="wide"><button type="submit" className="primary" disabled={!canManage}>儲存帳單資料</button>{message ? <p className="notice" role="status">{message}</p> : null}</div></form></section></section>;
+  return <section className="page-content billing-page" data-testid="billing-profile-page"><div className="page-intro"><div><h2>Billing information</h2><p>Each new invoice saves the current recipient details. Later changes do not overwrite existing invoice snapshots.</p></div></div>{tabs}<section className="panel"><form className="billing-profile-form" onSubmit={submit}><label>Company or legal name<input value={form.legal_name || ''} onChange={(event) => setForm({ ...form, legal_name: event.target.value })} required /></label><label>VAT number<input value={form.tax_identifier || ''} onChange={(event) => setForm({ ...form, tax_identifier: event.target.value })} /></label><label>Billing email<input type="email" value={form.contact_email || ''} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} /></label><label className="wide">Billing address<textarea value={form.billing_address || ''} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} /></label><label>Locale<input value={form.locale || 'en-US'} onChange={(event) => setForm({ ...form, locale: event.target.value })} /></label><label>Billing timezone<input value={form.timezone || 'Asia/Taipei'} onChange={(event) => setForm({ ...form, timezone: event.target.value })} /></label><label>Delivery method<select value={form.delivery_preference || 'portal'} onChange={(event) => setForm({ ...form, delivery_preference: event.target.value })}><option value="portal">Portal</option><option value="portal_and_email">Portal + Email</option></select></label><div className="wide"><button type="submit" className="primary" disabled={!canManage}>Save billing information</button>{message ? <p className="notice" role="status">{message}</p> : null}</div></form></section></section>;
 }
 function PKITestBundleTool({ activeCloudId }) {
   const [kind, setKind] = useState('app');
@@ -3092,7 +3123,7 @@ function PKITestBundleTool({ activeCloudId }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   async function issue(event) {
-    event.preventDefault(); setBusy(true); setMessage('Browser 正在產生 P-256 private key 與 CSR…');
+    event.preventDefault(); setBusy(true); setMessage('Generating a P-256 private key and CSR in the browser…');
     try {
       const commonName = kind === 'device' ? targetId : `${targetType === 'end_user' ? 'app-end-user' : 'app-brand-cloud-user'}:${targetId}`;
       const key = await createP256CSR(commonName);
@@ -3101,18 +3132,18 @@ function PKITestBundleTool({ activeCloudId }) {
         ? { brand_cloud_id: activeCloudId, device_item_profile_id: profileId, device_id: targetId, serial_number: serial, csr_pem: key.csrPEM }
         : { brand_cloud_id: activeCloudId, target_type: targetType, target_id: targetId, csr_pem: key.csrPEM };
       const response = await fetch(endpoint, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify(requestBody) });
-      if (!response.ok) throw new Error((await response.text()) || 'certificate issuance failed');
+      if (!response.ok) throw new Error('certificate issuance failed');
       downloadExportableBundle(await response.json(), key.privateKeyPEM);
-      setMessage('30 天測試 bundle 已下載；private key 未送往 server，也未寫入 localStorage。');
-    } catch (error) { setMessage(error.message || '無法建立測試 bundle。'); }
+      setMessage('The 30-day test bundle was downloaded. The private key was not sent to the server or written to localStorage.');
+    } catch (_) { setMessage('The test bundle could not be created. Please try again.'); }
     finally { setBusy(false); }
   }
-  return <section className="panel"><div className="panel-head"><div><h3>PKI Test Bundle</h3><p>本機產生 exportable P-256 key；只將 CSR 送往後端。固定有效期 30 天，僅供 local/staging。</p></div></div><form className="inline-form pki-test-form" onSubmit={issue}><select className="select-control" aria-label="憑證類型" value={kind} onChange={(event) => setKind(event.target.value)}><option value="app">App mTLS</option><option value="device">Device mTLS</option></select>{kind === 'app' ? <select className="select-control" aria-label="App 身分類型" value={targetType} onChange={(event) => setTargetType(event.target.value)}><option value="brand_cloud_user">Brand Cloud user</option><option value="end_user">End user</option></select> : null}<input required placeholder={kind === 'device' ? 'Device ID' : 'User ID'} value={targetId} onChange={(event) => setTargetId(event.target.value)} />{kind === 'device' ? <><input required placeholder="Device item profile ID" value={profileId} onChange={(event) => setProfileId(event.target.value)} /><input required placeholder="Serial number" value={serial} onChange={(event) => setSerial(event.target.value)} /></> : null}<button type="submit" className="primary-button" disabled={busy}>{busy ? '建立中…' : '產生並下載'}</button></form>{message ? <p className="notice" role="status">{message}</p> : null}</section>;
+  return <section className="panel"><div className="panel-head"><div><h3>PKI Test Bundle</h3><p>The exportable P-256 key is generated locally; only the CSR is sent to the backend. Certificates are valid for 30 days and intended for local or staging use only.</p></div></div><form className="inline-form pki-test-form" onSubmit={issue}><select className="select-control" aria-label="Certificate Type" value={kind} onChange={(event) => setKind(event.target.value)}><option value="app">App mTLS</option><option value="device">Device mTLS</option></select>{kind === 'app' ? <select className="select-control" aria-label="App Identity Type" value={targetType} onChange={(event) => setTargetType(event.target.value)}><option value="brand_cloud_user">Brand Cloud user</option><option value="end_user">End user</option></select> : null}<input required placeholder={kind === 'device' ? 'Device ID' : 'User ID'} value={targetId} onChange={(event) => setTargetId(event.target.value)} />{kind === 'device' ? <><input required placeholder="Device profile ID" value={profileId} onChange={(event) => setProfileId(event.target.value)} /><input required placeholder="Serial number" value={serial} onChange={(event) => setSerial(event.target.value)} /></> : null}<button type="submit" className="primary-button" disabled={busy}>{busy ? 'Creating…' : 'Generate and download'}</button></form>{message ? <p className="notice" role="status">{message}</p> : null}</section>;
 }
 
 function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
   const reports = data?.reports || [];
-  const [name, setName] = useState('設備狀況報表');
+  const [name, setName] = useState('Device Status Report');
   const [reportType, setReportType] = useState('fleet_status');
   const [format, setFormat] = useState('json');
   const [timezone, setTimezone] = useState('Asia/Taipei');
@@ -3125,29 +3156,41 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
     const scope = Object.fromEntries(Object.entries(filters).filter(([, value]) => value.trim()));
     const payload = { name, report_type: reportType, dimensions, timezone, time_range: { start_at: filters.start_at, end_at: filters.end_at }, format, scope };
     const response = await fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `report-${JSON.stringify(payload)}` }, body: JSON.stringify(payload) });
-    setMessage(response.ok ? '報表已建立，完成後可查看結果。' : '報表目前無法建立。');
+    setMessage(response.ok ? 'The report has been created and you will see the results when you are done.' : 'Report cannot be created at this time.');
     if (response.ok) { onRefresh(); }
   }
     return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>報表</h2><p>用產品、區域、群組、韌體和時間範圍整理營運結果。</p></div></div>
-    {!canCreate ? <section className="panel split-panel"><div><h3>目前沒有 reports.create 權限</h3><p>可查看既有報表，但不能建立新的報表。</p></div></section> : <section className="panel report-builder-panel"><form className="report-builder" onSubmit={createReport}>
-      <input value={name} onChange={(event) => setName(event.target.value)} aria-label="報表名稱" />
-      <select className="select-control" aria-label="報表類型" value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">設備狀況</option><option value="firmware_coverage">韌體覆蓋</option></select>
-      <select className="select-control" aria-label="輸出格式" value={format} onChange={(event) => setFormat(event.target.value)}><option value="json">JSON</option><option value="csv">CSV</option></select>
+    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>Reports</h2><p>Organize operational results by product, region, group, firmware, and timeframe.</p></div></div>
+    {!canCreate ? <section className="panel split-panel"><div><h3>You currently do not have reports.create permission</h3><p>Existing reports can be viewed, but new reports cannot be created.</p></div></section> : <section className="panel report-builder-panel"><form className="report-builder" onSubmit={createReport}>
+      <input value={name} onChange={(event) => setName(event.target.value)} aria-label="Report Name" />
+      <select className="select-control" aria-label="Report Type" value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">Device Status</option><option value="firmware_coverage">Firmware Coverage</option></select>
+      <select className="select-control" aria-label="Output Format" value={format} onChange={(event) => setFormat(event.target.value)}><option value="json">JSON</option><option value="csv">CSV</option></select>
       <select className="select-control" aria-label="Timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)}><option>Asia/Taipei</option><option>UTC</option><option>America/Los_Angeles</option></select>
-      <select className="select-control" aria-label="Product 篩選" value={filters.product_id} onChange={(event) => setFilters({ ...filters, product_id: event.target.value })}><option value="">全部 Product</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
-      <select className="select-control" aria-label="設備狀態" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">全部狀態</option><option value="online">在線</option><option value="offline">離線</option></select>
-      <input placeholder="區域" value={filters.region} onChange={(event) => setFilters({ ...filters, region: event.target.value })} />
-      <input placeholder="群組 ID" value={filters.group_id} onChange={(event) => setFilters({ ...filters, group_id: event.target.value })} />
-      <input placeholder="韌體版本" value={filters.firmware} onChange={(event) => setFilters({ ...filters, firmware: event.target.value })} />
-      <label className="report-date-field"><span>從</span><input type="date" aria-label="報表開始日期" value={filters.start_at} onChange={(event) => setFilters({ ...filters, start_at: event.target.value })} /></label>
-      <label className="report-date-field"><span>到</span><input type="date" aria-label="報表結束日期" value={filters.end_at} onChange={(event) => setFilters({ ...filters, end_at: event.target.value })} /></label>
+      <select className="select-control" aria-label="Product Filter" value={filters.product_id} onChange={(event) => setFilters({ ...filters, product_id: event.target.value })}><option value="">All Products</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
+      <select className="select-control" aria-label="Device Status" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">All Statuses</option><option value="online">Online</option><option value="offline">Offline</option></select>
+      <input placeholder="Area" value={filters.region} onChange={(event) => setFilters({ ...filters, region: event.target.value })} />
+      <input placeholder="Group ID" value={filters.group_id} onChange={(event) => setFilters({ ...filters, group_id: event.target.value })} />
+      <input placeholder="Firmware Version" value={filters.firmware} onChange={(event) => setFilters({ ...filters, firmware: event.target.value })} />
+      <label className="report-date-field"><span>From</span><input type="date" aria-label="Report Start Date" value={filters.start_at} onChange={(event) => setFilters({ ...filters, start_at: event.target.value })} /></label>
+      <label className="report-date-field"><span>To</span><input type="date" aria-label="Report End Date" value={filters.end_at} onChange={(event) => setFilters({ ...filters, end_at: event.target.value })} /></label>
       <fieldset className="dimension-picker"><legend>Dimensions</legend>{['product', 'model', 'region', 'group', 'firmware', 'status'].map((dimension) => <label key={dimension}><input type="checkbox" checked={dimensions.includes(dimension)} onChange={() => toggleDimension(dimension)} />{dimension}</label>)}</fieldset>
-      <div className="report-builder-actions"><button type="submit" className="primary-button">建立報表</button></div>
+      <div className="report-builder-actions"><button type="submit" className="primary-button">Create Report</button></div>
     </form>{message ? <p className="notice">{message}</p> : null}</section>}
-    {loading ? <section className="panel split-panel"><div><h3>正在載入報表</h3></div></section> : null}
-        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>報表</th><th>狀態</th><th>Scope / freshness</th><th>建立者</th><th>建立時間</th><th>結果</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{report.state === 'queued' ? '等待處理' : report.state}{report.failure_reason ? <small className="error-text">{report.failure_reason}</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} · expires {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={`/api/reports/${encodeURIComponent(report.id)}`}>查看結果</a>{report.state === 'completed' ? <>　<a href={`/api/reports/${encodeURIComponent(report.id)}?format=csv`}>下載 CSV</a>　<a href={`/api/reports/${encodeURIComponent(report.id)}?format=json`}>下載 JSON</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">目前沒有報表。</p> : null}</div></section> : null}
+    {loading ? <section className="panel split-panel"><div><h3>Loading report</h3></div></section> : null}
+        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Report</th><th>Status</th><th>Scope / Freshness</th><th>Created By</th><th>Created</th><th>Results</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{batchJobStateLabel(report.state)}{report.failure_reason ? <small className="error-text">The report could not be completed. Please try again.</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} · expires {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={`/api/reports/${encodeURIComponent(report.id)}`}>View Results</a>{report.state === 'completed' ? <> <a href={`/api/reports/${encodeURIComponent(report.id)}?format=csv`}>Download CSV</a> <a href={`/api/reports/${encodeURIComponent(report.id)}?format=json`}>Download JSON</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">No reports are available.</p> : null}</div></section> : null}
   </section>;
+}
+
+function batchJobStateLabel(state) {
+  const labels = {
+    queued: 'Pending',
+    running: 'In Progress',
+    completed: 'Completed',
+    failed: 'Failed',
+    partial_failed: 'Partially Completed',
+    cancelled: 'Cancelled',
+  };
+  return labels[normalizeStatusKey(state)] || 'Unknown';
 }
 
 function FirmwareOTAPage({ loading, distribution, selectedProductId, products, releases, onViewDevices, onCampaignAction, onStatusRefresh, canRelease, canManageOTA, onSelectProduct, onRefresh }) {
@@ -3217,7 +3260,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
       artifactSHA = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
     }
     if (!file && (!artifactSize || !artifactSHA)) {
-      setReleaseMessage('請上傳韌體檔案，或填寫檔案大小與 SHA-256。');
+      setReleaseMessage('Please upload a firmware file or fill in the file size and SHA-256.');
       return;
     }
     const response = await fetch(`/api/products/${encodeURIComponent(selectedProductId)}/releases`, {
@@ -3229,7 +3272,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
       if (result.upload?.url) {
         const upload = await fetch(result.upload.url, { method: 'PUT', body: file });
         if (!upload.ok) {
-          setReleaseMessage('版本已建立，但檔案上傳失敗，請從發布流程重試。');
+          setReleaseMessage('Version created, but file upload failed, please try again from the publishing process.');
           return;
         }
       }
@@ -3239,29 +3282,29 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
           body: JSON.stringify({ signing_algorithm: 'ed25519', signing_key_id: releaseSigningKey.trim(), signature: releaseSignature.trim() }),
         });
         if (!finalize.ok) {
-          setReleaseMessage('版本已建立，但簽章檢查未完成，請稍後重試。');
+          setReleaseMessage('Version created but signature check not completed, please try again later.');
           onRefresh();
           return;
         }
       }
     }
-    setReleaseMessage(response.ok ? '韌體版本已建立；完成檔案檢查後即可發布。' : '韌體版本目前無法建立。');
+    setReleaseMessage(response.ok ? 'Firmware version created; file check completed before release.' : 'Firmware version cannot be created at this time.');
     if (response.ok) { setReleaseVersion(''); setReleaseBuild(''); setReleaseSize(''); setReleaseSHA(''); setReleaseHardware(''); setReleaseSigningKey(''); setReleaseSignature(''); onRefresh(); }
   }
   async function createUpdatePlan(event) {
     event.preventDefault();
     const release = releases.find((item) => item.id === planRelease || item.release_id === planRelease);
-    if (!release || !scopePreview?.scope) { setPlanMessage('請先取得有效的 server scope preview。'); return; }
+    if (!release || !scopePreview?.scope) { setPlanMessage('Please get a valid server scope preview first.'); return; }
     const response = await fetch('/api/update-plans', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `plan-${release.product_id}-${release.id || release.release_id}-${Date.now()}` },
-      body: JSON.stringify({ product_id: release.product_id, release_id: release.id || release.release_id, name: planName.trim() || `更新 ${release.version}`, scope: scopePreview.scope, selector: scopePreview.scope.query, phases: [{ phase: 0, cumulative_percentage: 100, soak_seconds: 0 }], failure_policy: { minimum_sample_size: 10, failure_percentage: 10, timeout_percentage: 10 } }),
+      body: JSON.stringify({ product_id: release.product_id, release_id: release.id || release.release_id, name: planName.trim() || `Update ${release.version}`, scope: scopePreview.scope, selector: scopePreview.scope.query, phases: [{ phase: 0, cumulative_percentage: 100, soak_seconds: 0 }], failure_policy: { minimum_sample_size: 10, failure_percentage: 10, timeout_percentage: 10 } }),
     });
-    setPlanMessage(response.ok ? '更新計畫已建立，請在下方啟動。' : '更新計畫目前無法建立。');
+    setPlanMessage(response.ok ? 'The update protocol has been created, please activate it below.' : 'The update plan could not be created at this time.');
     if (response.ok) { setPlanName(''); setPlanRelease(''); setScopePreview(null); onRefresh(); }
   }
   async function previewScope() {
     const release = releases.find((item) => item.id === planRelease || item.release_id === planRelease);
-    if (!release) { setPlanMessage('請先選擇韌體版本。'); return; }
+    if (!release) { setPlanMessage('Please select firmware version first.'); return; }
     const query = Object.fromEntries(Object.entries(scopeQuery).flatMap(([key, value]) => {
       const values = String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
       return values.length ? [[key, values]] : [];
@@ -3273,17 +3316,17 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     });
     const body = await response.json().catch(() => ({}));
     setScopeLoading(false);
-    if (!response.ok) { setScopePreview(null); setPlanMessage(body.message || 'Scope preview 目前無法取得。'); return; }
+    if (!response.ok) { setScopePreview(null); setPlanMessage('The scope preview is temporarily unavailable. Check the filters and try again.'); return; }
     setScopePreview(body);
-    setPlanMessage('Scope preview 已由 server 計算，可建立 immutable OTA plan。');
+    setPlanMessage('The server calculated the scope preview for the immutable OTA plan.');
   }
   async function releaseAction(release, action) {
     const id = release.id || release.release_id;
     const response = await fetch(`/api/products/${encodeURIComponent(release.product_id)}/releases/${encodeURIComponent(id)}/${action}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-action-${id}-${action}-${Date.now()}` },
-      body: JSON.stringify(action === 'revoke' ? { reason: '由品牌營運人員撤回' } : {}),
+      body: JSON.stringify(action === 'revoke' ? { reason: 'Withdrawn by Brand Operator' } : {}),
     });
-    setReleaseMessage(response.ok ? `版本已${action === 'publish' ? '發布' : '更新'}。` : '版本狀態目前無法更新。');
+    setReleaseMessage(response.ok ? `Version ${action === 'publish' ? 'published' : 'updated'}.` : 'The version status cannot be updated right now.');
     if (response.ok) onRefresh();
   }
   const available = sourceAvailable(distribution);
@@ -3308,37 +3351,37 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     <section className="panel firmware-ota-page">
       <div className="panel-head">
         <div>
-          <h2>韌體更新</h2>
-          <p>發布韌體版本、建立更新計畫，並在同一頁追蹤每台設備的 upgrade 狀態。</p>
+          <h2>Firmware Update</h2>
+          <p>Publish firmware versions, create update plans, and track upgrade status for each device on the same page.</p>
         </div>
-        <button type="button" className="ghost-button" disabled={!hasSelection || statusRefreshing} onClick={refreshStatus}>{statusRefreshing ? '更新狀態中…' : '重新整理狀態'}</button>
+        <button type="button" className="ghost-button" disabled={!hasSelection || statusRefreshing} onClick={refreshStatus}>{statusRefreshing ? 'Updating status…' : 'Refresh status'}</button>
       </div>
 
       <section className="firmware-product-selector" aria-label="Firmware Product selector">
         <label className="firmware-product-field">
           <span>Product</span>
-          <select className="select-control" aria-label="選擇 Firmware Product" value={selectedProductId} onChange={selectProduct} disabled={!products.length}>
-            <option value="">請先選擇 Product</option>
+          <select className="select-control" aria-label="Select Firmware Product" value={selectedProductId} onChange={selectProduct} disabled={!products.length}>
+            <option value="">Please select Product first</option>
             {products.map((product) => <option value={product.id} key={product.id}>{product.name}</option>)}
           </select>
         </label>
-        <p>{selectedProduct ? `目前顯示 ${selectedProduct.name} 的韌體版本、設備分布與 OTA 更新狀態。` : '選擇 Product 後才會載入對應的韌體與 OTA 狀態。'}</p>
+        <p>{selectedProduct ? `Showing firmware versions, device distribution, and OTA update status for ${selectedProduct.name}.` : 'Select a Product to load its firmware and OTA status.'}</p>
       </section>
 
-      {!hasSelection ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3>請先選擇 Product</h3><p>不同 Product 的硬體型號、韌體版本與更新計畫彼此獨立。</p></div></section> : null}
+      {!hasSelection ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3>Please select Product first</h3><p>Different Product hardware models, firmware versions and update plans are independent of each other.</p></div></section> : null}
 
       {hasSelection && available ? <section className="metrics firmware-page-metrics">
-        <MetricCard icon="microchip" label="最新版本" value={latestVersion} hint="目前的目標版本" tone="info" />
-        <MetricCard icon="circle-check" label="已是最新版本" value={currentDevices} hint={`所選 Product 的 ${formatPercent(latestVersionRow?.pct || 0)}`} tone="good" />
-        <MetricCard icon="cloud-arrow-up" label="最近更新進度" value={primaryCampaign ? formatPercent(primaryProgress.pct) : '—'} hint={primaryCampaign ? `${primaryProgress.completed.toLocaleString()} / ${primaryProgress.total.toLocaleString()} 台已處理` : '目前沒有更新紀錄'} tone="info" />
-        <MetricCard icon="circle-exclamation" label="更新失敗" value={failedRollout} hint={primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} 的目標設備` : '目前沒有更新紀錄'} tone={failedRollout ? 'danger' : 'good'} />
+        <MetricCard icon="microchip" label="Latest version" value={latestVersion} hint="Current target version" tone="info" />
+        <MetricCard icon="circle-check" label="Already up to date" value={currentDevices} hint={`of the selected Product ${formatPercent(latestVersionRow?.pct || 0)}`} tone="good" />
+        <MetricCard icon="cloud-arrow-up" label="Recent updates" value={primaryCampaign ? formatPercent(primaryProgress.pct) : '—'} hint={primaryCampaign ? `${formatNumber(primaryProgress.completed)} of ${formatNumber(primaryProgress.total)} devices processed` : 'No updates are currently running'} tone="info" />
+        <MetricCard icon="circle-exclamation" label="Update failed" value={failedRollout} hint={primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of target devices` : 'No updates are currently running'} tone={failedRollout ? 'danger' : 'good'} />
       </section> : null}
 
-      {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>新增韌體版本</h3><p>版本會登記到 {selectedProduct.name}，再由同一個 Product 建立更新計畫。</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="版本，例如 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input required placeholder="Build 編號" value={releaseBuild} onChange={(event) => setReleaseBuild(event.target.value)} /><input name="artifact" type="file" accept="application/octet-stream,.bin" aria-label="韌體檔案（可選）" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setReleaseSize(String(file.size)); } }} /><input type="number" min="1" placeholder="檔案大小（沒有檔案時填寫）" value={releaseSize} onChange={(event) => setReleaseSize(event.target.value)} /><input pattern="[a-fA-F0-9]{64}" placeholder="SHA-256（沒有檔案時填寫）" value={releaseSHA} onChange={(event) => setReleaseSHA(event.target.value)} /><input required placeholder="硬體版本（逗號分隔）" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} /><details><summary>簽章設定（進階）</summary><input placeholder="簽章金鑰名稱" value={releaseSigningKey} onChange={(event) => setReleaseSigningKey(event.target.value)} /><input placeholder="簽章內容" value={releaseSignature} onChange={(event) => setReleaseSignature(event.target.value)} /></details><button type="submit" className="primary-button">建立版本</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
-      {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>建立更新計畫</h3><p>先取得 server scope preview，再建立 immutable OTA plan；browser 不決定 target count。</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">選擇韌體版本</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder="計畫名稱（選填）" value={planName} onChange={(event) => setPlanName(event.target.value)} /><input placeholder="區域（逗號分隔）" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="群組 ID（逗號分隔）" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="韌體版本（逗號分隔）" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="健康狀態（逗號分隔）" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="排除 device IDs（逗號或空白分隔）" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? '計算範圍中…' : 'Preview server scope'}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope}>建立更新計畫</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{Number(scopePreview.target_count || 0).toLocaleString()}</strong></span><span>Excluded <strong>{Number(scopePreview.excluded_count || 0).toLocaleString()}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
-      {hasSelection && releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>韌體版本</h3><p>版本必須先完成上傳與檢查，才能發布給更新計畫使用。</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Product</th><th>版本</th><th>狀態</th><th>操作</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.product_id}:${release.id || release.release_id}`}><td>{selectedProduct.name}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>發布</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>撤回</button> : null}{!canRelease ? <span className="muted">唯讀</span> : null}</td></tr>)}</tbody></table></div></section> : null}
+      {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Add firmware version</h3><p>The version will be registered to {selectedProduct.name}. You can then create an update plan for the same Product.</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="Version, e.g. 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input required placeholder="Build number" value={releaseBuild} onChange={(event) => setReleaseBuild(event.target.value)} /><input name="artifact" type="file" accept="application/octet-stream,.bin" aria-label="Firmware file (optional)" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setReleaseSize(String(file.size)); } }} /><input type="number" min="1" placeholder="File size (required if no file is selected)" value={releaseSize} onChange={(event) => setReleaseSize(event.target.value)} /><input pattern="[a-fA-F0-9]{64}" placeholder="SHA-256 (required if no file is selected)" value={releaseSHA} onChange={(event) => setReleaseSHA(event.target.value)} /><input required placeholder="Hardware versions (comma separated)" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} /><details><summary>Signature settings (advanced)</summary><input placeholder="Signature key name" value={releaseSigningKey} onChange={(event) => setReleaseSigningKey(event.target.value)} /><input placeholder="Signature content" value={releaseSignature} onChange={(event) => setReleaseSignature(event.target.value)} /></details><button type="submit" className="primary-button">Create version</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
+      {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Create an update plan</h3><p>Obtain the server scope preview before creating the immutable OTA plan; the browser does not determine the target count.</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">Select firmware version</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder="Plan name (optional)" value={planName} onChange={(event) => setPlanName(event.target.value)} /><input placeholder="Regions (comma separated)" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="Group IDs (comma separated)" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="Firmware versions (comma separated)" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="Health statuses (comma separated)" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="Exclude device IDs (comma or space separated)" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? 'Calculating scope…' : 'Preview server scope'}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope}>Create update plan</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{formatNumber(scopePreview.target_count || 0)}</strong></span><span>Excluded <strong>{formatNumber(scopePreview.excluded_count || 0)}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
+      {hasSelection && releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Firmware Version</h3><p>The version must be uploaded and checked before it can be published to the update plan.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Product</th><th>Version</th><th>Status</th><th>Action</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.product_id}:${release.id || release.release_id}`}><td>{selectedProduct.name}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>Publish</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>Withdraw</button> : null}{!canRelease ? <span className="muted">Read-only</span> : null}</td></tr>)}</tbody></table></div></section> : null}
 
-      {hasSelection && loading && !distribution ? <p className="empty-state">正在載入 {selectedProduct.name} 的韌體狀態。</p> : null}
+      {hasSelection && loading && !distribution ? <p className="empty-state">Loading {selectedProduct.name} state of the firmware.</p> : null}
       {hasSelection && distribution && !available ? <SourceBlockedState title={pageState.title} message={unavailableText} /> : null}
 
       {hasSelection && distribution && available ? (
@@ -3347,8 +3390,8 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
           <section className="panel firmware-panel">
             <div className="panel-head">
               <div>
-                <h3>韌體版本分布</h3>
-                <p>查看各版本的設備數量；點選版本可前往已套用該版本的設備清單。</p>
+                <h3>Firmware Version Distribution</h3>
+                <p>See the number of devices for each version; tap a version to go to the list of devices that have that version applied.</p>
               </div>
             </div>
             {versions.length ? (
@@ -3363,9 +3406,9 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
                     <div className="firmware-version-row__meta">
                       <div>
                         <strong>{version.version}</strong>
-                        {version.is_latest ? <span className="version-badge">最新</span> : null}
+                        {version.is_latest ? <span className="version-badge">Latest</span> : null}
                       </div>
-                      <small>{version.count} 台設備</small>
+                      <small>{version.count} Devices</small>
                     </div>
                     <div className="firmware-version-row__bar" aria-hidden="true">
                       <span style={{ width: `${Math.max(version.pct || 0, version.count ? 8 : 0)}%` }} />
@@ -3375,7 +3418,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
                 ))}
               </div>
             ) : (
-              <p className="empty-state">目前沒有韌體版本資料。</p>
+              <p className="empty-state">No firmware version data available at this time.</p>
             )}
           </section>
 
@@ -3386,22 +3429,22 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
           <section className="panel firmware-panel">
             <div className="panel-head">
               <div>
-                <h3>韌體更新狀態</h3>
-                <p>查看每次 upgrade 的整體進度、設備結果與最後回報時間。</p>
+                <h3>Firmware update status</h3>
+                <p>See the overall progress, device results, and final report time for each upgrade.</p>
               </div>
             </div>
             {campaigns.length ? (
               <div className="campaign-table">
                 <div className="campaign-table-head">
-                  <span>更新 ID</span>
-                  <span>目標版本</span>
-                  <span>狀態</span>
-                  <span>整體進度</span>
-                  <span>完成</span>
-                  <span>等待</span>
-                  <span>失敗／跳過</span>
-                  <span>開始時間</span>
-                  <span>最後更新</span>
+                  <span>Update ID</span>
+                  <span>Target Version</span>
+                  <span>Status</span>
+                  <span>Overall progress</span>
+                  <span>Done</span>
+                  <span>Wait</span>
+                  <span>Failed/Skipped</span>
+                  <span>Start time</span>
+                  <span>Last Updated</span>
                 </div>
                 {campaigns.map((campaign) => {
                   const progress = firmwareCampaignProgress(campaign);
@@ -3416,9 +3459,9 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
                       <span>{campaign.target_version}</span>
                       <StatusBadge value={normalizeStatusKey(campaign.state)} label={firmwareCampaignStatusLabel(campaign.state)} />
                       <span>{formatPercent(progress.pct)}</span>
-                      <span>{Number(campaign.applied || 0).toLocaleString()}</span>
-                      <span>{Number(campaign.pending || 0).toLocaleString()}</span>
-                      <span>{Number(campaign.failed || 0).toLocaleString()}／{Number(campaign.skipped || 0).toLocaleString()}</span>
+                      <span>{formatNumber(campaign.applied || 0)}</span>
+                      <span>{formatNumber(campaign.pending || 0)}</span>
+                      <span>{formatNumber(campaign.failed || 0)} / {formatNumber(campaign.skipped || 0)}</span>
                       <time>{campaign.started_at ? formatRelativeTime(campaign.started_at) : '—'}</time>
                       <time>{campaign.updated_at ? formatRelativeTime(campaign.updated_at) : '—'}</time>
                     </button>
@@ -3426,7 +3469,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
                 })}
               </div>
             ) : (
-              <p className="empty-state">目前沒有韌體更新紀錄。</p>
+              <p className="empty-state">There are currently no firmware updates.</p>
             )}
           </section>
 
@@ -3442,29 +3485,29 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
 function FirmwareCampaignDetail({ campaign, onAction, canManage }) {
   const rows = firmwareCampaignDetailRows(campaign || {});
   const actions = firmwareCampaignActions(campaign || {}, canManage);
-  const actionLabels = { start: '啟動更新', pause: '暫停', resume: '恢復', retry: '重試失敗設備', cancel: '取消更新' };
+  const actionLabels = { start: 'Activate update', pause: 'Pause', resume: 'Resume', retry: 'Retry failed device', cancel: 'Cancel update' };
   return (
     <section className="panel firmware-panel firmware-campaign-detail">
       <div className="panel-head">
         <div>
-          <h3>設備 upgrade 明細</h3>
-          <p>{campaign ? `${campaign.campaign_id} · 目標版本 ${campaign.target_version || '—'} · 最後更新 ${campaign.updated_at ? formatRelativeTime(campaign.updated_at) : '—'}` : '請選擇一筆韌體更新紀錄。'}</p>
+          <h3>Device upgrade details</h3>
+          <p>{campaign ? `${campaign.campaign_id} · Target Version ${campaign.target_version || '—'} · Last Updated ${campaign.updated_at ? formatRelativeTime(campaign.updated_at) : '—'}` : 'Please select a firmware update record.'}</p>
         </div>
         {campaign && actions.length ? (
           <div className="inline-actions">
             {actions.map((action) => <button type="button" className={action === 'cancel' ? 'danger-button' : 'ghost-button'} key={action} onClick={() => onAction?.(campaign.campaign_id, action)}>{actionLabels[action]}</button>)}
           </div>
-        ) : campaign ? <span className="status-badge neutral">{canManage ? '沒有可執行操作' : '唯讀'}</span> : null}
+        ) : campaign ? <span className="status-badge neutral">{canManage ? 'No action available' : 'Read-only'}</span> : null}
       </div>
       {campaign && rows.length ? (
         <div className="firmware-rollout-table">
           <div className="firmware-rollout-table__head">
-            <span>設備</span>
-            <span>目前版本</span>
-            <span>目標版本</span>
-            <span>Upgrade 狀態</span>
-            <span>原因</span>
-            <span>最後回報</span>
+            <span>Device</span>
+            <span>Current Version</span>
+            <span>Target Version</span>
+            <span>Upgrade Status</span>
+            <span>Reason</span>
+            <span>Final report</span>
           </div>
           {rows.map((rollout) => (
             <div className="firmware-rollout-table__row" key={`${campaign.campaign_id}:${rollout.device_id}`}>
@@ -3478,7 +3521,7 @@ function FirmwareCampaignDetail({ campaign, onAction, canManage }) {
           ))}
         </div>
       ) : (
-        <p className="empty-state">{campaign ? '這筆更新目前沒有設備狀態資料。' : '尚未選擇韌體更新紀錄。'}</p>
+        <p className="empty-state">{campaign ? 'There is currently no device status data for this update.' : 'No firmware update history selected.'}</p>
       )}
     </section>
   );
@@ -3490,8 +3533,8 @@ function FirmwareCampaignSummary({ campaign }) {
       <section className="panel firmware-panel rollout-summary">
         <div className="panel-head">
           <div>
-            <h3>韌體更新摘要</h3>
-            <p>目前沒有韌體更新紀錄。</p>
+            <h3>Firmware Update Summary</h3>
+            <p>There are currently no firmware updates.</p>
           </div>
         </div>
       </section>
@@ -3499,18 +3542,18 @@ function FirmwareCampaignSummary({ campaign }) {
   }
   const total = campaign.total || 0;
   const segments = [
-    { key: 'applied', label: '更新完成', count: campaign.applied, tone: 'good' },
-    { key: 'pending', label: '等待中', count: campaign.pending, tone: 'info' },
-    { key: 'failed', label: '更新失敗', count: campaign.failed, tone: 'danger' },
-    { key: 'skipped', label: '已跳過', count: campaign.skipped, tone: 'neutral' },
+    { key: 'applied', label: 'Update complete', count: campaign.applied, tone: 'good' },
+    { key: 'pending', label: 'Waiting', count: campaign.pending, tone: 'info' },
+    { key: 'failed', label: 'Update failed', count: campaign.failed, tone: 'danger' },
+    { key: 'skipped', label: 'Skipped', count: campaign.skipped, tone: 'neutral' },
   ];
   const progress = firmwareCampaignProgress(campaign);
   return (
     <section className="panel firmware-panel rollout-summary">
       <div className="panel-head">
         <div>
-          <h3>韌體更新摘要</h3>
-          <p>目標 {campaign.target_version} · {firmwarePolicyLabel(campaign.policy)} · 已處理 {formatPercent(progress.pct)} · 最後更新 {campaign.updated_at ? formatRelativeTime(campaign.updated_at) : '—'}</p>
+          <h3>Firmware Update Summary</h3>
+          <p>Target {campaign.target_version} · {firmwarePolicyLabel(campaign.policy)} · Processed {formatPercent(progress.pct)} · Last updated {campaign.updated_at ? formatRelativeTime(campaign.updated_at) : '—'}</p>
         </div>
         <StatusBadge value={normalizeStatusKey(campaign.state)} label={firmwareCampaignStatusLabel(campaign.state)} />
       </div>
@@ -3523,12 +3566,12 @@ function FirmwareCampaignSummary({ campaign }) {
           </div>
         ))}
         <div>
-          <span>目標設備</span>
+          <span>Target Device</span>
           <strong>{total}</strong>
           <small>100%</small>
         </div>
       </div>
-      <div className="rollout-progress" aria-label="韌體更新進度">
+      <div className="rollout-progress" aria-label="Firmware update progress">
         {segments.map((segment) => (
           <span
             key={segment.key}
@@ -3547,18 +3590,18 @@ function FirmwareRiskQueue({ campaigns, onViewDevices }) {
     <section className="panel firmware-panel firmware-risk-queue">
       <div className="panel-head">
         <div>
-          <h3>需要處理的設備</h3>
-          <p>列出更新失敗、等待中或版本不明的設備。</p>
+          <h3>Devices that need attention</h3>
+          <p>List devices that failed to update, are waiting, or have an unknown version.</p>
         </div>
-        <span>{rows.length} 台設備</span>
+        <span>{rows.length} Devices</span>
       </div>
       {rows.length ? (
         <div className="risk-table">
           <div className="risk-table-head">
-            <span>設備</span>
-            <span>目前版本</span>
-            <span>狀態</span>
-            <span>最後回報</span>
+            <span>Device</span>
+            <span>Current Version</span>
+            <span>Status</span>
+            <span>Final report</span>
           </div>
           {rows.map((rollout) => (
             <button
@@ -3575,7 +3618,7 @@ function FirmwareRiskQueue({ campaigns, onViewDevices }) {
           ))}
         </div>
       ) : (
-        <p className="empty-state">目前沒有需要處理的設備。</p>
+        <p className="empty-state">There are currently no devices to process.</p>
       )}
     </section>
   );
@@ -3795,7 +3838,7 @@ function CustomerAccessGate({ me, active }) {
         <div>
           <h2>Platform admin cannot use the Brand Cloud console</h2>
           <p>Your platform session remains isolated from customer data. Open the platform home to inspect cross-tenant operations.</p>
-          <a className="inline-action" href="/admin">前往平台首頁</a>
+          <a className="inline-action" href="/admin">Go to platform homepage</a>
         </div>
       </section>
     );
@@ -4157,7 +4200,7 @@ function ServiceMetricsTable({ metrics, source }) {
             ))}
             {!metrics.length ? (
               <tr>
-                <td colSpan="7" className="empty-state">{source?.source_message || 'No k8s service metrics available.'}</td>
+                <td colSpan="7" className="empty-state">{sourceMessage(source, 'No Kubernetes service metrics are available.')}</td>
               </tr>
             ) : null}
           </tbody>
@@ -4206,7 +4249,7 @@ function WorkloadHealthTable({ workloads, source }) {
             ))}
             {!workloads.length ? (
               <tr>
-                <td colSpan="8" className="empty-state">{source?.source_message || 'No k8s workload health data available.'}</td>
+                <td colSpan="8" className="empty-state">{sourceMessage(source, 'No Kubernetes workload health data is available.')}</td>
               </tr>
             ) : null}
           </tbody>
@@ -4249,7 +4292,7 @@ function ClusterNodeSummary({ nodes, source }) {
             ))}
             {!nodes.length ? (
               <tr>
-                <td colSpan="5" className="empty-state">{source?.source_message || 'No k8s node metrics available.'}</td>
+                <td colSpan="5" className="empty-state">{sourceMessage(source, 'No Kubernetes node metrics are available.')}</td>
               </tr>
             ) : null}
           </tbody>
@@ -4397,9 +4440,9 @@ function dashboardGroup(groups, id) {
 
 function formatCompactNumber(value) {
   const number = Number(value || 0);
-  if (Math.abs(number) >= 1000) return number.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  if (Math.abs(number) >= 10) return number.toLocaleString(undefined, { maximumFractionDigits: 1 });
-  return number.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (Math.abs(number) >= 1000) return formatNumber(number, { maximumFractionDigits: 0 });
+  if (Math.abs(number) >= 10) return formatNumber(number, { maximumFractionDigits: 1 });
+  return formatNumber(number, { maximumFractionDigits: 2 });
 }
 
 function PlatformHealth({ summary, health }) {
@@ -4664,7 +4707,7 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
       const result = await onCreateBrand(payload);
       setMessage(result.memberError ? `Brand Cloud created. ${result.memberError}` : 'Brand Cloud created.');
     } catch (err) {
-      setMessage(err.message);
+      setMessage(userFacingBrandCloudError(err));
     } finally {
       setSubmitting(false);
     }
@@ -4797,7 +4840,7 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
       setDetailBrand(updated || { ...detailBrand, status: nextStatus });
       setMessage(nextStatus === 'disabled' ? 'Brand Cloud disabled.' : 'Brand Cloud enabled.');
     } catch (err) {
-      setMessage(err.message);
+      setMessage(userFacingBrandCloudError(err));
     }
   }
 
@@ -4813,7 +4856,7 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
       setMessage('Member assigned.');
       setMember({ brand_cloud_user_id: '', role: 'owner' });
     } catch (err) {
-      setMessage(err.message);
+      setMessage(userFacingBrandCloudError(err));
     }
   }
 
@@ -4836,7 +4879,7 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
       setUser({ email: '', password: '', display_name: '', role: 'admin' });
       await loadUsers(userFilter);
     } catch (err) {
-      setMessage(err.message);
+      setMessage(userFacingBrandCloudError(err));
     }
   }
 
@@ -5435,7 +5478,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
       })
       .catch((err) => {
         if (!alive) return;
-        setTelemetryError(err.message);
+        setTelemetryError('Telemetry is temporarily unavailable for this device.');
       })
       .finally(() => {
         if (!alive) return;
@@ -5493,7 +5536,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
   const columns = useMemo(() => [
     {
       key: 'name',
-      label: '設備',
+      label: 'Device',
       value: (device) => device.name,
       render: (device) => (
         <>
@@ -5502,42 +5545,42 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
         </>
       ),
     },
-    { key: 'product', label: 'Product', value: (device) => device.product_id || '未設定', render: (device) => <span title={device.product_id || '未設定'}>{device.product_id || '未設定'}</span> },
-    { key: 'organization', label: '區域／組織', value: (device) => device.organization, render: (device) => <span title={device.organization}>{device.organization}</span> },
-    { key: 'model', label: '產品型號', value: (device) => device.model, render: (device) => <span title={device.model}>{device.model}</span> },
+    { key: 'product', label: 'Product', value: (device) => device.product_id || 'Not set', render: (device) => <span title={device.product_id || 'Not set'}>{device.product_id || 'Not set'}</span> },
+    { key: 'organization', label: 'Region/Organization', value: (device) => device.organization, render: (device) => <span title={device.organization}>{device.organization}</span> },
+    { key: 'model', label: 'Product Model', value: (device) => device.model, render: (device) => <span title={device.model}>{device.model}</span> },
     {
       key: 'firmware',
-      label: '韌體版本',
+      label: 'Firmware Version',
       value: (device) => device.firmware_version_display,
       render: (device) => device.firmware_version_display,
     },
     {
       key: 'health',
-      label: '設備狀況',
+      label: 'Device Health',
       value: (device) => device.health_display,
       render: (device) => <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />,
     },
     {
       key: 'signal',
-      label: '訊號',
+      label: 'Signal',
       value: (device) => device.signal_display,
       render: (device) => <StatusBadge value={normalizeStatusKey(device.signal_display)} label={device.signal_display} />,
     },
     {
       key: 'readiness',
-      label: '設備狀態',
+      label: 'Device Status',
       value: (device) => device.readiness_display,
       render: (device) => <StatusBadge value={normalizeStatusKey(device.readiness)} label={device.readiness_display} />,
     },
     {
       key: 'last_seen_at',
-      label: '最後回報',
+      label: 'Final report',
       value: (device) => device.last_seen_at,
       render: (device) => device.last_seen_at ? <time title={device.last_seen_at}>{formatRelativeTime(device.last_seen_at)}</time> : 'No transport evidence',
     },
     {
       key: 'actions',
-      label: '操作',
+      label: 'Action',
       sortable: false,
       value: () => '',
       render: (device) => (
@@ -5549,7 +5592,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             setSelectedDeviceId(device.id);
           }}
         >
-          查看
+          View
         </button>
       ),
     },
@@ -5663,14 +5706,14 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
           onServerSearch={(value) => updateServerQuery({ q: value, offset: 0 })}
           onServerSort={(key, direction) => updateServerQuery({ sort: key, direction, offset: 0 })}
           onServerPage={(offset) => updateServerQuery({ offset })}
-          paginationLabel="設備"
+          paginationLabel="Devices"
           mobileContent={(
             <div className="mobile-device-list" aria-label="Compact device list">
               {tableRows.map((device) => (
                 <button key={device.id} type="button" className="mobile-device-row" onClick={() => setSelectedDeviceId(device.id)}>
                   <span>
                     <strong>{device.name}</strong>
-                    <small>{device.product_id || '未設定 Product'} · {device.serial_number}</small>
+                    <small>{device.product_id || 'Product not set'} · {device.serial_number}</small>
                   </span>
                   <span>
                     <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />
@@ -5881,7 +5924,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
 
             <div className="drawer-actions">
               <button type="button" className="destructive" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}>Deactivate device</button>
-              <small>{!deactivateState.enabled ? deactivateState.reason : '設備設定與註冊由既有流程處理；這裡只顯示狀態並提供停用操作。'}</small>
+              <small>{!deactivateState.enabled ? deactivateState.reason : 'Device setup and enrollment are handled by existing processes; only status and deactivation are shown here.'}</small>
             </div>
           </>
         )}
@@ -6201,7 +6244,7 @@ function DataTable({
   onServerSearch,
   onServerSort,
   onServerPage,
-  paginationLabel = '清單',
+  paginationLabel = 'List',
   mobileContent = null,
 }) {
   const [serverFilter, setServerFilter] = useState('');
@@ -6232,14 +6275,14 @@ function DataTable({
             setFilter(event.target.value);
           }
         }} placeholder={searchPlaceholder} />
-        <span>{serverMode ? `${serverTotal} 台設備` : `${totalRows} of ${rows.length}`}</span>
+        <span>{serverMode ? `${serverTotal} Devices` : `${totalRows} of ${rows.length}`}</span>
       </div>
       {serverMode ? (
         <PaginationControls
           currentPage={currentServerPage}
           totalPages={maxServerPage}
           onPage={goToServerPage}
-          ariaLabel={`${paginationLabel}分頁（上方）`}
+          ariaLabel={`${paginationLabel} pages (top)`}
           position="top"
         />
       ) : null}
@@ -6289,7 +6332,7 @@ function DataTable({
         currentPage={serverMode ? currentServerPage : page}
         totalPages={serverMode ? maxServerPage : maxPage}
         onPage={serverMode ? goToServerPage : setPage}
-        ariaLabel={`${paginationLabel}分頁（下方）`}
+        ariaLabel={`${paginationLabel} pages (bottom)`}
         position="bottom"
       />
     </>
@@ -6300,12 +6343,12 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
   const items = paginationItems(currentPage, totalPages);
   return (
     <nav className={`pagination pagination-${position}`} aria-label={ariaLabel}>
-      <span className="pagination-summary">第 {currentPage} / {totalPages} 頁</span>
+      <span className="pagination-summary">Page {currentPage} of {totalPages}</span>
       <div className="pagination-page-list">
         <button
           type="button"
           className="pagination-arrow"
-          aria-label="上一頁"
+          aria-label="Previous page"
           disabled={currentPage <= 1}
           onClick={() => onPage(Math.max(1, currentPage - 1))}
         >
@@ -6317,7 +6360,7 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
           <button
             type="button"
             className={item === currentPage ? 'active' : ''}
-            aria-label={`第 ${item} 頁`}
+            aria-label={`Page ${item}`}
             aria-current={item === currentPage ? 'page' : undefined}
             key={item}
             onClick={() => onPage(item)}
@@ -6328,7 +6371,7 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
         <button
           type="button"
           className="pagination-arrow"
-          aria-label="下一頁"
+          aria-label="Next"
           disabled={currentPage >= totalPages}
           onClick={() => onPage(Math.min(totalPages, currentPage + 1))}
         >
@@ -6587,77 +6630,77 @@ function userRoleDetails(role) {
   const normalized = String(role || '').toLowerCase().replaceAll('-', '_');
   const roles = {
     owner: {
-      title: '品牌擁有者',
+      title: 'Brand owner',
       icon: 'crown',
-      description: '你負責這個 Brand Cloud 的最終管理與所有權交接。',
-      actions: ['管理團隊成員與角色', '管理品牌下的設備、Product 與營運功能', '將品牌所有權安全地轉移給其他成員'],
+      description: 'You are responsible for the final management and ownership handover of this Brand Cloud.',
+      actions: ['Manage team members and roles', 'Manage device, product, and operational capabilities under your brand', 'Securely transfer brand ownership to other members'],
     },
     admin: {
-      title: '品牌管理員',
+      title: 'Brand administrator',
       icon: 'user-shield',
-      description: '你協助品牌擁有者管理團隊與日常營運，但不能轉移品牌所有權。',
-      actions: ['邀請、停用或移除團隊成員', '管理設備、Product 與營運設定', '查看品牌層級的報表與狀態'],
+      description: 'You help brand owners manage their teams and day-to-day operations, but you can’t transfer brand ownership.',
+      actions: ['Invite, deactivate, or remove team members', 'Manage device, product, and operations settings', 'View reports and status at the brand level'],
     },
     member: {
-      title: '團隊成員',
+      title: 'Team member',
       icon: 'user',
-      description: '你可以使用團隊開放給你的功能；可見資料會依指派範圍而不同。',
-      actions: ['查看被授權的設備與 Product', '使用角色允許的日常操作', '查看與自己管理範圍相關的狀態'],
+      description: 'You can use features that your team makes available to you; the visibility varies based on the scope of the assignment.',
+      actions: ['View authorized devices and Products', 'Use daily actions allowed by the role', 'View status for your assigned scope'],
     },
     tenant_admin: {
-      title: '組織管理員',
+      title: 'Organization administrator',
       icon: 'user-shield',
-      description: '你負責品牌帳號、使用者與整體設備營運管理。',
-      actions: ['管理組織成員與權限', '管理整體設備與營運設定', '查看組織層級的狀態與報表'],
+      description: 'You manage brand accounts, users, and overall device operations.',
+      actions: ['Manage organization members and permissions', 'Manage overall device and operations settings', 'View status and reports at organization level'],
     },
     fleet_manager: {
-      title: '設備營運管理員',
+      title: 'Device operations manager',
       icon: 'gauge-high',
-      description: '你負責指定範圍內設備的日常營運與維護。',
-      actions: ['管理設備生命週期', '查看設備與串流健康狀態', '執行允許的韌體更新作業'],
+      description: 'You are responsible for day-to-day device operations and maintenance within the assigned scope.',
+      actions: ['Manage device enrollment and lifecycle', 'Check device and streaming health', 'Perform allowed firmware updates'],
     },
     installer: {
-      title: '安裝與佈署人員',
+      title: 'Installer',
       icon: 'screwdriver-wrench',
-      description: '你負責指定場域或群組的設備安裝、綁定與啟用。',
-      actions: ['註冊與綁定指定設備', '完成設備初始設定', '確認設備是否已準備就緒'],
+      description: 'You are responsible for device installation, bundling, and activation for the specified site or group.',
+      actions: ['Enroll and assign designated devices', 'Complete initial device setup', 'Check device readiness'],
     },
     firmware_operator: {
-      title: '韌體更新管理員',
+      title: 'Firmware update manager',
       icon: 'microchip',
-      description: '你負責指定範圍的韌體版本與更新計畫。',
-      actions: ['查看韌體版本與覆蓋狀態', '管理更新計畫與發布節奏', '監控或取消進行中的更新'],
+      description: 'You are responsible for the specified range of firmware versions and update schedules.',
+      actions: ['Check firmware versions and rollout status', 'Manage update schedules and release cadence', 'Monitor or cancel updates in progress'],
     },
     read_only_observer: {
-      title: '唯讀檢視者',
+      title: 'Read-only viewer',
       icon: 'eye',
-      description: '你可以查看營運資訊，但不能修改設備、設定或成員資料。',
-      actions: ['查看設備與健康狀態', '查看韌體、遙測與就緒資訊', '查看被授權範圍的報表'],
+      description: 'You can view operational information, but you can’t modify devices, settings, or member information.',
+      actions: ['Check device and health status', 'View firmware, telemetry, and readiness information', 'View reports for authorized scopes'],
     },
     product_owner: {
-      title: 'Product 擁有者',
+      title: 'Product owner',
       icon: 'boxes-stacked',
-      description: '你負責指定 Product 的設定、協作者與相關設備作業。',
-      actions: ['管理 Product 設定與協作者', '管理 Product 下的設備與更新', '查看 Product 相關報表'],
+      description: 'You are responsible for Product settings, collaborators, and associated devices.',
+      actions: ['Manage Product settings and collaborators', 'Manage devices and updates for the Product', 'View Product reports'],
     },
     product_editor: {
-      title: 'Product 編輯者',
+      title: 'Product editor',
       icon: 'pen-to-square',
-      description: '你可以維護指定 Product 與執行專案工作，但不能交接所有權。',
-      actions: ['編輯指定 Product', '管理相關設備與更新', '查看 Product 相關報表'],
+      description: 'You can maintain the assigned Product and work on the project, but you can’t transfer ownership.',
+      actions: ['Edit the assigned Product', 'Manage related services and updates', 'View Product reports'],
     },
     product_viewer: {
-      title: 'Product 檢視者',
+      title: 'Product viewer',
       icon: 'eye',
-      description: '你可以查看指定 Product 與報表，但不能變更設定。',
-      actions: ['查看指定 Product', '查看相關設備資訊', '查看 Product 相關報表'],
+      description: 'You can view assigned products and reports, but you cannot change the settings.',
+      actions: ['View assigned Products', 'View device information', 'View Product reports'],
     },
   };
   return roles[normalized] || {
-    title: normalized ? roleLabel(normalized) : '尚未取得角色資料',
+    title: normalized ? roleLabel(normalized) : 'No role data yet',
     icon: 'circle-user',
-    description: normalized ? '你的可用功能由目前角色與管理範圍共同決定。' : '重新整理後仍未顯示時，請聯絡品牌管理員確認成員設定。',
-    actions: ['只顯示目前帳號已獲授權的功能', '資料與操作範圍由平台權限即時判斷'],
+    description: normalized ? 'Your available features are determined by your current role and scope.' : 'If your role does not appear after refreshing, contact your brand administrator to confirm your membership settings.',
+    actions: ['Use features authorized for your account', 'Access data and operations allowed by platform permissions'],
   };
 }
 
@@ -6997,7 +7040,7 @@ function trendPointValue(point, snakeKey, camelKey) {
 function formatTrendLabel(date) {
   const parsed = Date.parse(date);
   if (Number.isNaN(parsed)) return date;
-  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(parsed));
+  return new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(new Date(parsed));
 }
 
 function formatTrendAxisLabel(date, range) {
@@ -7007,19 +7050,19 @@ function formatTrendAxisLabel(date, range) {
   const normalizedRange = String(range || '24h').toLowerCase();
   if (normalizedRange === '24h') {
     return {
-      primary: new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit', hour12: false }).format(value),
-      secondary: new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value),
+      primary: new Intl.DateTimeFormat(FORMAT_LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false }).format(value),
+      secondary: new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(value),
     };
   }
   if (normalizedRange === '7d') {
     return {
-      primary: new Intl.DateTimeFormat('en', { weekday: 'short' }).format(value),
-      secondary: new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value),
+      primary: new Intl.DateTimeFormat(FORMAT_LOCALE, { weekday: 'short' }).format(value),
+      secondary: new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(value),
     };
   }
   return {
-    primary: new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value),
-    secondary: new Intl.DateTimeFormat('en', { year: 'numeric' }).format(value),
+    primary: new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(value),
+    secondary: new Intl.DateTimeFormat(FORMAT_LOCALE, { year: 'numeric' }).format(value),
   };
 }
 
@@ -7055,4 +7098,9 @@ function updateDevicesLocation({ deviceId, health, status, signal, firmware, pro
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+document.documentElement.lang = i18n.language;
+createRoot(document.getElementById('root')).render(
+  <I18nextProvider i18n={i18n}>
+    <App />
+  </I18nextProvider>,
+);

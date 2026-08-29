@@ -9,7 +9,7 @@ test('[UI-CA-CHIPSET-STG-001] AmebaPro2 resources are published in staging @stag
   await expect(page.getByTestId('chipset-resource-page')).toBeVisible();
   const card = page.locator('.chipset-card').filter({ hasText: 'AmebaPro2' });
   await expect(card.getByRole('heading', { name: 'AmebaPro2' })).toBeVisible();
-  await expect(card.getByRole('heading', { name: '產品與支援' })).toBeVisible();
+  await expect(card.getByRole('heading', { name: 'Product & Support' })).toBeVisible();
   await expect(card.getByRole('heading', { name: 'SDK' })).toBeVisible();
   await expect(card).toContainText('8 product resources');
   await expect(card).toContainText('2 SDK releases');
@@ -23,7 +23,7 @@ test('[UI-CA-CHIPSET-STG-001] AmebaPro2 resources are published in staging @stag
   await expect(productLink).toContainText('Official');
   await expect(productLink).toContainText('en');
 
-  const search = page.getByPlaceholder('搜尋 ChipSet、vendor、SDK 或 supported model');
+  const search = page.getByPlaceholder('Search ChipSet, vendor, SDK or supported model');
   for (const keyword of ['forum', 'YouTube', 'datasheet', 'GitHub']) {
     await search.fill(keyword);
     await expect(card, `${keyword} should find AmebaPro2`).toBeVisible();

@@ -4,7 +4,7 @@ import { login } from './fixtures/session.mjs';
 test('[UI-CA-TEAM-001] developer team management uses developer namespace and is replay-safe @brand-fleet', async ({ page }) => {
   await login(page, 'developer');
   await page.goto('/console/brand-e2e-01/access');
-  await expect(page.getByRole('heading', { name: '成員與權限' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Members & Permissions' }).first()).toBeVisible();
   const endpoint = '/api/developer/brand-clouds/brand-e2e-01/members/invitations';
   const headers = { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-member-invite-1' };
   const invite = await page.request.post(endpoint, { headers, data: { email: 'new-observer@example.com', role: 'member' } });

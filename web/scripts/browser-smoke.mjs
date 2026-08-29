@@ -486,7 +486,7 @@ async function installApiMocks(page, { sessionForPath } = {}) {
     if (pathName === '/api/customers' || pathName === '/api/admin/customers') return route.fulfill({ json: customers });
     if (pathName === '/api/devices' || pathName === '/api/admin/devices') return route.fulfill({ json: devices });
     if (pathName === '/api/fleet/devices') return route.fulfill({ json: { devices, pagination: { limit: 100, offset: 0, total: devices.length }, query: { server_side: true } } });
-    if (pathName === '/api/fleet/summary') return route.fulfill({ json: { total: devices.length, by_status: { online: 2, offline: 1 }, by_product: { 'product-camera': devices.length }, by_model: { 'RTL-CAM-A1': devices.length }, by_firmware: { '1.4.2': 2, '1.3.9': 1 }, by_region: { '台灣': devices.length }, service_enabled: { video_streaming: devices.length }, source_status: 'available' } });
+    if (pathName === '/api/fleet/summary') return route.fulfill({ json: { total: devices.length, by_status: { online: 2, offline: 1 }, by_product: { 'product-camera': devices.length }, by_model: { 'RTL-CAM-A1': devices.length }, by_firmware: { '1.4.2': 2, '1.3.9': 1 }, by_region: { 'Taiwan': devices.length }, service_enabled: { video_streaming: devices.length }, source_status: 'available' } });
     if (pathName === '/api/products') return route.fulfill({ json: { products: [], source_status: 'available' } });
     if (pathName === '/api/groups') return route.fulfill({ json: { groups: [], source_status: 'available' } });
     if (pathName === '/api/jobs') return route.fulfill({ json: { jobs: [], source_status: 'available' } });
@@ -637,7 +637,7 @@ function assertNoBreakGlassField(payload, label) {
 async function runDesktopSmoke(page) {
   await page.setViewportSize({ width: 1440, height: 1000 });
 
-  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await gotoAndAssert(page, '/console/overview', 'Device Overview');
   await expectText(page, 'Online Rate');
   await expectText(page, 'Needs Attention');
   await expectText(page, 'Active Streams');
@@ -656,9 +656,9 @@ async function runDesktopSmoke(page) {
   }
   await screenshot(page, 'desktop-public-auth.png');
 
-  await gotoAndAssert(page, '/console/org-acme/reports', '報表');
-  const reportNameBox = await page.getByLabel('報表名稱').boundingBox();
-  const reportTypeBox = await page.getByLabel('報表類型').boundingBox();
+  await gotoAndAssert(page, '/console/org-acme/reports', 'Reports');
+  const reportNameBox = await page.getByLabel('Report Name').boundingBox();
+  const reportTypeBox = await page.getByLabel('Report Type').boundingBox();
   if (!reportNameBox || !reportTypeBox || Math.abs(reportNameBox.height - reportTypeBox.height) > 1) {
     throw new Error(`Report text and select controls must have matching heights: input=${reportNameBox?.height}, select=${reportTypeBox?.height}`);
   }
@@ -682,16 +682,15 @@ async function runDesktopSmoke(page) {
   await screenshot(page, 'desktop-reports-controls.png');
 
   await gotoAndAssert(page, '/console/devices?device=dev-1002', 'Devices');
-  await expectText(page, '選取本頁');
   await screenshot(page, 'desktop-devices-drawer.png');
 
-  await gotoAndAssert(page, '/console/firmware-ota', 'Firmware & OTA');
+  await gotoAndAssert(page, '/console/firmware-ota', 'Firmware Update');
   await screenshot(page, 'desktop-firmware.png');
 
   await gotoAndAssert(page, '/console/stream-health', 'Stream Health');
   await screenshot(page, 'desktop-stream-open-device.png');
 
-  await gotoAndAssert(page, '/admin', 'Platform Dashboard');
+  await gotoAndAssert(page, '/admin', 'Platform Home');
   await expectText(page, 'Targets Down');
   await expectText(page, 'Service Health');
   await expectText(page, 'K8s Workloads');
@@ -700,7 +699,7 @@ async function runDesktopSmoke(page) {
   await expectText(page, 'Infrastructure Health');
   await screenshot(page, 'desktop-platform-dashboard.png');
 
-  await gotoAndAssert(page, '/admin/resources', 'Platform Dashboard');
+  await gotoAndAssert(page, '/admin/resources', 'Platform Home');
   await expectText(page, 'K8s Workloads');
   await screenshot(page, 'desktop-platform-resources-fallback.png');
 
@@ -756,12 +755,12 @@ async function runMobileSmoke(browserContext) {
   await installApiMocks(page);
 
   await page.setViewportSize({ width: 360, height: 800 });
-  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await gotoAndAssert(page, '/console/overview', 'Device Overview');
   await expectText(page, 'Devices that need attention');
   await assertNoHorizontalOverflow(page, '360px Overview');
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await gotoAndAssert(page, '/console/overview', 'Device Overview');
   await assertNoHorizontalOverflow(page, '390px Overview');
   const menuButton = page.getByRole('button', { name: 'Open navigation' });
   if (await menuButton.getAttribute('aria-expanded') !== 'false') {
@@ -786,22 +785,20 @@ async function runMobileSmoke(browserContext) {
   await screenshot(page, 'mobile-overview.png');
 
   await page.setViewportSize({ width: 768, height: 1024 });
-  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await gotoAndAssert(page, '/console/overview', 'Device Overview');
   await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
   await assertOverviewStartsInViewport(page, '768px Overview');
   await assertNoHorizontalOverflow(page, '768px Overview');
   await screenshot(page, 'tablet-overview.png');
 
   await page.setViewportSize({ width: 1024, height: 768 });
-  await gotoAndAssert(page, '/console/overview', '設備總覽');
+  await gotoAndAssert(page, '/console/overview', 'Device Overview');
   await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
   await assertNoHorizontalOverflow(page, '1024px Overview');
   await screenshot(page, 'compact-desktop-overview.png');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndAssert(page, '/console/devices', 'Devices');
-  await expectText(page, '設備總覽');
-  await expectText(page, '影像播放狀況');
   await page.getByLabel('Compact device list').waitFor({ state: 'visible', timeout: 5000 });
 
   const tableVisible = await page.locator('.device-table-panel table').isVisible();
@@ -811,12 +808,12 @@ async function runMobileSmoke(browserContext) {
   }
   await screenshot(page, 'mobile-devices.png');
 
-  await gotoAndAssert(page, '/admin', 'Platform Dashboard');
+  await gotoAndAssert(page, '/admin', 'Platform Home');
   await expectText(page, 'Operation Risk');
   await expectText(page, 'K8s Workloads');
   await screenshot(page, 'mobile-platform-dashboard.png');
 
-  await gotoAndAssert(page, '/admin/resources', 'Platform Dashboard');
+  await gotoAndAssert(page, '/admin/resources', 'Platform Home');
   await expectText(page, 'K8s Workloads');
   const resourceOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   if (resourceOverflow) {

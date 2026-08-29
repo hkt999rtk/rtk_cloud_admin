@@ -6,7 +6,7 @@ test.describe('Brandname cloud scope', () => {
   test('[UI-CA-SCOPE-001] developer can switch Brand Clouds and keep URL/data scope aligned @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/overview');
-    await expectPageTitle(page, '設備總覽');
+    await expectPageTitle(page, 'Device Overview');
     const selector = page.getByLabel('Active organization');
     await expect(selector).toHaveValue('brand-e2e-01');
     await expect(selector.locator('option[value="brand-e2e-02"]')).toHaveCount(1);
@@ -17,7 +17,7 @@ test.describe('Brandname cloud scope', () => {
 
     await selector.selectOption('brand-e2e-02');
     await expect(page).toHaveURL(/\/console\/brand-e2e-02\/overview$/);
-    await expectPageTitle(page, '設備總覽');
+    await expectPageTitle(page, 'Device Overview');
     const betaDevices = await page.request.get('/api/fleet/devices?limit=100');
     expect(betaDevices.ok()).toBeTruthy();
     const beta = await betaDevices.json();

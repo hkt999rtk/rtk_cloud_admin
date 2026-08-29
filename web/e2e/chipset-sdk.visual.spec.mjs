@@ -9,17 +9,17 @@ const providers = [
 ];
 const chipsets = [{
   id: 'chipset-amebapro2', provider_name: 'Ameba IoT', chipset_key: 'realtek-amebapro2', vendor: 'Realtek', name: 'AmebaPro2', family: 'AmebaPro2', stale: true, last_successful_refresh_at: syncedAt,
-  description: '低功耗 AIoT multimedia ChipSet，提供 Arduino 與 FreeRTOS 開發資源。',
+  description: 'Low-power AIoT multimedia ChipSet, providing Arduino and FreeRTOS development resources.',
   resources: [
-    { type: 'product', title: 'AmebaPro2 產品與開發板', url: 'https://www.amebaiot.com/en/amebapro2/', source: 'official', languages: ['en'], verified_at: '2026-08-28', summary: '官方產品、規格與開發板入口。' },
+    { type: 'product', title: 'AmebaPro2 Product & Development Boards', url: 'https://www.amebaiot.com/en/amebapro2/', source: 'official', languages: ['en'], verified_at: '2026-08-28', summary: 'Official products, specifications and development board entrance.' },
     { type: 'datasheet', title: 'AMB82 Mini Datasheet', url: 'https://www.amebaiot.com/en/datasheet-download-amb82-mini/', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
-    { type: 'forum', title: 'Ameba 開發者論壇', url: 'https://forum.amebaiot.com/', source: 'official', languages: ['en', 'zh-TW'], verified_at: '2026-08-28' },
+    { type: 'forum', title: 'Ameba Developer Forum', url: 'https://forum.amebaiot.com/', source: 'official', languages: ['en', 'zh-TW'], verified_at: '2026-08-28' },
     { type: 'video', title: 'AmebaPro2 Start Here', url: 'https://www.youtube.com/playlist?list=PLEQfNjOZQRyP1dyegDVYqgw53_AORspMK', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
   ],
   sdk_releases: [
     { name: 'Ameba Arduino Pro2', version: '4.1.0', summary: 'Arduino development package', recommended: true, supported_models: ['AMB82 MINI'], endpoints: [
       { type: 'github', title: 'GitHub', url: 'https://github.com/Ameba-AIoT/ameba-arduino-pro2', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
-      { type: 'getting_started', title: '安裝與入門', url: 'https://ameba-doc-arduino-sdk.readthedocs-hosted.com/en/latest/ameba_pro2/amb82-mini/index.html', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
+      { type: 'getting_started', title: 'Installation & Getting Started', url: 'https://ameba-doc-arduino-sdk.readthedocs-hosted.com/en/latest/ameba_pro2/amb82-mini/index.html', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
     ] },
     { name: 'Ameba FreeRTOS Pro2', version: 'main', summary: 'FreeRTOS-based production SDK', recommended: false, supported_models: ['AMB82 MINI'], endpoints: [{ type: 'github', title: 'SDK repository', url: 'https://github.com/Ameba-AIoT/ameba-rtos-pro2', source: 'official', languages: ['en'], verified_at: '2026-08-28' }] },
   ],
@@ -51,7 +51,7 @@ test('[UI-CA-CHIPSET-005] Platform provider design matches approved mock @chipse
   await expect(page.getByTestId('chipset-provider-page')).toBeVisible();
   await expect(page).toHaveScreenshot('chipset-provider-list.png', { fullPage: testInfo.project.name === 'mobile' });
   if (testInfo.project.name === 'chromium') {
-    await page.getByRole('row').filter({ hasText: 'Ameba IoT' }).getByRole('button', { name: '預覽' }).click();
+    await page.getByRole('row').filter({ hasText: 'Ameba IoT' }).getByRole('button', { name: 'Preview' }).click();
     await expect(page.getByRole('dialog', { name: 'ChipSet provider drawer' })).toBeVisible();
     await expect(page).toHaveScreenshot('chipset-provider-validation-drawer.png');
   }

@@ -9,7 +9,7 @@ test.describe('Brandname capability matrix', () => {
     expect(me.capabilities).toContain('firmware.release.manage');
     expect(me.capabilities).toContain('ota.plan.manage');
     await page.goto('/console/brand-e2e-01/product-services');
-    await expect(page.getByRole('heading', { name: 'Product 與服務' }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Products and Services' }).first()).toBeVisible();
   });
 
   test('[UI-CA-ROLE-002] operations cannot write Product policy or release metadata', async ({ page }) => {
@@ -24,8 +24,11 @@ test.describe('Brandname capability matrix', () => {
     await login(page, 'observer');
     await page.goto('/console/brand-e2e-01/reports');
     await expect(page.getByText(/reports.create/)).toBeVisible();
-    await expect(page.getByRole('button', { name: '建立報表' })).toHaveCount(0);
-    const write = await page.request.post('/api/provisioning/validate', { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-observer-provisioning' }, data: { product_id: 'product-alpha', device_ids: ['dev-e2e-001'] } });
+    await expect(page.getByRole('button', { name: 'Create Report' })).toHaveCount(0);
+    const write = await page.request.post('/api/reports', {
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-observer-report' },
+      data: { name: 'Forbidden report', report_type: 'fleet_status', dimensions: ['status'], timezone: 'UTC', format: 'json', scope: {} },
+    });
     expect(write.status()).toBe(403);
   });
 });
