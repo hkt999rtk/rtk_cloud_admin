@@ -5,11 +5,14 @@ import {
   firmwareCampaignDetailRows,
   firmwareCampaignNeedsPolling,
   firmwareCampaignProgress,
+  firmwareCampaignWaitingProgress,
   firmwareCampaignStatusLabel,
+  firmwareDashboardAction,
   firmwarePolicyLabel,
   firmwareRiskRows,
   firmwareRolloutStatusLabel,
   firmwareVersionFilterValue,
+  sortFirmwareCampaignsByStartTime,
 } from './firmware.mjs';
 
 const campaign = {
@@ -69,6 +72,28 @@ test('firmware status helpers use upgrade-specific English labels', () => {
 test('firmware campaign progress counts terminal device outcomes', () => {
   assert.deepEqual(firmwareCampaignProgress({ total: 10, applied: 6, failed: 1, skipped: 1 }), { total: 10, completed: 8, pct: 80 });
   assert.deepEqual(firmwareCampaignProgress({}), { total: 0, completed: 0, pct: 0 });
+});
+
+test('firmware dashboard reports waiting devices against the campaign total', () => {
+  assert.deepEqual(firmwareCampaignWaitingProgress({ total: 10, pending: 3 }), { total: 10, waiting: 3, pct: 30 });
+  assert.deepEqual(firmwareCampaignWaitingProgress({ total: 0, pending: 2 }), { total: 0, waiting: 2, pct: 0 });
+});
+
+test('firmware dashboard orders campaigns by newest start time', () => {
+  const sorted = sortFirmwareCampaignsByStartTime([
+    { campaign_id: 'older', started_at: '2026-08-28T01:00:00Z' },
+    { campaign_id: 'not-started', started_at: '' },
+    { campaign_id: 'newer', started_at: '2026-08-29T01:00:00Z' },
+  ]);
+  assert.deepEqual(sorted.map((item) => item.campaign_id), ['newer', 'older', 'not-started']);
+});
+
+test('firmware dashboard exposes reversible start and stop controls', () => {
+  assert.deepEqual(firmwareDashboardAction({ state: 'draft' }), { action: 'start', label: 'Start OTA' });
+  assert.deepEqual(firmwareDashboardAction({ state: 'paused' }), { action: 'resume', label: 'Start OTA' });
+  assert.deepEqual(firmwareDashboardAction({ state: 'active' }), { action: 'pause', label: 'Stop OTA' });
+  assert.equal(firmwareDashboardAction({ state: 'completed' }), null);
+  assert.equal(firmwareDashboardAction({ state: 'active' }, false), null);
 });
 
 test('firmware campaign actions follow campaign state and permission', () => {

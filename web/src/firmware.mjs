@@ -63,6 +63,30 @@ export function firmwareCampaignProgress(campaign = {}) {
   return { total, completed, pct: total ? completed / total * 100 : 0 };
 }
 
+export function firmwareCampaignWaitingProgress(campaign = {}) {
+  const total = Math.max(Number(campaign.total || 0), 0);
+  const waiting = Math.max(Number(campaign.pending || 0), 0);
+  return { total, waiting, pct: total ? Math.min(waiting / total * 100, 100) : 0 };
+}
+
+export function sortFirmwareCampaignsByStartTime(campaigns = []) {
+  return [...campaigns].sort((left, right) => {
+    const leftStartedAt = Date.parse(left.started_at || '') || 0;
+    const rightStartedAt = Date.parse(right.started_at || '') || 0;
+    if (leftStartedAt !== rightStartedAt) return rightStartedAt - leftStartedAt;
+    return String(right.campaign_id || '').localeCompare(String(left.campaign_id || ''));
+  });
+}
+
+export function firmwareDashboardAction(campaign = {}, canManage = true) {
+  if (!canManage) return null;
+  const state = String(campaign.state || '').trim().toLowerCase();
+  if (state === 'draft') return { action: 'start', label: 'Start OTA' };
+  if (state === 'paused') return { action: 'resume', label: 'Start OTA' };
+  if (state === 'scheduled' || state === 'active') return { action: 'pause', label: 'Stop OTA' };
+  return null;
+}
+
 export function firmwareCampaignActions(campaign = {}, canManage = true) {
   if (!canManage) return [];
   const state = String(campaign.state || '').trim().toLowerCase();
