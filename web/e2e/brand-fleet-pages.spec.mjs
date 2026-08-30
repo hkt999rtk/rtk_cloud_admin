@@ -5,7 +5,7 @@ const pages = [
   ['overview', 'Device Overview'],
   ['devices', 'Devices'],
   ['product-services', 'Products and Services'],
-  ['firmware-ota', 'Firmware Update'],
+  ['firmware-ota', 'Firmware OTA'],
   ['reports', 'Reports'],
   ['access', 'Members & Permissions'],
   ['settings', 'Settings'],
@@ -57,7 +57,7 @@ test('[UI-CA-FLEETPAGE-005] Brand Cloud overview access and settings share one n
 test('[UI-CA-FLEETPAGE-003] retired batch work route opens firmware upgrade status @brand-fleet', async ({ page }) => {
   await login(page, 'developer');
   await page.goto('/console/brand-e2e-01/jobs');
-  await expect(page.getByRole('heading', { name: 'Firmware Update' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Firmware OTA' }).first()).toBeVisible();
   await expect(page).toHaveURL(/\/console\/brand-e2e-01\/firmware-ota$/);
   await expect(page.getByRole('button', { name: 'Batch Tasks' })).toHaveCount(0);
 });

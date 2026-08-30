@@ -19,7 +19,7 @@ test.describe('Brandname async workflows', () => {
   test('[UI-CA-OTA-001] OTA scope preview is server calculated and immutable @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/firmware-ota');
-    await expectPageTitle(page, 'Firmware Update');
+    await expectPageTitle(page, 'Firmware OTA');
     const preview = await page.request.post('/api/update-plans/scope-preview', {
       headers: { 'Content-Type': 'application/json' },
       data: { product_id: 'product-alpha', query: { region: ['na'], firmware: ['v3.8.0'] }, excluded_device_ids: ['dev-e2e-001'] },
@@ -30,13 +30,13 @@ test.describe('Brandname async workflows', () => {
 
     const plan = await page.request.post('/api/update-plans', {
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-ota-plan-1' },
-      data: { product_id: 'product-alpha', release_id: 'release-e2e-1', name: 'E2E OTA plan', scope: scopeBody.scope },
+      data: { product_id: 'product-alpha', release_id: 'release-e2e-1', name: 'E2E OTA plan', scope: scopeBody.scope, rate_limit_per_minute: 100 },
     });
     expect([201, 202]).toContain(plan.status());
     const tampered = { ...scopeBody.scope, target_count: 999999 };
     const rejected = await page.request.post('/api/update-plans', {
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-ota-plan-tampered' },
-      data: { product_id: 'product-alpha', release_id: 'release-e2e-1', name: 'tampered', scope: tampered },
+      data: { product_id: 'product-alpha', release_id: 'release-e2e-1', name: 'tampered', scope: tampered, rate_limit_per_minute: 100 },
     });
     expect(rejected.status()).toBe(409);
   });
