@@ -404,6 +404,11 @@ function App() {
           setLoading(false);
           return;
         }
+        if (!isMemberInvitationAccept && !isPlatformView && nextMe.kind === 'customer' && !canAccessCustomerRoute(active, nextMe.capabilities)) {
+          setBilling(null);
+          setLoading(false);
+          return;
+        }
 
         const prefix = useAdminApi ? '/api/admin' : '/api';
         const baseRequests = useAdminApi
@@ -641,7 +646,7 @@ function App() {
         }
       } catch (err) {
         if (!alive) return;
-        if (err.isAuthError) {
+        if (err.isAuthError && err.status === 401) {
           if (!isLoginRoute) {
             window.location.replace(loginPathFor(protectedPathFromLocation(window.location)));
             return;

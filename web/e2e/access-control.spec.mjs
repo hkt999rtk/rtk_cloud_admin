@@ -24,3 +24,31 @@ test('[UI-CA-ACCESS-003] customer view is separated from platform navigation', a
   await page.goto('/admin/health');
   await expect(page.getByRole('heading', { name: 'Platform access denied', exact: true })).toBeVisible();
 });
+
+test('[UI-CA-ACCESS-004] missing route capability stays on the access gate without protected API requests @smoke', async ({ page }) => {
+  await login(page, 'customer');
+  const billingRequests = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/api/billing/')) billingRequests.push(request.url());
+  });
+
+  await page.goto('/console/billing');
+
+  await expect(page.getByRole('heading', { name: 'Brand Cloud capability required', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/console\/billing$/);
+  await page.waitForTimeout(1_000);
+  expect(billingRequests).toEqual([]);
+  await expect(page.getByRole('heading', { name: 'Admin Console', exact: true })).toHaveCount(0);
+});
+
+test('[UI-CA-ACCESS-005] forbidden dashboard response does not redirect an authenticated session to login @smoke', async ({ page }) => {
+  await login(page, 'customer');
+  await page.route('**/api/summary', (route) => route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"forbidden"}' }));
+
+  await page.goto('/console/overview');
+
+  await expect(page.getByText('The requested data could not be loaded. Please try again.')).toBeVisible();
+  await expect(page).toHaveURL(/\/console\/overview$/);
+  await page.waitForTimeout(1_000);
+  await expect(page.getByRole('heading', { name: 'Admin Console', exact: true })).toHaveCount(0);
+});
