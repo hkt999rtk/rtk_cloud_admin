@@ -340,6 +340,14 @@ not fall back to `/v1/brand-clouds/{tenantSlug}/auth/*`. Owner activation links
 terminate in the global activation UI and subsequent logout/login uses the same
 `/api/auth/login` path as every other human account.
 
+When email verification returns account tokens, the BFF resolves `/v1/me`
+before creating the session, selects the first membership as the active Brand
+Cloud, and uses the same membership-first view selection as global login.
+Platform-only accounts enter the platform view; accounts with neither membership
+nor platform capability receive 403 without a session cookie. The verification
+response includes the selected `kind`, which the UI uses for its destination.
+Logout remains reachable from the navigation drawer on narrow screens.
+
 ## Upstream Integration
 
 ### [REQ-CA-BFF-UPSTREAM-001] Configured upstream integrations fail explicitly and remain observable

@@ -150,7 +150,7 @@ paths:
         - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Verify a customer signup email and set its initial password
-      description: Proxies the callback token and new password to Account Manager and creates a customer session when tokens are returned. The Web UI consumes the opaque token from the callback URL without rendering it or exposing an editable token field.
+      description: Proxies the callback token and new password to Account Manager. When tokens are returned, resolves global /v1/me before creating a unified account session, selects the first membership as the active Brand Cloud, and returns the selected view kind (membership first, otherwise platform capability). Accounts without either receive 403 without a session cookie. The Web UI consumes the opaque token from the callback URL without rendering it or exposing an editable token field and routes to the selected account view.
       security: []
       requestBody:
         required: true
@@ -171,6 +171,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/VerifyEmailResult"
         "400":
+          $ref: "#/components/responses/PlainTextError"
+        "401":
+          $ref: "#/components/responses/PlainTextError"
+        "403":
           $ref: "#/components/responses/PlainTextError"
         "502":
           $ref: "#/components/responses/PlainTextError"
@@ -3426,6 +3430,10 @@ components:
           $ref: "#/components/schemas/User"
         tokens:
           $ref: "#/components/schemas/Tokens"
+        kind:
+          type: string
+          enum: [customer, platform_admin]
+          description: Selected account view; present when activation creates a session.
     AuthSessionResult:
       type: object
       required: [status, kind]
