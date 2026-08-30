@@ -545,18 +545,21 @@ type FirmwareDistributionRollout struct {
 }
 
 type FirmwareDistributionCampaign struct {
-	CampaignID    string                        `json:"campaign_id"`
-	TargetVersion string                        `json:"target_version"`
-	Policy        string                        `json:"policy"`
-	State         string                        `json:"state"`
-	Applied       int                           `json:"applied"`
-	Pending       int                           `json:"pending"`
-	Failed        int                           `json:"failed"`
-	Skipped       int                           `json:"skipped"`
-	Total         int                           `json:"total"`
-	StartedAt     string                        `json:"started_at"`
-	UpdatedAt     string                        `json:"updated_at,omitempty"`
-	Rollouts      []FirmwareDistributionRollout `json:"rollouts,omitempty"`
+	CampaignID         string                        `json:"campaign_id"`
+	TargetVersion      string                        `json:"target_version"`
+	Policy             string                        `json:"policy"`
+	State              string                        `json:"state"`
+	Applied            int                           `json:"applied"`
+	Pending            int                           `json:"pending"`
+	Failed             int                           `json:"failed"`
+	Skipped            int                           `json:"skipped"`
+	Total              int                           `json:"total"`
+	StartedAt          string                        `json:"started_at"`
+	UpdatedAt          string                        `json:"updated_at,omitempty"`
+	RateLimitPerMinute int                           `json:"rate_limit_per_minute,omitempty"`
+	EffectiveRateLimit int                           `json:"effective_rate_limit_per_minute,omitempty"`
+	SystemMaxRateLimit int                           `json:"system_max_rate_limit_per_minute,omitempty"`
+	Rollouts           []FirmwareDistributionRollout `json:"rollouts,omitempty"`
 }
 
 type FirmwareDistribution struct {

@@ -40,6 +40,9 @@ type OTACampaignRecord struct {
 	CreatedAt           string `json:"created_at"`
 	UpdatedAt           string `json:"updated_at"`
 	ActivatedAt         string `json:"activated_at,omitempty"`
+	RateLimitPerMinute  int    `json:"rate_limit_per_minute"`
+	EffectiveRateLimit  int    `json:"effective_rate_limit_per_minute"`
+	SystemMaxRateLimit  int    `json:"system_max_rate_limit_per_minute"`
 }
 
 type OTAReleaseRecord struct {

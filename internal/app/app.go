@@ -3561,6 +3561,11 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "OTA plan requires a server-calculated immutable scope", http.StatusBadRequest)
 			return
 		}
+		rate, ok := payload["rate_limit_per_minute"].(float64)
+		if !ok || rate != float64(int(rate)) || rate < 1 || rate > 10000 {
+			http.Error(w, "OTA plan rate_limit_per_minute must be an integer from 1 to 10000", http.StatusUnprocessableEntity)
+			return
+		}
 		delete(payload, "product_id")
 		body, _ = json.Marshal(payload)
 		upstreamPath = "/api/ota/products/" + url.PathEscape(strings.TrimSpace(productID)) + "/campaigns"
@@ -3570,6 +3575,8 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 		if action := strings.TrimSpace(r.PathValue("action")); action != "" {
 			if action == "start" {
 				action = "activate"
+			} else if action == "rate-limit" {
+				action = "set-rate-limit"
 			}
 			upstreamPath += ":" + url.PathEscape(action)
 		}
@@ -3979,14 +3986,17 @@ func (s *Server) canonicalFirmwareCampaigns(ctx context.Context, devices []contr
 
 func summarizeCanonicalFirmwareCampaign(campaign videoclient.OTACampaignRecord, targetVersion string, deployments []videoclient.OTADeploymentRecord, summary videoclient.OTACampaignSummary, deviceByID map[string]contracts.Device) contracts.FirmwareDistributionCampaign {
 	result := contracts.FirmwareDistributionCampaign{
-		CampaignID:    strings.TrimSpace(campaign.ID),
-		TargetVersion: strings.TrimSpace(targetVersion),
-		Policy:        "normal",
-		State:         strings.TrimSpace(campaign.State),
-		StartedAt:     firstNonEmpty(strings.TrimSpace(campaign.ActivatedAt), strings.TrimSpace(campaign.CreatedAt)),
-		UpdatedAt:     firstNonEmpty(strings.TrimSpace(summary.UpdatedAt), strings.TrimSpace(campaign.UpdatedAt)),
-		Total:         summary.Total,
-		Rollouts:      make([]contracts.FirmwareDistributionRollout, 0, len(deployments)),
+		CampaignID:         strings.TrimSpace(campaign.ID),
+		TargetVersion:      strings.TrimSpace(targetVersion),
+		Policy:             "normal",
+		State:              strings.TrimSpace(campaign.State),
+		StartedAt:          firstNonEmpty(strings.TrimSpace(campaign.ActivatedAt), strings.TrimSpace(campaign.CreatedAt)),
+		UpdatedAt:          firstNonEmpty(strings.TrimSpace(summary.UpdatedAt), strings.TrimSpace(campaign.UpdatedAt)),
+		RateLimitPerMinute: campaign.RateLimitPerMinute,
+		EffectiveRateLimit: campaign.EffectiveRateLimit,
+		SystemMaxRateLimit: campaign.SystemMaxRateLimit,
+		Total:              summary.Total,
+		Rollouts:           make([]contracts.FirmwareDistributionRollout, 0, len(deployments)),
 	}
 	if result.Total == 0 {
 		result.Total = campaign.TargetSnapshotCount
