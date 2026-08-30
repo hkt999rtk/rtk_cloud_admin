@@ -9,7 +9,7 @@ test('[UI-CA-STAGING-002] Brandname staging read-only smoke @staging @brand-flee
     [`/console/${cloudId}/overview`, 'Device Overview'],
     [`/console/${cloudId}/devices`, 'Devices'],
     [`/console/${cloudId}/product-services`, 'Products and Services'],
-    [`/console/${cloudId}/firmware-ota`, 'Firmware Update'],
+    [`/console/${cloudId}/firmware-ota`, 'Firmware OTA'],
     [`/console/${cloudId}/reports`, 'Reports'],
   ]) {
     await page.goto(path);
