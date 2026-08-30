@@ -177,7 +177,8 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
   await login(page, 'developer');
   await navigateAfterRoleSwitch(page, '/console/chipset-sdk');
   await expect(page.getByText('Ameba Arduino Pro2 · 2.0.0').first()).toBeVisible();
-  await expect(page.getByText('Some information may be out of date')).toBeVisible();
+  await expect(page.getByText('Some information may be out of date')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Developer Support Guide' })).toHaveCount(0);
   await expect(page.getByText('Stale')).toBeVisible();
 
   await login(page, 'platform_admin');
