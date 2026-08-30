@@ -255,7 +255,7 @@ render human management permissions such as Manage Devices or Edit Product.
 - `POST /api/admin/brand-clouds`: Account Manager-backed brand cloud create.
 - `GET /api/admin/brand-clouds/{id}`: Account Manager-backed brand cloud read.
 - `PATCH /api/admin/brand-clouds/{id}`: Account Manager-backed brand cloud update.
-- `POST /api/admin/brand-clouds/{id}/members`: Account Manager-backed brand cloud member assignment.
+- `POST /api/admin/brand-clouds/{id}/users`: find or create a global user and assign its Account Manager-backed Brand Cloud membership.
 - `GET /assets/...`: built frontend assets.
 - `GET /*`: React SPA fallback.
 

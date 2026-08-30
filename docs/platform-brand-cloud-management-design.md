@@ -308,18 +308,18 @@ Validation:
 - slug/code must be unique when provided
 - region must be one of the Account Manager-supported values
 
-#### Step 2: Initial Brand Admin
+#### Step 2: Initial Owner
 
 Fields:
 
-- Existing Brand User id, when the brand-scoped user already exists
+- Global user email
 - Initial role, default `owner`
 - Optional note for audit/support context, only if Account Manager accepts it
 
-The UI must make it clear that this flow assigns an existing brand-scoped user.
-Platform Account Manager user ids are not valid for brand-cloud membership.
-Creating or reactivating a brand-scoped user uses the Brand User form and then
-assigns membership by `brand_cloud_user_id`.
+Account Manager finds an existing global user by normalized email or creates a
+pending global user, then creates its `organization_members` owner row. A new
+owner always completes the global email activation flow before access is
+enabled; Cloud Admin never sets an owner password directly.
 
 #### Step 3: Entitlement Snapshot (optional information)
 
@@ -457,7 +457,7 @@ Disable and re-enable require confirmation because they affect a tenant-level
 organization. The confirmation copy must say what remains visible and what is
 blocked. Delete is intentionally absent.
 
-## Flow 2: Assign Existing Member
+## Flow 2: Add Global User Membership
 
 ### [REQ-CA-BRAND-MEMBER-001] Existing brand-user assignment validates and preserves upstream errors safely
 
@@ -465,25 +465,25 @@ blocked. Delete is intentionally absent.
 {"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
-Acceptance: Member assignment validates brand user and role locally, submits brand_cloud_user_id, updates inline on success, treats duplicates non-destructively, and renders Account Manager authorization/validation failures in user-safe language.
+Acceptance: Membership provisioning validates global user email and role locally, submits them to the users endpoint, updates inline on success, treats duplicates non-destructively, and renders Account Manager authorization/validation failures in user-safe language.
 
 Use a small drawer section or modal launched from the detail drawer.
 
 Fields:
 
-- Brand User id
+- Global user email
 - Role, default `owner` or `admin` depending on Account Manager contract
 
 Behavior:
 
 - validate required input locally
-- submit `brand_cloud_user_id` to `POST /api/admin/brand-clouds/{id}/members`
+- submit `email`, `role`, and `activation_mode=email` to `POST /api/admin/brand-clouds/{id}/users`
 - show success inline in the Members panel
 - show duplicate member as a non-destructive warning
 - preserve Account Manager authorization and validation messages in user-safe
   language
 
-## Flow 3: Review And Manage Brand Users
+## Flow 3: Review And Manage Brand Cloud Memberships
 
 ### [REQ-CA-BRAND-USERS-001] Brand-user lifecycle preserves activation state and audit history
 
@@ -491,11 +491,11 @@ Behavior:
 {"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
-Acceptance: The Account Manager-backed user table distinguishes pending, active, and disabled identities; approve/disable/enable/soft-delete refresh current state, and delete removes access without hard-deleting audit history.
+Acceptance: The Account Manager-backed membership table distinguishes pending activation, active, and disabled access; disable/enable/soft-delete refresh current state, and delete removes Brand Cloud access without deleting the global user or audit history.
 
-The detail drawer includes a Brand Users section backed by Account Manager,
-not by Admin Console SQLite. It lists brand-scoped users for the selected
-brand cloud and highlights pending activation users so Platform Admins can see
+The detail drawer includes a Users section backed by Account Manager,
+not by Admin Console SQLite. It lists global users and their memberships for the selected
+Brand Cloud and highlights pending activation users so Platform Admins can see
 which email addresses have been created but not activated.
 
 Filters:
@@ -506,23 +506,21 @@ Filters:
 - Disabled
 
 Rows show email, display name or user id, activation status, last update time,
-and lifecycle actions. Pending activation rows expose `Approve`, active rows
-expose `Disable`, disabled rows expose `Enable`, and all rows expose `Delete`.
-Delete is a soft-delete operation that removes brand-cloud access by disabling
-the brand-scoped user; it must not hard-delete Account Manager audit history.
+and lifecycle actions. Activation is completed only through the global email
+flow. Active rows expose `Disable`, disabled rows expose `Enable`, and all rows
+expose `Delete`. Delete only removes the membership; it must not delete the
+global user or Account Manager audit history.
 
 Behavior:
 
 - load users from `GET /api/admin/brand-clouds/{id}/users`
 - use `status=pending_verification` for the pending activation dashboard filter
-- submit approve to
-  `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/approve`
 - submit disable to
-  `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/disable`
+  `POST /api/admin/brand-clouds/{id}/users/{userId}/disable`
 - submit enable to
-  `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/enable`
+  `POST /api/admin/brand-clouds/{id}/users/{userId}/enable`
 - submit soft-delete to
-  `DELETE /api/admin/brand-clouds/{id}/users/{brandCloudUserId}`
+  `DELETE /api/admin/brand-clouds/{id}/users/{userId}`
 - refresh the Brand Users section after each successful lifecycle action
 
 ## Error And Edge States
@@ -556,12 +554,11 @@ Acceptance: Every Brand Cloud and Brand User UI operation maps to its Account Ma
 | Create brand cloud | `POST /api/admin/brand-clouds` | Account Manager |
 | Read detail | `GET /api/admin/brand-clouds/{id}` | Account Manager |
 | Update metadata/status | `PATCH /api/admin/brand-clouds/{id}` | Account Manager |
-| Assign member | `POST /api/admin/brand-clouds/{id}/members` | Account Manager |
+| Find/create global user and assign membership | `POST /api/admin/brand-clouds/{id}/users` | Account Manager |
 | List brand users | `GET /api/admin/brand-clouds/{id}/users` | Account Manager |
-| Approve pending brand user | `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/approve` | Account Manager |
-| Disable brand user | `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/disable` | Account Manager |
-| Enable brand user | `POST /api/admin/brand-clouds/{id}/users/{brandCloudUserId}/enable` | Account Manager |
-| Soft-delete brand user | `DELETE /api/admin/brand-clouds/{id}/users/{brandCloudUserId}` | Account Manager |
+| Disable membership | `POST /api/admin/brand-clouds/{id}/users/{userId}/disable` | Account Manager |
+| Enable membership | `POST /api/admin/brand-clouds/{id}/users/{userId}/enable` | Account Manager |
+| Soft-delete membership | `DELETE /api/admin/brand-clouds/{id}/users/{userId}` | Account Manager |
 
 The BFF may normalize response shape for the React UI, but it must not create
 authoritative brand-cloud rows in SQLite. Local audit may record forwarding
@@ -661,7 +658,7 @@ The implementation can be split into developer-ready issues:
 5. **Assign existing member**
    - implement member assignment UI and retry/error states
 6. **Review and manage brand users**
-   - implement Brand Users list, pending activation filter, approve, disable,
+   - implement global Users list, pending activation filter, disable,
      enable, and soft-delete actions
 7. **Browser QA and documentation signoff**
    - verify Platform View isolation, source unavailable states, responsive
@@ -676,12 +673,12 @@ The implementation can be split into developer-ready issues:
   APIs.
 - List, empty, loading, source unavailable, and missing upstream token states
   are defined and implemented.
-- Create flow supports validation, success, Account Manager failure, and
-  created-but-member-failed recovery.
+- Create flow supports validation, success, and atomic Account Manager
+  provisioning failure recovery.
 - Detail drawer exposes identity, status, setup checklist, members, SSO
   handoff, and recent activity/unavailable state.
 - Detail drawer exposes Brand Users with pending activation count, status
-  filter, approve, disable, enable, and soft-delete actions.
+  filter, disable, enable, and soft-delete actions.
 - No authoritative brand-cloud records are stored in Admin Console SQLite.
 - No secrets, upstream tokens, raw IdP claims, or raw private upstream payloads
   are displayed.
@@ -714,7 +711,7 @@ Manual browser QA covers:
 - source unavailable response
 - create success
 - create validation failure
-- created-but-member-failed partial failure
+- atomic user-plus-membership failure with no partial account write
 - mobile-width drawer/table behavior
 
 ## Open Design Questions

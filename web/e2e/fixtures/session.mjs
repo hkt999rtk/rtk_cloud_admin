@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 
 export async function login(page, kind) {
-  const endpoint = kind.startsWith('platform_') ? '/api/auth/platform/login' : '/api/auth/customer/login';
+	const endpoint = '/api/auth/login';
   const customerIdentity = {
     customer: ['customer@example.com', 'e2e-customer-password'],
     developer: ['developer@example.com', 'e2e-developer-password'],
@@ -14,7 +14,8 @@ export async function login(page, kind) {
     platform_reader: ['platform.reader@example.com', 'e2e-platform-reader-password'],
   };
   const [email, password] = platformIdentity[kind] || customerIdentity[kind] || customerIdentity.customer;
-  const response = await page.request.post(endpoint, { data: { email, password } });
+	const next = kind.startsWith('platform_') ? '/admin' : '/console';
+	const response = await page.request.post(endpoint, { data: { email, password, next } });
   expect(response.ok()).toBeTruthy();
 }
 

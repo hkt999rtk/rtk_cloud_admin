@@ -88,7 +88,7 @@ export const platformNavGroups = [
 
 export const platformNavItems = platformNavGroups.flatMap((group) => group.items);
 
-const publicRouteIds = new Set(['login', 'login-check-email', 'login-activate', 'brand-cloud-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'signup-verification-expired', 'verify']);
+const publicRouteIds = new Set(['login', 'login-check-email', 'login-activate', 'forgot-password', 'reset-password', 'signup', 'signup-check-email', 'signup-verification-expired', 'verify']);
 
 export function isPublicRouteId(route) {
   return publicRouteIds.has(route);
@@ -144,7 +144,6 @@ export function titleFor(active) {
     login: 'Sign in',
     'login-check-email': 'Check your email',
     'login-activate': 'Activate sign-in',
-    'brand-cloud-activate': 'Activate brand account',
     'forgot-password': 'Forgot password',
     'reset-password': 'Reset password',
     signup: 'Sign up',
@@ -180,7 +179,6 @@ export function routeFromPath(path) {
   if (path === '/login' || path === '/login/') return 'login';
   if (path === '/login/check-email' || path.startsWith('/login/check-email/')) return 'login-check-email';
   if (path === '/login/activate' || path.startsWith('/login/activate/')) return 'login-activate';
-  if (path === '/brand-cloud/activate' || path.startsWith('/brand-cloud/activate/')) return 'brand-cloud-activate';
   if (path === '/forgot-password' || path.startsWith('/forgot-password/')) return 'forgot-password';
   if (path === '/reset-password' || path.startsWith('/reset-password/')) return 'reset-password';
   if (path === '/signup' || path === '/signup/') return 'signup';

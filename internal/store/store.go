@@ -593,6 +593,14 @@ func (s *Store) UpdateSessionTokens(id, accessToken, refreshToken string, ttl ti
 	return err
 }
 
+func (s *Store) UpdateSessionKind(id, kind string) error {
+	if kind != "customer" && kind != "platform_admin" {
+		return fmt.Errorf("invalid session kind")
+	}
+	_, err := s.db.Exec(`UPDATE sessions SET kind = ? WHERE id = ?`, kind, id)
+	return err
+}
+
 func (s *Store) DeleteSession(id string) error {
 	_, err := s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id)
 	return err

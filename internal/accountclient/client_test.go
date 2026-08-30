@@ -126,7 +126,7 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	check("DeveloperBrandClouds", err)
 	_, _, err = client.DeveloperBrandCloud(ctx, "access", "brand/1")
 	check("DeveloperBrandCloud", err)
-	_, err = client.IssueDeveloperPKITestAppCertificate(ctx, "access", "brand/1", "idem-1", "brand_cloud_user", "user/1", "csr")
+	_, err = client.IssueDeveloperPKITestAppCertificate(ctx, "access", "brand/1", "idem-1", "user", "user/1", "csr")
 	check("IssueDeveloperPKITestAppCertificate", err)
 	_, err = client.CreateDeveloperPKITestProductionRun(ctx, "access", "brand/1", "profile/1", "idem-2", time.Now(), time.Now().Add(24*time.Hour))
 	check("CreateDeveloperPKITestProductionRun", err)
@@ -172,7 +172,7 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	_, err = client.AcceptDeveloperOwnerTransfer(ctx, "access", "owner-token")
 	check("AcceptDeveloperOwnerTransfer", err)
 
-	_, _, err = client.CreateBrandCloudUser(ctx, "access", "brand/1", BrandCloudUserRequest{})
+	_, _, err = client.CreateBrandCloudUser(ctx, "access", "brand/1", BrandCloudAccountRequest{})
 	check("CreateBrandCloudUser", err)
 	_, err = client.Device(ctx, "access", "org/1", "device/1")
 	check("Device", err)
@@ -288,7 +288,6 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 
 	var createBody map[string]any
 	var patchBody map[string]any
-	var memberBody map[string]any
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "Bearer admin-access" {
 			t.Fatalf("%s Authorization = %q, want Bearer admin-access", r.URL.Path, got)
@@ -310,23 +309,15 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": "Realtek Connect Plus", "organization_kind": "brand_cloud", "status": "disabled"}})
-		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/members":
-			if err := json.NewDecoder(r.Body).Decode(&memberBody); err != nil {
-				t.Fatal(err)
-			}
-			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"brand_cloud_id": "brand-1", "brand_cloud_user_id": "brand-user-1", "role": "owner"}})
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users":
 			if r.URL.Query().Get("status") != "pending_verification" {
 				t.Fatalf("brand user status query = %q", r.URL.Query().Get("status"))
 			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_users": []map[string]any{{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "signup_pending_verification": true}}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"users": []map[string]any{{"user_id": "user-1", "organization_id": "brand-1", "email": "owner@example.com", "role": "owner", "disabled_at": "2026-06-11T00:00:00Z"}}})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/disable":
-			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "disabled_at": "2026-06-11T00:00:00Z"}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"user_id": "brand-user-1", "organization_id": "brand-1", "email": "owner@example.com", "disabled_at": "2026-06-11T00:00:00Z"}})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/enable":
-			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com"}})
-		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/approve":
-			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "email_verified": true, "signup_pending_verification": false}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"user_id": "brand-user-1", "organization_id": "brand-1", "email": "owner@example.com"}})
 		case r.Method == http.MethodDelete && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1":
 			w.WriteHeader(http.StatusNoContent)
 		default:
@@ -364,18 +355,11 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 	if updated.Status != "disabled" || patchBody["status"] != "disabled" {
 		t.Fatalf("updated brand cloud = %#v body=%#v", updated, patchBody)
 	}
-	member, err := client.AssignBrandCloudMember(t.Context(), "admin-access", "brand-1", BrandCloudMemberRequest{BrandCloudUserID: "brand-user-1", Role: "owner"})
-	if err != nil {
-		t.Fatalf("AssignBrandCloudMember returned error: %v", err)
-	}
-	if member.BrandCloudUserID != "brand-user-1" || memberBody["brand_cloud_user_id"] != "brand-user-1" {
-		t.Fatalf("member = %#v body=%#v", member, memberBody)
-	}
 	users, err := client.BrandCloudUsers(t.Context(), "admin-access", "brand-1", url.Values{"status": []string{"pending_verification"}})
 	if err != nil {
 		t.Fatalf("BrandCloudUsers returned error: %v", err)
 	}
-	if len(users) != 1 || users[0].ID != "brand-user-1" || !users[0].SignupPendingVerification {
+	if len(users) != 1 || users[0].UserID != "user-1" || users[0].DisabledAt == "" {
 		t.Fatalf("brand cloud users = %#v", users)
 	}
 	disabled, err := client.DisableBrandCloudUser(t.Context(), "admin-access", "brand-1", "brand-user-1")
@@ -391,13 +375,6 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 	}
 	if enabled.DisabledAt != "" {
 		t.Fatalf("enabled brand cloud user = %#v", enabled)
-	}
-	approved, err := client.ApproveBrandCloudUser(t.Context(), "admin-access", "brand-1", "brand-user-1")
-	if err != nil {
-		t.Fatalf("ApproveBrandCloudUser returned error: %v", err)
-	}
-	if !approved.EmailVerified || approved.SignupPendingVerification {
-		t.Fatalf("approved brand cloud user = %#v", approved)
 	}
 	if err := client.DeleteBrandCloudUser(t.Context(), "admin-access", "brand-1", "brand-user-1"); err != nil {
 		t.Fatalf("DeleteBrandCloudUser returned error: %v", err)

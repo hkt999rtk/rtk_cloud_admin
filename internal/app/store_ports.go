@@ -12,6 +12,7 @@ type sessionStore interface {
 	GetSession(id string) (store.Session, error)
 	UpdateSessionActiveOrg(id, orgID string) error
 	UpdateSessionTokens(id, accessToken, refreshToken string, ttl time.Duration) error
+	UpdateSessionKind(id, kind string) error
 	DeleteSession(id string) error
 }
 

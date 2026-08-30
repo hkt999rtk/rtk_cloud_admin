@@ -352,7 +352,7 @@ async function handleDeveloperResource(req, res, url) {
     if (!invitation || invitation.status !== 'pending' || new Date(invitation.expires_at) <= new Date()) return send(res, 404, { code: 'INVITATION_NOT_FOUND', message: 'Invitation is invalid or expired.' });
     invitation.status = 'accepted';
     invitation.accepted_at = new Date().toISOString();
-    const member = { organization_id: invitation.brand_cloud_id, brand_cloud_user_id: invitation.target_user_id, email: invitation.target_email, role: invitation.role, capabilities: [] };
+    const member = { organization_id: invitation.brand_cloud_id, user_id: invitation.target_user_id, email: invitation.target_email, role: invitation.role, capabilities: [] };
     state.members.push(member);
     return send(res, 200, { invitation: publicInvitation(invitation), member });
   }
@@ -370,7 +370,7 @@ async function handleDeveloperResource(req, res, url) {
   const clouds = state.brandClouds.map((brand) => ({ ...brand, role: 'owner', capabilities: customerProfile(req).organizations.find((item) => item.id === brand.id)?.capabilities || [] }));
   if (!cloudID && req.method === 'GET') return send(res, 200, { brand_clouds: clouds, pagination: { limit: 25, offset: 0, total: clouds.length }, developer_cloud_limit: 5 });
   if (!clouds.some((brand) => brand.id === cloudID)) return send(res, 403, { code: 'MEMBERSHIP_REQUIRED', message: 'Current developer is not a member of this Brand Cloud.' });
-  if (!suffix && req.method === 'GET') return send(res, 200, { brand_cloud: clouds.find((brand) => brand.id === cloudID), membership: { organization_id: cloudID, brand_cloud_user_id: 'customer-user', role: 'owner', capabilities: clouds.find((brand) => brand.id === cloudID).capabilities } });
+  if (!suffix && req.method === 'GET') return send(res, 200, { brand_cloud: clouds.find((brand) => brand.id === cloudID), membership: { organization_id: cloudID, user_id: 'customer-user', role: 'owner', capabilities: clouds.find((brand) => brand.id === cloudID).capabilities } });
   if (suffix === '/members' && req.method === 'GET') return send(res, 200, { members: state.members.filter((member) => member.organization_id === cloudID), pagination: { limit: 25, offset: 0, total: state.members.filter((member) => member.organization_id === cloudID).length } });
   if (suffix === '/members/invitations' && req.method === 'GET') return send(res, 200, { invitations: state.invitations.filter((invitation) => invitation.brand_cloud_id === cloudID).map(publicInvitation) });
   if (suffix === '/members/invitations' && req.method === 'POST') {
@@ -394,7 +394,7 @@ async function handleDeveloperResource(req, res, url) {
   }
   const memberMatch = suffix.match(/^\/members\/([^/]+)(?:\/(disable|enable))?$/);
   if (memberMatch) {
-    const member = state.members.find((item) => item.brand_cloud_user_id === decodeURIComponent(memberMatch[1]) && item.organization_id === cloudID);
+    const member = state.members.find((item) => item.user_id === decodeURIComponent(memberMatch[1]) && item.organization_id === cloudID);
     if (!member) return send(res, 404, { error: 'member not found' });
     if (memberMatch[2] === 'disable') member.disabled_at = new Date().toISOString();
     if (memberMatch[2] === 'enable') delete member.disabled_at;
@@ -445,30 +445,22 @@ async function handleResource(req, res, root, id, suffix) {
     Object.assign(brand, await readBody(req));
     return send(res, 200, { brand_cloud: brand });
   }
-  if (suffix === '/members' && req.method === 'POST') {
-    if (process.env.E2E_FAIL_ACTION === 'member-assign') return send(res, 502, { error: 'fixture member assignment failure' });
-    const body = await readBody(req);
-    const user = state.users.find((item) => item.id === body.brand_cloud_user_id);
-    const member = { organization_id: id, user_id: body.brand_cloud_user_id, brand_cloud_user_id: body.brand_cloud_user_id, email: user?.email || '', role: body.role || 'owner' };
-    state.members.push(member);
-    return send(res, 201, { member });
-  }
-  if (suffix === '/users' && req.method === 'GET') return send(res, 200, { brand_cloud_users: state.users.filter((user) => user.brand_cloud_id === id) });
+  if (suffix === '/users' && req.method === 'GET') return send(res, 200, { users: state.members.filter((member) => member.organization_id === id) });
   if (suffix === '/users' && req.method === 'POST') {
     const body = await readBody(req);
-    const user = { id: `bcu-created-${state.users.length + 1}`, brand_cloud_id: id, email: body.email, display_name: body.display_name || 'E2E Created User', email_verified: false, signup_pending_verification: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    const user = { id: `user-created-${state.users.length + 1}`, email: body.email, name: body.display_name || 'E2E Created User', email_verified: false, signup_pending_verification: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    const member = { organization_id: id, user_id: user.id, email: user.email, role: body.role || 'member', disabled_at: new Date().toISOString() };
     state.users.push(user);
-    return send(res, 201, { action: 'created', brand_cloud_user: user, brand_cloud_member: { organization_id: id, brand_cloud_user_id: user.id, email: user.email, role: body.role || 'member' } });
+    state.members.push(member);
+    return send(res, 201, { action: 'created', user, member });
   }
-  const userAction = suffix.match(/^\/users\/([^/]+)(?:\/(disable|enable|approve))?$/);
+  const userAction = suffix.match(/^\/users\/([^/]+)(?:\/(disable|enable))?$/);
   if (userAction) {
-    const user = state.users.find((item) => item.id === decodeURIComponent(userAction[1]));
-    if (!user) return send(res, 404, { error: 'user not found' });
-    if (userAction[2] === 'disable') user.disabled_at = new Date().toISOString();
-    if (userAction[2] === 'enable') delete user.disabled_at;
-    if (userAction[2] === 'approve') user.signup_pending_verification = false;
-    if (req.method === 'DELETE') user.disabled_at = new Date().toISOString();
-    return send(res, 200, { brand_cloud_user: user });
+    const member = state.members.find((item) => item.user_id === decodeURIComponent(userAction[1]) && item.organization_id === id);
+    if (!member) return send(res, 404, { error: 'member not found' });
+    if (userAction[2] === 'disable' || req.method === 'DELETE') member.disabled_at = new Date().toISOString();
+    if (userAction[2] === 'enable') delete member.disabled_at;
+    return send(res, 200, { member });
   }
   return send(res, 404, { error: 'not found' });
 }

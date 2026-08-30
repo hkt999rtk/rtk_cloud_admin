@@ -107,41 +107,20 @@ type BrandCloudRequest struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
-type BrandCloudMemberRequest struct {
-	BrandCloudUserID string `json:"brand_cloud_user_id"`
-	Role             string `json:"role"`
-}
-
-type BrandCloudUserRequest struct {
+type BrandCloudAccountRequest struct {
 	Email          string `json:"email"`
-	Password       string `json:"password"`
 	DisplayName    string `json:"display_name,omitempty"`
 	Role           string `json:"role"`
-	RotatePassword bool   `json:"rotate_password,omitempty"`
 	ActivationMode string `json:"activation_mode,omitempty"`
 }
 
-type BrandCloudUser struct {
-	ID                        string `json:"id"`
-	BrandCloudID              string `json:"brand_cloud_id"`
-	Email                     string `json:"email"`
-	DisplayName               string `json:"display_name,omitempty"`
-	EmailVerified             bool   `json:"email_verified"`
-	EmailVerifiedAt           string `json:"email_verified_at,omitempty"`
-	SignupPendingVerification bool   `json:"signup_pending_verification"`
-	CreatedAt                 string `json:"created_at"`
-	UpdatedAt                 string `json:"updated_at"`
-	DisabledAt                string `json:"disabled_at,omitempty"`
-}
-
 type Member struct {
-	OrganizationID   string   `json:"organization_id"`
-	UserID           string   `json:"user_id"`
-	BrandCloudUserID string   `json:"brand_cloud_user_id,omitempty"`
-	Email            string   `json:"email,omitempty"`
-	Role             string   `json:"role"`
-	Capabilities     []string `json:"capabilities,omitempty"`
-	DisabledAt       string   `json:"disabled_at,omitempty"`
+	OrganizationID string   `json:"organization_id"`
+	UserID         string   `json:"user_id"`
+	Email          string   `json:"email,omitempty"`
+	Role           string   `json:"role"`
+	Capabilities   []string `json:"capabilities,omitempty"`
+	DisabledAt     string   `json:"disabled_at,omitempty"`
 }
 
 type OwnerTransfer struct {
@@ -192,9 +171,9 @@ type ProductCollaboratorInvitation struct {
 }
 
 type BrandCloudUserResult struct {
-	Action           string         `json:"action"`
-	BrandCloudUser   BrandCloudUser `json:"brand_cloud_user"`
-	BrandCloudMember Member         `json:"brand_cloud_member"`
+	Action string `json:"action"`
+	User   User   `json:"user"`
+	Member Member `json:"member"`
 }
 
 type Device struct {
@@ -383,26 +362,30 @@ type LoginResult struct {
 	Tokens Tokens `json:"tokens"`
 }
 
-type BrandCloudActivationRequest struct {
-	Token    string `json:"token"`
-	Password string `json:"password"`
-}
-
-type BrandCloudActivationResult struct {
-	BrandCloud     BrandCloud     `json:"brand_cloud"`
-	BrandCloudUser BrandCloudUser `json:"brand_cloud_user"`
-	User           User           `json:"user"`
-	Tokens         Tokens         `json:"tokens"`
-}
-
 type RefreshResult struct {
 	Tokens Tokens `json:"tokens"`
 }
 
 type MeResult struct {
-	User          User           `json:"user"`
-	Organizations []Organization `json:"organizations"`
-	Capabilities  []string       `json:"capabilities,omitempty"`
+	User                  User           `json:"user"`
+	Organizations         []Organization `json:"organizations"`
+	Capabilities          []string       `json:"capabilities,omitempty"`
+	BrandCloudMemberships []Organization `json:"brand_cloud_memberships,omitempty"`
+	PlatformCapabilities  []string       `json:"platform_capabilities,omitempty"`
+}
+
+func (m MeResult) Memberships() []Organization {
+	if len(m.BrandCloudMemberships) > 0 {
+		return m.BrandCloudMemberships
+	}
+	return m.Organizations
+}
+
+func (m MeResult) EffectivePlatformCapabilities() []string {
+	if len(m.PlatformCapabilities) > 0 {
+		return m.PlatformCapabilities
+	}
+	return m.Capabilities
 }
 
 type SSOStartRequest struct {
@@ -568,15 +551,6 @@ func (c *Client) SignIn(ctx context.Context, email string) error {
 func (c *Client) ActivateLogin(ctx context.Context, token string) (LoginResult, error) {
 	var out LoginResult
 	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/login/activate", "", AuthTokenRequest{Token: token}, &out)
-	return out, err
-}
-
-func (c *Client) ActivateBrandCloudUser(ctx context.Context, tenantSlug, token, password string) (BrandCloudActivationResult, error) {
-	var out BrandCloudActivationResult
-	path := "/v1/brand-clouds/" + url.PathEscape(strings.TrimSpace(tenantSlug)) + "/auth/activate"
-	err := c.doJSON(ctx, http.MethodPost, path, "", BrandCloudActivationRequest{
-		Token: token, Password: password,
-	}, &out)
 	return out, err
 }
 
@@ -1037,25 +1011,16 @@ func (c *Client) UpdateBrandCloud(ctx context.Context, accessToken, brandCloudID
 	return body.BrandCloud, err
 }
 
-func (c *Client) AssignBrandCloudMember(ctx context.Context, accessToken, brandCloudID string, req BrandCloudMemberRequest) (Member, error) {
-	var body struct {
-		Member Member `json:"member"`
-	}
-	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID) + "/members"
-	err := c.doJSON(ctx, http.MethodPost, path, accessToken, req, &body)
-	return body.Member, err
-}
-
-func (c *Client) CreateBrandCloudUser(ctx context.Context, accessToken, brandCloudID string, req BrandCloudUserRequest) (BrandCloudUserResult, int, error) {
+func (c *Client) CreateBrandCloudUser(ctx context.Context, accessToken, brandCloudID string, req BrandCloudAccountRequest) (BrandCloudUserResult, int, error) {
 	var body BrandCloudUserResult
 	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID) + "/users"
 	status, err := c.doJSONStatus(ctx, http.MethodPost, path, accessToken, req, &body)
 	return body, status, err
 }
 
-func (c *Client) BrandCloudUsers(ctx context.Context, accessToken, brandCloudID string, query url.Values) ([]BrandCloudUser, error) {
+func (c *Client) BrandCloudUsers(ctx context.Context, accessToken, brandCloudID string, query url.Values) ([]Member, error) {
 	var body struct {
-		BrandCloudUsers []BrandCloudUser `json:"brand_cloud_users"`
+		Users []Member `json:"users"`
 	}
 	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID) + "/users"
 	if len(query) > 0 {
@@ -1064,33 +1029,29 @@ func (c *Client) BrandCloudUsers(ctx context.Context, accessToken, brandCloudID 
 	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
 		return nil, err
 	}
-	return body.BrandCloudUsers, nil
+	return body.Users, nil
 }
 
-func (c *Client) DisableBrandCloudUser(ctx context.Context, accessToken, brandCloudID, brandCloudUserID string) (BrandCloudUser, error) {
-	return c.brandCloudUserAction(ctx, accessToken, brandCloudID, brandCloudUserID, "disable")
+func (c *Client) DisableBrandCloudUser(ctx context.Context, accessToken, brandCloudID, userID string) (Member, error) {
+	return c.brandCloudUserAction(ctx, accessToken, brandCloudID, userID, "disable")
 }
 
-func (c *Client) EnableBrandCloudUser(ctx context.Context, accessToken, brandCloudID, brandCloudUserID string) (BrandCloudUser, error) {
-	return c.brandCloudUserAction(ctx, accessToken, brandCloudID, brandCloudUserID, "enable")
+func (c *Client) EnableBrandCloudUser(ctx context.Context, accessToken, brandCloudID, userID string) (Member, error) {
+	return c.brandCloudUserAction(ctx, accessToken, brandCloudID, userID, "enable")
 }
 
-func (c *Client) ApproveBrandCloudUser(ctx context.Context, accessToken, brandCloudID, brandCloudUserID string) (BrandCloudUser, error) {
-	return c.brandCloudUserAction(ctx, accessToken, brandCloudID, brandCloudUserID, "approve")
-}
-
-func (c *Client) DeleteBrandCloudUser(ctx context.Context, accessToken, brandCloudID, brandCloudUserID string) error {
-	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID) + "/users/" + url.PathEscape(brandCloudUserID)
+func (c *Client) DeleteBrandCloudUser(ctx context.Context, accessToken, brandCloudID, userID string) error {
+	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID) + "/users/" + url.PathEscape(userID)
 	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)
 }
 
-func (c *Client) brandCloudUserAction(ctx context.Context, accessToken, brandCloudID, brandCloudUserID, action string) (BrandCloudUser, error) {
+func (c *Client) brandCloudUserAction(ctx context.Context, accessToken, brandCloudID, userID, action string) (Member, error) {
 	var body struct {
-		BrandCloudUser BrandCloudUser `json:"brand_cloud_user"`
+		Member Member `json:"member"`
 	}
-	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID) + "/users/" + url.PathEscape(brandCloudUserID) + "/" + action
+	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID) + "/users/" + url.PathEscape(userID) + "/" + action
 	err := c.doJSON(ctx, http.MethodPost, path, accessToken, nil, &body)
-	return body.BrandCloudUser, err
+	return body.Member, err
 }
 
 func (c *Client) Devices(ctx context.Context, accessToken, orgID string) ([]Device, error) {

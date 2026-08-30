@@ -71,6 +71,18 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 	}
 }
 
+func TestSelectAccountViewRequiresAValidDestinationPrefix(t *testing.T) {
+	if got := selectAccountView("/administrator", true, true); got != "customer" {
+		t.Fatalf("invalid admin-like next selected %q, want customer fallback", got)
+	}
+	if got := selectAccountView("/console-evil", false, true); got != "platform_admin" {
+		t.Fatalf("invalid console-like next selected %q, want platform fallback", got)
+	}
+	if got := selectAccountView("/admin/health", true, true); got != "platform_admin" {
+		t.Fatalf("valid admin next selected %q", got)
+	}
+}
+
 func TestReportDeviceInTimeRangeUsesLatestObservedTimestamp(t *testing.T) {
 	device := accountclient.Device{UpdatedAt: "2026-07-10T08:00:00Z", LastSeenAt: "2026-07-11T08:00:00Z"}
 	if !reportDeviceInTimeRange(device, map[string]any{"start_at": "2026-07-11", "end_at": "2026-07-11"}) {
@@ -323,6 +335,10 @@ func TestSSOStartAndCallbackCreateSessions(t *testing.T) {
 				http.Error(w, "invalid callback", http.StatusUnauthorized)
 			}
 		case "/v1/me":
+			if r.Header.Get("Authorization") == "Bearer admin-access" {
+				_ = json.NewEncoder(w).Encode(accountclient.MeResult{User: accountclient.User{ID: "admin-1", Email: "admin@example.com"}, PlatformCapabilities: []string{"platform.audit.read"}})
+				return
+			}
 			if r.Header.Get("Authorization") != "Bearer customer-access" {
 				t.Fatalf("me Authorization = %q", r.Header.Get("Authorization"))
 			}
@@ -538,7 +554,7 @@ func TestCustomerPasswordLoginCanBeDisabled(t *testing.T) {
 	})
 
 	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("customer login status = %d, body=%s", rec.Code, rec.Body.String())
 	}
@@ -577,11 +593,11 @@ func TestCustomerPasswordLoginRejectsAccountsWithoutCustomerOrganizations(t *tes
 	})
 
 	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"root@example.com","password":"secret"}`)))
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"root@example.com","password":"secret"}`)))
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("customer login status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "active organization is not part of the current customer memberships") {
+	if !strings.Contains(rec.Body.String(), "account has no authorized view") {
 		t.Fatalf("customer login body = %s", rec.Body.String())
 	}
 	if len(rec.Result().Cookies()) != 0 {
@@ -822,11 +838,11 @@ func TestPlatformLoginRejectsLocalBreakGlassCredentials(t *testing.T) {
 	t.Parallel()
 
 	st := mustOpenStore(t)
-	srv := New(st)
+	srv := NewWithOptions(st, Options{Config: config.Config{CustomerPasswordLoginEnabled: true}})
 	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("local platform login status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("local account login status = %d, want %d; body=%s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
 	}
 }
 
@@ -908,16 +924,8 @@ func TestEmailActivationAuthBFFSetsCustomerSessionCookie(t *testing.T) {
 	srv.ServeHTTP(brandActivate, httptest.NewRequest(http.MethodPost, "/api/auth/brand-cloud/activate", strings.NewReader(`{
 		"tenant_slug":"load-run-b01","token":"owner-token","password":"owner-password"
 	}`)))
-	if brandActivate.Code != http.StatusOK {
-		t.Fatalf("brand activation status = %d, body=%s", brandActivate.Code, brandActivate.Body.String())
-	}
-	if got := brandActivate.Header().Values("Set-Cookie"); !strings.Contains(strings.Join(got, ";"), "HttpOnly") {
-		t.Fatalf("brand activation did not set HTTP-only session cookie: %v", got)
-	}
-	if body := brandActivate.Body.String(); !strings.Contains(body, `"name":"RTK-LOAD-CANARY-run-b01"`) ||
-		!strings.Contains(body, `"display_name":"Load Owner"`) ||
-		strings.Contains(body, "brand-access") || strings.Contains(body, "owner-token") || strings.Contains(body, "owner-password") {
-		t.Fatalf("brand activation response is incomplete or leaked credentials: %s", body)
+	if brandActivate.Code != http.StatusMethodNotAllowed && brandActivate.Code != http.StatusNotFound {
+		t.Fatalf("retired brand activation status = %d, body=%s", brandActivate.Code, brandActivate.Body.String())
 	}
 
 	forgot := httptest.NewRecorder()
@@ -1169,7 +1177,7 @@ func TestCustomerLoginRefreshesAndProxyMode(t *testing.T) {
 	})
 
 	login := httptest.NewRecorder()
-	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
 	if login.Code != http.StatusOK {
 		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
 	}
@@ -1312,7 +1320,7 @@ func TestCustomerDevicesReportVideoCloudActivationFailures(t *testing.T) {
 	})
 
 	login := httptest.NewRecorder()
-	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"customer@example.com","password":"secret"}`)))
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"customer@example.com","password":"secret"}`)))
 	if login.Code != http.StatusOK {
 		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
 	}
@@ -1397,7 +1405,7 @@ func TestCustomerDevicesUseVideoCloudTransportForOnlineReadiness(t *testing.T) {
 	})
 
 	login := httptest.NewRecorder()
-	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"customer@example.com","password":"secret"}`)))
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"customer@example.com","password":"secret"}`)))
 	if login.Code != http.StatusOK {
 		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
 	}
@@ -1436,7 +1444,7 @@ func TestCustomerDevicesUseVideoCloudTransportForOnlineReadiness(t *testing.T) {
 	}
 }
 
-func TestCustomerLoginSurvivesProfileRetryFailure(t *testing.T) {
+func TestAccountLoginRejectsProfileRetryFailure(t *testing.T) {
 	t.Parallel()
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1474,23 +1482,12 @@ func TestCustomerLoginSurvivesProfileRetryFailure(t *testing.T) {
 	})
 
 	login := httptest.NewRecorder()
-	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
-	if login.Code != http.StatusOK {
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	if login.Code != http.StatusBadGateway {
 		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
 	}
-	if len(login.Result().Cookies()) != 1 {
-		t.Fatalf("login did not set cookie")
-	}
-
-	session, err := st.GetSession(login.Result().Cookies()[0].Value)
-	if err != nil {
-		t.Fatalf("GetSession returned error: %v", err)
-	}
-	if session.AccessToken != "refreshed-access" || session.RefreshToken != "refresh-2" {
-		t.Fatalf("session tokens = %#v, want refreshed tokens", session)
-	}
-	if session.ActiveOrgID != "" {
-		t.Fatalf("session active org = %q, want empty", session.ActiveOrgID)
+	if len(login.Result().Cookies()) != 0 {
+		t.Fatalf("failed login must not set a session cookie")
 	}
 }
 
@@ -1698,7 +1695,7 @@ func TestCustomerLoginMapsUpstreamFailures(t *testing.T) {
 		})
 
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`))
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`))
 		srv.ServeHTTP(rec, req)
 		if rec.Code != http.StatusUnauthorized {
 			t.Fatalf("login status = %d, body=%s", rec.Code, rec.Body.String())
@@ -1727,7 +1724,7 @@ func TestCustomerLoginMapsUpstreamFailures(t *testing.T) {
 		})
 
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`))
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`))
 		srv.ServeHTTP(rec, req)
 		if rec.Code != http.StatusBadGateway {
 			t.Fatalf("login status = %d, body=%s", rec.Code, rec.Body.String())
@@ -1760,7 +1757,7 @@ func TestCustomerLoginMapsUpstreamFailures(t *testing.T) {
 		})
 
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`))
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`))
 		srv.ServeHTTP(rec, req)
 		if rec.Code != http.StatusGatewayTimeout {
 			t.Fatalf("login status = %d, body=%s", rec.Code, rec.Body.String())
@@ -1877,7 +1874,7 @@ func TestCustomerUpstreamErrorsMapDeterministically(t *testing.T) {
 	})
 
 	login := httptest.NewRecorder()
-	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
 	if login.Code != http.StatusOK {
 		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
 	}
@@ -1961,7 +1958,7 @@ func TestCustomerDeviceDetailRejectsOutOfOrgDevice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
-	srv := New(st)
+	srv := NewWithOptions(st, Options{Config: config.Config{CustomerPasswordLoginEnabled: true}})
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/devices/dev-003", nil)
@@ -2002,7 +1999,7 @@ func TestDeviceTelemetryDemoReturns404ForOutOfOrgDevice(t *testing.T) {
 		t.Fatalf("SeedDemoData returned error: %v", err)
 	}
 
-	srv := New(st)
+	srv := NewWithOptions(st, Options{Config: config.Config{CustomerPasswordLoginEnabled: true}})
 	session, err := st.CreateSession("customer", "u2", "customer@example.com", "access", "refresh", "org-acme", time.Hour)
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
@@ -3981,41 +3978,29 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 				t.Fatalf("patch status = %q, want disabled", body.Status)
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud": map[string]any{"id": "brand-1", "name": body.Name, "organization_kind": "brand_cloud", "status": body.Status}})
-		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/members":
-			var body accountclient.BrandCloudMemberRequest
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				t.Fatal(err)
-			}
-			if body.BrandCloudUserID != "brand-user-1" || body.Role != "owner" {
-				t.Fatalf("member request = %#v", body)
-			}
-			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"brand_cloud_id": "brand-1", "brand_cloud_user_id": "brand-user-1", "role": "owner"}})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users":
-			var body accountclient.BrandCloudUserRequest
+			var body accountclient.BrandCloudAccountRequest
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatal(err)
 			}
-			if body.Email != "owner@example.com" || body.Role != "owner" || body.Password == "" {
+			if body.Email != "owner@example.com" || body.Role != "owner" || body.ActivationMode != "email" {
 				t.Fatalf("brand cloud user request = %#v", body)
 			}
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"action":             "created",
-				"brand_cloud_user":   map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "email_verified": true, "signup_pending_verification": false},
-				"brand_cloud_member": map[string]any{"brand_cloud_id": "brand-1", "brand_cloud_user_id": "brand-user-1", "email": "owner@example.com", "role": "owner"},
+				"action": "created",
+				"user":   map[string]any{"id": "user-1", "email": "owner@example.com", "email_verified": false, "signup_pending_verification": true},
+				"member": map[string]any{"organization_id": "brand-1", "user_id": "user-1", "email": "owner@example.com", "role": "owner"},
 			})
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users":
 			if r.URL.Query().Get("status") != "pending_verification" {
 				t.Fatalf("brand cloud users status query = %q", r.URL.Query().Get("status"))
 			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_users": []map[string]any{{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "pending@example.com", "email_verified": false, "signup_pending_verification": true}}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"users": []map[string]any{{"user_id": "user-1", "organization_id": "brand-1", "email": "pending@example.com", "role": "owner", "disabled_at": "2026-06-11T00:00:00Z"}}})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/disable":
-			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "disabled_at": "2026-06-11T00:00:00Z"}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"user_id": "brand-user-1", "organization_id": "brand-1", "email": "owner@example.com", "disabled_at": "2026-06-11T00:00:00Z"}})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/enable":
-			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com"}})
-		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/approve":
-			_ = json.NewEncoder(w).Encode(map[string]any{"brand_cloud_user": map[string]any{"id": "brand-user-1", "brand_cloud_id": "brand-1", "email": "owner@example.com", "email_verified": true, "signup_pending_verification": false}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"user_id": "brand-user-1", "organization_id": "brand-1", "email": "owner@example.com"}})
 		case r.Method == http.MethodDelete && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1":
 			w.WriteHeader(http.StatusNoContent)
 		default:
@@ -4091,23 +4076,15 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 		t.Fatalf("brand cloud update status = %d, want 200; body=%s", update.Code, update.Body.String())
 	}
 
-	member := httptest.NewRecorder()
-	memberReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/members", strings.NewReader(`{"brand_cloud_user_id":" brand-user-1 ","role":" owner "}`))
-	memberReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
-	srv.ServeHTTP(member, memberReq)
-	if member.Code != http.StatusCreated {
-		t.Fatalf("brand cloud member status = %d, want 201; body=%s", member.Code, member.Body.String())
-	}
-
 	brandUser := httptest.NewRecorder()
-	brandUserReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/users", strings.NewReader(`{"email":" OWNER@example.com ","password":"secret-password","role":" owner "}`))
+	brandUserReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/users", strings.NewReader(`{"email":" OWNER@example.com ","role":" owner ","activation_mode":"email"}`))
 	brandUserReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
 	srv.ServeHTTP(brandUser, brandUserReq)
 	if brandUser.Code != http.StatusCreated {
 		t.Fatalf("brand cloud user status = %d, want 201; body=%s", brandUser.Code, brandUser.Body.String())
 	}
-	if !strings.Contains(brandUser.Body.String(), `"brand_cloud_user"`) {
-		t.Fatalf("brand cloud user body missing brand_cloud_user: %s", brandUser.Body.String())
+	if !strings.Contains(brandUser.Body.String(), `"user"`) || !strings.Contains(brandUser.Body.String(), `"member"`) {
+		t.Fatalf("brand cloud account body missing user/member: %s", brandUser.Body.String())
 	}
 
 	brandUsers := httptest.NewRecorder()
@@ -4117,8 +4094,8 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 	if brandUsers.Code != http.StatusOK {
 		t.Fatalf("brand cloud users status = %d, want 200; body=%s", brandUsers.Code, brandUsers.Body.String())
 	}
-	if !strings.Contains(brandUsers.Body.String(), `"signup_pending_verification":true`) {
-		t.Fatalf("brand cloud users body missing pending user: %s", brandUsers.Body.String())
+	if !strings.Contains(brandUsers.Body.String(), `"user_id":"user-1"`) {
+		t.Fatalf("brand cloud accounts body missing global user membership: %s", brandUsers.Body.String())
 	}
 
 	disableUser := httptest.NewRecorder()
@@ -4140,17 +4117,6 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 		t.Fatalf("brand cloud user enable status = %d, want 200; body=%s", enableUser.Code, enableUser.Body.String())
 	}
 
-	approveUser := httptest.NewRecorder()
-	approveUserReq := httptest.NewRequest(http.MethodPost, "/api/admin/brand-clouds/brand-1/users/brand-user-1/approve", nil)
-	approveUserReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
-	srv.ServeHTTP(approveUser, approveUserReq)
-	if approveUser.Code != http.StatusOK {
-		t.Fatalf("brand cloud user approve status = %d, want 200; body=%s", approveUser.Code, approveUser.Body.String())
-	}
-	if !strings.Contains(approveUser.Body.String(), `"email_verified":true`) {
-		t.Fatalf("brand cloud user approve body missing verified state: %s", approveUser.Body.String())
-	}
-
 	deleteUser := httptest.NewRecorder()
 	deleteUserReq := httptest.NewRequest(http.MethodDelete, "/api/admin/brand-clouds/brand-1/users/brand-user-1", nil)
 	deleteUserReq.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: upstreamSession.ID})
@@ -4169,12 +4135,10 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 	for _, action := range []string{
 		"platform.brand_cloud.create",
 		"platform.brand_cloud.update",
-		"platform.brand_cloud.member.assign",
 		"platform.brand_cloud.user.create_or_reactivate",
-		"platform.brand_cloud.user.disable",
-		"platform.brand_cloud.user.enable",
-		"platform.brand_cloud.user.approve",
-		"platform.brand_cloud.user.delete",
+		"platform.brand_cloud.membership.disable",
+		"platform.brand_cloud.membership.enable",
+		"platform.brand_cloud.membership.delete",
 	} {
 		if !auditActions[action] {
 			t.Errorf("audit action %q was not recorded", action)
@@ -4665,7 +4629,7 @@ func TestCustomerUpstreamLifecycleIsIdempotentAndDurable(t *testing.T) {
 	})
 
 	login := httptest.NewRecorder()
-	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
 	if login.Code != http.StatusOK {
 		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
 	}
@@ -4921,7 +4885,7 @@ func TestDeactivateDoesNotReturnOpenProvisionOperation(t *testing.T) {
 	})
 
 	login := httptest.NewRecorder()
-	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
 	if login.Code != http.StatusOK {
 		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
 	}
@@ -4993,7 +4957,7 @@ func TestCustomerUpstreamLifecycleFailurePersistsFailedOperation(t *testing.T) {
 	})
 
 	login := httptest.NewRecorder()
-	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/customer/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
+	srv.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com","password":"secret"}`)))
 	if login.Code != http.StatusOK {
 		t.Fatalf("login status = %d, body=%s", login.Code, login.Body.String())
 	}
@@ -5052,16 +5016,16 @@ func TestPlatformAdminLogin(t *testing.T) {
 	if err := st.Migrate(); err != nil {
 		t.Fatalf("Migrate returned error: %v", err)
 	}
-	srv := New(st)
+	srv := NewWithOptions(st, Options{Config: config.Config{CustomerPasswordLoginEnabled: true}})
 	blocked := httptest.NewRecorder()
 	srv.ServeHTTP(blocked, httptest.NewRequest(http.MethodGet, "/api/admin/audit", nil))
 	if blocked.Code != http.StatusUnauthorized {
 		t.Fatalf("admin audit without session status = %d, want %d", blocked.Code, http.StatusUnauthorized)
 	}
 	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("platform login without Account Manager status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"admin@example.com","password":"secret"}`)))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("account login without Account Manager status = %d, want %d; body=%s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
 	}
 }
 
@@ -5083,11 +5047,11 @@ func TestPlatformAdminLoginFallsBackToAccountManagerPlatformAdmin(t *testing.T) 
 				User:   accountclient.User{ID: "root-1", Email: "root@example.com", Name: "Root"},
 				Tokens: accountclient.Tokens{AccessToken: "admin-access", RefreshToken: "admin-refresh", ExpiresIn: 3600},
 			})
-		case "/v1/admin/brand-clouds":
+		case "/v1/me":
 			if r.Header.Get("Authorization") != "Bearer admin-access" {
-				t.Fatalf("brand clouds Authorization = %q", r.Header.Get("Authorization"))
+				t.Fatalf("me Authorization = %q", r.Header.Get("Authorization"))
 			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"brand_clouds": []accountclient.BrandCloud{}})
+			_ = json.NewEncoder(w).Encode(accountclient.MeResult{User: accountclient.User{ID: "root-1", Email: "root@example.com"}, PlatformCapabilities: []string{"platform.brand_cloud.read"}})
 		default:
 			http.NotFound(w, r)
 		}
@@ -5096,12 +5060,12 @@ func TestPlatformAdminLoginFallsBackToAccountManagerPlatformAdmin(t *testing.T) 
 
 	st := mustOpenStore(t)
 	srv := NewWithOptions(st, Options{
-		Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+		Config:        config.Config{AccountManagerBaseURL: upstream.URL, CustomerPasswordLoginEnabled: true},
 		AccountClient: accountclient.New(upstream.URL),
 	})
 
 	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/platform/login", strings.NewReader(`{"email":"root@example.com","password":"secret"}`)))
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"root@example.com","password":"secret"}`)))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("platform login status = %d, body=%s", rec.Code, rec.Body.String())
 	}
