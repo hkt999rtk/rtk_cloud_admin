@@ -5992,6 +5992,7 @@ th {
 
   .sidebar-account {
     border-top-color: rgba(255, 255, 255, .16);
+    display: flex;
     flex-wrap: wrap;
     margin-top: 24px;
   }

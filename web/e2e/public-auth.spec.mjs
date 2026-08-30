@@ -87,3 +87,40 @@ test('[UI-CA-AUTH-002] checkbox follows the shared console control style @smoke'
     contentType: 'image/png',
   });
 });
+
+test('[UI-CA-AUTH-LOGOUT-001] logout remains reachable on desktop and mobile @smoke', async ({ page }, testInfo) => {
+  await login(page, 'customer');
+  await page.goto('/console/overview');
+  const navigationButton = page.getByRole('button', { name: 'Open navigation', exact: true });
+  if (await navigationButton.isVisible()) {
+    await navigationButton.click();
+    await page.getByRole('complementary', { name: 'Primary navigation' }).getByRole('button', { name: 'Logout', exact: true }).click();
+  } else {
+    await page.getByRole('button', { name: 'Logout', exact: true }).click();
+  }
+  await expect(page.getByRole('heading', { name: 'Sign in to Connect+', exact: true })).toBeVisible();
+  const response = await page.request.get('/api/me');
+  expect((await response.json()).authenticated).toBe(false);
+  await testInfo.attach('logged-out-viewport', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+});
+
+for (const [kind, destination] of [['customer', '/console/overview'], ['platform_admin', '/admin']]) {
+  test(`[UI-CA-AUTH-ACTIVATE-001] email activation enters the ${kind} account view @smoke`, async ({ page }, testInfo) => {
+    let verificationCount = 0;
+    await page.route('**/api/auth/customer/verification-status', (route) => route.fulfill({ json: { status: 'valid' } }));
+    await page.route('**/api/auth/customer/verify-email', async (route) => {
+      verificationCount += 1;
+      expect(route.request().postDataJSON()).toEqual({ token: 'fixture-activation-token', new_password: 'activation-password-123' });
+      // Establish a fixture account session; the handler itself is covered by Go tests.
+      await login(page, kind);
+      await route.fulfill({ json: { kind, tokens: { access_token: 'fixture-activation-access' } } });
+    });
+    await page.goto('/signup/verify?token=fixture-activation-token');
+    await page.getByLabel('New password', { exact: true }).fill('activation-password-123');
+    await page.getByRole('button', { name: 'Verify and continue', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`${destination}$`));
+    await expect(page.getByRole('heading', { name: kind === 'customer' ? 'E2E Alpha Cloud' : 'Platform Home', exact: true })).toBeVisible();
+    expect(verificationCount).toBe(1);
+    await testInfo.attach('activated-account-view', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  });
+}

@@ -235,6 +235,10 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 		t.Fatalf("missing verification password status = %d, want 400", missingPasswordRec.Code)
 	}
 	sessionCookie := verifyRec.Result().Cookies()[0]
+	session, err := srv.sessions.GetSession(sessionCookie.Value)
+	if err != nil || session.ActiveOrgID != "org-1" || session.Kind != "customer" {
+		t.Fatalf("activated session scope: kind=%q org=%q err=%v", session.Kind, session.ActiveOrgID, err)
+	}
 
 	replayRec := httptest.NewRecorder()
 	srv.ServeHTTP(replayRec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verify-email", strings.NewReader(`{"token":"consumed-token","new_password":"password123"}`)))
@@ -262,6 +266,84 @@ func TestPublicSignupVerifyAndQuotaRaiseFlow(t *testing.T) {
 	}
 	if !strings.Contains(quotaRaiseBody, `"requested_quota":25`) {
 		t.Fatalf("quota raise body = %s", quotaRaiseBody)
+	}
+}
+
+func TestEmailActivationSelectsUnifiedAccountSession(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		profile     string
+		profileCode int
+		noTokens    bool
+		wantStatus  int
+		wantKind    string
+		wantOrg     string
+	}{
+		{name: "owner", profile: `{"brand_cloud_memberships":[{"id":"brand-1","role":"owner"}]}`, wantStatus: 200, wantKind: "customer", wantOrg: "brand-1"},
+		{name: "platform only", profile: `{"platform_capabilities":["platform.audit.read"]}`, wantStatus: 200, wantKind: "platform_admin"},
+		{name: "owner and platform", profile: `{"brand_cloud_memberships":[{"id":"brand-1","role":"owner"}],"platform_capabilities":["platform.audit.read"]}`, wantStatus: 200, wantKind: "customer", wantOrg: "brand-1"},
+		{name: "no access", profile: `{}`, wantStatus: 403},
+		{name: "profile unavailable", profile: `{}`, profileCode: 503, wantStatus: 502},
+		{name: "no tokens", noTokens: true, wantStatus: 200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/v1/auth/verify-email":
+					if tc.noTokens {
+						_, _ = w.Write([]byte(`{"user":{"id":"activated-user"}}`))
+						return
+					}
+					_, _ = w.Write([]byte(`{"user":{"id":"activated-user","email":"owner@example.com"},"tokens":{"access_token":"activation-access","refresh_token":"activation-refresh","expires_in":3600}}`))
+				case "/v1/me":
+					if tc.noTokens {
+						t.Error("profile fetched without activation tokens")
+					}
+					if r.Header.Get("Authorization") != "Bearer activation-access" {
+						t.Error("profile request did not use activation access token")
+					}
+					if tc.profileCode != 0 {
+						w.WriteHeader(tc.profileCode)
+					}
+					_, _ = w.Write([]byte(tc.profile))
+				default:
+					t.Errorf("unexpected upstream request: %s", r.URL.Path)
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer upstream.Close()
+			srv := NewWithOptions(mustOpenStore(t), Options{
+				Config:        config.Config{AccountManagerBaseURL: upstream.URL},
+				AccountClient: accountclient.New(upstream.URL),
+			})
+			rec := httptest.NewRecorder()
+			srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/customer/verify-email", strings.NewReader(`{"token":"activation-token","new_password":"password123"}`)))
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status=%d want=%d body=%s", rec.Code, tc.wantStatus, rec.Body.String())
+			}
+			cookies := rec.Result().Cookies()
+			if tc.wantKind == "" {
+				if len(cookies) != 0 {
+					t.Fatal("unexpected session cookie")
+				}
+				return
+			}
+			if len(cookies) != 1 {
+				t.Fatalf("cookie count=%d want=1", len(cookies))
+			}
+			session, err := srv.sessions.GetSession(cookies[0].Value)
+			if err != nil || session.Kind != tc.wantKind || session.ActiveOrgID != tc.wantOrg || session.Subject != "activated-user" {
+				t.Fatalf("session kind=%q org=%q subject=%q err=%v", session.Kind, session.ActiveOrgID, session.Subject, err)
+			}
+			var response struct {
+				Kind string `json:"kind"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil || response.Kind != tc.wantKind {
+				t.Fatalf("response kind=%q want=%q err=%v", response.Kind, tc.wantKind, err)
+			}
+		})
 	}
 }
 
