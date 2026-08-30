@@ -62,5 +62,7 @@ test('[UI-CA-CHIPSET-006] Developer resource design matches approved mock @chips
   await installShellRoutes(page, 'developer');
   await page.goto('/console/chipset-sdk');
   await expect(page.getByTestId('chipset-resource-page')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Developer Support Guide' })).toHaveCount(0);
+  await expect(page.getByText('Some information may be out of date')).toHaveCount(0);
   await expect(page).toHaveScreenshot('chipset-developer-resource-center.png', { fullPage: testInfo.project.name === 'mobile' });
 });

@@ -2414,10 +2414,8 @@ function DeveloperChipsetResources({ data, loading }) {
   const [recommendedOnly, setRecommendedOnly] = useState(false);
   const vendors = useMemo(() => chipsetVendors(chipsets), [chipsets]);
   const visibleChipsets = useMemo(() => filterChipsets(chipsets, query, vendor, recommendedOnly), [chipsets, query, vendor, recommendedOnly]);
-  const staleChipsets = chipsets.filter((chipset) => chipset.stale);
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
-    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><h2>ChipSet &amp; SDK</h2><p>{translate('Browse published ChipSets and development resources synchronized from official Information Providers. SDK and external links open in a new tab.')}</p></div><button type="button" className="ghost-button">{translate('Developer Support Guide')}</button></div>
-    {staleChipsets.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>{translate('Some information may be out of date')}</strong><span>{translate('{{name}} last synchronized successfully at {{time}}. The last valid data remains visible.', { name: staleChipsets[0].name, time: formatProviderTimestamp(staleChipsets[0].last_successful_refresh_at) })}</span></div></div> : null}
+    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><h2>ChipSet &amp; SDK</h2><p>{translate('Browse published ChipSets and development resources synchronized from official Information Providers. SDK and external links open in a new tab.')}</p></div></div>
     {loading && !data ? <ChipsetCardSkeletons /> : null}
     {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p></div></section> : null}
     {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
