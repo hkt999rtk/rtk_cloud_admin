@@ -74,7 +74,7 @@ test.describe('Brand Clouds', () => {
     await dialog.getByLabel('Brand display name').fill('E2E Partial Owner Cloud');
     await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByLabel('Initial admin mode').selectOption('create');
-    await dialog.getByLabel('Email').fill('partial-owner@example.com');
+    await dialog.getByRole('textbox', { name: 'Email', exact: true }).fill('partial-owner@example.com');
     await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByRole('button', { name: 'Create Brand Cloud', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Brand Cloud detail' })).toBeVisible();
