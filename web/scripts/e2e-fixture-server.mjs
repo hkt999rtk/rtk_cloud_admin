@@ -457,9 +457,10 @@ async function handleResource(req, res, root, id, suffix) {
     return send(res, 200, { users: memberships });
   }
   if (suffix === '/users' && req.method === 'POST') {
+    if (process.env.E2E_FAIL_ACTION === 'member-assign') return send(res, 502, { error: 'fixture global user assignment failure' });
     const body = await readBody(req);
     const user = { id: `user-created-${state.users.length + 1}`, email: body.email, name: body.display_name || 'E2E Created User', email_verified: false, signup_pending_verification: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-    const member = { organization_id: id, user_id: user.id, email: user.email, role: body.role || 'member', disabled_at: new Date().toISOString() };
+    const member = { organization_id: id, user_id: user.id, email: user.email, role: body.role || 'member' };
     state.users.push(user);
     state.members.push(member);
     return send(res, 201, { action: 'created', user, member });
