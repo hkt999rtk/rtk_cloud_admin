@@ -24,7 +24,7 @@ rtk_spec:
 
 Acceptance: The deployed BFF and runtime services use Go without requiring Node.js or npm; JavaScript tooling is limited to frontend development and static asset builds.
 
-RTK Cloud Admin Console is a B2B operations console for RTK Cloud device fleet management and provisioning. It is a tenant-first web application: customer users manage their own organization devices, while platform administrators use a separate local-admin entry point to inspect customers, devices, lifecycle operations, service health, and audit activity across tenants.
+RTK Cloud Admin Console is a B2B operations console for RTK Cloud device fleet management and provisioning. It uses one human login entry: Brand Cloud members manage their authorized organization devices, while users with platform capabilities may switch to Platform View to inspect customers, devices, lifecycle operations, service health, and audit activity across tenants.
 
 The first implementation uses a Go backend/BFF, SQLite, and a React JavaScript frontend. Backend code and runtime services must be Go only. Node.js/npm are allowed only for frontend development and static asset builds; they must not be required by the Go backend at runtime.
 
@@ -61,7 +61,7 @@ authoritative brand-cloud records in SQLite.
 Included in v0.1:
 
 - Go HTTP server using `net/http`.
-- SQLite persistence for platform admin users, local sessions, integration settings, audit events, UI preferences, and cached customer/device/operation projections.
+- SQLite persistence for local account sessions, integration settings, audit events, UI preferences, and cached customer/device/operation projections; it does not own human credentials.
 - JSON API routes for the React frontend.
 - React SPA with JavaScript, HTML, and CSS.
 - Static serving of the built React assets from the Go backend.
@@ -119,10 +119,9 @@ The signup flow is split between this repo and `rtk_account_manager`:
   (default 5, ceiling 200 — see business-model.md), and the quota-raise
   request workflow.
 
-This split mirrors the existing customer login flow which already proxies to
-Account Manager when configured. Local SQLite stays authoritative only for
-platform-admin users, sessions, audit, settings, and demo data — it does not
-become authoritative for self-service customer accounts.
+This split uses the same global Account Manager identity as unified login.
+Local SQLite stays authoritative only for local session metadata, audit,
+settings, and demo data — it does not become authoritative for human accounts.
 
 Self-service signup UI is implemented in this repo; track the remaining
 quota, verification, and cross-repo integration work through the issues opened
@@ -184,24 +183,25 @@ renaming, or changing JSON API routes registered by `internal/app`.
 
 Public and shared routes:
 
-### [REQ-CA-BFF-LOGIN-001] Customer and platform login create sessions only for authorized profiles
+### [REQ-CA-BFF-LOGIN-001] One human login creates a capability-aware account session
 
 <!-- rtk-requirement
 {"acceptance_layer":"integration","operation_model":"workflow","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
 -->
 
-Acceptance: Customer login requires at least one customer organization; platform-only identities cannot create Customer View sessions, and platform password migration login verifies platform-admin authorization before creating local session state.
+Acceptance: The login page sends credentials once to one BFF endpoint, the BFF
+uses Account Manager global login plus `/v1/me`, and one account session can
+enter every Platform or Brand Cloud view authorized by its capabilities and
+memberships without re-authentication.
 
 - `GET /healthz`: plain health check.
-- `POST /api/auth/customer/login`: customer password login through Account
-  Manager when configured. The resolved Account Manager profile must include at
-  least one customer organization; platform-admin-only accounts must not create
-  Customer View sessions.
-- `POST /api/auth/platform/login`: Account Manager-backed platform-admin
-  password login for the migration period; the returned upstream token must
-  pass a platform-admin authorization check before a local session is created.
+- `POST /api/auth/login`: the only human password-login BFF route. It calls
+  Account Manager `/v1/auth/login` once, then `/v1/me`, and stores one account
+  session containing the upstream tokens, global capabilities, memberships,
+  and active organization selection.
 - `POST /api/auth/logout`: deletes local session metadata.
-- `GET /api/me`: current user, memberships, active organization, and demo/auth state.
+- `GET /api/me`: current user, global capabilities, memberships, active
+  organization, available views, and demo/auth state.
 - `POST /api/me/active-org`: switches active organization for the current session.
 - `GET /api/summary`: customer and platform dashboard summary.
 - `GET /api/admin/platform-dashboard`: platform-admin protected Platform
@@ -265,13 +265,13 @@ render human management permissions such as Manage Devices or Edit Product.
 {"acceptance_layer":"live","gate":"operator-release","environments":["staging"],"evidence":["json","junit","logs"],"freshness_hours":168,"required":true,"status":"active"}
 -->
 
-Acceptance: Production and server validation configure upstream services and authenticated customer sessions, reject demo/seed/sample data as evidence, and return gateway errors instead of silently falling back when configured upstream enrichment fails.
+Acceptance: Production and server validation configure upstream services and authenticated account sessions, reject demo/seed/sample data as evidence, and return gateway errors instead of silently falling back when configured upstream enrichment fails.
 
 The v0.1 implementation may run without configured upstream services for local
 development only. Production/server validation must use configured upstream
-services and authenticated customer sessions; SQLite seed data, generated
+services and authenticated account sessions; SQLite seed data, generated
 sample values, and demo-derived trends are not acceptable validation sources.
-When `ACCOUNT_MANAGER_BASE_URL` is configured and a customer session exists,
+When `ACCOUNT_MANAGER_BASE_URL` is configured and an authorized account session exists,
 `/api/customers`, `/api/devices`, and lifecycle actions use Account Manager
 proxy mode and preserve the frontend DTO shape. When `VIDEO_CLOUD_BASE_URL` and
 `VIDEO_CLOUD_ADMIN_TOKEN` are configured, firmware, telemetry, stream, and
@@ -279,7 +279,7 @@ readiness enrichment paths use Video Cloud proxy mode; failures return gateway
 errors instead of silently falling back.
 
 Platform Admin read models prefer Account Manager admin inventory when the
-platform session has an upstream token. During the migration period,
+account session has an upstream token and platform capability. During the migration period,
 Account Manager may not expose every cross-tenant inventory route yet; 404 from
 `/v1/admin/orgs`, `/v1/admin/devices`, or `/v1/admin/operations` is treated as
 "optional inventory route not available" and falls back to the Admin BFF
@@ -291,45 +291,54 @@ of hiding the entire dashboard.
 
 ## Authentication And Sessions
 
-### [REQ-CA-BFF-SESSION-001] Upstream authentication and local session revocation stay synchronized
+### [REQ-CA-BFF-SESSION-001] Unified upstream authentication and local session revocation stay synchronized
 
 <!-- rtk-requirement
 {"acceptance_layer":"integration","operation_model":"workflow","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
 -->
 
-Acceptance: Daily platform access uses Account Manager SSO or migration password login, platform routes require platform_admin, expired/invalid upstream platform tokens delete local session metadata and clear the cookie before returning 401, and no local break-glass account exists.
+Acceptance: Daily human access uses Account Manager SSO or the single password
+login, every route checks the session's effective capability and selected
+organization, expired/invalid upstream tokens delete local session metadata and
+clear the cookie before returning 401, and no local break-glass account exists.
 
-Production Customer authentication uses email and password credentials verified
-by Account Manager. Admin Console remains the BFF and session owner, creating
-the existing `rtk_admin_session` cookie after Account Manager returns customer
-account and organization context. Platform SSO provider management remains a
-separate capability documented in [`docs/sso-oidc-design.md`](sso-oidc-design.md).
+Production human authentication is verified by Account Manager. Admin Console
+creates the existing `rtk_admin_session` cookie only after global login and
+`/v1/me` succeed. The local session kind is `account`; the former
+`platform_admin`, `customer`, and `brand_cloud_user` identity kinds are removed.
+Platform SSO provider management remains a separate capability documented in
+[`docs/sso-oidc-design.md`](sso-oidc-design.md).
 
-Customer sessions:
+Unified account sessions:
 
-- customer password login is enabled by default
-- customer credentials are posted only to Account Manager login
-- customer login rejects accounts without customer organization membership so
-  platform-admin credentials can fall through to Platform Admin login
+- credentials are posted once, only to `/api/auth/login`, and never stored
 - the BFF stores session metadata plus upstream access/refresh tokens
-- plaintext passwords are never stored
-- `/api/me` returns user, memberships, active organization, and auth state
-- active organization can be switched with `/api/me/active-org`
-- demo mode remains available only for local development when Account Manager is
-  not configured
-
-Platform admin sessions:
-
-- Platform Admin daily login should use Account Manager-backed SSO or the
-  migration-period Account Manager platform password login.
+- route guards use global capabilities and active-organization capabilities,
+  not the login path or a UI role switch
+- a valid `next` route is honored only when authorized; otherwise the default is
+  Brand Fleet when memberships exist, then Platform View when platform access
+  exists, otherwise the no-access page
+- accounts with both platform capability and Brand Cloud membership can switch
+  views and organizations without logging in again
+- switching active organization revalidates membership; failure retains the
+  previous active organization
+- demo mode remains available only for local development when Account Manager
+  is not configured
 - Cloud Admin does not provide a local break-glass administrator account.
 - Emergency operator control is handled through Linode, SSH, and deployment
   tooling.
-- platform-only API routes require a `platform_admin` session
-- Account Manager upstream `401 Unauthorized` for Platform Admin routes means
-  the upstream platform token is expired or invalid. The BFF must delete the
+- platform-only API routes require the corresponding global platform capability
+- Account Manager upstream `401 Unauthorized` means the upstream account token
+  is expired or invalid. The BFF must delete the
   local `rtk_admin_session` and clear the cookie before returning 401, so the
-  browser cannot bounce between `/login` and the protected Platform View route.
+  browser cannot bounce between `/login` and a protected route.
+
+The coordinated identity cutover invalidates all existing local sessions and
+requires a fresh global login. Cloud Admin removes the customer/platform login
+endpoints and the Brand Cloud activation BFF route in the same release; it does
+not fall back to `/v1/brand-clouds/{tenantSlug}/auth/*`. Owner activation links
+terminate in the global activation UI and subsequent logout/login uses the same
+`/api/auth/login` path as every other human account.
 
 ## Upstream Integration
 
@@ -366,7 +375,7 @@ Service health:
 -->
 
 Acceptance: `/console/billing` resolves the organization exclusively from the
-authenticated customer session, displays integer-minor-unit balance and ledger
+authenticated account session's active membership, displays integer-minor-unit balance and ledger
 facts, safe payment-method metadata, automatic top-up guardrails, and normalized
 intent states; it never accepts or displays PAN, CVV, opaque provider method
 references, provider transaction references, request hashes, or raw provider
@@ -512,17 +521,26 @@ Environment variables:
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token.
 - `ADMIN_BREAK_GLASS_ENABLED`: deprecated compatibility flag; local
   break-glass login is not supported and deployments should set it to `false`.
-- `CUSTOMER_PASSWORD_LOGIN_ENABLED`: disables customer password login when set to `false`; default `true`.
+- `ACCOUNT_PASSWORD_LOGIN_ENABLED`: disables the single human password login
+  when set to `false`; default `true`. SSO may remain available.
+- `CUSTOMER_PASSWORD_LOGIN_ENABLED`: removed compatibility input; it must not
+  restore the deleted customer-specific endpoint.
 
 ## Test Plan
 
 - Unit tests for app wiring, health endpoint, JSON API handlers, and SPA fallback.
 - Store tests for SQLite schema creation, seed data, device queries, operation queries, audit metadata insertion, migration idempotence, and upgrade from the current v2 schema.
 - Store tests for versioned migrations, admin password verification, and session expiry.
-- App tests for customer login, upstream proxy mode, provision proxy, and platform admin route guards.
+- App tests for one-request account login, upstream proxy mode, provision proxy,
+  active-organization switching, dual Platform/Brand capability, and route guards.
 - Frontend build verification with `npm run build`.
 - Backend build verification with `go test ./...` and `go build ./cmd/server`.
-- Native server smoke verification for `/healthz`, `/api/service-health`, platform admin login/session, `/api/summary`, and `/console`.
+- Native server smoke verification for `/healthz`, `/api/service-health`, the
+  unified login/session, `/api/summary`, and `/console`.
+- Browser tests assert exactly one `/api/auth/login` request, authorized `next`
+  routing, default landing order, multi-Brand switching, platform/Brand view
+  switching, invalid credentials, unactivated/no-access accounts, removed
+  legacy login routes, and owner logout/re-login after email activation.
 
 ## ChipSet and SDK Resource Catalog
 

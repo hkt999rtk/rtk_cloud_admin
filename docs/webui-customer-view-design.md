@@ -4,7 +4,7 @@ Status: current approved direction for the Brand Fleet Management refresh.
 
 ## Runtime Brand Cloud session contract
 
-The production console uses one global developer session and a server-side
+The production console uses one global human account session and a server-side
 active Brand Cloud scope. The shell displays the signed-in developer identity
 and a selector populated only by `GET /api/developer/brand-clouds`. Switching
 clouds refreshes `/api/me`, capabilities, and every cloud-scoped query; a
@@ -15,6 +15,20 @@ for fleet authorization.
 Navigation and actions are derived from active-cloud capabilities, not a UI
 role switch. Display roles remain useful for explanation, but authorization
 uses the capability matrix in `ROLES.md`.
+
+The login page posts credentials exactly once to `POST /api/auth/login`. The BFF
+calls Account Manager global login and `/v1/me`; the browser never probes
+separate customer, platform, or tenant login endpoints. A valid deep-link
+`next` route wins when authorized. Otherwise the default landing is Brand Fleet
+when at least one membership exists, Platform View when only platform access
+exists, and a no-access page when neither exists. A dual-capability account can
+switch Platform View, Brand Fleet, and active Brand Clouds without logging in
+again.
+
+Owner email activation ends in the same global account session. After logout,
+that owner signs in through the normal login page without supplying a tenant
+slug. Legacy local sessions are intentionally invalidated during the coordinated
+identity cutover.
 
 Every fleet query is server-side and every batch/report/provisioning operation
 stores an immutable scope snapshot and hash. Jobs expose progress, partial
@@ -29,7 +43,7 @@ async validation-then-execution workflow.
 
 Original date: 2026-05-09
 
-Last updated: 2026-08-28 — unified Customer and Platform app shell
+Last updated: 2026-08-30 — unified human login and account session
 
 Audience:
 
@@ -326,7 +340,7 @@ route authorization independently chooses its first accessible tab.
 Main header:
 
 - Page title at the top-left of the content area.
-- Organization selector only when the customer session has multiple
+- Organization selector only when the account session has multiple
   memberships.
 - Window controls where relevant, usually `7d` / `30d`.
 - Refresh affordance and signed-in actions on the right.
@@ -407,7 +421,8 @@ Login page:
   behind secondary copy.
 - `Login` is the default mode for an existing Admin Console user. It shows
   `Email`, `Password`, a primary `Login` action, and a `Forgot password?`
-  link. Password login keeps the existing platform/customer login behavior.
+  link. Password login posts once to the unified account endpoint and derives
+  available views from the returned capabilities and memberships.
 - `Sign Up` is the public evaluation-account creation mode. It collects only
   `Email`. It does not ask for a password, `Organization name`, `Display name`,
   a manual `CAPTCHA token`, or terms acceptance. It calls
@@ -775,8 +790,8 @@ Required behavior:
   Manager through the Admin Console BFF.
 - The UI displays submitting, denied access, source-unavailable, and retry
   states.
-- Platform password login is Account Manager-backed and visually secondary to
-  the customer login path unless the requested route is a Platform View route.
+- One Account Manager-backed password form serves both Platform and Brand Fleet
+  views; there is no platform/customer mode switch or fallback request.
 - Route gates distinguish unauthenticated, wrong-role, and missing-capability
   states. A missing Customer View membership should not render empty fleet data.
 
