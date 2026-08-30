@@ -3996,7 +3996,7 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 			if r.URL.Query().Get("status") != "pending_verification" {
 				t.Fatalf("brand cloud users status query = %q", r.URL.Query().Get("status"))
 			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"users": []map[string]any{{"user_id": "user-1", "organization_id": "brand-1", "email": "pending@example.com", "role": "owner", "disabled_at": "2026-06-11T00:00:00Z"}}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"users": []map[string]any{{"user_id": "user-1", "organization_id": "brand-1", "email": "pending@example.com", "role": "owner", "email_verified": false, "signup_pending_verification": true, "disabled_at": "2026-06-11T00:00:00Z", "created_at": "2026-06-10T00:00:00Z", "updated_at": "2026-06-11T00:00:00Z"}}})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/disable":
 			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"user_id": "brand-user-1", "organization_id": "brand-1", "email": "owner@example.com", "disabled_at": "2026-06-11T00:00:00Z"}})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/enable":
@@ -4094,7 +4094,7 @@ func TestPlatformAdminBrandCloudsProxyRequiresUpstreamToken(t *testing.T) {
 	if brandUsers.Code != http.StatusOK {
 		t.Fatalf("brand cloud users status = %d, want 200; body=%s", brandUsers.Code, brandUsers.Body.String())
 	}
-	if !strings.Contains(brandUsers.Body.String(), `"user_id":"user-1"`) {
+	if !strings.Contains(brandUsers.Body.String(), `"user_id":"user-1"`) || !strings.Contains(brandUsers.Body.String(), `"signup_pending_verification":true`) {
 		t.Fatalf("brand cloud accounts body missing global user membership: %s", brandUsers.Body.String())
 	}
 

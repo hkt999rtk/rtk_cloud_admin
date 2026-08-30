@@ -4892,7 +4892,7 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser })
 	  const path = `/api/admin/brand-clouds/${encodeURIComponent(brand.id)}/users/${encodeURIComponent(row.user_id)}`;
       if (action === 'delete') {
         await sendJSONWithMethod('DELETE', path);
-        setMessage('Brand user removed.');
+        setMessage('Membership removed.');
       } else {
         await sendJSONWithMethod('POST', `${path}/${action}`, {});
 		setMessage(action === 'disable' ? 'Membership disabled.' : 'Membership enabled.');
@@ -5000,7 +5000,7 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser })
                         <td>{row.updated_at ? formatRelativeTime(row.updated_at) : '-'}</td>
                         <td>
                           <div className="row-actions">
-                            {status.key === 'disabled' ? (
+                            {row.disabled_at ? (
                               <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'enable')}><Icon name="rotate-right" />Enable</button>
 							) : (
                               <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'disable')}><Icon name="ban" />Disable</button>

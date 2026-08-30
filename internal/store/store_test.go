@@ -401,11 +401,17 @@ func TestSummarySessionsFailedOperationsAndAuditWrapper(t *testing.T) {
 	if err := st.UpdateSessionTokens("missing-session", "access-x", "refresh-x", time.Hour); err != nil {
 		t.Fatalf("UpdateSessionTokens missing session returned error: %v", err)
 	}
+	if err := st.UpdateSessionKind(session.ID, "platform_admin"); err != nil {
+		t.Fatalf("UpdateSessionKind returned error: %v", err)
+	}
+	if err := st.UpdateSessionKind(session.ID, "unsupported"); err == nil {
+		t.Fatal("UpdateSessionKind accepted an unsupported session kind")
+	}
 	updated, err := st.GetSession(session.ID)
 	if err != nil {
 		t.Fatalf("GetSession returned error: %v", err)
 	}
-	if updated.ActiveOrgID != "org-nova" || updated.AccessToken != "access-2" || updated.RefreshToken != "refresh-2" {
+	if updated.Kind != "platform_admin" || updated.ActiveOrgID != "org-nova" || updated.AccessToken != "access-2" || updated.RefreshToken != "refresh-2" {
 		t.Fatalf("updated session = %#v", updated)
 	}
 
