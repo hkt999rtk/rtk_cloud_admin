@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   destinationForSession,
   isSafeLoginNext,
+  isPlatformLoginNext,
   loginNextFromLocation,
   loginPathFor,
   normalizeLoginNext,
@@ -54,6 +55,16 @@ test('password login prefers the destination view', () => {
   assert.deepEqual(passwordLoginOrderForNext('/admin/resources'), ['platform', 'customer']);
   assert.deepEqual(passwordLoginOrderForNext('/console/devices'), ['customer', 'platform']);
   assert.deepEqual(passwordLoginOrderForNext('/signup'), ['customer', 'platform']);
+});
+
+test('platform login context requires a safe admin destination', () => {
+  assert.equal(isPlatformLoginNext('/admin'), true);
+  assert.equal(isPlatformLoginNext('/admin/health?window=1#status'), true);
+  assert.equal(isPlatformLoginNext('/console/overview'), false);
+  assert.equal(isPlatformLoginNext('/administrator'), false);
+  assert.equal(isPlatformLoginNext('https://evil.example/admin'), false);
+  assert.equal(isPlatformLoginNext('//evil.example/admin'), false);
+  assert.equal(isPlatformLoginNext(''), false);
 });
 
 test('sensitive query parameters are removed without changing the rest of the address', () => {
