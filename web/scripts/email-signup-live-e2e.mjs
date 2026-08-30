@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright';
+import { assertVerificationReplayRejected } from './verification-replay.mjs';
 
 const execFileAsync = promisify(execFile);
 const baseURL = requiredEnv('EMAIL_E2E_ADMIN_BASE_URL').replace(/\/$/, '');
@@ -66,8 +67,8 @@ try {
     throw new Error(`verified Admin Console session returned HTTP ${meResponse.status()}`);
   }
   const me = await meResponse.json();
-  if (!me.memberships?.some((membership) => membership.organization === emailAddress.toLowerCase())) {
-    throw new Error('verified account default organization name did not match the signup email');
+  if (!me.memberships?.some((membership) => membership.organization === emailAddress.toLowerCase() && membership.role === 'owner')) {
+    throw new Error('verified account did not own its default signup organization');
   }
   await verifyContext.close();
 
@@ -98,23 +99,7 @@ try {
 
   const replayContext = await browser.newContext();
   const replayPage = await replayContext.newPage();
-  const replayResponsePromise = replayPage.waitForResponse((response) => (
-    response.request().method() === 'POST' &&
-    new URL(response.url()).pathname === '/api/auth/customer/verify-email'
-  ));
-  await replayPage.goto(delivered.url, { waitUntil: 'networkidle' });
-  await replayPage.getByLabel('New password', { exact: true }).fill(password);
-  await replayPage.getByRole('button', { name: 'Verify and continue', exact: true }).click();
-  const replayResponse = await replayResponsePromise;
-  if (replayResponse.status() !== 400) {
-    throw new Error(`replayed verification token returned HTTP ${replayResponse.status()}`);
-  }
-  const replayError = replayPage.locator('.error').first();
-  await replayError.waitFor({ state: 'visible', timeout: 30_000 });
-  const replayErrorText = await replayError.innerText();
-  if (!/invalid|expired/i.test(replayErrorText) || replayErrorText.includes(new URL(delivered.url).searchParams.get('token'))) {
-    throw new Error('replayed verification error was missing or exposed the token');
-  }
+  await assertVerificationReplayRejected(replayPage, delivered.url, password);
   await replayContext.close();
 } finally {
   await browser.close();
