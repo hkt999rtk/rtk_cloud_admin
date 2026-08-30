@@ -56,11 +56,14 @@ import {
   firmwareCampaignDetailRows,
   firmwareCampaignNeedsPolling,
   firmwareCampaignProgress,
+  firmwareCampaignWaitingProgress,
   firmwareCampaignStatusLabel,
+  firmwareDashboardAction,
   firmwarePolicyLabel,
   firmwareRiskRows,
   firmwareRolloutStatusLabel,
   firmwareVersionFilterValue,
+  sortFirmwareCampaignsByStartTime,
 } from './firmware.mjs';
 import {
   auditCoverageCopy,
@@ -108,7 +111,7 @@ import {
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import '@fontsource-variable/noto-sans-tc';
 import './styles.css';
-import i18n, { FORMAT_LOCALE, formatNumber, translate } from './i18n/index.mjs';
+import i18n, { FORMAT_LOCALE, formatDateTime, formatNumber, translate } from './i18n/index.mjs';
 
 const DEFAULT_PAGE_SIZE = 8;
 
@@ -3194,7 +3197,7 @@ function batchJobStateLabel(state) {
 
 function FirmwareOTAPage({ loading, distribution, selectedProductId, products, releases, onViewDevices, onCampaignAction, onStatusRefresh, canRelease, canManageOTA, onSelectProduct, onRefresh }) {
   const versions = distribution?.versions || [];
-  const campaigns = distribution?.campaigns || [];
+  const campaigns = sortFirmwareCampaignsByStartTime(distribution?.campaigns || []);
   const selectedProduct = products.find((product) => product.id === selectedProductId) || null;
   const hasSelection = Boolean(selectedProductId && selectedProduct);
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
@@ -3213,6 +3216,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
   const [scopePreview, setScopePreview] = useState(null);
   const [scopeLoading, setScopeLoading] = useState(false);
   const [statusRefreshing, setStatusRefreshing] = useState(false);
+  const [campaignActionBusy, setCampaignActionBusy] = useState('');
   function selectProduct(event) {
     const productID = event.target.value;
     setSelectedCampaignId('');
@@ -3245,6 +3249,15 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     setStatusRefreshing(true);
     await onStatusRefresh?.();
     setStatusRefreshing(false);
+  }
+  async function runCampaignAction(campaignId, action) {
+    const key = `${campaignId}:${action}`;
+    setCampaignActionBusy(key);
+    try {
+      await onCampaignAction?.(campaignId, action);
+    } finally {
+      setCampaignActionBusy('');
+    }
   }
   async function selectReleaseArtifact(event) {
     const file = event.target.files?.[0] || null;
@@ -3357,7 +3370,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
       <div className="panel-head">
         <div>
           <h2>Firmware Update</h2>
-          <p>Publish firmware versions, create update plans, and track upgrade status for each device on the same page.</p>
+          <p>Start and stop OTA rollouts, publish firmware versions, and track device progress for the selected Product.</p>
         </div>
         <button type="button" className="ghost-button" disabled={!hasSelection || statusRefreshing} onClick={refreshStatus}>{statusRefreshing ? 'Updating status…' : 'Refresh status'}</button>
       </div>
@@ -3381,6 +3394,17 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
         <MetricCard icon="cloud-arrow-up" label="Recent updates" value={primaryCampaign ? formatPercent(primaryProgress.pct) : '—'} hint={primaryCampaign ? `${formatNumber(primaryProgress.completed)} of ${formatNumber(primaryProgress.total)} devices processed` : 'No updates are currently running'} tone="info" />
         <MetricCard icon="circle-exclamation" label="Update failed" value={failedRollout} hint={primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of target devices` : 'No updates are currently running'} tone={failedRollout ? 'danger' : 'good'} />
       </section> : null}
+
+      {hasSelection && distribution && available ? (
+        <FirmwareOTADashboard
+          campaigns={campaigns}
+          selectedCampaignId={selectedCampaignId}
+          onSelect={setSelectedCampaignId}
+          onAction={runCampaignAction}
+          canManage={canManageOTA}
+          busyAction={campaignActionBusy}
+        />
+      ) : null}
 
       {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Add firmware version</h3><p>The version will be registered to {selectedProduct.name}. You can then create an update plan for the same Product.</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="Version, e.g. 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input ref={releaseFileInput} name="artifact" required type="file" accept="application/octet-stream,.bin" aria-label="Firmware binary" onChange={selectReleaseArtifact} /><input required placeholder="Hardware versions (comma separated)" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} />{releaseArtifactLoading ? <div className="firmware-artifact-metadata" role="status">Calculating firmware metadata…</div> : null}{releaseArtifact ? <dl className="firmware-artifact-metadata" aria-label="Firmware binary metadata"><div><dt>File</dt><dd>{releaseArtifact.name}</dd></div><div><dt>Size</dt><dd>{formatFirmwareSize(releaseArtifact.size)}{releaseArtifact.size >= 1024 ? ` (${releaseArtifact.size.toLocaleString('en-US')} bytes)` : ''}</dd></div><div><dt>SHA-256</dt><dd><code>{releaseArtifact.sha256}</code></dd></div></dl> : null}<button type="submit" className="primary-button" disabled={releaseArtifactLoading || !releaseArtifact}>Create version</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
       {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Create an update plan</h3><p>Obtain the server scope preview before creating the immutable OTA plan; the browser does not determine the target count.</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">Select firmware version</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder="Plan name (optional)" value={planName} onChange={(event) => setPlanName(event.target.value)} /><input placeholder="Regions (comma separated)" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="Group IDs (comma separated)" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="Firmware versions (comma separated)" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="Health statuses (comma separated)" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="Exclude device IDs (comma or space separated)" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? 'Calculating scope…' : 'Preview server scope'}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope}>Create update plan</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{formatNumber(scopePreview.target_count || 0)}</strong></span><span>Excluded <strong>{formatNumber(scopePreview.excluded_count || 0)}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
@@ -3431,60 +3455,86 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
         </div>
 
         <div className="firmware-lower-grid">
-          <section className="panel firmware-panel">
-            <div className="panel-head">
-              <div>
-                <h3>Firmware update status</h3>
-                <p>See the overall progress, device results, and final report time for each upgrade.</p>
-              </div>
-            </div>
-            {campaigns.length ? (
-              <div className="campaign-table">
-                <div className="campaign-table-head">
-                  <span>Update ID</span>
-                  <span>Target Version</span>
-                  <span>Status</span>
-                  <span>Overall progress</span>
-                  <span>Done</span>
-                  <span>Wait</span>
-                  <span>Failed/Skipped</span>
-                  <span>Start time</span>
-                  <span>Last Updated</span>
-                </div>
-                {campaigns.map((campaign) => {
-                  const progress = firmwareCampaignProgress(campaign);
-                  return (
-                    <button
-                      key={campaign.campaign_id}
-                      type="button"
-                      className={`campaign-table-row${selectedCampaign?.campaign_id === campaign.campaign_id ? ' is-selected' : ''}`}
-                      onClick={() => setSelectedCampaignId(campaign.campaign_id)}
-                    >
-                      <strong>{campaign.campaign_id}</strong>
-                      <span>{campaign.target_version}</span>
-                      <StatusBadge value={normalizeStatusKey(campaign.state)} label={firmwareCampaignStatusLabel(campaign.state)} />
-                      <span>{formatPercent(progress.pct)}</span>
-                      <span>{formatNumber(campaign.applied || 0)}</span>
-                      <span>{formatNumber(campaign.pending || 0)}</span>
-                      <span>{formatNumber(campaign.failed || 0)} / {formatNumber(campaign.skipped || 0)}</span>
-                      <time>{campaign.started_at ? formatRelativeTime(campaign.started_at) : '—'}</time>
-                      <time>{campaign.updated_at ? formatRelativeTime(campaign.updated_at) : '—'}</time>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="empty-state">There are currently no firmware updates.</p>
-            )}
-          </section>
-
-          <FirmwareCampaignDetail campaign={selectedCampaign} onAction={canManageOTA ? onCampaignAction : null} canManage={canManageOTA} />
+          <FirmwareCampaignDetail campaign={selectedCampaign} onAction={canManageOTA ? runCampaignAction : null} canManage={canManageOTA} />
           <FirmwareRiskQueue campaigns={campaigns} onViewDevices={(version) => onViewDevices(version, selectedProductId)} />
         </div>
         </>
       ) : null}
     </section>
   );
+}
+
+function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onAction, canManage, busyAction }) {
+  return (
+    <section className="panel firmware-panel ota-dashboard" aria-label="OTA Dashboard">
+      <div className="panel-head">
+        <div>
+          <h3>OTA Dashboard</h3>
+          <p>OTA rollouts are ordered by start time, newest first. Stop pauses an active rollout so it can be started again.</p>
+        </div>
+      </div>
+      {campaigns.length ? (
+        <div className="ota-dashboard-list">
+          {campaigns.map((campaign) => {
+            const waiting = firmwareCampaignWaitingProgress(campaign);
+            const control = firmwareDashboardAction(campaign, canManage);
+            const controlBusy = control && busyAction === `${campaign.campaign_id}:${control.action}`;
+            return (
+              <article className={`ota-dashboard-row${selectedCampaignId === campaign.campaign_id ? ' is-selected' : ''}`} key={campaign.campaign_id}>
+                <button
+                  type="button"
+                  className="ota-dashboard-row__details"
+                  aria-pressed={selectedCampaignId === campaign.campaign_id}
+                  onClick={() => onSelect(campaign.campaign_id)}
+                >
+                  <span className="ota-dashboard-row__heading">
+                    <strong>{campaign.campaign_id}</strong>
+                    <StatusBadge value={normalizeStatusKey(campaign.state)} label={firmwareCampaignStatusLabel(campaign.state)} />
+                  </span>
+                  <span className="ota-dashboard-row__meta">
+                    <span>Target {campaign.target_version || '—'}</span>
+                    <time dateTime={campaign.started_at || undefined}>Started {formatFirmwareStartTime(campaign.started_at)}</time>
+                  </span>
+                  <span className="ota-dashboard-waiting-copy">
+                    <span>Waiting devices</span>
+                    <strong>{formatNumber(waiting.waiting)} / {formatNumber(waiting.total)}</strong>
+                  </span>
+                  <span
+                    className="ota-dashboard-progress"
+                    role="progressbar"
+                    aria-label={`Waiting devices for ${campaign.campaign_id}`}
+                    aria-valuemin="0"
+                    aria-valuemax={Math.max(waiting.total, 1)}
+                    aria-valuenow={Math.min(waiting.waiting, waiting.total || 0)}
+                    aria-valuetext={`${waiting.waiting} waiting of ${waiting.total} total devices`}
+                  >
+                    <span style={{ width: `${waiting.pct}%` }} />
+                  </span>
+                </button>
+                <div className="ota-dashboard-row__actions">
+                  {control ? (
+                    <button
+                      type="button"
+                      className={control.action === 'pause' ? 'danger-button' : 'primary-button'}
+                      disabled={Boolean(busyAction)}
+                      onClick={() => onAction(campaign.campaign_id, control.action)}
+                    >
+                      {controlBusy ? `${control.label.replace(' OTA', '')}…` : control.label}
+                    </button>
+                  ) : <span className="muted">{canManage ? 'No action available' : 'Read-only'}</span>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : <p className="empty-state">There are currently no OTA rollouts for this Product.</p>}
+    </section>
+  );
+}
+
+function formatFirmwareStartTime(value) {
+  if (Number.isNaN(Date.parse(value || ''))) return 'not started';
+  return formatDateTime(value, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 function FirmwareCampaignDetail({ campaign, onAction, canManage }) {

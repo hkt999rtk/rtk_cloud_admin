@@ -2484,26 +2484,88 @@ p {
   background: #cbd5e1;
 }
 
-.campaign-table,
 .risk-table {
   display: grid;
   gap: 8px;
 }
 
-.campaign-table {
-  overflow-x: auto;
+.ota-dashboard-list {
+  display: grid;
+  gap: 12px;
 }
 
-.campaign-table-head,
-.campaign-table-row {
+.ota-dashboard-row {
   align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 14px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.ota-dashboard-row:hover,
+.ota-dashboard-row.is-selected {
+  border-color: rgba(0, 104, 183, 0.36);
+  box-shadow: 0 14px 28px rgba(3, 83, 144, 0.08);
+}
+
+.ota-dashboard-row__details {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(140px, 1fr) 90px 110px 90px 72px 72px 96px 110px 110px;
-  min-width: 1040px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
 }
 
-.campaign-table-head,
+.ota-dashboard-row__heading,
+.ota-dashboard-row__meta,
+.ota-dashboard-waiting-copy {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.ota-dashboard-row__heading > strong {
+  color: var(--navy);
+  overflow-wrap: anywhere;
+}
+
+.ota-dashboard-row__meta,
+.ota-dashboard-waiting-copy > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ota-dashboard-waiting-copy > strong {
+  color: var(--navy);
+}
+
+.ota-dashboard-progress {
+  background: rgba(37, 56, 76, 0.12);
+  border-radius: 999px;
+  display: block;
+  height: 12px;
+  overflow: hidden;
+}
+
+.ota-dashboard-progress > span {
+  background: var(--brand);
+  display: block;
+  height: 100%;
+}
+
+.ota-dashboard-row__actions,
+.ota-dashboard-row__actions button {
+  min-width: 104px;
+}
+
 .risk-table-head {
   color: var(--muted);
   font-size: 12px;
@@ -2511,7 +2573,6 @@ p {
   text-transform: uppercase;
 }
 
-.campaign-table-row,
 .risk-table-row {
   background: #fff;
   border: 1px solid var(--line);
@@ -2519,25 +2580,10 @@ p {
   padding: 10px;
 }
 
-.campaign-table-row {
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-}
-
-.campaign-table-row:hover,
-.campaign-table-row.is-selected {
-  border-color: rgba(0, 104, 183, 0.32);
-  box-shadow: 0 16px 30px rgba(3, 83, 144, 0.08);
-}
-
-.campaign-table-row strong,
 .risk-table-row strong {
   color: var(--brand);
 }
 
-.campaign-table-row span,
-.campaign-table-row time,
 .risk-table-row span,
 .risk-table-row time {
   color: var(--muted);
@@ -5355,6 +5401,19 @@ th {
   .firmware-rollout-table__head,
   .firmware-rollout-table__row {
     grid-template-columns: 1fr;
+  }
+
+  .ota-dashboard-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ota-dashboard-row__meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ota-dashboard-row__actions button {
+    width: 100%;
   }
 
   .stream-device-table__head,

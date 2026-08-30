@@ -43,29 +43,47 @@ test.describe('Brandname async workflows', () => {
 
   test('[UI-CA-OTA-002] firmware page shows upgrade progress and device results @brand-fleet @smoke', async ({ page }) => {
     await login(page, 'developer');
+    const requestedActions = [];
+    await page.route('**/api/update-plans/*/*', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      requestedActions.push(new URL(route.request().url()).pathname);
+      return route.fulfill({ json: { update_plan: { state: 'accepted' } } });
+    });
     await page.route('**/api/fleet/firmware-distribution?*', async (route) => {
       await route.fulfill({ json: {
         source_status: 'available',
         versions: [{ version: 'v1.2.4', count: 2, pct: 100, is_latest: true }],
         campaigns: [{
-          campaign_id: 'upgrade-e2e-1', target_version: 'v1.2.4', policy: 'normal', state: 'completed',
-          applied: 1, pending: 0, failed: 1, skipped: 0, total: 2,
-          started_at: '2026-08-28T01:00:00Z', updated_at: '2026-08-28T01:05:00Z',
+          campaign_id: 'upgrade-newest', target_version: 'v1.2.4', policy: 'normal', state: 'active',
+          applied: 5, pending: 3, failed: 1, skipped: 1, total: 10,
+          started_at: '2026-08-29T01:00:00Z', updated_at: '2026-08-29T01:05:00Z',
           rollouts: [
             { device_id: 'dev-ok', device_name: 'Camera OK', current_version: 'v1.2.4', target_version: 'v1.2.4', rollout_status: 'applied', last_updated: '2026-08-28T01:04:00Z' },
             { device_id: 'dev-failed', device_name: 'Camera Failed', current_version: 'v1.2.3', target_version: 'v1.2.4', rollout_status: 'failed', failure_reason: 'checksum mismatch', last_updated: '2026-08-28T01:05:00Z' },
           ],
+        }, {
+          campaign_id: 'upgrade-older', target_version: 'v1.2.3', policy: 'normal', state: 'paused',
+          applied: 0, pending: 4, failed: 0, skipped: 0, total: 4,
+          started_at: '2026-08-28T01:00:00Z', updated_at: '2026-08-28T01:05:00Z', rollouts: [],
         }],
       } });
     });
     await page.goto('/console/brand-e2e-01/firmware-ota?product_id=product-alpha');
-    await expect(page.getByRole('heading', { name: 'Firmware update status' })).toBeVisible();
-    await expect(page.getByText('upgrade-e2e-1').first()).toBeVisible();
-    await expect(page.getByText('Completed', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'OTA Dashboard' })).toBeVisible();
+    const dashboardRows = page.locator('.ota-dashboard-row');
+    await expect(dashboardRows).toHaveCount(2);
+    await expect(dashboardRows.nth(0)).toContainText('upgrade-newest');
+    await expect(dashboardRows.nth(1)).toContainText('upgrade-older');
+    await expect(dashboardRows.nth(0)).toContainText('3 / 10');
+    await expect(dashboardRows.nth(0).getByRole('progressbar', { name: 'Waiting devices for upgrade-newest' })).toHaveAttribute('aria-valuenow', '3');
+    await expect(dashboardRows.nth(0).getByRole('progressbar', { name: 'Waiting devices for upgrade-newest' })).toHaveAttribute('aria-valuemax', '10');
+    await expect(page.getByText('Updating', { exact: true }).first()).toBeVisible();
+    await dashboardRows.nth(0).getByRole('button', { name: 'Stop OTA' }).click();
+    await dashboardRows.nth(1).getByRole('button', { name: 'Start OTA' }).click();
+    await expect.poll(() => requestedActions).toEqual(['/api/update-plans/upgrade-newest/pause', '/api/update-plans/upgrade-older/resume']);
     await expect(page.getByText('Camera Failed', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Update failed', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('checksum mismatch')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Retry failed device' })).toBeVisible();
   });
 
   test('[UI-CA-OTA-003] firmware binary calculates release metadata before upload @brand-fleet @smoke', async ({ page }) => {
