@@ -256,6 +256,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/admin/grafana/", s.apiAdminGrafanaProxy)
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
+	s.mux.HandleFunc("POST /api/me/view", s.apiAccountView)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds", s.apiDeveloperBrandClouds)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}", s.apiDeveloperBrandCloud)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members", s.apiDeveloperBrandCloudMembers)
@@ -276,18 +277,16 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/app", s.apiDeveloperPKITestAppBundle)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/device", s.apiDeveloperPKITestDeviceBundle)
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
-	s.mux.HandleFunc("POST /api/auth/customer/login", s.apiCustomerLogin)
+	s.mux.HandleFunc("POST /api/auth/login", s.apiLogin)
 	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
 	s.mux.HandleFunc("POST /api/auth/customer/verification-status", s.apiCustomerVerificationStatus)
 	s.mux.HandleFunc("POST /api/auth/customer/resend-verification", s.apiCustomerResendVerification)
 	s.mux.HandleFunc("POST /api/auth/sign-in", s.apiAuthSignIn)
 	s.mux.HandleFunc("POST /api/auth/login/activate", s.apiAuthLoginActivate)
-	s.mux.HandleFunc("POST /api/auth/brand-cloud/activate", s.apiAuthBrandCloudActivate)
 	s.mux.HandleFunc("POST /api/auth/forgot-password", s.apiAuthForgotPassword)
 	s.mux.HandleFunc("POST /api/auth/reset-password", s.apiAuthResetPassword)
 	s.mux.HandleFunc("POST /api/auth/sso/start", s.apiSSOStart)
 	s.mux.HandleFunc("GET /api/auth/sso/callback", s.apiSSOCallback)
-	s.mux.HandleFunc("POST /api/auth/platform/login", s.apiPlatformLogin)
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
 	s.mux.HandleFunc("POST /api/orgs/{orgId}/quota-raise-requests", s.apiQuotaRaiseRequest)
 	s.mux.HandleFunc("GET /api/billing/account", s.apiBillingAccount)
@@ -359,13 +358,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/admin/brand-clouds", s.apiAdminBrandClouds)
 	s.mux.HandleFunc("GET /api/admin/brand-clouds/{brandCloudId}", s.apiAdminBrandCloud)
 	s.mux.HandleFunc("PATCH /api/admin/brand-clouds/{brandCloudId}", s.apiAdminBrandCloud)
-	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/members", s.apiAdminBrandCloudMember)
 	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users", s.apiAdminBrandCloudUser)
 	s.mux.HandleFunc("GET /api/admin/brand-clouds/{brandCloudId}/users", s.apiAdminBrandCloudUsers)
-	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}/disable", s.apiAdminBrandCloudUserAction)
-	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}/enable", s.apiAdminBrandCloudUserAction)
-	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}/approve", s.apiAdminBrandCloudUserAction)
-	s.mux.HandleFunc("DELETE /api/admin/brand-clouds/{brandCloudId}/users/{brandCloudUserId}", s.apiAdminBrandCloudUserAction)
+	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{userId}/disable", s.apiAdminBrandCloudUserAction)
+	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{userId}/enable", s.apiAdminBrandCloudUserAction)
+	s.mux.HandleFunc("DELETE /api/admin/brand-clouds/{brandCloudId}/users/{userId}", s.apiAdminBrandCloudUserAction)
 	s.mux.HandleFunc("GET /api/admin/chipset-providers", s.apiAdminChipsetProviders)
 	s.mux.HandleFunc("POST /api/admin/chipset-providers", s.apiAdminChipsetProviders)
 	s.mux.HandleFunc("GET /api/admin/chipset-providers/{providerId}", s.apiAdminChipsetProvider)
@@ -401,7 +398,6 @@ func (s *Server) routes() {
 		"/login",
 		"/login/check-email",
 		"/login/activate",
-		"/brand-cloud/activate",
 		"/forgot-password",
 		"/reset-password",
 		"/signup",
@@ -609,19 +605,6 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, me)
 		return
 	}
-	if session.Kind == "platform_admin" {
-		writeJSON(w, s.meAuthSettings(contracts.Me{
-			UserID:                 session.Subject,
-			Email:                  session.Email,
-			Name:                   session.Email,
-			Kind:                   session.Kind,
-			Memberships:            []contracts.Membership{},
-			Authenticated:          true,
-			Capabilities:           platformAdminCompatibilityCapabilities(),
-			UpstreamAccountManager: s.usePlatformAdminUpstream(session),
-		}))
-		return
-	}
 	me := s.meAuthSettings(contracts.Me{
 		UserID:        session.Subject,
 		Email:         session.Email,
@@ -650,10 +633,16 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		me.UserID = upstream.User.ID
 		me.Email = upstream.User.Email
 		me.Name = fallback(upstream.User.Name, upstream.User.Email)
-		for _, org := range upstream.Organizations {
+		for _, org := range upstream.Memberships() {
 			me.Memberships = append(me.Memberships, membershipFromOrganization(org))
 		}
-		me.Capabilities = aggregateMembershipCapabilities(me.Memberships, me.ActiveOrgID)
+		me.PlatformCapabilities = upstream.EffectivePlatformCapabilities()
+		if session.Kind == "platform_admin" {
+			me.Capabilities = me.PlatformCapabilities
+			me.UpstreamAccountManager = true
+		} else {
+			me.Capabilities = aggregateMembershipCapabilities(me.Memberships, me.ActiveOrgID)
+		}
 	} else {
 		memberships, err := s.demoMemberships()
 		if err != nil {
@@ -664,9 +653,57 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		if me.ActiveOrgID == "" && len(memberships) > 0 {
 			me.ActiveOrgID = memberships[0].OrganizationID
 		}
-		me.Capabilities = aggregateMembershipCapabilities(me.Memberships, me.ActiveOrgID)
+		if session.Kind == "platform_admin" {
+			me.Capabilities = platformAdminCompatibilityCapabilities()
+			me.PlatformCapabilities = me.Capabilities
+		} else {
+			me.Capabilities = aggregateMembershipCapabilities(me.Memberships, me.ActiveOrgID)
+		}
 	}
 	writeJSON(w, me)
+}
+
+func (s *Server) apiAccountView(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.requestSession(r)
+	if !ok {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+	var body struct {
+		View string `json:"view"`
+	}
+	if json.NewDecoder(r.Body).Decode(&body) != nil {
+		http.Error(w, "view is required", http.StatusBadRequest)
+		return
+	}
+	me, _, err := s.resolveCustomerProfile(r.Context(), accountclient.Tokens{AccessToken: session.AccessToken, RefreshToken: session.RefreshToken})
+	if err != nil {
+		s.writeCustomerError(w, err)
+		return
+	}
+	kind := ""
+	switch strings.TrimSpace(body.View) {
+	case "customer":
+		if len(me.Memberships()) > 0 {
+			kind = "customer"
+		}
+	case "platform":
+		if hasAnyPlatformCapability(me.EffectivePlatformCapabilities()) {
+			kind = "platform_admin"
+		}
+	default:
+		http.Error(w, "view must be customer or platform", http.StatusBadRequest)
+		return
+	}
+	if kind == "" {
+		http.Error(w, "view is not authorized", http.StatusForbidden)
+		return
+	}
+	if err := s.sessions.UpdateSessionKind(session.ID, kind); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, map[string]string{"status": "ok", "kind": kind})
 }
 
 func (s *Server) meAuthSettings(me contracts.Me) contracts.Me {
@@ -1141,55 +1178,6 @@ func (s *Server) apiAuthLoginActivate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"status": "ok", "kind": kind})
 }
 
-func (s *Server) apiAuthBrandCloudActivate(w http.ResponseWriter, r *http.Request) {
-	if !s.accountClient.Enabled() {
-		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
-		return
-	}
-	var body struct {
-		TenantSlug string `json:"tenant_slug"`
-		Token      string `json:"token"`
-		Password   string `json:"password"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil ||
-		strings.TrimSpace(body.TenantSlug) == "" ||
-		strings.TrimSpace(body.Token) == "" ||
-		len(body.Password) < 8 {
-		http.Error(w, "tenant_slug, token, and password are required", http.StatusBadRequest)
-		return
-	}
-	result, err := s.accountClient.ActivateBrandCloudUser(
-		r.Context(), strings.TrimSpace(body.TenantSlug), strings.TrimSpace(body.Token), body.Password,
-	)
-	if err != nil {
-		s.writeAuthProxyError(w, err)
-		return
-	}
-	session, err := s.sessions.CreateSession(
-		"brand_cloud_user", result.BrandCloudUser.ID, result.BrandCloudUser.Email,
-		result.Tokens.AccessToken, result.Tokens.RefreshToken, result.BrandCloud.ID,
-		tokenTTL(result.Tokens),
-	)
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	setSessionCookie(w, session.ID)
-	writeJSON(w, map[string]any{
-		"status": "ok",
-		"brand_cloud": map[string]string{
-			"id":          result.BrandCloud.ID,
-			"name":        result.BrandCloud.Name,
-			"tenant_slug": result.BrandCloud.TenantSlug,
-		},
-		"account": map[string]string{
-			"id":           result.BrandCloudUser.ID,
-			"email":        result.BrandCloudUser.Email,
-			"display_name": result.BrandCloudUser.DisplayName,
-		},
-	})
-}
-
 func (s *Server) apiAuthForgotPassword(w http.ResponseWriter, r *http.Request) {
 	if !s.accountClient.Enabled() {
 		http.Error(w, "ACCOUNT_MANAGER_BASE_URL is not configured", http.StatusServiceUnavailable)
@@ -1327,6 +1315,10 @@ func (s *Server) apiQuotaRaiseRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
+	s.apiLogin(w, r)
+}
+
+func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 	if !s.cfg.CustomerPasswordLoginEnabled {
 		http.Error(w, "customer password sign-in is disabled", http.StatusForbidden)
 		return
@@ -1338,6 +1330,7 @@ func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
+		Next     string `json:"next,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid login request", http.StatusBadRequest)
@@ -1362,84 +1355,65 @@ func (s *Server) apiCustomerLogin(w http.ResponseWriter, r *http.Request) {
 			tokens = login.Tokens
 		}
 	}
-	if err == nil && len(me.Organizations) == 0 {
-		http.Error(w, errCustomerActiveOrgInvalid.Error(), http.StatusForbidden)
+	if err != nil {
+		s.writeCustomerError(w, err)
+		return
+	}
+	memberships := me.Memberships()
+	kind := selectAccountView(body.Next, len(memberships) > 0, hasAnyPlatformCapability(me.EffectivePlatformCapabilities()))
+	if kind == "" {
+		http.Error(w, "account has no authorized view", http.StatusForbidden)
 		return
 	}
 	activeOrgID := ""
-	if err == nil && len(me.Organizations) > 0 {
-		activeOrgID = me.Organizations[0].ID
+	if len(memberships) > 0 {
+		activeOrgID = memberships[0].ID
 	}
-	session, err := s.sessions.CreateSession("customer", login.User.ID, login.User.Email, tokens.AccessToken, tokens.RefreshToken, activeOrgID, tokenTTL(tokens))
+	session, err := s.sessions.CreateSession(kind, login.User.ID, login.User.Email, tokens.AccessToken, tokens.RefreshToken, activeOrgID, tokenTTL(tokens))
 	if err != nil {
 		writeError(w, err)
 		return
 	}
 	setSessionCookie(w, session.ID)
-	writeJSON(w, map[string]string{"status": "ok"})
+	writeJSON(w, map[string]string{"status": "ok", "kind": kind})
 }
 
-func (s *Server) apiPlatformLogin(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+func selectAccountView(next string, hasMembership, hasPlatformCapability bool) string {
+	next = strings.TrimSpace(next)
+	if (next == "/admin" || strings.HasPrefix(next, "/admin/")) && hasPlatformCapability {
+		return "platform_admin"
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid login request", http.StatusBadRequest)
-		return
+	if (next == "/console" || strings.HasPrefix(next, "/console/")) && hasMembership {
+		return "customer"
 	}
-	body.Email = strings.TrimSpace(body.Email)
-	session, err := s.createAccountManagerPlatformSession(r.Context(), body.Email, body.Password)
-	if err != nil {
-		http.Error(w, "invalid credentials", http.StatusUnauthorized)
-		return
+	if hasMembership {
+		return "customer"
 	}
-	setSessionCookie(w, session.ID)
-	writeJSON(w, map[string]string{"status": "ok"})
-}
-
-func (s *Server) createAccountManagerPlatformSession(ctx context.Context, email, password string) (store.Session, error) {
-	if !s.accountClient.Enabled() {
-		return store.Session{}, errCustomerSessionInvalid
+	if hasPlatformCapability {
+		return "platform_admin"
 	}
-	login, err := s.accountClient.Login(ctx, email, password)
-	if err != nil {
-		return store.Session{}, err
-	}
-	if strings.TrimSpace(login.Tokens.AccessToken) == "" {
-		return store.Session{}, errCustomerSessionInvalid
-	}
-	if _, err := s.accountClient.BrandClouds(ctx, login.Tokens.AccessToken); err != nil {
-		me, meErr := s.accountClient.Me(ctx, login.Tokens.AccessToken)
-		if meErr != nil || !hasAnyPlatformCapability(me.Capabilities) {
-			return store.Session{}, err
-		}
-	}
-	return s.sessions.CreateSession("platform_admin", login.User.ID, login.User.Email, login.Tokens.AccessToken, login.Tokens.RefreshToken, "", tokenTTL(login.Tokens))
+	return ""
 }
 
 func (s *Server) createSessionFromActivatedLogin(ctx context.Context, login accountclient.LoginResult) (store.Session, string, error) {
 	if strings.TrimSpace(login.Tokens.AccessToken) == "" {
 		return store.Session{}, "", errCustomerSessionInvalid
 	}
-	if _, platformErr := s.accountClient.BrandClouds(ctx, login.Tokens.AccessToken); platformErr == nil {
-		session, sessionErr := s.sessions.CreateSession("platform_admin", login.User.ID, login.User.Email, login.Tokens.AccessToken, login.Tokens.RefreshToken, "", tokenTTL(login.Tokens))
-		return session, "platform_admin", sessionErr
-	} else if !isAccessDeniedHTTPError(platformErr) {
-		return store.Session{}, "", platformErr
-	} else if platformMe, meErr := s.accountClient.Me(ctx, login.Tokens.AccessToken); meErr == nil && hasAnyPlatformCapability(platformMe.Capabilities) {
-		session, sessionErr := s.sessions.CreateSession("platform_admin", login.User.ID, login.User.Email, login.Tokens.AccessToken, login.Tokens.RefreshToken, "", tokenTTL(login.Tokens))
-		return session, "platform_admin", sessionErr
-	}
 	me, tokens, err := s.resolveCustomerProfile(ctx, login.Tokens)
 	if err != nil {
 		return store.Session{}, "", err
 	}
-	if len(me.Organizations) == 0 {
+	memberships := me.Memberships()
+	kind := selectAccountView("", len(memberships) > 0, hasAnyPlatformCapability(me.EffectivePlatformCapabilities()))
+	if kind == "" {
 		return store.Session{}, "", errCustomerActiveOrgInvalid
 	}
-	session, err := s.sessions.CreateSession("customer", login.User.ID, login.User.Email, tokens.AccessToken, tokens.RefreshToken, me.Organizations[0].ID, tokenTTL(tokens))
-	return session, "customer", err
+	activeOrgID := ""
+	if len(memberships) > 0 {
+		activeOrgID = memberships[0].ID
+	}
+	session, err := s.sessions.CreateSession(kind, login.User.ID, login.User.Email, tokens.AccessToken, tokens.RefreshToken, activeOrgID, tokenTTL(tokens))
+	return session, kind, err
 }
 
 func (s *Server) apiLogout(w http.ResponseWriter, r *http.Request) {
@@ -5325,36 +5299,6 @@ func (s *Server) apiAdminBrandCloud(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]accountclient.BrandCloud{"brand_cloud": brandCloud})
 }
 
-func (s *Server) apiAdminBrandCloudMember(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.requireUpstreamPlatformAdmin(w, r)
-	if !ok {
-		return
-	}
-	brandCloudID := strings.TrimSpace(r.PathValue("brandCloudId"))
-	if brandCloudID == "" {
-		http.Error(w, "brand cloud id is required", http.StatusBadRequest)
-		return
-	}
-	var body accountclient.BrandCloudMemberRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid brand cloud member request", http.StatusBadRequest)
-		return
-	}
-	body.BrandCloudUserID = strings.TrimSpace(body.BrandCloudUserID)
-	body.Role = strings.TrimSpace(body.Role)
-	if body.BrandCloudUserID == "" {
-		http.Error(w, "brand_cloud_user_id is required", http.StatusBadRequest)
-		return
-	}
-	member, err := s.accountClient.AssignBrandCloudMember(r.Context(), session.AccessToken, brandCloudID, body)
-	if err != nil {
-		s.writeUpstreamReadErrorForSession(w, session.ID, err)
-		return
-	}
-	s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.member.assign", brandCloudID, "", "accepted")
-	writeJSONStatus(w, http.StatusCreated, map[string]accountclient.Member{"member": member})
-}
-
 func (s *Server) apiAdminBrandCloudUser(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.requireUpstreamPlatformAdmin(w, r)
 	if !ok {
@@ -5365,7 +5309,7 @@ func (s *Server) apiAdminBrandCloudUser(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "brand cloud id is required", http.StatusBadRequest)
 		return
 	}
-	var body accountclient.BrandCloudUserRequest
+	var body accountclient.BrandCloudAccountRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid brand cloud user request", http.StatusBadRequest)
 		return
@@ -5400,7 +5344,7 @@ func (s *Server) apiAdminBrandCloudUsers(w http.ResponseWriter, r *http.Request)
 		s.writeUpstreamReadErrorForSession(w, session.ID, err)
 		return
 	}
-	writeJSON(w, map[string][]accountclient.BrandCloudUser{"brand_cloud_users": users})
+	writeJSON(w, map[string][]accountclient.Member{"users": users})
 }
 
 func (s *Server) apiAdminBrandCloudUserAction(w http.ResponseWriter, r *http.Request) {
@@ -5409,32 +5353,30 @@ func (s *Server) apiAdminBrandCloudUserAction(w http.ResponseWriter, r *http.Req
 		return
 	}
 	brandCloudID := strings.TrimSpace(r.PathValue("brandCloudId"))
-	brandCloudUserID := strings.TrimSpace(r.PathValue("brandCloudUserId"))
-	if brandCloudID == "" || brandCloudUserID == "" {
+	userID := strings.TrimSpace(r.PathValue("userId"))
+	if brandCloudID == "" || userID == "" {
 		http.Error(w, "brand cloud id and user id are required", http.StatusBadRequest)
 		return
 	}
 	if r.Method == http.MethodDelete {
-		if err := s.accountClient.DeleteBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, brandCloudUserID); err != nil {
+		if err := s.accountClient.DeleteBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, userID); err != nil {
 			s.writeUpstreamReadErrorForSession(w, session.ID, err)
 			return
 		}
-		s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.user.delete", brandCloudID, brandCloudUserID, "accepted")
+		s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.membership.delete", brandCloudID, userID, "accepted")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	action := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/admin/brand-clouds/"+brandCloudID+"/users/"+brandCloudUserID), "/")
+	action := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/admin/brand-clouds/"+brandCloudID+"/users/"+userID), "/")
 	var (
-		user accountclient.BrandCloudUser
-		err  error
+		member accountclient.Member
+		err    error
 	)
 	switch action {
 	case "disable":
-		user, err = s.accountClient.DisableBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, brandCloudUserID)
+		member, err = s.accountClient.DisableBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, userID)
 	case "enable":
-		user, err = s.accountClient.EnableBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, brandCloudUserID)
-	case "approve":
-		user, err = s.accountClient.ApproveBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, brandCloudUserID)
+		member, err = s.accountClient.EnableBrandCloudUser(r.Context(), session.AccessToken, brandCloudID, userID)
 	default:
 		http.NotFound(w, r)
 		return
@@ -5443,8 +5385,8 @@ func (s *Server) apiAdminBrandCloudUserAction(w http.ResponseWriter, r *http.Req
 		s.writeUpstreamReadErrorForSession(w, session.ID, err)
 		return
 	}
-	s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.user."+action, brandCloudID, brandCloudUserID, "accepted")
-	writeJSON(w, map[string]accountclient.BrandCloudUser{"brand_cloud_user": user})
+	s.auditPlatformBrandCloudAction(r, session, "platform.brand_cloud.membership."+action, brandCloudID, userID, "accepted")
+	writeJSON(w, map[string]accountclient.Member{"member": member})
 }
 
 func (s *Server) apiAdminSSOProvider(w http.ResponseWriter, r *http.Request) {

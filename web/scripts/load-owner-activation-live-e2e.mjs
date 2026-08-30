@@ -15,11 +15,10 @@ const imapUID = Number(requiredEnv('LOAD_OWNER_IMAP_UID'));
 const parsedActivationURL = new URL(activationURL);
 if (
   parsedActivationURL.origin !== expectedOrigin ||
-  parsedActivationURL.pathname.replace(/\/$/, '') !== '/brand-cloud/activate' ||
-  parsedActivationURL.searchParams.get('tenant') !== expectedTenant ||
+  parsedActivationURL.pathname.replace(/\/$/, '') !== '/signup/verify' ||
   !parsedActivationURL.searchParams.get('token')
 ) {
-  throw new Error('activation URL does not match the expected staging tenant');
+  throw new Error('activation URL is not a global signup verification URL');
 }
 
 const browser = await chromium.launch().catch(() => chromium.launch({ channel: 'chrome' }));
@@ -30,30 +29,36 @@ try {
   page.on('response', (response) => {
     if (
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/auth/brand-cloud/activate'
+      new URL(response.url()).pathname === '/api/auth/customer/verify-email'
     ) activationResponse = response;
   });
   await page.goto(activationURL, { waitUntil: 'networkidle' });
-  await page.getByPlaceholder('New password').fill(password);
-  await page.getByRole('button', { name: 'Activate account' }).click();
-  await page.getByText(`Activated ${expectedDisplayName} for ${expectedBrandName}.`, { exact: true }).waitFor({ timeout: 30_000 });
+  await page.getByLabel('New password', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Verify and continue', exact: true }).click();
+  await page.waitForURL(/\/console\//, { timeout: 30_000 });
   if (!activationResponse || activationResponse.status() !== 200) {
     throw new Error(`brand owner activation returned HTTP ${activationResponse?.status() || 'unknown'}`);
   }
-  const body = await activationResponse.json();
-  if (
-    body.brand_cloud?.name !== expectedBrandName ||
-    body.brand_cloud?.tenant_slug !== expectedTenant ||
-    body.account?.email !== expectedEmail ||
-    body.account?.display_name !== expectedDisplayName
-  ) {
-    throw new Error('activation response did not match the resolved brand plan');
+  const meResponse = await page.request.get(`${expectedOrigin}/api/me`);
+  const me = await meResponse.json();
+  if (!meResponse.ok() || me.email !== expectedEmail || !me.memberships?.some((item) => item.organization === expectedBrandName && item.role === 'owner')) {
+    throw new Error(`activated global account did not expose owner membership for ${expectedTenant}`);
   }
   const cookies = await context.cookies(expectedOrigin);
   if (!cookies.some((cookie) => cookie.name === 'rtk_admin_session' && cookie.httpOnly)) {
     throw new Error('activation did not establish an HTTP-only Admin Console session');
   }
+  await page.request.post(`${expectedOrigin}/api/auth/logout`);
   await context.close();
+
+  const loginContext = await browser.newContext();
+  const loginPage = await loginContext.newPage();
+  await loginPage.goto(`${expectedOrigin}/login`, { waitUntil: 'networkidle' });
+  await loginPage.getByLabel('Email', { exact: true }).fill(expectedEmail);
+  await loginPage.getByLabel('Password', { exact: true }).fill(password);
+  await loginPage.getByRole('button', { name: 'Login', exact: true }).click();
+  await loginPage.waitForURL(/\/console\//, { timeout: 30_000 });
+  await loginContext.close();
 
   const replayContext = await browser.newContext();
   const replayPage = await replayContext.newPage();
@@ -61,12 +66,12 @@ try {
   replayPage.on('response', (response) => {
     if (
       response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/auth/brand-cloud/activate'
+      new URL(response.url()).pathname === '/api/auth/customer/verify-email'
     ) replayResponse = response;
   });
   await replayPage.goto(activationURL, { waitUntil: 'networkidle' });
-  await replayPage.getByPlaceholder('New password').fill(password);
-  await replayPage.getByRole('button', { name: 'Activate account' }).click();
+  await replayPage.getByLabel('New password', { exact: true }).fill(password);
+  await replayPage.getByRole('button', { name: 'Verify and continue', exact: true }).click();
   await replayPage.locator('.error').first().waitFor({ state: 'visible', timeout: 30_000 });
   if (!replayResponse || replayResponse.status() !== 400) {
     throw new Error(`replayed activation token returned HTTP ${replayResponse?.status() || 'unknown'}`);

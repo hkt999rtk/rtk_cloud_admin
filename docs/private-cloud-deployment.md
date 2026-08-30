@@ -156,8 +156,8 @@ checks after startup:
 
 - `GET /healthz` returns `ok`
 - `GET /api/service-health` returns the upstream status summary
-- `POST /api/auth/platform/login` accepts Account Manager platform-admin
-  credentials and creates a platform session only after upstream authorization
+- `POST /api/auth/login` accepts global Account Manager credentials, fetches
+  memberships and platform capabilities once, and creates the shared account session
 - `GET /api/me` succeeds when the login cookie is replayed
 - `GET /api/summary` returns the dashboard summary payload
 - `GET /console` renders the dashboard shell

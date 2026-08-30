@@ -57,7 +57,7 @@ func TestDeveloperPKIAppBundleProxy(t *testing.T) {
 	defer upstream.Close()
 
 	srv, sessionID := newDeveloperPKITestServer(t, upstream.URL, "")
-	req := developerPKIRequest(t, sessionID, "/api/developer/pki/test-bundles/app", "idem-app", `{"brand_cloud_id":"brand-1","target_type":"brand_cloud_user","target_id":"user-1","csr_pem":"CSR"}`)
+	req := developerPKIRequest(t, sessionID, "/api/developer/pki/test-bundles/app", "idem-app", `{"brand_cloud_id":"brand-1","target_type":"user","target_id":"user-1","csr_pem":"CSR"}`)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != certificateBundleMIME || rec.Header().Get("Cache-Control") != "no-store" {

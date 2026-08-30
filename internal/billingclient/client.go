@@ -344,7 +344,7 @@ func (c *Client) doHeaders(ctx context.Context, method, path, actorID, permissio
 
 func (c *Client) headers(req *http.Request, actorID, permission string) {
 	req.Header.Set("Authorization", "Bearer "+c.serviceToken)
-	req.Header.Set("X-Billing-Actor-Type", "brand_cloud_user")
+	req.Header.Set("X-Billing-Actor-Type", "user")
 	req.Header.Set("X-Billing-Actor-ID", actorID)
 	req.Header.Set("X-Billing-Permissions", permission)
 }

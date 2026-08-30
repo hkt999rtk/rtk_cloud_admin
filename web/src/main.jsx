@@ -289,7 +289,7 @@ function App() {
   const mobileMenuButtonRef = useRef(null);
   const isPublicRoute = isPublicRouteId(active);
   const isLoginRoute = active === 'login';
-  const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'brand-cloud-activate' || active === 'forgot-password' || active === 'reset-password';
+  const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
   const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept' || active === 'product-collaborator-invitation-accept';
   const navigationRoute = me?.kind === 'platform_admin' ? 'platform-dashboard' : me?.kind === 'customer' ? 'overview' : active;
@@ -903,13 +903,6 @@ function App() {
     try {
       const result = await postJSON('/api/admin/brand-clouds', payload.brandCloud);
       let memberError = '';
-      if (payload.initialMember?.brand_cloud_user_id) {
-        try {
-          await postJSON(`/api/admin/brand-clouds/${encodeURIComponent(result.brand_cloud.id)}/members`, payload.initialMember);
-        } catch (err) {
-          memberError = userFacingBrandCloudError(err);
-        }
-      }
       if (payload.initialUser?.email) {
         try {
           await postJSON(`/api/admin/brand-clouds/${encodeURIComponent(result.brand_cloud.id)}/users`, payload.initialUser);
@@ -935,17 +928,6 @@ function App() {
       const result = await sendJSONWithMethod('PATCH', `/api/admin/brand-clouds/${encodeURIComponent(brandCloudID)}`, patch);
       setBrandClouds((brands) => brands.map((brand) => brand.id === brandCloudID ? result.brand_cloud : brand));
       return result.brand_cloud;
-    } catch (err) {
-      const message = userFacingBrandCloudError(err);
-      setError(message);
-      throw new Error(message);
-    }
-  }
-
-  async function handleAssignBrandCloudMember(brandCloudID, payload) {
-    setError('');
-    try {
-      return await postJSON(`/api/admin/brand-clouds/${encodeURIComponent(brandCloudID)}/members`, payload);
     } catch (err) {
       const message = userFacingBrandCloudError(err);
       setError(message);
@@ -982,40 +964,14 @@ function App() {
   async function handlePasswordLogin(credentials) {
     setError('');
     const nextPath = loginNextFromLocation(window.location);
-    const order = passwordLoginOrderForNext(nextPath);
-    const errors = {};
-    for (const kind of order) {
-      try {
-        if (kind === 'platform') {
-          await postJSON('/api/auth/platform/login', credentials);
-          window.location.assign(destinationForSession({ authenticated: true, kind: 'platform_admin' }, nextPath));
-          return;
-        }
-        await postJSON('/api/auth/customer/login', credentials);
-        window.location.assign(destinationForSession({ authenticated: true, kind: 'customer' }, nextPath));
-        return;
-      } catch (err) {
-        errors[kind] = err;
-      }
+    try {
+      const result = await postJSON('/api/auth/login', { ...credentials, next: nextPath });
+      window.location.assign(destinationForSession({ authenticated: true, kind: result.kind }, nextPath));
+    } catch (err) {
+      if (err?.status === 401 || /invalid credentials/i.test(err?.message || '')) throw new Error('Email or password is incorrect.');
+      if (err?.status === 403) throw new Error('This account does not have access to an available view.');
+      throw new Error('Sign-in is temporarily unavailable. Please try again later.');
     }
-
-    const message = `${errors.customer?.message || ''}\n${errors.platform?.message || ''}`;
-    if (order[0] === 'platform' && message.includes('platform password sign-in is disabled')) {
-      const nextError = 'Platform password sign-in is not enabled for this environment.';
-      throw new Error(nextError);
-    }
-    if (order[0] === 'customer' && message.includes('customer password sign-in is disabled')) {
-      const nextError = 'Password sign-in is not enabled for this environment.';
-      throw new Error(nextError);
-    }
-    if (((errors.customer?.status === 401 || errors.customer?.status === 403) &&
-      (errors.platform?.status === 401 || errors.platform?.status === 403)) ||
-      /invalid credentials/i.test(message)) {
-      const nextError = 'Email or password is incorrect.';
-      throw new Error(nextError);
-    }
-    const nextError = 'Sign-in is temporarily unavailable. Please try again later.';
-    throw new Error(nextError);
   }
 
   async function handleLoginActivate(token) {
@@ -1024,16 +980,6 @@ function App() {
       const result = await postJSON('/api/auth/login/activate', { token });
       window.location.assign(destinationForSession({ authenticated: true, kind: result.kind || 'customer' }, loginNextFromLocation(window.location)));
       return result;
-    } catch (err) {
-      const nextError = userFacingLoginActivationError(err);
-      throw new Error(nextError);
-    }
-  }
-
-  async function handleBrandCloudActivate(payload) {
-    setError('');
-    try {
-      return await postJSON('/api/auth/brand-cloud/activate', payload);
     } catch (err) {
       const nextError = userFacingLoginActivationError(err);
       throw new Error(nextError);
@@ -1149,6 +1095,16 @@ function App() {
     setRefreshTick((tick) => tick + 1);
   }
 
+  async function handleSwitchView(view) {
+	setError('');
+	try {
+	  const result = await postJSON('/api/me/view', { view });
+	  window.location.assign(result.kind === 'platform_admin' ? '/admin' : '/console');
+	} catch (err) {
+	  setError(err?.message || 'View switch failed.');
+	}
+  }
+
   async function handleLogout() {
     setMobileNavOpen(false);
     setError('');
@@ -1187,7 +1143,6 @@ function App() {
           loading={loading}
           onSignup={handleSignup}
           onLoginActivate={handleLoginActivate}
-          onBrandCloudActivate={handleBrandCloudActivate}
           onPasswordLogin={handlePasswordLogin}
           onForgotPassword={handleForgotPassword}
           onResetPassword={handleResetPassword}
@@ -1272,6 +1227,8 @@ function App() {
             <h1>{titleFor(active)}</h1>
           </div>
           <div className="topbar-controls">
+			{me?.authenticated && me?.kind === 'customer' && (me?.platform_capabilities?.length ?? 0) > 0 ? <button type="button" className="ghost-button" onClick={() => handleSwitchView('platform')}>Platform view</button> : null}
+			{me?.authenticated && me?.kind === 'platform_admin' && (me?.memberships?.length ?? 0) > 0 ? <button type="button" className="ghost-button" onClick={() => handleSwitchView('customer')}>Brand Cloud view</button> : null}
             {me?.kind === 'customer' && (developerBrandClouds.length > 1 || (me?.memberships?.length ?? 0) > 1) ? (
               <select
                 className="org-switcher"
@@ -1406,7 +1363,6 @@ function App() {
             }}
             onCreateBrand={handleCreateBrandCloud}
             onUpdateBrand={handleUpdateBrandCloud}
-            onAssignMember={handleAssignBrandCloudMember}
             onCreateUser={handleCreateBrandCloudUser}
           />
         ) : null}
@@ -1420,7 +1376,7 @@ function App() {
   );
 }
 
-function LoginPage({ active, error, loading, onSignup, onLoginActivate, onBrandCloudActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
+function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
@@ -1432,8 +1388,6 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onBrandC
     <LoginCheckEmail email={email} />
   ) : active === 'login-activate' ? (
     <LoginActivateView token={token} onLoginActivate={onLoginActivate} />
-  ) : active === 'brand-cloud-activate' ? (
-    <BrandCloudActivateView token={token} tenant={params.get('tenant') || ''} onActivate={onBrandCloudActivate} />
   ) : active === 'forgot-password' ? (
     <ForgotPasswordView email={email} onForgotPassword={onForgotPassword} />
   ) : active === 'reset-password' ? (
@@ -1455,36 +1409,6 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onBrandC
           {error ? <div className="error">{error}</div> : null}
         </section>
       </main>
-    </div>
-  );
-}
-
-function BrandCloudActivateView({ token, tenant, onActivate }) {
-  const [password, setPassword] = useState('');
-  const [status, setStatus] = useState('');
-  const [error, setLocalError] = useState('');
-  const [busy, setBusy] = useState(false);
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setLocalError('');
-    try {
-      const result = await onActivate({ tenant_slug: tenant, token, password });
-      setStatus(`Activated ${result.account?.display_name || result.account?.email || 'account'} for ${result.brand_cloud?.name || tenant}.`);
-    } catch (err) {
-      setLocalError(userFacingLoginActivationError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className="auth-stack">
-      <form className="auth-inline" onSubmit={submit}>
-        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="New password" minLength="8" required />
-        <button type="submit" disabled={busy || !token || !tenant}>{busy ? 'Activating' : 'Activate account'}</button>
-      </form>
-      {status ? <p className="auth-status">{status}</p> : null}
-      {error ? <p className="error">{error}</p> : null}
     </div>
   );
 }
@@ -3126,7 +3050,7 @@ function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
 }
 function PKITestBundleTool({ activeCloudId }) {
   const [kind, setKind] = useState('app');
-  const [targetType, setTargetType] = useState('brand_cloud_user');
+  const [targetType, setTargetType] = useState('user');
   const [targetId, setTargetId] = useState('');
   const [profileId, setProfileId] = useState('');
   const [serial, setSerial] = useState('');
@@ -3148,7 +3072,7 @@ function PKITestBundleTool({ activeCloudId }) {
     } catch (_) { setMessage('The test bundle could not be created. Please try again.'); }
     finally { setBusy(false); }
   }
-  return <section className="panel"><div className="panel-head"><div><h3>PKI Test Bundle</h3><p>The exportable P-256 key is generated locally; only the CSR is sent to the backend. Certificates are valid for 30 days and intended for local or staging use only.</p></div></div><form className="inline-form pki-test-form" onSubmit={issue}><select className="select-control" aria-label="Certificate Type" value={kind} onChange={(event) => setKind(event.target.value)}><option value="app">App mTLS</option><option value="device">Device mTLS</option></select>{kind === 'app' ? <select className="select-control" aria-label="App Identity Type" value={targetType} onChange={(event) => setTargetType(event.target.value)}><option value="brand_cloud_user">Brand Cloud user</option><option value="end_user">End user</option></select> : null}<input required placeholder={kind === 'device' ? 'Device ID' : 'User ID'} value={targetId} onChange={(event) => setTargetId(event.target.value)} />{kind === 'device' ? <><input required placeholder="Device profile ID" value={profileId} onChange={(event) => setProfileId(event.target.value)} /><input required placeholder="Serial number" value={serial} onChange={(event) => setSerial(event.target.value)} /></> : null}<button type="submit" className="primary-button" disabled={busy}>{busy ? 'Creating…' : 'Generate and download'}</button></form>{message ? <p className="notice" role="status">{message}</p> : null}</section>;
+  return <section className="panel"><div className="panel-head"><div><h3>PKI Test Bundle</h3><p>The exportable P-256 key is generated locally; only the CSR is sent to the backend. Certificates are valid for 30 days and intended for local or staging use only.</p></div></div><form className="inline-form pki-test-form" onSubmit={issue}><select className="select-control" aria-label="Certificate Type" value={kind} onChange={(event) => setKind(event.target.value)}><option value="app">App mTLS</option><option value="device">Device mTLS</option></select>{kind === 'app' ? <select className="select-control" aria-label="App Identity Type" value={targetType} onChange={(event) => setTargetType(event.target.value)}><option value="user">Global user</option><option value="end_user">End user</option></select> : null}<input required placeholder={kind === 'device' ? 'Device ID' : 'User ID'} value={targetId} onChange={(event) => setTargetId(event.target.value)} />{kind === 'device' ? <><input required placeholder="Device profile ID" value={profileId} onChange={(event) => setProfileId(event.target.value)} /><input required placeholder="Serial number" value={serial} onChange={(event) => setSerial(event.target.value)} /></> : null}<button type="submit" className="primary-button" disabled={busy}>{busy ? 'Creating…' : 'Generate and download'}</button></form>{message ? <p className="notice" role="status">{message}</p> : null}</section>;
 }
 
 function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
@@ -4612,7 +4536,6 @@ function PlatformBrandClouds({
   onCloseDrawer,
   onCreateBrand,
   onUpdateBrand,
-  onAssignMember,
   onCreateUser,
 }) {
   const kpis = brandCloudKPIs(brands);
@@ -4712,7 +4635,6 @@ function PlatformBrandClouds({
           brand={selectedBrand}
           onClose={onCloseDrawer}
           onUpdateBrand={onUpdateBrand}
-          onAssignMember={onAssignMember}
           onCreateUser={onCreateUser}
         />
       ) : null}
@@ -4726,9 +4648,7 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
     region: '',
     tier: 'Evaluation',
     initialMode: 'none',
-    userId: '',
-    email: '',
-    password: '',
+	email: '',
     displayName: '',
     role: 'owner',
   });
@@ -4748,23 +4668,15 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
       return;
     }
     if (step < 3) {
-      if (step === 2 && form.initialMode === 'existing' && !form.userId.trim()) {
-        setMessage('Existing Brand User id is required.');
-        return;
-      }
-      if (step === 2 && form.initialMode === 'create' && (!form.email.trim() || !form.password.trim())) {
-        setMessage('Initial admin email and password are required.');
+	  if (step === 2 && form.initialMode === 'create' && !form.email.trim()) {
+		setMessage('Initial owner email is required.');
         return;
       }
       setStep((current) => current + 1);
       return;
     }
-    if (form.initialMode === 'existing' && !form.userId.trim()) {
-      setMessage('Existing Brand User id is required.');
-      return;
-    }
-    if (form.initialMode === 'create' && (!form.email.trim() || !form.password.trim())) {
-      setMessage('Initial admin email and password are required.');
+	if (form.initialMode === 'create' && !form.email.trim()) {
+	  setMessage('Initial owner email is required.');
       return;
     }
     setSubmitting(true);
@@ -4777,13 +4689,11 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
             tier: form.tier,
           },
         },
-        initialMember: form.initialMode === 'existing' ? { brand_cloud_user_id: form.userId.trim(), role: form.role } : null,
-        initialUser: form.initialMode === 'create' ? {
-          email: form.email.trim(),
-          password: form.password,
-          display_name: form.displayName.trim() || undefined,
-          role: form.role,
-          rotate_password: true,
+		initialUser: form.initialMode === 'create' ? {
+		  email: form.email.trim(),
+		  display_name: form.displayName.trim() || undefined,
+		  role: form.role,
+		  activation_mode: 'email',
         } : null,
       };
       const result = await onCreateBrand(payload);
@@ -4823,15 +4733,13 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
             <>
               <label>Initial admin mode<select className="input" value={form.initialMode} onChange={(event) => update('initialMode', event.target.value)}>
                 <option value="none">Assign later</option>
-                <option value="existing">Assign existing Brand User id</option>
-                <option value="create">Create or reactivate brand user</option>
-              </select></label>
-              {form.initialMode === 'existing' ? <label>Brand User id<input className="input" value={form.userId} onChange={(event) => update('userId', event.target.value)} /></label> : null}
-              {form.initialMode === 'create' ? (
-                <>
-                  <label>Email<input className="input" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
-                  <label>Temporary password<input className="input" type="password" value={form.password} onChange={(event) => update('password', event.target.value)} /></label>
-                  <label>Display name<input className="input" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} /></label>
+				<option value="create">Invite global user by email</option>
+			  </select></label>
+			  {form.initialMode === 'create' ? (
+				<>
+				  <label>Email<input className="input" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
+				  <label>Display name<input className="input" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} /></label>
+				  <p className="source-note">The owner receives the global account activation email; no tenant password is created.</p>
                 </>
               ) : null}
               {form.initialMode !== 'none' ? <label>Role<select className="input" value={form.role} onChange={(event) => update('role', event.target.value)}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label> : null}
@@ -4842,7 +4750,7 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
               <h3>Review</h3>
               <div><span>Brand</span><strong>{form.name}</strong></div>
               <div><span>Tier</span><strong>{form.tier}</strong></div>
-              <div><span>Initial admin</span><strong>{form.initialMode === 'none' ? 'Assign later' : form.initialMode === 'existing' ? form.userId : form.email}</strong></div>
+			  <div><span>Initial owner</span><strong>{form.initialMode === 'none' ? 'Assign later' : form.email}</strong></div>
               <p className="source-note">Quota and SSO setup can be completed after creation.</p>
             </section>
           ) : null}
@@ -4858,12 +4766,11 @@ function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
   );
 }
 
-function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember, onCreateUser }) {
+function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser }) {
   const [detailBrand, setDetailBrand] = useState(brand);
   const [ssoProvider, setSSOProvider] = useState(null);
   const [detailSource, setDetailSource] = useState({ status: 'loading', message: '' });
-  const [member, setMember] = useState({ brand_cloud_user_id: '', role: 'owner' });
-  const [user, setUser] = useState({ email: '', password: '', display_name: '', role: 'admin' });
+  const [user, setUser] = useState({ email: '', display_name: '', role: 'admin' });
   const [users, setUsers] = useState([]);
   const [userFilter, setUserFilter] = useState('all');
   const [usersSource, setUsersSource] = useState({ status: 'loading', message: '' });
@@ -4897,7 +4804,7 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
       if (nextFilter !== 'all') params.set('status', nextFilter);
       const suffix = params.toString() ? `?${params.toString()}` : '';
       const result = await fetchJSON(`/api/admin/brand-clouds/${encodeURIComponent(brand.id)}/users${suffix}`);
-      setUsers(result.brand_cloud_users || []);
+	  setUsers(result.users || []);
       setUsersSource({ status: 'ready', message: '' });
     } catch (err) {
       setUsers([]);
@@ -4926,39 +4833,22 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
     }
   }
 
-  async function submitMember(event) {
-    event.preventDefault();
-    setMessage('');
-    if (!member.brand_cloud_user_id.trim()) {
-      setMessage('Brand User id is required.');
-      return;
-    }
-    try {
-      await onAssignMember(brand.id, { brand_cloud_user_id: member.brand_cloud_user_id.trim(), role: member.role });
-      setMessage('Member assigned.');
-      setMember({ brand_cloud_user_id: '', role: 'owner' });
-    } catch (err) {
-      setMessage(userFacingBrandCloudError(err));
-    }
-  }
-
   async function submitUser(event) {
     event.preventDefault();
     setMessage('');
-    if (!user.email.trim() || !user.password.trim()) {
-      setMessage('Email and password are required.');
+	if (!user.email.trim()) {
+	  setMessage('Email is required.');
       return;
     }
     try {
       const result = await onCreateUser(brand.id, {
         email: user.email.trim(),
-        password: user.password,
-        display_name: user.display_name.trim() || undefined,
-        role: user.role,
-        rotate_password: true,
+		display_name: user.display_name.trim() || undefined,
+		role: user.role,
+		activation_mode: 'email',
       });
-      setMessage(result.action === 'created' ? 'Brand user created and assigned.' : 'Brand user reactivated or assigned.');
-      setUser({ email: '', password: '', display_name: '', role: 'admin' });
+	  setMessage(result.action === 'created' ? 'Global user created; activation email queued.' : 'Existing global user assigned; sign-in email queued.');
+	  setUser({ email: '', display_name: '', role: 'admin' });
       await loadUsers(userFilter);
     } catch (err) {
       setMessage(userFacingBrandCloudError(err));
@@ -4969,17 +4859,13 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
     setMessage('');
     try {
       if (action === 'delete' && !window.confirm(`Remove Brand Cloud access for ${row.email}?`)) return;
-      const path = `/api/admin/brand-clouds/${encodeURIComponent(brand.id)}/users/${encodeURIComponent(row.id)}`;
+	  const path = `/api/admin/brand-clouds/${encodeURIComponent(brand.id)}/users/${encodeURIComponent(row.user_id)}`;
       if (action === 'delete') {
         await sendJSONWithMethod('DELETE', path);
         setMessage('Brand user removed.');
       } else {
         await sendJSONWithMethod('POST', `${path}/${action}`, {});
-        if (action === 'approve') {
-          setMessage('Brand user approved.');
-        } else {
-          setMessage(action === 'disable' ? 'Brand user disabled.' : 'Brand user enabled.');
-        }
+		setMessage(action === 'disable' ? 'Membership disabled.' : 'Membership enabled.');
       }
       await loadUsers(userFilter);
     } catch (err) {
@@ -5050,8 +4936,8 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
         <section className="brand-cloud-users">
           <div className="panel-head compact-head">
             <div>
-              <h3>Brand Users</h3>
-              <p>Review activation state and manage brand-scoped access.</p>
+			  <h3>Global Users</h3>
+			  <p>Review each global account's membership in this Brand Cloud.</p>
             </div>
             <select className="input small-input" value={userFilter} onChange={(event) => changeUserFilter(event.target.value)} aria-label="Filter Brand Cloud users">
               <option value="all">All users</option>
@@ -5078,20 +4964,15 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
                   {users.map((row) => {
                     const status = brandCloudUserStatus(row);
                     return (
-                      <tr key={row.id}>
-                        <td><strong>{row.email}</strong><small>{row.display_name || row.id}</small></td>
+					  <tr key={row.user_id}>
+						<td><strong>{row.email}</strong><small>{row.display_name || row.user_id}</small></td>
                         <td><StatusBadge value={status.key === 'pending_verification' ? 'setup_required' : status.key} label={status.label} /></td>
                         <td>{row.updated_at ? formatRelativeTime(row.updated_at) : '-'}</td>
                         <td>
                           <div className="row-actions">
                             {status.key === 'disabled' ? (
                               <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'enable')}><Icon name="rotate-right" />Enable</button>
-                            ) : status.key === 'pending_verification' ? (
-                              <>
-                                <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'approve')}><Icon name="circle-check" />Approve</button>
-                                <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'disable')}><Icon name="ban" />Disable</button>
-                              </>
-                            ) : (
+							) : (
                               <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'disable')}><Icon name="ban" />Disable</button>
                             )}
                             <button type="button" className="inline-action danger-link" onClick={() => updateBrandUser(row, 'delete')}><Icon name="trash" />Delete</button>
@@ -5106,19 +4987,13 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onAssignMember,
           ) : null}
         </section>
         <section className="brand-cloud-form-grid">
-          <form className="drawer-form compact" onSubmit={submitMember}>
-            <h3><Icon name="user-plus" />Assign Existing Brand User</h3>
-            <label>Brand User id<input className="input" value={member.brand_cloud_user_id} onChange={(event) => setMember((current) => ({ ...current, brand_cloud_user_id: event.target.value }))} /></label>
-            <label>Role<select className="input" value={member.role} onChange={(event) => setMember((current) => ({ ...current, role: event.target.value }))}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label>
-            <button type="submit" className="primary-button"><Icon name="user-check" />Assign Existing Brand User</button>
-          </form>
-          <form className="drawer-form compact" onSubmit={submitUser}>
-            <h3><Icon name="envelope-circle-check" />Create Or Reactivate Brand User</h3>
-            <label>Email<input className="input" type="email" value={user.email} onChange={(event) => setUser((current) => ({ ...current, email: event.target.value }))} /></label>
-            <label>Temporary password<input className="input" type="password" value={user.password} onChange={(event) => setUser((current) => ({ ...current, password: event.target.value }))} /></label>
-            <label>Display name<input className="input" value={user.display_name} onChange={(event) => setUser((current) => ({ ...current, display_name: event.target.value }))} /></label>
-            <label>Role<select className="input" value={user.role} onChange={(event) => setUser((current) => ({ ...current, role: event.target.value }))}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label>
-            <button type="submit" className="primary-button"><Icon name="plus" />Create Or Reactivate User</button>
+		  <form className="drawer-form compact" onSubmit={submitUser}>
+			<h3><Icon name="envelope-circle-check" />Assign Global User</h3>
+			<label>Email<input className="input" type="email" value={user.email} onChange={(event) => setUser((current) => ({ ...current, email: event.target.value }))} /></label>
+			<label>Display name<input className="input" value={user.display_name} onChange={(event) => setUser((current) => ({ ...current, display_name: event.target.value }))} /></label>
+			<label>Role<select className="input" value={user.role} onChange={(event) => setUser((current) => ({ ...current, role: event.target.value }))}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label>
+			<p className="source-note">Email activation uses the shared global account flow. Owner accounts can never be provisioned with an admin-supplied password.</p>
+			<button type="submit" className="primary-button"><Icon name="plus" />Assign and Send Email</button>
           </form>
         </section>
         {message ? <p className="form-message">{message}</p> : null}

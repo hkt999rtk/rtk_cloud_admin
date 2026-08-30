@@ -103,15 +103,15 @@ paths:
         "503":
           $ref: "#/components/responses/PlainTextError"
 
-  /api/auth/customer/login:
+  /api/auth/login:
     post:
-      operationId: postApiAuthCustomerLogin
+      operationId: postApiAuthLogin
       x-rtk-feature-id: FEAT-AM-SIGNUP-001
       x-rtk-requirement-ids:
         - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
-      summary: Customer password login
-      description: Enabled by default; set `CUSTOMER_PASSWORD_LOGIN_ENABLED=false` to disable.
+      summary: Global human account login
+      description: Authenticates one global user, loads memberships and platform capabilities once, and creates a shared account session.
       security: []
       requestBody:
         required: true
@@ -276,41 +276,6 @@ paths:
         "503":
           $ref: "#/components/responses/PlainTextError"
 
-  /api/auth/brand-cloud/activate:
-    post:
-      operationId: postApiAuthBrandCloudActivate
-      x-rtk-feature-id: FEAT-AM-SIGNUP-001
-      x-rtk-requirement-ids:
-        - REQ-E2E-CA-SIGNUP-EMAIL-001
-      tags: [Auth]
-      summary: Set a password and activate a pending Brand Cloud user
-      description: Proxies tenant-scoped one-time activation to Account Manager, establishes an HTTP-only Admin Console session, and returns only redacted Brand/account identity fields.
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [tenant_slug, token, password]
-              properties:
-                tenant_slug:
-                  type: string
-                token:
-                  type: string
-                password:
-                  type: string
-                  minLength: 8
-      responses:
-        "200":
-          description: Brand Cloud account activation succeeded and set `rtk_admin_session`.
-        "400":
-          $ref: "#/components/responses/PlainTextError"
-        "502":
-          $ref: "#/components/responses/PlainTextError"
-        "503":
-          $ref: "#/components/responses/PlainTextError"
-
   /api/auth/forgot-password:
     post:
       operationId: postApiAuthForgotPassword
@@ -434,41 +399,6 @@ paths:
         "503":
           $ref: "#/components/responses/PlainTextError"
 
-  /api/auth/platform/login:
-    post:
-      operationId: postApiAuthPlatformLogin
-      x-rtk-feature-id: FEAT-AM-SIGNUP-001
-      x-rtk-requirement-ids:
-        - REQ-E2E-CA-SIGNUP-EMAIL-001
-      tags: [Auth, Platform Admin]
-      summary: Account Manager platform-admin password login
-      description: Authenticates Account Manager platform-admin credentials during the migration period. Local Cloud Admin break-glass login is not supported.
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LoginRequest"
-      responses:
-        "200":
-          description: Login succeeded and set `rtk_admin_session`.
-          headers:
-            Set-Cookie:
-              schema:
-                type: string
-              description: HTTP-only `rtk_admin_session` cookie.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/StatusOK"
-        "400":
-          $ref: "#/components/responses/PlainTextError"
-        "401":
-          $ref: "#/components/responses/PlainTextError"
-        "403":
-          $ref: "#/components/responses/PlainTextError"
-
   /api/auth/logout:
     post:
       operationId: postApiAuthLogout
@@ -539,6 +469,31 @@ paths:
           $ref: "#/components/responses/PlainTextError"
         "403":
           $ref: "#/components/responses/PlainTextError"
+
+  /api/me/view:
+    post:
+      operationId: postApiMeView
+      tags: [Session]
+      summary: Switch between Customer and Platform views in the same account session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [view]
+              properties:
+                view: { type: string, enum: [customer, platform] }
+      responses:
+        "200":
+          description: Session view updated without reauthentication.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatusOK" }
+        "400": { $ref: "#/components/responses/PlainTextError" }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
 
   /api/developer/brand-clouds:
     get:
@@ -2881,43 +2836,92 @@ paths:
         "503":
           $ref: "#/components/responses/PlainTextError"
 
-  /api/admin/brand-clouds/{brandCloudId}/members:
-    post:
-      operationId: postApiAdminBrandCloudsByBrandCloudIdMembers
-      x-rtk-feature-id: FEAT-CA-BRAND-001
-      x-rtk-requirement-ids:
-        - REQ-UI-CA-CLOUD-004
+  /api/admin/brand-clouds/{brandCloudId}/users:
+    get:
+      operationId: getApiAdminBrandCloudUsers
       tags: [Platform Admin, Brand Clouds]
-      summary: Assign a user to a brand cloud
+      summary: List global users that are members of a Brand Cloud
+      parameters:
+        - $ref: "#/components/parameters/BrandCloudID"
+      responses:
+        "200":
+          description: Brand Cloud memberships with global user identity fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users]
+                properties:
+                  users:
+                    type: array
+                    items: { $ref: "#/components/schemas/Member" }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+        "502": { $ref: "#/components/responses/PlainTextError" }
+    post:
+      operationId: postApiAdminBrandCloudUsers
+      tags: [Platform Admin, Brand Clouds]
+      summary: Find or create a global user and add its Brand Cloud membership
       parameters:
         - $ref: "#/components/parameters/BrandCloudID"
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/BrandCloudMemberRequest"
+            schema: { $ref: "#/components/schemas/BrandCloudAccountRequest" }
       responses:
         "201":
-          description: Member assignment created.
+          description: Global user and membership created; email activation is required for a new owner.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [action, user, member]
+                properties:
+                  action: { type: string }
+                  user: { $ref: "#/components/schemas/User" }
+                  member: { $ref: "#/components/schemas/Member" }
+        "400": { $ref: "#/components/responses/PlainTextError" }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+        "502": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/admin/brand-clouds/{brandCloudId}/users/{userId}:
+    delete:
+      operationId: deleteApiAdminBrandCloudUserMembership
+      tags: [Platform Admin, Brand Clouds]
+      summary: Soft-delete a global user's Brand Cloud membership
+      parameters:
+        - $ref: "#/components/parameters/BrandCloudID"
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Membership access removed. }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+        "502": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/admin/brand-clouds/{brandCloudId}/users/{userId}/{action}:
+    post:
+      operationId: postApiAdminBrandCloudUserMembershipAction
+      tags: [Platform Admin, Brand Clouds]
+      summary: Enable or disable a global user's Brand Cloud membership
+      parameters:
+        - $ref: "#/components/parameters/BrandCloudID"
+        - { name: userId, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [enable, disable] } }
+      responses:
+        "200":
+          description: Updated membership.
           content:
             application/json:
               schema:
                 type: object
                 required: [member]
                 properties:
-                  member:
-                    $ref: "#/components/schemas/Member"
-        "400":
-          $ref: "#/components/responses/PlainTextError"
-        "401":
-          $ref: "#/components/responses/PlainTextError"
-        "403":
-          $ref: "#/components/responses/PlainTextError"
-        "502":
-          $ref: "#/components/responses/PlainTextError"
-        "503":
-          $ref: "#/components/responses/PlainTextError"
+                  member: { $ref: "#/components/schemas/Member" }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+        "502": { $ref: "#/components/responses/PlainTextError" }
 
   /api/admin/sso/providers:
     get:
@@ -3112,7 +3116,7 @@ components:
       required: [brand_cloud_id, target_type, target_id, csr_pem]
       properties:
         brand_cloud_id: { type: string }
-        target_type: { type: string, enum: [brand_cloud_user, end_user] }
+        target_type: { type: string, enum: [user, end_user] }
         target_id: { type: string }
         csr_pem:
           type: string
@@ -3518,6 +3522,10 @@ components:
         evaluation_device_quota:
           type: integer
         capabilities:
+          type: array
+          items:
+            type: string
+        platform_capabilities:
           type: array
           items:
             type: string
@@ -4913,28 +4921,39 @@ components:
         metadata:
           type: object
           additionalProperties: true
-    BrandCloudMemberRequest:
+    BrandCloudAccountRequest:
       type: object
-      required: [brand_cloud_user_id, role]
+      additionalProperties: false
+      required: [email, role]
       properties:
-        brand_cloud_user_id:
+        email:
           type: string
-          description: Brand-scoped user id. Platform Account Manager user ids are not accepted.
+          format: email
+        display_name:
+          type: string
         role:
           type: string
+          enum: [owner, admin, member]
+        activation_mode:
+          type: string
+          enum: [email, immediate]
+          default: email
     Member:
       type: object
-      required: [brand_cloud_id, brand_cloud_user_id, role]
+      required: [organization_id, user_id, role]
       properties:
-        brand_cloud_id:
+        organization_id:
           type: string
-        brand_cloud_user_id:
+        user_id:
           type: string
         email:
           type: string
           format: email
         role:
           type: string
+        disabled_at:
+          type: string
+          format: date-time
     SSOProviderStatus:
       type: object
       required: [organization_id, enabled, configured]

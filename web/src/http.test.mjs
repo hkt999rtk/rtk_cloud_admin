@@ -49,7 +49,7 @@ test('postJSON throws on failed quota raise responses', async () => {
 test('postJSON returns parsed JSON for successful responses', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
-    assert.equal(url, '/api/auth/customer/login');
+    assert.equal(url, '/api/auth/login');
     assert.equal(init.method, 'POST');
     assert.equal(init.headers['Content-Type'], 'application/json');
     assert.equal(init.body, JSON.stringify({ email: 'owner@example.com' }));
@@ -60,7 +60,7 @@ test('postJSON returns parsed JSON for successful responses', async () => {
     };
   };
 
-  const payload = await postJSON('/api/auth/customer/login', { email: 'owner@example.com' });
+  const payload = await postJSON('/api/auth/login', { email: 'owner@example.com' });
   assert.deepEqual(payload, {
     status: 'ok',
     user: { email: 'owner@example.com' },
@@ -89,7 +89,7 @@ test('postJSON propagates network failures', async () => {
   };
 
   await assert.rejects(
-    () => postJSON('/api/auth/customer/login', { email: 'owner@example.com' }),
+    () => postJSON('/api/auth/login', { email: 'owner@example.com' }),
     /network unavailable/,
   );
 

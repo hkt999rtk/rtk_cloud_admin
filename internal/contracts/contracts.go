@@ -411,6 +411,7 @@ type Me struct {
 	DemoMode                     bool         `json:"demo_mode"`
 	Authenticated                bool         `json:"authenticated"`
 	Capabilities                 []string     `json:"capabilities,omitempty"`
+	PlatformCapabilities         []string     `json:"platform_capabilities,omitempty"`
 	UpstreamAccountManager       bool         `json:"upstream_account_manager"`
 	CustomerPasswordLoginEnabled bool         `json:"customer_password_login_enabled"`
 }
