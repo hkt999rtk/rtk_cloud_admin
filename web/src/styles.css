@@ -488,6 +488,20 @@ main {
   justify-content: flex-end;
 }
 
+.topbar-context-badge {
+  align-items: center;
+  background: var(--brand-soft);
+  border: 1px solid rgba(0, 104, 183, 0.2);
+  border-radius: 8px;
+  color: var(--brand-dark);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
 .org-switcher,
 .ghost-button {
   background-color: #fff;
@@ -1331,9 +1345,14 @@ p {
 
 .platform-dashboard-head {
   align-items: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(234, 246, 251, 0.92));
+  border: 1px solid var(--line);
+  border-radius: 8px;
   display: flex;
   gap: 14px;
   justify-content: space-between;
+  min-height: 58px;
+  padding: 10px 14px;
 }
 
 .platform-context-controls {
@@ -1347,9 +1366,9 @@ p {
 .platform-updated {
   align-items: center;
   background: #fff;
-  border: 1px solid #e6e8ec;
-  border-radius: 6px;
-  color: #475467;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--brand-dark);
   display: inline-flex;
   font-size: 12px;
   gap: 8px;
@@ -1358,17 +1377,16 @@ p {
 }
 
 .platform-context-controls strong {
-  color: #111827;
+  color: var(--brand-dark);
   font-weight: 700;
 }
 
 .platform-health-chip {
-  color: #111827;
+  color: var(--brand-dark);
 }
 
 .platform-updated {
-  border-color: transparent;
-  color: #667085;
+  color: var(--muted);
 }
 
 .platform-kpi-strip {
@@ -1379,11 +1397,11 @@ p {
 
 .platform-kpi {
   background: #fff;
-  border: 1px solid #e6e8ec;
-  border-radius: 6px;
-  box-shadow: none;
-  min-height: 94px;
-  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+  min-height: 104px;
+  padding: 18px 20px;
 }
 
 .platform-kpi span,
@@ -1391,14 +1409,14 @@ p {
 .footprint-list span,
 .risk-strip span,
 .scrape-group-row small {
-  color: #667085;
+  color: var(--muted);
   display: block;
   font-size: 12px;
 }
 
 .platform-kpi-label {
   align-items: center;
-  color: #344054;
+  color: var(--brand-dark);
   display: flex;
   font-size: 13px;
   gap: 10px;
@@ -1430,7 +1448,7 @@ p {
 }
 
 .platform-kpi strong {
-  color: #111827;
+  color: var(--brand-dark);
   display: block;
   font-size: 26px;
   font-weight: 720;
@@ -1439,7 +1457,7 @@ p {
 }
 
 .platform-kpi strong small {
-  color: #667085;
+  color: var(--muted);
   display: inline;
   font-size: 14px;
   font-weight: 500;
@@ -1463,9 +1481,9 @@ p {
 }
 
 .platform-dashboard-panel {
-  border-color: #e6e8ec;
-  border-radius: 6px;
-  box-shadow: none;
+  border-color: var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
   margin-bottom: 0;
   min-height: 0;
   padding: 0;
@@ -1477,14 +1495,14 @@ p {
 
 .platform-dashboard-panel .panel-head {
   align-items: center;
-  border-bottom: 1px solid #e6e8ec;
+  border-bottom: 1px solid var(--line);
   gap: 12px;
   min-height: 54px;
   padding: 14px 16px;
 }
 
 .platform-dashboard-panel .panel-head h2 {
-  color: #111827;
+  color: var(--brand-dark);
   font-size: 15px;
   font-weight: 760;
   line-height: 1.2;
@@ -1492,7 +1510,7 @@ p {
 }
 
 .platform-dashboard-panel .panel-head p {
-  color: #667085;
+  color: var(--muted);
   font-size: 12px;
   margin: 3px 0 0;
 }
@@ -1503,7 +1521,7 @@ p {
 }
 
 .platform-source-state {
-  color: #667085;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -1517,7 +1535,7 @@ p {
 
 .incident-row {
   align-items: center;
-  border-bottom: 1px solid #e6e8ec;
+  border-bottom: 1px solid var(--line);
   display: grid;
   gap: 10px;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1533,13 +1551,13 @@ p {
 }
 
 .incident-row strong {
-  color: #1d2939;
+  color: var(--brand-dark);
   font-size: 12px;
 }
 
 .incident-row span,
 .incident-row time {
-  color: #667085;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -1602,7 +1620,7 @@ p {
 
 .server-resource-table th,
 .server-resource-table td {
-  border-bottom: 1px solid #e6e8ec;
+  border-bottom: 1px solid var(--line);
   padding: 10px 12px;
   text-align: left;
   vertical-align: middle;
@@ -1610,7 +1628,7 @@ p {
 }
 
 .server-resource-table th {
-  color: #475467;
+  color: var(--brand-dark);
   font-size: 11px;
   font-weight: 760;
   letter-spacing: 0;
@@ -1618,17 +1636,17 @@ p {
 }
 
 .server-resource-table td {
-  color: #1d2939;
+  color: var(--brand-dark);
   font-size: 12px;
   line-height: 1.35;
 }
 
 .server-resource-table td:nth-child(2) {
-  color: #475467;
+  color: var(--muted);
 }
 
 .server-resource-table td strong {
-  color: #0056d6;
+  color: var(--brand);
   font-weight: 650;
 }
 
@@ -1638,7 +1656,7 @@ p {
 }
 
 .network-throughput-cell span {
-  color: #111827;
+  color: var(--brand-dark);
   font-size: 12px;
   font-weight: 700;
 }
@@ -1670,8 +1688,8 @@ p {
 .risk-strip div {
   align-items: center;
   background: #fff;
-  border: 1px solid #e6e8ec;
-  border-radius: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   display: flex;
   justify-content: space-between;
   min-height: 42px;
@@ -1681,7 +1699,7 @@ p {
 .scrape-group-row strong,
 .footprint-list strong,
 .risk-strip strong {
-  color: #111827;
+  color: var(--brand-dark);
 }
 
 .risk-strip {
@@ -1704,14 +1722,14 @@ p {
 }
 
 .risk-metric span {
-  color: #667085;
+  color: var(--muted);
   font-size: 12px;
   font-weight: 650;
   min-width: 0;
 }
 
 .risk-metric strong {
-  color: #111827;
+  color: var(--brand-dark);
   font-size: 20px;
   justify-self: end;
 }
@@ -1730,7 +1748,7 @@ p {
 
 .metric-row {
   align-items: center;
-  border-bottom: 1px solid #e6e8ec;
+  border-bottom: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
   min-height: 34px;
@@ -1743,12 +1761,12 @@ p {
 }
 
 .metric-row span {
-  color: #667085;
+  color: var(--muted);
   font-size: 12px;
 }
 
 .metric-row strong {
-  color: #111827;
+  color: var(--brand-dark);
   font-size: 13px;
   text-align: right;
 }
@@ -1768,12 +1786,12 @@ p {
 }
 
 .operation-risk-panel .operation-list-detailed {
-  border-top: 1px solid #e6e8ec;
+  border-top: 1px solid var(--line);
   padding-top: 12px;
 }
 
 .platform-dashboard .empty-state {
-  color: #667085;
+  color: var(--muted);
   font-size: 12px;
   margin: 0;
   padding: 14px 16px;
@@ -1789,7 +1807,7 @@ p {
 .operation-risk-legend span,
 .compact-status {
   align-items: center;
-  color: #344054;
+  color: var(--brand-dark);
   display: inline-flex;
   font-size: 12px;
   gap: 7px;

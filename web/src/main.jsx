@@ -1199,7 +1199,7 @@ function App() {
       >
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">C+</span>
-          <strong>Connect+ Ops</strong>
+          <strong>Connect+</strong>
           <button type="button" className="mobile-nav-close" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>
             <Icon name="xmark" />
           </button>
@@ -1231,6 +1231,7 @@ function App() {
           <div className="topbar-controls">
 			{me?.authenticated && me?.kind === 'customer' && (me?.platform_capabilities?.length ?? 0) > 0 ? <button type="button" className="ghost-button" onClick={() => handleSwitchView('platform')}>Platform view</button> : null}
 			{me?.authenticated && me?.kind === 'platform_admin' && (me?.memberships?.length ?? 0) > 0 ? <button type="button" className="ghost-button" onClick={() => handleSwitchView('customer')}>Brand Cloud view</button> : null}
+			{me?.authenticated && me?.kind === 'platform_admin' ? <span className="topbar-context-badge"><Icon name="shield-halved" />Platform Admin</span> : null}
             {me?.kind === 'customer' && (developerBrandClouds.length > 1 || (me?.memberships?.length ?? 0) > 1) ? (
               <select
                 className="org-switcher"

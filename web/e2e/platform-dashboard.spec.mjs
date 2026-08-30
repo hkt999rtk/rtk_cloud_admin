@@ -5,7 +5,8 @@ test('[UI-CA-DASH-001] platform admin can triage platform dashboard @smoke', asy
   await login(page, 'platform_admin');
   await enterPlatform(page);
   await expectNoCJKText(page);
-  await expect(page.getByText('Connect+ Ops', { exact: true })).toBeVisible();
+  await expect(page.getByText('Connect+', { exact: true })).toBeVisible();
+  await expect(page.locator('.topbar-context-badge')).toHaveText(/Platform Admin/);
   for (const group of ['Platform Overview', 'Monitoring and Diagnostics', 'Organizations and Products', 'Operations and Audit']) {
     await expect(page.getByText(group, { exact: true })).toBeVisible();
   }
