@@ -27,17 +27,19 @@ test('[UI-CA-ACCESS-003] customer view is separated from platform navigation', a
 
 test('[UI-CA-ACCESS-004] missing route capability stays on the access gate without protected API requests @smoke', async ({ page }) => {
   await login(page, 'customer');
-  const billingRequests = [];
+  const protectedRequests = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).pathname.startsWith('/api/billing/')) billingRequests.push(request.url());
+    const path = new URL(request.url()).pathname;
+    if (path === '/api/developer/brand-clouds' || path.startsWith('/api/billing/')) protectedRequests.push(path);
   });
+  await page.route('**/api/developer/brand-clouds', (route) => route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"forbidden"}' }));
 
   await page.goto('/console/billing');
 
   await expect(page.getByRole('heading', { name: 'Brand Cloud capability required', exact: true })).toBeVisible();
   await expect(page).toHaveURL(/\/console\/billing$/);
   await page.waitForTimeout(1_000);
-  expect(billingRequests).toEqual([]);
+  expect(protectedRequests).toEqual([]);
   await expect(page.getByRole('heading', { name: 'Admin Console', exact: true })).toHaveCount(0);
 });
 

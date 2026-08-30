@@ -354,29 +354,7 @@ function App() {
       try {
         const nextMe = await fetchJSON('/api/me');
         if (!alive) return;
-        const requestedCloudId = cloudIdFromPath(window.location.pathname);
-        if (nextMe.authenticated && nextMe.kind === 'customer' && requestedCloudId && requestedCloudId !== nextMe.active_org_id) {
-          const switchResponse = await fetch('/api/me/active-org', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ organization_id: requestedCloudId }) });
-          if (!switchResponse.ok) {
-            setError('This Brand Cloud is not available to the signed-in developer.');
-            setLoading(false);
-            return;
-          }
-          window.location.reload();
-          return;
-        }
         setMe(nextMe);
-
-        if (nextMe.authenticated && nextMe.kind === 'customer') {
-          const developerCloudResult = await fetchJSON('/api/developer/brand-clouds').catch((err) => {
-            if (err.isAuthError) throw err;
-            return { brand_clouds: [] };
-          });
-          if (!alive) return;
-          setDeveloperBrandClouds(developerCloudResult.brand_clouds || []);
-        } else {
-          setDeveloperBrandClouds([]);
-        }
 
         if (isLoginRoute) {
           if (nextMe.authenticated) {
@@ -408,6 +386,29 @@ function App() {
           setBilling(null);
           setLoading(false);
           return;
+        }
+
+        const requestedCloudId = cloudIdFromPath(window.location.pathname);
+        if (nextMe.kind === 'customer' && requestedCloudId && requestedCloudId !== nextMe.active_org_id) {
+          const switchResponse = await fetch('/api/me/active-org', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ organization_id: requestedCloudId }) });
+          if (!switchResponse.ok) {
+            setError('This Brand Cloud is not available to the signed-in developer.');
+            setLoading(false);
+            return;
+          }
+          window.location.reload();
+          return;
+        }
+
+        if (nextMe.kind === 'customer') {
+          const developerCloudResult = await fetchJSON('/api/developer/brand-clouds').catch((err) => {
+            if (err.isAuthError) throw err;
+            return { brand_clouds: [] };
+          });
+          if (!alive) return;
+          setDeveloperBrandClouds(developerCloudResult.brand_clouds || []);
+        } else {
+          setDeveloperBrandClouds([]);
         }
 
         const prefix = useAdminApi ? '/api/admin' : '/api';
