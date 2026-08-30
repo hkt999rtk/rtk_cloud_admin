@@ -55,6 +55,37 @@ func TestClientLoginAndMe(t *testing.T) {
 	}
 }
 
+func TestMeResultCompatibilityAccessors(t *testing.T) {
+	legacyOrg := Organization{ID: "legacy-org"}
+	brandCloud := Organization{ID: "brand-cloud"}
+	me := MeResult{Organizations: []Organization{legacyOrg}, Capabilities: []string{"platform.read"}}
+	if got := me.Memberships(); len(got) != 1 || got[0].ID != legacyOrg.ID {
+		t.Fatalf("legacy memberships = %#v", got)
+	}
+	if got := me.EffectivePlatformCapabilities(); len(got) != 1 || got[0] != "platform.read" {
+		t.Fatalf("legacy platform capabilities = %#v", got)
+	}
+	me.BrandCloudMemberships = []Organization{brandCloud}
+	me.PlatformCapabilities = []string{"platform.write"}
+	if got := me.Memberships(); len(got) != 1 || got[0].ID != brandCloud.ID {
+		t.Fatalf("brand cloud memberships = %#v", got)
+	}
+	if got := me.EffectivePlatformCapabilities(); len(got) != 1 || got[0] != "platform.write" {
+		t.Fatalf("platform capabilities = %#v", got)
+	}
+}
+
+func TestHTTPErrorFormatting(t *testing.T) {
+	withBody := (&HTTPError{Method: http.MethodPost, Path: "/v1/auth/login", StatusCode: http.StatusUnauthorized, Body: "invalid credentials"}).Error()
+	if !strings.Contains(withBody, "invalid credentials") {
+		t.Fatalf("error with body = %q", withBody)
+	}
+	withoutBody := (&HTTPError{Method: http.MethodGet, Path: "/v1/me", StatusCode: http.StatusUnauthorized}).Error()
+	if strings.Contains(withoutBody, ": ") || !strings.Contains(withoutBody, "returned 401") {
+		t.Fatalf("error without body = %q", withoutBody)
+	}
+}
+
 func TestClientRefresh(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -313,7 +344,7 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 			if r.URL.Query().Get("status") != "pending_verification" {
 				t.Fatalf("brand user status query = %q", r.URL.Query().Get("status"))
 			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"users": []map[string]any{{"user_id": "user-1", "organization_id": "brand-1", "email": "owner@example.com", "role": "owner", "disabled_at": "2026-06-11T00:00:00Z"}}})
+			_ = json.NewEncoder(w).Encode(map[string]any{"users": []map[string]any{{"user_id": "user-1", "organization_id": "brand-1", "email": "owner@example.com", "role": "owner", "email_verified": false, "signup_pending_verification": true, "disabled_at": "2026-06-11T00:00:00Z", "created_at": "2026-06-10T00:00:00Z", "updated_at": "2026-06-11T00:00:00Z"}}})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/disable":
 			_ = json.NewEncoder(w).Encode(map[string]any{"member": map[string]any{"user_id": "brand-user-1", "organization_id": "brand-1", "email": "owner@example.com", "disabled_at": "2026-06-11T00:00:00Z"}})
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/admin/brand-clouds/brand-1/users/brand-user-1/enable":
@@ -359,7 +390,7 @@ func TestClientBrandCloudLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BrandCloudUsers returned error: %v", err)
 	}
-	if len(users) != 1 || users[0].UserID != "user-1" || users[0].DisabledAt == "" {
+	if len(users) != 1 || users[0].UserID != "user-1" || users[0].EmailVerified || !users[0].SignupPendingVerification || users[0].DisabledAt == "" {
 		t.Fatalf("brand cloud users = %#v", users)
 	}
 	disabled, err := client.DisableBrandCloudUser(t.Context(), "admin-access", "brand-1", "brand-user-1")

@@ -16,7 +16,7 @@ test.describe('Brand Clouds', () => {
     await page.getByRole('button', { name: 'View', exact: true }).first().click();
     await expect(page.getByRole('dialog', { name: 'Brand Cloud detail' })).toBeVisible();
     await expect(page.getByText('SSO enabled', { exact: true })).toBeVisible();
-    await expect(page.getByText('Brand Users', { exact: true })).toBeVisible();
+    await expect(page.getByText('Global Users', { exact: true })).toBeVisible();
     await expect(page.getByText('trace-e2e-001', { exact: true })).toHaveCount(0);
   });
 
@@ -39,25 +39,20 @@ test.describe('Brand Clouds', () => {
     const dialog = page.getByRole('dialog', { name: 'Brand Cloud detail' });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Re-enable Brand Cloud' })).toBeVisible();
-    await expect(dialog.getByText('Pending Activation', { exact: true })).toBeVisible();
-    await dialog.getByRole('button', { name: 'Approve' }).click();
-    await expect(dialog.getByText('Brand user approved.', { exact: true })).toBeVisible();
-    await dialog.getByRole('button', { name: 'Disable', exact: true }).first().click();
-    await expect(dialog.getByText('Brand user disabled.', { exact: true })).toBeVisible();
-    await dialog.getByRole('button', { name: 'Enable', exact: true }).first().click();
-    await expect(dialog.getByText('Brand user enabled.', { exact: true })).toBeVisible();
+    const pendingUserRow = dialog.getByRole('row').filter({ hasText: 'user02-01@e2e.example' });
+    await expect(pendingUserRow.getByText('Pending Activation', { exact: true })).toBeVisible();
+    await pendingUserRow.getByRole('button', { name: 'Disable', exact: true }).click();
+    await expect(dialog.getByText('Membership disabled.', { exact: true })).toBeVisible();
+    await pendingUserRow.getByRole('button', { name: 'Enable', exact: true }).click();
+    await expect(dialog.getByText('Membership enabled.', { exact: true })).toBeVisible();
     page.once('dialog', (confirmation) => confirmation.accept());
-    await dialog.getByRole('button', { name: 'Delete', exact: true }).first().click();
-    await expect(dialog.getByText('Brand user removed.', { exact: true })).toBeVisible();
+    await pendingUserRow.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(dialog.getByText('Membership removed.', { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'Re-enable Brand Cloud' }).click();
     await expect(dialog.getByText('Brand Cloud enabled.', { exact: true })).toBeVisible();
-    await dialog.getByLabel('Brand User id').fill('brand-user-beta-owner');
-    await dialog.getByRole('button', { name: 'Assign Existing Brand User' }).click();
-    await expect(dialog.getByText('Member assigned.', { exact: true })).toBeVisible();
     await dialog.getByLabel('Email').fill('new-admin@example.com');
-    await dialog.getByLabel('Temporary password').fill('e2e-temporary-password');
-    await dialog.getByRole('button', { name: 'Create Or Reactivate User' }).click();
-    await expect(dialog.getByText('Brand user created and assigned.', { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Assign and Send Email' }).click();
+    await expect(dialog.getByText('Global user created; activation email queued.', { exact: true })).toBeVisible();
   });
 
   test('[UI-CA-CLOUD-005] create stepper completes a Brand Cloud creation', async ({ page }) => {
@@ -78,8 +73,8 @@ test.describe('Brand Clouds', () => {
     const dialog = page.getByRole('dialog', { name: 'Create Brand Cloud' });
     await dialog.getByLabel('Brand display name').fill('E2E Partial Owner Cloud');
     await dialog.getByRole('button', { name: 'Continue' }).click();
-    await dialog.getByLabel('Initial admin mode').selectOption('existing');
-    await dialog.getByRole('textbox', { name: 'Brand User id' }).fill('brand-user-alpha-owner');
+    await dialog.getByLabel('Initial admin mode').selectOption('create');
+    await dialog.getByLabel('Email').fill('partial-owner@example.com');
     await dialog.getByRole('button', { name: 'Continue' }).click();
     await dialog.getByRole('button', { name: 'Create Brand Cloud', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Brand Cloud detail' })).toBeVisible();

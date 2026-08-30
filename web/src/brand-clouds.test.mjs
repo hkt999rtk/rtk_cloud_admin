@@ -41,7 +41,7 @@ test('filters Brand Clouds across name id owner metadata status and tier', () =>
 test('maps Brand Cloud user activation states for platform review', () => {
   assert.deepEqual(brandCloudUserStatus({}), { key: 'active', label: 'Active' });
   assert.deepEqual(brandCloudUserStatus({ signup_pending_verification: true }), { key: 'pending_verification', label: 'Pending Activation' });
-  assert.deepEqual(brandCloudUserStatus({ disabled_at: '2026-06-11T00:00:00Z', signup_pending_verification: true }), { key: 'disabled', label: 'Disabled' });
+  assert.deepEqual(brandCloudUserStatus({ disabled_at: '2026-06-11T00:00:00Z', signup_pending_verification: true }), { key: 'pending_verification', label: 'Pending Activation' });
 });
 
 test('Brand Clouds errors are stable and do not expose upstream payload details', () => {

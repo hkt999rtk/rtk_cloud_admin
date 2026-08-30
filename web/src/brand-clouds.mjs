@@ -78,8 +78,8 @@ export function filterBrandClouds(brands, filters = {}) {
 }
 
 export function brandCloudUserStatus(user) {
-  if (user?.disabled_at) return { key: 'disabled', label: 'Disabled' };
   if (user?.signup_pending_verification) return { key: 'pending_verification', label: 'Pending Activation' };
+  if (user?.disabled_at) return { key: 'disabled', label: 'Disabled' };
   return { key: 'active', label: 'Active' };
 }
 

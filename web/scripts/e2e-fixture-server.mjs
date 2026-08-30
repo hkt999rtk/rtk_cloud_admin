@@ -14,6 +14,10 @@ const [brandClouds, users, members, devices, operations, logs, sessions, prometh
   load('operations.json'), load('service-logs.json'), load('sessions.json'), load('prometheus-series.json'),
 ]);
 const state = { brandClouds, users, members, devices, operations, logs, sessions, prometheus, jobs: [], reports: [], sources: [], transfers: [], invitations: [], chipsetProviders: [], idempotency: new Map(), requestLog: [] };
+for (const user of state.users) {
+  if (!user.brand_cloud_id || state.members.some((member) => member.organization_id === user.brand_cloud_id && member.user_id === user.id)) continue;
+  state.members.push({ organization_id: user.brand_cloud_id, user_id: user.id, email: user.email, role: 'member' });
+}
 let platformValidationAllowed = true;
 
 const server = createServer(async (req, res) => {
@@ -445,7 +449,13 @@ async function handleResource(req, res, root, id, suffix) {
     Object.assign(brand, await readBody(req));
     return send(res, 200, { brand_cloud: brand });
   }
-  if (suffix === '/users' && req.method === 'GET') return send(res, 200, { users: state.members.filter((member) => member.organization_id === id) });
+  if (suffix === '/users' && req.method === 'GET') {
+    const memberships = state.members.filter((member) => member.organization_id === id).map((member) => {
+      const user = state.users.find((candidate) => candidate.id === member.user_id) || {};
+      return { ...user, ...member, id: user.id || member.user_id };
+    });
+    return send(res, 200, { users: memberships });
+  }
   if (suffix === '/users' && req.method === 'POST') {
     const body = await readBody(req);
     const user = { id: `user-created-${state.users.length + 1}`, email: body.email, name: body.display_name || 'E2E Created User', email_verified: false, signup_pending_verification: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
@@ -458,7 +468,11 @@ async function handleResource(req, res, root, id, suffix) {
   if (userAction) {
     const member = state.members.find((item) => item.user_id === decodeURIComponent(userAction[1]) && item.organization_id === id);
     if (!member) return send(res, 404, { error: 'member not found' });
-    if (userAction[2] === 'disable' || req.method === 'DELETE') member.disabled_at = new Date().toISOString();
+    if (req.method === 'DELETE') {
+      state.members.splice(state.members.indexOf(member), 1);
+      return send(res, 204, null);
+    }
+    if (userAction[2] === 'disable') member.disabled_at = new Date().toISOString();
     if (userAction[2] === 'enable') delete member.disabled_at;
     return send(res, 200, { member });
   }

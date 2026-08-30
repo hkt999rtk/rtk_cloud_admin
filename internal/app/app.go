@@ -5344,7 +5344,7 @@ func (s *Server) apiAdminBrandCloudUsers(w http.ResponseWriter, r *http.Request)
 		s.writeUpstreamReadErrorForSession(w, session.ID, err)
 		return
 	}
-	writeJSON(w, map[string][]accountclient.Member{"users": users})
+	writeJSON(w, map[string][]accountclient.BrandCloudAccountListItem{"users": users})
 }
 
 func (s *Server) apiAdminBrandCloudUserAction(w http.ResponseWriter, r *http.Request) {

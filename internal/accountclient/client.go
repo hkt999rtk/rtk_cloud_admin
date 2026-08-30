@@ -123,6 +123,19 @@ type Member struct {
 	DisabledAt     string   `json:"disabled_at,omitempty"`
 }
 
+type BrandCloudAccountListItem struct {
+	OrganizationID            string `json:"organization_id"`
+	UserID                    string `json:"user_id"`
+	Email                     string `json:"email"`
+	DisplayName               string `json:"display_name,omitempty"`
+	Role                      string `json:"role"`
+	EmailVerified             bool   `json:"email_verified"`
+	SignupPendingVerification bool   `json:"signup_pending_verification"`
+	DisabledAt                string `json:"disabled_at,omitempty"`
+	CreatedAt                 string `json:"created_at"`
+	UpdatedAt                 string `json:"updated_at"`
+}
+
 type OwnerTransfer struct {
 	ID                string `json:"id"`
 	BrandCloudID      string `json:"brand_cloud_id"`
@@ -1018,9 +1031,9 @@ func (c *Client) CreateBrandCloudUser(ctx context.Context, accessToken, brandClo
 	return body, status, err
 }
 
-func (c *Client) BrandCloudUsers(ctx context.Context, accessToken, brandCloudID string, query url.Values) ([]Member, error) {
+func (c *Client) BrandCloudUsers(ctx context.Context, accessToken, brandCloudID string, query url.Values) ([]BrandCloudAccountListItem, error) {
 	var body struct {
-		Users []Member `json:"users"`
+		Users []BrandCloudAccountListItem `json:"users"`
 	}
 	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID) + "/users"
 	if len(query) > 0 {
