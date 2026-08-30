@@ -68,6 +68,58 @@ test.describe('Brandname async workflows', () => {
     await expect(page.getByRole('button', { name: 'Retry failed device' })).toBeVisible();
   });
 
+  test('[UI-CA-OTA-003] firmware binary calculates release metadata before upload @brand-fleet @smoke', async ({ page }) => {
+    await login(page, 'developer');
+    const firmware = Buffer.from('firmware-v1');
+    let releasePayload;
+    const productsResponse = await page.request.get('/api/products');
+    expect(productsResponse.ok()).toBeTruthy();
+    const productsPayload = await productsResponse.json();
+    await page.route('**/api/products/product-alpha/releases', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      releasePayload = route.request().postDataJSON();
+      return route.fulfill({ json: { release: { release_id: 'release-browser-1' } } });
+    });
+    await page.route('**/api/products**', async (route) => {
+      const url = new URL(route.request().url());
+      if (route.request().method() !== 'GET' || url.pathname !== '/api/products') return route.fallback();
+      return route.fulfill({
+        json: {
+          ...productsPayload,
+          products: productsPayload.products.map((product) => product.id === 'product-alpha'
+            ? { ...product, allowed_actions: [...new Set([...(product.allowed_actions || []), 'manage_updates'])] }
+            : product),
+        },
+      });
+    });
+    await page.goto('/console/brand-e2e-01/firmware-ota?product_id=product-alpha');
+
+    await expect(page.getByRole('button', { name: 'Firmware OTA' })).toBeVisible();
+    await expect(page.getByPlaceholder('Build number')).toHaveCount(0);
+    await expect(page.getByPlaceholder('File size (required if no file is selected)')).toHaveCount(0);
+    await expect(page.getByText('Signature settings (advanced)')).toHaveCount(0);
+
+    await page.getByPlaceholder('Version, e.g. 1.4.3').fill('1.4.3');
+    await page.getByPlaceholder('Hardware versions (comma separated)').fill('rev-a');
+    await page.getByLabel('Firmware binary').setInputFiles({ name: 'camera.bin', mimeType: 'application/octet-stream', buffer: firmware });
+    const metadata = page.getByLabel('Firmware binary metadata');
+    await expect(metadata).toContainText('camera.bin');
+    await expect(metadata).toContainText(`${firmware.length} bytes`);
+    await expect(metadata.getByText(/^[a-f0-9]{64}$/)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Create version' }).click();
+    await expect.poll(() => releasePayload).toBeTruthy();
+    expect(releasePayload).toMatchObject({
+      version: '1.4.3',
+      artifact_size: firmware.length,
+      hardware_revisions: ['rev-a'],
+      content_type: 'application/octet-stream',
+      anti_rollback_counter: 0,
+    });
+    expect(releasePayload.artifact_sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(releasePayload.build_number).toBe(releasePayload.artifact_sha256);
+  });
+
   test('[UI-CA-REPORT-004] reports preserve scope metadata and expose async result download @brand-fleet', async ({ page }) => {
     await login(page, 'developer');
     await page.goto('/console/brand-e2e-01/reports');
