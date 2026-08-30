@@ -1023,9 +1023,7 @@ function App() {
     try {
       const result = await postJSON('/api/auth/customer/verify-email', payload);
       if (result.tokens?.access_token) {
-        window.history.pushState({}, '', '/console/overview');
-        setActive('overview');
-        setRefreshTick((tick) => tick + 1);
+        window.location.assign(destinationForSession({ authenticated: true, kind: result.kind || 'customer' }, loginNextFromLocation(window.location)));
       }
       return result;
     } catch (err) {

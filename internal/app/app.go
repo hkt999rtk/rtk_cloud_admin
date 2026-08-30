@@ -1089,15 +1089,20 @@ func (s *Server) apiCustomerVerifyEmail(w http.ResponseWriter, r *http.Request) 
 		s.writeAuthProxyError(w, err)
 		return
 	}
+	kind := ""
 	if result.Tokens.AccessToken != "" {
-		session, sessionErr := s.sessions.CreateSession("customer", result.User.ID, result.User.Email, result.Tokens.AccessToken, result.Tokens.RefreshToken, "", tokenTTL(result.Tokens))
+		session, selectedKind, sessionErr := s.createSessionFromActivatedLogin(r.Context(), accountclient.LoginResult{User: result.User, Tokens: result.Tokens})
 		if sessionErr != nil {
-			writeError(w, sessionErr)
+			s.writeAuthProxyError(w, sessionErr)
 			return
 		}
+		kind = selectedKind
 		setSessionCookie(w, session.ID)
 	}
-	writeJSONStatus(w, http.StatusOK, result)
+	writeJSONStatus(w, http.StatusOK, struct {
+		accountclient.VerifyEmailResult
+		Kind string `json:"kind,omitempty"`
+	}{VerifyEmailResult: result, Kind: kind})
 }
 
 func (s *Server) apiCustomerVerificationStatus(w http.ResponseWriter, r *http.Request) {
