@@ -382,21 +382,22 @@ function App() {
           setLoading(false);
           return;
         }
-        if (!isMemberInvitationAccept && !isPlatformView && nextMe.kind === 'customer' && !canAccessCustomerRoute(active, nextMe.capabilities)) {
-          setBilling(null);
-          setLoading(false);
-          return;
-        }
 
         const requestedCloudId = cloudIdFromPath(window.location.pathname);
         if (nextMe.kind === 'customer' && requestedCloudId && requestedCloudId !== nextMe.active_org_id) {
           const switchResponse = await fetch('/api/me/active-org', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ organization_id: requestedCloudId }) });
           if (!switchResponse.ok) {
-            setError('This Brand Cloud is not available to the signed-in developer.');
+            setError('Access forbidden: This Brand Cloud is not available to the signed-in developer.');
             setLoading(false);
             return;
           }
           window.location.reload();
+          return;
+        }
+
+        if (!isMemberInvitationAccept && !isPlatformView && nextMe.kind === 'customer' && !canAccessCustomerRoute(active, nextMe.capabilities)) {
+          setBilling(null);
+          setLoading(false);
           return;
         }
 
