@@ -47,8 +47,8 @@ capabilities.
   users, and operations.
 - A Tier 3 end user owns one or more devices. Each device is bound to exactly
   one Tier 2 organization, which is responsible for its lifecycle (provisioning,
-  firmware, deactivation). The Tier 3 user's identity is managed inside the
-  Tier 2 org's user namespace.
+  firmware, deactivation). Tier 3 uses the separate global APP end-user identity
+  and brand-scoped device binding model; it is not a human Admin Console user.
 - Tier 1 has cross-tenant visibility for platform operations and support;
   Tier 2 sees only their own org.
 
@@ -66,13 +66,11 @@ The remainder of this document covers only Tier 1 and Tier 2 roles.
 
 ## Tier 1 — Realtek Internal Roles
 
-These roles belong to Realtek employees operating the platform. The long-term
-daily authentication path is Account Manager-backed SSO, where Account Manager
-authorizes platform capabilities and Admin Console creates the local
-`rtk_admin_session` cookie. During the password-login migration period, the
-Platform Admin login form may also authenticate Account Manager platform-admin
-credentials and create an Account Manager-backed `platform_admin` session when
-the upstream token passes a platform-admin authorization check. Admin Console
+These roles belong to Realtek employees operating the platform. Daily
+authentication uses the same Account Manager-backed SSO or global password
+login as every human console user. Account Manager authorizes platform
+capabilities and Brand Cloud memberships, and Admin Console creates one local
+account-backed `rtk_admin_session` cookie. Admin Console
 does not provide a local break-glass administrator account; emergency operator
 control is handled through Linode, SSH, and deployment tooling. Brand-cloud
 management requires an Account Manager-backed `platform_admin` session with an
@@ -92,7 +90,7 @@ Tier 2 customers.
 - Platform View — Audit Log (all actor/action/target records)
 
 **Can execute:**
-- Platform-side admin actions: customer session refresh and invalidation (existing in `internal/app/app.go`).
+- Platform-side admin actions: account session refresh and invalidation.
 - Brand-cloud backend actions when authenticated through Account Manager as
   `platform_admin`: create/list/read/update brand clouds and assign existing
   brand-scoped users to a brand cloud.
@@ -123,14 +121,15 @@ These roles belong to the licensed tenant operating their own branded IoT
 product. Tier 2 sessions are org-scoped — users can only see and act on devices
 within their own organization.
 
-Tier 2 daily authentication should use Account Manager-backed SSO. Account
+Tier 2 daily authentication uses the same Account Manager global human login or
+SSO as Tier 1. Account
 Manager is responsible for external identity provider discovery, OIDC token
 exchange, user mapping, organization membership, and role authorization. Admin
 Console keeps the existing `rtk_admin_session` cookie; the session row carries
-the upstream Bearer / refresh token pair when in proxy mode. The legacy customer
-password login endpoint is a compatibility path, not the long-term production
-login direction. Local SQLite seed data is for development/demo mode only and is
-not a production validation source. Plaintext credentials are never persisted.
+the upstream Bearer / refresh token pair when in proxy mode. Platform and Brand
+views are capability-gated destinations of one session, not separate login
+types. Local SQLite seed data is for development/demo mode only and is not a
+production validation source. Plaintext credentials are never persisted.
 
 ### Fleet Manager
 
@@ -263,9 +262,10 @@ usability affordance.
 Admin Console accepts Account Manager organization projections with either
 `capabilities` or `permissions` arrays and normalizes both into the `/api/me`
 `capabilities` response. Each membership also carries its org-scoped
-`capabilities`. The top-level `/api/me.capabilities` list represents the active
-organization for customer sessions and platform compatibility capabilities for
-platform sessions.
+`capabilities`. The top-level `/api/me.capabilities` list contains global
+platform capabilities; each membership contains its organization-scoped
+capabilities, and the BFF also exposes the effective set for the active
+organization. All are projections of one account session.
 
 Capability checks are enforced in both layers:
 
