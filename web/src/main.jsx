@@ -4,6 +4,7 @@ import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
 import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs';
+import { firmwareArtifactMetadata, formatFirmwareSize } from './firmwareArtifact.mjs';
 import {
   billingSubpaths,
   canAccessCustomerRoute,
@@ -131,7 +132,7 @@ function normalizeProductServiceCapability(value) {
 function productServiceCapabilityLabel(value) {
   const code = normalizeProductServiceCapability(value);
   return PRODUCT_SERVICE_CAPABILITIES.find((item) => item.code === code)?.label
-    || (code === 'ota' ? 'Firmware Updates' : code);
+    || (code === 'ota' ? 'Firmware OTA' : code);
 }
 
 function brandCloudsURL({ query, status, tier, limit, offset }) {
@@ -3198,13 +3199,12 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
   const hasSelection = Boolean(selectedProductId && selectedProduct);
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [releaseVersion, setReleaseVersion] = useState('');
-  const [releaseBuild, setReleaseBuild] = useState('');
-  const [releaseSize, setReleaseSize] = useState('');
-  const [releaseSHA, setReleaseSHA] = useState('');
   const [releaseHardware, setReleaseHardware] = useState('');
-  const [releaseSigningKey, setReleaseSigningKey] = useState('');
-  const [releaseSignature, setReleaseSignature] = useState('');
+  const [releaseArtifact, setReleaseArtifact] = useState(null);
+  const [releaseArtifactLoading, setReleaseArtifactLoading] = useState(false);
   const [releaseMessage, setReleaseMessage] = useState('');
+  const releaseArtifactRequest = useRef(0);
+  const releaseFileInput = useRef(null);
   const [planRelease, setPlanRelease] = useState('');
   const [planName, setPlanName] = useState('');
   const [planMessage, setPlanMessage] = useState('');
@@ -3246,48 +3246,55 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     await onStatusRefresh?.();
     setStatusRefreshing(false);
   }
+  async function selectReleaseArtifact(event) {
+    const file = event.target.files?.[0] || null;
+    const request = releaseArtifactRequest.current + 1;
+    releaseArtifactRequest.current = request;
+    setReleaseArtifact(null);
+    setReleaseMessage('');
+    if (!file) {
+      setReleaseArtifactLoading(false);
+      return;
+    }
+    setReleaseArtifactLoading(true);
+    try {
+      const metadata = await firmwareArtifactMetadata(file);
+      if (releaseArtifactRequest.current === request) setReleaseArtifact(metadata);
+    } catch {
+      if (releaseArtifactRequest.current === request) setReleaseMessage('Firmware metadata could not be calculated. Please select a non-empty binary file.');
+    } finally {
+      if (releaseArtifactRequest.current === request) setReleaseArtifactLoading(false);
+    }
+  }
   async function publishRelease(event) {
     event.preventDefault();
     if (!selectedProductId || !releaseVersion.trim()) return;
-    const file = event.currentTarget.elements.artifact?.files?.[0];
-    let artifactSize = Number(releaseSize);
-    let artifactSHA = releaseSHA.trim();
-    if (file) {
-      artifactSize = file.size;
-      const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
-      artifactSHA = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-    }
-    if (!file && (!artifactSize || !artifactSHA)) {
-      setReleaseMessage('Please upload a firmware file or fill in the file size and SHA-256.');
+    if (!releaseArtifact) {
+      setReleaseMessage('Please select a firmware binary and wait for its metadata to be calculated.');
       return;
     }
     const response = await fetch(`/api/products/${encodeURIComponent(selectedProductId)}/releases`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-${selectedProductId}-${releaseVersion.trim()}` },
-      body: JSON.stringify({ version: releaseVersion.trim(), build_number: releaseBuild.trim(), artifact_size: artifactSize, artifact_sha256: artifactSHA, hardware_revisions: releaseHardware.split(',').map((item) => item.trim()).filter(Boolean), content_type: file?.type || 'application/octet-stream' }),
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-${selectedProductId}-${releaseVersion.trim()}-${releaseArtifact.sha256.slice(0, 12)}` },
+      body: JSON.stringify({ version: releaseVersion.trim(), build_number: releaseArtifact.buildNumber, artifact_size: releaseArtifact.size, artifact_sha256: releaseArtifact.sha256, hardware_revisions: releaseHardware.split(',').map((item) => item.trim()).filter(Boolean), content_type: releaseArtifact.contentType, anti_rollback_counter: 0 }),
     });
-    if (response.ok && file) {
+    if (response.ok) {
       const result = await response.json();
       if (result.upload?.url) {
-        const upload = await fetch(result.upload.url, { method: 'PUT', body: file });
+        const upload = await fetch(result.upload.url, { method: 'PUT', body: releaseArtifact.file });
         if (!upload.ok) {
           setReleaseMessage('Version created, but file upload failed, please try again from the publishing process.');
           return;
         }
       }
-      if (result.release?.release_id && releaseSigningKey.trim() && releaseSignature.trim()) {
-        const finalize = await fetch(`/api/products/${encodeURIComponent(selectedProductId)}/releases/${encodeURIComponent(result.release.release_id)}/finalize`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `finalize-${result.release.release_id}` },
-          body: JSON.stringify({ signing_algorithm: 'ed25519', signing_key_id: releaseSigningKey.trim(), signature: releaseSignature.trim() }),
-        });
-        if (!finalize.ok) {
-          setReleaseMessage('Version created but signature check not completed, please try again later.');
-          onRefresh();
-          return;
-        }
-      }
     }
-    setReleaseMessage(response.ok ? 'Firmware version created; file check completed before release.' : 'Firmware version cannot be created at this time.');
-    if (response.ok) { setReleaseVersion(''); setReleaseBuild(''); setReleaseSize(''); setReleaseSHA(''); setReleaseHardware(''); setReleaseSigningKey(''); setReleaseSignature(''); onRefresh(); }
+    setReleaseMessage(response.ok ? 'Firmware version created and binary uploaded.' : 'Firmware version cannot be created at this time.');
+    if (response.ok) {
+      setReleaseVersion('');
+      setReleaseHardware('');
+      setReleaseArtifact(null);
+      if (releaseFileInput.current) releaseFileInput.current.value = '';
+      onRefresh();
+    }
   }
   async function createUpdatePlan(event) {
     event.preventDefault();
@@ -3375,7 +3382,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
         <MetricCard icon="circle-exclamation" label="Update failed" value={failedRollout} hint={primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of target devices` : 'No updates are currently running'} tone={failedRollout ? 'danger' : 'good'} />
       </section> : null}
 
-      {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Add firmware version</h3><p>The version will be registered to {selectedProduct.name}. You can then create an update plan for the same Product.</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="Version, e.g. 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input required placeholder="Build number" value={releaseBuild} onChange={(event) => setReleaseBuild(event.target.value)} /><input name="artifact" type="file" accept="application/octet-stream,.bin" aria-label="Firmware file (optional)" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setReleaseSize(String(file.size)); } }} /><input type="number" min="1" placeholder="File size (required if no file is selected)" value={releaseSize} onChange={(event) => setReleaseSize(event.target.value)} /><input pattern="[a-fA-F0-9]{64}" placeholder="SHA-256 (required if no file is selected)" value={releaseSHA} onChange={(event) => setReleaseSHA(event.target.value)} /><input required placeholder="Hardware versions (comma separated)" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} /><details><summary>Signature settings (advanced)</summary><input placeholder="Signature key name" value={releaseSigningKey} onChange={(event) => setReleaseSigningKey(event.target.value)} /><input placeholder="Signature content" value={releaseSignature} onChange={(event) => setReleaseSignature(event.target.value)} /></details><button type="submit" className="primary-button">Create version</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
+      {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Add firmware version</h3><p>The version will be registered to {selectedProduct.name}. You can then create an update plan for the same Product.</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="Version, e.g. 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input ref={releaseFileInput} name="artifact" required type="file" accept="application/octet-stream,.bin" aria-label="Firmware binary" onChange={selectReleaseArtifact} /><input required placeholder="Hardware versions (comma separated)" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} />{releaseArtifactLoading ? <div className="firmware-artifact-metadata" role="status">Calculating firmware metadata…</div> : null}{releaseArtifact ? <dl className="firmware-artifact-metadata" aria-label="Firmware binary metadata"><div><dt>File</dt><dd>{releaseArtifact.name}</dd></div><div><dt>Size</dt><dd>{formatFirmwareSize(releaseArtifact.size)}{releaseArtifact.size >= 1024 ? ` (${releaseArtifact.size.toLocaleString('en-US')} bytes)` : ''}</dd></div><div><dt>SHA-256</dt><dd><code>{releaseArtifact.sha256}</code></dd></div></dl> : null}<button type="submit" className="primary-button" disabled={releaseArtifactLoading || !releaseArtifact}>Create version</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
       {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Create an update plan</h3><p>Obtain the server scope preview before creating the immutable OTA plan; the browser does not determine the target count.</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">Select firmware version</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder="Plan name (optional)" value={planName} onChange={(event) => setPlanName(event.target.value)} /><input placeholder="Regions (comma separated)" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="Group IDs (comma separated)" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="Firmware versions (comma separated)" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="Health statuses (comma separated)" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="Exclude device IDs (comma or space separated)" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? 'Calculating scope…' : 'Preview server scope'}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope}>Create update plan</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{formatNumber(scopePreview.target_count || 0)}</strong></span><span>Excluded <strong>{formatNumber(scopePreview.excluded_count || 0)}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
       {hasSelection && releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Firmware Version</h3><p>The version must be uploaded and checked before it can be published to the update plan.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Product</th><th>Version</th><th>Status</th><th>Action</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.product_id}:${release.id || release.release_id}`}><td>{selectedProduct.name}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>Publish</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>Withdraw</button> : null}{!canRelease ? <span className="muted">Read-only</span> : null}</td></tr>)}</tbody></table></div></section> : null}
 

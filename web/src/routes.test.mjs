@@ -110,7 +110,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.labelKey),
-    ['Brand Cloud Home', 'Devices', 'Products and Services', 'ChipSet & SDK', 'Firmware Updates', 'Video Streaming Health', 'Reports', 'Billing and Automatic Top-Up'],
+    ['Brand Cloud Home', 'Devices', 'Products and Services', 'ChipSet & SDK', 'Firmware OTA', 'Video Streaming Health', 'Reports', 'Billing and Automatic Top-Up'],
   );
   assert.deepEqual(customerNavGroups.map((group) => group.labelKey), ['Brand Cloud', 'Device Operations', 'Products and Updates', 'Monitoring and Analytics', 'Account Management']);
 });

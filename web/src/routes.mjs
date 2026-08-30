@@ -19,7 +19,7 @@ export const customerNavGroups = [
     items: [
       { id: 'product-services', labelKey: 'Products and Services', path: '/console/product-services', icon: 'boxes-stacked', capabilities: ['product.read', 'registry_device.read'] },
       { id: 'chipset-sdk', labelKey: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch' },
-      { id: 'firmware-ota', labelKey: 'Firmware Updates', path: '/console/firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
+      { id: 'firmware-ota', labelKey: 'Firmware OTA', path: '/console/firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
     ],
   },
   {
@@ -160,7 +160,7 @@ export function titleFor(active) {
     groups: 'Groups and Tags',
     access: 'Brand Cloud',
     settings: 'Brand Cloud',
-    'firmware-ota': 'Firmware Updates',
+    'firmware-ota': 'Firmware OTA',
     'stream-health': 'Video Streaming Health',
     reports: 'Reports',
     billing: 'Billing and Automatic Top-Up',

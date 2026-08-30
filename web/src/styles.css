@@ -2363,6 +2363,39 @@ p {
   flex-basis: 100%;
 }
 
+.firmware-artifact-metadata {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  flex: 1 1 100%;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.firmware-artifact-metadata > div {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 70px minmax(0, 1fr);
+}
+
+.firmware-artifact-metadata dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.firmware-artifact-metadata dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.firmware-artifact-metadata code {
+  font-size: 0.78rem;
+}
+
 .firmware-panel .inline-form > .primary-button,
 .firmware-panel .inline-form > .ghost-button {
   min-height: 42px;
