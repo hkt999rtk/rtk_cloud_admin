@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { assertVerificationReplayRejected } from './verification-replay.mjs';
 
 const activationURL = requiredEnv('LOAD_OWNER_ACTIVATION_URL');
 const password = requiredEnv('LOAD_OWNER_PASSWORD');
@@ -62,24 +63,7 @@ try {
 
   const replayContext = await browser.newContext();
   const replayPage = await replayContext.newPage();
-  let replayResponse;
-  replayPage.on('response', (response) => {
-    if (
-      response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/auth/customer/verify-email'
-    ) replayResponse = response;
-  });
-  await replayPage.goto(activationURL, { waitUntil: 'networkidle' });
-  await replayPage.getByLabel('New password', { exact: true }).fill(password);
-  await replayPage.getByRole('button', { name: 'Verify and continue', exact: true }).click();
-  await replayPage.locator('.error').first().waitFor({ state: 'visible', timeout: 30_000 });
-  if (!replayResponse || replayResponse.status() !== 400) {
-    throw new Error(`replayed activation token returned HTTP ${replayResponse?.status() || 'unknown'}`);
-  }
-  const replayText = await replayPage.locator('.error').first().innerText();
-  if (replayText.includes(parsedActivationURL.searchParams.get('token'))) {
-    throw new Error('replay error exposed the activation token');
-  }
+  await assertVerificationReplayRejected(replayPage, activationURL, password);
   await replayContext.close();
 } finally {
   await browser.close();
