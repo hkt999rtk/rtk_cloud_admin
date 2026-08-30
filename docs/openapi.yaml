@@ -3827,6 +3827,7 @@ components:
           type: array
           items:
             type: string
+            enum: [video_streaming, video_storage, mqtt, iot_shadow]
         device_policy:
           type: object
           additionalProperties: true
@@ -3861,7 +3862,12 @@ components:
         product_model: { type: string }
         category: { type: string }
         manufacturer: { type: string }
-        service_capabilities: { type: array, items: { type: string } }
+        service_capabilities:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [video_streaming, video_storage, mqtt, iot_shadow]
         device_policy: { type: object, additionalProperties: true }
         firmware_policy: { type: object, additionalProperties: true }
 

@@ -17,8 +17,9 @@ the React WebUI and BFF surface that operators use to view or administer those
 upstream facts. Realtek Video Cloud owns activation, firmware, telemetry,
 streaming, and media runtime facts.
 
-The product and integration contracts live in the
-`docs/rtk_cloud_contracts_doc` submodule.
+The product and integration contracts live in the workspace's canonical
+`rtk_cloud_contracts_doc` repository. `docs/rtk_cloud_contracts_doc` is a
+symlink to that adjacent checkout.
 
 The service logging migration to `rtk_cloud_logger` zap and central journald
 forwarding is documented in
@@ -80,9 +81,8 @@ Recent completion status:
 - Admin Console local-store access is split behind narrow interfaces so future
   session/projection cache work can be introduced without making Admin Console
   the source of truth for upstream tenant or device facts.
-- The contracts documentation submodule URL and CI rewrite now support the
-  local `github.com-work` SSH alias while preserving token-authenticated CI
-  checkout.
+- CI checks out the contracts repository adjacent to this repository, matching
+  the local workspace layout while preserving token-authenticated CI checkout.
 
 ## WebUI Background
 
@@ -242,7 +242,7 @@ web/                         React frontend
 docs/SPEC.md                 Product and implementation specification
 docs/openapi.yaml            OpenAPI contract for the Admin Console BFF API
 docs/assets/webui-design/    WebUI visual concepts and static GUI mocks
-docs/rtk_cloud_contracts_doc/ Shared contracts submodule
+docs/rtk_cloud_contracts_doc/ Shared workspace contracts repository
 ```
 
 ## Configuration
@@ -310,8 +310,8 @@ in GitHub repository secrets and variables, not local `.env` files.
 
 ## CI
 
-`.github/workflows/ci.yml` runs on GitHub-hosted `ubuntu-latest`, initializes
-the contracts submodule when `CONTRACTS_REPO_TOKEN` is configured, and runs
+`.github/workflows/ci.yml` runs on GitHub-hosted `ubuntu-latest`, checks out
+the workspace contracts repository when `CONTRACTS_REPO_TOKEN` is configured, and runs
 `go test ./...`, `go build ./cmd/server`, `npm ci`, `npm test`,
 `npm run build`, and a native server smoke test.
 
@@ -325,17 +325,16 @@ CI environment notes live in [`docs/ci-runner.md`](docs/ci-runner.md).
 
 ## Contracts
 
-Initialize submodules after clone:
+Keep the canonical contracts repository next to this repository in the workspace:
 
 ```sh
-git submodule update --init --recursive
+git -C ../rtk_cloud_contracts_doc status --short --branch
 ```
 
-Update the contracts submodule:
+Update the canonical workspace contracts repository:
 
 ```sh
-git -C docs/rtk_cloud_contracts_doc pull --ff-only
-git add docs/rtk_cloud_contracts_doc
+git -C ../rtk_cloud_contracts_doc pull --ff-only
 ```
 
 Frontend color, typography, layout, and status presentation rules are defined in:
