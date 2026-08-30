@@ -828,10 +828,10 @@ Acceptance: Reports preserve scope metadata and expose async download.
 
 Acceptance: Report idempotency replay and conflict preserve original scope.
 
-### [FEAT-CA-PROV-001] Fleet provisioning and bulk workflows
+### [FEAT-CA-PROV-001] Fleet pages after provisioning UI retirement
 
 <!-- rtk-feature
-{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**","repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-fleet-provisioning.spec.mjs","repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs","selector":"[UI-CA-FLEETPAGE-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs","selector":"[UI-CA-FLEETPAGE-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-provisioning.spec.mjs","selector":"[UI-CA-PROV-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-provisioning.spec.mjs","selector":"[UI-CA-PROV-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-provisioning.spec.mjs","selector":"[UI-CA-PROV-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","selector":"[UI-CA-PROV-004]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","selector":"[UI-CA-PROV-005]"}]}
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**","repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs","selector":"[UI-CA-FLEETPAGE-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs","selector":"[UI-CA-FLEETPAGE-002]"}]}
 -->
 
 #### [REQ-UI-CA-FLEETPAGE-001] Customer fleet pages load through the real BFF
@@ -853,7 +853,7 @@ Acceptance: Device fleet remains server paginated.
 #### [REQ-UI-CA-PROV-001] Invalid-device validation is immutable and cannot execute
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"retired"}
 -->
 
 Acceptance: Invalid-device validation is immutable and cannot execute.
@@ -861,7 +861,7 @@ Acceptance: Invalid-device validation is immutable and cannot execute.
 #### [REQ-UI-CA-PROV-002] Provisioning upload replay is idempotent and conflicts are rejected
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"retired"}
 -->
 
 Acceptance: Provisioning upload replay is idempotent and conflicts are rejected.
@@ -869,7 +869,7 @@ Acceptance: Provisioning upload replay is idempotent and conflicts are rejected.
 #### [REQ-UI-CA-PROV-003] Observers cannot start provisioning from browser or API
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"retired"}
 -->
 
 Acceptance: Observers cannot start provisioning from browser or API.
@@ -877,7 +877,7 @@ Acceptance: Observers cannot start provisioning from browser or API.
 #### [REQ-UI-CA-PROV-004] Provisioning CSV upload starts browser validation
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"retired"}
 -->
 
 Acceptance: Provisioning CSV upload starts browser validation.
@@ -885,7 +885,7 @@ Acceptance: Provisioning CSV upload starts browser validation.
 #### [REQ-UI-CA-PROV-005] Provisioning upload validates before creating an execution job
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"retired"}
 -->
 
 Acceptance: Provisioning upload validates before creating an execution job.
