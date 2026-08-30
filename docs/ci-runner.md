@@ -6,12 +6,13 @@ checks against the built server binary.
 
 ## Required Secrets
 
-CI initializes the private `docs/rtk_cloud_contracts_doc` submodule over HTTPS
-when `CONTRACTS_REPO_TOKEN` is configured. Configure a repository or
-organization secret named `CONTRACTS_REPO_TOKEN` with read access to
+CI checks out the private `rtk_cloud_contracts_doc` repository adjacent to this
+repository when `CONTRACTS_REPO_TOKEN` is configured. The checked-in
+`docs/rtk_cloud_contracts_doc` symlink resolves to that checkout. Configure a
+repository or organization secret named `CONTRACTS_REPO_TOKEN` with read access to
 `hkt999rtk/rtk_cloud_contracts_doc` when a CI job needs contract file contents.
 
-If `CONTRACTS_REPO_TOKEN` is missing, CI skips the private submodule checkout
+If `CONTRACTS_REPO_TOKEN` is missing, CI skips the private contracts checkout
 and continues with repo-local tests.
 
 ## Quick Health Checks
@@ -20,7 +21,7 @@ Use the GitHub Actions run page to verify:
 
 - the job is assigned to `ubuntu-latest` instead of waiting for a repository
   runner
-- the contracts submodule initialization step either succeeds or is skipped
+- the workspace contracts checkout step either succeeds or is skipped
   with the expected warning
 - the Go, frontend, and native smoke steps finish with the expected checks
 

@@ -17,13 +17,13 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Initialize contracts submodule when token is available
+      - name: Checkout workspace contracts when token is available
         env:
           CONTRACTS_REPO_TOKEN: ${{ secrets.CONTRACTS_REPO_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "$CONTRACTS_REPO_TOKEN" ]; then
-            echo "::warning::CONTRACTS_REPO_TOKEN is not configured; skipping private contracts submodule checkout"
+            echo "::warning::CONTRACTS_REPO_TOKEN is not configured; skipping private contracts checkout"
             exit 0
           fi
           git config --global \
@@ -35,7 +35,16 @@ jobs:
           git config --global --add \
             url."https://x-access-token:${CONTRACTS_REPO_TOKEN}@github.com/hkt999rtk/rtk_cloud_contracts_doc.git".insteadOf \
             "git@github.com-work:hkt999rtk/rtk_cloud_contracts_doc.git"
-          git submodule update --init --depth=1 docs/rtk_cloud_contracts_doc
+          contracts_repo_dir="../rtk_cloud_contracts_doc"
+          if [ -d "$contracts_repo_dir/.git" ]; then
+            git -C "$contracts_repo_dir" fetch --depth=1 origin main
+            git -C "$contracts_repo_dir" checkout --detach FETCH_HEAD
+          else
+            git clone --depth=1 \
+              "https://x-access-token:${CONTRACTS_REPO_TOKEN}@github.com/hkt999rtk/rtk_cloud_contracts_doc.git" \
+              "$contracts_repo_dir"
+          fi
+          test -f docs/rtk_cloud_contracts_doc/openapi.yaml
 
       - uses: actions/setup-node@v4
         with:

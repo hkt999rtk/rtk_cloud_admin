@@ -241,6 +241,12 @@ authorization facts. Video Cloud owns firmware releases, OTA campaigns, and
 deployment results. Cloud Admin presents the effective result and must not
 infer service entitlement or user permissions from model names or runtime
 token scopes.
+
+The Product capability surface uses the canonical codes `video_streaming`,
+`video_storage`, `mqtt`, and `iot_shadow`, displayed as `Live`, `Recording
+Storage`, `MQTT`, and `IoT Shadow`. `iot_shadow` is independently configurable
+and must not be inferred from `mqtt`. Product list capability cells must not
+render human management permissions such as Manage Devices or Edit Product.
 - `GET /api/operations`: lifecycle operation list.
 - `GET /api/service-health`: configured upstream service health.
 - `GET /api/audit`: audit log.
