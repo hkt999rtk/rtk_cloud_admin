@@ -427,6 +427,9 @@ func TestOTAUpdatePlanProxyAndFirmwareRetry(t *testing.T) {
 	if rec := request(http.MethodPost, "/api/update-plans/campaign-1/start", `{}`, "plan-start"); rec.Code != http.StatusOK {
 		t.Fatalf("plan start status = %d, body=%s", rec.Code, rec.Body.String())
 	}
+	if rec := request(http.MethodPost, "/api/update-plans/campaign-1/rate-limit", `{"rate_limit_per_minute":10000,"reason":"capacity change"}`, "plan-rate"); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), ":set-rate-limit") {
+		t.Fatalf("plan rate status = %d, body=%s", rec.Code, rec.Body.String())
+	}
 	if rec := request(http.MethodPost, "/api/update-plans/reject/cancel", `{}`, "plan-reject"); rec.Code != http.StatusConflict {
 		t.Fatalf("plan reject status = %d, body=%s", rec.Code, rec.Body.String())
 	}
@@ -440,7 +443,7 @@ func TestOTAUpdatePlanProxyAndFirmwareRetry(t *testing.T) {
 		"target_count":        0,
 	}
 	scope["scope_hash"] = batchScopeHash(map[string]any{"query": query, "excluded_device_ids": excluded})
-	payload, err := json.Marshal(map[string]any{"product_id": "product-1", "name": "Qualification", "scope": scope})
+	payload, err := json.Marshal(map[string]any{"product_id": "product-1", "name": "Qualification", "scope": scope, "rate_limit_per_minute": 100})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,6 +458,7 @@ func TestOTAUpdatePlanProxyAndFirmwareRetry(t *testing.T) {
 		{`{`, "plan-json", http.StatusBadRequest},
 		{`{"name":"missing product"}`, "plan-product", http.StatusBadRequest},
 		{`{"product_id":"product-1"}`, "plan-scope", http.StatusBadRequest},
+		{strings.Replace(string(payload), `"rate_limit_per_minute":100`, `"rate_limit_per_minute":10001`, 1), "plan-rate-high", http.StatusUnprocessableEntity},
 		{string(payload), "", http.StatusPreconditionRequired},
 	} {
 		rec := request(http.MethodPost, "/api/update-plans", tc.body, tc.key)

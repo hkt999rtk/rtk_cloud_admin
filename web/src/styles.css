@@ -2566,6 +2566,32 @@ p {
   min-width: 104px;
 }
 
+.ota-dashboard-row__actions,
+.ota-dashboard-rate,
+.ota-dashboard-rate label {
+  display: grid;
+  gap: 8px;
+}
+
+.ota-dashboard-rate label span,
+.ota-dashboard-rate small,
+.ota-rate-field span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ota-dashboard-rate input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  max-width: 150px;
+  padding: 9px 10px;
+}
+
+.ota-rate-field {
+  display: grid;
+  gap: 6px;
+}
+
 .risk-table-head {
   color: var(--muted);
   font-size: 12px;

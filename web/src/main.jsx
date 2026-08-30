@@ -833,18 +833,19 @@ function App() {
     setActive('devices');
   }
 
-  async function runUpdatePlanAction(campaignId, action) {
+  async function runUpdatePlanAction(campaignId, action, payload = {}) {
     setError('');
     const response = await fetch(`/api/update-plans/${encodeURIComponent(campaignId)}/${action}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `ui-${campaignId}-${action}-${Date.now()}` },
-      body: JSON.stringify({ reason: 'Executed by an operator in Fleet Management' }),
+      body: JSON.stringify({ reason: 'Executed by an operator in Fleet Management', ...payload }),
     });
     if (!response.ok) {
       setError(`${action} failed with ${response.status}`);
-      return;
+      return false;
     }
     setRefreshTick((tick) => tick + 1);
+    return true;
   }
 
   async function handleSSOProviderSave(orgID, config) {
@@ -3210,6 +3211,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
   const releaseFileInput = useRef(null);
   const [planRelease, setPlanRelease] = useState('');
   const [planName, setPlanName] = useState('');
+  const [planRate, setPlanRate] = useState(100);
   const [planMessage, setPlanMessage] = useState('');
   const [scopeQuery, setScopeQuery] = useState({ region: '', group_ids: '', firmware: '', health: '' });
   const [excludedDeviceText, setExcludedDeviceText] = useState('');
@@ -3250,11 +3252,11 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     await onStatusRefresh?.();
     setStatusRefreshing(false);
   }
-  async function runCampaignAction(campaignId, action) {
+  async function runCampaignAction(campaignId, action, payload = {}) {
     const key = `${campaignId}:${action}`;
     setCampaignActionBusy(key);
     try {
-      await onCampaignAction?.(campaignId, action);
+      return await onCampaignAction?.(campaignId, action, payload);
     } finally {
       setCampaignActionBusy('');
     }
@@ -3315,10 +3317,10 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     if (!release || !scopePreview?.scope) { setPlanMessage('Please get a valid server scope preview first.'); return; }
     const response = await fetch('/api/update-plans', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `plan-${release.product_id}-${release.id || release.release_id}-${Date.now()}` },
-      body: JSON.stringify({ product_id: release.product_id, release_id: release.id || release.release_id, name: planName.trim() || `Update ${release.version}`, scope: scopePreview.scope, selector: scopePreview.scope.query, phases: [{ phase: 0, cumulative_percentage: 100, soak_seconds: 0 }], failure_policy: { minimum_sample_size: 10, failure_percentage: 10, timeout_percentage: 10 } }),
+      body: JSON.stringify({ product_id: release.product_id, release_id: release.id || release.release_id, name: planName.trim() || `Update ${release.version}`, scope: scopePreview.scope, selector: scopePreview.scope.query, phases: [{ phase: 0, cumulative_percentage: 100, soak_seconds: 0 }], failure_policy: { minimum_sample_size: 10, failure_percentage: 10, timeout_percentage: 10 }, rate_limit_per_minute: Number(planRate) }),
     });
     setPlanMessage(response.ok ? 'The update protocol has been created, please activate it below.' : 'The update plan could not be created at this time.');
-    if (response.ok) { setPlanName(''); setPlanRelease(''); setScopePreview(null); onRefresh(); }
+    if (response.ok) { setPlanName(''); setPlanRelease(''); setPlanRate(100); setScopePreview(null); onRefresh(); }
   }
   async function previewScope() {
     const release = releases.find((item) => item.id === planRelease || item.release_id === planRelease);
@@ -3369,7 +3371,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     <section className="panel firmware-ota-page">
       <div className="panel-head">
         <div>
-          <h2>Firmware Update</h2>
+          <h2>Firmware OTA</h2>
           <p>Start and stop OTA rollouts, publish firmware versions, and track device progress for the selected Product.</p>
         </div>
         <button type="button" className="ghost-button" disabled={!hasSelection || statusRefreshing} onClick={refreshStatus}>{statusRefreshing ? 'Updating status…' : 'Refresh status'}</button>
@@ -3407,7 +3409,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
       ) : null}
 
       {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Add firmware version</h3><p>The version will be registered to {selectedProduct.name}. You can then create an update plan for the same Product.</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="Version, e.g. 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input ref={releaseFileInput} name="artifact" required type="file" accept="application/octet-stream,.bin" aria-label="Firmware binary" onChange={selectReleaseArtifact} /><input required placeholder="Hardware versions (comma separated)" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} />{releaseArtifactLoading ? <div className="firmware-artifact-metadata" role="status">Calculating firmware metadata…</div> : null}{releaseArtifact ? <dl className="firmware-artifact-metadata" aria-label="Firmware binary metadata"><div><dt>File</dt><dd>{releaseArtifact.name}</dd></div><div><dt>Size</dt><dd>{formatFirmwareSize(releaseArtifact.size)}{releaseArtifact.size >= 1024 ? ` (${releaseArtifact.size.toLocaleString('en-US')} bytes)` : ''}</dd></div><div><dt>SHA-256</dt><dd><code>{releaseArtifact.sha256}</code></dd></div></dl> : null}<button type="submit" className="primary-button" disabled={releaseArtifactLoading || !releaseArtifact}>Create version</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
-      {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Create an update plan</h3><p>Obtain the server scope preview before creating the immutable OTA plan; the browser does not determine the target count.</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">Select firmware version</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder="Plan name (optional)" value={planName} onChange={(event) => setPlanName(event.target.value)} /><input placeholder="Regions (comma separated)" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="Group IDs (comma separated)" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="Firmware versions (comma separated)" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="Health statuses (comma separated)" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="Exclude device IDs (comma or space separated)" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? 'Calculating scope…' : 'Preview server scope'}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope}>Create update plan</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{formatNumber(scopePreview.target_count || 0)}</strong></span><span>Excluded <strong>{formatNumber(scopePreview.excluded_count || 0)}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
+      {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Create an update plan</h3><p>Obtain the server scope preview before creating the immutable OTA plan; the browser does not determine the target count.</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">Select firmware version</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder="Plan name (optional)" value={planName} onChange={(event) => setPlanName(event.target.value)} /><label className="ota-rate-field"><span>Upgrade rate (devices/minute)</span><input required type="number" min="1" max="10000" step="1" value={planRate} onChange={(event) => setPlanRate(event.target.value)} /></label><input placeholder="Regions (comma separated)" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="Group IDs (comma separated)" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="Firmware versions (comma separated)" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="Health statuses (comma separated)" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="Exclude device IDs (comma or space separated)" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? 'Calculating scope…' : 'Preview server scope'}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope || Number(planRate) < 1 || Number(planRate) > 10000}>Create update plan</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{formatNumber(scopePreview.target_count || 0)}</strong></span><span>Excluded <strong>{formatNumber(scopePreview.excluded_count || 0)}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
       {hasSelection && releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Firmware Version</h3><p>The version must be uploaded and checked before it can be published to the update plan.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Product</th><th>Version</th><th>Status</th><th>Action</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.product_id}:${release.id || release.release_id}`}><td>{selectedProduct.name}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>Publish</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>Withdraw</button> : null}{!canRelease ? <span className="muted">Read-only</span> : null}</td></tr>)}</tbody></table></div></section> : null}
 
       {hasSelection && loading && !distribution ? <p className="empty-state">Loading {selectedProduct.name} state of the firmware.</p> : null}
@@ -3465,6 +3467,17 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
 }
 
 function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onAction, canManage, busyAction }) {
+  const [rateDrafts, setRateDrafts] = useState({});
+  const [rateMessages, setRateMessages] = useState({});
+  async function updateRate(campaign) {
+    const rate = Number(rateDrafts[campaign.campaign_id] ?? campaign.rate_limit_per_minute ?? 100);
+    if (!Number.isInteger(rate) || rate < 1 || rate > 10000) {
+      setRateMessages((messages) => ({ ...messages, [campaign.campaign_id]: 'Enter a whole number from 1 to 10,000.' }));
+      return;
+    }
+    const ok = await onAction(campaign.campaign_id, 'rate-limit', { rate_limit_per_minute: rate });
+    setRateMessages((messages) => ({ ...messages, [campaign.campaign_id]: ok ? 'Upgrade rate updated.' : 'Upgrade rate could not be updated.' }));
+  }
   return (
     <section className="panel firmware-panel ota-dashboard" aria-label="OTA Dashboard">
       <div className="panel-head">
@@ -3479,6 +3492,11 @@ function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onActio
             const waiting = firmwareCampaignWaitingProgress(campaign);
             const control = firmwareDashboardAction(campaign, canManage);
             const controlBusy = control && busyAction === `${campaign.campaign_id}:${control.action}`;
+            const rateBusy = busyAction === `${campaign.campaign_id}:rate-limit`;
+            const configuredRate = campaign.rate_limit_per_minute || 100;
+            const effectiveRate = campaign.effective_rate_limit_per_minute || configuredRate;
+            const systemMaxRate = campaign.system_max_rate_limit_per_minute || 10000;
+            const canChangeRate = canManage && ['draft', 'scheduled', 'active', 'paused'].includes(normalizeStatusKey(campaign.state));
             return (
               <article className={`ota-dashboard-row${selectedCampaignId === campaign.campaign_id ? ' is-selected' : ''}`} key={campaign.campaign_id}>
                 <button
@@ -3494,6 +3512,7 @@ function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onActio
                   <span className="ota-dashboard-row__meta">
                     <span>Target {campaign.target_version || '—'}</span>
                     <time dateTime={campaign.started_at || undefined}>Started {formatFirmwareStartTime(campaign.started_at)}</time>
+                    <span>Rate {formatNumber(configuredRate)}/min · effective {formatNumber(effectiveRate)}/min</span>
                   </span>
                   <span className="ota-dashboard-waiting-copy">
                     <span>Waiting devices</span>
@@ -3512,6 +3531,7 @@ function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onActio
                   </span>
                 </button>
                 <div className="ota-dashboard-row__actions">
+                  {canChangeRate ? <div className="ota-dashboard-rate"><label><span>Devices/minute</span><input type="number" min="1" max={systemMaxRate} step="1" value={rateDrafts[campaign.campaign_id] ?? configuredRate} onChange={(event) => setRateDrafts((rates) => ({ ...rates, [campaign.campaign_id]: event.target.value }))} /></label><button type="button" className="ghost-button" disabled={Boolean(busyAction)} onClick={() => updateRate(campaign)}>{rateBusy ? 'Saving…' : 'Update rate'}</button><small>System max {formatNumber(systemMaxRate)}/min</small>{rateMessages[campaign.campaign_id] ? <small role="status">{rateMessages[campaign.campaign_id]}</small> : null}</div> : <span className="muted">Rate {formatNumber(configuredRate)}/min · effective {formatNumber(effectiveRate)}/min</span>}
                   {control ? (
                     <button
                       type="button"
