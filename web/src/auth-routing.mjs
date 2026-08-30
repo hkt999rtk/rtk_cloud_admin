@@ -24,6 +24,11 @@ export function loginNextFromLocation(location) {
   return normalizeLoginNext(params.get('next') || '');
 }
 
+export function isPlatformLoginNext(value) {
+  const next = normalizeLoginNext(value);
+  return Boolean(next && isAllowedAdminPath(new URL(next, 'https://connect.local').pathname));
+}
+
 export function protectedPathFromLocation(location) {
   const pathname = location?.pathname || '/';
   const search = location?.search || '';
@@ -60,8 +65,7 @@ export function destinationForSession(me, nextPath) {
 }
 
 export function passwordLoginOrderForNext(nextPath) {
-  const next = normalizeLoginNext(nextPath);
-  if (next && isAllowedAdminPath(new URL(next, 'https://connect.local').pathname)) {
+  if (isPlatformLoginNext(nextPath)) {
     return ['platform', 'customer'];
   }
   return ['customer', 'platform'];

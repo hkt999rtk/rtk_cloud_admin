@@ -1,6 +1,48 @@
 import { expect, test } from '@playwright/test';
 import { login } from './fixtures/session.mjs';
 
+test('[UI-CA-AUTH-LOGIN-001] shared login branding follows the selected auth mode @smoke', async ({ page }) => {
+  await page.goto('/login');
+
+  await expect(page.getByRole('heading', { name: 'Sign in to Connect+', exact: true })).toBeVisible();
+  await expect(page.getByText('Use your Connect+ account to continue.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Sign in', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(page).toHaveTitle('Sign in Connect+');
+
+  await page.getByRole('tab', { name: 'Create account', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Create your Connect+ account', exact: true })).toBeVisible();
+  await expect(page.getByText('Create an account to get started with Connect+.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create account', exact: true })).toBeVisible();
+  await expect(page).toHaveTitle('Create account Connect+');
+});
+
+test('[UI-CA-AUTH-LOGIN-002] admin destinations use the platform sign-in context @smoke', async ({ page }) => {
+  await page.goto('/login?next=%2Fadmin%2Fhealth');
+
+  await expect(page.getByRole('heading', { name: 'Platform Admin sign in', exact: true })).toBeVisible();
+  await expect(page.getByText('Sign in with your platform administrator account.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('tablist', { name: 'Auth mode' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Create account', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(page).toHaveTitle('Platform Admin sign in Connect+');
+});
+
+for (const [name, next] of [
+  ['customer', '/console/overview'],
+  ['unrelated', '/administrator'],
+  ['external', 'https://evil.example/admin'],
+]) {
+  test(`[UI-CA-AUTH-LOGIN-003] ${name} destinations keep the shared sign-in context`, async ({ page }) => {
+    await page.goto(`/login?next=${encodeURIComponent(next)}`);
+
+    await expect(page.getByRole('heading', { name: 'Sign in to Connect+', exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Create account', exact: true })).toBeVisible();
+    await expect(page).toHaveTitle('Sign in Connect+');
+  });
+}
+
 test('[UI-CA-AUTH-001] reset password keeps the URL token out of the form @smoke', async ({ page }, testInfo) => {
   let resetPayload;
   await page.route('**/api/auth/reset-password', async (route) => {

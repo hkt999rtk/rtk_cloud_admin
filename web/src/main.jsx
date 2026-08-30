@@ -43,6 +43,7 @@ import {
 } from './brand-clouds.mjs';
 import {
   destinationForSession,
+  isPlatformLoginNext,
   loginNextFromLocation,
   loginPathFor,
   passwordLoginOrderForNext,
@@ -301,6 +302,7 @@ function App() {
   const customerViewBlocked = !isPlatformView && !isPublicRoute && me !== null && (me.authenticated === false || me.kind === 'platform_admin' || customerCapabilityBlocked);
 
   useEffect(() => {
+    if (active === 'login') return;
     document.title = `${titleFor(active)} · RTK Cloud`;
   }, [active]);
 
@@ -1380,10 +1382,30 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
-  const pageHeading = active === 'reset-password' ? 'Reset your password' : 'Admin Console';
-  const pageCopy = active === 'reset-password'
-    ? 'Choose a new password for your Connect+ Ops account.'
-    : 'Login to an existing account or create a new evaluation account.';
+  const [authMode, setAuthMode] = useState('login');
+  const platformLogin = active === 'login' && isPlatformLoginNext(params.get('next') || '');
+  const loginHeading = platformLogin ? 'Platform Admin sign in' : authMode === 'signup' ? 'Create your Connect+ account' : 'Sign in to Connect+';
+  const loginCopy = platformLogin
+    ? 'Sign in with your platform administrator account.'
+    : authMode === 'signup'
+      ? 'Create an account to get started with Connect+.'
+      : 'Use your Connect+ account to continue.';
+  const pageHeading = active === 'login' ? loginHeading : active === 'reset-password' ? 'Reset your password' : 'Admin Console';
+  const pageCopy = active === 'login'
+    ? loginCopy
+    : active === 'reset-password'
+      ? 'Choose a new password for your Connect+ Ops account.'
+      : 'Login to an existing account or create a new evaluation account.';
+
+  useEffect(() => {
+    if (active !== 'login') return;
+    document.title = platformLogin
+      ? 'Platform Admin sign in Connect+'
+      : authMode === 'signup'
+        ? 'Create account Connect+'
+        : 'Sign in Connect+';
+  }, [active, authMode, platformLogin]);
+
   const content = active === 'login-check-email' ? (
     <LoginCheckEmail email={email} />
   ) : active === 'login-activate' ? (
@@ -1393,7 +1415,15 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
   ) : active === 'reset-password' ? (
     <ResetPasswordView token={token} email={email} onResetPassword={onResetPassword} />
   ) : (
-    <LoginEntryForm initialEmail={email} onSignup={onSignup} onPasswordLogin={onPasswordLogin} disabled={loading} />
+    <LoginEntryForm
+      initialEmail={email}
+      mode={authMode}
+      onModeChange={setAuthMode}
+      platformLogin={platformLogin}
+      onSignup={onSignup}
+      onPasswordLogin={onPasswordLogin}
+      disabled={loading}
+    />
   );
   return (
     <div className="login-shell">
@@ -1401,7 +1431,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
         <section className="login-primary" aria-labelledby="login-title">
           <div className="login-brand">
             <img src="/assets/realtek-logo.png" alt="Realtek" />
-            <strong>Connect+ Ops</strong>
+            <strong>Connect+</strong>
           </div>
           <h1 id="login-title">{pageHeading}</h1>
           <p className="login-copy">{pageCopy}</p>
@@ -1413,31 +1443,30 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
   );
 }
 
-function LoginEntryForm({ initialEmail, onSignup, onPasswordLogin, disabled }) {
-  const [mode, setMode] = useState('login');
+function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSignup, onPasswordLogin, disabled }) {
   return (
     <div className="auth-stack">
-      <div className="auth-mode-tabs" role="tablist" aria-label="Auth mode">
+      {!platformLogin ? <div className="auth-mode-tabs" role="tablist" aria-label="Auth mode">
         <button
           type="button"
           className={mode === 'login' ? 'active' : ''}
           role="tab"
           aria-selected={mode === 'login'}
-          onClick={() => setMode('login')}
+          onClick={() => onModeChange('login')}
         >
-          Login
+          Sign in
         </button>
         <button
           type="button"
           className={mode === 'signup' ? 'active' : ''}
           role="tab"
           aria-selected={mode === 'signup'}
-          onClick={() => setMode('signup')}
+          onClick={() => onModeChange('signup')}
         >
-          Sign Up
+          Create account
         </button>
-      </div>
-      {mode === 'signup' ? (
+      </div> : null}
+      {!platformLogin && mode === 'signup' ? (
         <SignupForm onSignup={onSignup} disabled={disabled} />
       ) : (
         <LoginPasswordForm initialEmail={initialEmail} onPasswordLogin={onPasswordLogin} disabled={disabled} />
@@ -1473,7 +1502,7 @@ function LoginPasswordForm({ initialEmail = '', onPasswordLogin, disabled }) {
         Password
         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required />
       </label>
-      <button type="submit" disabled={busy || disabled}>{busy ? 'Logging in' : 'Login'}</button>
+      <button type="submit" disabled={busy || disabled}>{busy ? 'Signing in' : 'Sign in'}</button>
       <a className="auth-link" href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}>Forgot password?</a>
       {localError ? <p className="error">{localError}</p> : null}
     </form>
