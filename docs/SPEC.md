@@ -483,6 +483,12 @@ Production-mode readiness precedence:
 
 ## Developer PKI Test Bundles
 
+### [REQ-CA-BFF-PKI-TEST-001] Test certificate issuance is gated and keeps private keys in the browser
+
+<!-- rtk-requirement
+{"acceptance_layer":"integration","operation_model":"independent","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
+-->
+
 The Developer Console exposes `POST /api/developer/pki/test-bundles/app` and
 `POST /api/developer/pki/test-bundles/device` only when
 `DEVELOPER_PKI_TEST_TOOLS_ENABLED=true` and the runtime environment is local or
