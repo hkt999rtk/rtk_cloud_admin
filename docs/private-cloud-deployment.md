@@ -128,8 +128,11 @@ JavaScript call the Grafana Service directly.
 
 ## Backup, Restore, And Rollback
 
-Back up the SQLite database file together with any `-wal` or `-shm` sidecar
-files when the database is in use.
+The workspace [Core Backup and Restore](../../../docs/backup-restore.md) owns
+coordinated environment recovery. V1 stops writers and archives the complete
+dedicated SQLite PVC, including any remaining WAL sidecars. Copying a live
+database and sidecars separately is not a consistent backup; use SQLite's
+backup API for an independent service-local online backup instead.
 
 For LKE, take a storage-level snapshot or quiesced file backup of the PVC before
 upgrades that may alter Admin state. Rollback must pair the known-good release
@@ -138,11 +141,12 @@ replace this section with the approved database restore procedure.
 
 Practical workflow:
 
-1. Stop the service or quiesce traffic.
-2. Copy the current database file from `DATABASE_PATH`.
+1. Stop all service processes using the database (blocking HTTP alone is insufficient).
+2. Archive the database from `DATABASE_PATH` and any remaining WAL/sidecar
+   state together; verify `PRAGMA integrity_check` on a restored copy.
 3. Archive the release version that produced the running service.
-4. Restore by replacing the database file and redeploying the known-good
-   release artifact.
+4. Restore into the stopped dedicated PVC with no stale database/WAL files,
+   using the known-good compatible release artifact.
 5. Roll back by restoring the previous database snapshot and the previous app
    artifact together.
 
