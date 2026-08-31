@@ -12,13 +12,13 @@ against the approved design assets in `docs/assets/webui-design/`.
 
 - Sidebar uses the Realtek Ops Console navy background and primary blue active
   nav state.
-- Sidebar groups are fixed and non-collapsible, in this order: 品牌雲、設備營運、
-  產品與更新、監控與分析、帳號管理.
-- Group items appear in the approved order: 品牌雲首頁; 設備、群組與標籤、
-  批次工作; Product 與服務、ChipSet & SDK、韌體更新; 影像播放狀況、
-  報表; 帳務與自動加值.
-- 團隊與權限 is not a separate sidebar item. 品牌雲首頁 remains active for the
-  總覽、成員與權限、設定 tabs.
+- Sidebar groups are fixed and non-collapsible, in this order: Brand Cloud、Device Operations、
+  Products and Updates、Monitoring and Analytics、Account Management.
+- Group items appear in the approved order: Brand Cloud Home; Devices, Groups, and Tags、
+  Batch Jobs; Products and Services、ChipSet & SDK、Firmware Updates; Video Playback Health、
+  Reports; Billing and Auto Top-Up.
+- Team and Permissions is not a separate sidebar item. Brand Cloud Home remains active for the
+  Overview、Members and Permissions、Settings tabs.
 - No `Switch to Platform View` or `Switch to Customer View` control is present.
   Customer and Platform sessions use the same Connect+ Ops shell, but each
   session renders only its own grouped navigation.
@@ -50,13 +50,13 @@ against the approved design assets in `docs/assets/webui-design/`.
 - Direct navigation, refresh, Back, and Forward preserve the URL and selected
   tab. Existing unscoped `/console/overview`, `/console/access`, and
   `/console/settings` routes remain usable.
-- Clicking 品牌雲首頁 opens the first accessible tab in the order 總覽、成員與
-  權限、設定. Sidebar active state is present on every Brand Cloud tab.
-- 總覽 shows the team summary only when team or role-assignment read access is
+- Clicking Brand Cloud Home opens the first accessible tab in the order Overview,
+  Members and Permissions, Settings. Sidebar active state is present on every Brand Cloud tab.
+- Overview shows the team summary only when team or role-assignment read access is
   available. A failed team source does not hide fleet KPIs or fleet panels.
-- 成員與權限 shows members, pending invitations, roles, and readable management
+- Members and Permissions shows members, pending invitations, roles, and readable management
   scopes. Invite/member mutation controls are absent for read-only users.
-- 設定 always exposes owner-transfer token acceptance to authenticated customer
+- Settings always exposes owner-transfer token acceptance to authenticated customer
   developers. Owner-transfer management requires `team.manage`; PKI test bundle
   issuance requires `pki.test.issue`.
 - A failed fleet source does not hide usable team administration. Members,
@@ -66,7 +66,7 @@ against the approved design assets in `docs/assets/webui-design/`.
 
 ## Fleet Health Overview
 
-Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 設備總覽
+Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — Fleet Overview
 
 - KPI strip shows current online devices, seven-day online ratio, devices needing attention, and devices playing now.
 - Fleet health trend chart is the primary large panel.
@@ -80,7 +80,7 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 設備
 
 ## Devices + Detail Drawer
 
-Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 我的設備
+Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — My Devices
 
 - Search and filters are visible above the table.
 - Page selectors are visible above and below the list; all practical page
@@ -104,7 +104,7 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 我的
 
 ## Firmware & OTA
 
-Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 韌體更新
+Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — Firmware Updates
 
 - KPI strip shows Latest Version, Devices Current, Pending Update, and Failed
   Rollout.
@@ -121,7 +121,7 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 韌體
 
 ## Stream Health
 
-Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 影像播放狀況
+Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — Video Playback Health
 
 - KPI strip shows Stream Success Rate, Avg Stream Duration, Active Sessions Now,
   and Devices Never Streamed.
@@ -171,9 +171,9 @@ Reference: `docs/assets/webui-design/customer-view-refresh-mock.html` — 影像
 ## Platform View Boundary
 
 - Platform Admin uses the same dark Connect+ Ops shell and responsive behavior
-  as Customer, with fixed groups: 平台總覽、監控與診斷、組織與產品、營運與稽核.
-- Platform navigation contains 平台首頁; Grafana、服務健康、服務日誌; 品牌雲管理、
-  ChipSet & SDK 供應商、SSO 供應商; 營運紀錄、稽核紀錄, in that order.
+  as Customer, with fixed groups: Platform Overview、Monitoring and Diagnostics、Organizations and Products、Operations and Audit.
+- Platform navigation contains Platform Home; Grafana、Service Health、Service Logs; Brand Cloud Management、
+  ChipSet & SDK Providers、SSO Providers; Operations Log、Audit Log, in that order.
 - Platform content remains Tier 1 only and stays on `/admin/*`; Customer content
   remains on `/console/*`. A unified shell does not imply shared payloads.
 - Platform Dashboard follows `docs/platform-view-dashboard-design.md`: curated

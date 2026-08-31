@@ -27,8 +27,8 @@ Audience:
 
 Related documents:
 
-- [SPEC.md](SPEC.md)
-- [ROLES.md](ROLES.md)
+- [spec.md](spec.md)
+- [roles.md](roles.md)
 - [admin-dashboard-redesign.md](admin-dashboard-redesign.md)
 - [sso-oidc-design.md](sso-oidc-design.md)
 - [backend-api-gap-audit.md](backend-api-gap-audit.md)

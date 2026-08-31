@@ -9,7 +9,7 @@ Related documents:
 - [Platform View Dashboard Design](platform-view-dashboard-design.md)
 - [Platform Brand Cloud Management Design](platform-brand-cloud-management-design.md)
 - [Backend API Gap Audit](backend-api-gap-audit.md)
-- [Role Definitions](ROLES.md)
+- [Role Definitions](roles.md)
 - [OpenAPI contract](openapi.yaml)
 
 ## Executive Summary
@@ -247,6 +247,6 @@ traceable detail page without reading SQLite or constructing PromQL manually.
 - Regression: customer sessions cannot access `/api/admin/*` or receive
   cross-tenant data.
 
-The canonical `docs/TEST_REPORT.md` is refreshed from the CI report generator
+The canonical `docs/test_report.md` is refreshed from the CI report generator
 when backend coverage changes; it is kept in sync with the tracked test and
 coverage evidence for each implementation branch.

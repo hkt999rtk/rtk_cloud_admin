@@ -4,8 +4,8 @@ Date: 2026-07-13
 
 Source documents:
 
-- `docs/SPEC.md`
-- `docs/ROLES.md`
+- `docs/spec.md`
+- `docs/roles.md`
 - `docs/admin-dashboard-redesign.md`
 
 Scope: backend API contracts needed by customer dashboard, platform dashboard,
@@ -146,7 +146,7 @@ React components. For any customer-session route, the response must omit:
 - `dead_lettered` and other platform-only lifecycle states
 
 Platform Admin routes may keep these fields where allowed by
-`docs/ROLES.md`.
+`docs/roles.md`.
 
 ### Device Detail Contract
 

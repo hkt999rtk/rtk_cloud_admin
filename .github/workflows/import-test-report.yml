@@ -55,32 +55,32 @@ jobs:
           rm -rf .artifacts/imported
           mkdir -p .artifacts/imported
           gh run download "$RUN_ID" --name "$ARTIFACT_NAME" --dir .artifacts/imported
-          test -s .artifacts/imported/docs/TEST_REPORT.md
+          test -s .artifacts/imported/docs/test_report.md
 
       - name: Import and validate report
         run: |
           set -euo pipefail
-          cp .artifacts/imported/docs/TEST_REPORT.md docs/TEST_REPORT.md
-          scripts/validate_test_report.sh docs/TEST_REPORT.md
-          changed="$(git status --short -- docs/TEST_REPORT.md)"
-          extra="$(git status --short --untracked-files=no | awk '$2 != "docs/TEST_REPORT.md" { print }')"
+          cp .artifacts/imported/docs/test_report.md docs/test_report.md
+          scripts/validate_test_report.sh docs/test_report.md
+          changed="$(git status --short -- docs/test_report.md)"
+          extra="$(git status --short --untracked-files=no | awk '$2 != "docs/test_report.md" { print }')"
           if [ -n "$extra" ]; then
-            echo "import workflow would modify files other than docs/TEST_REPORT.md:" >&2
+            echo "import workflow would modify files other than docs/test_report.md:" >&2
             echo "$extra" >&2
             exit 1
           fi
           if [ -z "$changed" ]; then
-            echo "docs/TEST_REPORT.md already matches candidate"
+            echo "docs/test_report.md already matches candidate"
           fi
 
       - name: Commit and push report
         run: |
           set -euo pipefail
-          if git diff --quiet -- docs/TEST_REPORT.md; then
+          if git diff --quiet -- docs/test_report.md; then
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/TEST_REPORT.md
+          git add docs/test_report.md
           git commit -m "Import CI test report candidate"
           git push origin "HEAD:${{ steps.pr.outputs.branch }}"

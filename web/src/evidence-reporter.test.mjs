@@ -83,7 +83,7 @@ test('evidence reporter writes stable evidence and preserves a prior passing cas
   assert.match(manifest.cases[0].screenshot_sha256, /^[a-f0-9]{64}$/);
   assert.equal(manifest.cases[1].purpose, 'prior pass');
   assert.match(fs.readFileSync(path.join(runDir, 'junit.xml'), 'utf8'), /tests="2" failures="0"/);
-  assert.match(fs.readFileSync(path.join(runDir, 'TEST_REPORT.md'), 'utf8'), /Overall assessment: \*\*PASS\*\*/);
+  assert.match(fs.readFileSync(path.join(runDir, 'test_report.md'), 'utf8'), /Overall assessment: \*\*PASS\*\*/);
   assert.equal(reporter.purposeByTestID('UI-CA-BILLING-STG-999'), 'Validate UI-CA-BILLING-STG-999 behavior defined by the catalog and Playwright test');
 });
 
@@ -107,5 +107,5 @@ test('evidence reporter fails closed for invalid or incomplete evidence', async 
   assert.equal(manifest.validation_errors.length, 4);
   assert.match(fs.readFileSync(path.join(runDir, 'junit.xml'), 'utf8'), /failures="1"/);
   assert.match(fs.readFileSync(path.join(runDir, 'junit.xml'), 'utf8'), /&lt;upstream &amp; failed&gt;/);
-  assert.match(fs.readFileSync(path.join(runDir, 'TEST_REPORT.md'), 'utf8'), /## Validation errors/);
+  assert.match(fs.readFileSync(path.join(runDir, 'test_report.md'), 'utf8'), /## Validation errors/);
 });

@@ -1,6 +1,6 @@
 # My Clouds and Product-scoped console design
 
-Status: design-first target. Canonical [MULTICLOUD_OWNERSHIP.md](https://github.com/hkt999rtk/rtk_cloud_contracts_doc/blob/codex/multicloud-owner-design/MULTICLOUD_OWNERSHIP.md) governs ownership,
+Status: design-first target. Canonical [multicloud_ownership.md](https://github.com/hkt999rtk/rtk_cloud_contracts_doc/blob/codex/multicloud-owner-design/multicloud_ownership.md) governs ownership,
 sharing, deletion and Billing handoff. This document does not claim implementation.
 
 ## Navigation and session
