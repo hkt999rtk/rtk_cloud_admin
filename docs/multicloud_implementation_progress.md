@@ -544,3 +544,19 @@ target labels and the tested service commit. These supersede the mixed-target
 metadata limitation above. `workspace_commit` explicitly says
 `not-applicable-service-checkout`: no merged workspace gitlink is asserted.
 The disposable fixture and the in-app inspection tab were stopped/closed.
+
+### Automatically isolated Product UI fixture — 2026-09-01
+
+Product, device and sharing Playwright cases now start their own worker-scoped
+Go BFF fixture instead of skipping when a manual opt-in flag is absent. Each
+worker compiles the test harness into an owned temporary directory, uses an
+OS-assigned loopback port and temporary SQLite store, then terminates the direct
+test process gracefully so Go cleanup runs. The ordinary server and staging
+sessions are not used for these cases; no production route was added.
+
+A flag-free two-worker run executed all three cases on desktop and Pixel 7:
+6 PASS in 50.6s. Raw per-project screenshots were inspected. This preliminary
+combined report groups targets; use separate committed-source target reports
+for subsequent qualification. Frontend unit tests: 131 PASS; scoped Go tests,
+race (6.319s), vet and full Go/web builds pass. Full workspace UI qualification,
+Linux CI and staging remain open, as do the previously listed service gaps.

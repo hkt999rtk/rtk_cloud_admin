@@ -1,5 +1,21 @@
 # Test Report
 
+## 2026-09-01 automatic scoped UI fixture
+
+- The Product/device/sharing cases no longer require a manually started server
+  or skip flag. A worker-scoped Playwright fixture owns a Go test process,
+  temporary SQLite database and dynamic loopback port; cleanup stops that exact
+  process and removes only its own binary directory.
+- Flag-free desktop/Pixel 7 run: 6 PASS (50.6s), two workers; log:
+  `/tmp/rtk-scoped-ui-auto-tests.log`. Per-project screenshots are under
+  `/tmp/rtk-scoped-ui-auto-evidence/raw/main/` and were inspected.
+  The preliminary combined reporter target label is not per-target evidence.
+- Frontend unit tests: 131 PASS; scoped Go tests/race, vet, Go build and web
+  build pass. Logs: `/tmp/rtk-scoped-ui-auto-node.log`,
+  `/tmp/rtk-scoped-ui-auto-go-race.log`, `/tmp/rtk-scoped-ui-auto-build.log`.
+- No deployed service, external email, provider or shared database was used.
+  Full suite, Linux CI, service integration and staging acceptance remain open.
+
 ## Summary
 
 | Item | Result |

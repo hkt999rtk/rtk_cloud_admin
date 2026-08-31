@@ -1,9 +1,8 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures/scoped-products.mjs';
 const cloudA='11111111-1111-4111-8111-111111111111',cloudB='22222222-2222-4222-8222-222222222222';
 const shared='55555555-5555-4555-8555-555555555555';
 
 test('[UI-CA-PRODUCTS-101] scoped Product CRUD pagination viewer and revocation @smoke',async({page,context,request,baseURL},testInfo)=>{
- test.skip(process.env.SCOPED_PRODUCT_UI_FIXTURE!=='1','requires the opt-in local Go BFF fixture');
  expect(new URL(baseURL).hostname).toBe('127.0.0.1');
  expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
  await page.goto('/console/clouds/'+cloudA);

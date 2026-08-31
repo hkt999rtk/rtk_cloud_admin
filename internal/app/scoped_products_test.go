@@ -1,16 +1,19 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/signal"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -334,12 +337,16 @@ func TestScopedProductBrowserFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := NewWithOptions(st, Options{AccountClient: accountclient.New(upstream.URL)})
-	listener, err := net.Listen("tcp", "127.0.0.1:18197")
+	port := os.Getenv("SCOPED_PRODUCT_UI_PORT")
+	if port == "" {
+		port = "18197"
+	}
+	listener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", port))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer listener.Close()
-	fmt.Println("Disposable Product UI fixture: http://127.0.0.1:18197")
+	fmt.Printf("Disposable Product UI fixture: http://%s\n", listener.Addr())
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" && (r.URL.Path == "/__fixture__/revoke" || r.URL.Path == "/__fixture__/reset" || r.URL.Path == "/__fixture__/invalid-products") {
 			f.mu.Lock()
@@ -359,7 +366,16 @@ func TestScopedProductBrowserFixture(t *testing.T) {
 		r.Header.Set("Cookie", "rtk_admin_session="+session.ID)
 		s.ServeHTTP(w, r)
 	})
-	if err := http.Serve(listener, handler); err != nil {
+	// CI launches the compiled test binary directly. Graceful termination lets
+	// testing run cleanup for the temporary SQLite store and upstream server.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second}
+	go func() {
+		<-ctx.Done()
+		_ = server.Close()
+	}()
+	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		t.Fatal(err)
 	}
 }

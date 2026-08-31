@@ -1,7 +1,6 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures/scoped-products.mjs';
 const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',p='33333333-3333-4333-8333-333333333333',shared='55555555-5555-4555-8555-555555555555',d='77777777-7777-4777-8777-000000000000',sd='88888888-8888-4888-8888-000000000000';
 test('[UI-CA-DEVICES-101] Product devices explicit scope display edit and revocation @smoke',async({page,context,request,baseURL},info)=>{
- test.skip(process.env.SCOPED_PRODUCT_UI_FIXTURE!=='1','requires local Go BFF fixture');
  expect(new URL(baseURL).hostname).toBe('127.0.0.1');expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
  await page.goto(`/console/clouds/${a}/products/${p}`);
  const panel=page.getByTestId('product-devices');
