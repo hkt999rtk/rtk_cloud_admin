@@ -7,7 +7,6 @@ import {
   loginNextFromLocation,
   loginPathFor,
   normalizeLoginNext,
-  passwordLoginOrderForNext,
   removeQueryParameterFromAddress,
 } from './auth-routing.mjs';
 
@@ -51,10 +50,8 @@ test('session destination respects session kind and next path', () => {
 });
 
 test('password login prefers the destination view', () => {
-  assert.deepEqual(passwordLoginOrderForNext('/admin'), ['platform', 'customer']);
-  assert.deepEqual(passwordLoginOrderForNext('/admin/resources'), ['platform', 'customer']);
-  assert.deepEqual(passwordLoginOrderForNext('/console/devices'), ['customer', 'platform']);
-  assert.deepEqual(passwordLoginOrderForNext('/signup'), ['customer', 'platform']);
+  assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/admin?tab=health#status'), '/admin?tab=health#status');
+  assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/console?cloud=brand-1#status'), '/console?cloud=brand-1#status');
 });
 
 test('platform login context requires a safe admin destination', () => {
