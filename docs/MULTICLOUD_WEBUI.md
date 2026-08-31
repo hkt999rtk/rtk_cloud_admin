@@ -9,6 +9,11 @@ One global account session serves developer and Platform views. Honor a safe,
 authorized login next first; otherwise memberships lead to /console/clouds,
 platform-only capability to Platform View, and neither to a clear no-access page.
 No additional login or per-cloud identity is introduced.
+For an eligible developer with no memberships, the no-access state explains the
+absence of cloud access and links to My Clouds/create; it is not an account lockout.
+My Clouds may show an empty list and quota without requiring existing ownership.
+Viewer-only developers and owners deleting their last cloud can create a new
+owned cloud. The backend rechecks account eligibility and quota on submission.
 
 | Page | Content and authority |
 | --- | --- |
@@ -21,7 +26,7 @@ page owns create/edit/share/transfer/delete entry points for ordinary developers
 Backend capabilities control buttons; UI role labels are not authorization.
 Show filtered total separately from owned quota (shared clouds do not count).
 
-Every BFF request binds explicit cloud ID from route/request and verifies it
+Every cloud-scoped BFF request binds explicit cloud ID from route/request and verifies it
 against current Account Manager membership, lifecycle and capabilities. Product
 ID must belong to that cloud. Do not let a session-global active cloud override
 a tab's request. Two tabs may operate two clouds. Cancel outstanding requests on
@@ -29,6 +34,9 @@ navigation, reject stale responses and partition caches by cloud/authorization
 version. Server-held jobs and downloads keep immutable scope and revalidate
 authority. Old routes redirect only when scope is unambiguous and authorized;
 never replay a mutation against a newly selected cloud.
+Global login, account/session, My Clouds list/create and platform APIs do not
+require a selected cloud. They validate their global account/platform authority;
+creating a cloud assigns the caller its initial ownership atomically.
 
 ## CRUD and collaboration
 
@@ -43,6 +51,11 @@ states that future Products are included. Viewer does not include Billing,
 secrets, payment methods or playback. Existing admin/member grants remain visible
 without being mislabeled read-only. Show pending invites with resend/cancel and
 30-minute expiry; recipient must explicitly accept in the matching global session.
+Replay requires the same target, role and complete normalized scope. If an existing
+pending invite has a different Product set or scope kind, show a conflict with its
+unchanged scope and offer cancel then create; never report the requested narrowing
+as applied. Resend preserves scope. Test reordered equivalent IDs, changed-scope
+conflicts and cancel/recreate with old-token rejection and new-scope-only access.
 
 Members: owner alone manages cloud admission and approved Product scope. Product
 collaboration cannot auto-enroll external users or re-enable disabled membership.

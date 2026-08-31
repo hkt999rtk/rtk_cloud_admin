@@ -197,12 +197,14 @@ memberships without re-authentication.
 - `GET /healthz`: plain health check.
 - `POST /api/auth/login`: the only human password-login BFF route. It calls
   Account Manager `/v1/auth/login` once, then `/v1/me`, and stores one account
-  session containing the upstream tokens, global capabilities, memberships,
-  and active organization selection.
+  session containing upstream tokens, global capabilities and memberships;
+  cloud authorization is resolved separately for each explicitly scoped request.
 - `POST /api/auth/logout`: deletes local session metadata.
-- `GET /api/me`: current user, global capabilities, memberships, active
-  organization, available views, and demo/auth state.
-- `POST /api/me/active-org`: switches active organization for the current session.
+- `GET /api/me`: current user, global capabilities, cloud memberships, available
+  views and demo/auth state; any legacy selected-cloud field is only a UI hint.
+- `POST /api/me/active-org`: compatibility validation of a requested cloud and
+  its current capabilities; it cannot set shared session authorization scope or
+  change the target of another tab's reads/mutations.
 - `GET /api/summary`: customer and platform dashboard summary.
 - `GET /api/admin/platform-dashboard`: platform-admin protected Platform
   Dashboard BFF contract with server-side allowlisted Prometheus queries for
@@ -298,8 +300,9 @@ of hiding the entire dashboard.
 -->
 
 Acceptance: Daily human access uses Account Manager SSO or the single password
-login, every route checks the session's effective capability and selected
-organization, expired/invalid upstream tokens delete local session metadata and
+login; global routes check global account/platform capabilities, while cloud
+routes resolve capabilities from each request's explicitly validated cloud ID,
+never a session-global selected organization. Expired/invalid upstream tokens delete local session metadata and
 clear the cookie before returning 401, and no local break-glass account exists.
 
 Production human authentication is verified by Account Manager. Admin Console
@@ -313,8 +316,9 @@ Unified account sessions:
 
 - credentials are posted once, only to `/api/auth/login`, and never stored
 - the BFF stores session metadata plus upstream access/refresh tokens
-- route guards use global capabilities and active-organization capabilities,
-  not the login path or a UI role switch
+- global route guards use global capabilities; cloud route guards resolve current
+  membership/capabilities for that request's validated cloud UUID, not a shared
+  active-organization snapshot, login path or UI role switch
 - a valid `next` route is honored only when authorized; otherwise the default is
   My Clouds (`/console/clouds`) when memberships exist, then Platform View when platform access
   exists, otherwise the no-access page
@@ -557,7 +561,8 @@ Environment variables:
 - Store tests for SQLite schema creation, seed data, device queries, operation queries, audit metadata insertion, migration idempotence, and upgrade from the current v2 schema.
 - Store tests for versioned migrations, admin password verification, and session expiry.
 - App tests for one-request account login, upstream proxy mode, provision proxy,
-  active-organization switching, dual Platform/Brand capability, and route guards.
+  independent per-tab cloud switching, global-route access without cloud selection,
+  dual Platform/Brand capability, and request-scoped route guards.
 - Frontend build verification with `npm run build`.
 - Backend build verification with `go test ./...` and `go build ./cmd/server`.
 - Native server smoke verification for `/healthz`, `/api/service-health`, the
