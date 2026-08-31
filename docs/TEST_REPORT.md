@@ -66,3 +66,18 @@ findings, but the workspace traceability freshness check is still FAIL.
 See `MULTICLOUD_IMPLEMENTATION_PROGRESS.md` for reproducible commands, local
 artifact locations and remaining CI/cross-service/staging gates. These results
 do not establish end-to-end release acceptance.
+
+## Local Product-device checkpoint — 2026-08-31
+
+Full local Go suite PASS, total statement coverage **81.0%**; targeted device/
+Product race cases PASS twice; vet and frontend build PASS; **131 frontend unit
+tests PASS**. Product and device browser cases PASS on desktop and emulated
+Pixel 7 (**4 passes**). Device display updates preserve serial and scope on fixture
+readback; real persistence/identity preservation is separately tested in AM's
+isolated PostgreSQL suite. These are not staging or hosted CI results.
+
+AM/Admin OpenAPI validation PASS. A combined current AM/Billing/Admin inventory
+reveals **21 blocking operation mappings** and stale workspace traceability;
+the earlier Admin-only zero-blocker report is not combined integration evidence.
+Full release acceptance remains incomplete. See the implementation progress
+document for scope, commands, artifacts and remaining gates.

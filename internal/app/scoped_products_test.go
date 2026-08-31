@@ -21,14 +21,16 @@ const sharedProductID = "55555555-5555-4555-8555-555555555555"
 const createdProductID = "66666666-6666-4666-8666-666666666666"
 
 type scopedProductsFixture struct {
-	mu       sync.Mutex
-	products map[string]accountclient.DeviceItemProfile
-	writes   []string
-	keys     []string
-	badScope bool
-	allowed  bool
-	revoked  bool
-	clouds   *managedCloudFixture
+	mu             sync.Mutex
+	products       map[string]accountclient.DeviceItemProfile
+	writes         []string
+	keys           []string
+	badScope       bool
+	allowed        bool
+	revoked        bool
+	clouds         *managedCloudFixture
+	devices        map[string]accountclient.Device
+	badDeviceScope bool
 }
 
 func newScopedProductsFixture(t *testing.T) (*httptest.Server, *scopedProductsFixture) {
@@ -40,6 +42,7 @@ func newScopedProductsFixture(t *testing.T) (*httptest.Server, *scopedProductsFi
 	clouds.clouds[cloudA] = owner
 	clouds.mu.Unlock()
 	f := &scopedProductsFixture{products: map[string]accountclient.DeviceItemProfile{}, allowed: true, clouds: clouds}
+	f.resetDevices()
 	for i := 0; i < 27; i++ {
 		id := fmt.Sprintf("33333333-3333-4333-8333-%012d", i)
 		if i == 0 {
@@ -68,6 +71,9 @@ func newScopedProductsFixture(t *testing.T) (*httptest.Server, *scopedProductsFi
 			return
 		}
 		cloud := parts[2]
+		if f.serveProductDevices(w, r, parts) {
+			return
+		}
 		if len(parts) == 5 && parts[3] == "access" && parts[4] == "check" {
 			writeJSON(w, map[string]bool{"allowed": f.allowed})
 			return
@@ -340,6 +346,7 @@ func TestScopedProductBrowserFixture(t *testing.T) {
 			f.revoked = r.URL.Path == "/__fixture__/revoke"
 			if !f.revoked {
 				delete(f.products, createdProductID)
+				f.resetDevices()
 			}
 			f.mu.Unlock()
 			w.WriteHeader(204)

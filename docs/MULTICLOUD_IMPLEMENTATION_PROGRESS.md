@@ -424,3 +424,63 @@ the canonical CI runner/test inventory. Workspace traceability, contract
 consistency, full cross-service CI and staging activation/device/certificate/MQTT
 acceptance remain outstanding. No deployment, shared DB mutation, real email,
 payment action or legacy-table cleanup occurred in this batch.
+
+## Follow-up checkpoint: Product device scope and safe display editing
+
+Product pages now include real server-filtered device search/pagination; device
+details use `/console/clouds/{cloudId}/products/{productId}/devices/{deviceId}`.
+GET/list/PATCH BFF requests bind all three identities, validate the live cloud and
+Product, and never change the account session's active cloud. List totals come
+from the same upstream Product filter. Cross-cloud/Product, duplicate device IDs,
+missing/impossible pagination and malformed queries are withheld, not repaired
+by filtering a broad response in the browser.
+
+Device display editing uses a new AM display-only endpoint, not the legacy
+full-record PATCH which replaces omitted hardware/metadata columns. The BFF
+accepts only name/model, requires same-origin/idempotency headers and current
+device write permission, and retains a viewer ceiling. AM rechecks exact binding
+and authority under transaction locks and audits before commit. Name/model
+changes preserve serial/MAC/manufacturer, Product, status and activation metadata.
+The BFF projection exposes neither raw metadata nor credentials/playback data.
+Assignment retries are safe but are not claimed to be historical-response replay.
+
+The UI supports scoped list/detail navigation, filtered empty state, readback
+after editing, explicit model clearing, canceled stale reads and passive authority
+rechecks. Losing device access clears the page rather than showing old data.
+Backend tests separately exercise real PostgreSQL persistence and HTTP contracts;
+the browser upstream remains a synthetic fixture, not a real deployed AM.
+
+Local evidence:
+
+- Full Admin Go suite PASS; total statement coverage **81.0%**.
+- Targeted device/Product BFF/client race tests PASS twice; vet PASS.
+- Frontend unit tests **131 PASS**; frontend production build PASS.
+- Product and device repository browser cases PASS on desktop Chromium and
+  emulated Pixel 7: **4 passes**, run sequentially against the same disposable
+  loopback fixture, with separate per-target reports. Device tests cover 26-item
+  pagination, search/empty state, edit/reload with serial preserved, viewer denial,
+  wrong-cloud denial, two-cloud tabs, passive revocation and mobile overflow.
+  Mobile device detail and Product/device list screenshots were inspected.
+- AM and Admin OpenAPI validation PASS. The reviewed canonical Billing reference
+  is resolved in memory for Admin, with no source symlink rewrite.
+
+Reproduction uses the existing opt-in `TestScopedProductBrowserFixture`, followed
+by `web/e2e/product-devices.spec.mjs` and `web/e2e/scoped-products.spec.mjs`, one
+worker and one target at a time. Reports are in
+`/tmp/rtk-product-devices-browser.jIS5OE/{desktop,mobile}`; they identify a dirty
+local snapshot based on 91f4ff5, not a published CI SHA. Go/unit/race/build logs are
+`/tmp/rtk-product-devices-*`. Fixture reset/revoke changes only in-memory test data.
+
+**Integration correction:** substituting all current AM/Billing/Admin worktrees
+into a new read-only spec overlay found **21 blocking operation mappings**, plus
+stale workspace traceability. The previous zero-blocker result applied only to
+Admin against reviewed baseline dependencies. Full diagnostic:
+`/tmp/rtk-device-scope-inventory.4o3gdW/local-inventory/spec-inventory.json`.
+No new device operation is unmapped; the existing cross-service mappings still
+require correction, not omission from the inventory denominator.
+
+Remaining: claim/provision/deactivation with real activation inputs, firmware/
+OTA/telemetry and downloads, legacy unscoped endpoint retirement, sharing-selector
+pagination, complete producer/Billing adapters and transactional fencing, combined
+cross-service CI/coverage/traceability, and staging activation/device/certificate/
+MQTT qualification. No live deployment or shared database update occurred.

@@ -1,0 +1,23 @@
+import {test,expect} from '@playwright/test';
+const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',p='33333333-3333-4333-8333-333333333333',shared='55555555-5555-4555-8555-555555555555',d='77777777-7777-4777-8777-000000000000',sd='88888888-8888-4888-8888-000000000000';
+test('[UI-CA-DEVICES-101] Product devices explicit scope display edit and revocation @smoke',async({page,context,request,baseURL},info)=>{
+ test.skip(process.env.SCOPED_PRODUCT_UI_FIXTURE!=='1','requires local Go BFF fixture');
+ expect(new URL(baseURL).hostname).toBe('127.0.0.1');expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
+ await page.goto(`/console/clouds/${a}/products/${p}`);
+ const panel=page.getByTestId('product-devices');
+ await expect(panel.getByRole('navigation',{name:'Device pages'})).toContainText('26 authorized devices');
+ await panel.getByRole('button',{name:'Next devices',exact:true}).click();await expect(panel).toContainText('Page 2');
+ await panel.getByRole('textbox',{name:'Search devices',exact:true}).fill('not-found');await panel.getByRole('button',{name:'Search devices',exact:true}).click();await expect(panel).toContainText('No devices match');
+ await panel.getByRole('textbox',{name:'Search devices',exact:true}).fill('Camera device 00');await panel.getByRole('button',{name:'Search devices',exact:true}).click();await expect(panel).toContainText('1 authorized devices');
+ await panel.getByRole('link',{name:'Camera device 00',exact:true}).click();await expect(page).toHaveURL(new RegExp(`/products/${p}/devices/${d}`));
+ await panel.getByRole('button',{name:'Edit device display',exact:true}).click();await panel.getByRole('textbox',{name:'Device name',exact:true}).fill('Device display updated');await panel.getByRole('textbox',{name:'Device model',exact:true}).fill('');
+ const sent=page.waitForRequest(r=>r.method()==='PATCH'&&r.url().endsWith(`/products/${p}/devices/${d}`));await panel.getByRole('button',{name:'Save device',exact:true}).click();expect((await sent).headers()['idempotency-key']).toBeTruthy();
+ await expect(panel.getByRole('heading',{name:'Device display updated',exact:true})).toBeVisible();await page.reload();await expect(panel).toContainText('Device display updated');await expect(panel).toContainText('serial-00');
+ const other=await context.newPage();await other.goto(`/console/clouds/${b}/products/${shared}/devices/${sd}`);await expect(other.getByTestId('product-devices')).toContainText('Shared device');await expect(other.getByRole('button',{name:'Edit device display',exact:true})).toHaveCount(0);
+ await expect(panel).toContainText('Device display updated');
+ await other.goto(`/console/clouds/${a}/products/${p}/devices/${sd}`);await expect(other.getByRole('alert')).toContainText('access');await expect(other.getByText('Shared device',{exact:true})).toHaveCount(0);
+ await other.goto(`/console/clouds/${b}/products/${shared}/devices/${sd}`);await expect(other.getByTestId('product-devices')).toContainText('Shared device');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();if(info.project.name==='mobile')expect(await page.evaluate(()=>innerWidth)).toBeLessThan(600);
+ await info.attach('scoped-device-detail',{body:await panel.screenshot(),contentType:'image/png'});
+ expect((await request.post('/__fixture__/revoke')).ok()).toBeTruthy();await expect(page.getByRole('alert')).toContainText('revoked',{timeout:15000});await expect(page.getByText('Device display updated',{exact:true})).toHaveCount(0);await expect(other.getByTestId('product-devices')).toContainText('Shared device');await other.close();
+});

@@ -4,11 +4,13 @@ import './my-clouds.css';
 import { CloudSharing } from './CloudSharing.jsx';
 import { StartOwnerHandoff } from './OwnerHandoff.jsx';
 import { CloudProducts } from './CloudProducts.jsx';
+import { ProductDevices } from './ProductDevices.jsx';
 
 export function MyCloudsApp() {
   const route = managedCloudRoute(window.location.pathname);
   const cloudId = route?.cloudId || '';
   const productId = route?.productId || '';
+  const deviceId = route?.deviceId || '';
   const savedOperationId = cloudId ? cloudOperationFromSearch(window.location.search) : '';
   const [products, setProducts] = useState(null);
   const [productError, setProductError] = useState('');
@@ -55,7 +57,7 @@ export function MyCloudsApp() {
       finally { if (!controller.signal.aborted) setLoading(false); }
     })();
     return () => controller.abort();
-  }, [cloudId, productId, view, offset, reload]);
+  }, [cloudId, productId, deviceId, view, offset, reload]);
   useEffect(() => {
     if (!operation || ['succeeded', 'canceled', 'failed'].includes(operation.state)) return;
     const controller = new AbortController();
@@ -144,6 +146,7 @@ export function MyCloudsApp() {
       {cloud && !operation && <><section className="my-clouds-panel"><h2>Cloud overview</h2><p>{cloud.description || 'No description'}</p><dl><dt>Owner</dt><dd>{cloud.owner_user_id}</dd><dt>My role</dt><dd>{cloud.my_role}</dd><dt>Cloud ID</dt><dd>{cloud.id}</dd><dt>Tenant slug</dt><dd>{cloud.tenant_slug}</dd><dt>Status</dt><dd>{cloud.status}</dd></dl>{canManage && <div className="my-clouds-actions"><button disabled={busy} onClick={() => { intent.current = null; setForm({ id: cloud.id, name: cloud.name, description: cloud.description }); }}>Edit cloud</button><button className="my-clouds-danger" disabled={busy} onClick={checkDeletion}>Check deletion</button></div>}</section><CloudProducts key={`${cloudId}/${productId}`} cloudId={cloudId} productId={productId} onAccessLost={showRequestError} /></>}
       {preflight && <section className="my-clouds-panel"><h2>Delete this cloud?</h2><p>Only an empty, fully settled cloud with zero balance can be deleted. Audit and Billing history are retained. Ownership transfer has a different rule: balance must be nonnegative.</p><Blockers items={preflight.blockers} />{preflight.eligible ? <button className="my-clouds-danger" disabled={busy} onClick={deleteCloud}>{busy ? 'Submitting…' : 'Confirm cloud deletion'}</button> : <p>Deletion is blocked. Resolve the reasons above, then check again.</p>}</section>}
       {operation && <section className="my-clouds-panel" aria-live="polite"><h2>{operation.state === 'succeeded' ? 'Cloud deleted' : operation.state === 'canceled' ? 'Deletion canceled' : 'Deletion in progress'}</h2><p>{operation.phase} · {operation.id}</p><Blockers items={operation.blockers} />{operation.state !== 'succeeded' && <p>Do not treat a submitted request as completion. Recovery continues on the server.</p>}<a href={cloudRoot}>Return to My Clouds</a></section>}
+      {cloud && productId && !operation && <ProductDevices key={`${cloudId}/${productId}/${deviceId}`} cloudId={cloudId} productId={productId} deviceId={deviceId} onAccessLost={showRequestError} />}
     </main>
   </div>;
 }
