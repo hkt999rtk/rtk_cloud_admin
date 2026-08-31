@@ -560,3 +560,10 @@ combined report groups targets; use separate committed-source target reports
 for subsequent qualification. Frontend unit tests: 131 PASS; scoped Go tests,
 race (6.319s), vet and full Go/web builds pass. Full workspace UI qualification,
 Linux CI and staging remain open, as do the previously listed service gaps.
+
+Use `npx playwright test -c playwright.scoped.config.mjs --project=chromium`
+or `--project=mobile` for isolated revalidation. This configuration retains the
+standard reporters/projects but omits the unrelated shared-port server; the
+normal full suite still discovers all three cases automatically. An attempted
+per-target standard-config rerun encountered port 18082 contention; it is not
+accepted as complete two-target evidence, and no unknown process was stopped.
