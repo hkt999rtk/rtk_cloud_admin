@@ -311,3 +311,52 @@ updates, and mobile. Existing `web/e2e/billing*.spec.mjs` fixtures still use the
 old route contract and must be migrated before running the full browser CI suite.
 Other global-session/Product-resource cutover work, dependency audit findings,
 workspace integration and real staging activation/MQTT gates remain outstanding.
+
+## Follow-up checkpoint: Billing browser regression migration
+
+The existing Billing browser specifications now target the scoped cloud URL and
+use dedicated UUID-backed global owner/viewer fixture identities. Other legacy
+fleet fixtures were not relabeled or silently granted Billing authority. Mock
+Billing verifies the forwarded owner/version and persists profile/policy readback
+so tests assert server state rather than transient optimistic success messages.
+
+The Billing page additionally revalidates cloud owner/version on window focus and
+every ten seconds while mounted. Failure clears its payer data and controls;
+cleanup aborts pending authority requests and removes the timer/listener. Monetary
+requests continue to perform their own live server-side checks independently.
+
+Local repository browser regression run:
+
+```sh
+E2E_FIXTURE_DIR=/tmp/rtk-billing-browser-ci.ahEqfx/fixtures \
+E2E_TEST_RUN_DIR=/tmp/rtk-billing-browser-ci.ahEqfx/final-results \
+./node_modules/.bin/playwright test e2e/billing.spec.mjs \
+  --project=chromium --project=mobile --workers=2
+```
+
+**18 passed**: nine cases each on desktop Chromium and emulated Pixel 7. Coverage
+includes overview, simulated hosted setup/checkout, policy/profile persisted
+readback, scoped invoice download links/activity, viewer denial, retired unscoped
+API, two-cloud tabs, stale-version writes and passive authority revocation. The
+revocation case intercepts the authority response, while Go tests independently
+cover real BFF role/version enforcement. It verifies a sub-600px mobile viewport;
+the mobile profile screenshot was inspected. This is automated mobile-emulation
+evidence for Billing, not real hardware or proof of the earlier My Clouds/sharing/
+handoff mobile flows. Provider pages are local simulators, not actual payments.
+The final per-target reruns use separate `desktop` and `mobile` result directories
+under the same `/tmp/rtk-billing-browser-ci.ahEqfx` root and set `E2E_TEST_TARGET`
+accordingly. This avoids the existing reporter merging both projects by Test ID.
+They additionally fetch the invoice PDF, check its no-store response and verify
+that a viewer cannot download it. The byte-prefix assertion exposed and corrected
+the old mock's JSON-quoting of PDF/CSV bodies; a link-only assertion missed this.
+Reports honestly identify a local dirty-tree
+test snapshot, not a published CI revision.
+
+The staging Billing specifications were updated to scoped paths, require a
+positive ownership-version response and check denial for a configured unowned
+cloud. They were syntax-checked, **not run against staging**. The deployment skill
+was applied to keep this work local: no live reset, rollout, provider action or
+credential access occurred. Full browser CI outside these Billing cases, actual
+cross-service financial/history qualification and the remaining release gates
+are still outstanding. The prior note about obsolete Billing browser fixtures
+is superseded by this checkpoint.

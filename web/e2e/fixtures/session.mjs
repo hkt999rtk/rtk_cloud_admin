@@ -8,6 +8,8 @@ export async function login(page, kind) {
     operations: ['operations@example.com', 'e2e-operations-password'],
     observer: ['observer@example.com', 'e2e-observer-password'],
     outsider: ['outsider@example.com', 'e2e-outsider-password'],
+    billing_owner: ['billing.owner@example.com', 'e2e-billing-owner-password'],
+    billing_viewer: ['billing.viewer@example.com', 'e2e-billing-viewer-password'],
   };
   const platformIdentity = {
     platform_admin: ['platform.admin@example.com', 'e2e-platform-password'],

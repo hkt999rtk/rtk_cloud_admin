@@ -2719,6 +2719,22 @@ function CloudBillingApp() {
     } catch (err) { if (!controller.signal.aborted) { setState(null); setError(billingScopeError(err.status)); } } })();
     return () => controller.abort();
   },[cloudId,reload]);
+  useEffect(()=>{
+    if (!state) return;
+    const controller=new AbortController(); let checking=false;
+    const verify=async()=>{
+      if (checking || controller.signal.aborted) return;
+      checking=true;
+      try {
+        const {brand_cloud:cloud}=await managedCloudRequest(cloudAPI(cloudId),{signal:controller.signal});
+        if (cloud.my_role!=='owner' || cloud.owner_user_id!==state.cloud.owner_user_id || !cloud.capabilities?.includes('billing_account.read')) throw {status:403};
+        if (String(cloud.ownership_version)!==state.data.ownershipVersion) throw {status:409};
+      } catch(err) { if (!controller.signal.aborted) {setState(null);setError(billingScopeError(err.status));} }
+      finally {checking=false;}
+    };
+    const timer=setInterval(verify,10000);window.addEventListener('focus',verify);
+    return ()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',verify);};
+  },[cloudId,state?.cloud.id,state?.data.ownershipVersion]);
   return <div className="my-clouds-shell"><header className="my-clouds-header"><a href={cloudURL(cloudId)}>Back to cloud</a><a href="/console/clouds">My Clouds</a></header><main className="my-clouds-main"><h1>{state?.cloud.name || 'Cloud'} / Billing</h1><p>Only your responsibility periods and the confirmed opening balance are visible. Previous owners’ payer details and payment methods are not transferred.</p>{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<button onClick={()=>setReload(v=>v+1)}>Refresh Billing and authority</button>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</main></div>;
 }
 
