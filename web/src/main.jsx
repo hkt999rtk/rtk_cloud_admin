@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
+import { productInvitationDestination } from './cloud-products.mjs';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
 import { handoffRoute } from './owner-handoff.mjs';
 import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
@@ -2608,7 +2609,7 @@ function BrandCloudMemberInvitationAcceptPage() {
   }
 
   const cloudID = result?.invitation?.brand_cloud_id || '';
-  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isProductInvitation ? 'Product invitation' : 'Brand Cloud invitation'}</p><h1>{isProductInvitation ? 'Accept Product collaboration invitation' : 'Accept team invitation'}</h1><p>We’ll verify both the invitation token and the signed-in Developer account.</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? 'Verifying…' : 'Accept invitation'}</button> : <a className="inline-action" href={isProductInvitation ? `/console/${encodeURIComponent(cloudID)}/product-services` : `/console/clouds/${encodeURIComponent(cloudID)}`}>{isProductInvitation ? 'Go to Product' : 'Open shared cloud'}</a>}</section></div>;
+  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isProductInvitation ? 'Product invitation' : 'Brand Cloud invitation'}</p><h1>{isProductInvitation ? 'Accept Product collaboration invitation' : 'Accept team invitation'}</h1><p>We’ll verify both the invitation token and the signed-in Developer account.</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? 'Verifying…' : 'Accept invitation'}</button> : <a className="inline-action" href={isProductInvitation ? productInvitationDestination(result) : `/console/clouds/${encodeURIComponent(cloudID)}`}>{isProductInvitation ? 'Go to Product' : 'Open shared cloud'}</a>}</section></div>;
 }
 
 function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage, onRefresh }) {

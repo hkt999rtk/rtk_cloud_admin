@@ -135,7 +135,7 @@ func managedCloudFixtureServer(t *testing.T) (*httptest.Server, *managedCloudFix
 				return
 			}
 			if r.URL.Path == "/v1/orgs/"+id+"/device-item-profiles" {
-				send(200, map[string]any{"device_item_profiles": []accountclient.DeviceItemProfile{{ID: productA, BrandCloudID: id, DisplayName: "Door Camera", ProfileKey: "door-camera", Status: "active"}}})
+				send(200, map[string]any{"device_item_profiles": []accountclient.DeviceItemProfile{{ID: productA, BrandCloudID: id, DisplayName: "Door Camera", ProfileKey: "door-camera", Status: "active"}}, "pagination": accountclient.Pagination{Limit: 25, Total: 1}})
 				return
 			}
 			if r.URL.Path == "/v1/orgs/"+id+"/device-item-profiles/"+productA {

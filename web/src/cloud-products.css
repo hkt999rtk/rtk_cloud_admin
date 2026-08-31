@@ -1,0 +1,8 @@
+.cloud-products select{font:inherit;padding:10px;border:1px solid #b8c8d7;border-radius:7px;background:white;max-width:100%}
+.cloud-products fieldset{border:1px solid #dce3ec;border-radius:8px;padding:16px;margin:20px 0}
+.cloud-products fieldset label{display:flex;align-items:center;gap:8px;margin:10px 0}
+.cloud-products input[type=checkbox]{display:inline-block;width:auto;margin:0;padding:0}
+.cloud-product-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:20px}
+.cloud-product-items .my-clouds-panel{margin:0}
+.cloud-product-items h3{overflow-wrap:anywhere;margin-top:0}
+@media(max-width:600px){.cloud-product-items{grid-template-columns:minmax(0,1fr)}.cloud-products .my-clouds-card-head{flex-wrap:wrap}}

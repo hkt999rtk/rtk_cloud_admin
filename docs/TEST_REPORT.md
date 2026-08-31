@@ -50,3 +50,19 @@
 - CI Test Matrix
 - Coverage By Package
 - Artifact Policy
+
+## Local Product implementation checkpoint — 2026-08-31
+
+The CI-generated baseline above is historical, not the result for this unmerged
+local implementation. Current local validation: full Go suite PASS, total
+statement coverage **81.1%**; scoped Product race tests PASS twice; vet, server
+build and frontend build PASS; frontend unit tests **127 PASS**. The opt-in
+Product browser case passed on desktop Chromium and emulated Pixel 7, including
+CRUD/disable fixture readback, pagination, viewer/cross-cloud denial and passive
+revocation. This uses synthetic upstreams/temporary SQLite, not staging or real
+financial operations. OpenAPI validation PASS; inventory has zero blocking
+findings, but the workspace traceability freshness check is still FAIL.
+
+See `MULTICLOUD_IMPLEMENTATION_PROGRESS.md` for reproducible commands, local
+artifact locations and remaining CI/cross-service/staging gates. These results
+do not establish end-to-end release acceptance.

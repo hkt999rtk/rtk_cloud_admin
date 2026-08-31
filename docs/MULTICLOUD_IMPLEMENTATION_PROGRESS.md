@@ -360,3 +360,67 @@ credential access occurred. Full browser CI outside these Billing cases, actual
 cross-service financial/history qualification and the remaining release gates
 are still outstanding. The prior note about obsolete Billing browser fixtures
 is superseded by this checkpoint.
+
+## Follow-up checkpoint: cloud-scoped Product management
+
+The scoped Product summary is now a paginated management surface at
+`/console/clouds/{cloudId}` and `/console/clouds/{cloudId}/products/{productId}`.
+It supports name/key/model/category/service-option creation, metadata editing and
+explicit Product **disable**, not resource deletion. UUID, cloud and Product key
+are immutable in this BFF. Service values match Account Manager's existing
+`mqtt`, `video_streaming`, `video_storage` contract.
+
+The matching scoped GET/POST/PATCH/disable BFF routes use the URL cloud, never the
+session's active organization. Each request checks current cloud authority;
+Product writes also require live Product access. A viewer ceiling applies even
+if the Product response claims a stronger role. Product editors can edit but
+cannot use this BFF's disable action. Unknown/duplicate/null input, foreign
+Origin, absent/invalid retry keys and cross-cloud readback fail closed. Safe
+projections omit arbitrary metadata, private keys and fabricated resource counts.
+Pagination validates cloud IDs, unique Product IDs, filtered totals and page
+shape. Write keys are forwarded; upstream conflict is not presented as a
+successful idempotent replay.
+
+The UI isolates requests per cloud/Product, aborts obsolete reads, polls current
+authority and removes stale data/forms after denied access. Invitation success
+links now use validated nested cloud/Product URLs. Distinct component keys also
+fix the duplicate ownership-transfer form discovered during browser verification.
+
+Local validation (synthetic upstream + temporary SQLite; **not staging**):
+
+- Full Go suite: passed, total statement coverage **81.1%**.
+- Scoped Product Account Manager-client/BFF race tests: passed twice.
+- `go vet ./...`, server build, frontend build: passed.
+- Frontend unit tests: **127 passed**.
+- Repository Playwright `UI-CA-PRODUCTS-101`: passed separately on desktop
+  Chromium and emulated Pixel 7. Covers 27-item pagination, filtered empty state,
+  create/edit/disable with persisted fixture readback, immutable key, viewer
+  ceiling, wrong-cloud denial, two simultaneous cloud tabs, passive revocation
+  of only one cloud, and mobile overflow checks. Form and viewer screenshots
+  are attached; viewer desktop/mobile renderings were visually inspected.
+- OpenAPI validation passed using the reviewed canonical reference resolved in
+  memory. Inventory has **zero blocking findings**, but the overall workspace
+  check still fails because committed `docs/spec-test-traceability.md` is stale.
+
+Browser reproduction: start the opt-in `TestScopedProductBrowserFixture` with
+`SCOPED_PRODUCT_UI_FIXTURE=1` after building `web`; it serves only loopback port
+18197. Run `web/e2e/scoped-products.spec.mjs` with the same flag and
+`E2E_BASE_URL=http://127.0.0.1:18197`, using separate result directories and target
+metadata for desktop/mobile. Its reset/revoke controls exist only in `_test.go`
+and affect synthetic fixture state. Reports for this dirty-tree snapshot are in
+`/tmp/rtk-scoped-product-browser.H5X4jf/{desktop,mobile}`. Go/unit/race logs and
+coverage are under `/tmp/rtk-scoped-products-*`; they are not published CI proof.
+
+### Remaining Product/release work
+
+This checkpoint does **not** complete the hierarchy or release gates. Legacy
+`/api/products/*` and Device/Firmware/OTA surfaces still need scoped integration
+and qualification. The sharing selector currently uses the initial Product page;
+it needs paginated selection rather than treating that page as the complete set.
+Real Account Manager producer/lifecycle authorization, optional-field clearing and
+write replay semantics require cross-service tests; fixture readback does not
+prove those behaviors. The new opt-in browser case still needs integration into
+the canonical CI runner/test inventory. Workspace traceability, contract
+consistency, full cross-service CI and staging activation/device/certificate/MQTT
+acceptance remain outstanding. No deployment, shared DB mutation, real email,
+payment action or legacy-table cleanup occurred in this batch.

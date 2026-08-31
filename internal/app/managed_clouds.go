@@ -18,67 +18,6 @@ import (
 
 var managedCloudUUID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
-func (s *Server) apiManagedCloudProducts(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	session, ok := s.requestSession(r)
-	if !ok || session.AccessToken == "" || (session.Kind != "customer" && session.Kind != "platform_admin" && session.Kind != "account") {
-		http.Error(w, "global account authentication required", 401)
-		return
-	}
-	cloud, product := r.PathValue("brandCloudID"), r.PathValue("productID")
-	if !managedCloudUUID.MatchString(cloud) || (product != "" && !managedCloudUUID.MatchString(product)) {
-		http.Error(w, "invalid scope", 400)
-		return
-	}
-	if len(r.URL.Query()) != 0 {
-		http.Error(w, "unexpected query", 400)
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-	defer cancel()
-	detail, err := s.accountClient.ManagedCloudCommand(ctx, session.AccessToken, http.MethodGet, cloud, "", "", nil)
-	if err != nil {
-		s.managedCloudError(w, session.ID, err)
-		return
-	}
-	if !hasCapability(detail.BrandCloud.Capabilities, "product.read") {
-		http.Error(w, "Product access forbidden", 403)
-		return
-	}
-	type summary struct {
-		ID      string `json:"id"`
-		CloudID string `json:"brand_cloud_id"`
-		Name    string `json:"name"`
-		Key     string `json:"profile_key"`
-		Status  string `json:"status"`
-	}
-	var products []accountclient.DeviceItemProfile
-	if product != "" {
-		var p accountclient.DeviceItemProfile
-		p, err = s.accountClient.DeviceItemProfile(ctx, session.AccessToken, cloud, product)
-		products = []accountclient.DeviceItemProfile{p}
-	} else {
-		products, err = s.accountClient.DeviceItemProfiles(ctx, session.AccessToken, cloud, nil)
-	}
-	if err != nil {
-		s.managedCloudError(w, session.ID, err)
-		return
-	}
-	out := []summary{}
-	for _, p := range products {
-		if p.BrandCloudID != cloud || (product != "" && p.ID != product) {
-			http.Error(w, "invalid upstream Product scope", 502)
-			return
-		}
-		out = append(out, summary{p.ID, p.BrandCloudID, p.DisplayName, p.ProfileKey, p.Status})
-	}
-	if product != "" {
-		writeJSON(w, map[string]any{"product": out[0]})
-		return
-	}
-	writeJSON(w, map[string]any{"products": out})
-}
-
 func (s *Server) apiManagedCloud(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	session, ok := s.requestSession(r)
