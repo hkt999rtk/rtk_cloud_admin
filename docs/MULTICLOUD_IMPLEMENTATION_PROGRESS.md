@@ -108,3 +108,69 @@ unit-tested but not separately browser-qualified in this checkpoint.
   evidence. Preserve the original unreleased identity-migration corrections.
 
 Neither one passing package test nor this new UI is the completion criterion.
+
+## Follow-up checkpoint: sharing and member scopes
+
+The next local implementation adds owner-only sharing controls beneath each cloud:
+invite a verified developer, view pending invitations, resend unchanged scope,
+cancel, read current members, edit role/viewer scope, enable/disable and remove
+access. Viewer plus selected Products is the default. Empty selection is rejected;
+whole-cloud viewer requires explicit acknowledgement of future Products.
+Existing admin/member permissions are shown as non-read-only, not relabeled viewer.
+
+All corresponding sharing BFF routes now accept the global account session without
+depending on its active organization or current platform/customer view. They bind
+explicit cloud/user/invitation IDs, recheck live owner authority, preserve the
+Idempotency-Key through the upstream request and return current persisted scopes.
+General member/invitation APIs reject owner assignment. Unknown fields, nested
+duplicate keys, null scopes, duplicate Product IDs, cross-origin writes and ambiguous
+scope combinations are rejected. Upstream results with a different cloud, target,
+role or requested scope fail closed instead of reporting a broader grant as success.
+Acceptance also requires returned membership to match the authenticated account.
+Empty 204 removal responses are handled without attempting JSON decoding.
+
+The nine replaced/unregistered legacy cloud/sharing handler functions were removed;
+legacy Product/resource endpoints and session-kind cutover remain separate work.
+The existing acceptance page now catches connection failures and links accepted
+cloud invitations to `/console/clouds/{cloudId}`. Its real email/login/acceptance
+journey is **not** browser-qualified by the owner-only fixture below.
+
+Additional automated checks:
+
+```sh
+go test ./... -count=1 -coverprofile=/tmp/rtk-cloud-sharing-coverage.out
+go test -race ./internal/app ./internal/accountclient -run '(CloudSharing|ManagedCloud)' -count=3
+go vet ./...
+go build -o /tmp/rtk-cloud-sharing-admin ./cmd/server
+cd web && npm test && npm run build
+```
+
+Go suite, repeated race tests, vet, server build and frontend build passed.
+Frontend now has **116 passing tests**. These include normalized Product ordering
+and retry keys, explicit whole-cloud consent, invalid ownership assignment,
+cross-cloud readback rejection, altered grant responses and invitation acceptance
+readback for the wrong global account. These are BFF/client/fixture tests, not a
+substitute for real downstream ACL and email-outbox qualification.
+
+The Browser skill was used on the opt-in disposable fixture (actual BFF and built
+frontend, synthetic Account Manager only). Desktop observations:
+
+- Default viewer and selected-Product form; no Product selected cannot submit.
+- Selected-Product invitation appears pending without creating a member.
+- Whole-cloud sharing requires acknowledgement; trying to widen an existing
+  pending invitation shows 409 and leaves its original scope visible.
+- Cancel requires confirmation; readback shows canceled. Member scope edit
+  reloads the actual member and shows current/future-Product access.
+- Removal requires confirmation explaining grant invalidation; the member count
+  drops from two to one after the 204 response and server readback.
+- Owner authority revoked between form entry and submit produces an access-revoked
+  state with old cloud, Product and sharing contents cleared.
+
+No real email, provider payment, shared database or staging action occurred.
+Mobile, recipient email/login acceptance, real scope revocation/rejoin, slow-request
+and multi-page Product selection qualification remain release requirements.
+OpenAPI validation passed; inventory still has zero blocking mappings but the
+workspace traceability artifact remains stale, so the overall inventory gate is
+still not green. Ownership-transfer/Billing UI and cross-service release evidence
+remain incomplete. The previous release checklist remains applicable except that
+sharing controls now need integration qualification rather than initial UI creation.

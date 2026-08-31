@@ -821,7 +821,8 @@ paths:
       x-rtk-requirement-ids:
         - REQ-UI-CA-ROLE-001
       tags: [Developer]
-      summary: Update a Brand Cloud member role
+      summary: Owner updates a non-owner member role or viewer Product scope
+      description: Global account session with explicit cloud scope and current owner authority. Owner assignment is forbidden; use ownership transfer. A scope-only PATCH is allowed for an existing viewer. All writes forward one stable Idempotency-Key, reject duplicate JSON keys and require same-origin requests.
       parameters:
         - { name: brandCloudID, in: path, required: true, schema: { type: string } }
         - { name: userID, in: path, required: true, schema: { type: string } }
@@ -832,9 +833,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [role]
+              additionalProperties: false
+              anyOf:
+                - required: [role]
+                - required: [access_scope]
               properties:
-                role: { type: string, enum: [owner, admin, member] }
+                role: { type: string, enum: [viewer, admin, member] }
+                access_scope: { $ref: '#/components/schemas/CloudViewerScope' }
       responses:
         "200": { description: Member updated. }
         "401": { $ref: "#/components/responses/PlainTextError" }
@@ -902,6 +907,7 @@ paths:
         - REQ-CA-BRAND-MEMBER-INVITE-001
       tags: [Developer]
       summary: Invite an existing developer account to a Brand Cloud
+      description: Owner only. Invitee must be registered and verified. Viewer requires an explicit access_scope; admin/member preserve existing semantics and cannot attach viewer scope. Same normalized target, role and scope may replay a pending invitation; changed scope returns 409 and requires cancel/recreate. Tokens expire after 30 minutes. No membership is granted until matching-account acceptance.
       parameters:
         - { name: brandCloudID, in: path, required: true, schema: { type: string } }
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -912,9 +918,11 @@ paths:
             schema:
               type: object
               required: [email, role]
+              additionalProperties: false
               properties:
                 email: { type: string, format: email }
-                role: { type: string, enum: [admin, member] }
+                role: { type: string, enum: [viewer, admin, member] }
+                access_scope: { $ref: '#/components/schemas/CloudViewerScope' }
       responses:
         "202":
           description: Pending invitation created; no membership exists until acceptance.
@@ -4267,13 +4275,27 @@ components:
 
     DeveloperMemberList:
       type: object
-      required: [members, pagination, source_status]
+      required: [members, pagination]
       properties:
         members:
           type: array
           items: { $ref: "#/components/schemas/DeveloperMembership" }
         pagination: { $ref: "#/components/schemas/DeveloperPagination" }
-        source_status: { type: string }
+
+    CloudViewerScope:
+      description: Explicit read-only grant. Whole-cloud includes future Products; selected Product IDs must belong to this cloud. Neither grants Billing, secrets, payment access or playback. Null and duplicate Product IDs are rejected.
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [kind]
+          properties:
+            kind: { type: string, enum: [all_products] }
+        - type: object
+          additionalProperties: false
+          required: [kind, product_ids]
+          properties:
+            kind: { type: string, enum: [selected_products] }
+            product_ids: { type: array, minItems: 1, uniqueItems: true, items: { type: string, format: uuid } }
 
     BrandCloudMemberInvitation:
       type: object
@@ -4284,7 +4306,8 @@ components:
         invited_by_user_id: { type: string }
         target_user_id: { type: string }
         target_email: { type: string, format: email }
-        role: { type: string, enum: [admin, member] }
+        role: { type: string, enum: [viewer, admin, member] }
+        access_scope: { $ref: '#/components/schemas/CloudViewerScope' }
         status: { type: string, enum: [pending, accepted, canceled, expired] }
         expires_at: { type: string, format: date-time }
         accepted_at: { type: string, format: date-time, nullable: true }
@@ -4314,7 +4337,9 @@ components:
         user_id: { type: string }
         email: { type: string, format: email }
         display_name: { type: string }
-        role: { type: string, enum: [owner, admin, member] }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+        access_scope: { $ref: '#/components/schemas/CloudViewerScope' }
+        disabled_at: { type: string, format: date-time }
         capabilities: { type: array, items: { type: string } }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }

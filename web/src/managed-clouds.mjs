@@ -30,7 +30,7 @@ export async function managedCloudRequest(path, { method = 'GET', body, key, sig
   if (key) headers['Idempotency-Key'] = key;
   const response = await fetch(path, { method, body: body === undefined ? undefined : JSON.stringify(body), headers, signal, cache: 'no-store', credentials: 'same-origin' });
   if (!response.ok) { const error = new Error('Cloud request failed'); error.status = response.status; throw error; }
-  return response.json();
+  return response.status === 204 ? null : response.json();
 }
 
 // A deliberate submission owns its key. Retrying identical content reuses it;

@@ -20,12 +20,14 @@ const cloudB = "22222222-2222-4222-8222-222222222222"
 const productA = "33333333-3333-4333-8333-333333333333"
 
 type managedCloudFixture struct {
-	mu        sync.Mutex
-	calls     []string
-	keys      []string
-	clouds    map[string]accountclient.ManagedCloud
-	deny      bool
-	operation bool
+	mu             sync.Mutex
+	calls          []string
+	keys           []string
+	clouds         map[string]accountclient.ManagedCloud
+	deny           bool
+	operation      bool
+	sharingMembers map[string]accountclient.Member
+	sharingInvites map[string]accountclient.BrandCloudMemberInvitation
 }
 
 func managedCloudFixtureServer(t *testing.T) (*httptest.Server, *managedCloudFixture) {
@@ -34,6 +36,11 @@ func managedCloudFixtureServer(t *testing.T) (*httptest.Server, *managedCloudFix
 		cloudA: {ID: cloudA, Name: "Camera Lab", Description: "My owned cloud", TenantSlug: "camera-lab", OwnerUserID: "owner-1", MyRole: "owner", Status: "active", OwnershipVersion: 1, Capabilities: []string{"cloud.update", "product.read"}},
 		cloudB: {ID: cloudB, Name: "Shared Home", Description: "Read-only collaboration", TenantSlug: "shared-home", OwnerUserID: "owner-2", MyRole: "viewer", Status: "active", OwnershipVersion: 1, Capabilities: []string{"product.read"}},
 	}}
+	f.sharingMembers = map[string]accountclient.Member{"44444444-4444-4444-8444-444444444444": {OrganizationID: cloudA, UserID: "44444444-4444-4444-8444-444444444444", Email: "viewer@example.test", Role: "viewer", AccessScope: &accountclient.CloudAccessScope{Kind: "selected_products", ProductIDs: []string{productA}}}}
+	f.sharingInvites = map[string]accountclient.BrandCloudMemberInvitation{}
+	owner := f.clouds[cloudA]
+	owner.Capabilities = append(owner.Capabilities, "team.manage")
+	f.clouds[cloudA] = owner
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
@@ -91,6 +98,9 @@ func managedCloudFixtureServer(t *testing.T) (*httptest.Server, *managedCloudFix
 		}
 		for id, c := range f.clouds {
 			base := "/v1/developer/brand-clouds/" + id
+			if serveCloudSharingFixture(f, w, r, id) {
+				return
+			}
 			if r.URL.Path == base {
 				if r.Method != "GET" && c.MyRole != "owner" {
 					send(403, map[string]string{"error": "not owner"})

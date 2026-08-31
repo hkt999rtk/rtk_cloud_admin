@@ -468,6 +468,10 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 			_, _ = w.Write([]byte(`{"brand_clouds":[],"pagination":{"limit":25,"offset":0,"total":0},"owned_count":0,"owned_limit":8,"reserved_count":0}`))
 			return
 		}
+		if r.URL.Path == "/v1/developer/brand-cloud-member-invitations/accept" {
+			_, _ = w.Write([]byte(`{"invitation":{"id":"invite","brand_cloud_id":"org-1","target_user_id":"developer-1","role":"member"},"member":{"organization_id":"org-1","user_id":"developer-1","role":"member"}}`))
+			return
+		}
 		if strings.Contains(r.URL.Path, "/products/product-error/") {
 			http.Error(w, "upstream Product collaboration failure", http.StatusInternalServerError)
 			return

@@ -2617,8 +2617,10 @@ function BrandCloudMemberInvitationAcceptPage() {
   }, []);
 
   async function acceptInvitation() {
+    if (busy) return;
     setBusy(true);
     setMessage('Verifying invitation…');
+    try {
     const response = await fetch(isProductInvitation ? '/api/developer/product-collaborator-invitations/accept' : '/api/developer/brand-cloud-member-invitations/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `member-invitation-accept-${requestKey}` },
@@ -2635,11 +2637,13 @@ function BrandCloudMemberInvitationAcceptPage() {
     } else {
       setMessage('Unable to accept invitation at this time, please try again later.');
     }
-    setBusy(false);
+    } catch (_) {
+      setMessage('Connection interrupted. Retry the same invitation; access has not been confirmed.');
+    } finally { setBusy(false); }
   }
 
   const cloudID = result?.invitation?.brand_cloud_id || '';
-  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isProductInvitation ? 'Product invitation' : 'Brand Cloud invitation'}</p><h1>{isProductInvitation ? 'Accept Product collaboration invitation' : 'Accept team invitation'}</h1><p>We’ll verify both the invitation token and the signed-in Developer account.</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? 'Verifying…' : 'Accept invitation'}</button> : <a className="inline-action" href={`/console/${encodeURIComponent(cloudID)}/product-services`}>Go to Product</a>}</section></div>;
+  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isProductInvitation ? 'Product invitation' : 'Brand Cloud invitation'}</p><h1>{isProductInvitation ? 'Accept Product collaboration invitation' : 'Accept team invitation'}</h1><p>We’ll verify both the invitation token and the signed-in Developer account.</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? 'Verifying…' : 'Accept invitation'}</button> : <a className="inline-action" href={isProductInvitation ? `/console/${encodeURIComponent(cloudID)}/product-services` : `/console/clouds/${encodeURIComponent(cloudID)}`}>{isProductInvitation ? 'Go to Product' : 'Open shared cloud'}</a>}</section></div>;
 }
 
 function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage, onRefresh }) {

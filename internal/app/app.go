@@ -267,20 +267,20 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/operations/{operationID}", s.apiManagedCloud)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products", s.apiManagedCloudProducts)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}", s.apiManagedCloudProducts)
-	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members", s.apiDeveloperBrandCloudMembers)
-	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiDeveloperBrandCloudInvitations)
-	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiDeveloperBrandCloudInvitation)
-	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/members/invitations/{invitationID}/{action}", s.apiDeveloperBrandCloudInvitationAction)
-	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiDeveloperBrandCloudMember)
-	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/members/{userID}/{action}", s.apiDeveloperBrandCloudMemberAction)
-	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiDeveloperBrandCloudMember)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members", s.apiCloudSharing)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiCloudSharing)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiCloudSharing)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/members/invitations/{invitationID}/{action}", s.apiCloudSharing)
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiCloudSharing)
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/members/{userID}/{action}", s.apiCloudSharing)
+	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiCloudSharing)
 	s.mux.HandleFunc("GET /api/developer/chipsets", s.apiDeveloperChipsets)
 	s.mux.HandleFunc("GET /api/developer/chipsets/{chipsetId}", s.apiDeveloperChipset)
 	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer", s.apiDeveloperOwnerTransfer)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}", s.apiDeveloperOwnerTransfer)
 	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel", s.apiDeveloperOwnerTransfer)
 	s.mux.HandleFunc("POST /api/developer/brand-cloud-owner-transfers/accept", s.apiDeveloperOwnerTransferAccept)
-	s.mux.HandleFunc("POST /api/developer/brand-cloud-member-invitations/accept", s.apiDeveloperBrandCloudInvitationAccept)
+	s.mux.HandleFunc("POST /api/developer/brand-cloud-member-invitations/accept", s.apiCloudSharing)
 	s.mux.HandleFunc("POST /api/developer/product-collaborator-invitations/accept", s.apiProductCollaboratorInvitationAccept)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/app", s.apiDeveloperPKITestAppBundle)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/device", s.apiDeveloperPKITestDeviceBundle)
@@ -787,143 +787,6 @@ func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"active_org_id": body.OrganizationID})
 }
 
-func (s *Server) apiDeveloperBrandClouds(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if !s.accountClient.Enabled() {
-		writeJSON(w, map[string]any{"brand_clouds": []accountclient.BrandCloud{}, "pagination": accountclient.Pagination{}, "source_status": "unconfigured"})
-		return
-	}
-	clouds, page, cloudLimit, err := s.accountClient.DeveloperBrandClouds(r.Context(), session.AccessToken, r.URL.Query())
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"brand_clouds": clouds, "pagination": page, "developer_cloud_limit": cloudLimit, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloud(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	cloud, membership, err := s.accountClient.DeveloperBrandCloud(r.Context(), session.AccessToken, r.PathValue("brandCloudID"))
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"brand_cloud": cloud, "membership": membership, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudMembers(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	members, page, err := s.accountClient.DeveloperBrandCloudMembers(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.URL.Query())
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"members": members, "pagination": page, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudInvitation(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if _, keyOK := requireIdempotencyKey(w, r); !keyOK {
-		return
-	}
-	var body struct {
-		Email string `json:"email"`
-		Role  string `json:"role"`
-	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || strings.TrimSpace(body.Email) == "" || strings.TrimSpace(body.Role) == "" {
-		http.Error(w, "invalid invitation request", http.StatusBadRequest)
-		return
-	}
-	invitation, err := s.accountClient.InviteDeveloperBrandCloudMember(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), strings.TrimSpace(body.Email), strings.TrimSpace(body.Role))
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSONStatus(w, http.StatusAccepted, map[string]any{"invitation": invitation, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudInvitations(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	invitations, err := s.accountClient.DeveloperBrandCloudMemberInvitations(r.Context(), session.AccessToken, r.PathValue("brandCloudID"))
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"invitations": invitations, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudInvitationAction(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if _, ok := requireIdempotencyKey(w, r); !ok {
-		return
-	}
-	cloudID, invitationID, action := r.PathValue("brandCloudID"), r.PathValue("invitationID"), r.PathValue("action")
-	var invitation accountclient.BrandCloudMemberInvitation
-	var err error
-	switch action {
-	case "resend":
-		invitation, err = s.accountClient.ResendDeveloperBrandCloudMemberInvitation(r.Context(), session.AccessToken, cloudID, invitationID)
-	case "cancel":
-		invitation, err = s.accountClient.CancelDeveloperBrandCloudMemberInvitation(r.Context(), session.AccessToken, cloudID, invitationID)
-	default:
-		http.NotFound(w, r)
-		return
-	}
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"invitation": invitation, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudInvitationAccept(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.requestSession(r)
-	if !ok || (session.Kind != "customer" && session.Kind != "platform_admin") || strings.TrimSpace(session.AccessToken) == "" {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if _, ok := requireIdempotencyKey(w, r); !ok {
-		return
-	}
-	var body struct {
-		Token string `json:"token"`
-	}
-	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.Token) == "" {
-		http.Error(w, "token is required", http.StatusBadRequest)
-		return
-	}
-	invitation, member, err := s.accountClient.AcceptDeveloperBrandCloudMemberInvitation(r.Context(), session.AccessToken, strings.TrimSpace(body.Token))
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"invitation": invitation, "member": member, "source_status": "available"})
-}
-
 func (s *Server) apiProductCollaboratorInvitationAccept(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.requestSession(r)
 	if !ok || strings.TrimSpace(session.AccessToken) == "" {
@@ -946,58 +809,6 @@ func (s *Server) apiProductCollaboratorInvitationAccept(w http.ResponseWriter, r
 		return
 	}
 	writeJSON(w, map[string]any{"invitation": invitation, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudMember(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if _, keyOK := requireIdempotencyKey(w, r); !keyOK {
-		return
-	}
-	var err error
-	if r.Method == http.MethodPatch {
-		var body struct {
-			Role string `json:"role"`
-		}
-		if decodeErr := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); decodeErr != nil || strings.TrimSpace(body.Role) == "" {
-			http.Error(w, "invalid member request", http.StatusBadRequest)
-			return
-		}
-		var member accountclient.Member
-		member, err = s.accountClient.UpdateDeveloperBrandCloudMember(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.PathValue("userID"), body.Role)
-		if err == nil {
-			writeJSON(w, map[string]any{"member": member, "source_status": "available"})
-		}
-	} else {
-		err = s.accountClient.RemoveDeveloperBrandCloudMember(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.PathValue("userID"))
-		if err == nil {
-			w.WriteHeader(http.StatusNoContent)
-		}
-	}
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-	}
-}
-
-func (s *Server) apiDeveloperBrandCloudMemberAction(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	_, ok = requireIdempotencyKey(w, r)
-	if !ok {
-		return
-	}
-	member, err := s.accountClient.SetDeveloperBrandCloudMemberStatus(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.PathValue("userID"), r.PathValue("action") == "enable")
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"member": member, "source_status": "available"})
 }
 
 func (s *Server) apiDeveloperOwnerTransfer(w http.ResponseWriter, r *http.Request) {
