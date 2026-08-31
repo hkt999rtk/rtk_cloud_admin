@@ -247,3 +247,67 @@ the cloud form, real email/login, financial settlement and recovery, Product
 ownership/ACL removal, mobile and cross-service staging qualification remain
 required. This checkpoint implements the transfer UI; it does not complete the
 larger multi-cloud release or replace the remaining checklist above.
+
+## Follow-up checkpoint: explicitly scoped owner Billing
+
+Moved the 22 Billing BFF methods to
+`/api/developer/brand-clouds/{brandCloudID}/billing/*`. Unscoped `/api/billing/*`
+no longer routes. Every operation, including PDF/CSV downloads, authenticates
+the global session and reads live cloud detail. It requires matching owner ID,
+owner role, requested capability and positive ownership version; an admin or
+viewer with a Billing capability still cannot access it. A platform-view session
+may use the customer Billing boundary only when its user actually owns that cloud.
+No session active-cloud/view mutation is performed.
+
+The service client now requires a request-local cloud/user/version binding and
+constructs `X-Billing-Ownership-Version` alongside the dedicated service credential
+and exact permission. It rejects missing/mismatched context before delivery,
+including exports; browser-supplied trusted Billing headers are never forwarded.
+Writes additionally compare the displayed `X-Cloud-Ownership-Version` with live
+Account Manager evidence. Ownership errors from Billing preserve sanitized
+403/409/503 semantics rather than becoming an optimistic successful response.
+The account readback must match the cloud. Oversized downloads fail instead of
+silently returning a truncated document. Financial input now uses the shared
+strict JSON parser, including duplicate/null/unknown-field rejection.
+
+The existing Billing views are mounted at `/console/clouds/{cloudId}/billing`
+under a request-local React scope. All data reads, financial writes, invoice PDFs
+and statement links use that cloud. Ten initial reads must return one consistent
+ownership version and the correct account; inconsistent responses are discarded.
+Navigation/load cleanup aborts old reads; there is no shared current-cloud cache.
+Old ambiguous Billing UI paths direct users to My Clouds without reading Billing.
+Payment retries reuse a per-intent key, and 202 is described as processing, not a
+successful charge. Profile writes whitelist editable fields. Denied writes clear
+the current Billing view without signing out other cloud tabs.
+
+Checks passed:
+
+```sh
+go test ./... -count=1 -coverprofile=/tmp/rtk-cloud-billing-coverage.out
+go test -race ./internal/app ./internal/billingclient -run 'Billing|Payment' -count=3
+go vet ./...
+go build -o /tmp/rtk-cloud-billing-admin ./cmd/server
+npm --prefix web test
+npm --prefix web run build
+```
+
+Go statement coverage: **80.9%**. Frontend: **122 passing tests**. OpenAPI validation
+passed. Inventory mappings have zero blockers, but the workspace traceability
+artifact is still stale; inventory overall and full CI are **not** qualified.
+
+Browser skill observations on the opt-in local fixture: two tabs of the same
+account show Cloud A balance/profile and Cloud B balance/profile independently;
+a viewer tab shows denied access and no financial contents. Revoking Cloud A
+ownership between form load and submit rejects the profile write and clears its
+contents; Cloud B retains its own profile. The profile desktop layout was visually
+inspected and the active-tab contrast corrected. The fixture simulates service
+records only; no provider action, real payer change or shared database was used.
+
+Remaining Billing qualification includes real cross-service owner/version and
+responsibility-period filtering, historical invoices/exports/payment-method
+visibility, handoff fences/response races, provider setup/charge/consent and retry
+journeys, pagination and detail URLs beyond the first page, passive revocation
+updates, and mobile. Existing `web/e2e/billing*.spec.mjs` fixtures still use the
+old route contract and must be migrated before running the full browser CI suite.
+Other global-session/Product-resource cutover work, dependency audit findings,
+workspace integration and real staging activation/MQTT gates remain outstanding.

@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
 import { handoffRoute } from './owner-handoff.mjs';
+import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
+import './cloud-billing.css';
+import { cloudAPI, cloudURL, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
@@ -169,38 +172,6 @@ function fleetDevicesURL(search = '') {
   return `/api/fleet/devices?${params.toString()}`;
 }
 
-async function fetchBillingData() {
-  const [account, methods, intents, ledger, summary, usage, invoices, activity, profile, policyResponse] = await Promise.all([
-    fetchJSON('/api/billing/account'),
-    fetchJSON('/api/billing/payment-methods?limit=20'),
-    fetchJSON('/api/billing/payment-intents?limit=20'),
-    fetchJSON('/api/billing/ledger?limit=20'),
-    fetchJSON('/api/billing/summary'),
-    fetchJSON('/api/billing/usage'),
-    fetchJSON('/api/billing/invoices?limit=20'),
-    fetchJSON('/api/billing/activity?limit=20'),
-    fetchJSON('/api/billing/profile'),
-    fetch('/api/billing/auto-topup'),
-  ]);
-  if (policyResponse.status === 401) throw new AuthError(401, 'Session expired; please sign in again.');
-  if (policyResponse.status === 403) throw new AuthError(403, 'Access denied.');
-  if (!policyResponse.ok) throw new Error(`billing policy failed with ${policyResponse.status}`);
-  const policy = await policyResponse.json();
-  return {
-    account,
-    methods,
-    intents,
-    ledger,
-    summary,
-    usage,
-    invoices,
-    activity,
-    profile,
-    policy,
-    policyEtag: policyResponse.headers.get('ETag') || `"${policy?.auto_topup?.version || 0}"`,
-    source_status: 'available',
-  };
-}
 
 async function fetchBrandCloudAccessData(cloudId, { includeAssignments = false } = {}) {
   const unavailable = (message) => ({ source_status: 'unavailable', source_message: message });
@@ -609,16 +580,8 @@ function App() {
           setAccess(null);
         }
 
-        if (active === 'billing' && nextMe.kind === 'customer') {
-          const nextBilling = await fetchBillingData().catch((err) => {
-            if (err.isAuthError) throw err;
-            return { source_status: 'unavailable', source_message: translate('Billing data is temporarily unavailable. No charge was submitted.') };
-          });
-          if (!alive) return;
-          setBilling(nextBilling);
-        } else {
-          setBilling(null);
-        }
+        // Legacy Billing URLs cannot infer a target from shared active-org state.
+        setBilling(null);
 
         if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
           const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
@@ -1326,7 +1289,7 @@ function App() {
         ) : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} products={products?.products || []} loading={loading} canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'reports.create')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <BillingPage data={billing} loading={loading} capabilities={me?.capabilities || []} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <section className="panel"><h2>Select a cloud for Billing</h2><p>Billing is scoped to the cloud URL, not the shared active-cloud session.</p><a href="/console/clouds">Open My Clouds</a></section> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
@@ -2738,7 +2701,30 @@ function BrandCloudSettingsPage({ activeCloudId, canIssuePKITest }) {
   </section>;
 }
 
+const BillingScope = React.createContext(null);
+
+function CloudBillingApp() {
+  const route = cloudBillingRoute(window.location.pathname), cloudId = route.cloudId;
+  const [state, setState] = useState(null), [error,setError] = useState(''), [reload,setReload] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController(); setState(null); setError('');
+    (async () => { try {
+      const me = await managedCloudRequest('/api/me',{signal:controller.signal});
+      if (!me.authenticated) { window.location.replace(loginPathFor(window.location.pathname)); return; }
+      const {brand_cloud:cloud} = await managedCloudRequest(cloudAPI(cloudId),{signal:controller.signal});
+      if (cloud.my_role !== 'owner' || cloud.owner_user_id !== me.user_id || !cloud.capabilities?.includes('billing_account.read')) throw {status:403};
+      const data = await fetchCloudBillingData(cloudId,{signal:controller.signal});
+      if (String(cloud.ownership_version) !== data.ownershipVersion) throw {status:409};
+      if (!controller.signal.aborted) setState({cloud,data});
+    } catch (err) { if (!controller.signal.aborted) { setState(null); setError(billingScopeError(err.status)); } } })();
+    return () => controller.abort();
+  },[cloudId,reload]);
+  return <div className="my-clouds-shell"><header className="my-clouds-header"><a href={cloudURL(cloudId)}>Back to cloud</a><a href="/console/clouds">My Clouds</a></header><main className="my-clouds-main"><h1>{state?.cloud.name || 'Cloud'} / Billing</h1><p>Only your responsibility periods and the confirmed opening balance are visible. Previous owners’ payer details and payment methods are not transferred.</p>{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<button onClick={()=>setReload(v=>v+1)}>Refresh Billing and authority</button>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</main></div>;
+}
+
 function BillingPage({ data, loading, capabilities, onRefresh }) {
+  const billingScope = React.useContext(BillingScope);
+  const {cloudId} = billingScope;
   const account = data?.account?.account;
   const summary = data?.summary || {};
   const usage = data?.usage || summary?.current_period || {};
@@ -2766,6 +2752,8 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   const [manualAmount, setManualAmount] = useState('300');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const billingIntent = useRef(null), billingLocked = useRef(false), billingAlive = useRef(false);
+  useEffect(()=>{billingAlive.current=true;return()=>{billingAlive.current=false;};},[]);
   const [billingView, setBillingView] = useState(() => window.location.pathname.match(/\/billing\/(usage|invoices|activity|settings|profile)(?:\/|$)/)?.[1] || 'overview');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedActivity, setSelectedActivity] = useState(null);
@@ -2807,28 +2795,33 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   }, [data?.invoices, data?.activity]);
 
   async function mutate(method, path, body, headers = {}) {
-    setBusy(true);
-    setMessage('');
+    if (billingLocked.current) return null;
+    billingLocked.current = true; setBusy(true); setMessage('');
+    const scoped = billingAPI(cloudId, path);
+    const next = cloudWriteIntent(billingIntent.current, method, scoped, body); billingIntent.current=next;
     try {
-      const response = await fetch(path, {
+      const response = await fetch(scoped, {
         method,
-        headers: { 'Content-Type': 'application/json', ...headers },
+        headers: { 'Content-Type': 'application/json', ...headers, 'Idempotency-Key':next.key, 'X-Cloud-Ownership-Version':billingScope.version },
         body: JSON.stringify(body),
       });
       const result = await response.json().catch(() => ({}));
+      if (!billingAlive.current) return null;
+      if ([401,403,404,409].includes(response.status)) { billingScope.onAccessLost(); return null; }
       if (!response.ok) {
         const error = new Error(result.message || 'billing request failed');
         error.code = result.code;
         throw error;
       }
-      setMessage('Accounting settings have been updated and action and consent evidence have been retained.');
-      onRefresh();
+      setMessage(response.status === 202 ? 'Request accepted for processing. Check its current payment status; acceptance is not a successful charge.' : 'The server accepted the update. Refresh to read the current state.');
+      billingIntent.current=null;
+      if (!result.payment_action && !result.hosted_url) onRefresh();
       return result;
     } catch (error) {
-      setMessage(billingErrorMessage(error));
+      if (billingAlive.current) setMessage(billingErrorMessage(error));
       return null;
     } finally {
-      setBusy(false);
+      billingLocked.current=false; if (billingAlive.current) setBusy(false);
     }
   }
 
@@ -2838,14 +2831,17 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       setMessage(billingErrorMessage({ code: 'PAYMENT_CAPABILITY_UNSUPPORTED' }));
       return;
     }
+    if (![threshold,topUpAmount,dailyAttempts,dailyAmount].every(value=>value.trim()!=='' && Number.isSafeInteger(Number(value)) && Number(value)>0)) {
+      setMessage(billingErrorMessage({code:'PAYMENT_AMOUNT_INVALID'})); return;
+    }
     mutate('PUT', '/api/billing/auto-topup', {
       enabled: true,
-      threshold_minor: Math.round(Number(threshold)),
-      top_up_amount_minor: Math.round(Number(topUpAmount)),
+      threshold_minor: Number(threshold),
+      top_up_amount_minor: Number(topUpAmount),
       currency: account?.currency || 'TWD',
       payment_method_id: activeMethod.id,
-      daily_attempt_limit: Math.round(Number(dailyAttempts)),
-      daily_amount_limit_minor: Math.round(Number(dailyAmount)),
+      daily_attempt_limit: Number(dailyAttempts),
+      daily_amount_limit_minor: Number(dailyAmount),
       cooldown_seconds: policy?.cooldown_seconds || 3600,
       consent: AUTO_TOPUP_CONSENT,
     }, { 'If-Match': data?.policyEtag || '"0"' });
@@ -2853,7 +2849,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
 
   async function createManualTopUp(event) {
     event.preventDefault();
-    const amount = Math.round(Number(manualAmount));
+    const amount = Number(manualAmount);
     if (!Number.isSafeInteger(amount) || amount < 1) {
       setMessage(billingErrorMessage({ code: 'PAYMENT_AMOUNT_INVALID' }));
       return;
@@ -2967,7 +2963,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     <section className="panel billing-usage-card"><div className="panel-head"><div><h3>Cost This Month by Service Category</h3><p>{formatProviderTimestamp(usage.period_start)} – {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description} · {line.quantity} {line.unit}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>Month to Date</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
   </section>;
 
-  if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page"><div className="page-intro"><div><h2>Invoice</h2><p>Check the billing period, amount, payment status, and download PDF.</p></div><a className="ghost-button" href="/api/billing/statements">Export statement</a></div>{billingTabs}<section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section></section>;
+  if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page"><div className="page-intro"><div><h2>Invoice</h2><p>Check the billing period, amount, payment status, and download PDF.</p></div><a className="ghost-button" href={billingAPI(cloudId, '/api/billing/statements')}>Export statement</a></div>{billingTabs}<section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section></section>;
   if (billingView === 'activity') return <section className="page-content billing-page" data-testid="billing-activity-page"><div className="page-intro"><div><h2>Billing Activity</h2><p>Track top-ups, invoice charges, retries, and reconciliations with consistent status.</p></div></div>{billingTabs}<section className="panel"><BillingActivityTable activities={activities} onSelect={openBillingActivity} /></section></section>;
   if (billingView === 'profile') return <BillingProfilePage profile={billingProfile} tabs={billingTabs} canManage={capabilities.includes('billing_profile.manage')} onRefresh={onRefresh} />;
 
@@ -3009,8 +3005,9 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
 }
 
 function BillingInvoiceTable({ invoices, onSelect }) {
+  const {cloudId,version,onAccessLost} = React.useContext(BillingScope);
   if (!invoices.length) return <p className="empty-state">There are currently no invoices.</p>;
-  return <div className="table-wrap"><table className="data-table"><thead><tr><th>Invoice number</th><th>Billing period</th><th>Amount</th><th>Status</th><th>File</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button type="button" className="link-button" onClick={() => onSelect(invoice)}>{invoice.invoice_number}</button></td><td>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</td><td>{formatMinorAmount(invoice.total_minor, invoice.currency)}</td><td><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? 'Paid' : invoice.state}</span></td><td>{invoice.document ? <a className="icon-download" aria-label={`Download ${invoice.invoice_number} PDF`} href={`/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`}><i className="fa-solid fa-download" /></a> : '—'}</td></tr>)}</tbody></table></div>;
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>Invoice number</th><th>Billing period</th><th>Amount</th><th>Status</th><th>File</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button type="button" className="link-button" onClick={() => onSelect(invoice)}>{invoice.invoice_number}</button></td><td>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</td><td>{formatMinorAmount(invoice.total_minor, invoice.currency)}</td><td><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? 'Paid' : invoice.state}</span></td><td>{invoice.document ? <a className="icon-download" aria-label={`Download ${invoice.invoice_number} PDF`} href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}><i className="fa-solid fa-download" /></a> : '—'}</td></tr>)}</tbody></table></div>;
 }
 
 function BillingActivityTable({ activities, onSelect }) {
@@ -3019,7 +3016,8 @@ function BillingActivityTable({ activities, onSelect }) {
 }
 
 function BillingInvoiceDetail({ invoice, onBack }) {
-  return <section className="page-content billing-page" data-testid="billing-invoice-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← Back to invoices</button><div className="page-intro"><div><p className="eyebrow">Invoice</p><h2>{invoice.invoice_number}</h2><p>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</p></div><div className="inline-actions"><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? 'Paid' : invoice.state}</span>{invoice.document ? <a className="primary button-link" href={`/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`}>Download PDF</a> : null}</div></div><section className="panel invoice-paper"><div className="invoice-parties"><div><small>Billing recipient</small><strong>{invoice.recipient?.legal_name || '—'}</strong><span>{invoice.recipient?.tax_identifier || ''}</span><span>{invoice.recipient?.billing_address || ''}</span></div><div><small>Issue date</small><strong>{formatProviderTimestamp(invoice.issued_at)}</strong><small>Total</small><strong>{formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Service</th><th>Description</th><th>Usage</th><th>Subtotal</th></tr></thead><tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td>{line.service_code}</td><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{formatMinorAmount(line.total_minor, invoice.currency)}</td></tr>)}</tbody></table></div><div className="invoice-totals"><span>Subtotal {formatMinorAmount(invoice.subtotal_minor, invoice.currency)}</span><span>Tax {formatMinorAmount(invoice.tax_minor, invoice.currency)}</span><strong>Total {formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div><p className="notice">This invoice is settled from a prepaid balance; the payment-method top-up and invoice charge are separate accounting events.</p></section></section>;
+  const {cloudId,version,onAccessLost} = React.useContext(BillingScope);
+  return <section className="page-content billing-page" data-testid="billing-invoice-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← Back to invoices</button><div className="page-intro"><div><p className="eyebrow">Invoice</p><h2>{invoice.invoice_number}</h2><p>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</p></div><div className="inline-actions"><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? 'Paid' : invoice.state}</span>{invoice.document ? <a className="primary button-link" href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}>Download PDF</a> : null}</div></div><section className="panel invoice-paper"><div className="invoice-parties"><div><small>Billing recipient</small><strong>{invoice.recipient?.legal_name || '—'}</strong><span>{invoice.recipient?.tax_identifier || ''}</span><span>{invoice.recipient?.billing_address || ''}</span></div><div><small>Issue date</small><strong>{formatProviderTimestamp(invoice.issued_at)}</strong><small>Total</small><strong>{formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Service</th><th>Description</th><th>Usage</th><th>Subtotal</th></tr></thead><tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td>{line.service_code}</td><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{formatMinorAmount(line.total_minor, invoice.currency)}</td></tr>)}</tbody></table></div><div className="invoice-totals"><span>Subtotal {formatMinorAmount(invoice.subtotal_minor, invoice.currency)}</span><span>Tax {formatMinorAmount(invoice.tax_minor, invoice.currency)}</span><strong>Total {formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div><p className="notice">This invoice is settled from a prepaid balance; the payment-method top-up and invoice charge are separate accounting events.</p></section></section>;
 }
 
 function BillingActivityDetail({ activity, onBack }) {
@@ -3027,14 +3025,24 @@ function BillingActivityDetail({ activity, onBack }) {
 }
 
 function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
+  const {cloudId,version,onAccessLost} = React.useContext(BillingScope);
   const [form, setForm] = useState(profile);
   const [message, setMessage] = useState('');
+  const profileLocked = useRef(false), profileAlive = useRef(false);
+  useEffect(()=>{profileAlive.current=true;return()=>{profileAlive.current=false;};},[]);
   useEffect(() => setForm(profile), [profile.version]);
   async function submit(event) {
     event.preventDefault();
-    const response = await fetch('/api/billing/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': `"${form.version}"` }, body: JSON.stringify(form) });
+    if (profileLocked.current || !canManage) return;
+    profileLocked.current=true;
+    try {
+    const response = await fetch(billingAPI(cloudId, '/api/billing/profile'), { method: 'PUT', headers: { 'Content-Type': 'application/json', 'If-Match': `"${form.version}"`, 'X-Cloud-Ownership-Version':version }, body: JSON.stringify(Object.fromEntries(['legal_name','tax_identifier','billing_address','contact_email','locale','timezone','delivery_preference','version'].filter(key=>form[key]!==undefined).map(key=>[key,form[key]]))) });
+    if (!profileAlive.current) return;
+    if ([401,403,404,409].includes(response.status)) { onAccessLost(); return; }
     setMessage(response.ok ? 'Billing information has been updated; existing invoice snapshots will not be overwritten.' : 'Failed to update billing information, please refresh and try again.');
     if (response.ok) onRefresh();
+    } catch (_) { if (profileAlive.current) setMessage('Update status is unknown. Refresh before retrying; no successful update has been confirmed.'); }
+    finally { profileLocked.current=false; }
   }
   return <section className="page-content billing-page" data-testid="billing-profile-page"><div className="page-intro"><div><h2>Billing information</h2><p>Each new invoice saves the current recipient details. Later changes do not overwrite existing invoice snapshots.</p></div></div>{tabs}<section className="panel"><form className="billing-profile-form" onSubmit={submit}><label>Company or legal name<input value={form.legal_name || ''} onChange={(event) => setForm({ ...form, legal_name: event.target.value })} required /></label><label>VAT number<input value={form.tax_identifier || ''} onChange={(event) => setForm({ ...form, tax_identifier: event.target.value })} /></label><label>Billing email<input type="email" value={form.contact_email || ''} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} /></label><label className="wide">Billing address<textarea value={form.billing_address || ''} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} /></label><label>Locale<input value={form.locale || 'en-US'} onChange={(event) => setForm({ ...form, locale: event.target.value })} /></label><label>Billing timezone<input value={form.timezone || 'Asia/Taipei'} onChange={(event) => setForm({ ...form, timezone: event.target.value })} /></label><label>Delivery method<select value={form.delivery_preference || 'portal'} onChange={(event) => setForm({ ...form, delivery_preference: event.target.value })}><option value="portal">Portal</option><option value="portal_and_email">Portal + Email</option></select></label><div className="wide"><button type="submit" className="primary" disabled={!canManage}>Save billing information</button>{message ? <p className="notice" role="status">{message}</p> : null}</div></form></section></section>;
 }
@@ -7048,6 +7056,6 @@ function updateDevicesLocation({ deviceId, health, status, signal, firmware, pro
 document.documentElement.lang = i18n.language;
 createRoot(document.getElementById('root')).render(
   <I18nextProvider i18n={i18n}>
-    {handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : window.location.pathname === '/console/clouds' || window.location.pathname.startsWith('/console/clouds/') ? <MyCloudsApp /> : <App />}
+    {handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : window.location.pathname === '/console/clouds' || window.location.pathname.startsWith('/console/clouds/') ? <MyCloudsApp /> : <App />}
   </I18nextProvider>,
 );

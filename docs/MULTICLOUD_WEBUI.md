@@ -78,6 +78,17 @@ Historical records are retained; no nonempty-cloud cascade-delete option exists.
 Only the cloud owner sees tenant Billing. Platform access remains a separate
 audited view and cannot use arbitrary actor/permission headers from the browser.
 An owner of another cloud receives no Billing visibility here.
+The scoped Billing page is `/console/clouds/{cloudId}/billing`, with usage,
+invoices, activity, settings and profile subpages. Its existing resource BFFs move
+from `/api/billing/*` to `/api/developer/brand-clouds/{cloudId}/billing/*`;
+unscoped API paths return 404, never infer a target from the active session.
+Each request rechecks owner ID, owner role, operation capability and ownership
+version against Account Manager. The BFF constructs trusted Billing identity
+headers; incoming browser Billing headers are ignored. Writes also supply
+`X-Cloud-Ownership-Version` from the displayed snapshot as a precondition, not
+as authority. The BFF compares it with current evidence and rejects mismatch.
+Responses are no-store and carry that version; mixed-version page reads are
+discarded. Legacy UI links without proven scope lead to My Clouds selection.
 Historical invoices, activity, exports and downloads show only the current
 owner's responsibility periods plus the confirmed opening balance. Do not show
 predecessor payer identity, invoices or line-item history; mixed-period data is

@@ -1918,7 +1918,9 @@ paths:
         "200": { description: Job result. }
         "410": { description: Result expired. }
 
-  /api/billing/summary:
+  /api/developer/brand-clouds/{brandCloudID}/billing/summary:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingSummary
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1931,7 +1933,9 @@ paths:
         "200":
           description: Balance, current-period estimate, automatic top-up health, and runway.
           content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingSummaryResponse" } } }
-  /api/billing/usage:
+  /api/developer/brand-clouds/{brandCloudID}/billing/usage:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingUsage
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1941,7 +1945,9 @@ paths:
       summary: Read server-priced current-period usage.
       security: [{ SessionCookie: [] }]
       responses: { "200": { description: Priced usage lines. } }
-  /api/billing/invoices:
+  /api/developer/brand-clouds/{brandCloudID}/billing/invoices:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingInvoices
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1954,7 +1960,9 @@ paths:
         "200":
           description: Invoice page.
           content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingInvoiceListResponse" } } }
-  /api/billing/invoices/{invoiceId}:
+  /api/developer/brand-clouds/{brandCloudID}/billing/invoices/{invoiceId}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingInvoice
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1965,7 +1973,9 @@ paths:
       security: [{ SessionCookie: [] }]
       parameters: [{ name: invoiceId, in: path, required: true, schema: { type: string } }]
       responses: { "200": { description: Invoice detail. }, "404": { $ref: "#/components/responses/PlainTextError" } }
-  /api/billing/invoices/{invoiceId}/pdf:
+  /api/developer/brand-clouds/{brandCloudID}/billing/invoices/{invoiceId}/pdf:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingInvoicePdf
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1979,7 +1989,9 @@ paths:
         "200":
           description: Invoice PDF.
           content: { application/pdf: { schema: { type: string, format: binary } } }
-  /api/billing/activity:
+  /api/developer/brand-clouds/{brandCloudID}/billing/activity:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingActivity
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1992,7 +2004,9 @@ paths:
         "200":
           description: Activity page.
           content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingActivityListResponse" } } }
-  /api/billing/activity/{activityId}:
+  /api/developer/brand-clouds/{brandCloudID}/billing/activity/{activityId}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingActivityDetail
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2003,7 +2017,9 @@ paths:
       security: [{ SessionCookie: [] }]
       parameters: [{ name: activityId, in: path, required: true, schema: { type: string } }]
       responses: { "200": { description: Activity detail. }, "404": { $ref: "#/components/responses/PlainTextError" } }
-  /api/billing/profile:
+  /api/developer/brand-clouds/{brandCloudID}/billing/profile:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingProfile
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2014,6 +2030,8 @@ paths:
       security: [{ SessionCookie: [] }]
       responses: { "200": { description: Billing profile. } }
     put:
+      parameters:
+        - { $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }
       operationId: putApiBillingProfile
       x-rtk-feature-id: FEAT-CA-BFF-001
       x-rtk-requirement-ids:
@@ -2023,7 +2041,9 @@ paths:
       security: [{ SessionCookie: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingProfile" } } } }
       responses: { "200": { description: Updated profile. }, "412": { $ref: "#/components/responses/PlainTextError" } }
-  /api/billing/statements:
+  /api/developer/brand-clouds/{brandCloudID}/billing/statements:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingStatement
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2033,14 +2053,16 @@ paths:
       summary: Export a UTF-8 tenant billing statement.
       security: [{ SessionCookie: [] }]
       responses: { "200": { description: CSV statement, content: { text/csv: { schema: { type: string } } } } }
-  /api/billing/account:
+  /api/developer/brand-clouds/{brandCloudID}/billing/account:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingAccount
       x-rtk-feature-id: FEAT-CA-BFF-001
       x-rtk-requirement-ids:
         - REQ-CA-BILLING-001
       tags: [Billing]
-      summary: Read the active organization's commercial account.
+      summary: Read the explicitly scoped cloud's commercial account as its current owner.
       responses:
         "200":
           description: Customer-safe account and automatic top-up summary.
@@ -2048,7 +2070,9 @@ paths:
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
 
-  /api/billing/ledger:
+  /api/developer/brand-clouds/{brandCloudID}/billing/ledger:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingLedger
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2066,7 +2090,9 @@ paths:
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
 
-  /api/billing/payment-methods:
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-methods:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingPaymentMethods
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2081,7 +2107,9 @@ paths:
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
 
-  /api/billing/payment-methods/setup:
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-methods/setup:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       operationId: postApiBillingPaymentMethodSetup
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2089,7 +2117,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Request provider-hosted method setup without accepting card fields.
-      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody:
         required: true
         content:
@@ -2114,7 +2142,9 @@ paths:
         "400": { $ref: "#/components/responses/PaymentError" }
         "409": { $ref: "#/components/responses/PaymentError" }
 
-  /api/billing/payment-methods/{methodId}:
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-methods/{methodId}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     delete:
       operationId: deleteApiBillingPaymentMethod
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2122,7 +2152,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Revoke a payment method.
-      parameters: [{ name: methodId, in: path, required: true, schema: { type: string } }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { name: methodId, in: path, required: true, schema: { type: string } }]
       requestBody:
         required: true
         content:
@@ -2137,7 +2167,9 @@ paths:
         "400": { $ref: "#/components/responses/PaymentError" }
         "409": { $ref: "#/components/responses/PaymentError" }
 
-  /api/billing/auto-topup:
+  /api/developer/brand-clouds/{brandCloudID}/billing/auto-topup:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingAutoTopUp
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2157,7 +2189,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Replace a policy with explicit versioned consent.
-      parameters: [{ $ref: "#/components/parameters/IfMatch" }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IfMatch" }]
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: "#/components/schemas/AutoTopUpRequest" } } }
@@ -2173,7 +2205,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Disable the current policy.
-      parameters: [{ $ref: "#/components/parameters/IfMatch" }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IfMatch" }]
       requestBody:
         required: true
         content:
@@ -2188,7 +2220,9 @@ paths:
         "409": { $ref: "#/components/responses/PaymentError" }
         "428": { $ref: "#/components/responses/PaymentError" }
 
-  /api/billing/topups:
+  /api/developer/brand-clouds/{brandCloudID}/billing/topups:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       operationId: postApiBillingTopUp
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2196,7 +2230,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Create an idempotent manual top-up intent.
-      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody:
         required: true
         content:
@@ -2214,7 +2248,9 @@ paths:
         "400": { $ref: "#/components/responses/PaymentError" }
         "409": { $ref: "#/components/responses/PaymentError" }
 
-  /api/billing/topups/checkout:
+  /api/developer/brand-clouds/{brandCloudID}/billing/topups/checkout:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       operationId: postApiBillingHostedTopUp
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2222,7 +2258,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Persist a manual top-up and return a provider-hosted POST action.
-      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody:
         required: true
         content:
@@ -2240,7 +2276,9 @@ paths:
         "400": { $ref: "#/components/responses/PaymentError" }
         "409": { $ref: "#/components/responses/PaymentError" }
 
-  /api/billing/payment-intents:
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-intents:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingPaymentIntents
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2253,7 +2291,9 @@ paths:
           description: Intent page without provider transaction references.
           content: { application/json: { schema: { $ref: "#/components/schemas/PaymentIntentsResponse" } } }
 
-  /api/billing/payment-intents/{intentId}:
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-intents/{intentId}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingPaymentIntent
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -3319,6 +3359,12 @@ components:
       name: rtk_admin_session
 
   parameters:
+    BillingDisplayedOwnershipVersion:
+      name: X-Cloud-Ownership-Version
+      in: header
+      required: true
+      description: Displayed ownership version; compared against live Account Manager evidence before a write. Never forwarded as trusted Billing authority.
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
     ManagedCloudIdempotencyKey:
       name: Idempotency-Key
       in: header
