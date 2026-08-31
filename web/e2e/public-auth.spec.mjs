@@ -104,7 +104,7 @@ test('[UI-CA-AUTH-LOGOUT-001] logout remains reachable on desktop and mobile @sm
   await testInfo.attach('logged-out-viewport', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 });
 
-for (const [kind, destination] of [['customer', '/console/overview'], ['platform_admin', '/admin']]) {
+for (const [kind, destination] of [['customer', '/console/clouds'], ['platform_admin', '/admin']]) {
   test(`[UI-CA-AUTH-ACTIVATE-001] email activation enters the ${kind} account view @smoke`, async ({ page }, testInfo) => {
     let verificationCount = 0;
     await page.route('**/api/auth/customer/verification-status', (route) => route.fulfill({ json: { status: 'valid' } }));
@@ -119,7 +119,7 @@ for (const [kind, destination] of [['customer', '/console/overview'], ['platform
     await page.getByLabel('New password', { exact: true }).fill('activation-password-123');
     await page.getByRole('button', { name: 'Verify and continue', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${destination}$`));
-    await expect(page.getByRole('heading', { name: kind === 'customer' ? 'E2E Alpha Cloud' : 'Platform Home', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: kind === 'customer' ? 'My Clouds' : 'Platform Home', exact: true })).toBeVisible();
     expect(verificationCount).toBe(1);
     await testInfo.attach('activated-account-view', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
   });

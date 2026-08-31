@@ -47,11 +47,14 @@ test('[UI-CA-FLEETPAGE-005] Brand Cloud overview access and settings share one n
   expect(selectStyles.appearance).toBe('none');
   expect(selectStyles.backgroundImage).not.toBe('none');
   expect(selectStyles.height).toBeGreaterThanOrEqual(42);
-  await expect(page.getByRole('button', { name: 'Accept Transfer', exact: true })).toHaveClass(/primary-button/);
-  await expect(page.getByRole('button', { name: 'Create transfer', exact: true })).toHaveClass(/primary-button/);
+  await expect(page.getByRole('link', { name: 'Open cloud management', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Generate and download', exact: true })).toHaveClass(/primary-button/);
   await page.goBack();
   await expect(page).toHaveURL(/\/console\/brand-e2e-01\/access$/);
+  await page.goto('/console/clouds/99999999-9999-4999-8999-999999999999');
+  await expect(page.getByRole('heading', { name: 'Transfer ownership', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send ownership invitation', exact: true })).toBeDisabled();
+  await expect(page.getByRole('heading', { name: 'Cloud overview', exact: true })).toBeVisible();
 });
 
 test('[UI-CA-FLEETPAGE-003] retired batch work route opens firmware upgrade status @brand-fleet', async ({ page }) => {

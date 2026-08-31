@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -9,6 +10,7 @@ const mode = process.env.E2E_SCENARIO_MODE || 'normal';
 const prometheusMode = process.env.E2E_PROMETHEUS_MODE || mode;
 const billingCloudIDs = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222'];
 const billingOwnerID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const developerSharingCloudID = '99999999-9999-4999-8999-999999999999';
 const billingProfiles = new Map(), billingPolicies = new Map();
 if (!fixtureDir) throw new Error('E2E_FIXTURE_DIR is required');
 
@@ -256,7 +258,7 @@ async function handleCustomerResource(req, res, url) {
   if (!match) return send(res, 404, { error: 'not found' });
   const orgID = decodeURIComponent(match[1]);
   const suffix = match[2];
-  if (!['brand-e2e-01', 'brand-e2e-02', ...billingCloudIDs].includes(orgID)) return send(res, 403, { error: 'organization forbidden' });
+  if (!['brand-e2e-01', 'brand-e2e-02', developerSharingCloudID, ...billingCloudIDs].includes(orgID)) return send(res, 403, { error: 'organization forbidden' });
   if (billingCloudIDs.includes(orgID) && (req.headers['x-billing-actor-id'] !== billingOwnerID || req.headers['x-billing-ownership-version'] !== '7')) return send(res,403,{code:'BILLING_OWNER_REQUIRED'});
   const devices = mode === 'empty' ? [] : cloudDevices(orgID);
   if (mode === 'slow' && req.method !== 'GET') await new Promise((resolve) => setTimeout(resolve, 350));
@@ -335,7 +337,12 @@ async function handleCustomerResource(req, res, url) {
     const device = devices.find((item) => item.id === decodeURIComponent(deviceMatch[1]));
     return device ? send(res, 200, { device: { ...device, ...(await readBody(req)) } }) : send(res, 404, { error: 'device not found' });
   }
-  if (suffix === '/device-item-profiles' && req.method === 'GET') return send(res, 200, { device_item_profiles: mode === 'empty' ? [] : [profileFor(orgID)] });
+  if (suffix === '/device-item-profiles' && req.method === 'GET') {
+    const limit = Number(url.searchParams.get('limit') || 25);
+    const offset = Number(url.searchParams.get('offset') || 0);
+    const profiles = mode === 'empty' ? [] : [profileFor(orgID, orgID === developerSharingCloudID ? '33333333-3333-4333-8333-333333333333' : undefined)];
+    return send(res, 200, { device_item_profiles: profiles.slice(offset, offset + limit), pagination: { limit, offset, total: profiles.length } });
+  }
   if (suffix === '/device-item-profiles' && req.method === 'POST') {
     const body = await readBody(req);
     const profile = { ...profileFor(orgID, body.profile_key || `product-${orgID}-created`), ...body };
@@ -381,7 +388,7 @@ async function handleDeveloperResource(req, res, url) {
     if (!invitation || invitation.status !== 'pending' || new Date(invitation.expires_at) <= new Date()) return send(res, 404, { code: 'INVITATION_NOT_FOUND', message: 'Invitation is invalid or expired.' });
     invitation.status = 'accepted';
     invitation.accepted_at = new Date().toISOString();
-    const member = { organization_id: invitation.brand_cloud_id, user_id: invitation.target_user_id, email: invitation.target_email, role: invitation.role, capabilities: [] };
+    const member = { organization_id: invitation.brand_cloud_id, user_id: invitation.target_user_id, email: invitation.target_email, role: invitation.role, access_scope: invitation.access_scope, capabilities: [] };
     state.members.push(member);
     return send(res, 200, { invitation: publicInvitation(invitation), member });
   }
@@ -404,8 +411,9 @@ async function handleDeveloperResource(req, res, url) {
   }
   const clouds = state.brandClouds.map((brand) => ({ ...brand, role: 'owner', capabilities: memberships.find((item) => item.id === brand.id)?.capabilities || [] }));
   if (!cloudID && req.method === 'GET') return send(res, 200, { brand_clouds: clouds, pagination: { limit: 25, offset: 0, total: clouds.length }, developer_cloud_limit: 5 });
-  if (!clouds.some((brand) => brand.id === cloudID)) return send(res, 403, { code: 'MEMBERSHIP_REQUIRED', message: 'Current developer is not a member of this Brand Cloud.' });
-  if (!suffix && req.method === 'GET') return send(res, 200, { brand_cloud: clouds.find((brand) => brand.id === cloudID), membership: { organization_id: cloudID, user_id: 'customer-user', role: 'owner', capabilities: clouds.find((brand) => brand.id === cloudID).capabilities } });
+  const fixtureCloud = clouds.find((brand) => brand.id === cloudID) || (cloudID === developerSharingCloudID ? { ...clouds[0], id: cloudID, tenant_slug: 'brand-e2e-01', owner_user_id: 'developer-user', my_role: 'owner', role: 'owner', ownership_version: 1, capabilities: ['cloud.update', 'team.manage', 'billing_account.read', 'product.read', 'product.manage'] } : null);
+  if (!fixtureCloud) return send(res, 403, { code: 'MEMBERSHIP_REQUIRED', message: 'Current developer is not a member of this Brand Cloud.' });
+  if (!suffix && req.method === 'GET') return send(res, 200, { brand_cloud: fixtureCloud, membership: { organization_id: cloudID, user_id: 'developer-user', role: 'owner', capabilities: fixtureCloud.capabilities } });
   if (suffix === '/members' && req.method === 'GET') return send(res, 200, { members: state.members.filter((member) => member.organization_id === cloudID), pagination: { limit: 25, offset: 0, total: state.members.filter((member) => member.organization_id === cloudID).length } });
   if (suffix === '/members/invitations' && req.method === 'GET') return send(res, 200, { invitations: state.invitations.filter((invitation) => invitation.brand_cloud_id === cloudID).map(publicInvitation) });
   if (suffix === '/members/invitations' && req.method === 'POST') {
@@ -413,7 +421,7 @@ async function handleDeveloperResource(req, res, url) {
     const key = String(req.headers['idempotency-key'] || '');
     const replay = key && state.idempotency.get(`invite:${cloudID}:${key}`);
     if (replay) return send(res, 202, { invitation: publicInvitation(replay), idempotent_replay: true });
-    const invitation = { id: `invitation-${Date.now()}`, brand_cloud_id: cloudID, invited_by_user_id: 'developer-user', target_user_id: `invited-${Date.now()}`, target_email: body.email, role: body.role || 'member', status: 'pending', token: `member-token-${cloudID}-${body.email}`, expires_at: new Date(Date.now() + 1_800_000).toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    const invitation = { id: randomUUID(), brand_cloud_id: cloudID, invited_by_user_id: 'developer-user', target_user_id: randomUUID(), target_email: body.email, role: body.role || 'viewer', access_scope: body.access_scope, status: 'pending', token: `member-token-${cloudID}-${body.email}`, expires_at: new Date(Date.now() + 1_800_000).toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
     state.invitations.push(invitation);
     if (key) state.idempotency.set(`invite:${cloudID}:${key}`, invitation);
     return send(res, 202, { invitation: publicInvitation(invitation) });
@@ -442,7 +450,7 @@ async function handleDeveloperResource(req, res, url) {
     const key = String(req.headers['idempotency-key'] || '');
     const replay = key && state.idempotency.get(`transfer:${cloudID}:${key}`);
     if (replay) return send(res, 202, { owner_transfer: replay, idempotent_replay: true });
-    const transfer = { id: `transfer-${Date.now()}`, token: `owner-token-${cloudID}-${body.target_email}`, brand_cloud_id: cloudID, target_email: body.target_email, status: 'pending', expires_at: new Date(Date.now() + (mode === 'expired' ? -1 : 86_400_000)).toISOString() };
+    const transfer = { id: randomUUID(), token: `owner-token-${cloudID}-${body.target_email}`, brand_cloud_id: cloudID, target_email: body.target_email, status: 'pending', expires_at: new Date(Date.now() + (mode === 'expired' ? -1 : 86_400_000)).toISOString() };
     state.transfers.push(transfer);
     if (key) state.idempotency.set(`transfer:${cloudID}:${key}`, transfer);
     return send(res, 202, { owner_transfer: transfer });
