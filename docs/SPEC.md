@@ -316,12 +316,12 @@ Unified account sessions:
 - route guards use global capabilities and active-organization capabilities,
   not the login path or a UI role switch
 - a valid `next` route is honored only when authorized; otherwise the default is
-  Brand Fleet when memberships exist, then Platform View when platform access
+  My Clouds (`/console/clouds`) when memberships exist, then Platform View when platform access
   exists, otherwise the no-access page
 - accounts with both platform capability and Brand Cloud membership can switch
   views and organizations without logging in again
-- switching active organization revalidates membership; failure retains the
-  previous active organization
+- switching clouds revalidates the explicit route/request scope for that tab;
+  failure retains that tab's previous authorized route, not a shared session scope
 - demo mode remains available only for local development when Account Manager
   is not configured
 - Cloud Admin does not provide a local break-glass administrator account.
@@ -376,23 +376,34 @@ Service health:
 
 ## Billing BFF And Customer View
 
-### [REQ-CA-BILLING-001] Billing UI is active-organization scoped and provider safe
+### [REQ-CA-BILLING-001] Billing UI is explicitly cloud scoped and provider safe
 
 <!-- rtk-requirement
 {"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
-Acceptance: `/console/billing` resolves the organization exclusively from the
-authenticated account session's active membership, displays integer-minor-unit balance and ledger
+Acceptance: `/console/clouds/{cloudId}/billing` explicitly identifies the cloud;
+each request revalidates the session's current sole ownership of that cloud,
+ownership version and capabilities. It displays integer-minor-unit balance and ledger
 facts, safe payment-method metadata, automatic top-up guardrails, and normalized
 intent states; it never accepts or displays PAN, CVV, opaque provider method
 references, provider transaction references, request hashes, or raw provider
 payloads.
 
-The BFF exposes `/api/billing/*` routes and maps them to the Account Manager
-`/v1/orgs/{activeOrgId}/*` contract. `Idempotency-Key`, `If-Match`, and
+The BFF exposes cloud-bound `/api/developer/brand-clouds/{cloudId}/billing/*`
+routes and maps them to Account Manager `/v1/orgs/{cloudId}/*` operations. There
+is no session-global active membership fallback. Legacy `/console/billing` and
+`/api/billing/*` cannot execute ambiguous operations: navigate only when an
+explicit authorized cloud can be recovered, otherwise require selection; never
+replay a mutation against the last session-selected cloud. `Idempotency-Key`, `If-Match`, and
 `X-Request-Id` are forwarded where applicable. Upstream payment errors are
 reduced to an allowlist of stable customer-safe codes and messages.
+Bind forms, cached data, payment intents, hosted-return state and idempotency
+context to cloud UUID/actor/ownership version. Two tabs remain independent;
+reject stale state after ownership changes and suppress superseded responses.
+Tenant financial-history reads also enforce responsibility periods as described
+in [MULTICLOUD_WEBUI.md](MULTICLOUD_WEBUI.md); owner role alone does not reveal
+predecessor records. Non-owner viewer/admin/member Billing access is denied.
 
 NewebPay hosted setup and merchant-initiated charge controls remain visibly
 `BLOCKED` until written capability approval and sandbox qualification exist.

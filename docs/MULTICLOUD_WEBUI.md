@@ -70,8 +70,8 @@ history access; separately audited platform history is not a customer-view route
 Transfer UI identifies source and target, eligible/quota state, ownership version,
 balance/currency/snapshot version, debt/payment/work blockers and durable progress.
 Before request/acceptance, show that the current owner must settle Billing and
-leave strictly positive available credit: zero and negative balance cannot
-transfer. Render `balance_not_positive` with the observed balance, separately
+leave nonnegative available credit: zero is eligible, negative balance cannot
+transfer. Render `balance_negative` with the observed balance, separately
 from unsettled invoices/usage and pending financial work; a positive number alone
 does not enable transfer. Server eligibility and fenced rechecks remain authoritative.
 Both parties explicitly confirm the same amount; changes clear old confirmations.
@@ -88,13 +88,14 @@ to switch ownership back. Precommit cancellation waits for confirmed hold releas
 The new owner sets up their payment instrument/consent independently. Old owner's
 tab is removed from the cloud only after committed authority changes; other clouds
 and the shared global session remain usable.
-If final settlement leaves zero/negative credit, explain that transfer is blocked
+If final settlement leaves negative credit, explain that transfer is blocked
 and the original owner remains responsible. Offer precommit cancellation; only
 after confirmed hold release may the original owner settle/top up normally and
 start a fresh transfer. Do not offer payment inside a fenced handoff. Test negative,
-zero, positive-but-unsettled, eligible-positive and positive-to-zero race states.
+zero/positive-but-unsettled, eligible-zero/positive and nonnegative-to-negative
+race states. Positive-to-zero requires fresh confirmation of the new snapshot.
 The delete dialog continues to require zero balance; its rule is intentionally
-different from transfer's positive-balance requirement.
+different from transfer's nonnegative-balance requirement.
 
 ## BFF and verification
 
