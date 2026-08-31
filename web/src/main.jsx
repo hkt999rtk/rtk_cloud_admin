@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { MyCloudsApp } from './MyClouds.jsx';
 import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
@@ -1202,6 +1203,7 @@ function App() {
           </button>
         </div>
         <nav className="sidebar-nav-groups">
+          <a href="/console/clouds">My Clouds</a>
           {visibleNavGroups.map((group) => <section className="sidebar-nav-group" key={group.id}>
             <p className="sidebar-section-label">{translate(group.labelKey)}</p>
             {group.items.map((item) => <button type="button" key={item.id} className={isCustomerNavItemActive(item, active) ? 'active' : ''} onClick={() => navigate(item)}>
@@ -7085,6 +7087,6 @@ function updateDevicesLocation({ deviceId, health, status, signal, firmware, pro
 document.documentElement.lang = i18n.language;
 createRoot(document.getElementById('root')).render(
   <I18nextProvider i18n={i18n}>
-    <App />
+    {window.location.pathname === '/console/clouds' || window.location.pathname.startsWith('/console/clouds/') ? <MyCloudsApp /> : <App />}
   </I18nextProvider>,
 );

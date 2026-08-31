@@ -515,6 +515,11 @@ paths:
         - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: List Brand Clouds available to the signed-in developer
+      description: Global account session; never reads or changes active organization. Quota counts owned clouds independently of the selected view. Responses are not cached.
+      parameters:
+        - { name: view, in: query, schema: { type: string, enum: [all, owned, shared], default: all } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
       responses:
         "200":
           description: Developer Brand Cloud memberships.
@@ -523,6 +528,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/DeveloperBrandCloudList"
         "401": { $ref: "#/components/responses/PlainTextError" }
+
+    post:
+      operationId: postApiDeveloperBrandClouds
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Create a cloud and its sole owner membership
+      description: Requires global account authentication, upstream eligibility and ownership quota; no existing membership required. Same-origin cookie-authenticated writes only.
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ManagedCloudWrite'
+                - required: [name]
+      responses:
+        '201':
+          description: Created cloud, or replay of the same creation intent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeveloperBrandCloudDetail' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
 
   /api/developer/brand-clouds/{brandCloudID}:
     get:
@@ -543,6 +574,136 @@ paths:
                 $ref: "#/components/schemas/DeveloperBrandCloudDetail"
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
+
+    patch:
+      operationId: patchApiDeveloperBrandCloudsByBrandCloudID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Owner updates name or description without changing UUID or tenant slug
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagedCloudWrite' }
+      responses:
+        '200':
+          description: Updated cloud.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeveloperBrandCloudDetail' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    delete:
+      operationId: deleteApiDeveloperBrandCloudsByBrandCloudID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Request tracked soft deletion after rechecking emptiness and zero balance
+      description: Owner only; request body prohibited. Acceptance is not completion. Historical audit and Billing records remain. Transfer eligibility (balance >= 0) does not imply deletion eligibility (balance = 0).
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      responses:
+        '202':
+          description: Durable operation accepted or replayed.
+          headers:
+            Location: { description: Same-origin BFF operation resource, schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagedCloudOperationResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/deletion-preflight:
+    get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDDeletionPreflight
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Read current deletion blockers without authorizing a future deletion
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Live eligibility and actionable blockers.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [eligible]
+                properties:
+                  eligible: { type: boolean }
+                  blockers: { type: array, items: { $ref: '#/components/schemas/ManagedCloudBlocker' } }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/operations/{operationID}:
+    get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDOperationsByOperationID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Poll a scope-validated durable cloud operation including after deletion
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: operationID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Authorized operation status, not a cached active-cloud snapshot.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagedCloudOperationResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/products:
+    get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDProducts
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: List Product summaries within the explicit authorized cloud
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Upstream-authorized Products; excludes metadata and secrets.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [products]
+                properties:
+                  products: { type: array, items: { $ref: '#/components/schemas/ManagedCloudProduct' } }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/products/{productID}:
+    get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDProductsByProductID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Read a Product summary after validating cloud and Product scope
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: productID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Authorized Product summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [product]
+                properties:
+                  product: { $ref: '#/components/schemas/ManagedCloudProduct' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
 
   /api/developer/brand-clouds/{brandCloudID}/members:
     get:
@@ -3081,6 +3242,12 @@ components:
       name: rtk_admin_session
 
   parameters:
+    ManagedCloudIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: One stable key per write intent; retry unchanged requests with the same key. Duplicate headers rejected.
+      schema: { type: string, minLength: 1, maxLength: 200, pattern: '^[!-~]+$' }
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -3148,6 +3315,18 @@ components:
       schema: { type: string, format: uuid }
 
   responses:
+    ManagedCloudError:
+      description: Authentication (401), authorization (403), missing scope (404), conflict (409), invalid input (400/422), quota/rate limit (429), unavailable dependency (503), or malformed upstream result (502). Upstream diagnostics are never exposed. Responses are no-store; 401 invalidates the local session.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, message]
+            properties:
+              code: { type: string }
+              message: { type: string }
+        text/plain:
+          schema: { type: string }
     PlainTextError:
       description: Plain text error response.
       content:
@@ -4028,22 +4207,63 @@ components:
 
     DeveloperBrandCloudList:
       type: object
-      required: [brand_clouds, pagination, source_status]
+      required: [brand_clouds, pagination, owned_count, owned_limit, reserved_count]
       properties:
         brand_clouds:
           type: array
           items: { $ref: "#/components/schemas/DeveloperBrandCloud" }
         pagination: { $ref: "#/components/schemas/DeveloperPagination" }
-        developer_cloud_limit: { type: integer, minimum: 1 }
-        source_status: { type: string }
+        owned_count: { type: integer, minimum: 0 }
+        owned_limit: { type: integer, minimum: 1 }
+        reserved_count: { type: integer, minimum: 0 }
 
     DeveloperBrandCloudDetail:
       type: object
-      required: [brand_cloud, membership, source_status]
+      required: [brand_cloud]
       properties:
         brand_cloud: { $ref: "#/components/schemas/DeveloperBrandCloud" }
-        membership: { $ref: "#/components/schemas/DeveloperMembership" }
-        source_status: { type: string }
+
+    ManagedCloudWrite:
+      type: object
+      additionalProperties: false
+      description: Unique string fields only; null, duplicate keys, unknown fields and trailing JSON are rejected. Maximum request size is 16 KiB.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: string, maxLength: 2000 }
+
+    ManagedCloudBlocker:
+      type: object
+      required: [code, retryable]
+      properties:
+        code: { type: string }
+        retryable: { type: boolean }
+        count: { type: integer, format: int64 }
+        balance_minor: { type: integer, format: int64 }
+
+    ManagedCloudOperationResult:
+      type: object
+      required: [operation]
+      properties:
+        operation:
+          type: object
+          required: [id, brand_cloud_id, type, state, phase, blockers]
+          properties:
+            id: { type: string, format: uuid }
+            brand_cloud_id: { type: string, format: uuid }
+            type: { type: string }
+            state: { type: string }
+            phase: { type: string }
+            blockers: { type: array, items: { $ref: '#/components/schemas/ManagedCloudBlocker' } }
+
+    ManagedCloudProduct:
+      type: object
+      required: [id, brand_cloud_id, name, profile_key, status]
+      properties:
+        id: { type: string, format: uuid }
+        brand_cloud_id: { type: string, format: uuid }
+        name: { type: string }
+        profile_key: { type: string }
+        status: { type: string }
 
     DeveloperMemberList:
       type: object
@@ -4074,17 +4294,17 @@ components:
 
     DeveloperBrandCloud:
       type: object
-      required: [id, name, organization_kind, status, role]
+      required: [id, name, description, tenant_slug, owner_user_id, my_role, status, ownership_version, capabilities]
       properties:
-        id: { type: string }
+        id: { type: string, format: uuid }
         name: { type: string }
+        description: { type: string }
         tenant_slug: { type: string }
-        organization_kind: { type: string, enum: [brand_cloud] }
+        owner_user_id: { type: string, format: uuid }
         status: { type: string }
-        tier: { type: string }
-        role: { type: string, enum: [owner, admin, member] }
+        my_role: { type: string, enum: [owner, admin, member, viewer] }
+        ownership_version: { type: integer, format: int64 }
         capabilities: { type: array, items: { type: string } }
-        metadata: { type: object, additionalProperties: true }
 
     DeveloperMembership:
       type: object

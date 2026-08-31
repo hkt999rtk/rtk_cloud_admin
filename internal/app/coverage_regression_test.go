@@ -464,6 +464,10 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 			http.Error(w, "upstream Product invitation acceptance failure", http.StatusInternalServerError)
 			return
 		}
+		if r.URL.Path == "/v1/developer/brand-clouds" {
+			_, _ = w.Write([]byte(`{"brand_clouds":[],"pagination":{"limit":25,"offset":0,"total":0},"owned_count":0,"owned_limit":8,"reserved_count":0}`))
+			return
+		}
 		if strings.Contains(r.URL.Path, "/products/product-error/") {
 			http.Error(w, "upstream Product collaboration failure", http.StatusInternalServerError)
 			return

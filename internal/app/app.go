@@ -258,8 +258,15 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
 	s.mux.HandleFunc("POST /api/me/view", s.apiAccountView)
-	s.mux.HandleFunc("GET /api/developer/brand-clouds", s.apiDeveloperBrandClouds)
-	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}", s.apiDeveloperBrandCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds", s.apiManagedCloud)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds", s.apiManagedCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}", s.apiManagedCloud)
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}", s.apiManagedCloud)
+	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}", s.apiManagedCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/deletion-preflight", s.apiManagedCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/operations/{operationID}", s.apiManagedCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products", s.apiManagedCloudProducts)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}", s.apiManagedCloudProducts)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members", s.apiDeveloperBrandCloudMembers)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiDeveloperBrandCloudInvitations)
 	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiDeveloperBrandCloudInvitation)
@@ -702,9 +709,9 @@ func (s *Server) apiAccountView(w http.ResponseWriter, r *http.Request) {
 	kind := ""
 	switch view {
 	case "customer":
-		if len(me.Memberships()) > 0 {
-			kind = "customer"
-		}
+		// Global accounts with no current memberships can enter My Clouds and
+		// create an owned cloud; this does not grant any cloud resource capability.
+		kind = "customer"
 	case "platform":
 		if hasAnyPlatformCapability(me.EffectivePlatformCapabilities()) {
 			kind = "platform_admin"
@@ -1419,7 +1426,7 @@ func selectAccountView(next string, hasMembership, hasPlatformCapability bool) s
 	if hasPlatformCapability {
 		return "platform_admin"
 	}
-	return ""
+	return "customer" // My Clouds supports an eligible global account's empty state.
 }
 
 func (s *Server) createSessionFromActivatedLogin(ctx context.Context, login accountclient.LoginResult) (store.Session, string, error) {

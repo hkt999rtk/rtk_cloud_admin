@@ -43,7 +43,7 @@ test('session destination respects session kind and next path', () => {
   assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/admin/health'), '/admin/health');
   assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/console/devices'), '/admin');
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/console/devices'), '/console/devices');
-  assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/admin'), '/console/overview');
+  assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/admin'), '/console/clouds');
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/brand-cloud-member-invitation/accept?token=invite-token'), '/brand-cloud-member-invitation/accept?token=invite-token');
   assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/brand-cloud-member-invitation/accept?token=invite-token'), '/brand-cloud-member-invitation/accept?token=invite-token');
   assert.equal(destinationForSession({ authenticated: false }, '/admin'), '/login?next=%2Fadmin');
@@ -62,6 +62,16 @@ test('platform login context requires a safe admin destination', () => {
   assert.equal(isPlatformLoginNext('https://evil.example/admin'), false);
   assert.equal(isPlatformLoginNext('//evil.example/admin'), false);
   assert.equal(isPlatformLoginNext(''), false);
+});
+
+test('My Clouds is available without memberships; scoped next requires membership', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const next = `/console/clouds/${id}?operation=22222222-2222-4222-8222-222222222222`;
+  assert.equal(destinationForSession({ authenticated: true, kind: 'customer', memberships: [] }, ''), '/console/clouds');
+  assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/console/clouds'), '/console/clouds');
+  assert.equal(destinationForSession({ authenticated: true, kind: 'customer', memberships: [] }, next), '/console/clouds');
+  assert.equal(destinationForSession({ authenticated: true, kind: 'customer', memberships: [{ organization_id: id }] }, next), next);
+  assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin', memberships: [{ id }] }, ''), '/console/clouds');
 });
 
 test('sensitive query parameters are removed without changing the rest of the address', () => {

@@ -321,7 +321,8 @@ Unified account sessions:
   active-organization snapshot, login path or UI role switch
 - a valid `next` route is honored only when authorized; otherwise the default is
   My Clouds (`/console/clouds`) when memberships exist, then Platform View when platform access
-  exists, otherwise the no-access page
+  exists, otherwise the empty My Clouds page; an authenticated account without
+  memberships may request cloud creation, subject to upstream eligibility and quota
 - accounts with both platform capability and Brand Cloud membership can switch
   views and organizations without logging in again
 - switching clouds revalidates the explicit route/request scope for that tab;
@@ -347,8 +348,9 @@ terminate in the global activation UI and subsequent logout/login uses the same
 When email verification returns account tokens, the BFF resolves `/v1/me`
 before creating the session, selects the first membership as the active Brand
 Cloud, and uses the same membership-first view selection as global login.
-Platform-only accounts enter the platform view; accounts with neither membership
-nor platform capability receive 403 without a session cookie. The verification
+Platform-only accounts enter the platform view; authenticated global accounts with
+neither membership nor platform capability enter the empty My Clouds page, where
+Account Manager still enforces cloud-creation eligibility. The verification
 response includes the selected `kind`, which the UI uses for its destination.
 Logout remains reachable from the navigation drawer on narrow screens.
 

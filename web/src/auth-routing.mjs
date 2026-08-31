@@ -1,4 +1,4 @@
-const CUSTOMER_FALLBACK = '/console/overview';
+const CUSTOMER_FALLBACK = '/console/clouds';
 const PLATFORM_FALLBACK = '/admin';
 
 export function isSafeLoginNext(value) {
@@ -54,10 +54,16 @@ export function loginPathFor(nextPath) {
 export function destinationForSession(me, nextPath) {
   if (!me?.authenticated) return loginPathFor(nextPath);
   const next = normalizeLoginNext(nextPath);
+  if (next) {
+    const pathname = new URL(next, 'https://connect.local').pathname;
+    if (pathname === '/console/clouds' || pathname === '/console/clouds/') return next;
+    const scoped = pathname.match(/^\/console\/clouds\/([^/]+)(?:\/|$)/);
+    if (scoped) return (me.memberships || []).some((m) => (m.organization_id || m.id) === scoped[1]) ? next : CUSTOMER_FALLBACK;
+  }
   if (me.kind === 'platform_admin') {
     return next && (isAllowedAdminPath(new URL(next, 'https://connect.local').pathname) || isAllowedDeveloperInvitationPath(new URL(next, 'https://connect.local').pathname))
       ? next
-      : PLATFORM_FALLBACK;
+      : me.memberships?.length ? CUSTOMER_FALLBACK : PLATFORM_FALLBACK;
   }
   return next && (isAllowedConsolePath(new URL(next, 'https://connect.local').pathname) || isAllowedDeveloperInvitationPath(new URL(next, 'https://connect.local').pathname))
     ? next
