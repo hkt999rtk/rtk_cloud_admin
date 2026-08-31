@@ -65,7 +65,7 @@ func (s *Server) apiCloudSharing(w http.ResponseWriter, r *http.Request) {
 			}
 			body = nil
 		} else {
-			if err = decodeCloudSharing(w, r, body); err != nil {
+			if err = decodeStrictManagedJSON(w, r, body); err != nil {
 				http.Error(w, "invalid sharing request", 400)
 				return
 			}
@@ -170,8 +170,8 @@ func (s *Server) apiCloudSharing(w http.ResponseWriter, r *http.Request) {
 }
 
 // Reject duplicate keys at every nesting level before decoding typed fields.
-// No sharing field accepts JSON null; omission preserves PATCH semantics.
-func decodeCloudSharing(w http.ResponseWriter, r *http.Request, out *accountclient.CloudSharingWrite) error {
+// Management fields do not accept JSON null; omission preserves PATCH semantics.
+func decodeStrictManagedJSON(w http.ResponseWriter, r *http.Request, out any) error {
 	if strings.Split(r.Header.Get("Content-Type"), ";")[0] != "application/json" {
 		return errors.New("JSON required")
 	}

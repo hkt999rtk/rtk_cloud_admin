@@ -174,3 +174,76 @@ workspace traceability artifact remains stale, so the overall inventory gate is
 still not green. Ownership-transfer/Billing UI and cross-service release evidence
 remain incomplete. The previous release checklist remains applicable except that
 sharing controls now need integration qualification rather than initial UI creation.
+
+## Follow-up checkpoint: ownership and Billing handoff UI
+
+Implemented the cloud-scoped ownership request, global invitation acceptance,
+participant status, settled preview, exact-balance confirmation and precommit
+cancellation BFF. All writes preserve a random per-intent Idempotency-Key. Strict
+request parsing rejects duplicate/unknown fields, missing or negative amounts,
+wrong currency and invalid scope before delivery. A zero amount is not treated
+as missing. Requests use the global account token; neither an active organization
+nor current cloud membership is a prerequisite for participant endpoints. This
+allows the invited target before joining, and the source after losing membership,
+to inspect their operation without granting access to arbitrary cloud resources.
+The upstream Account Manager still authorizes each action and owns serialization.
+
+The projected response binds cloud, operation and participant identities and
+requires consistent snapshot/confirmation evidence. An accepted invitation or a
+finalizing operation is never reported as completed. The browser binds consent
+to cloud, transfer, amount, currency and both versions, requires a fresh preview,
+invalidates old consent when the snapshot changes, and refuses unsafe JavaScript
+integer amounts. Retrying an ambiguous confirmation retains its original key,
+including after reading the same preview again. No payment method or provider
+secret is exposed by this projection.
+
+The standalone handoff page does not fetch cloud contents to establish access.
+It shows settlement blockers, both confirmation flags, forward-only finalization,
+and cancellation awaiting hold release. Initial service failures have a read-only
+retry action. Legacy settings now link to cloud management instead of presenting
+token-paste acceptance as completed ownership transfer. Public SPA shells were
+missing for the owner, cloud-member and Product-collaborator email URLs; these
+routes now serve the frontend, while their acceptance APIs remain authenticated.
+
+Validation performed against this local worktree:
+
+```sh
+go test ./... -count=1 -coverprofile=/tmp/rtk-owner-handoff-coverage.out
+go test -race ./internal/app ./internal/accountclient -run 'OwnerHandoff|GlobalInvitation' -count=3
+go vet ./...
+go build -o /tmp/rtk-owner-handoff-admin ./cmd/server
+npm --prefix web test
+npm --prefix web run build
+```
+
+All commands passed; Go statement coverage is **80.8%**, and frontend has **120
+passing tests**. Dedicated lifecycle tests check request/accept/cancel delivery,
+global actor binding, stable retry keys, and retention of `canceling` rather than
+optimistic cancellation. OpenAPI validation with the approved canonical contract
+passed. Inventory has **zero blocking mappings**, but still exits nonzero for the
+stale workspace traceability artifact; the full inventory/CI gate is not green.
+
+The Browser skill was used on two independently authenticated local fixture
+origins, with actual BFF and built frontend and synthetic Account Manager states:
+
+- Invitation acceptance requires explicit acknowledgement, then enters the
+  scoped handoff page rather than announcing completed ownership.
+- Positive and zero snapshots can be confirmed. Changing the amount/version
+  invalidates the prior checkbox; a negative-balance blocker removes confirmation.
+- Both zero-balance confirmations lead first to finalizing with no cancellation
+  action. Only the succeeded receipt shows completion: target gets the cloud
+  link, source sees that cloud/Product access has ended.
+- A separate precommit cancellation case shows waiting for hold release before
+  the fixture's release receipt produces canceled. A transient dependency failure
+  clears the screen; the status retry restores the authoritative fixture result.
+- The desktop canceled-state layout was visually inspected. Mobile remains
+  unverified, as in the earlier checkpoint.
+
+Fixture resets are independent state cases, **not** permitted real transitions
+from finalized back to preparing, nor proof of debt repayment inside a fenced
+handoff. No actual owner/membership, payment authority, Billing ledger, email,
+shared database or staging resources changed. Creating the invitation through
+the cloud form, real email/login, financial settlement and recovery, Product
+ownership/ACL removal, mobile and cross-service staging qualification remain
+required. This checkpoint implements the transfer UI; it does not complete the
+larger multi-cloud release or replace the remaining checklist above.

@@ -998,11 +998,16 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [target_email]
               properties:
                 target_email: { type: string, format: email }
       responses:
-        "202": { description: Owner transfer requested }
+        "202":
+          description: Owner transfer requested; invitation acceptance and settled-balance confirmation remain required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
         "403": { description: Current member cannot transfer ownership }
 
   /api/developer/brand-cloud-owner-transfers/accept:
@@ -1021,11 +1026,16 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [token]
               properties:
                 token: { type: string }
       responses:
-        "200": { description: Owner transfer accepted }
+        "202":
+          description: Handoff preparation accepted; not an owner commit or Billing consent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
         "401": { $ref: "#/components/responses/PlainTextError" }
         "409": { $ref: "#/components/responses/PlainTextError" }
 
@@ -1036,13 +1046,63 @@ paths:
       x-rtk-requirement-ids:
         - REQ-UI-CA-ROLE-001
       tags: [Developer]
-      summary: Get owner transfer status
+      summary: Read handoff status as its global-account source or target participant
+      description: Does not require cloud membership or change session scope. A target without membership and a former owner after commit can inspect only their handoff operation, not arbitrary cloud/Billing resources. Responses are no-store.
       parameters:
         - { name: brandCloudID, in: path, required: true, schema: { type: string } }
         - { name: transferID, in: path, required: true, schema: { type: string } }
       responses:
-        "200": { description: Owner transfer status }
+        "200":
+          description: Current phase, blockers and retained snapshot; stale snapshots do not authorize confirmation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
         "404": { description: Transfer not found }
+
+  /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/preview:
+    get:
+      operationId: getApiDeveloperOwnerHandoffPreview
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Read a fresh, confirmable settled balance as a handoff participant
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: transferID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Exact snapshot with nonnegative credit and no blockers; not a consent or commit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/confirm:
+    post:
+      operationId: postApiDeveloperOwnerHandoffConfirm
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Confirm the exact settled balance and both versions as source or target
+      description: Same-origin global account request. Retrying an ambiguous delivery preserves key and immutable payload; a new snapshot requires new consent and key. Zero is eligible, negative is forbidden. Confirmation does not commit ownership or authorize use of the previous owner's payment method.
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: transferID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 128, pattern: '^[!-~]+$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OwnerHandoffSnapshot' }
+      responses:
+        '202':
+          description: Confirmation processed; inspect current phase and participant flags, not an optimistic success.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
 
   /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel:
     post:
@@ -1051,13 +1111,22 @@ paths:
       x-rtk-requirement-ids:
         - REQ-UI-CA-ROLE-001
       tags: [Developer]
-      summary: Cancel a pending owner transfer
+      summary: Request source-authorized precommit cancellation and await hold release
       parameters:
         - { name: brandCloudID, in: path, required: true, schema: { type: string } }
         - { name: transferID, in: path, required: true, schema: { type: string } }
         - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
       responses:
-        "200": { description: Owner transfer canceled }
+        "200":
+          description: Current handoff phase; canceling is not yet canceled. No blind rollback after owner commit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
         "404": { description: Transfer not found }
 
   /api/developer/pki/test-bundles/app:
@@ -4281,6 +4350,53 @@ components:
           type: array
           items: { $ref: "#/components/schemas/DeveloperMembership" }
         pagination: { $ref: "#/components/schemas/DeveloperPagination" }
+
+    OwnerHandoffSnapshot:
+      type: object
+      additionalProperties: false
+      required: [ownership_version, billing_snapshot_version, balance_minor, currency]
+      properties:
+        ownership_version: { type: integer, format: int64, minimum: 1 }
+        billing_snapshot_version: { type: integer, format: int64, minimum: 2 }
+        balance_minor: { type: integer, format: int64, minimum: 0 }
+        currency: { type: string, enum: [TWD] }
+
+    OwnerHandoffResult:
+      type: object
+      required: [owner_transfer]
+      properties:
+        owner_transfer:
+          type: object
+          required: [id, brand_cloud_id, source_user_id, requested_by_user_id, target_user_id, status, phase, blockers, has_settled_snapshot, expires_at]
+          oneOf:
+            - properties:
+                has_settled_snapshot: { type: boolean, enum: [false] }
+              not:
+                anyOf:
+                  - required: [balance_snapshot]
+                  - required: [source_confirmed]
+                  - required: [target_confirmed]
+            - required: [balance_snapshot, source_confirmed, target_confirmed]
+              properties:
+                has_settled_snapshot: { type: boolean, enum: [true] }
+          properties:
+            id: { type: string, format: uuid }
+            brand_cloud_id: { type: string, format: uuid }
+            source_user_id: { type: string, format: uuid }
+            requested_by_user_id: { type: string, format: uuid }
+            target_user_id: { type: string, format: uuid }
+            target_email: { type: string, format: email }
+            status: { type: string, enum: [pending, accepted, canceled, expired] }
+            phase: { type: string, enum: [requested, awaiting_acceptance, preparing, awaiting_balance_confirmation, committing, finalizing, succeeded, blocked, canceled, expired] }
+            operation_phase: { type: string, enum: [preparing, committing, finalizing, succeeded, canceling, canceled] }
+            ownership_version: { type: integer, format: int64 }
+            has_settled_snapshot: { type: boolean }
+            balance_snapshot: { $ref: '#/components/schemas/OwnerHandoffSnapshot' }
+            source_confirmed: { type: boolean }
+            target_confirmed: { type: boolean }
+            operation: { $ref: '#/components/schemas/ManagedCloudOperationResult/properties/operation' }
+            blockers: { type: array, items: { $ref: '#/components/schemas/ManagedCloudBlocker' } }
+            expires_at: { type: string, format: date-time }
 
     CloudViewerScope:
       description: Explicit read-only grant. Whole-cloud includes future Products; selected Product IDs must belong to this cloud. Neither grants Billing, secrets, payment access or playback. Null and duplicate Product IDs are rejected.

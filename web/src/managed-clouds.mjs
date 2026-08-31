@@ -23,6 +23,7 @@ export const blockerLabels = {
   invoices_unsettled: 'Invoices have not been fully settled.', payment_pending: 'A payment is still processing.',
   refund_pending: 'A refund is still processing.', dispute_pending: 'A payment dispute remains open.',
   lifecycle_conflict: 'Another cloud lifecycle operation is running.', evidence_unavailable: 'A required service cannot confirm readiness.',
+  confirmation_stale: 'The balance snapshot is stale. Both parties must review the current version.', quota_exceeded: 'The recipient’s ownership quota is exhausted.',
 };
 export async function managedCloudRequest(path, { method = 'GET', body, key, signal } = {}) {
   const headers = {};

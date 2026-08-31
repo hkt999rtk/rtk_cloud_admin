@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
+import { OwnerHandoffPage } from './OwnerHandoff.jsx';
+import { handoffRoute } from './owner-handoff.mjs';
 import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
@@ -2728,55 +2730,10 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
   </section>;
 }
 
-function BrandCloudSettingsPage({ activeCloudId, canManage, canIssuePKITest, onRefresh }) {
-  const [transferEmail, setTransferEmail] = useState('');
-  const [transferToken, setTransferToken] = useState('');
-  const [ownerTransfer, setOwnerTransfer] = useState(null);
-  const [message, setMessage] = useState('');
-
-  async function acceptTransfer(event) {
-    event.preventDefault();
-    const response = await fetch('/api/developer/brand-cloud-owner-transfers/accept', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-accept-${transferToken}` },
-      body: JSON.stringify({ token: transferToken }),
-    });
-    setMessage(response.ok ? 'Ownership transfer accepted.' : 'The ownership transfer token is invalid or expired.');
-    if (response.ok) {
-      setTransferToken('');
-      onRefresh();
-    }
-  }
-
-  async function createTransfer(event) {
-    event.preventDefault();
-    const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/owner-transfer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `owner-transfer-${transferEmail}` },
-      body: JSON.stringify({ target_email: transferEmail }),
-    });
-    const body = await response.json().catch(() => ({}));
-    setMessage(response.ok ? 'Ownership transfer created.' : 'The ownership transfer could not be created. Please try again later.');
-    if (response.ok) {
-      setOwnerTransfer(body.owner_transfer);
-      setTransferEmail('');
-    }
-  }
-
-  async function cancelTransfer() {
-    const response = await fetch(`/api/developer/brand-clouds/${encodeURIComponent(activeCloudId)}/owner-transfer/${encodeURIComponent(ownerTransfer.id)}/cancel`, {
-      method: 'POST',
-      headers: { 'Idempotency-Key': `owner-transfer-cancel-${ownerTransfer.id}` },
-    });
-    setMessage(response.ok ? 'Ownership transfer canceled.' : 'The ownership transfer could not be canceled. Please try again later.');
-    if (response.ok) setOwnerTransfer((current) => ({ ...current, status: 'canceled' }));
-  }
-
+function BrandCloudSettingsPage({ activeCloudId, canIssuePKITest }) {
   return <section className="page-content brand-cloud-settings-page">
-    <div className="page-intro"><div><p className="eyebrow">Brand Cloud Administration</p><h2>Settings</h2><p>Manage ownership transfers and develop test tools.</p></div></div>
-    {message ? <div className="notice">{message}</div> : null}
-    <section className="panel"><div className="panel-head"><div><h3>Accept owner transfer</h3><p>Paste the token in the owner transfer email to complete the ownership transfer.</p></div></div><form className="inline-form settings-action-form" onSubmit={acceptTransfer}><input required placeholder="Owner transfer token" value={transferToken} onChange={(event) => setTransferToken(event.target.value)} /><button type="submit" className="primary-button">Accept Transfer</button></form></section>
-    {canManage && activeCloudId ? <section className="panel"><div className="panel-head"><div><h3>Owner transfer</h3><p>The transfer needs to be accepted by the target developer using email token; pending transfer can be canceled.</p></div></div><form className="inline-form settings-action-form" onSubmit={createTransfer}><input required type="email" placeholder="Target developer Email" value={transferEmail} onChange={(event) => setTransferEmail(event.target.value)} /><button type="submit" className="primary-button">Create transfer</button></form>{ownerTransfer ? <p className="notice">{ownerTransfer.status} · {ownerTransfer.id} {ownerTransfer.status === 'pending' ? <button type="button" className="link-button" onClick={cancelTransfer}>Cancel</button> : null}</p> : null}</section> : null}
+    <div className="page-intro"><h2>Settings</h2></div>
+    <section className="panel"><h3>Ownership and Billing handoff</h3><p>Manage ownership in My Clouds. Invitation acceptance starts settlement; it does not complete the transfer.</p><a href={activeCloudId ? `/console/clouds/${encodeURIComponent(activeCloudId)}` : '/console/clouds'}>Open cloud management</a></section>
     {canIssuePKITest && activeCloudId ? <PKITestBundleTool activeCloudId={activeCloudId} /> : null}
   </section>;
 }
@@ -7091,6 +7048,6 @@ function updateDevicesLocation({ deviceId, health, status, signal, firmware, pro
 document.documentElement.lang = i18n.language;
 createRoot(document.getElementById('root')).render(
   <I18nextProvider i18n={i18n}>
-    {window.location.pathname === '/console/clouds' || window.location.pathname.startsWith('/console/clouds/') ? <MyCloudsApp /> : <App />}
+    {handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : window.location.pathname === '/console/clouds' || window.location.pathname.startsWith('/console/clouds/') ? <MyCloudsApp /> : <App />}
   </I18nextProvider>,
 );

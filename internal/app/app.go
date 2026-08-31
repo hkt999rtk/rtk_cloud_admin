@@ -276,10 +276,12 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiCloudSharing)
 	s.mux.HandleFunc("GET /api/developer/chipsets", s.apiDeveloperChipsets)
 	s.mux.HandleFunc("GET /api/developer/chipsets/{chipsetId}", s.apiDeveloperChipset)
-	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer", s.apiDeveloperOwnerTransfer)
-	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}", s.apiDeveloperOwnerTransfer)
-	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel", s.apiDeveloperOwnerTransfer)
-	s.mux.HandleFunc("POST /api/developer/brand-cloud-owner-transfers/accept", s.apiDeveloperOwnerTransferAccept)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer", s.apiOwnerHandoff)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}", s.apiOwnerHandoff)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/preview", s.apiOwnerHandoff)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/confirm", s.apiOwnerHandoff)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel", s.apiOwnerHandoff)
+	s.mux.HandleFunc("POST /api/developer/brand-cloud-owner-transfers/accept", s.apiOwnerHandoff)
 	s.mux.HandleFunc("POST /api/developer/brand-cloud-member-invitations/accept", s.apiCloudSharing)
 	s.mux.HandleFunc("POST /api/developer/product-collaborator-invitations/accept", s.apiProductCollaboratorInvitationAccept)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/app", s.apiDeveloperPKITestAppBundle)
@@ -414,6 +416,9 @@ func (s *Server) routes() {
 		"/signup/verify",
 		"/signup/verify/",
 		"/verify",
+		"/brand-cloud-owner-transfer/accept",
+		"/brand-cloud-member-invitation/accept",
+		"/product-collaborator-invitation/accept",
 		"/console",
 		"/console/overview",
 		"/console/devices",
@@ -809,70 +814,6 @@ func (s *Server) apiProductCollaboratorInvitationAccept(w http.ResponseWriter, r
 		return
 	}
 	writeJSON(w, map[string]any{"invitation": invitation, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperOwnerTransfer(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if r.Method != http.MethodGet {
-		if _, ok := requireIdempotencyKey(w, r); !ok {
-			return
-		}
-	}
-	var transfer accountclient.OwnerTransfer
-	var err error
-	cloudID, transferID := r.PathValue("brandCloudID"), r.PathValue("transferID")
-	switch {
-	case r.Method == http.MethodPost && transferID == "":
-		var body struct {
-			TargetEmail string `json:"target_email"`
-		}
-		if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.TargetEmail) == "" {
-			http.Error(w, "target_email is required", http.StatusBadRequest)
-			return
-		}
-		transfer, err = s.accountClient.RequestDeveloperOwnerTransfer(r.Context(), session.AccessToken, cloudID, strings.TrimSpace(body.TargetEmail))
-	case r.Method == http.MethodGet:
-		transfer, err = s.accountClient.DeveloperOwnerTransfer(r.Context(), session.AccessToken, cloudID, transferID)
-	default:
-		transfer, err = s.accountClient.CancelDeveloperOwnerTransfer(r.Context(), session.AccessToken, cloudID, transferID)
-	}
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	status := http.StatusOK
-	if transferID == "" {
-		status = http.StatusAccepted
-	}
-	writeJSONStatus(w, status, map[string]any{"owner_transfer": transfer, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperOwnerTransferAccept(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if _, ok := requireIdempotencyKey(w, r); !ok {
-		return
-	}
-	var body struct {
-		Token string `json:"token"`
-	}
-	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.Token) == "" {
-		http.Error(w, "token is required", http.StatusBadRequest)
-		return
-	}
-	transfer, err := s.accountClient.AcceptDeveloperOwnerTransfer(r.Context(), session.AccessToken, strings.TrimSpace(body.Token))
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"owner_transfer": transfer, "source_status": "available"})
 }
 
 func (s *Server) apiCustomerSignup(w http.ResponseWriter, r *http.Request) {
