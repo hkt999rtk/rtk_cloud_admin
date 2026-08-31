@@ -11,11 +11,16 @@ permissions:
 
 jobs:
   validate:
-    runs-on: [self-hosted, Linux, X64]
+    # PR validation is isolated from shared/offline self-hosted runners.
+    runs-on: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
 
       - name: Checkout workspace contracts when token is available
         env:
