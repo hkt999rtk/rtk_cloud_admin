@@ -533,3 +533,14 @@ invitation email, shared database, deployed service or payment was changed.
 The in-app browser also confirmed page-two selection retention; final desktop
 and mobile picker screenshots were inspected. Producer/Billing integration,
 remaining scoped resource flows, CI wiring/acceptance and staging remain open.
+
+### Committed-source browser revalidation — 2026-09-01
+
+Re-ran all three scoped Product/device/sharing cases sequentially for each target
+against clean service commit `a0d7a2e`: desktop **3 PASS**, Pixel 7 **3 PASS**.
+Reports at `/tmp/rtk-sharing-pagination-a0d7a2e-desktop/` and
+`/tmp/rtk-sharing-pagination-a0d7a2e-mobile/` now have distinct run IDs, correct
+target labels and the tested service commit. These supersede the mixed-target
+metadata limitation above. `workspace_commit` explicitly says
+`not-applicable-service-checkout`: no merged workspace gitlink is asserted.
+The disposable fixture and the in-app inspection tab were stopped/closed.
