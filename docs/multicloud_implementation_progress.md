@@ -567,3 +567,10 @@ standard reporters/projects but omits the unrelated shared-port server; the
 normal full suite still discovers all three cases automatically. An attempted
 per-target standard-config rerun encountered port 18082 contention; it is not
 accepted as complete two-target evidence, and no unknown process was stopped.
+
+Committed-source isolated revalidation at `5e4a902` passed with no manual fixture
+flag: desktop 3/3 (24.2s), Pixel 7 3/3 (23.8s), one attempt each. Separate reports
+at `/tmp/rtk-scoped-isolated-desktop/` and `/tmp/rtk-scoped-isolated-mobile/`
+record the exact service SHA and correct targets. The workspace field explicitly
+states `not-applicable-service-checkout`; these are not merged-workspace/hosted
+CI evidence. All owned scoped fixture processes exited after testing.

@@ -2,6 +2,14 @@
 
 ## 2026-09-01 automatic scoped UI fixture
 
+Final committed-source revalidation: `5e4a902`, desktop **3 PASS** (24.2s),
+Pixel 7 **3 PASS** (23.8s). Separate reports with correct target and service SHA:
+`/tmp/rtk-scoped-isolated-desktop/results.json` and
+`/tmp/rtk-scoped-isolated-mobile/results.json`. All cases have one attempt.
+The isolated config avoids the unrelated default fixture's fixed-port conflict;
+normal full-suite discovery remains enabled. These reports supersede the mixed
+target metadata limitation in the preliminary run below, not the full CI gate.
+
 - The Product/device/sharing cases no longer require a manually started server
   or skip flag. A worker-scoped Playwright fixture owns a Go test process,
   temporary SQLite database and dynamic loopback port; cleanup stops that exact
