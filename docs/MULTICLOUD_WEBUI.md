@@ -1,6 +1,6 @@
 # My Clouds and Product-scoped console design
 
-Status: design-first target. Canonical MULTICLOUD_OWNERSHIP.md governs ownership,
+Status: design-first target. Canonical [MULTICLOUD_OWNERSHIP.md](https://github.com/hkt999rtk/rtk_cloud_contracts_doc/blob/codex/multicloud-owner-design/MULTICLOUD_OWNERSHIP.md) governs ownership,
 sharing, deletion and Billing handoff. This document does not claim implementation.
 
 ## Navigation and session
@@ -58,6 +58,10 @@ as applied. Resend preserves scope. Test reordered equivalent IDs, changed-scope
 conflicts and cancel/recreate with old-token rejection and new-scope-only access.
 
 Members: owner alone manages cloud admission and approved Product scope. Product
+membership readback uses `GET /api/developer/brand-clouds/{cloudId}/members`,
+proxying the owner-authorized member collection and its current persisted scopes.
+Reload after PATCH and acceptance; do not reconstruct grants from old invitations.
+Product
 collaboration cannot auto-enroll external users or re-enable disabled membership.
 Removing access invalidates downstream grants; rejoin requires new grants. Show
 an explanatory access-revoked state if the current tab loses authorization.
