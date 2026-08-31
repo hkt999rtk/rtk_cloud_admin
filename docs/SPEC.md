@@ -581,11 +581,16 @@ boundary are defined by
 `rtk_cloud_contracts_doc/CHIPSET_SDK_INFORMATION_PROVIDER.md`.
 # Developer Brand Fleet Dashboard contract
 
-The Developer console uses one global developer session and a server-side
-active Brand Cloud scope. `/api/developer/brand-clouds` is the selector source
-of truth; switching validates membership, refreshes capabilities, and clears
-cloud-scoped frontend state. Fleet routes do not trust browser-supplied tenant
-IDs or totals.
+The multi-cloud target UI is specified in [MULTICLOUD_WEBUI.md](MULTICLOUD_WEBUI.md):
+My Clouds precedes cloud management and Product navigation, and tenant Billing
+requires the sole owner. The design is not a claim of deployed UI completeness.
+
+The Developer console uses one global developer session and explicit per-request
+Brand Cloud scope. `/api/developer/brand-clouds` is the list/selector source of
+truth; switching validates membership, refreshes capabilities, and isolates
+cloud-scoped frontend state. A browser cloud ID is untrusted input to validate,
+not permission, and a session-global selection cannot override another tab's
+scope. Fleet routes do not trust browser-supplied totals.
 
 Authorization uses explicit capabilities rather than a UI role switch. Jobs,
 reports, and provisioning store immutable server-side scope snapshots and
@@ -614,12 +619,14 @@ reason. Team management uses `/api/developer/*`; Platform Admin Brand Cloud
 lifecycle management remains under `/api/admin/*`.
 
 Developer team writes are owner-only. Inviting an existing verified Developer
-creates a 30-minute pending invitation for the `admin` or `member` role and
+creates a 30-minute pending invitation for the `admin`, `member` or `viewer` role and
 does not create membership. The Team page lists pending invitations and offers
 explicit resend and cancel actions. The email acceptance route preserves the
 token across authentication, removes it from the visible URL after capture,
 and requires an explicit accept action from the matching signed-in Developer.
-Ownership changes continue to use the separate owner-transfer workflow.
+Viewer invitations explicitly select Products or whole-cloud future-inclusive
+read-only scope. Ownership changes use the separate Billing-coordinated transfer
+workflow and remove the previous owner's access rather than leaving them admin.
 
 
 ## RTK Feature Requirement Inventory

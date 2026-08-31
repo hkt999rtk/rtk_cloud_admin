@@ -1,0 +1,97 @@
+# My Clouds and Product-scoped console design
+
+Status: design-first target. Canonical MULTICLOUD_OWNERSHIP.md governs ownership,
+sharing, deletion and Billing handoff. This document does not claim implementation.
+
+## Navigation and session
+
+One global account session serves developer and Platform views. Honor a safe,
+authorized login next first; otherwise memberships lead to /console/clouds,
+platform-only capability to Platform View, and neither to a clear no-access page.
+No additional login or per-cloud identity is introduced.
+
+| Page | Content and authority |
+| --- | --- |
+| /console/clouds | All / Owned / Shared tabs, cloud name, owner, my role, status, owned quota, pagination; Create for eligible accounts |
+| /console/clouds/{cloudId} | Cloud overview, Products, members/access, owner-only Billing, settings and audit |
+| /console/clouds/{cloudId}/products/{productId} | Product overview, Devices, Firmware, OTA and service settings under the same cloud |
+
+Cloud lifecycle is not hidden inside the Platform Admin console. The My Clouds
+page owns create/edit/share/transfer/delete entry points for ordinary developers.
+Backend capabilities control buttons; UI role labels are not authorization.
+Show filtered total separately from owned quota (shared clouds do not count).
+
+Every BFF request binds explicit cloud ID from route/request and verifies it
+against current Account Manager membership, lifecycle and capabilities. Product
+ID must belong to that cloud. Do not let a session-global active cloud override
+a tab's request. Two tabs may operate two clouds. Cancel outstanding requests on
+navigation, reject stale responses and partition caches by cloud/authorization
+version. Server-held jobs and downloads keep immutable scope and revalidate
+authority. Old routes redirect only when scope is unambiguous and authorized;
+never replay a mutation against a newly selected cloud.
+
+## CRUD and collaboration
+
+Create: name and optional description; show owned count/limit; generate one
+idempotency key per deliberate submission and reuse it on retry. The creator
+becomes sole owner. Edit changes name/description, not cloud UUID/tenant slug.
+
+Share: target verified developer email, role and scope. Default viewer with
+selected Products; require at least one accessible same-cloud Product. An empty
+cloud can be shared by explicitly selecting whole-cloud viewer. Whole-cloud text
+states that future Products are included. Viewer does not include Billing,
+secrets, payment methods or playback. Existing admin/member grants remain visible
+without being mislabeled read-only. Show pending invites with resend/cancel and
+30-minute expiry; recipient must explicitly accept in the matching global session.
+
+Members: owner alone manages cloud admission and approved Product scope. Product
+collaboration cannot auto-enroll external users or re-enable disabled membership.
+Removing access invalidates downstream grants; rejoin requires new grants. Show
+an explanatory access-revoked state if the current tab loses authorization.
+
+Delete: fetch deletion-preflight; render resource, running-work, balance,
+unsettled-usage/payment/refund/dispute and unavailable-service blockers separately.
+Only an empty, zero-balance settled cloud is eligible. Explicit confirmation
+submits DELETE with an idempotency key; server rechecks and returns 202/operation.
+Show durable progress, retryable failure and completion, never optimistic success.
+Historical records are retained; no nonempty-cloud cascade-delete option exists.
+
+## Ownership and Billing
+
+Only the cloud owner sees tenant Billing. Platform access remains a separate
+audited view and cannot use arbitrary actor/permission headers from the browser.
+An owner of another cloud receives no Billing visibility here.
+
+Transfer UI identifies source and target, eligible/quota state, ownership version,
+balance/currency/snapshot version, debt/payment/work blockers and durable progress.
+Both parties explicitly confirm the same amount; changes clear old confirmations.
+Email acceptance preserves the token through login and removes it from visible
+URL/history after capture. Token possession alone is not acceptance or consent.
+
+Explain before acceptance: positive balance stays with the cloud; old payment
+methods/auto-charge consent do not; cost-producing operations may pause during
+settlement; old owner loses all cloud/Product/Billing access; Product-owner roles
+held by that person move to the new owner. Existing other collaborators remain.
+
+After owner commit, failed finalization shows recovery-in-progress, not a button
+to switch ownership back. Precommit cancellation waits for confirmed hold release.
+The new owner sets up their payment instrument/consent independently. Old owner's
+tab is removed from the cloud only after committed authority changes; other clouds
+and the shared global session remain usable.
+
+## BFF and verification
+
+Extend /api/developer/brand-clouds with POST, PATCH/detail, deletion-preflight,
+DELETE, operation status and versioned transfer preview/confirmation. Preserve
+existing invitation/acceptance paths and extend viewer access_scope. Whitelist
+mutable fields, enforce CSRF/idempotency and never proxy caller-supplied trusted
+Billing actor headers. All cloud-scoped existing BFF endpoints gain explicit,
+validated scope; ownership management never trusts cached role snapshots alone.
+
+Desktop/mobile E2E covers empty and multi-page cloud lists, owned/shared totals,
+creation quota, edit, invited viewer scopes/current/future Products, revoked access,
+two-tab concurrent clouds, stale requests, safe next/old URLs, deletion blockers,
+balanced transfer confirmation and persistent failure/retry states. Use mocked
+provider service only for CI; real staging activation, sharing, device association,
+certificate and MQTT evidence remains a separate release gate. No snapshots or
+passing tests are claimed by this design-only change.
