@@ -1,16 +1,19 @@
 # Brand Fleet Management WebUI Design
 
-Status: current approved direction for the Brand Fleet Management refresh.
+Status: Brand Fleet layout reference. The design-first
+[multi-cloud WebUI contract](MULTICLOUD_WEBUI.md) supersedes cloud navigation,
+scope, sharing, ownership and Billing behavior below; runtime changes wait for
+the complete docs-only review/merge gate.
 
 ## Runtime Brand Cloud session contract
 
-The production console uses one global human account session and a server-side
-active Brand Cloud scope. The shell displays the signed-in developer identity
-and a selector populated only by `GET /api/developer/brand-clouds`. Switching
-clouds refreshes `/api/me`, capabilities, and every cloud-scoped query; a
-failed switch keeps the previous cloud active. URLs are cloud-scoped and safe
-to deep-link or refresh. A browser-supplied `brand_cloud_id` is never trusted
-for fleet authorization.
+The target console uses one global human account session, with cloud scope
+explicit in each route and BFF request. The server validates that scope against
+current membership/capabilities; no session-global active-cloud selection may
+override it. The shell selector is populated by `GET /api/developer/brand-clouds`
+and navigates only its own tab. Switching cancels old requests and isolates caches
+by cloud; failure preserves the current tab's authorized route. URLs support
+deep-link/refresh only after scope validation, never by trusting a browser ID.
 
 Navigation and actions are derived from active-cloud capabilities, not a UI
 role switch. Display roles remain useful for explanation, but authorization
@@ -19,7 +22,7 @@ uses the capability matrix in `ROLES.md`.
 The login page posts credentials exactly once to `POST /api/auth/login`. The BFF
 calls Account Manager global login and `/v1/me`; the browser never probes
 separate customer, platform, or tenant login endpoints. A valid deep-link
-`next` route wins when authorized. Otherwise the default landing is Brand Fleet
+`next` route wins when authorized. Otherwise the default landing is My Clouds
 when at least one membership exists, Platform View when only platform access
 exists, and a no-access page when neither exists. A dual-capability account can
 switch Platform View, Brand Fleet, and active Brand Clouds without logging in
@@ -391,8 +394,10 @@ and tab strip. The content responsibilities are:
   acceptance for every authenticated customer developer, and PKI test bundle
   issuance for `pki.test.issue`.
 
-The organization selector remains the single authority for active scope. The
-page header must not introduce a second Brand Cloud picker.
+The validated route/request cloud ID is the authority for that request's scope.
+The organization selector navigates the current tab; it is not shared session
+state and cannot redirect another tab's operations. Avoid duplicate pickers in
+one page header.
 
 ### Access data composition and failure isolation
 

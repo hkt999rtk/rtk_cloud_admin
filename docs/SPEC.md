@@ -197,12 +197,14 @@ memberships without re-authentication.
 - `GET /healthz`: plain health check.
 - `POST /api/auth/login`: the only human password-login BFF route. It calls
   Account Manager `/v1/auth/login` once, then `/v1/me`, and stores one account
-  session containing the upstream tokens, global capabilities, memberships,
-  and active organization selection.
+  session containing upstream tokens, global capabilities and memberships;
+  cloud authorization is resolved separately for each explicitly scoped request.
 - `POST /api/auth/logout`: deletes local session metadata.
-- `GET /api/me`: current user, global capabilities, memberships, active
-  organization, available views, and demo/auth state.
-- `POST /api/me/active-org`: switches active organization for the current session.
+- `GET /api/me`: current user, global capabilities, cloud memberships, available
+  views and demo/auth state; any legacy selected-cloud field is only a UI hint.
+- `POST /api/me/active-org`: compatibility validation of a requested cloud and
+  its current capabilities; it cannot set shared session authorization scope or
+  change the target of another tab's reads/mutations.
 - `GET /api/summary`: customer and platform dashboard summary.
 - `GET /api/admin/platform-dashboard`: platform-admin protected Platform
   Dashboard BFF contract with server-side allowlisted Prometheus queries for
@@ -298,8 +300,9 @@ of hiding the entire dashboard.
 -->
 
 Acceptance: Daily human access uses Account Manager SSO or the single password
-login, every route checks the session's effective capability and selected
-organization, expired/invalid upstream tokens delete local session metadata and
+login; global routes check global account/platform capabilities, while cloud
+routes resolve capabilities from each request's explicitly validated cloud ID,
+never a session-global selected organization. Expired/invalid upstream tokens delete local session metadata and
 clear the cookie before returning 401, and no local break-glass account exists.
 
 Production human authentication is verified by Account Manager. Admin Console
@@ -313,15 +316,16 @@ Unified account sessions:
 
 - credentials are posted once, only to `/api/auth/login`, and never stored
 - the BFF stores session metadata plus upstream access/refresh tokens
-- route guards use global capabilities and active-organization capabilities,
-  not the login path or a UI role switch
+- global route guards use global capabilities; cloud route guards resolve current
+  membership/capabilities for that request's validated cloud UUID, not a shared
+  active-organization snapshot, login path or UI role switch
 - a valid `next` route is honored only when authorized; otherwise the default is
-  Brand Fleet when memberships exist, then Platform View when platform access
+  My Clouds (`/console/clouds`) when memberships exist, then Platform View when platform access
   exists, otherwise the no-access page
 - accounts with both platform capability and Brand Cloud membership can switch
   views and organizations without logging in again
-- switching active organization revalidates membership; failure retains the
-  previous active organization
+- switching clouds revalidates the explicit route/request scope for that tab;
+  failure retains that tab's previous authorized route, not a shared session scope
 - demo mode remains available only for local development when Account Manager
   is not configured
 - Cloud Admin does not provide a local break-glass administrator account.
@@ -376,23 +380,34 @@ Service health:
 
 ## Billing BFF And Customer View
 
-### [REQ-CA-BILLING-001] Billing UI is active-organization scoped and provider safe
+### [REQ-CA-BILLING-001] Billing UI is explicitly cloud scoped and provider safe
 
 <!-- rtk-requirement
 {"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
-Acceptance: `/console/billing` resolves the organization exclusively from the
-authenticated account session's active membership, displays integer-minor-unit balance and ledger
+Acceptance: `/console/clouds/{cloudId}/billing` explicitly identifies the cloud;
+each request revalidates the session's current sole ownership of that cloud,
+ownership version and capabilities. It displays integer-minor-unit balance and ledger
 facts, safe payment-method metadata, automatic top-up guardrails, and normalized
 intent states; it never accepts or displays PAN, CVV, opaque provider method
 references, provider transaction references, request hashes, or raw provider
 payloads.
 
-The BFF exposes `/api/billing/*` routes and maps them to the Account Manager
-`/v1/orgs/{activeOrgId}/*` contract. `Idempotency-Key`, `If-Match`, and
+The BFF exposes cloud-bound `/api/developer/brand-clouds/{cloudId}/billing/*`
+routes and maps them to Account Manager `/v1/orgs/{cloudId}/*` operations. There
+is no session-global active membership fallback. Legacy `/console/billing` and
+`/api/billing/*` cannot execute ambiguous operations: navigate only when an
+explicit authorized cloud can be recovered, otherwise require selection; never
+replay a mutation against the last session-selected cloud. `Idempotency-Key`, `If-Match`, and
 `X-Request-Id` are forwarded where applicable. Upstream payment errors are
 reduced to an allowlist of stable customer-safe codes and messages.
+Bind forms, cached data, payment intents, hosted-return state and idempotency
+context to cloud UUID/actor/ownership version. Two tabs remain independent;
+reject stale state after ownership changes and suppress superseded responses.
+Tenant financial-history reads also enforce responsibility periods as described
+in [MULTICLOUD_WEBUI.md](MULTICLOUD_WEBUI.md); owner role alone does not reveal
+predecessor records. Non-owner viewer/admin/member Billing access is denied.
 
 NewebPay hosted setup and merchant-initiated charge controls remain visibly
 `BLOCKED` until written capability approval and sandbox qualification exist.
@@ -546,7 +561,8 @@ Environment variables:
 - Store tests for SQLite schema creation, seed data, device queries, operation queries, audit metadata insertion, migration idempotence, and upgrade from the current v2 schema.
 - Store tests for versioned migrations, admin password verification, and session expiry.
 - App tests for one-request account login, upstream proxy mode, provision proxy,
-  active-organization switching, dual Platform/Brand capability, and route guards.
+  independent per-tab cloud switching, global-route access without cloud selection,
+  dual Platform/Brand capability, and request-scoped route guards.
 - Frontend build verification with `npm run build`.
 - Backend build verification with `go test ./...` and `go build ./cmd/server`.
 - Native server smoke verification for `/healthz`, `/api/service-health`, the
@@ -581,11 +597,16 @@ boundary are defined by
 `rtk_cloud_contracts_doc/CHIPSET_SDK_INFORMATION_PROVIDER.md`.
 # Developer Brand Fleet Dashboard contract
 
-The Developer console uses one global developer session and a server-side
-active Brand Cloud scope. `/api/developer/brand-clouds` is the selector source
-of truth; switching validates membership, refreshes capabilities, and clears
-cloud-scoped frontend state. Fleet routes do not trust browser-supplied tenant
-IDs or totals.
+The multi-cloud target UI is specified in [MULTICLOUD_WEBUI.md](MULTICLOUD_WEBUI.md):
+My Clouds precedes cloud management and Product navigation, and tenant Billing
+requires the sole owner. The design is not a claim of deployed UI completeness.
+
+The Developer console uses one global developer session and explicit per-request
+Brand Cloud scope. `/api/developer/brand-clouds` is the list/selector source of
+truth; switching validates membership, refreshes capabilities, and isolates
+cloud-scoped frontend state. A browser cloud ID is untrusted input to validate,
+not permission, and a session-global selection cannot override another tab's
+scope. Fleet routes do not trust browser-supplied totals.
 
 Authorization uses explicit capabilities rather than a UI role switch. Jobs,
 reports, and provisioning store immutable server-side scope snapshots and
@@ -614,12 +635,14 @@ reason. Team management uses `/api/developer/*`; Platform Admin Brand Cloud
 lifecycle management remains under `/api/admin/*`.
 
 Developer team writes are owner-only. Inviting an existing verified Developer
-creates a 30-minute pending invitation for the `admin` or `member` role and
+creates a 30-minute pending invitation for the `admin`, `member` or `viewer` role and
 does not create membership. The Team page lists pending invitations and offers
 explicit resend and cancel actions. The email acceptance route preserves the
 token across authentication, removes it from the visible URL after capture,
 and requires an explicit accept action from the matching signed-in Developer.
-Ownership changes continue to use the separate owner-transfer workflow.
+Viewer invitations explicitly select Products or whole-cloud future-inclusive
+read-only scope. Ownership changes use the separate Billing-coordinated transfer
+workflow and remove the previous owner's access rather than leaving them admin.
 
 
 ## RTK Feature Requirement Inventory
