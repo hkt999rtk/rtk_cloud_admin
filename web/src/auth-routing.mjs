@@ -64,13 +64,6 @@ export function destinationForSession(me, nextPath) {
     : CUSTOMER_FALLBACK;
 }
 
-export function passwordLoginOrderForNext(nextPath) {
-  if (isPlatformLoginNext(nextPath)) {
-    return ['platform', 'customer'];
-  }
-  return ['customer', 'platform'];
-}
-
 function isAllowedAdminPath(pathname) {
   return pathname === '/admin' || pathname.startsWith('/admin/');
 }

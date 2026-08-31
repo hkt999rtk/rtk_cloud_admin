@@ -46,7 +46,6 @@ import {
   isPlatformLoginNext,
   loginNextFromLocation,
   loginPathFor,
-  passwordLoginOrderForNext,
   protectedPathFromLocation,
   removeQueryParameterFromAddress,
 } from './auth-routing.mjs';

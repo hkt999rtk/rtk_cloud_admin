@@ -38,7 +38,10 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/v1/logs') return send(res, 200, { events: state.logs.map((event) => ({ event_id: `${event.operation_id}-${event.request_id}`, service: event.service, level: event.level, ts: event.timestamp, msg: event.message, trace_id: event.trace_id, request_id: event.request_id, operation_id: event.operation_id })) });
     if (url.pathname === '/v1/auth/login' && req.method === 'POST') return login(req, res);
     if (url.pathname === '/v1/me') return send(res, 200, customerProfile(req));
-    if (url.pathname === '/v1/orgs' && req.method === 'GET') return send(res, 200, { organizations: customerProfile(req).organizations });
+    if (url.pathname === '/v1/orgs' && req.method === 'GET') {
+      const profile = customerProfile(req);
+      return send(res, 200, { organizations: profile.brand_cloud_memberships || profile.organizations });
+    }
     const authenticatedUpstreamRequest = Boolean(req.headers.authorization);
     const platformValidationRequest = url.pathname === '/v1/admin/brand-clouds'
       && req.method === 'GET'
@@ -92,6 +95,7 @@ function login(req, res) {
       'operations@example.com': ['e2e-operations-password', 'operations'],
       'observer@example.com': ['e2e-observer-password', 'observer'],
       'outsider@example.com': ['e2e-outsider-password', 'outsider'],
+      'identity.dual@example.com': ['e2e-identity-dual-password', 'identity_dual'],
     };
     const session = identities[body.email];
     if (!session || session[0] !== body.password) return send(res, 401, { error: 'invalid credentials' });
@@ -102,6 +106,16 @@ function login(req, res) {
 function customerProfile(req) {
   const token = String(req.headers.authorization || '');
   const role = roleFromRequest(req);
+  if (role === 'identity_dual') {
+    return {
+      user: { id: 'identity-dual-user', email: 'identity.dual@example.com', name: 'Identity Dual User' },
+      platform_capabilities: ['platform.audit.read', 'platform.chipset_sdk.read'],
+      brand_cloud_memberships: state.brandClouds.map((brand) => ({
+        id: brand.id, name: brand.name, role: 'owner', tier: brand.tier, status: brand.status,
+        capabilities: ['fleet.read', 'product.read', 'team.read'],
+      })),
+    };
+  }
   const capabilitySets = {
     platform_admin: ['platform.chipset_sdk.read', 'platform.chipset_sdk.edit', 'platform.chipset_sdk.publish'],
     platform_reader: ['platform.chipset_sdk.read'],
@@ -371,7 +385,9 @@ async function handleDeveloperResource(req, res, url) {
   if (!match) return send(res, 404, { error: 'not found' });
   const cloudID = match[1] ? decodeURIComponent(match[1]) : '';
   const suffix = match[2] || '';
-  const clouds = state.brandClouds.map((brand) => ({ ...brand, role: 'owner', capabilities: customerProfile(req).organizations.find((item) => item.id === brand.id)?.capabilities || [] }));
+  const profile = customerProfile(req);
+  const memberships = profile.brand_cloud_memberships || profile.organizations;
+  const clouds = state.brandClouds.map((brand) => ({ ...brand, role: 'owner', capabilities: memberships.find((item) => item.id === brand.id)?.capabilities || [] }));
   if (!cloudID && req.method === 'GET') return send(res, 200, { brand_clouds: clouds, pagination: { limit: 25, offset: 0, total: clouds.length }, developer_cloud_limit: 5 });
   if (!clouds.some((brand) => brand.id === cloudID)) return send(res, 403, { code: 'MEMBERSHIP_REQUIRED', message: 'Current developer is not a member of this Brand Cloud.' });
   if (!suffix && req.method === 'GET') return send(res, 200, { brand_cloud: clouds.find((brand) => brand.id === cloudID), membership: { organization_id: cloudID, user_id: 'customer-user', role: 'owner', capabilities: clouds.find((brand) => brand.id === cloudID).capabilities } });

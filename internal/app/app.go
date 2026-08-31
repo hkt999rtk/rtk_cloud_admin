@@ -16,6 +16,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -676,13 +677,30 @@ func (s *Server) apiAccountView(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "view is required", http.StatusBadRequest)
 		return
 	}
-	me, _, err := s.resolveCustomerProfile(r.Context(), accountclient.Tokens{AccessToken: session.AccessToken, RefreshToken: session.RefreshToken})
+	view := strings.TrimSpace(body.View)
+	if view != "customer" && view != "platform" {
+		http.Error(w, "view must be customer or platform", http.StatusBadRequest)
+		return
+	}
+	me, tokens, err := s.resolveCustomerProfile(r.Context(), accountclient.Tokens{AccessToken: session.AccessToken, RefreshToken: session.RefreshToken})
+	// Refresh rotates the upstream grant even if the requested view is forbidden
+	// or the retried profile request fails. Keep the existing account session usable.
+	if tokens.AccessToken != "" && (tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken) {
+		if updateErr := s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens)); updateErr != nil {
+			s.invalidateCustomerSession(w, session.ID)
+			writeError(w, updateErr)
+			return
+		}
+	}
 	if err != nil {
+		if errors.Is(err, errCustomerSessionInvalid) {
+			s.invalidateCustomerSession(w, session.ID)
+		}
 		s.writeCustomerError(w, err)
 		return
 	}
 	kind := ""
-	switch strings.TrimSpace(body.View) {
+	switch view {
 	case "customer":
 		if len(me.Memberships()) > 0 {
 			kind = "customer"
@@ -691,9 +709,6 @@ func (s *Server) apiAccountView(w http.ResponseWriter, r *http.Request) {
 		if hasAnyPlatformCapability(me.EffectivePlatformCapabilities()) {
 			kind = "platform_admin"
 		}
-	default:
-		http.Error(w, "view must be customer or platform", http.StatusBadRequest)
-		return
 	}
 	if kind == "" {
 		http.Error(w, "view is not authorized", http.StatusForbidden)
@@ -1385,6 +1400,13 @@ func (s *Server) apiLogin(w http.ResponseWriter, r *http.Request) {
 
 func selectAccountView(next string, hasMembership, hasPlatformCapability bool) string {
 	next = strings.TrimSpace(next)
+	// Only local destinations can influence the preferred view. Match the path,
+	// not its query or fragment, and normalize ordinary dot segments first.
+	if parsed, err := url.Parse(next); err == nil && strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") && !strings.Contains(next, `\`) && parsed.Scheme == "" && parsed.Host == "" {
+		next = path.Clean(parsed.EscapedPath())
+	} else {
+		next = ""
+	}
 	if (next == "/admin" || strings.HasPrefix(next, "/admin/")) && hasPlatformCapability {
 		return "platform_admin"
 	}

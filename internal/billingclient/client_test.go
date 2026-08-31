@@ -16,7 +16,7 @@ func TestBillingClientUsesDedicatedServiceIdentityAndExactPermission(t *testing.
 		if r.Header.Get("Authorization") != "Bearer "+strings.Repeat("b", 32) {
 			t.Fatalf("authorization=%q", r.Header.Get("Authorization"))
 		}
-		if r.Header.Get("X-Billing-Actor-ID") != "user-1" || r.Header.Get("X-Billing-Permissions") != "billing_summary.read" {
+		if r.Header.Get("X-Billing-Actor-Type") != "user" || r.Header.Get("X-Billing-Actor-ID") != "user-1" || r.Header.Get("X-Billing-Permissions") != "billing_summary.read" {
 			t.Fatalf("identity headers=%v", r.Header)
 		}
 		w.Header().Set("Content-Type", "application/json")
