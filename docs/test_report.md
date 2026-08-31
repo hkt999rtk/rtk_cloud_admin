@@ -63,7 +63,7 @@ revocation. This uses synthetic upstreams/temporary SQLite, not staging or real
 financial operations. OpenAPI validation PASS; inventory has zero blocking
 findings, but the workspace traceability freshness check is still FAIL.
 
-See `MULTICLOUD_IMPLEMENTATION_PROGRESS.md` for reproducible commands, local
+See `multicloud_implementation_progress.md` for reproducible commands, local
 artifact locations and remaining CI/cross-service/staging gates. These results
 do not establish end-to-end release acceptance.
 

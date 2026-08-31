@@ -1,7 +1,7 @@
 # Multi-cloud implementation checkpoint — 2026-08-31
 
 This is an implementation checkpoint, **not release acceptance**. The reviewed
-`MULTICLOUD_WEBUI.md` remains the target. No runtime PR, deployment, shared database
+`multicloud_webui.md` remains the target. No runtime PR, deployment, shared database
 write, migration, production deletion, or payment-provider action was performed
 for this Cloud Admin checkpoint.
 
@@ -484,3 +484,14 @@ OTA/telemetry and downloads, legacy unscoped endpoint retirement, sharing-select
 pagination, complete producer/Billing adapters and transactional fencing, combined
 cross-service CI/coverage/traceability, and staging activation/device/certificate/
 MQTT qualification. No live deployment or shared database update occurred.
+
+### Refreshed cross-service inventory
+
+The previous 21-blocker diagnostic is superseded after the AM mapping corrections
+and workspace YAML/registered Path Item parser fix. With all three implementation
+branches refreshed against documentation-governance mainlines, the read-only
+candidate at `/tmp/rtk-multicloud-refreshed-inventory.ypQM3C/local-inventory/`
+passes required inventory: 391 requirements, 655 operations, zero blocking
+findings. No requirements were removed. This is candidate traceability, not
+merged gitlinks, complete runtime acceptance or staging evidence. The reviewed
+contracts snapshot is `d261dd0`; supporting notes use the new lowercase filenames.
