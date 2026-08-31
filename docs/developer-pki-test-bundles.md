@@ -2,7 +2,7 @@
 
 This document describes the Cloud Admin BFF and browser responsibilities for
 RTK Certificate Bundle v1. The canonical JSON contract remains
-[`docs/rtk_cloud_contracts_doc/CERTIFICATE_BUNDLE.md`](rtk_cloud_contracts_doc/CERTIFICATE_BUNDLE.md)
+[`docs/rtk_cloud_contracts_doc/certificate_bundle.md`](rtk_cloud_contracts_doc/certificate_bundle.md)
 and its JSON Schema.
 
 > This tool exists only for simple SDK parsing, import, mTLS, and scoped-token
