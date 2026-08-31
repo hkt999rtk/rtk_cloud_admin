@@ -29,12 +29,12 @@ Audience:
 
 Related documents:
 
-- [SPEC.md](SPEC.md)
-- [ROLES.md](ROLES.md)
+- [spec.md](spec.md)
+- [roles.md](roles.md)
 - [admin-dashboard-redesign.md](admin-dashboard-redesign.md)
 - [backend-api-gap-audit.md](backend-api-gap-audit.md)
 - [private-cloud-deployment.md](private-cloud-deployment.md)
-- [rtk_cloud_contracts_doc/METRICS_EXPORT.md](../docs/rtk_cloud_contracts_doc/METRICS_EXPORT.md)
+- [rtk_cloud_contracts_doc/metrics_export.md](../docs/rtk_cloud_contracts_doc/metrics_export.md)
 
 ## Summary
 
@@ -126,10 +126,10 @@ Platform Admin navigation is fixed, expanded, and grouped:
 
 | Group | Items |
 | --- | --- |
-| 平台總覽 | 平台首頁 |
-| 監控與診斷 | Grafana、服務健康、服務日誌 |
-| 組織與產品 | 品牌雲管理、ChipSet & SDK 供應商、SSO 供應商 |
-| 營運與稽核 | 營運紀錄、稽核紀錄 |
+| Platform Overview | Platform Home |
+| Monitoring and Diagnostics | Grafana、Service Health、Service Logs |
+| Organizations and Products | Brand Cloud Management、ChipSet & SDK Providers、SSO Providers |
+| Operations and Audit | Operations Log、Audit Log |
 
 The same dark sidebar, `Connect+ Ops` brand, topbar, account summary, focus
 state, and mobile horizontal navigation are used for Customer and Platform
@@ -163,7 +163,7 @@ expose the raw manifest or provider URL to Developer sessions.
 Acceptance: The first viewport keeps Service Health, K8s Workloads, Cluster Nodes, and Operation Risk visible in the Realtek Ops Console visual system; panels use compact rows, status treatment, Font Awesome affordances with accessible labels, and the authenticated shell refreshes through one background loading path every 20 seconds without a manual topbar refresh action.
 
 ```
-Connect+ Ops / 平台首頁
+Connect+ Ops / Platform Home
 Cross-tenant operating status for Realtek Platform Admins.
 
 [Tenants] [Devices Online] [Open Operations] [Scrape Targets Down]

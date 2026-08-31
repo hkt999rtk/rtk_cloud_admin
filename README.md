@@ -23,7 +23,7 @@ symlink to that adjacent checkout.
 
 The service logging migration to `rtk_cloud_logger` zap and central journald
 forwarding is documented in
-[`docs/SERVICE_LOGGING_MIGRATION.md`](docs/SERVICE_LOGGING_MIGRATION.md).
+[`docs/service_logging_migration.md`](docs/service_logging_migration.md).
 
 ## Current Scope
 
@@ -59,7 +59,7 @@ Implemented in this first version:
 - public email verification routes `/verify` and the mail-contract-compatible
   `/signup/verify` alias
 - native release packaging and GitHub Actions CI
-- shared frontend style contract in `docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md`
+- shared frontend style contract in `docs/rtk_cloud_contracts_doc/frontend_style.md`
 - local Realtek logo asset copied from the Realtek Connect+ marketing site
 
 When `ACCOUNT_MANAGER_BASE_URL` is unset, the app runs from SQLite demo/cache
@@ -104,11 +104,11 @@ Go BFF:
 
 The design and implementation context is split across these documents:
 
-- [`docs/SPEC.md`](docs/SPEC.md): product scope, source-of-truth ownership,
+- [`docs/spec.md`](docs/spec.md): product scope, source-of-truth ownership,
   HTTP routes, and runtime architecture.
 - [`docs/developer-pki-test-bundles.md`](docs/developer-pki-test-bundles.md):
   local/staging SDK smoke-test certificate flow and production distinction.
-- [`docs/ROLES.md`](docs/ROLES.md): Tier 1/Tier 2 responsibilities,
+- [`docs/roles.md`](docs/roles.md): Tier 1/Tier 2 responsibilities,
   capabilities, and field visibility rules.
 - [`docs/webui-customer-view-design.md`](docs/webui-customer-view-design.md):
   approved Customer View design direction and visual concepts.
@@ -239,7 +239,7 @@ internal/app/                HTTP routes and API handlers
 internal/contracts/          Go DTOs and shared vocabulary
 internal/store/              SQLite schema, seed data, and repositories
 web/                         React frontend
-docs/SPEC.md                 Product and implementation specification
+docs/spec.md                 Product and implementation specification
 docs/openapi.yaml            OpenAPI contract for the Admin Console BFF API
 docs/assets/webui-design/    WebUI visual concepts and static GUI mocks
 docs/rtk_cloud_contracts_doc/ Shared workspace contracts repository
@@ -340,7 +340,7 @@ git -C ../rtk_cloud_contracts_doc pull --ff-only
 Frontend color, typography, layout, and status presentation rules are defined in:
 
 ```text
-docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md
+docs/rtk_cloud_contracts_doc/frontend_style.md
 ```
 
 The React console uses a local copy of the Realtek logo at:

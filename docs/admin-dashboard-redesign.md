@@ -19,18 +19,18 @@ Audience:
 
 Related contracts:
 
-- [ROLES.md](ROLES.md) — three-tier role definitions (read this first)
-- [TELEMETRY_INSIGHTS.md](../docs/rtk_cloud_contracts_doc/TELEMETRY_INSIGHTS.md)
-- [FIRMWARE_CAMPAIGN.md](../docs/rtk_cloud_contracts_doc/FIRMWARE_CAMPAIGN.md)
-- [FRONTEND_STYLE.md](../docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md)
-- [HTTP_API.md](../docs/rtk_cloud_contracts_doc/HTTP_API.md)
+- [roles.md](roles.md) — three-tier role definitions (read this first)
+- [telemetry_insights.md](../docs/rtk_cloud_contracts_doc/telemetry_insights.md)
+- [firmware_campaign.md](../docs/rtk_cloud_contracts_doc/firmware_campaign.md)
+- [frontend_style.md](../docs/rtk_cloud_contracts_doc/frontend_style.md)
+- [http_api.md](../docs/rtk_cloud_contracts_doc/http_api.md)
 - [sso-oidc-design.md](sso-oidc-design.md)
 
 ---
 
 ## Background And Motivation
 
-RTK Cloud is a three-tier platform (see [ROLES.md](ROLES.md)). Two of those
+RTK Cloud is a three-tier platform (see [roles.md](roles.md)). Two of those
 tiers use this admin console: Tier 2 Brand Operators (Fleet Managers and
 Read-only Observers managing their own device fleet) and Tier 1 Realtek
 Platform Admins (operating the platform across all tenants). Tier 3 end users
@@ -79,23 +79,23 @@ The current Brand Fleet pages use these customer-facing names:
 
 | Internal concept | Customer-facing label |
 |---|---|
-| Fleet Overview | 設備總覽 |
-| Device Inventory | 設備 |
-| Provisioning Status | 設備設定狀態 |
-| Firmware Release | 韌體版本 |
-| OTA Campaign | 更新計畫 |
-| Batch Job | 批次工作 |
-| Report | 報表 |
-| Product | Product 與服務 |
-| Service Capability | 可用服務 |
-| Product Policy | 設備政策 |
-| Firmware Policy | 韌體政策 |
-| Online Rate | 最近 7 天上線比例 |
-| Active Streams | 目前播放中的設備 |
-| Needs Attention | 需要處理的設備 |
-| Rollout Campaigns | 更新進度 |
-| Provision | 設定設備 |
-| Deactivate | 停用設備 |
+| Fleet Overview | Fleet Overview |
+| Device Inventory | Devices |
+| Provisioning Status | Device Provisioning Status |
+| Firmware Release | Firmware Releases |
+| OTA Campaign | Update Campaigns |
+| Batch Job | Batch Jobs |
+| Report | Reports |
+| Product | Products and Services |
+| Service Capability | Available Services |
+| Product Policy | Device Policy |
+| Firmware Policy | Firmware Policy |
+| Online Rate | Online Rate in the Last 7 Days |
+| Active Streams | Currently Streaming Devices |
+| Needs Attention | Devices Requiring Action |
+| Rollout Campaigns | Update Progress |
+| Provision | Provision Device |
+| Deactivate | Deactivate Device |
 
 The following terms are detail-only or Platform View vocabulary and must not
 appear as primary Customer View labels: `WebRTC`, `RTSP`, `HLS`, `OTA`,
@@ -155,46 +155,46 @@ Platform Admin   →  customer count + service health
 Operations roles:
 
 ```
-品牌雲
-└─ 品牌雲首頁
-   ├─ 總覽
-   ├─ 成員與權限
-   └─ 設定
+Brand Cloud
+└─ Brand Cloud Home
+   ├─ Overview
+   ├─ Members and Permissions
+   └─ Settings
 
-設備營運
-├─ 設備
-├─ 群組與標籤
-└─ 批次工作
+Device Operations
+├─ Devices
+├─ Groups and Tags
+└─ Batch Jobs
 
-產品與更新
-├─ Product 與服務
+Products and Updates
+├─ Products and Services
 ├─ ChipSet & SDK
-└─ 韌體更新
+└─ Firmware Updates
 
-監控與分析
-├─ 影像播放狀況
-└─ 報表
+Monitoring and Analytics
+├─ Video Playback Health
+└─ Reports
 
-帳號管理
-└─ 帳務與自動加值
+Account Management
+└─ Billing and Auto Top-Up
 ```
 
 Device Groups, Tags, Products, Device Profiles, Batch Jobs, and Reports are
 required Brand Fleet surfaces because the target tenant manages 100K+ devices.
 
-The groups are fixed and non-collapsible. `團隊與權限` is no longer a separate
-sidebar destination: it is an addressable tab in `品牌雲首頁`, alongside fleet
+The groups are fixed and non-collapsible. `Team and Permissions` is no longer a separate
+sidebar destination: it is an addressable tab in `Brand Cloud Home`, alongside fleet
 overview and low-frequency settings. `/overview`, `/access`, and `/settings`
 remain distinct deep links while sharing the Brand Cloud name, Cloud ID,
 organization selector, and tab strip.
 
-`成員與權限` uses the same scope model as the backend: a role assignment can
+`Members and Permissions` uses the same scope model as the backend: a role assignment can
 cover the whole organization, one Product, a region, a device group, or a single
 device. The tab shows role names and readable scope labels; raw permission
 names and internal actor identifiers stay out of the primary workflow. Owner
-transfer and PKI test tools live under `設定`, not in the everyday member list.
+transfer and PKI test tools live under `Settings`, not in the everyday member list.
 
-Product collaboration is managed from `Product 與服務`, not from the tenant-wide team
+Product collaboration is managed from `Products and Services`, not from the tenant-wide team
 table. The Brand Cloud owner alone creates a Product and becomes its initial owner.
 The Product owner invites registered developers as Editor or Viewer, changes or
 removes collaborators, and may explicitly transfer ownership. Cards and tables
@@ -202,7 +202,7 @@ show the current user's effective Product role and only render server-projected
 `allowed_actions`. A developer with a valid Brand Cloud identity but no Product
 assignment sees an empty project state rather than the tenant's full catalog.
 
-The `Product 與服務` surface is the source of truth for the operator-facing
+The `Products and Services` surface is the source of truth for the operator-facing
 relationship between a Product, its product/device specification, enabled service
 capabilities, user permissions, device policy, and firmware policy. A Product is
 not a human role: it defines what the device can use, while ACL defines what a
@@ -214,18 +214,19 @@ Dashboard workflow. Brand Fleet may show setup status, last operation result,
 and a link or instruction to use the approved provisioning path, but it must
 not present a second device-registration form.
 
-### Product 與服務 UI 設計
+### Products and Services UI Design
 
 The Product detail view is organized into five operator-facing sections:
 
-1. **基本資料** — Product name and ID, product name, model, product line, and
+1. **Basic Information** — Product name and ID, product name, model, product line, and
    hardware revision.
-2. **可用服務** — 影像服務、即時觀看、錄影與保存、設備回報、韌體更新。
-3. **使用者權限** — what the current role may view or operate for this Product,
+2. **Available Services** — video service, live view, recording and retention,
+   device reporting, and Firmware Updates.
+3. **User Permissions** — what the current role may view or operate for this Product,
    including device settings, update plans, and reports.
-4. **設備政策** — provision/setup rules, claim/bind rules, supported device
+4. **Device Policy** — provision/setup rules, claim/bind rules, supported device
    types, activation conditions, and deactivation conditions.
-5. **韌體政策** — eligible versions, hardware compatibility, OTA availability,
+5. **Firmware Policy** — eligible versions, hardware compatibility, OTA availability,
    update restrictions, anti-rollback policy, and current update plans.
 
 The device detail view must link each device back to its Product and show the
@@ -237,8 +238,8 @@ them.
 Creating or editing a Product follows this sequence:
 
 ```
-基本資料 → 產品與硬體規格 → 選擇可用服務 → 設定設備政策
-→ 設定韌體政策 → 預覽 ACL 影響 → 檢查關聯設備 → 儲存
+Basic Information → Product and Hardware Specifications → Select Available Services → Configure Device Policy
+→ Configure Firmware Policy → Preview ACL Impact → Check Related Devices → Save
 ```
 
 Any change that can affect existing devices or OTA scope must preview the
@@ -247,16 +248,16 @@ whether reprovisioning or firmware update may be required.
 
 The UI must not expose `service_options`, runtime token scopes, raw ACL
 permission names, `video_cloud`, or other internal service identifiers as
-primary customer copy. Unsupported services are shown as `未啟用`, `不適用`,
-or `需要聯絡管理者`.
+primary customer copy. Unsupported services are shown as `Not Enabled`, `Not Applicable`,
+or `Contact an Administrator`.
 
 **Platform administration** — Tier 1 Platform Admin only:
 
 ```
-平台總覽       └─ 平台首頁
-監控與診斷     ├─ Grafana、服務健康、服務日誌
-組織與產品     ├─ 品牌雲管理、ChipSet & SDK 供應商、SSO 供應商
-營運與稽核     └─ 營運紀錄、稽核紀錄
+Platform Overview       └─ Platform Home
+Monitoring and Diagnostics     ├─ Grafana、Service Health、Service Logs
+Organizations and Products     ├─ Brand Cloud Management、ChipSet & SDK Providers、SSO Providers
+Operations and Audit     └─ Operations Log、Audit Log
 ```
 
 Both roles use the same dark `Connect+ Ops` shell, topbar, account summary, and
@@ -299,7 +300,7 @@ A 7-day or 30-day line chart showing daily:
 - count of devices in `warning` or `critical` health state
 
 Data source: derived from `device.health.summary` events per
-TELEMETRY_INSIGHTS.md. Backend aggregates per org per day.
+telemetry_insights.md. Backend aggregates per org per day.
 
 Toggle between 7d / 30d view. Default 7d.
 
@@ -326,8 +327,8 @@ Data source: `device.health.summary` latest event per device per org.
 | Health | resulting health state |
 
 Field visibility for this table follows the rules in
-[ROLES.md — Field-Level Visibility Rules](ROLES.md#field-level-visibility-rules).
-Use Customer-readable signal names from TELEMETRY_INSIGHTS.md only.
+[roles.md — Field-Level Visibility Rules](roles.md#field-level-visibility-rules).
+Use Customer-readable signal names from telemetry_insights.md only.
 
 ---
 
@@ -353,7 +354,7 @@ Remove `video_cloud_devid`. Add `Firmware` and `Health`.
 
 ### Status Display
 
-Keep the underlying readiness state values from PRODUCT_READINESS.md. Use
+Keep the underlying readiness state values from product_readiness.md. Use
 title-case for display:
 
 | Internal value | Display label |
@@ -394,7 +395,7 @@ When clicking a device row, open a side drawer or detail page showing:
 - Active stream status (is there currently an open session?)
 
 Field visibility follows
-[ROLES.md — Field-Level Visibility Rules](ROLES.md#field-level-visibility-rules).
+[roles.md — Field-Level Visibility Rules](roles.md#field-level-visibility-rules).
 
 ---
 
@@ -438,7 +439,7 @@ For each active firmware campaign in the org:
 | State | campaign state badge |
 | Started | start timestamp |
 
-Use campaign and device rollout vocabulary from FIRMWARE_CAMPAIGN.md exactly.
+Use campaign and device rollout vocabulary from firmware_campaign.md exactly.
 Do not rename `applied` → "done" or `skipped` → "excluded".
 
 ### Per-Campaign Drill-Down
@@ -594,7 +595,7 @@ Changes:
   - `DeviceProvisionRequested` (type) + `succeeded` (state) → "Provisioning succeeded"
   - `DeviceDeactivationRequested` (type) + `failed` (state) → "Deactivation failed"
   - any type + `dead_lettered` (state) → "Failed after retries — needs investigation"
-- Show raw `type` and `state` values as secondary text beneath the Friendly Summary, per [ROLES.md — Field-Level Visibility Rules](ROLES.md#field-level-visibility-rules) (Tier 1 visibility).
+- Show raw `type` and `state` values as secondary text beneath the Friendly Summary, per [roles.md — Field-Level Visibility Rules](roles.md#field-level-visibility-rules) (Tier 1 visibility).
 - Add filter by state: All / Pending / Succeeded / Failed / Dead Lettered.
 
 ### Audit Log (new, minimal)
@@ -681,7 +682,7 @@ Response:
 ```
 
 Data source: `firmware.version.observed` and `firmware.rollout.status_changed`
-events; existing `/query_firmware_rollout` route from HTTP_API.md. Production
+events; existing `/query_firmware_rollout` route from http_api.md. Production
 validation must use observed firmware and rollout facts, not generated fallback
 versions.
 
@@ -774,7 +775,7 @@ The following are intentionally deferred:
 - Alert notification rules and email/webhook delivery
 - Customer View multi-org fleet aggregation. Customer pages remain scoped to the
   active organization; Platform View may still show cross-tenant admin read
-  models that are already documented in `SPEC.md` and
+  models that are already documented in `spec.md` and
   `backend-api-gap-audit.md`.
 - Stream viewer / live preview
 - Tenant impersonation for Tier 1 Platform Admin
@@ -812,14 +813,14 @@ audit log surface) can proceed immediately.
 
 For each new frontend section, the implementation must verify:
 
-- All field visibility matches [ROLES.md — Field-Level Visibility Rules](ROLES.md#field-level-visibility-rules) (in particular: no `video_cloud_devid`, operation IDs, raw operation type names, or `dead_lettered` state in any Customer View route)
-- State labels use contract vocabulary (title-cased) from PRODUCT_READINESS.md
-  and FIRMWARE_CAMPAIGN.md
-- Health signals use vocabulary from TELEMETRY_INSIGHTS.md
+- All field visibility matches [roles.md — Field-Level Visibility Rules](roles.md#field-level-visibility-rules) (in particular: no `video_cloud_devid`, operation IDs, raw operation type names, or `dead_lettered` state in any Customer View route)
+- State labels use contract vocabulary (title-cased) from product_readiness.md
+  and firmware_campaign.md
+- Health signals use vocabulary from telemetry_insights.md
 - Charts display a loading state when data is unavailable
 - Empty states are defined (e.g., "No campaigns active", "No stream requests in selected window")
 - Tables show the most actionable items first (worst-performing devices at top)
-- Color usage follows FRONTEND_STYLE.md tokens
+- Color usage follows frontend_style.md tokens
 - Platform content does not appear in any Customer route. Customer sessions
   render only Customer navigation, Platform Admin sessions render only Platform
   navigation, and wrong-role deep links show access gates.

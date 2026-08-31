@@ -1,7 +1,7 @@
 # Brand Fleet Management WebUI Design
 
 Status: Brand Fleet layout reference. The design-first
-[multi-cloud WebUI contract](MULTICLOUD_WEBUI.md) supersedes cloud navigation,
+[multi-cloud WebUI contract](multicloud_webui.md) supersedes cloud navigation,
 scope, sharing, ownership and Billing behavior below; runtime changes wait for
 the complete docs-only review/merge gate.
 
@@ -17,7 +17,7 @@ deep-link/refresh only after scope validation, never by trusting a browser ID.
 
 Navigation and actions are derived from active-cloud capabilities, not a UI
 role switch. Display roles remain useful for explanation, but authorization
-uses the capability matrix in `ROLES.md`.
+uses the capability matrix in `roles.md`.
 
 The login page posts credentials exactly once to `POST /api/auth/login`. The BFF
 calls Account Manager global login and `/v1/me`; the browser never probes
@@ -55,8 +55,8 @@ Audience:
 
 Related documents:
 
-- [SPEC.md](SPEC.md)
-- [ROLES.md](ROLES.md)
+- [spec.md](spec.md)
+- [roles.md](roles.md)
 - [admin-dashboard-redesign.md](admin-dashboard-redesign.md)
 - [backend-api-gap-audit.md](backend-api-gap-audit.md)
 - [sso-oidc-design.md](sso-oidc-design.md)
@@ -83,7 +83,7 @@ batch jobs, and reports are required Brand Fleet surfaces for 100K+ tenants.
 The approved HTML mockup is the review reference for the Brand Fleet work
 area, not a complete application-state inventory. The implementation must also satisfy the
 coverage addendum below for auth, quota, capability, error, and source-state
-requirements from `SPEC.md`, `ROLES.md`, and `backend-api-gap-audit.md`.
+requirements from `spec.md`, `roles.md`, and `backend-api-gap-audit.md`.
 
 ### Functional parity checklist
 
@@ -114,7 +114,7 @@ removed from the production UI.
 | Devices + Detail Drawer | Yes | `brand-fleet-management-mock.html` | Approved server-side query direction |
 | Firmware Releases + Update Plans | Yes | `brand-fleet-management-mock.html` | Approved Developer / Operations workflow |
 | Batch Jobs + Reports | Yes | `brand-fleet-management-mock.html` | Approved asynchronous operations direction |
-| Signup / check-email / verify | Yes | Text requirements in this document and `SPEC.md` | Required, no PNG concept |
+| Signup / check-email / verify | Yes | Text requirements in this document and `spec.md` | Required, no PNG concept |
 | SSO login and route gates | Yes | Text requirements in this document and `sso-oidc-design.md` | Required, no PNG concept |
 | Platform View: Service Health | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Platform View: SSO Providers | Yes | `admin-dashboard-redesign.md` and `sso-oidc-design.md` | Required outside Customer View PNG batch |
@@ -175,26 +175,26 @@ the production surface.
 
 | Current/design name | Approved display name |
 |---|---|
-| Fleet Health Overview | 設備總覽 |
-| Devices | 我的設備 |
-| Firmware & OTA | 韌體更新 |
-| Stream Health | 影像播放狀況 |
-| Products and Device Profiles | Product 與服務 |
+| Fleet Health Overview | Fleet Overview |
+| Devices | My Devices |
+| Firmware & OTA | Firmware Updates |
+| Stream Health | Video Playback Health |
+| Products and Device Profiles | Products and Services |
 
 The English internal names remain valid for routes, code, API fields, and
 documentation references. They are not the primary customer-facing labels.
 
 ### Page Priorities
 
-- **設備總覽:** current fleet state, devices needing attention, and the next
+- **Fleet Overview:** current fleet state, devices needing attention, and the next
   action. Alerts and attention queue are one list, not two competing lists.
-- **我的設備:** searchable fleet comparison with health, status, firmware,
+- **My Devices:** searchable fleet comparison with health, status, firmware,
   signal, and last seen. Device details open from the row.
-- **韌體更新:** latest version, devices not yet updated, failed devices, and
+- **Firmware Updates:** latest version, devices not yet updated, failed devices, and
   update progress. Campaign implementation details are secondary.
-- **影像播放狀況:** playback success, devices with playback problems, and
+- **Video Playback Health:** playback success, devices with playback problems, and
   devices that have never played successfully. Protocol names are secondary.
-- **Product 與服務:** connect each Product to its product/device specification,
+- **Products and Services:** connect each Product to its product/device specification,
   enabled services, user permissions, device policy, and firmware policy.
   This page is for brand operators, not end users.
 
@@ -202,41 +202,41 @@ documentation references. They are not the primary customer-facing labels.
 
 | Internal field/concept | Customer copy |
 |---|---|
-| `online_rate_7d_pct` | 最近 7 天上線比例 |
-| `active_sessions` | 目前播放中的設備 |
-| `warning` / `critical` | 需要注意 / 嚴重問題 |
-| `pending` firmware | 尚未更新 |
-| `failed` firmware | 更新失敗 |
-| `provision` | 設定設備 |
-| `deactivate` | 停用設備 |
-| `unavailable` | 暫時沒有最新資料 |
+| `online_rate_7d_pct` | Online Rate in the Last 7 Days |
+| `active_sessions` | Currently Streaming Devices |
+| `warning` / `critical` | Needs Attention / Critical Issues |
+| `pending` firmware | Not Yet Updated |
+| `failed` firmware | Update Failed |
+| `provision` | Provision Device |
+| `deactivate` | Deactivate Device |
+| `unavailable` | Latest Data Temporarily Unavailable |
 
 Do not require users to understand WebRTC, OTA, readiness, source status,
 campaign, rollout, or raw device identifiers. These values belong in expanded
 details or Platform View diagnostics.
 
-### Product 與服務
+### Products and Services
 
 The Product page follows the shared design defined in
 `admin-dashboard-redesign.md` and must not create a separate product or
 permission vocabulary. Each Product shows:
 
-- 基本資料：Product、產品名稱、產品型號、產品線、硬體版本。
-- 可用服務：影像服務、即時觀看、錄影與保存、設備回報、韌體更新。
-- 使用者權限：目前角色可以查看或執行的操作。
-- 設備政策：設定、綁定、啟用與停用規則。
-- 韌體政策：可用版本、硬體相容性、OTA 規則、防止回退與更新計畫。
+- Basic Information: Product, product name, product model, product line, and hardware version.
+- Available Services: video service, live view, recording and retention, device reporting, and Firmware Updates.
+- User Permissions: operations the current role may view or perform.
+- Device Policy: provisioning, binding, activation, and deactivation rules.
+- Firmware Policy: available versions, hardware compatibility, OTA rules, rollback prevention, and Update Campaigns.
 
 The device drawer links the device to one Product and shows the services and
 policies inherited from that Product. A disabled or unsupported service is shown
-as `未啟用`, `不適用`, or `需要聯絡管理者`; raw `service_options`, runtime
+as `Not Enabled`, `Not Applicable`, or `Contact an Administrator`; raw `service_options`, runtime
 scopes, and ACL permission names remain detail-only.
 
 Product editing is a guided flow:
 
 ```
-基本資料 → 產品與硬體規格 → 可用服務 → 設備政策 → 韌體政策
-→ ACL 影響預覽 → 關聯設備檢查 → 儲存
+Basic Information → Product and Hardware Specifications → Available Services → Device Policy → Firmware Policy
+→ ACL Impact Preview → Related Device Check → Save
 ```
 
 The impact preview must show affected Product/device counts, region/group scope,
@@ -310,10 +310,10 @@ the full sidebar must not consume the first mobile viewport.
 Sidebar:
 
 - Brand label: `Connect+ Ops`.
-- Brand Fleet navigation uses fixed, non-collapsible groups: `品牌雲`,
-  `設備營運`, `產品與更新`, `監控與分析`, and `帳號管理`.
-- `品牌雲首頁` is the single sidebar entry for the Brand Cloud resource. Its
-  page-level tabs are `總覽`, `成員與權限`, and `設定`; the entry remains active
+- Brand Fleet navigation uses fixed, non-collapsible groups: `Brand Cloud`,
+  `Device Operations`, `Products and Updates`, `Monitoring and Analytics`, and `Account Management`.
+- `Brand Cloud Home` is the single sidebar entry for the Brand Cloud resource. Its
+  page-level tabs are `Overview`, `Members and Permissions`, and `Settings`; the entry remains active
   across all three routes.
 - Navigation items and Brand Cloud tabs are role-aware. Hidden affordances do
   not replace backend authorization checks.
@@ -329,15 +329,15 @@ The fixed group and item order is:
 
 | Group | Items |
 | --- | --- |
-| 品牌雲 | 品牌雲首頁 |
-| 設備營運 | 設備、群組與標籤、批次工作 |
-| 產品與更新 | Product 與服務、ChipSet & SDK、韌體更新 |
-| 監控與分析 | 影像播放狀況、報表 |
-| 帳號管理 | 帳務與自動加值 |
+| Brand Cloud | Brand Cloud Home |
+| Device Operations | Devices, Groups, and Tags、Batch Jobs |
+| Products and Updates | Products and Services、ChipSet & SDK、Firmware Updates |
+| Monitoring and Analytics | Video Playback Health、Reports |
+| Account Management | Billing and Auto Top-Up |
 
 Groups are always expanded. Capability filtering removes unavailable items but
 does not reorder the remaining items or collapse the group hierarchy. The
-`品牌雲首頁` item is always the navigation entry for the active Brand Cloud;
+`Brand Cloud Home` item is always the navigation entry for the active Brand Cloud;
 route authorization independently chooses its first accessible tab.
 
 Main header:
@@ -365,11 +365,11 @@ single long page:
 
 | Tab | Scoped route | Unscoped compatibility route | Minimum frontend access |
 | --- | --- | --- | --- |
-| 總覽 | `/console/{cloudId}/overview` | `/console/overview` | `fleet.read` or `customer.devices.read` |
-| 成員與權限 | `/console/{cloudId}/access` | `/console/access` | `team.read` or `role_assignment.read` |
-| 設定 | `/console/{cloudId}/settings` | `/console/settings` | Any authenticated customer developer; individual tools remain capability-gated |
+| Overview | `/console/{cloudId}/overview` | `/console/overview` | `fleet.read` or `customer.devices.read` |
+| Members and Permissions | `/console/{cloudId}/access` | `/console/access` | `team.read` or `role_assignment.read` |
+| Settings | `/console/{cloudId}/settings` | `/console/settings` | Any authenticated customer developer; individual tools remain capability-gated |
 
-Opening `品牌雲首頁` selects the first accessible route in the order above.
+Opening `Brand Cloud Home` selects the first accessible route in the order above.
 The sidebar item stays active on all three routes. Navigation visibility and
 route access are separate decisions: removing an `access` sidebar item must not
 make `/access` inaccessible or bypass its capability guard.
@@ -384,13 +384,13 @@ change is required.
 All tabs share the Brand Cloud name, Cloud ID, active-organization selector,
 and tab strip. The content responsibilities are:
 
-- **總覽:** fleet KPIs, health trend, region distribution, attention devices,
+- **Overview:** fleet KPIs, health trend, region distribution, attention devices,
   and a compact team summary with member count, owner, pending invitations, and
   the current user's role.
-- **成員與權限:** members, pending invitations, available roles, and readable
+- **Members and Permissions:** members, pending invitations, available roles, and readable
   management scopes. The invitation form expands from an explicit action;
   read-only users do not see write controls.
-- **設定:** owner-transfer create/cancel for `team.manage`, owner-transfer token
+- **Settings:** owner-transfer create/cancel for `team.manage`, owner-transfer token
   acceptance for every authenticated customer developer, and PKI test bundle
   issuance for `pki.test.issue`.
 
@@ -497,7 +497,7 @@ Auth and access states:
 - Unauthenticated users see the standalone Admin Console auth page. `Login`
   and `Sign Up` are both first-class modes, with `Login` selected by default.
 - The `Sign Up` tab and direct `/signup` route open the same self-service
-  evaluation flow documented in `SPEC.md`; commercial brand-cloud user
+  evaluation flow documented in `spec.md`; commercial brand-cloud user
   creation is separate and platform admin-owned.
 - SSO callback, verification, expired-token, and gateway-error states need
   dedicated copy. Do not leave users on a blank dashboard shell while auth state
@@ -506,7 +506,7 @@ Auth and access states:
   but production/server validation must show source-unavailable states instead
   of silently substituting demo trends.
 
-## 設備總覽
+## Fleet Overview
 
 Purpose: give the operator a single-glance answer to whether the fleet is
 healthy now and whether it has been healthy recently.
@@ -715,7 +715,7 @@ Behavior notes:
 ## Complementary WebUI Surfaces
 
 The Customer View image batch does not cover every WebUI surface required by
-`SPEC.md`. The following surfaces are required for v0.1 but are governed by
+`spec.md`. The following surfaces are required for v0.1 but are governed by
 separate designs or by the app shell rules in this document.
 
 ### Self-Service Signup And Verification
@@ -850,7 +850,7 @@ before implementation is considered complete:
 - Treat `brand-fleet-management-mock.html` as the design reference for large
   fleet work-area layout, density, role views, and batch interactions.
 - When the images conflict with text requirements, the text requirements in
-  this document, `SPEC.md`, `ROLES.md`, and `admin-dashboard-redesign.md` win.
+  this document, `spec.md`, `roles.md`, and `admin-dashboard-redesign.md` win.
 
 ## Review Checklist
 

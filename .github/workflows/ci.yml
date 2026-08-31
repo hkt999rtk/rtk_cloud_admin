@@ -151,14 +151,14 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          scripts/generate_test_report.sh coverage.out .artifacts/logs .artifacts/report-candidates/docs/TEST_REPORT.md
-          scripts/validate_test_report.sh .artifacts/report-candidates/docs/TEST_REPORT.md
+          scripts/generate_test_report.sh coverage.out .artifacts/logs .artifacts/report-candidates/docs/test_report.md
+          scripts/validate_test_report.sh .artifacts/report-candidates/docs/test_report.md
 
       - name: Check tracked test report drift
         run: |
           set -euo pipefail
-          cmp -s docs/TEST_REPORT.md .artifacts/report-candidates/docs/TEST_REPORT.md || {
-            echo "docs/TEST_REPORT.md is stale. Import the test-report-candidate artifact or update the tracked report." >&2
-            diff -u docs/TEST_REPORT.md .artifacts/report-candidates/docs/TEST_REPORT.md >&2 || true
+          cmp -s docs/test_report.md .artifacts/report-candidates/docs/test_report.md || {
+            echo "docs/test_report.md is stale. Import the test-report-candidate artifact or update the tracked report." >&2
+            diff -u docs/test_report.md .artifacts/report-candidates/docs/test_report.md >&2 || true
             exit 1
           }

@@ -24,7 +24,7 @@ Related documents:
 - [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md)
 - [customer-view-visual-qa-checklist.md](customer-view-visual-qa-checklist.md)
 - [backend-api-gap-audit.md](backend-api-gap-audit.md)
-- [SPEC.md](SPEC.md)
+- [spec.md](spec.md)
 
 ## Summary
 
@@ -55,7 +55,7 @@ former view switcher and Platform-only shell styling were removed.
 
 The login/session kind selects exactly one fixed navigation hierarchy. Customer
 keeps its five existing groups. Platform Admin uses four Chinese groups:
-平台總覽、監控與診斷、組織與產品、營運與稽核. Platform login lands on
+Platform Overview、Monitoring and Diagnostics、Organizations and Products、Operations and Audit. Platform login lands on
 `/admin`; all existing `/admin/*` and `/console/*` deep links remain unchanged.
 Opening a wrong-role route shows an access gate while keeping the signed-in
 role's navigation. No Platform API, Customer payload, session kind, capability,
@@ -63,8 +63,8 @@ or backend authorization contract was changed.
 
 ## Completed Follow-up: Brand Cloud Overview And Access Integration
 
-The Customer View shell now uses fixed groups: 品牌雲、設備營運、產品與更新、
-監控與分析、帳號管理. 品牌雲首頁 is the only Brand Cloud sidebar entry and owns
+The Customer View shell now uses fixed groups: Brand Cloud、Device Operations、Products and Updates、
+Monitoring and Analytics、Account Management. Brand Cloud Home is the only Brand Cloud sidebar entry and owns
 three independently addressable tabs:
 
 - `/console/{cloudId}/overview` — fleet overview plus capability-gated team
@@ -562,7 +562,7 @@ sign-in path.
 - [webui-implementation-roadmap.md](webui-implementation-roadmap.md)
 - [webui-customer-view-design.md](webui-customer-view-design.md)
 - [sso-oidc-design.md](sso-oidc-design.md)
-- [SPEC.md](SPEC.md)
+- [spec.md](spec.md)
 
 ## Milestone 8: Platform View Polish
 

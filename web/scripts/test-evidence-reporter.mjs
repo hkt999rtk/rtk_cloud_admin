@@ -143,7 +143,7 @@ export default class EvidenceReporter {
     fs.writeFileSync(path.join(this.runDir, 'evidence-manifest.json'), `${JSON.stringify(payload, null, 2)}\n`);
     fs.writeFileSync(path.join(this.runDir, 'results.json'), `${JSON.stringify(payload, null, 2)}\n`);
     fs.writeFileSync(path.join(this.runDir, 'junit.xml'), this.renderJUnit(payload));
-    fs.writeFileSync(path.join(this.runDir, 'TEST_REPORT.md'), this.renderMarkdown(payload));
+    fs.writeFileSync(path.join(this.runDir, 'test_report.md'), this.renderMarkdown(payload));
     if (this.errors.length) {
       for (const error of this.errors) console.error(`evidence reporter: ${error}`);
       return { status: 'failed' };

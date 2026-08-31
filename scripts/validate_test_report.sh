@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-report="${1:-docs/TEST_REPORT.md}"
+report="${1:-docs/test_report.md}"
 
 if [ ! -s "$report" ]; then
   echo "test report is missing or empty: $report" >&2

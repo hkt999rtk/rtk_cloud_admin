@@ -43,7 +43,7 @@ The console follows the contracts in `docs/rtk_cloud_contracts_doc`:
 - Account Manager owns customer authentication, organizations, members, registry devices, provisioning/deactivation APIs, platform-admin/root identity, and brand-cloud administration.
 - Realtek Video Cloud owns activation, scoped tokens, stream/media routes, firmware routes, and transport ownership.
 - Product readiness is an aggregate projection across account registry, claim/bind, local onboarding, cloud activation, and transport online facts.
-- Frontend color, typography, status labels, and layout tone follow `docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md`.
+- Frontend color, typography, status labels, and layout tone follow `docs/rtk_cloud_contracts_doc/frontend_style.md`.
 - This repository provides a frontend/BFF surface. It must not redefine the source-of-truth ownership from the contracts.
 
 In short, `rtk_account_manager` is the authoritative backend control plane for
@@ -408,7 +408,7 @@ Bind forms, cached data, payment intents, hosted-return state and idempotency
 context to cloud UUID/actor/ownership version. Two tabs remain independent;
 reject stale state after ownership changes and suppress superseded responses.
 Tenant financial-history reads also enforce responsibility periods as described
-in [MULTICLOUD_WEBUI.md](MULTICLOUD_WEBUI.md); owner role alone does not reveal
+in [multicloud_webui.md](multicloud_webui.md); owner role alone does not reveal
 predecessor records. Non-owner viewer/admin/member Billing access is denied.
 
 NewebPay hosted setup and merchant-initiated charge controls remain visibly
@@ -430,7 +430,7 @@ never expose or enable the simulator.
 
 Acceptance: Directly linkable customer and platform routes use compact operational layout, canonical readiness/status vocabulary, source-fact detail, and the shared frontend style contract without marketing heroes or decorative card grids.
 
-The visual system follows `docs/rtk_cloud_contracts_doc/FRONTEND_STYLE.md` and should feel like an operational B2B console:
+The visual system follows `docs/rtk_cloud_contracts_doc/frontend_style.md` and should feel like an operational B2B console:
 
 - compact left sidebar navigation
 - restrained white/gray surfaces
@@ -524,7 +524,7 @@ subjects are selected by Account Manager. Device requests are constrained to
 an active device item profile and use the existing factory-enrollment trust
 boundary. See [developer-pki-test-bundles.md](developer-pki-test-bundles.md)
 and the canonical
-[CERTIFICATE_BUNDLE.md](rtk_cloud_contracts_doc/CERTIFICATE_BUNDLE.md).
+[certificate_bundle.md](rtk_cloud_contracts_doc/certificate_bundle.md).
 
 This workflow is not production certificate enrollment. Production device and
 app identities use non-exportable keys generated in the device secure store,
@@ -596,10 +596,10 @@ in SQLite.
 
 The normative schema, lifecycle, SSRF controls, error contract, and ownership
 boundary are defined by
-`rtk_cloud_contracts_doc/CHIPSET_SDK_INFORMATION_PROVIDER.md`.
+`rtk_cloud_contracts_doc/chipset_sdk_information_provider.md`.
 # Developer Brand Fleet Dashboard contract
 
-The multi-cloud target UI is specified in [MULTICLOUD_WEBUI.md](MULTICLOUD_WEBUI.md):
+The multi-cloud target UI is specified in [multicloud_webui.md](multicloud_webui.md):
 My Clouds precedes cloud management and Product navigation, and tenant Billing
 requires the sole owner. The design is not a claim of deployed UI completeness.
 
@@ -733,7 +733,7 @@ Acceptance: Developer team management uses its namespace and is replay-safe.
 
 Brand Cloud lifecycle, administration, audit, and the UI acceptance requirements
 implemented by this service are defined canonically in
-`rtk_cloud_contracts_doc/BRAND_CLOUD_ADMIN.md` under
+`rtk_cloud_contracts_doc/brand_cloud_admin.md` under
 `FEAT-CA-BRAND-001`. This service specification intentionally does not
 redefine those requirements.
 
