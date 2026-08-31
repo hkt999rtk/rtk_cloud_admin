@@ -61,6 +61,11 @@ Historical records are retained; no nonempty-cloud cascade-delete option exists.
 Only the cloud owner sees tenant Billing. Platform access remains a separate
 audited view and cannot use arbitrary actor/permission headers from the browser.
 An owner of another cloud receives no Billing visibility here.
+Historical invoices, activity, exports and downloads show only the current
+owner's responsibility periods plus the confirmed opening balance. Do not show
+predecessor payer identity, invoices or line-item history; mixed-period data is
+withheld unless the server provides a safe projection. Old owners have no cloud
+history access; separately audited platform history is not a customer-view route.
 
 Transfer UI identifies source and target, eligible/quota state, ownership version,
 balance/currency/snapshot version, debt/payment/work blockers and durable progress.
