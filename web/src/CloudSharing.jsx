@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { sharingPath, sharingBody, sharingScopeLabel, sharingError } from './cloud-sharing.mjs';
+import { SharingProducts } from './SharingProducts.jsx';
 import './cloud-sharing.css';
 
-export function CloudSharing({ cloudId, products = [], onAccessLost }) {
+export function CloudSharing({ cloudId, onAccessLost }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -50,8 +51,6 @@ export function CloudSharing({ cloudId, products = [], onAccessLost }) {
     try { const body = sharingBody(form); write(form.userId ? 'PATCH' : 'POST', sharingPath(cloudId, form.userId ? 'members' : 'members/invitations', form.userId), body); }
     catch (err) { setError(err.message); }
   }
-  const choices = [...(products || [])];
-  for (const id of form?.productIds || []) if (!choices.some(p => p.id === id)) choices.push({ id, name: `${id} (existing grant; revalidated on save)` });
   return <section className="my-clouds-panel cloud-sharing" aria-label="Cloud sharing">
     <h2>Members and sharing</h2>
     <p>Only this cloud’s owner can authorize collaborators. Viewer access never grants Billing, private keys, payment methods or video playback.</p>
@@ -65,7 +64,7 @@ export function CloudSharing({ cloudId, products = [], onAccessLost }) {
         <label>Role<select value={form.role} disabled={busy} onChange={e => setForm({ ...form, role: e.target.value })}><option value="viewer">Viewer — read-only</option><option value="admin">Admin — existing management permissions</option><option value="member">Member — existing member permissions</option></select></label>
         {form.role === 'viewer' ? <>
           <label>Access scope<select value={form.kind} disabled={busy} onChange={e => setForm({ ...form, kind: e.target.value, confirmAll: false })}><option value="selected_products">Selected Products (default)</option><option value="all_products">Entire cloud — current and future Products</option></select></label>
-          {form.kind === 'all_products' ? <label><input type="checkbox" checked={form.confirmAll} disabled={busy} onChange={e => setForm({ ...form, confirmAll: e.target.checked })} />I authorize read-only access to every current and future Product in this cloud.</label> : <fieldset><legend>Authorized Products</legend>{choices.length === 0 && <p>No Products available. Create a Product or explicitly choose entire-cloud sharing.</p>}{choices.map(p => <label key={p.id}><input type="checkbox" checked={form.productIds.includes(p.id)} disabled={busy} onChange={e => setForm({ ...form, productIds: e.target.checked ? [...form.productIds, p.id] : form.productIds.filter(id => id !== p.id) })} />{p.name}</label>)}</fieldset>}
+          {form.kind === 'all_products' ? <label><input type="checkbox" checked={form.confirmAll} disabled={busy} onChange={e => setForm({ ...form, confirmAll: e.target.checked })} />I authorize read-only access to every current and future Product in this cloud.</label> : <SharingProducts cloudId={cloudId} selectedIds={form.productIds} disabled={busy} onChange={productIds => setForm(current => current && { ...current, productIds })} onAccessLost={onAccessLost} />}
         </> : <p>This is not a read-only role. Its existing cloud permissions apply; it still does not grant ownership or Billing access.</p>}
         <p>New invitations require acceptance by the matching global account and expire after 30 minutes. Changing a pending invitation requires canceling it and creating another.</p>
         <div className="my-clouds-actions"><button type="submit" disabled={busy}>{busy ? 'Submitting…' : form.userId ? 'Save access' : 'Send invitation'}</button><button type="button" disabled={busy} onClick={() => setForm(null)}>Cancel form</button></div>

@@ -341,12 +341,16 @@ func TestScopedProductBrowserFixture(t *testing.T) {
 	defer listener.Close()
 	fmt.Println("Disposable Product UI fixture: http://127.0.0.1:18197")
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" && (r.URL.Path == "/__fixture__/revoke" || r.URL.Path == "/__fixture__/reset") {
+		if r.Method == "POST" && (r.URL.Path == "/__fixture__/revoke" || r.URL.Path == "/__fixture__/reset" || r.URL.Path == "/__fixture__/invalid-products") {
 			f.mu.Lock()
 			f.revoked = r.URL.Path == "/__fixture__/revoke"
-			if !f.revoked {
+			f.badScope = r.URL.Path == "/__fixture__/invalid-products"
+			if r.URL.Path == "/__fixture__/reset" {
 				delete(f.products, createdProductID)
 				f.resetDevices()
+				f.clouds.mu.Lock()
+				clear(f.clouds.sharingInvites)
+				f.clouds.mu.Unlock()
 			}
 			f.mu.Unlock()
 			w.WriteHeader(204)

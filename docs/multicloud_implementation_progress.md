@@ -480,8 +480,8 @@ No new device operation is unmapped; the existing cross-service mappings still
 require correction, not omission from the inventory denominator.
 
 Remaining: claim/provision/deactivation with real activation inputs, firmware/
-OTA/telemetry and downloads, legacy unscoped endpoint retirement, sharing-selector
-pagination, complete producer/Billing adapters and transactional fencing, combined
+OTA/telemetry and downloads, legacy unscoped endpoint retirement,
+complete producer/Billing adapters and transactional fencing, combined
 cross-service CI/coverage/traceability, and staging activation/device/certificate/
 MQTT qualification. No live deployment or shared database update occurred.
 
@@ -495,3 +495,41 @@ passes required inventory: 391 requirements, 655 operations, zero blocking
 findings. No requirements were removed. This is candidate traceability, not
 merged gitlinks, complete runtime acceptance or staging evidence. The reviewed
 contracts snapshot is `d261dd0`; supporting notes use the new lowercase filenames.
+
+## Product sharing pagination — 2026-08-31
+
+The owner sharing form now loads its own explicit-cloud Product pages instead of
+reusing the overview's first page. Each page is validated by the existing scoped
+Product client. Selection stays in the form across pages; selected IDs can be
+reviewed and removed even when absent from the current page. The request body
+still contains only the exact sorted selected IDs, not all Products in a page.
+Whole-cloud sharing remains a separate explicit confirmation.
+
+Unmount/focus/page changes abort stale requests; fresh reads recheck scope.
+Foreign-scope/malformed responses clear choices, keep the user's unsaved selection
+for retry, and never broaden it. Authorization denial removes the cloud page.
+Every save is still independently authorized by the backend. Removed the unused
+overview Product state and its duplicate unpaginated request. The page initially
+issues one Product-list read; the picker loads separately only when opened.
+
+Validation: all Admin Go packages and vet PASS; 131 frontend unit tests and build
+PASS. Product/device browser regressions pass on desktop and emulated Pixel 7
+(six cases). The final sharing case `UI-CA-SHARING-102` additionally passes on both
+targets after strengthening exact-ID, cross-page removal and duplicate-read
+assertions. Final artifact directory: `/tmp/rtk-sharing-pagination-final/`.
+Earlier Product/device reports: `/tmp/rtk-sharing-pagination-desktop-final/` and
+`/tmp/rtk-sharing-pagination-mobile/`. These are dirty local-source evidence after
+`2c10714`, not accepted CI SHA reports. The final two-target report's target label
+defaults to desktop; the raw Playwright project records identify mobile correctly.
+Do not use that metadata as hosted per-target qualification.
+
+Reproduce with `SCOPED_PRODUCT_UI_FIXTURE=1 go test ./internal/app -run
+'^TestScopedProductBrowserFixture$' -count=1 -v -timeout 30m`, then run the scoped
+Product/device/sharing specs with `E2E_BASE_URL=http://127.0.0.1:18197`, one worker
+and each browser target in sequence. The fixture uses temporary SQLite and fake
+upstreams; reset/revoke/invalid-products affect only in-memory test data. No real
+invitation email, shared database, deployed service or payment was changed.
+
+The in-app browser also confirmed page-two selection retention; final desktop
+and mobile picker screenshots were inspected. Producer/Billing integration,
+remaining scoped resource flows, CI wiring/acceptance and staging remain open.

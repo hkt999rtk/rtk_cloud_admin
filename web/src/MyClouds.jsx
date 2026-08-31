@@ -12,8 +12,6 @@ export function MyCloudsApp() {
   const productId = route?.productId || '';
   const deviceId = route?.deviceId || '';
   const savedOperationId = cloudId ? cloudOperationFromSearch(window.location.search) : '';
-  const [products, setProducts] = useState(null);
-  const [productError, setProductError] = useState('');
   const [me, setMe] = useState(null);
   const [page, setPage] = useState(null);
   const [cloud, setCloud] = useState(null);
@@ -33,7 +31,7 @@ export function MyCloudsApp() {
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true); setError(''); setPage(null); setCloud(null); setPreflight(null); setProducts(null); setProductError('');
+    setLoading(true); setError(''); setPage(null); setCloud(null); setPreflight(null);
     (async () => {
       try {
         if (!route) throw Object.assign(new Error(), { status: 404 });
@@ -47,12 +45,6 @@ export function MyCloudsApp() {
         const result = await managedCloudRequest(cloudId ? cloudAPI(cloudId) : `${cloudAPI()}?view=${view}&limit=25&offset=${offset}`, { signal: controller.signal });
         if (controller.signal.aborted) return;
         setMe(account); setPage(cloudId ? null : result); setCloud(result.brand_cloud || null);
-        if (cloudId && result.brand_cloud?.capabilities.includes('product.read')) {
-          try {
-            const response = await managedCloudRequest(`${cloudAPI(cloudId)}/products${productId ? `/${productId}` : ''}`, { signal: controller.signal });
-            if (!controller.signal.aborted) setProducts(productId ? [response.product] : response.products);
-          } catch (err) { if (!controller.signal.aborted) setProductError(cloudError(err)); }
-        }
       } catch (err) { if (!controller.signal.aborted) { setError(cloudError(err)); if ([401,403,404].includes(err.status)) { setForm(null); setOperation(null); } } }
       finally { if (!controller.signal.aborted) setLoading(false); }
     })();
@@ -71,7 +63,7 @@ export function MyCloudsApp() {
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(cloudError(err));
-          if ([401,403,404].includes(err.status)) { setOperation(null); setCloud(null); setProducts(null); setForm(null); return; }
+          if ([401,403,404].includes(err.status)) { setOperation(null); setCloud(null); setForm(null); return; }
         }
       }
       if (!controller.signal.aborted) timer = setTimeout(poll, 2000);
@@ -113,7 +105,7 @@ export function MyCloudsApp() {
   function showRequestError(err) {
     setError(cloudError(err));
     if ([401,403,404].includes(err.status)) {
-      setPage(null); setCloud(null); setProducts(null); setForm(null); setPreflight(null); setOperation(null);
+      setPage(null); setCloud(null); setForm(null); setPreflight(null); setOperation(null);
     }
   }
   async function accountAction(view) {
@@ -142,7 +134,7 @@ export function MyCloudsApp() {
       {cloudId && loading && <p role="status">Loading cloud…</p>}
       {cloud && !productId && !operation && cloud.my_role === 'owner' && <StartOwnerHandoff key={`handoff:${cloudId}`} cloudId={cloudId} />}
       {cloud && !productId && !operation && cloud.my_role === 'owner' && cloud.capabilities?.includes('billing_account.read') && <a href={`${cloudURL(cloudId)}/billing`}>Manage this cloud’s Billing</a>}
-      {cloud && !productId && !operation && cloud.my_role === 'owner' && cloud.capabilities?.includes('team.manage') && <CloudSharing key={`sharing:${cloudId}`} cloudId={cloudId} products={products || []} onAccessLost={showRequestError} />}
+      {cloud && !productId && !operation && cloud.my_role === 'owner' && cloud.capabilities?.includes('team.manage') && <CloudSharing key={`sharing:${cloudId}`} cloudId={cloudId} onAccessLost={showRequestError} />}
       {cloud && !operation && <><section className="my-clouds-panel"><h2>Cloud overview</h2><p>{cloud.description || 'No description'}</p><dl><dt>Owner</dt><dd>{cloud.owner_user_id}</dd><dt>My role</dt><dd>{cloud.my_role}</dd><dt>Cloud ID</dt><dd>{cloud.id}</dd><dt>Tenant slug</dt><dd>{cloud.tenant_slug}</dd><dt>Status</dt><dd>{cloud.status}</dd></dl>{canManage && <div className="my-clouds-actions"><button disabled={busy} onClick={() => { intent.current = null; setForm({ id: cloud.id, name: cloud.name, description: cloud.description }); }}>Edit cloud</button><button className="my-clouds-danger" disabled={busy} onClick={checkDeletion}>Check deletion</button></div>}</section><CloudProducts key={`${cloudId}/${productId}`} cloudId={cloudId} productId={productId} onAccessLost={showRequestError} /></>}
       {preflight && <section className="my-clouds-panel"><h2>Delete this cloud?</h2><p>Only an empty, fully settled cloud with zero balance can be deleted. Audit and Billing history are retained. Ownership transfer has a different rule: balance must be nonnegative.</p><Blockers items={preflight.blockers} />{preflight.eligible ? <button className="my-clouds-danger" disabled={busy} onClick={deleteCloud}>{busy ? 'Submitting…' : 'Confirm cloud deletion'}</button> : <p>Deletion is blocked. Resolve the reasons above, then check again.</p>}</section>}
       {operation && <section className="my-clouds-panel" aria-live="polite"><h2>{operation.state === 'succeeded' ? 'Cloud deleted' : operation.state === 'canceled' ? 'Deletion canceled' : 'Deletion in progress'}</h2><p>{operation.phase} · {operation.id}</p><Blockers items={operation.blockers} />{operation.state !== 'succeeded' && <p>Do not treat a submitted request as completion. Recovery continues on the server.</p>}<a href={cloudRoot}>Return to My Clouds</a></section>}
