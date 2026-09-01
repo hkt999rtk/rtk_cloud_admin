@@ -115,12 +115,14 @@ type BrandCloudAccountRequest struct {
 }
 
 type Member struct {
-	OrganizationID string   `json:"organization_id"`
-	UserID         string   `json:"user_id"`
-	Email          string   `json:"email,omitempty"`
-	Role           string   `json:"role"`
-	Capabilities   []string `json:"capabilities,omitempty"`
-	DisabledAt     string   `json:"disabled_at,omitempty"`
+	AccessScope    *CloudAccessScope `json:"access_scope,omitempty"`
+	DisplayName    string            `json:"display_name,omitempty"`
+	OrganizationID string            `json:"organization_id"`
+	UserID         string            `json:"user_id"`
+	Email          string            `json:"email,omitempty"`
+	Role           string            `json:"role"`
+	Capabilities   []string          `json:"capabilities,omitempty"`
+	DisabledAt     string            `json:"disabled_at,omitempty"`
 }
 
 type BrandCloudAccountListItem struct {
@@ -149,18 +151,19 @@ type OwnerTransfer struct {
 }
 
 type BrandCloudMemberInvitation struct {
-	ID              string `json:"id"`
-	BrandCloudID    string `json:"brand_cloud_id"`
-	InvitedByUserID string `json:"invited_by_user_id"`
-	TargetUserID    string `json:"target_user_id"`
-	TargetEmail     string `json:"target_email"`
-	Role            string `json:"role"`
-	Status          string `json:"status"`
-	ExpiresAt       string `json:"expires_at"`
-	AcceptedAt      string `json:"accepted_at,omitempty"`
-	CanceledAt      string `json:"canceled_at,omitempty"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+	AccessScope     *CloudAccessScope `json:"access_scope,omitempty"`
+	ID              string            `json:"id"`
+	BrandCloudID    string            `json:"brand_cloud_id"`
+	InvitedByUserID string            `json:"invited_by_user_id"`
+	TargetUserID    string            `json:"target_user_id"`
+	TargetEmail     string            `json:"target_email"`
+	Role            string            `json:"role"`
+	Status          string            `json:"status"`
+	ExpiresAt       string            `json:"expires_at"`
+	AcceptedAt      string            `json:"accepted_at,omitempty"`
+	CanceledAt      string            `json:"canceled_at,omitempty"`
+	CreatedAt       string            `json:"created_at"`
+	UpdatedAt       string            `json:"updated_at"`
 }
 
 type ProductCollaborator struct {

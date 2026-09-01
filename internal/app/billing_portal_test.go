@@ -18,38 +18,38 @@ func TestBillingPortalBFFScopesAndProxiesContractResources(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if strings.Contains(r.URL.Path, "/billing/") && r.URL.Path != "/v1/me" {
-			if r.Header.Get("Authorization") != "Bearer "+strings.Repeat("b", 32) || r.Header.Get("X-Billing-Actor-ID") != "u1" {
+			if r.Header.Get("Authorization") != "Bearer "+strings.Repeat("b", 32) || r.Header.Get("X-Billing-Actor-ID") != "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" {
 				t.Fatalf("billing service identity headers are missing")
 			}
 		}
 		switch r.URL.EscapedPath() {
-		case "/v1/me":
-			_, _ = w.Write([]byte(`{"user":{"id":"u1"},"organizations":[{"id":"org-safe","role":"owner","permissions":["` + permissions + `"]}]}`))
-		case "/v1/orgs/org-safe/billing/summary":
+		case "/v1/developer/brand-clouds/11111111-1111-4111-8111-111111111111":
+			_, _ = w.Write([]byte(`{"brand_cloud":{"id":"11111111-1111-4111-8111-111111111111","owner_user_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","my_role":"owner","ownership_version":7,"capabilities":["` + permissions + `"]}}`))
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/summary":
 			_, _ = w.Write([]byte(`{"account":{"currency":"TWD","available_balance_minor":1250},"generated_at":"2026-08-17T00:00:00Z"}`))
-		case "/v1/orgs/org-safe/billing/usage":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/usage":
 			_, _ = w.Write([]byte(`{"usage":[{"service_code":"video"}]}`))
-		case "/v1/orgs/org-safe/billing/invoices":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/invoices":
 			if r.URL.Query().Get("limit") != "20" || r.URL.Query().Get("secret") != "" {
 				t.Fatalf("invoice query=%s", r.URL.RawQuery)
 			}
 			_, _ = w.Write([]byte(`{"invoices":[{"id":"invoice-1"}],"pagination":{"limit":20,"offset":0,"total":1}}`))
-		case "/v1/orgs/org-safe/billing/invoices/invoice%2F1":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/invoices/invoice%2F1":
 			_, _ = w.Write([]byte(`{"invoice":{"id":"invoice/1"}}`))
-		case "/v1/orgs/org-safe/billing/invoices/invoice%2F1/pdf":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/invoices/invoice%2F1/pdf":
 			w.Header().Set("Content-Type", "application/pdf")
 			w.Header().Set("ETag", `"digest"`)
 			_, _ = w.Write([]byte("%PDF-test"))
-		case "/v1/orgs/org-safe/billing/activity":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/activity":
 			_, _ = w.Write([]byte(`{"activities":[{"id":"activity-1"}],"summary":{},"pagination":{}}`))
-		case "/v1/orgs/org-safe/billing/activity/activity%2F1":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/activity/activity%2F1":
 			_, _ = w.Write([]byte(`{"activity":{"id":"activity/1"}}`))
-		case "/v1/orgs/org-safe/billing/profile":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/profile":
 			if r.Method == http.MethodPut && r.Header.Get("If-Match") != `"3"` {
 				t.Fatalf("profile If-Match=%q", r.Header.Get("If-Match"))
 			}
 			_, _ = w.Write([]byte(`{"billing_profile":{"legal_name":"ACME","version":3}}`))
-		case "/v1/orgs/org-safe/billing/statements":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/statements":
 			w.Header().Set("Content-Type", "text/csv")
 			_, _ = w.Write([]byte("invoice,total\nINV-1,100\n"))
 		default:
@@ -59,7 +59,7 @@ func TestBillingPortalBFFScopesAndProxiesContractResources(t *testing.T) {
 	defer upstream.Close()
 
 	st := mustOpenStore(t)
-	session, err := st.CreateSession("customer", "u1", "owner@example.com", "access", "refresh", "org-safe", time.Hour)
+	session, err := st.CreateSession("customer", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "owner@example.com", "access", "refresh", "11111111-1111-4111-8111-111111111111", time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,26 +73,28 @@ func TestBillingPortalBFFScopesAndProxiesContractResources(t *testing.T) {
 			reader = strings.NewReader(body)
 		}
 		req := httptest.NewRequest(method, path, reader)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Cloud-Ownership-Version", "7")
 		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 		res := httptest.NewRecorder()
 		srv.ServeHTTP(res, req)
 		return res
 	}
-	for _, path := range []string{"/api/billing/summary", "/api/billing/usage", "/api/billing/invoices?limit=20&secret=redacted", "/api/billing/invoices/invoice%2F1", "/api/billing/activity", "/api/billing/activity/activity%2F1", "/api/billing/profile"} {
+	for _, path := range []string{"/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/summary", "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/usage", "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/invoices?limit=20&secret=redacted", "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/invoices/invoice%2F1", "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/activity", "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/activity/activity%2F1", "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/profile"} {
 		if response := request(http.MethodGet, path, ""); response.Code != http.StatusOK {
 			t.Fatalf("GET %s: %d %s", path, response.Code, response.Body.String())
 		}
 	}
-	if response := request(http.MethodPut, "/api/billing/profile", `{"legal_name":"ACME","locale":"zh-TW","timezone":"Asia/Taipei","delivery_preference":"portal","version":3}`); response.Code != http.StatusOK {
+	if response := request(http.MethodPut, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/profile", `{"legal_name":"ACME","locale":"zh-TW","timezone":"Asia/Taipei","delivery_preference":"portal","version":3}`); response.Code != http.StatusOK {
 		t.Fatalf("profile: %d %s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodPut, "/api/billing/profile", `{"legal_name":"","version":0}`); response.Code != http.StatusBadRequest {
+	if response := request(http.MethodPut, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/profile", `{"legal_name":"","version":0}`); response.Code != http.StatusBadRequest {
 		t.Fatalf("invalid profile: %d %s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodGet, "/api/billing/invoices/invoice%2F1/pdf", ""); response.Code != http.StatusOK || response.Header().Get("Content-Type") != "application/pdf" || !strings.HasPrefix(response.Body.String(), "%PDF") {
+	if response := request(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/invoices/invoice%2F1/pdf", ""); response.Code != http.StatusOK || response.Header().Get("Content-Type") != "application/pdf" || !strings.HasPrefix(response.Body.String(), "%PDF") {
 		t.Fatalf("pdf: %d %s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodGet, "/api/billing/statements", ""); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "INV-1") {
+	if response := request(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/statements", ""); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "INV-1") {
 		t.Fatalf("statement: %d %s", response.Code, response.Body.String())
 	}
 }

@@ -464,6 +464,18 @@ func TestBrandFleetReadRoutesUseActiveOrganization(t *testing.T) {
 			http.Error(w, "upstream Product invitation acceptance failure", http.StatusInternalServerError)
 			return
 		}
+		if r.URL.Path == "/v1/developer/brand-clouds" {
+			_, _ = w.Write([]byte(`{"brand_clouds":[],"pagination":{"limit":25,"offset":0,"total":0},"owned_count":0,"owned_limit":8,"reserved_count":0}`))
+			return
+		}
+		if r.URL.Path == "/v1/developer/brand-cloud-member-invitations/accept" {
+			_, _ = w.Write([]byte(`{"invitation":{"id":"invite","brand_cloud_id":"org-1","target_user_id":"developer-1","role":"member"},"member":{"organization_id":"org-1","user_id":"developer-1","role":"member"}}`))
+			return
+		}
+		if r.URL.Path == "/v1/developer/brand-cloud-owner-transfers/accept" {
+			_, _ = w.Write([]byte(`{"owner_transfer":{"id":"33333333-3333-4333-8333-333333333333","brand_cloud_id":"11111111-1111-4111-8111-111111111111","source_user_id":"source-developer","requested_by_user_id":"source-developer","target_user_id":"developer-1","status":"accepted","phase":"preparing","has_settled_snapshot":false,"blockers":[]}}`))
+			return
+		}
 		if strings.Contains(r.URL.Path, "/products/product-error/") {
 			http.Error(w, "upstream Product collaboration failure", http.StatusInternalServerError)
 			return

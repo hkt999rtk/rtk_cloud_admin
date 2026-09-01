@@ -8,15 +8,24 @@ import (
 	"testing"
 )
 
+func testOwnerContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, err := WithOwnership(context.Background(), "11111111-1111-4111-8111-111111111111", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ctx
+}
+
 func TestBillingClientUsesDedicatedServiceIdentityAndExactPermission(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/orgs/org-1/billing/summary" {
+		if r.URL.Path != "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/summary" {
 			t.Fatalf("path=%s", r.URL.Path)
 		}
 		if r.Header.Get("Authorization") != "Bearer "+strings.Repeat("b", 32) {
 			t.Fatalf("authorization=%q", r.Header.Get("Authorization"))
 		}
-		if r.Header.Get("X-Billing-Actor-Type") != "user" || r.Header.Get("X-Billing-Actor-ID") != "user-1" || r.Header.Get("X-Billing-Permissions") != "billing_summary.read" {
+		if r.Header.Get("X-Billing-Actor-Type") != "user" || r.Header.Get("X-Billing-Actor-ID") != "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" || r.Header.Get("X-Billing-Permissions") != "billing_summary.read" {
 			t.Fatalf("identity headers=%v", r.Header)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -24,7 +33,7 @@ func TestBillingClientUsesDedicatedServiceIdentityAndExactPermission(t *testing.
 	}))
 	defer server.Close()
 	client := New(server.URL, strings.Repeat("b", 32))
-	result, err := client.BillingSummary(context.Background(), "user-1", "org-1")
+	result, err := client.BillingSummary(testOwnerContext(t), "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "11111111-1111-4111-8111-111111111111")
 	if err != nil || result["status"] != "ok" {
 		t.Fatalf("result=%v err=%v", result, err)
 	}
@@ -39,7 +48,7 @@ func TestBillingClientFailsClosedWithoutCredential(t *testing.T) {
 
 func TestCreateHostedTopUpUsesEncryptedCheckoutRouteAndPermission(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/v1/orgs/org-1/topups/checkout" {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/orgs/11111111-1111-4111-8111-111111111111/topups/checkout" {
 			t.Fatalf("request=%s %s", r.Method, r.URL.Path)
 		}
 		if r.Header.Get("Idempotency-Key") != "checkout-1" || r.Header.Get("X-Billing-Permissions") != "payment_intent.create" {
@@ -51,7 +60,7 @@ func TestCreateHostedTopUpUsesEncryptedCheckoutRouteAndPermission(t *testing.T) 
 	defer server.Close()
 
 	client := New(server.URL, strings.Repeat("b", 32))
-	result, err := client.CreateHostedTopUp(context.Background(), "user-1", "org-1", "checkout-1", map[string]any{"amount_minor": 500})
+	result, err := client.CreateHostedTopUp(testOwnerContext(t), "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "11111111-1111-4111-8111-111111111111", "checkout-1", map[string]any{"amount_minor": 500})
 	if err != nil {
 		t.Fatal(err)
 	}

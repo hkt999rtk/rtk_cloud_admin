@@ -515,6 +515,11 @@ paths:
         - REQ-UI-CA-ROLE-001
       tags: [Developer]
       summary: List Brand Clouds available to the signed-in developer
+      description: Global account session; never reads or changes active organization. Quota counts owned clouds independently of the selected view. Responses are not cached.
+      parameters:
+        - { name: view, in: query, schema: { type: string, enum: [all, owned, shared], default: all } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
       responses:
         "200":
           description: Developer Brand Cloud memberships.
@@ -523,6 +528,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/DeveloperBrandCloudList"
         "401": { $ref: "#/components/responses/PlainTextError" }
+
+    post:
+      operationId: postApiDeveloperBrandClouds
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Create a cloud and its sole owner membership
+      description: Requires global account authentication, upstream eligibility and ownership quota; no existing membership required. Same-origin cookie-authenticated writes only.
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ManagedCloudWrite'
+                - required: [name]
+      responses:
+        '201':
+          description: Created cloud, or replay of the same creation intent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeveloperBrandCloudDetail' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
 
   /api/developer/brand-clouds/{brandCloudID}:
     get:
@@ -543,6 +574,293 @@ paths:
                 $ref: "#/components/schemas/DeveloperBrandCloudDetail"
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
+
+    patch:
+      operationId: patchApiDeveloperBrandCloudsByBrandCloudID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Owner updates name or description without changing UUID or tenant slug
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManagedCloudWrite' }
+      responses:
+        '200':
+          description: Updated cloud.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeveloperBrandCloudDetail' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    delete:
+      operationId: deleteApiDeveloperBrandCloudsByBrandCloudID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Request tracked soft deletion after rechecking emptiness and zero balance
+      description: Owner only; request body prohibited. Acceptance is not completion. Historical audit and Billing records remain. Transfer eligibility (balance >= 0) does not imply deletion eligibility (balance = 0).
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      responses:
+        '202':
+          description: Durable operation accepted or replayed.
+          headers:
+            Location: { description: Same-origin BFF operation resource, schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagedCloudOperationResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/deletion-preflight:
+    get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDDeletionPreflight
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Read current deletion blockers without authorizing a future deletion
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Live eligibility and actionable blockers.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [eligible]
+                properties:
+                  eligible: { type: boolean }
+                  blockers: { type: array, items: { $ref: '#/components/schemas/ManagedCloudBlocker' } }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/operations/{operationID}:
+    get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDOperationsByOperationID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Poll a scope-validated durable cloud operation including after deletion
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: operationID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Authorized operation status, not a cached active-cloud snapshot.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagedCloudOperationResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/products/{productID}/devices:
+    get:
+      operationId: listScopedProductDevices
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: List authorized devices in the explicit cloud and Product with filtered totals
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: productID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: q, in: query, schema: { type: string, maxLength: 200 } }
+      responses:
+        '200':
+          description: Safe device display projection. No arbitrary metadata, credentials, playback or activation material.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [devices, pagination]
+                properties:
+                  devices: { type: array, items: { $ref: '#/components/schemas/ScopedProductDevice' } }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+  /api/developer/brand-clouds/{brandCloudID}/products/{productID}/devices/{deviceID}:
+    get:
+      operationId: getScopedProductDevice
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Read an explicitly scoped device with current permitted display actions
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: productID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: deviceID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Authorized device; a different Product is never silently selected.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScopedProductDeviceResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    patch:
+      operationId: patchScopedProductDevice
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Update only device name or model, preserving hardware identity and activation metadata
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: productID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: deviceID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name: { type: string, minLength: 1, maxLength: 255 }
+                model: { type: string, maxLength: 255, description: Empty string explicitly clears the model. }
+      responses:
+        '200':
+          description: Current display data after a serialized backend update. Retry keys are forwarded; this is not a frozen-response replay.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScopedProductDeviceResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/products:
+    get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDProducts
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: List paginated Products within the explicit authorized cloud
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: status, in: query, schema: { type: string, enum: [active, disabled] } }
+      responses:
+        '200':
+          description: Upstream-authorized Products with matching filtered totals; excludes metadata and secrets.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [products, pagination, can_create]
+                properties:
+                  products: { type: array, items: { $ref: '#/components/schemas/ManagedCloudProduct' } }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+                  can_create: { type: boolean, description: Only the current eligible cloud owner can create Products. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    post:
+      operationId: postApiDeveloperBrandCloudsByBrandCloudIDProducts
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Create a Product under the explicitly requested cloud as its current owner
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/ManagedCloudProductWrite' }
+                - { required: [name, profile_key, category, service_options] }
+      responses:
+        '201':
+          description: Created Product. The BFF forwards the retry key but does not invent a successful replay when upstream reports a conflict.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagedCloudProductResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/products/{productID}:
+    get:
+      operationId: getApiDeveloperBrandCloudsByBrandCloudIDProductsByProductID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Read a Product summary after validating cloud and Product scope
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: productID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Authorized Product summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [product]
+                properties:
+                  product: { $ref: '#/components/schemas/ManagedCloudProduct' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    patch:
+      operationId: patchApiDeveloperBrandCloudsByBrandCloudIDProductsByProductID
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Update an authorized Product without changing its cloud, UUID or key
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: productID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/ManagedCloudProductWrite' }
+                - { minProperties: 1, not: { required: [profile_key] } }
+      responses:
+        '200':
+          description: Updated Product after same-cloud readback and current Product write permission check.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagedCloudProductResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/products/{productID}/disable:
+    post:
+      operationId: postApiDeveloperBrandCloudsByBrandCloudIDProductsByProductIDDisable
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Disable an authorized Product without deleting resources or history
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: productID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: Disabled Product; this does not satisfy empty-cloud deletion preflight.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManagedCloudProductResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
 
   /api/developer/brand-clouds/{brandCloudID}/members:
     get:
@@ -660,7 +978,8 @@ paths:
       x-rtk-requirement-ids:
         - REQ-UI-CA-ROLE-001
       tags: [Developer]
-      summary: Update a Brand Cloud member role
+      summary: Owner updates a non-owner member role or viewer Product scope
+      description: Global account session with explicit cloud scope and current owner authority. Owner assignment is forbidden; use ownership transfer. A scope-only PATCH is allowed for an existing viewer. All writes forward one stable Idempotency-Key, reject duplicate JSON keys and require same-origin requests.
       parameters:
         - { name: brandCloudID, in: path, required: true, schema: { type: string } }
         - { name: userID, in: path, required: true, schema: { type: string } }
@@ -671,9 +990,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [role]
+              additionalProperties: false
+              anyOf:
+                - required: [role]
+                - required: [access_scope]
               properties:
-                role: { type: string, enum: [owner, admin, member] }
+                role: { type: string, enum: [viewer, admin, member] }
+                access_scope: { $ref: '#/components/schemas/CloudViewerScope' }
       responses:
         "200": { description: Member updated. }
         "401": { $ref: "#/components/responses/PlainTextError" }
@@ -741,6 +1064,7 @@ paths:
         - REQ-CA-BRAND-MEMBER-INVITE-001
       tags: [Developer]
       summary: Invite an existing developer account to a Brand Cloud
+      description: Owner only. Invitee must be registered and verified. Viewer requires an explicit access_scope; admin/member preserve existing semantics and cannot attach viewer scope. Same normalized target, role and scope may replay a pending invitation; changed scope returns 409 and requires cancel/recreate. Tokens expire after 30 minutes. No membership is granted until matching-account acceptance.
       parameters:
         - { name: brandCloudID, in: path, required: true, schema: { type: string } }
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -751,9 +1075,11 @@ paths:
             schema:
               type: object
               required: [email, role]
+              additionalProperties: false
               properties:
                 email: { type: string, format: email }
-                role: { type: string, enum: [admin, member] }
+                role: { type: string, enum: [viewer, admin, member] }
+                access_scope: { $ref: '#/components/schemas/CloudViewerScope' }
       responses:
         "202":
           description: Pending invitation created; no membership exists until acceptance.
@@ -829,11 +1155,16 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [target_email]
               properties:
                 target_email: { type: string, format: email }
       responses:
-        "202": { description: Owner transfer requested }
+        "202":
+          description: Owner transfer requested; invitation acceptance and settled-balance confirmation remain required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
         "403": { description: Current member cannot transfer ownership }
 
   /api/developer/brand-cloud-owner-transfers/accept:
@@ -852,11 +1183,16 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [token]
               properties:
                 token: { type: string }
       responses:
-        "200": { description: Owner transfer accepted }
+        "202":
+          description: Handoff preparation accepted; not an owner commit or Billing consent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
         "401": { $ref: "#/components/responses/PlainTextError" }
         "409": { $ref: "#/components/responses/PlainTextError" }
 
@@ -867,13 +1203,63 @@ paths:
       x-rtk-requirement-ids:
         - REQ-UI-CA-ROLE-001
       tags: [Developer]
-      summary: Get owner transfer status
+      summary: Read handoff status as its global-account source or target participant
+      description: Does not require cloud membership or change session scope. A target without membership and a former owner after commit can inspect only their handoff operation, not arbitrary cloud/Billing resources. Responses are no-store.
       parameters:
         - { name: brandCloudID, in: path, required: true, schema: { type: string } }
         - { name: transferID, in: path, required: true, schema: { type: string } }
       responses:
-        "200": { description: Owner transfer status }
+        "200":
+          description: Current phase, blockers and retained snapshot; stale snapshots do not authorize confirmation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
         "404": { description: Transfer not found }
+
+  /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/preview:
+    get:
+      operationId: getApiDeveloperOwnerHandoffPreview
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Read a fresh, confirmable settled balance as a handoff participant
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: transferID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Exact snapshot with nonnegative credit and no blockers; not a consent or commit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/confirm:
+    post:
+      operationId: postApiDeveloperOwnerHandoffConfirm
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids:
+        - REQ-UI-CA-ROLE-001
+      tags: [Developer]
+      summary: Confirm the exact settled balance and both versions as source or target
+      description: Same-origin global account request. Retrying an ambiguous delivery preserves key and immutable payload; a new snapshot requires new consent and key. Zero is eligible, negative is forbidden. Confirmation does not commit ownership or authorize use of the previous owner's payment method.
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: transferID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 128, pattern: '^[!-~]+$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OwnerHandoffSnapshot' }
+      responses:
+        '202':
+          description: Confirmation processed; inspect current phase and participant flags, not an optimistic success.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
 
   /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel:
     post:
@@ -882,13 +1268,22 @@ paths:
       x-rtk-requirement-ids:
         - REQ-UI-CA-ROLE-001
       tags: [Developer]
-      summary: Cancel a pending owner transfer
+      summary: Request source-authorized precommit cancellation and await hold release
       parameters:
         - { name: brandCloudID, in: path, required: true, schema: { type: string } }
         - { name: transferID, in: path, required: true, schema: { type: string } }
         - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
       responses:
-        "200": { description: Owner transfer canceled }
+        "200":
+          description: Current handoff phase; canceling is not yet canceled. No blind rollback after owner commit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerHandoffResult' }
         "404": { description: Transfer not found }
 
   /api/developer/pki/test-bundles/app:
@@ -1680,7 +2075,9 @@ paths:
         "200": { description: Job result. }
         "410": { description: Result expired. }
 
-  /api/billing/summary:
+  /api/developer/brand-clouds/{brandCloudID}/billing/summary:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingSummary
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1693,7 +2090,9 @@ paths:
         "200":
           description: Balance, current-period estimate, automatic top-up health, and runway.
           content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingSummaryResponse" } } }
-  /api/billing/usage:
+  /api/developer/brand-clouds/{brandCloudID}/billing/usage:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingUsage
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1703,7 +2102,9 @@ paths:
       summary: Read server-priced current-period usage.
       security: [{ SessionCookie: [] }]
       responses: { "200": { description: Priced usage lines. } }
-  /api/billing/invoices:
+  /api/developer/brand-clouds/{brandCloudID}/billing/invoices:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingInvoices
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1716,7 +2117,9 @@ paths:
         "200":
           description: Invoice page.
           content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingInvoiceListResponse" } } }
-  /api/billing/invoices/{invoiceId}:
+  /api/developer/brand-clouds/{brandCloudID}/billing/invoices/{invoiceId}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingInvoice
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1727,7 +2130,9 @@ paths:
       security: [{ SessionCookie: [] }]
       parameters: [{ name: invoiceId, in: path, required: true, schema: { type: string } }]
       responses: { "200": { description: Invoice detail. }, "404": { $ref: "#/components/responses/PlainTextError" } }
-  /api/billing/invoices/{invoiceId}/pdf:
+  /api/developer/brand-clouds/{brandCloudID}/billing/invoices/{invoiceId}/pdf:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingInvoicePdf
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1741,7 +2146,9 @@ paths:
         "200":
           description: Invoice PDF.
           content: { application/pdf: { schema: { type: string, format: binary } } }
-  /api/billing/activity:
+  /api/developer/brand-clouds/{brandCloudID}/billing/activity:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingActivity
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1754,7 +2161,9 @@ paths:
         "200":
           description: Activity page.
           content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingActivityListResponse" } } }
-  /api/billing/activity/{activityId}:
+  /api/developer/brand-clouds/{brandCloudID}/billing/activity/{activityId}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingActivityDetail
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1765,7 +2174,9 @@ paths:
       security: [{ SessionCookie: [] }]
       parameters: [{ name: activityId, in: path, required: true, schema: { type: string } }]
       responses: { "200": { description: Activity detail. }, "404": { $ref: "#/components/responses/PlainTextError" } }
-  /api/billing/profile:
+  /api/developer/brand-clouds/{brandCloudID}/billing/profile:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingProfile
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1776,6 +2187,8 @@ paths:
       security: [{ SessionCookie: [] }]
       responses: { "200": { description: Billing profile. } }
     put:
+      parameters:
+        - { $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }
       operationId: putApiBillingProfile
       x-rtk-feature-id: FEAT-CA-BFF-001
       x-rtk-requirement-ids:
@@ -1785,7 +2198,9 @@ paths:
       security: [{ SessionCookie: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "./rtk_cloud_contracts_doc/openapi.yaml#/components/schemas/BillingProfile" } } } }
       responses: { "200": { description: Updated profile. }, "412": { $ref: "#/components/responses/PlainTextError" } }
-  /api/billing/statements:
+  /api/developer/brand-clouds/{brandCloudID}/billing/statements:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingStatement
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1795,14 +2210,16 @@ paths:
       summary: Export a UTF-8 tenant billing statement.
       security: [{ SessionCookie: [] }]
       responses: { "200": { description: CSV statement, content: { text/csv: { schema: { type: string } } } } }
-  /api/billing/account:
+  /api/developer/brand-clouds/{brandCloudID}/billing/account:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingAccount
       x-rtk-feature-id: FEAT-CA-BFF-001
       x-rtk-requirement-ids:
         - REQ-CA-BILLING-001
       tags: [Billing]
-      summary: Read the active organization's commercial account.
+      summary: Read the explicitly scoped cloud's commercial account as its current owner.
       responses:
         "200":
           description: Customer-safe account and automatic top-up summary.
@@ -1810,7 +2227,9 @@ paths:
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
 
-  /api/billing/ledger:
+  /api/developer/brand-clouds/{brandCloudID}/billing/ledger:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingLedger
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1828,7 +2247,9 @@ paths:
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
 
-  /api/billing/payment-methods:
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-methods:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingPaymentMethods
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1843,7 +2264,9 @@ paths:
         "401": { $ref: "#/components/responses/PlainTextError" }
         "403": { $ref: "#/components/responses/PlainTextError" }
 
-  /api/billing/payment-methods/setup:
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-methods/setup:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       operationId: postApiBillingPaymentMethodSetup
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1851,7 +2274,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Request provider-hosted method setup without accepting card fields.
-      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody:
         required: true
         content:
@@ -1876,7 +2299,9 @@ paths:
         "400": { $ref: "#/components/responses/PaymentError" }
         "409": { $ref: "#/components/responses/PaymentError" }
 
-  /api/billing/payment-methods/{methodId}:
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-methods/{methodId}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     delete:
       operationId: deleteApiBillingPaymentMethod
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1884,7 +2309,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Revoke a payment method.
-      parameters: [{ name: methodId, in: path, required: true, schema: { type: string } }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { name: methodId, in: path, required: true, schema: { type: string } }]
       requestBody:
         required: true
         content:
@@ -1899,7 +2324,9 @@ paths:
         "400": { $ref: "#/components/responses/PaymentError" }
         "409": { $ref: "#/components/responses/PaymentError" }
 
-  /api/billing/auto-topup:
+  /api/developer/brand-clouds/{brandCloudID}/billing/auto-topup:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingAutoTopUp
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1919,7 +2346,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Replace a policy with explicit versioned consent.
-      parameters: [{ $ref: "#/components/parameters/IfMatch" }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IfMatch" }]
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: "#/components/schemas/AutoTopUpRequest" } } }
@@ -1935,7 +2362,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Disable the current policy.
-      parameters: [{ $ref: "#/components/parameters/IfMatch" }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IfMatch" }]
       requestBody:
         required: true
         content:
@@ -1950,7 +2377,9 @@ paths:
         "409": { $ref: "#/components/responses/PaymentError" }
         "428": { $ref: "#/components/responses/PaymentError" }
 
-  /api/billing/topups:
+  /api/developer/brand-clouds/{brandCloudID}/billing/topups:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       operationId: postApiBillingTopUp
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1958,7 +2387,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Create an idempotent manual top-up intent.
-      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody:
         required: true
         content:
@@ -1976,7 +2405,9 @@ paths:
         "400": { $ref: "#/components/responses/PaymentError" }
         "409": { $ref: "#/components/responses/PaymentError" }
 
-  /api/billing/topups/checkout:
+  /api/developer/brand-clouds/{brandCloudID}/billing/topups/checkout:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       operationId: postApiBillingHostedTopUp
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -1984,7 +2415,7 @@ paths:
         - REQ-CA-BILLING-001
       tags: [Billing]
       summary: Persist a manual top-up and return a provider-hosted POST action.
-      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody:
         required: true
         content:
@@ -2002,7 +2433,9 @@ paths:
         "400": { $ref: "#/components/responses/PaymentError" }
         "409": { $ref: "#/components/responses/PaymentError" }
 
-  /api/billing/payment-intents:
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-intents:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingPaymentIntents
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -2015,7 +2448,9 @@ paths:
           description: Intent page without provider transaction references.
           content: { application/json: { schema: { $ref: "#/components/schemas/PaymentIntentsResponse" } } }
 
-  /api/billing/payment-intents/{intentId}:
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-intents/{intentId}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getApiBillingPaymentIntent
       x-rtk-feature-id: FEAT-CA-BFF-001
@@ -3081,6 +3516,18 @@ components:
       name: rtk_admin_session
 
   parameters:
+    BillingDisplayedOwnershipVersion:
+      name: X-Cloud-Ownership-Version
+      in: header
+      required: true
+      description: Displayed ownership version; compared against live Account Manager evidence before a write. Never forwarded as trusted Billing authority.
+      schema: { type: string, pattern: '^[1-9][0-9]*$' }
+    ManagedCloudIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: One stable key per write intent; retry unchanged requests with the same key. Duplicate headers rejected.
+      schema: { type: string, minLength: 1, maxLength: 200, pattern: '^[!-~]+$' }
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -3148,6 +3595,18 @@ components:
       schema: { type: string, format: uuid }
 
   responses:
+    ManagedCloudError:
+      description: Authentication (401), authorization (403), missing scope (404), conflict (409), invalid input (400/422), quota/rate limit (429), unavailable dependency (503), or malformed upstream result (502). Upstream diagnostics are never exposed. Responses are no-store; 401 invalidates the local session.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, message]
+            properties:
+              code: { type: string }
+              message: { type: string }
+        text/plain:
+          schema: { type: string }
     PlainTextError:
       description: Plain text error response.
       content:
@@ -4028,32 +4487,175 @@ components:
 
     DeveloperBrandCloudList:
       type: object
-      required: [brand_clouds, pagination, source_status]
+      required: [brand_clouds, pagination, owned_count, owned_limit, reserved_count]
       properties:
         brand_clouds:
           type: array
           items: { $ref: "#/components/schemas/DeveloperBrandCloud" }
         pagination: { $ref: "#/components/schemas/DeveloperPagination" }
-        developer_cloud_limit: { type: integer, minimum: 1 }
-        source_status: { type: string }
+        owned_count: { type: integer, minimum: 0 }
+        owned_limit: { type: integer, minimum: 1 }
+        reserved_count: { type: integer, minimum: 0 }
 
     DeveloperBrandCloudDetail:
       type: object
-      required: [brand_cloud, membership, source_status]
+      required: [brand_cloud]
       properties:
         brand_cloud: { $ref: "#/components/schemas/DeveloperBrandCloud" }
-        membership: { $ref: "#/components/schemas/DeveloperMembership" }
-        source_status: { type: string }
+
+    ManagedCloudWrite:
+      type: object
+      additionalProperties: false
+      description: Unique string fields only; null, duplicate keys, unknown fields and trailing JSON are rejected. Maximum request size is 16 KiB.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: string, maxLength: 2000 }
+
+    ManagedCloudBlocker:
+      type: object
+      required: [code, retryable]
+      properties:
+        code: { type: string }
+        retryable: { type: boolean }
+        count: { type: integer, format: int64 }
+        balance_minor: { type: integer, format: int64 }
+
+    ManagedCloudOperationResult:
+      type: object
+      required: [operation]
+      properties:
+        operation:
+          type: object
+          required: [id, brand_cloud_id, type, state, phase, blockers]
+          properties:
+            id: { type: string, format: uuid }
+            brand_cloud_id: { type: string, format: uuid }
+            type: { type: string }
+            state: { type: string }
+            phase: { type: string }
+            blockers: { type: array, items: { $ref: '#/components/schemas/ManagedCloudBlocker' } }
+
+    ScopedProductDevice:
+      type: object
+      required: [id, brand_cloud_id, product_id, name, model, category, status, serial_number, last_seen_at, allowed_actions]
+      properties:
+        id: { type: string, format: uuid }
+        brand_cloud_id: { type: string, format: uuid }
+        product_id: { type: string, format: uuid }
+        name: { type: string }
+        model: { type: string }
+        category: { type: string }
+        status: { type: string }
+        serial_number: { type: string }
+        last_seen_at: { type: string }
+        allowed_actions: { type: array, items: { type: string, enum: [read, edit] } }
+    ScopedProductDeviceResult:
+      type: object
+      required: [device]
+      properties:
+        device: { $ref: '#/components/schemas/ScopedProductDevice' }
+
+    ManagedCloudProduct:
+      type: object
+      required: [id, brand_cloud_id, name, profile_key, status]
+      properties:
+        id: { type: string, format: uuid }
+        brand_cloud_id: { type: string, format: uuid }
+        name: { type: string }
+        profile_key: { type: string }
+        status: { type: string }
+        product_model: { type: string }
+        category: { type: string }
+        service_options: { type: array, items: { type: string } }
+        my_role: { type: string, description: Cloud viewer membership always limits the projected role to product_viewer. }
+        allowed_actions: { type: array, items: { type: string, enum: [read, edit, disable] } }
+
+    ManagedCloudProductResult:
+      type: object
+      required: [product]
+      properties:
+        product: { $ref: '#/components/schemas/ManagedCloudProduct' }
+
+    ManagedCloudProductWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        profile_key: { type: string, minLength: 1, maxLength: 120, description: Required on creation; forbidden on update. }
+        product_model: { type: string, maxLength: 255 }
+        category: { type: string, enum: [ip_camera, mqtt_device, generic] }
+        service_options: { type: array, minItems: 1, uniqueItems: true, items: { type: string, enum: [mqtt, video_streaming, video_storage] } }
 
     DeveloperMemberList:
       type: object
-      required: [members, pagination, source_status]
+      required: [members, pagination]
       properties:
         members:
           type: array
           items: { $ref: "#/components/schemas/DeveloperMembership" }
         pagination: { $ref: "#/components/schemas/DeveloperPagination" }
-        source_status: { type: string }
+
+    OwnerHandoffSnapshot:
+      type: object
+      additionalProperties: false
+      required: [ownership_version, billing_snapshot_version, balance_minor, currency]
+      properties:
+        ownership_version: { type: integer, format: int64, minimum: 1 }
+        billing_snapshot_version: { type: integer, format: int64, minimum: 2 }
+        balance_minor: { type: integer, format: int64, minimum: 0 }
+        currency: { type: string, enum: [TWD] }
+
+    OwnerHandoffResult:
+      type: object
+      required: [owner_transfer]
+      properties:
+        owner_transfer:
+          type: object
+          required: [id, brand_cloud_id, source_user_id, requested_by_user_id, target_user_id, status, phase, blockers, has_settled_snapshot, expires_at]
+          oneOf:
+            - properties:
+                has_settled_snapshot: { type: boolean, enum: [false] }
+              not:
+                anyOf:
+                  - required: [balance_snapshot]
+                  - required: [source_confirmed]
+                  - required: [target_confirmed]
+            - required: [balance_snapshot, source_confirmed, target_confirmed]
+              properties:
+                has_settled_snapshot: { type: boolean, enum: [true] }
+          properties:
+            id: { type: string, format: uuid }
+            brand_cloud_id: { type: string, format: uuid }
+            source_user_id: { type: string, format: uuid }
+            requested_by_user_id: { type: string, format: uuid }
+            target_user_id: { type: string, format: uuid }
+            target_email: { type: string, format: email }
+            status: { type: string, enum: [pending, accepted, canceled, expired] }
+            phase: { type: string, enum: [requested, awaiting_acceptance, preparing, awaiting_balance_confirmation, committing, finalizing, succeeded, blocked, canceled, expired] }
+            operation_phase: { type: string, enum: [preparing, committing, finalizing, succeeded, canceling, canceled] }
+            ownership_version: { type: integer, format: int64 }
+            has_settled_snapshot: { type: boolean }
+            balance_snapshot: { $ref: '#/components/schemas/OwnerHandoffSnapshot' }
+            source_confirmed: { type: boolean }
+            target_confirmed: { type: boolean }
+            operation: { $ref: '#/components/schemas/ManagedCloudOperationResult/properties/operation' }
+            blockers: { type: array, items: { $ref: '#/components/schemas/ManagedCloudBlocker' } }
+            expires_at: { type: string, format: date-time }
+
+    CloudViewerScope:
+      description: Explicit read-only grant. Whole-cloud includes future Products; selected Product IDs must belong to this cloud. Neither grants Billing, secrets, payment access or playback. Null and duplicate Product IDs are rejected.
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [kind]
+          properties:
+            kind: { type: string, enum: [all_products] }
+        - type: object
+          additionalProperties: false
+          required: [kind, product_ids]
+          properties:
+            kind: { type: string, enum: [selected_products] }
+            product_ids: { type: array, minItems: 1, uniqueItems: true, items: { type: string, format: uuid } }
 
     BrandCloudMemberInvitation:
       type: object
@@ -4064,7 +4666,8 @@ components:
         invited_by_user_id: { type: string }
         target_user_id: { type: string }
         target_email: { type: string, format: email }
-        role: { type: string, enum: [admin, member] }
+        role: { type: string, enum: [viewer, admin, member] }
+        access_scope: { $ref: '#/components/schemas/CloudViewerScope' }
         status: { type: string, enum: [pending, accepted, canceled, expired] }
         expires_at: { type: string, format: date-time }
         accepted_at: { type: string, format: date-time, nullable: true }
@@ -4074,17 +4677,17 @@ components:
 
     DeveloperBrandCloud:
       type: object
-      required: [id, name, organization_kind, status, role]
+      required: [id, name, description, tenant_slug, owner_user_id, my_role, status, ownership_version, capabilities]
       properties:
-        id: { type: string }
+        id: { type: string, format: uuid }
         name: { type: string }
+        description: { type: string }
         tenant_slug: { type: string }
-        organization_kind: { type: string, enum: [brand_cloud] }
+        owner_user_id: { type: string, format: uuid }
         status: { type: string }
-        tier: { type: string }
-        role: { type: string, enum: [owner, admin, member] }
+        my_role: { type: string, enum: [owner, admin, member, viewer] }
+        ownership_version: { type: integer, format: int64 }
         capabilities: { type: array, items: { type: string } }
-        metadata: { type: object, additionalProperties: true }
 
     DeveloperMembership:
       type: object
@@ -4094,7 +4697,9 @@ components:
         user_id: { type: string }
         email: { type: string, format: email }
         display_name: { type: string }
-        role: { type: string, enum: [owner, admin, member] }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+        access_scope: { $ref: '#/components/schemas/CloudViewerScope' }
+        disabled_at: { type: string, format: date-time }
         capabilities: { type: array, items: { type: string } }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }

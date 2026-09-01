@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -7,6 +8,10 @@ const fixtureDir = process.env.E2E_FIXTURE_DIR;
 const port = Number(process.env.E2E_FIXTURE_PORT || 0);
 const mode = process.env.E2E_SCENARIO_MODE || 'normal';
 const prometheusMode = process.env.E2E_PROMETHEUS_MODE || mode;
+const billingCloudIDs = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222'];
+const billingOwnerID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const developerSharingCloudID = '99999999-9999-4999-8999-999999999999';
+const billingProfiles = new Map(), billingPolicies = new Map();
 if (!fixtureDir) throw new Error('E2E_FIXTURE_DIR is required');
 
 const [brandClouds, users, members, devices, operations, logs, sessions, prometheus] = await Promise.all([
@@ -96,10 +101,12 @@ function login(req, res) {
       'observer@example.com': ['e2e-observer-password', 'observer'],
       'outsider@example.com': ['e2e-outsider-password', 'outsider'],
       'identity.dual@example.com': ['e2e-identity-dual-password', 'identity_dual'],
+      'billing.owner@example.com': ['e2e-billing-owner-password', 'billing_owner'],
+      'billing.viewer@example.com': ['e2e-billing-viewer-password', 'billing_viewer'],
     };
     const session = identities[body.email];
     if (!session || session[0] !== body.password) return send(res, 401, { error: 'invalid credentials' });
-    return send(res, 200, { user: { id: `${session[1]}-user`, email: body.email, name: body.email }, tokens: { access_token: `e2e-${session[1]}-token`, refresh_token: `e2e-${session[1]}-refresh`, expires_in: 3600 } });
+    return send(res, 200, { user: { id: session[1] === 'billing_owner' ? billingOwnerID : `${session[1]}-user`, email: body.email, name: body.email }, tokens: { access_token: `e2e-${session[1]}-token`, refresh_token: `e2e-${session[1]}-refresh`, expires_in: 3600 } });
   });
 }
 
@@ -125,6 +132,10 @@ function customerProfile(req) {
     customer: ['fleet.read', 'product.read', 'firmware.release.read', 'ota.plan.read', 'reports.read', 'team.read', 'provisioning.read'],
     outsider: [],
   };
+  if (role === 'billing_owner' || role === 'billing_viewer') {
+    const owner = role === 'billing_owner';
+    return {user:{id:owner?billingOwnerID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:`${role}@example.com`},brand_cloud_memberships:billingCloudIDs.map((id,index)=>({id,name:`Billing Cloud ${index+1}`,role:owner?'owner':'viewer',my_role:owner?'owner':'viewer',owner_user_id:billingOwnerID,ownership_version:7,status:'active',capabilities:owner?capabilitySets.developer:['product.read']}))};
+  }
   const capabilities = capabilitySets[role] || [];
   const visibleClouds = role === 'outsider' ? [] : role === 'customer' ? state.brandClouds.slice(0, 1) : state.brandClouds;
   const clouds = visibleClouds.map((brand) => ({ id: brand.id, name: brand.name, role: role === 'operations' ? 'Operations' : role === 'observer' ? 'Observer' : 'Developer / Release', tier: brand.tier, status: brand.status, capabilities }));
@@ -247,7 +258,8 @@ async function handleCustomerResource(req, res, url) {
   if (!match) return send(res, 404, { error: 'not found' });
   const orgID = decodeURIComponent(match[1]);
   const suffix = match[2];
-  if (!['brand-e2e-01', 'brand-e2e-02'].includes(orgID)) return send(res, 403, { error: 'organization forbidden' });
+  if (!['brand-e2e-01', 'brand-e2e-02', developerSharingCloudID, ...billingCloudIDs].includes(orgID)) return send(res, 403, { error: 'organization forbidden' });
+  if (billingCloudIDs.includes(orgID) && (req.headers['x-billing-actor-id'] !== billingOwnerID || req.headers['x-billing-ownership-version'] !== '7')) return send(res,403,{code:'BILLING_OWNER_REQUIRED'});
   const devices = mode === 'empty' ? [] : cloudDevices(orgID);
   if (mode === 'slow' && req.method !== 'GET') await new Promise((resolve) => setTimeout(resolve, 350));
   const paymentMethod = {
@@ -283,8 +295,8 @@ async function handleCustomerResource(req, res, url) {
   if (suffix === `/billing/invoices/${invoice.id}` && req.method === 'GET') return send(res, 200, { invoice });
   if (suffix === `/billing/invoices/${invoice.id}/pdf` && req.method === 'GET') return send(res, 200, '%PDF-1.7 fixture', { 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="invoice.pdf"' });
   if (suffix === '/billing/activity' && req.method === 'GET') return send(res, 200, { activities, summary: { action_required: 0, processing: 0, completed: 2 }, pagination: { limit: 20, offset: 0, total: 2 } });
-  if (suffix === '/billing/profile' && req.method === 'GET') return send(res, 200, { profile: invoice.recipient });
-  if (suffix === '/billing/profile' && req.method === 'PUT') return send(res, 200, { profile: { ...invoice.recipient, ...(await readBody(req)), version: 2 } });
+  if (suffix === '/billing/profile' && req.method === 'GET') return send(res, 200, { profile: billingProfiles.get(orgID) || invoice.recipient });
+  if (suffix === '/billing/profile' && req.method === 'PUT') {const profile={...invoice.recipient,...(await readBody(req)),version:2};billingProfiles.set(orgID,profile);return send(res,200,{profile});}
   if (suffix === '/billing/statements' && req.method === 'GET') return send(res, 200, 'invoice_number,total_minor,state\nINV-2026-000128,842,settled\n', { 'Content-Type': 'text/csv' });
   if (suffix === '/billing/ledger' && req.method === 'GET') return send(res, 200, { ledger_entries: [
     { id: 'ledger-2', direction: 'debit', amount_minor: 250, currency: 'TWD', reason: 'invoice_debit', balance_after_minor: 1250, created_at: '2026-08-15T07:30:00Z' },
@@ -298,9 +310,10 @@ async function handleCustomerResource(req, res, url) {
     if (body.threshold_minor !== 300 || body.top_up_amount_minor !== 300 || body.daily_amount_limit_minor !== 1000 || body.daily_attempt_limit !== 2) {
       return send(res, 400, { code: 'PAYMENT_AMOUNT_INVALID', message: 'Unexpected simulator policy defaults.' });
     }
-    return send(res, 200, { auto_topup: { ...autoTopUp, ...body, version: 5 } }, { ETag: '"5"' });
+    billingPolicies.set(orgID,{...autoTopUp,...body,version:5});
+    return send(res, 200, { auto_topup: billingPolicies.get(orgID) }, { ETag: '"5"' });
   }
-  if (suffix === '/auto-topup' && req.method === 'GET') return send(res, 200, { auto_topup: autoTopUp }, { ETag: '"4"' });
+  if (suffix === '/auto-topup' && req.method === 'GET') {const policy=billingPolicies.get(orgID)||autoTopUp;return send(res,200,{auto_topup:policy},{ETag:`"${policy.version}"`});}
   if (suffix === '/payment-intents' && req.method === 'GET') return send(res, 200, { payment_intents: [
     { id: 'intent-success', amount_minor: 300, currency: 'TWD', reason: 'auto_top_up', provider: 'simulator', payment_method_id: paymentMethod.id, state: 'succeeded', requires_customer_action: false, correlation_id: 'ui-safe-correlation', created_at: '2026-08-01T08:00:00Z', updated_at: '2026-08-01T08:01:00Z', completed_at: '2026-08-01T08:01:00Z' },
     { id: 'intent-unknown', amount_minor: 100000, currency: 'TWD', reason: 'auto_top_up', provider: 'newebpay', payment_method_id: paymentMethod.id, state: 'unknown', requires_customer_action: false, correlation_id: 'ui-safe-reconcile', created_at: '2026-07-15T08:00:00Z', updated_at: '2026-07-15T08:01:00Z' },
@@ -324,7 +337,12 @@ async function handleCustomerResource(req, res, url) {
     const device = devices.find((item) => item.id === decodeURIComponent(deviceMatch[1]));
     return device ? send(res, 200, { device: { ...device, ...(await readBody(req)) } }) : send(res, 404, { error: 'device not found' });
   }
-  if (suffix === '/device-item-profiles' && req.method === 'GET') return send(res, 200, { device_item_profiles: mode === 'empty' ? [] : [profileFor(orgID)] });
+  if (suffix === '/device-item-profiles' && req.method === 'GET') {
+    const limit = Number(url.searchParams.get('limit') || 25);
+    const offset = Number(url.searchParams.get('offset') || 0);
+    const profiles = mode === 'empty' ? [] : [profileFor(orgID, orgID === developerSharingCloudID ? '33333333-3333-4333-8333-333333333333' : undefined)];
+    return send(res, 200, { device_item_profiles: profiles.slice(offset, offset + limit), pagination: { limit, offset, total: profiles.length } });
+  }
   if (suffix === '/device-item-profiles' && req.method === 'POST') {
     const body = await readBody(req);
     const profile = { ...profileFor(orgID, body.profile_key || `product-${orgID}-created`), ...body };
@@ -370,7 +388,7 @@ async function handleDeveloperResource(req, res, url) {
     if (!invitation || invitation.status !== 'pending' || new Date(invitation.expires_at) <= new Date()) return send(res, 404, { code: 'INVITATION_NOT_FOUND', message: 'Invitation is invalid or expired.' });
     invitation.status = 'accepted';
     invitation.accepted_at = new Date().toISOString();
-    const member = { organization_id: invitation.brand_cloud_id, user_id: invitation.target_user_id, email: invitation.target_email, role: invitation.role, capabilities: [] };
+    const member = { organization_id: invitation.brand_cloud_id, user_id: invitation.target_user_id, email: invitation.target_email, role: invitation.role, access_scope: invitation.access_scope, capabilities: [] };
     state.members.push(member);
     return send(res, 200, { invitation: publicInvitation(invitation), member });
   }
@@ -387,10 +405,15 @@ async function handleDeveloperResource(req, res, url) {
   const suffix = match[2] || '';
   const profile = customerProfile(req);
   const memberships = profile.brand_cloud_memberships || profile.organizations;
+  if (billingCloudIDs.includes(cloudID) && !suffix && req.method === 'GET') {
+    const cloud = memberships.find(item=>item.id===cloudID);
+    return cloud ? send(res,200,{brand_cloud:cloud}) : send(res,403,{code:'MEMBERSHIP_REQUIRED'});
+  }
   const clouds = state.brandClouds.map((brand) => ({ ...brand, role: 'owner', capabilities: memberships.find((item) => item.id === brand.id)?.capabilities || [] }));
   if (!cloudID && req.method === 'GET') return send(res, 200, { brand_clouds: clouds, pagination: { limit: 25, offset: 0, total: clouds.length }, developer_cloud_limit: 5 });
-  if (!clouds.some((brand) => brand.id === cloudID)) return send(res, 403, { code: 'MEMBERSHIP_REQUIRED', message: 'Current developer is not a member of this Brand Cloud.' });
-  if (!suffix && req.method === 'GET') return send(res, 200, { brand_cloud: clouds.find((brand) => brand.id === cloudID), membership: { organization_id: cloudID, user_id: 'customer-user', role: 'owner', capabilities: clouds.find((brand) => brand.id === cloudID).capabilities } });
+  const fixtureCloud = clouds.find((brand) => brand.id === cloudID) || (cloudID === developerSharingCloudID ? { ...clouds[0], id: cloudID, tenant_slug: 'brand-e2e-01', owner_user_id: 'developer-user', my_role: 'owner', role: 'owner', ownership_version: 1, capabilities: ['cloud.update', 'team.manage', 'billing_account.read', 'product.read', 'product.manage'] } : null);
+  if (!fixtureCloud) return send(res, 403, { code: 'MEMBERSHIP_REQUIRED', message: 'Current developer is not a member of this Brand Cloud.' });
+  if (!suffix && req.method === 'GET') return send(res, 200, { brand_cloud: fixtureCloud, membership: { organization_id: cloudID, user_id: 'developer-user', role: 'owner', capabilities: fixtureCloud.capabilities } });
   if (suffix === '/members' && req.method === 'GET') return send(res, 200, { members: state.members.filter((member) => member.organization_id === cloudID), pagination: { limit: 25, offset: 0, total: state.members.filter((member) => member.organization_id === cloudID).length } });
   if (suffix === '/members/invitations' && req.method === 'GET') return send(res, 200, { invitations: state.invitations.filter((invitation) => invitation.brand_cloud_id === cloudID).map(publicInvitation) });
   if (suffix === '/members/invitations' && req.method === 'POST') {
@@ -398,7 +421,7 @@ async function handleDeveloperResource(req, res, url) {
     const key = String(req.headers['idempotency-key'] || '');
     const replay = key && state.idempotency.get(`invite:${cloudID}:${key}`);
     if (replay) return send(res, 202, { invitation: publicInvitation(replay), idempotent_replay: true });
-    const invitation = { id: `invitation-${Date.now()}`, brand_cloud_id: cloudID, invited_by_user_id: 'developer-user', target_user_id: `invited-${Date.now()}`, target_email: body.email, role: body.role || 'member', status: 'pending', token: `member-token-${cloudID}-${body.email}`, expires_at: new Date(Date.now() + 1_800_000).toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    const invitation = { id: randomUUID(), brand_cloud_id: cloudID, invited_by_user_id: 'developer-user', target_user_id: randomUUID(), target_email: body.email, role: body.role || 'viewer', access_scope: body.access_scope, status: 'pending', token: `member-token-${cloudID}-${body.email}`, expires_at: new Date(Date.now() + 1_800_000).toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
     state.invitations.push(invitation);
     if (key) state.idempotency.set(`invite:${cloudID}:${key}`, invitation);
     return send(res, 202, { invitation: publicInvitation(invitation) });
@@ -427,7 +450,7 @@ async function handleDeveloperResource(req, res, url) {
     const key = String(req.headers['idempotency-key'] || '');
     const replay = key && state.idempotency.get(`transfer:${cloudID}:${key}`);
     if (replay) return send(res, 202, { owner_transfer: replay, idempotent_replay: true });
-    const transfer = { id: `transfer-${Date.now()}`, token: `owner-token-${cloudID}-${body.target_email}`, brand_cloud_id: cloudID, target_email: body.target_email, status: 'pending', expires_at: new Date(Date.now() + (mode === 'expired' ? -1 : 86_400_000)).toISOString() };
+    const transfer = { id: randomUUID(), token: `owner-token-${cloudID}-${body.target_email}`, brand_cloud_id: cloudID, target_email: body.target_email, status: 'pending', expires_at: new Date(Date.now() + (mode === 'expired' ? -1 : 86_400_000)).toISOString() };
     state.transfers.push(transfer);
     if (key) state.idempotency.set(`transfer:${cloudID}:${key}`, transfer);
     return send(res, 202, { owner_transfer: transfer });
@@ -513,7 +536,8 @@ function readBody(req) {
 
 function send(res, status, body, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
-  res.end(JSON.stringify(body));
+  // PDF/CSV contract fixtures must be bytes, not JSON-quoted strings.
+  res.end(headers['Content-Type'] && !headers['Content-Type'].includes('json') ? body : JSON.stringify(body));
 }
 
 process.on('SIGTERM', () => server.close(() => process.exit(0)));

@@ -14,33 +14,33 @@ import (
 	"rtk_cloud_admin/internal/config"
 )
 
-func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T) {
+func TestPaymentBFFUsesExplicitCloudAndForwardsControlHeaders(t *testing.T) {
 	t.Parallel()
 
 	var sawPolicyWrite bool
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
-		case "/v1/me":
+		case "/v1/developer/brand-clouds/11111111-1111-4111-8111-111111111111":
 			if r.Header.Get("Authorization") != "Bearer customer-access" {
 				t.Fatalf("me authorization = %q", r.Header.Get("Authorization"))
 			}
-			_, _ = w.Write([]byte(`{"user":{"id":"u1","email":"owner@example.com"},"organizations":[{"id":"org-safe","name":"Safe Org","role":"owner","permissions":["billing_account.read","billing_ledger.read","payment_method.read","payment_method.manage","payment_intent.read","payment_intent.create","auto_topup.read","auto_topup.manage"]},{"id":"org-other","name":"Other Org","role":"owner"}]}`))
-		case "/v1/orgs/org-safe/billing/account":
-			_, _ = w.Write([]byte(`{"account":{"id":"acct-1","organization_id":"org-safe","currency":"TWD","available_balance_minor":125000,"state":"active","version":3,"created_at":"2026-08-01T00:00:00Z","updated_at":"2026-08-01T00:00:00Z"},"auto_topup":null}`))
-		case "/v1/orgs/org-safe/billing/ledger":
+			_, _ = w.Write([]byte(`{"brand_cloud":{"id":"11111111-1111-4111-8111-111111111111","owner_user_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","my_role":"owner","ownership_version":7,"capabilities":["billing_account.read","billing_ledger.read","payment_method.read","payment_method.manage","payment_intent.read","payment_intent.create","auto_topup.read","auto_topup.manage"]}}`))
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/account":
+			_, _ = w.Write([]byte(`{"account":{"id":"acct-1","organization_id":"11111111-1111-4111-8111-111111111111","currency":"TWD","available_balance_minor":125000,"state":"active","version":3,"created_at":"2026-08-01T00:00:00Z","updated_at":"2026-08-01T00:00:00Z"},"auto_topup":null}`))
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/billing/ledger":
 			if r.URL.Query().Get("limit") != "25" || r.URL.Query().Get("ignored") != "" {
 				t.Fatalf("ledger query=%s", r.URL.RawQuery)
 			}
 			_, _ = w.Write([]byte(`{"ledger_entries":[],"pagination":{"limit":25,"offset":0,"total":0}}`))
-		case "/v1/orgs/org-safe/payment-methods":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/payment-methods":
 			_, _ = w.Write([]byte(`{"payment_methods":[{"id":"method-1","provider":"newebpay","status":"active","last_four":"4242","capabilities":{}}],"pagination":{"limit":25,"offset":0,"total":1}}`))
-		case "/v1/orgs/org-safe/payment-methods/method-1":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/payment-methods/method-1":
 			if r.Method != http.MethodDelete {
 				t.Fatalf("payment method method=%s", r.Method)
 			}
 			_, _ = w.Write([]byte(`{"payment_method":{"id":"method-1","status":"revoked"},"policy_disabled":true,"duplicate":false}`))
-		case "/v1/orgs/org-safe/auto-topup":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/auto-topup":
 			switch r.Method {
 			case http.MethodGet:
 				w.Header().Set("ETag", `"3"`)
@@ -68,13 +68,13 @@ func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T)
 			default:
 				t.Fatalf("auto-topup method = %s", r.Method)
 			}
-		case "/v1/orgs/org-safe/topups":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/topups":
 			if r.Header.Get("Idempotency-Key") != "topup-bff-1" {
 				t.Fatalf("topup idempotency=%q", r.Header.Get("Idempotency-Key"))
 			}
 			w.WriteHeader(http.StatusAccepted)
 			_, _ = w.Write([]byte(`{"payment_intent":{"id":"intent-1","state":"created"},"duplicate":false}`))
-		case "/v1/orgs/org-safe/topups/checkout":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/topups/checkout":
 			if r.Header.Get("Idempotency-Key") != "checkout-bff-1" {
 				t.Fatalf("checkout idempotency=%q", r.Header.Get("Idempotency-Key"))
 			}
@@ -84,9 +84,9 @@ func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T)
 			}
 			w.WriteHeader(http.StatusAccepted)
 			_, _ = w.Write([]byte(`{"payment_intent":{"id":"intent-hosted","state":"processing"},"payment_action":{"method":"POST","url":"https://ccore.newebpay.com/MPG/mpg_gateway","fields":{"TradeInfo":"encrypted"}}}`))
-		case "/v1/orgs/org-safe/payment-intents":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/payment-intents":
 			_, _ = w.Write([]byte(`{"payment_intents":[{"id":"intent-1","state":"created"}],"pagination":{"limit":25,"offset":0,"total":1}}`))
-		case "/v1/orgs/org-safe/payment-intents/intent-1":
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/payment-intents/intent-1":
 			_, _ = w.Write([]byte(`{"payment_intent":{"id":"intent-1","state":"created"},"attempts":[]}`))
 		default:
 			t.Fatalf("unexpected upstream path: %s", r.URL.Path)
@@ -95,7 +95,7 @@ func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T)
 	defer upstream.Close()
 
 	st := mustOpenStore(t)
-	session, err := st.CreateSession("customer", "u1", "owner@example.com", "customer-access", "customer-refresh", "org-safe", time.Hour)
+	session, err := st.CreateSession("customer", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "owner@example.com", "customer-access", "customer-refresh", "11111111-1111-4111-8111-111111111111", time.Hour)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -104,11 +104,13 @@ func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T)
 		AccountClient: accountclient.New(upstream.URL), BillingClient: billingclient.New(upstream.URL, strings.Repeat("b", 32)),
 	})
 
-	accountRequest := httptest.NewRequest(http.MethodGet, "/api/billing/account?organization_id=org-other", nil)
+	accountRequest := httptest.NewRequest(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/account?organization_id=org-other", nil)
+	accountRequest.Header.Set("Content-Type", "application/json")
+	accountRequest.Header.Set("X-Cloud-Ownership-Version", "7")
 	accountRequest.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	accountResponse := httptest.NewRecorder()
 	srv.ServeHTTP(accountResponse, accountRequest)
-	if accountResponse.Code != http.StatusOK || !strings.Contains(accountResponse.Body.String(), `"organization_id":"org-safe"`) {
+	if accountResponse.Code != http.StatusOK || !strings.Contains(accountResponse.Body.String(), `"organization_id":"11111111-1111-4111-8111-111111111111"`) {
 		t.Fatalf("billing account status=%d body=%s", accountResponse.Code, accountResponse.Body.String())
 	}
 	request := func(method, target, body string, headers map[string]string) *httptest.ResponseRecorder {
@@ -121,62 +123,66 @@ func TestPaymentBFFUsesActiveOrganizationAndForwardsControlHeaders(t *testing.T)
 		for key, value := range headers {
 			req.Header.Set(key, value)
 		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Cloud-Ownership-Version", "7")
 		req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 		response := httptest.NewRecorder()
 		srv.ServeHTTP(response, req)
 		return response
 	}
-	if response := request(http.MethodGet, "/api/billing/ledger?limit=25&offset=0&ignored=secret", "", nil); response.Code != http.StatusOK {
+	if response := request(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/ledger?limit=25&offset=0&ignored=secret", "", nil); response.Code != http.StatusOK {
 		t.Fatalf("ledger status/body=%d/%s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodGet, "/api/billing/summary", "", nil); response.Code != http.StatusForbidden {
+	if response := request(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/summary", "", nil); response.Code != http.StatusForbidden {
 		t.Fatalf("missing summary capability status/body=%d/%s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodGet, "/api/billing/payment-methods", "", nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "4242") {
+	if response := request(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/payment-methods", "", nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "4242") {
 		t.Fatalf("methods status/body=%d/%s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodGet, "/api/billing/auto-topup", "", nil); response.Code != http.StatusOK || response.Header().Get("ETag") != `"3"` {
+	if response := request(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/auto-topup", "", nil); response.Code != http.StatusOK || response.Header().Get("ETag") != `"3"` {
 		t.Fatalf("auto-topup status/body/etag=%d/%s/%q", response.Code, response.Body.String(), response.Header().Get("ETag"))
 	}
-	if response := request(http.MethodPut, "/api/billing/auto-topup", `{}`, nil); response.Code != http.StatusPreconditionRequired || !strings.Contains(response.Body.String(), "AUTO_TOPUP_POLICY_CONFLICT") {
+	if response := request(http.MethodPut, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/auto-topup", `{}`, nil); response.Code != http.StatusPreconditionRequired || !strings.Contains(response.Body.String(), "AUTO_TOPUP_POLICY_CONFLICT") {
 		t.Fatalf("missing If-Match status/body=%d/%s", response.Code, response.Body.String())
 	}
 
 	policyBody := `{"enabled":true,"threshold_minor":50000,"top_up_amount_minor":100000,"currency":"TWD","payment_method_id":"method-1","daily_attempt_limit":3,"daily_amount_limit_minor":300000,"cooldown_seconds":3600,"consent":{"accepted":true,"text_version":"v1","text_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","locale":"zh-TW"}}`
-	policyRequest := httptest.NewRequest(http.MethodPut, "/api/billing/auto-topup", strings.NewReader(policyBody))
+	policyRequest := httptest.NewRequest(http.MethodPut, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/auto-topup", strings.NewReader(policyBody))
 	policyRequest.Header.Set("If-Match", `"3"`)
 	policyRequest.Header.Set("X-Request-Id", "request-payment-1")
+	policyRequest.Header.Set("Content-Type", "application/json")
+	policyRequest.Header.Set("X-Cloud-Ownership-Version", "7")
 	policyRequest.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	policyResponse := httptest.NewRecorder()
 	srv.ServeHTTP(policyResponse, policyRequest)
 	if policyResponse.Code != http.StatusOK || policyResponse.Header().Get("ETag") != `"4"` || !sawPolicyWrite {
 		t.Fatalf("policy status=%d etag=%q body=%s", policyResponse.Code, policyResponse.Header().Get("ETag"), policyResponse.Body.String())
 	}
-	if response := request(http.MethodDelete, "/api/billing/auto-topup", `{"reason":"customer paused"}`, map[string]string{"If-Match": `"4"`}); response.Code != http.StatusOK || response.Header().Get("ETag") != `"5"` {
+	if response := request(http.MethodDelete, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/auto-topup", `{"reason":"customer paused"}`, map[string]string{"If-Match": `"4"`}); response.Code != http.StatusOK || response.Header().Get("ETag") != `"5"` {
 		t.Fatalf("disable status/body/etag=%d/%s/%q", response.Code, response.Body.String(), response.Header().Get("ETag"))
 	}
-	if response := request(http.MethodDelete, "/api/billing/payment-methods/method-1", `{"reason":"customer revoked method"}`, nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"policy_disabled":true`) {
+	if response := request(http.MethodDelete, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/payment-methods/method-1", `{"reason":"customer revoked method"}`, nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"policy_disabled":true`) {
 		t.Fatalf("revoke status/body=%d/%s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodDelete, "/api/billing/payment-methods/method-1", `{"reason":"x"}`, nil); response.Code != http.StatusBadRequest {
+	if response := request(http.MethodDelete, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/payment-methods/method-1", `{"reason":"x"}`, nil); response.Code != http.StatusBadRequest {
 		t.Fatalf("short revoke reason status/body=%d/%s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodDelete, "/api/billing/auto-topup", `{"reason":"x"}`, map[string]string{"If-Match": `"5"`}); response.Code != http.StatusBadRequest {
+	if response := request(http.MethodDelete, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/auto-topup", `{"reason":"x"}`, map[string]string{"If-Match": `"5"`}); response.Code != http.StatusBadRequest {
 		t.Fatalf("short disable reason status/body=%d/%s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodPost, "/api/billing/topups", `{"amount_minor":`, map[string]string{"Idempotency-Key": "topup-malformed"}); response.Code != http.StatusBadRequest {
+	if response := request(http.MethodPost, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/topups", `{"amount_minor":`, map[string]string{"Idempotency-Key": "topup-malformed"}); response.Code != http.StatusBadRequest {
 		t.Fatalf("malformed topup status/body=%d/%s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodPost, "/api/billing/topups", `{"amount_minor":10000,"currency":"TWD","payment_method_id":"method-1"}`, map[string]string{"Idempotency-Key": "topup-bff-1"}); response.Code != http.StatusAccepted {
+	if response := request(http.MethodPost, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/topups", `{"amount_minor":10000,"currency":"TWD","payment_method_id":"method-1"}`, map[string]string{"Idempotency-Key": "topup-bff-1"}); response.Code != http.StatusAccepted {
 		t.Fatalf("topup status/body=%d/%s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodPost, "/api/billing/topups/checkout", `{"amount_minor":10000,"currency":"TWD","provider":"newebpay"}`, map[string]string{"Idempotency-Key": "checkout-bff-1"}); response.Code != http.StatusAccepted || !strings.Contains(response.Body.String(), `"TradeInfo":"encrypted"`) {
+	if response := request(http.MethodPost, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/topups/checkout", `{"amount_minor":10000,"currency":"TWD","provider":"newebpay"}`, map[string]string{"Idempotency-Key": "checkout-bff-1"}); response.Code != http.StatusAccepted || !strings.Contains(response.Body.String(), `"TradeInfo":"encrypted"`) {
 		t.Fatalf("checkout status/body=%d/%s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodGet, "/api/billing/payment-intents?limit=25", "", nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "intent-1") {
+	if response := request(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/payment-intents?limit=25", "", nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "intent-1") {
 		t.Fatalf("intents status/body=%d/%s", response.Code, response.Body.String())
 	}
-	if response := request(http.MethodGet, "/api/billing/payment-intents/intent-1", "", nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "intent-1") {
+	if response := request(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/payment-intents/intent-1", "", nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "intent-1") {
 		t.Fatalf("intent status/body=%d/%s", response.Code, response.Body.String())
 	}
 }
@@ -187,9 +193,9 @@ func TestPaymentBFFRejectsCardFieldsAndRedactsUpstreamFailure(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
-		case "/v1/me":
-			_, _ = w.Write([]byte(`{"user":{"id":"u1"},"organizations":[{"id":"org-safe","name":"Safe Org","role":"owner","permissions":["payment_method.manage"]}]}`))
-		case "/v1/orgs/org-safe/payment-methods/setup":
+		case "/v1/developer/brand-clouds/11111111-1111-4111-8111-111111111111":
+			_, _ = w.Write([]byte(`{"brand_cloud":{"id":"11111111-1111-4111-8111-111111111111","owner_user_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","my_role":"owner","ownership_version":7,"capabilities":["payment_method.manage"]}}`))
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/payment-methods/setup":
 			var request struct {
 				Provider string `json:"provider"`
 				Consent  struct {
@@ -209,7 +215,7 @@ func TestPaymentBFFRejectsCardFieldsAndRedactsUpstreamFailure(t *testing.T) {
 	defer upstream.Close()
 
 	st := mustOpenStore(t)
-	session, err := st.CreateSession("customer", "u1", "owner@example.com", "customer-access", "customer-refresh", "org-safe", time.Hour)
+	session, err := st.CreateSession("customer", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "owner@example.com", "customer-access", "customer-refresh", "11111111-1111-4111-8111-111111111111", time.Hour)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -218,7 +224,9 @@ func TestPaymentBFFRejectsCardFieldsAndRedactsUpstreamFailure(t *testing.T) {
 		AccountClient: accountclient.New(upstream.URL), BillingClient: billingclient.New(upstream.URL, strings.Repeat("b", 32)),
 	})
 
-	missingKeyRequest := httptest.NewRequest(http.MethodPost, "/api/billing/payment-methods/setup", strings.NewReader(`{"provider":"newebpay","consent":{"accepted":true,"text_version":"payment-method-v1","text_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","locale":"zh-TW"}}`))
+	missingKeyRequest := httptest.NewRequest(http.MethodPost, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/payment-methods/setup", strings.NewReader(`{"provider":"newebpay","consent":{"accepted":true,"text_version":"payment-method-v1","text_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","locale":"zh-TW"}}`))
+	missingKeyRequest.Header.Set("Content-Type", "application/json")
+	missingKeyRequest.Header.Set("X-Cloud-Ownership-Version", "7")
 	missingKeyRequest.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	missingKeyResponse := httptest.NewRecorder()
 	srv.ServeHTTP(missingKeyResponse, missingKeyRequest)
@@ -226,8 +234,10 @@ func TestPaymentBFFRejectsCardFieldsAndRedactsUpstreamFailure(t *testing.T) {
 		t.Fatalf("missing idempotency key status=%d body=%s", missingKeyResponse.Code, missingKeyResponse.Body.String())
 	}
 
-	unsafeRequest := httptest.NewRequest(http.MethodPost, "/api/billing/payment-methods/setup", strings.NewReader(`{"provider":"newebpay","card_number":"4111111111111111","cvv":"123"}`))
+	unsafeRequest := httptest.NewRequest(http.MethodPost, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/payment-methods/setup", strings.NewReader(`{"provider":"newebpay","card_number":"4111111111111111","cvv":"123"}`))
 	unsafeRequest.Header.Set("Idempotency-Key", "setup-unsafe")
+	unsafeRequest.Header.Set("Content-Type", "application/json")
+	unsafeRequest.Header.Set("X-Cloud-Ownership-Version", "7")
 	unsafeRequest.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	unsafeResponse := httptest.NewRecorder()
 	srv.ServeHTTP(unsafeResponse, unsafeRequest)
@@ -235,8 +245,10 @@ func TestPaymentBFFRejectsCardFieldsAndRedactsUpstreamFailure(t *testing.T) {
 		t.Fatalf("unsafe setup status=%d body=%s", unsafeResponse.Code, unsafeResponse.Body.String())
 	}
 
-	safeRequest := httptest.NewRequest(http.MethodPost, "/api/billing/payment-methods/setup", strings.NewReader(`{"provider":"newebpay","consent":{"accepted":true,"text_version":"payment-method-v1","text_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","locale":"zh-TW"}}`))
+	safeRequest := httptest.NewRequest(http.MethodPost, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/payment-methods/setup", strings.NewReader(`{"provider":"newebpay","consent":{"accepted":true,"text_version":"payment-method-v1","text_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","locale":"zh-TW"}}`))
 	safeRequest.Header.Set("Idempotency-Key", "setup-safe")
+	safeRequest.Header.Set("Content-Type", "application/json")
+	safeRequest.Header.Set("X-Cloud-Ownership-Version", "7")
 	safeRequest.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	safeResponse := httptest.NewRecorder()
 	srv.ServeHTTP(safeResponse, safeRequest)
@@ -248,7 +260,7 @@ func TestPaymentBFFRejectsCardFieldsAndRedactsUpstreamFailure(t *testing.T) {
 	}
 
 	unauthenticated := httptest.NewRecorder()
-	srv.ServeHTTP(unauthenticated, httptest.NewRequest(http.MethodGet, "/api/billing/account", nil))
+	srv.ServeHTTP(unauthenticated, httptest.NewRequest(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/account", nil))
 	if unauthenticated.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated status=%d", unauthenticated.Code)
 	}
@@ -274,7 +286,7 @@ func TestPaymentBFFValidationAndStableErrors(t *testing.T) {
 		})
 	}
 
-	queryRequest := httptest.NewRequest(http.MethodGet, "/api/billing/ledger?limit=%2025%20&offset=0&provider_secret=hidden", nil)
+	queryRequest := httptest.NewRequest(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/ledger?limit=%2025%20&offset=0&provider_secret=hidden", nil)
 	if got := boundedPaymentQuery(queryRequest).Encode(); got != "limit=25&offset=0" {
 		t.Fatalf("bounded query = %q", got)
 	}
@@ -291,6 +303,7 @@ func TestPaymentBFFValidationAndStableErrors(t *testing.T) {
 	} {
 		t.Run("decode "+test.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/json")
 			response := httptest.NewRecorder()
 			var destination struct {
 				Reason string `json:"reason"`
@@ -324,7 +337,9 @@ func TestPaymentBFFValidationAndStableErrors(t *testing.T) {
 		t.Fatalf("CreateSession: %v", err)
 	}
 	srv := NewWithOptions(st, Options{})
-	disabledRequest := httptest.NewRequest(http.MethodGet, "/api/billing/account", nil)
+	disabledRequest := httptest.NewRequest(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/account", nil)
+	disabledRequest.Header.Set("Content-Type", "application/json")
+	disabledRequest.Header.Set("X-Cloud-Ownership-Version", "7")
 	disabledRequest.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
 	disabledResponse := httptest.NewRecorder()
 	srv.ServeHTTP(disabledResponse, disabledRequest)
@@ -335,7 +350,7 @@ func TestPaymentBFFValidationAndStableErrors(t *testing.T) {
 	response := httptest.NewRecorder()
 	srv.writePaymentBFFError(response, "missing-session", &billingclient.HTTPError{
 		Method:     http.MethodPost,
-		Path:       "/v1/orgs/org-safe/payment-methods/setup",
+		Path:       "/v1/orgs/11111111-1111-4111-8111-111111111111/payment-methods/setup",
 		StatusCode: http.StatusServiceUnavailable,
 		Body:       `{"code":"PAYMENT_REFERENCE_PROTECTION_UNCONFIGURED","message":"Payment reference protection is unavailable.","provider_secret":"must-not-leak"}`,
 	})

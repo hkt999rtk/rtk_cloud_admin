@@ -258,22 +258,37 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/me", s.apiMe)
 	s.mux.HandleFunc("POST /api/me/active-org", s.apiActiveOrg)
 	s.mux.HandleFunc("POST /api/me/view", s.apiAccountView)
-	s.mux.HandleFunc("GET /api/developer/brand-clouds", s.apiDeveloperBrandClouds)
-	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}", s.apiDeveloperBrandCloud)
-	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members", s.apiDeveloperBrandCloudMembers)
-	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiDeveloperBrandCloudInvitations)
-	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiDeveloperBrandCloudInvitation)
-	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/members/invitations/{invitationID}/{action}", s.apiDeveloperBrandCloudInvitationAction)
-	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiDeveloperBrandCloudMember)
-	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/members/{userID}/{action}", s.apiDeveloperBrandCloudMemberAction)
-	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiDeveloperBrandCloudMember)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds", s.apiManagedCloud)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds", s.apiManagedCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}", s.apiManagedCloud)
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}", s.apiManagedCloud)
+	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}", s.apiManagedCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/deletion-preflight", s.apiManagedCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/operations/{operationID}", s.apiManagedCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products", s.apiManagedCloudProducts)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}", s.apiManagedCloudProducts)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/products", s.apiManagedCloudProducts)
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/products/{productID}", s.apiManagedCloudProducts)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/products/{productID}/disable", s.apiManagedCloudProducts)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}/devices", s.apiProductDevices)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}/devices/{deviceID}", s.apiProductDevices)
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/products/{productID}/devices/{deviceID}", s.apiProductDevices)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members", s.apiCloudSharing)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiCloudSharing)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/members/invitations", s.apiCloudSharing)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/members/invitations/{invitationID}/{action}", s.apiCloudSharing)
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiCloudSharing)
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/members/{userID}/{action}", s.apiCloudSharing)
+	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiCloudSharing)
 	s.mux.HandleFunc("GET /api/developer/chipsets", s.apiDeveloperChipsets)
 	s.mux.HandleFunc("GET /api/developer/chipsets/{chipsetId}", s.apiDeveloperChipset)
-	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer", s.apiDeveloperOwnerTransfer)
-	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}", s.apiDeveloperOwnerTransfer)
-	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel", s.apiDeveloperOwnerTransfer)
-	s.mux.HandleFunc("POST /api/developer/brand-cloud-owner-transfers/accept", s.apiDeveloperOwnerTransferAccept)
-	s.mux.HandleFunc("POST /api/developer/brand-cloud-member-invitations/accept", s.apiDeveloperBrandCloudInvitationAccept)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer", s.apiOwnerHandoff)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}", s.apiOwnerHandoff)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/preview", s.apiOwnerHandoff)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/confirm", s.apiOwnerHandoff)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/cancel", s.apiOwnerHandoff)
+	s.mux.HandleFunc("POST /api/developer/brand-cloud-owner-transfers/accept", s.apiOwnerHandoff)
+	s.mux.HandleFunc("POST /api/developer/brand-cloud-member-invitations/accept", s.apiCloudSharing)
 	s.mux.HandleFunc("POST /api/developer/product-collaborator-invitations/accept", s.apiProductCollaboratorInvitationAccept)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/app", s.apiDeveloperPKITestAppBundle)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/device", s.apiDeveloperPKITestDeviceBundle)
@@ -290,28 +305,28 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/auth/sso/callback", s.apiSSOCallback)
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
 	s.mux.HandleFunc("POST /api/orgs/{orgId}/quota-raise-requests", s.apiQuotaRaiseRequest)
-	s.mux.HandleFunc("GET /api/billing/account", s.apiBillingAccount)
-	s.mux.HandleFunc("GET /api/billing/summary", s.apiBillingSummary)
-	s.mux.HandleFunc("GET /api/billing/usage", s.apiBillingUsage)
-	s.mux.HandleFunc("GET /api/billing/invoices", s.apiBillingInvoices)
-	s.mux.HandleFunc("GET /api/billing/invoices/{invoiceId}", s.apiBillingInvoice)
-	s.mux.HandleFunc("GET /api/billing/invoices/{invoiceId}/pdf", s.apiBillingInvoicePDF)
-	s.mux.HandleFunc("GET /api/billing/activity", s.apiBillingActivity)
-	s.mux.HandleFunc("GET /api/billing/activity/{activityId}", s.apiBillingActivityDetail)
-	s.mux.HandleFunc("GET /api/billing/profile", s.apiBillingProfile)
-	s.mux.HandleFunc("PUT /api/billing/profile", s.apiBillingProfile)
-	s.mux.HandleFunc("GET /api/billing/statements", s.apiBillingStatement)
-	s.mux.HandleFunc("GET /api/billing/ledger", s.apiBillingLedger)
-	s.mux.HandleFunc("GET /api/billing/payment-methods", s.apiPaymentMethods)
-	s.mux.HandleFunc("POST /api/billing/payment-methods/setup", s.apiPaymentMethods)
-	s.mux.HandleFunc("DELETE /api/billing/payment-methods/{methodId}", s.apiPaymentMethod)
-	s.mux.HandleFunc("GET /api/billing/auto-topup", s.apiAutoTopUp)
-	s.mux.HandleFunc("PUT /api/billing/auto-topup", s.apiAutoTopUp)
-	s.mux.HandleFunc("DELETE /api/billing/auto-topup", s.apiAutoTopUp)
-	s.mux.HandleFunc("POST /api/billing/topups", s.apiManualTopUp)
-	s.mux.HandleFunc("POST /api/billing/topups/checkout", s.apiHostedTopUp)
-	s.mux.HandleFunc("GET /api/billing/payment-intents", s.apiPaymentIntents)
-	s.mux.HandleFunc("GET /api/billing/payment-intents/{intentId}", s.apiPaymentIntent)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/account", s.apiBillingAccount)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/summary", s.apiBillingSummary)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/usage", s.apiBillingUsage)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/invoices", s.apiBillingInvoices)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/invoices/{invoiceId}", s.apiBillingInvoice)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/invoices/{invoiceId}/pdf", s.apiBillingInvoicePDF)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/activity", s.apiBillingActivity)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/activity/{activityId}", s.apiBillingActivityDetail)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/profile", s.apiBillingProfile)
+	s.mux.HandleFunc("PUT /api/developer/brand-clouds/{brandCloudID}/billing/profile", s.apiBillingProfile)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/statements", s.apiBillingStatement)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/ledger", s.apiBillingLedger)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/payment-methods", s.apiPaymentMethods)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/billing/payment-methods/setup", s.apiPaymentMethods)
+	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/billing/payment-methods/{methodId}", s.apiPaymentMethod)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/auto-topup", s.apiAutoTopUp)
+	s.mux.HandleFunc("PUT /api/developer/brand-clouds/{brandCloudID}/billing/auto-topup", s.apiAutoTopUp)
+	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/billing/auto-topup", s.apiAutoTopUp)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/billing/topups", s.apiManualTopUp)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/billing/topups/checkout", s.apiHostedTopUp)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/payment-intents", s.apiPaymentIntents)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/payment-intents/{intentId}", s.apiPaymentIntent)
 	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
 	s.mux.HandleFunc("GET /api/devices", s.apiDevices)
@@ -407,6 +422,9 @@ func (s *Server) routes() {
 		"/signup/verify",
 		"/signup/verify/",
 		"/verify",
+		"/brand-cloud-owner-transfer/accept",
+		"/brand-cloud-member-invitation/accept",
+		"/product-collaborator-invitation/accept",
 		"/console",
 		"/console/overview",
 		"/console/devices",
@@ -702,9 +720,9 @@ func (s *Server) apiAccountView(w http.ResponseWriter, r *http.Request) {
 	kind := ""
 	switch view {
 	case "customer":
-		if len(me.Memberships()) > 0 {
-			kind = "customer"
-		}
+		// Global accounts with no current memberships can enter My Clouds and
+		// create an owned cloud; this does not grant any cloud resource capability.
+		kind = "customer"
 	case "platform":
 		if hasAnyPlatformCapability(me.EffectivePlatformCapabilities()) {
 			kind = "platform_admin"
@@ -780,143 +798,6 @@ func (s *Server) apiActiveOrg(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"active_org_id": body.OrganizationID})
 }
 
-func (s *Server) apiDeveloperBrandClouds(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if !s.accountClient.Enabled() {
-		writeJSON(w, map[string]any{"brand_clouds": []accountclient.BrandCloud{}, "pagination": accountclient.Pagination{}, "source_status": "unconfigured"})
-		return
-	}
-	clouds, page, cloudLimit, err := s.accountClient.DeveloperBrandClouds(r.Context(), session.AccessToken, r.URL.Query())
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"brand_clouds": clouds, "pagination": page, "developer_cloud_limit": cloudLimit, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloud(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	cloud, membership, err := s.accountClient.DeveloperBrandCloud(r.Context(), session.AccessToken, r.PathValue("brandCloudID"))
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"brand_cloud": cloud, "membership": membership, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudMembers(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	members, page, err := s.accountClient.DeveloperBrandCloudMembers(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.URL.Query())
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"members": members, "pagination": page, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudInvitation(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if _, keyOK := requireIdempotencyKey(w, r); !keyOK {
-		return
-	}
-	var body struct {
-		Email string `json:"email"`
-		Role  string `json:"role"`
-	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || strings.TrimSpace(body.Email) == "" || strings.TrimSpace(body.Role) == "" {
-		http.Error(w, "invalid invitation request", http.StatusBadRequest)
-		return
-	}
-	invitation, err := s.accountClient.InviteDeveloperBrandCloudMember(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), strings.TrimSpace(body.Email), strings.TrimSpace(body.Role))
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSONStatus(w, http.StatusAccepted, map[string]any{"invitation": invitation, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudInvitations(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	invitations, err := s.accountClient.DeveloperBrandCloudMemberInvitations(r.Context(), session.AccessToken, r.PathValue("brandCloudID"))
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"invitations": invitations, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudInvitationAction(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if _, ok := requireIdempotencyKey(w, r); !ok {
-		return
-	}
-	cloudID, invitationID, action := r.PathValue("brandCloudID"), r.PathValue("invitationID"), r.PathValue("action")
-	var invitation accountclient.BrandCloudMemberInvitation
-	var err error
-	switch action {
-	case "resend":
-		invitation, err = s.accountClient.ResendDeveloperBrandCloudMemberInvitation(r.Context(), session.AccessToken, cloudID, invitationID)
-	case "cancel":
-		invitation, err = s.accountClient.CancelDeveloperBrandCloudMemberInvitation(r.Context(), session.AccessToken, cloudID, invitationID)
-	default:
-		http.NotFound(w, r)
-		return
-	}
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"invitation": invitation, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudInvitationAccept(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.requestSession(r)
-	if !ok || (session.Kind != "customer" && session.Kind != "platform_admin") || strings.TrimSpace(session.AccessToken) == "" {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if _, ok := requireIdempotencyKey(w, r); !ok {
-		return
-	}
-	var body struct {
-		Token string `json:"token"`
-	}
-	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.Token) == "" {
-		http.Error(w, "token is required", http.StatusBadRequest)
-		return
-	}
-	invitation, member, err := s.accountClient.AcceptDeveloperBrandCloudMemberInvitation(r.Context(), session.AccessToken, strings.TrimSpace(body.Token))
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"invitation": invitation, "member": member, "source_status": "available"})
-}
-
 func (s *Server) apiProductCollaboratorInvitationAccept(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.requestSession(r)
 	if !ok || strings.TrimSpace(session.AccessToken) == "" {
@@ -939,122 +820,6 @@ func (s *Server) apiProductCollaboratorInvitationAccept(w http.ResponseWriter, r
 		return
 	}
 	writeJSON(w, map[string]any{"invitation": invitation, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperBrandCloudMember(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if _, keyOK := requireIdempotencyKey(w, r); !keyOK {
-		return
-	}
-	var err error
-	if r.Method == http.MethodPatch {
-		var body struct {
-			Role string `json:"role"`
-		}
-		if decodeErr := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); decodeErr != nil || strings.TrimSpace(body.Role) == "" {
-			http.Error(w, "invalid member request", http.StatusBadRequest)
-			return
-		}
-		var member accountclient.Member
-		member, err = s.accountClient.UpdateDeveloperBrandCloudMember(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.PathValue("userID"), body.Role)
-		if err == nil {
-			writeJSON(w, map[string]any{"member": member, "source_status": "available"})
-		}
-	} else {
-		err = s.accountClient.RemoveDeveloperBrandCloudMember(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.PathValue("userID"))
-		if err == nil {
-			w.WriteHeader(http.StatusNoContent)
-		}
-	}
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-	}
-}
-
-func (s *Server) apiDeveloperBrandCloudMemberAction(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	_, ok = requireIdempotencyKey(w, r)
-	if !ok {
-		return
-	}
-	member, err := s.accountClient.SetDeveloperBrandCloudMemberStatus(r.Context(), session.AccessToken, r.PathValue("brandCloudID"), r.PathValue("userID"), r.PathValue("action") == "enable")
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"member": member, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperOwnerTransfer(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if r.Method != http.MethodGet {
-		if _, ok := requireIdempotencyKey(w, r); !ok {
-			return
-		}
-	}
-	var transfer accountclient.OwnerTransfer
-	var err error
-	cloudID, transferID := r.PathValue("brandCloudID"), r.PathValue("transferID")
-	switch {
-	case r.Method == http.MethodPost && transferID == "":
-		var body struct {
-			TargetEmail string `json:"target_email"`
-		}
-		if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.TargetEmail) == "" {
-			http.Error(w, "target_email is required", http.StatusBadRequest)
-			return
-		}
-		transfer, err = s.accountClient.RequestDeveloperOwnerTransfer(r.Context(), session.AccessToken, cloudID, strings.TrimSpace(body.TargetEmail))
-	case r.Method == http.MethodGet:
-		transfer, err = s.accountClient.DeveloperOwnerTransfer(r.Context(), session.AccessToken, cloudID, transferID)
-	default:
-		transfer, err = s.accountClient.CancelDeveloperOwnerTransfer(r.Context(), session.AccessToken, cloudID, transferID)
-	}
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	status := http.StatusOK
-	if transferID == "" {
-		status = http.StatusAccepted
-	}
-	writeJSONStatus(w, status, map[string]any{"owner_transfer": transfer, "source_status": "available"})
-}
-
-func (s *Server) apiDeveloperOwnerTransferAccept(w http.ResponseWriter, r *http.Request) {
-	session, ok := s.customerSession(r)
-	if !ok {
-		http.Error(w, "developer authentication required", http.StatusUnauthorized)
-		return
-	}
-	if _, ok := requireIdempotencyKey(w, r); !ok {
-		return
-	}
-	var body struct {
-		Token string `json:"token"`
-	}
-	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body) != nil || strings.TrimSpace(body.Token) == "" {
-		http.Error(w, "token is required", http.StatusBadRequest)
-		return
-	}
-	transfer, err := s.accountClient.AcceptDeveloperOwnerTransfer(r.Context(), session.AccessToken, strings.TrimSpace(body.Token))
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	writeJSON(w, map[string]any{"owner_transfer": transfer, "source_status": "available"})
 }
 
 func (s *Server) apiCustomerSignup(w http.ResponseWriter, r *http.Request) {
@@ -1419,7 +1184,7 @@ func selectAccountView(next string, hasMembership, hasPlatformCapability bool) s
 	if hasPlatformCapability {
 		return "platform_admin"
 	}
-	return ""
+	return "customer" // My Clouds supports an eligible global account's empty state.
 }
 
 func (s *Server) createSessionFromActivatedLogin(ctx context.Context, login accountclient.LoginResult) (store.Session, string, error) {

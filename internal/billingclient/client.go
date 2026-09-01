@@ -278,15 +278,21 @@ func (c *Client) BillingDownload(ctx context.Context, actorID, orgID, suffix str
 		return BillingDownload{}, err
 	}
 	c.headers(req, actorID, downloadPermission(suffix))
+	if err := ownershipHeaders(req, actorID); err != nil {
+		return BillingDownload{}, err
+	}
 	correlation.ApplyHeaders(ctx, req)
 	response, err := c.httpClient.Do(req)
 	if err != nil {
 		return BillingDownload{}, err
 	}
 	defer response.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(response.Body, 20<<20))
+	body, err := io.ReadAll(io.LimitReader(response.Body, (20<<20)+1))
 	if err != nil {
 		return BillingDownload{}, err
+	}
+	if len(body) > 20<<20 {
+		return BillingDownload{}, fmt.Errorf("billing download exceeds size limit")
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return BillingDownload{}, &HTTPError{Method: "GET", Path: path, StatusCode: response.StatusCode, Body: strings.TrimSpace(string(body))}
@@ -320,6 +326,9 @@ func (c *Client) doHeaders(ctx context.Context, method, path, actorID, permissio
 	c.headers(req, actorID, permission)
 	for key, value := range headers {
 		req.Header.Set(key, value)
+	}
+	if err := ownershipHeaders(req, actorID); err != nil {
+		return nil, err
 	}
 	correlation.ApplyHeaders(ctx, req)
 	response, err := c.httpClient.Do(req)

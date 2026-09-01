@@ -283,7 +283,7 @@ func TestEmailActivationSelectsUnifiedAccountSession(t *testing.T) {
 		{name: "owner", profile: `{"brand_cloud_memberships":[{"id":"brand-1","role":"owner"}]}`, wantStatus: 200, wantKind: "customer", wantOrg: "brand-1"},
 		{name: "platform only", profile: `{"platform_capabilities":["platform.audit.read"]}`, wantStatus: 200, wantKind: "platform_admin"},
 		{name: "owner and platform", profile: `{"brand_cloud_memberships":[{"id":"brand-1","role":"owner"}],"platform_capabilities":["platform.audit.read"]}`, wantStatus: 200, wantKind: "customer", wantOrg: "brand-1"},
-		{name: "no access", profile: `{}`, wantStatus: 403},
+		{name: "global account without memberships", profile: `{}`, wantStatus: 200, wantKind: "customer"},
 		{name: "profile unavailable", profile: `{}`, profileCode: 503, wantStatus: 502},
 		{name: "no tokens", noTokens: true, wantStatus: 200},
 	} {
@@ -645,7 +645,7 @@ func TestCustomerPasswordLoginCanBeDisabled(t *testing.T) {
 	}
 }
 
-func TestCustomerPasswordLoginRejectsAccountsWithoutCustomerOrganizations(t *testing.T) {
+func TestCustomerPasswordLoginAllowsGlobalAccountsWithoutMemberships(t *testing.T) {
 	t.Parallel()
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -676,14 +676,11 @@ func TestCustomerPasswordLoginRejectsAccountsWithoutCustomerOrganizations(t *tes
 
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"root@example.com","password":"secret"}`)))
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("customer login status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"kind":"customer"`) {
+		t.Fatalf("global account without memberships must reach My Clouds: %d %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "account has no authorized view") {
-		t.Fatalf("customer login body = %s", rec.Body.String())
-	}
-	if len(rec.Result().Cookies()) != 0 {
-		t.Fatalf("customer login should not set session cookie")
+	if len(rec.Result().Cookies()) != 1 {
+		t.Fatalf("global account login should set one session cookie")
 	}
 }
 

@@ -1,0 +1,8 @@
+.cloud-sharing article { padding: 1rem 0; border-bottom: 1px solid #dce4ed; overflow-wrap: anywhere; }
+.cloud-sharing form { margin: 1rem 0; padding: 1rem; border: 1px solid #a8bacb; border-radius: 8px; }
+.cloud-sharing label { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+.cloud-sharing input[type="checkbox"] { width: auto; flex: 0 0 auto; }
+.cloud-sharing fieldset { min-width: 0; margin: 1rem 0; }
+.cloud-sharing nav { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-top: 1rem; }
+.cloud-sharing details li { overflow-wrap: anywhere; }
+.cloud-sharing details button { max-width: 100%; overflow-wrap: anywhere; }

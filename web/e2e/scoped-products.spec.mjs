@@ -1,0 +1,67 @@
+import {test,expect} from './fixtures/scoped-products.mjs';
+const cloudA='11111111-1111-4111-8111-111111111111',cloudB='22222222-2222-4222-8222-222222222222';
+const shared='55555555-5555-4555-8555-555555555555';
+
+test('[UI-CA-PRODUCTS-101] scoped Product CRUD pagination viewer and revocation @smoke',async({page,context,request,baseURL},testInfo)=>{
+ expect(new URL(baseURL).hostname).toBe('127.0.0.1');
+ expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
+ await page.goto('/console/clouds/'+cloudA);
+ const panel=page.getByTestId('cloud-products');
+ await expect(panel.getByRole('navigation',{name:'Product pages'})).toContainText('27 authorized Products');
+ await expect(page.getByRole('heading',{name:'Transfer ownership',exact:true})).toHaveCount(1);
+ await panel.getByRole('combobox',{name:'Product status',exact:true}).selectOption('disabled');
+ await expect(panel).toContainText('No Products in your authorized scope.');
+ await expect(panel.getByRole('navigation',{name:'Product pages'})).toContainText('0 authorized Products');
+ await panel.getByRole('combobox',{name:'Product status',exact:true}).selectOption('');
+ await expect(panel.getByRole('navigation',{name:'Product pages'})).toContainText('27 authorized Products');
+ await panel.getByRole('button',{name:'Next Products',exact:true}).click();
+ await expect(panel.getByRole('navigation',{name:'Product pages'})).toContainText('Page 2');
+ await panel.getByRole('button',{name:'Create Product',exact:true}).click();
+ await page.getByRole('textbox',{name:'Product name',exact:true}).fill('Qualified Camera');
+ await page.getByRole('textbox',{name:'Product key',exact:true}).fill('qualified-camera');
+ await page.getByRole('textbox',{name:'Product model',exact:true}).fill('C2');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+ await testInfo.attach('product-create-form',{body:await page.getByTestId('product-form').screenshot(),contentType:'image/png'});
+ const sent=page.waitForRequest(r=>r.method()==='POST'&&r.url().endsWith('/api/developer/brand-clouds/'+cloudA+'/products'));
+ await page.getByRole('button',{name:'Save Product',exact:true}).click();
+ expect((await sent).headers()['idempotency-key']).toBeTruthy();
+ await expect(panel.getByRole('navigation',{name:'Product pages'})).toContainText('28 authorized Products');
+ await panel.getByRole('link',{name:'Qualified Camera',exact:true}).click();
+ await expect(page).toHaveURL(new RegExp('/console/clouds/'+cloudA+'/products/66666666'));
+ await panel.getByRole('button',{name:'Edit Product',exact:true}).click();
+ await expect(page.getByRole('textbox',{name:'Product key',exact:true})).toBeDisabled();
+ await page.getByRole('textbox',{name:'Product name',exact:true}).fill('Qualified Camera updated');
+ await page.getByRole('checkbox',{name:'Video storage',exact:true}).check();
+ await page.getByRole('button',{name:'Save Product',exact:true}).click();
+ await expect(panel.getByRole('heading',{name:'Qualified Camera updated',exact:true})).toBeVisible();
+ await panel.getByRole('button',{name:'Disable Product',exact:true}).click();
+ await expect(page.getByRole('group',{name:'Confirm Product disable'})).toContainText('does not delete its devices');
+ await page.getByRole('button',{name:'Confirm Product disable',exact:true}).click();
+ await expect(panel).toContainText('qualified-camera · disabled');
+ await page.reload();
+ await expect(panel).toContainText('qualified-camera · disabled');
+ const other=await context.newPage();
+ await other.goto('/console/clouds/'+cloudB+'/products/'+shared);
+ await expect(other.getByTestId('cloud-products')).toContainText('Shared sensor');
+ await expect(other.getByTestId('cloud-products')).toContainText('product_viewer');
+ await expect(other.getByRole('button',{name:'Edit Product',exact:true})).toHaveCount(0);
+ await expect(other.getByRole('button',{name:'Disable Product',exact:true})).toHaveCount(0);
+ await expect(panel).toContainText('Qualified Camera updated');
+ // A Product from B is never resolved by falling back to the shared session's
+ // ActiveOrgID, which is deliberately B in this fixture.
+ await other.goto('/console/clouds/'+cloudA+'/products/'+shared);
+ await expect(other.getByRole('alert')).toContainText('access');
+ await expect(other.getByText('Shared sensor',{exact:true})).toHaveCount(0);
+ await other.goto('/console/clouds/'+cloudB+'/products/'+shared);
+ await expect(other.getByTestId('cloud-products')).toContainText('Shared sensor');
+ expect((await request.post('/__fixture__/revoke')).ok()).toBeTruthy();
+ // No click/refresh: the passive authority poll must clear the prior Product.
+ await expect(page.getByRole('alert')).toContainText('revoked',{timeout:15000});
+ await expect(page.getByText('Qualified Camera updated',{exact:true})).toHaveCount(0);
+ await expect(other.getByTestId('cloud-products')).toContainText('Shared sensor');
+ expect(await other.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+ if(testInfo.project.name==='mobile') expect(await page.evaluate(()=>window.innerWidth)).toBeLessThan(600);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+ await testInfo.attach('scoped-product-viewport',{body:await other.screenshot({fullPage:true}),contentType:'image/png'});
+ await other.close();
+});

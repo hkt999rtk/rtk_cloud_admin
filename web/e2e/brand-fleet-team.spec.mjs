@@ -1,30 +1,38 @@
 import { test, expect } from '@playwright/test';
 import { login } from './fixtures/session.mjs';
 
-test('[UI-CA-TEAM-001] developer team management uses developer namespace and is replay-safe @brand-fleet', async ({ page }) => {
+test('[UI-CA-TEAM-001] developer team management uses developer namespace and is replay-safe @brand-fleet', async ({ page }, testInfo) => {
+  const cloud = '99999999-9999-4999-8999-999999999999';
+  const product = '33333333-3333-4333-8333-333333333333';
+  const email = `new-observer-${testInfo.retry}@example.com`;
   await login(page, 'developer');
   await page.goto('/console/brand-e2e-01/access');
   await expect(page.getByRole('heading', { name: 'Members & Permissions' }).first()).toBeVisible();
-  const endpoint = '/api/developer/brand-clouds/brand-e2e-01/members/invitations';
-  const headers = { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-member-invite-1' };
-  const invite = await page.request.post(endpoint, { headers, data: { email: 'new-observer@example.com', role: 'member' } });
+  const endpoint = `/api/developer/brand-clouds/${cloud}/members/invitations`;
+  const headers = { 'Content-Type': 'application/json', 'Idempotency-Key': `e2e-member-invite-${testInfo.retry}` };
+  const invitationBody = { email, role: 'viewer', access_scope: { kind: 'selected_products', product_ids: [product] } };
+  const invite = await page.request.post(endpoint, { headers, data: invitationBody });
   expect(invite.status()).toBe(202);
-  const replay = await page.request.post(endpoint, { headers, data: { email: 'new-observer@example.com', role: 'member' } });
+  const inviteBody = await invite.json();
+  expect(inviteBody.invitation).toMatchObject({
+    target_email: email,
+    role: 'viewer',
+    access_scope: { kind: 'selected_products', product_ids: [product] },
+    status: 'pending',
+  });
+  const replay = await page.request.post(endpoint, { headers, data: invitationBody });
   expect(replay.status()).toBe(202);
-  let members = await page.request.get('/api/developer/brand-clouds/brand-e2e-01/members');
-  expect((await members.json()).members.some((member) => member.email === 'new-observer@example.com')).toBeFalsy();
-  const acceptedInvitation = await page.request.post('/api/developer/brand-cloud-member-invitations/accept', { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-member-invite-accept-1' }, data: { token: 'member-token-brand-e2e-01-new-observer@example.com' } });
-  expect(acceptedInvitation.ok()).toBeTruthy();
-  members = await page.request.get('/api/developer/brand-clouds/brand-e2e-01/members');
-  expect((await members.json()).members.some((member) => member.email === 'new-observer@example.com')).toBeTruthy();
-  const transfer = await page.request.post('/api/developer/brand-clouds/brand-e2e-01/owner-transfer', { headers: { 'Idempotency-Key': 'e2e-transfer-1' }, data: { target_email: 'target@example.com' } });
-  expect(transfer.status()).toBe(202);
-  const transferBody = await transfer.json();
-  const transferToken = 'owner-token-brand-e2e-01-target@example.com';
-  const accepted = await page.request.post('/api/developer/brand-cloud-owner-transfers/accept', { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-transfer-accept-1' }, data: { token: transferToken } });
-  expect(accepted.ok()).toBeTruthy();
-  const replayAccept = await page.request.post('/api/developer/brand-cloud-owner-transfers/accept', { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'e2e-transfer-accept-2' }, data: { token: transferToken } });
-  expect(replayAccept.status()).toBe(410);
-  const canceled = await page.request.post(`/api/developer/brand-clouds/brand-e2e-01/owner-transfer/${transferBody.owner_transfer.id}/cancel`, { headers: { 'Idempotency-Key': 'e2e-transfer-cancel-1' } });
-  expect([200, 409]).toContain(canceled.status());
+  const replayBody = await replay.json();
+  expect(replayBody.invitation.id).toBe(inviteBody.invitation.id);
+  const invitations = await page.request.get(endpoint);
+  expect(invitations.ok()).toBeTruthy();
+  expect((await invitations.json()).invitations).toContainEqual(expect.objectContaining({
+    id: inviteBody.invitation.id,
+    target_email: email,
+    role: 'viewer',
+    access_scope: { kind: 'selected_products', product_ids: [product] },
+    status: 'pending',
+  }));
+  const members = await page.request.get(`/api/developer/brand-clouds/${cloud}/members`);
+  expect((await members.json()).members.some((member) => member.email === email)).toBeFalsy();
 });
