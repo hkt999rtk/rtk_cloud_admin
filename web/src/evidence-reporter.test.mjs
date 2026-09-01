@@ -87,6 +87,41 @@ test('evidence reporter writes stable evidence and preserves a prior passing cas
   assert.equal(reporter.purposeByTestID('UI-CA-BILLING-STG-999'), 'Validate UI-CA-BILLING-STG-999 behavior defined by the catalog and Playwright test');
 });
 
+test('evidence reporter does not overwrite a preserved passing screenshot with a failed rerun', async (t) => {
+  const runDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-admin-evidence-preserved-pass-'));
+  const firstScreenshot = path.join(runDir, 'first-attempt.png');
+  const failedScreenshot = path.join(runDir, 'failed-rerun.png');
+  fs.writeFileSync(firstScreenshot, 'passing screenshot');
+  fs.writeFileSync(failedScreenshot, 'failed rerun screenshot');
+  configureReporter(t, {
+    E2E_TEST_RUN_DIR: runDir,
+    E2E_TEST_RUN_ID: 'unit-reporter-preserved-pass',
+    E2E_TEST_TARGET: 'desktop',
+    E2E_TEST_ENVIRONMENT: 'local',
+    E2E_EXPECTED_TEST_IDS: '',
+  });
+
+  const passingReporter = new EvidenceReporter();
+  passingReporter.onBegin();
+  passingReporter.onTestEnd({ title: '[UI-CA-BILLING-001] initial pass' }, result('passed', firstScreenshot));
+  assert.equal(await passingReporter.onEnd(), undefined);
+
+  const firstManifest = JSON.parse(fs.readFileSync(path.join(runDir, 'evidence-manifest.json'), 'utf8'));
+  const firstRecord = firstManifest.cases[0];
+  const stableScreenshot = path.join(runDir, firstRecord.screenshot_path);
+  assert.equal(fs.readFileSync(stableScreenshot, 'utf8'), 'passing screenshot');
+
+  const failedReporter = new EvidenceReporter();
+  failedReporter.onBegin();
+  failedReporter.onTestEnd({ title: '[UI-CA-BILLING-001] failed scenario rerun' }, result('failed', failedScreenshot));
+  assert.equal(await failedReporter.onEnd(), undefined);
+
+  const finalManifest = JSON.parse(fs.readFileSync(path.join(runDir, 'evidence-manifest.json'), 'utf8'));
+  assert.equal(finalManifest.cases[0].assessment, 'PASS');
+  assert.equal(finalManifest.cases[0].screenshot_sha256, firstRecord.screenshot_sha256);
+  assert.equal(fs.readFileSync(stableScreenshot, 'utf8'), 'passing screenshot');
+});
+
 test('evidence reporter fails closed for invalid or incomplete evidence', async (t) => {
   const runDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-admin-evidence-invalid-'));
   configureReporter(t, {
