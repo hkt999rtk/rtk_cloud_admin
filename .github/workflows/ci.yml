@@ -21,6 +21,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: false
 
       - name: Checkout workspace contracts when token is available
         env:
