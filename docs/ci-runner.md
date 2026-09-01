@@ -1,6 +1,7 @@
 # CI Environment Notes
 
-The GitHub Actions CI workflow runs on GitHub-hosted `ubuntu-latest`.
+The GitHub Actions CI workflow runs on a self-hosted Linux x64 runner
+with labels `self-hosted`, `Linux`, and `X64`.
 It builds the Go server, builds the React frontend, and runs native smoke
 checks against the built server binary.
 
@@ -19,8 +20,8 @@ and continues with repo-local tests.
 
 Use the GitHub Actions run page to verify:
 
-- the job is assigned to `ubuntu-latest` instead of waiting for a repository
-  runner
+- a repository runner matching `self-hosted`, `Linux`, and `X64` is online
+  and the job is assigned to that runner
 - the workspace contracts checkout step either succeeds or is skipped
   with the expected warning
 - the Go, frontend, and native smoke steps finish with the expected checks
@@ -32,8 +33,10 @@ gh run view <run-id> --log
 
 ## Recovery
 
-If CI is queued for more than a few minutes, verify the workflow still uses
-`runs-on: ubuntu-latest` and rerun the workflow from GitHub.
+If CI is queued for more than a few minutes, verify the matching repository
+runner is online, inspect its service and connectivity, and restore runner
+availability. Keep `runs-on: [self-hosted, Linux, X64]`; do not switch to a
+GitHub-hosted runner to bypass an offline runner.
 
 If smoke checks fail, reproduce locally:
 
