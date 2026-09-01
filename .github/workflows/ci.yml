@@ -11,8 +11,7 @@ permissions:
 
 jobs:
   validate:
-    # PR validation is isolated from shared/offline self-hosted runners.
-    runs-on: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
         with:
