@@ -57,7 +57,7 @@ try {
   await loginPage.goto(`${expectedOrigin}/login`, { waitUntil: 'networkidle' });
   await loginPage.getByLabel('Email', { exact: true }).fill(expectedEmail);
   await loginPage.getByLabel('Password', { exact: true }).fill(password);
-  await loginPage.getByRole('button', { name: 'Login', exact: true }).click();
+  await loginPage.getByRole('button', { name: 'Sign in', exact: true }).click();
   await loginPage.waitForURL(/\/console\//, { timeout: 30_000 });
   await loginContext.close();
 

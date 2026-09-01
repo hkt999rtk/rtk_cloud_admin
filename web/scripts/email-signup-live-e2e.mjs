@@ -93,7 +93,7 @@ try {
   await passwordPage.goto(`${baseURL}/login`, { waitUntil: 'networkidle' });
   await passwordPage.getByLabel('Email', { exact: true }).fill(emailAddress);
   await passwordPage.getByLabel('Password', { exact: true }).fill(password);
-  await passwordPage.getByRole('button', { name: 'Login', exact: true }).click();
+  await passwordPage.getByRole('button', { name: 'Sign in', exact: true }).click();
   await passwordPage.waitForURL(/\/console\/overview(?:\?|$)/, { timeout: 30_000 });
   await passwordContext.close();
 
