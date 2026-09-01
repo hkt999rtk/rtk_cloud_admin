@@ -60,19 +60,30 @@ export default class EvidenceReporter {
   }
 
   async onEnd() {
+    const previousPath = path.join(this.runDir, 'evidence-manifest.json');
+    let previous = [];
+    if (fs.existsSync(previousPath)) {
+      try {
+        previous = JSON.parse(fs.readFileSync(previousPath, 'utf8')).cases || [];
+      } catch {
+        this.errors.push('existing evidence-manifest.json is unreadable');
+      }
+    }
+    const previousByID = new Map(previous.map((item) => [item.test_id, item]));
     const records = [];
     for (const [testID, attempts] of [...this.attempts.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       const finalAttempt = attempts.at(-1);
       const screenshot = [...finalAttempt.attachments].reverse().find((item) => item.content_type === 'image/png' && item.path && fs.existsSync(item.path));
       const stableScreenshot = path.join(this.runDir, 'evidence', `${testID}.png`);
       let screenshotSHA256 = '';
-      if (screenshot) {
+      const passed = finalAttempt.status === 'passed';
+      const previousPass = previousByID.get(testID)?.assessment === 'PASS';
+      if (screenshot && (passed || !previousPass)) {
         fs.copyFileSync(screenshot.path, stableScreenshot);
         screenshotSHA256 = crypto.createHash('sha256').update(fs.readFileSync(stableScreenshot)).digest('hex');
-      } else {
+      } else if (!screenshot && !previousPass) {
         this.errors.push(`${testID}@${this.target} is missing its final viewport screenshot`);
       }
-      const passed = finalAttempt.status === 'passed';
       const flaky = passed && attempts.length > 1 && attempts.some((attempt) => attempt.status !== 'passed');
       const status = flaky ? 'FLAKY' : passed ? 'PASS' : finalAttempt.status === 'skipped' ? 'SKIP' : 'FAIL';
       const traces = finalAttempt.attachments.filter((item) => item.name === 'trace').map((item) => relative(this.runDir, item.path));
@@ -110,15 +121,6 @@ export default class EvidenceReporter {
     for (const testID of this.expected) {
       if (!this.attempts.has(testID)) {
         this.errors.push(`${testID}@${this.target} is required by tests/catalog.yaml but has no result`);
-      }
-    }
-    const previousPath = path.join(this.runDir, 'evidence-manifest.json');
-    let previous = [];
-    if (fs.existsSync(previousPath)) {
-      try {
-        previous = JSON.parse(fs.readFileSync(previousPath, 'utf8')).cases || [];
-      } catch {
-        this.errors.push('existing evidence-manifest.json is unreadable');
       }
     }
     const merged = new Map(previous.map((item) => [item.test_id, item]));
