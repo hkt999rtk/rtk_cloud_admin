@@ -6,8 +6,8 @@ test('[UI-CA-TEAM-001] developer team management uses developer namespace and is
   const product = '33333333-3333-4333-8333-333333333333';
   const email = `new-observer-${testInfo.retry}@example.com`;
   await login(page, 'developer');
-  await page.goto('/console/brand-e2e-01/access');
-  await expect(page.getByRole('heading', { name: 'Members & Permissions' }).first()).toBeVisible();
+  await page.goto(`/console/clouds/${cloud}/members`);
+  await expect(page.getByRole('heading', { name: 'Members and sharing' }).first()).toBeVisible();
   const endpoint = `/api/developer/brand-clouds/${cloud}/members/invitations`;
   const headers = { 'Content-Type': 'application/json', 'Idempotency-Key': `e2e-member-invite-${testInfo.retry}` };
   const invitationBody = { email, role: 'viewer', access_scope: { kind: 'selected_products', product_ids: [product] } };

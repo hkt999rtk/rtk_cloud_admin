@@ -1070,7 +1070,7 @@ paths:
     post:
       operationId: createScopedBrandCloudJob
       x-rtk-feature-id: FEAT-CA-OPS-001
-      x-rtk-requirement-ids: [REQ-UI-CA-BATCH-001]
+      x-rtk-requirement-ids: [REQ-UI-CA-JOBS-001]
       tags: [Developer, Fleet, Operations]
       summary: Create a background job whose immutable scope is bound to the explicit cloud
       security: [{ SessionCookie: [] }]
@@ -1201,7 +1201,7 @@ paths:
       - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: listScopedBrandCloudAuditEvents
-      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-feature-id: FEAT-CA-BRAND-001
       x-rtk-requirement-ids: [REQ-UI-CA-AUDIT-001]
       tags: [Developer, Audit]
       summary: List the customer-safe audit projection for the explicit cloud

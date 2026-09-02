@@ -1,10 +1,11 @@
 export const cloudRoot = '/console/clouds';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export function isCloudID(id) { return typeof id === 'string' && uuid.test(id); }
 export function managedCloudRoute(path) {
   if (path === cloudRoot || path === `${cloudRoot}/`) return { cloudId: '' };
-  const match = path.match(/^\/console\/clouds\/([^/]+)(?:\/products\/([^/]+)(?:\/devices\/([^/]+))?)?\/?$/);
-  if (!match || !uuid.test(match[1]) || (match[2] && !uuid.test(match[2])) || (match[3] && !uuid.test(match[3]))) return null;
-  return { cloudId: match[1], productId: match[2] || '', ...(match[3] ? {deviceId:match[3]} : {}) };
+  const match = path.match(/^\/console\/clouds\/([^/]+)(?:\/(products|members|settings)(?:\/([^/]+)(?:\/devices\/([^/]+))?)?)?\/?$/);
+  if (!match || !uuid.test(match[1]) || (match[3] && !uuid.test(match[3])) || (match[4] && !uuid.test(match[4]))) return null;
+  return { cloudId: match[1], section: match[2] || 'overview', productId: match[3] || '', ...(match[4] ? {deviceId:match[4]} : {}) };
 }
 export function cloudURL(id) { if (!uuid.test(id)) throw new Error('Invalid cloud ID'); return `${cloudRoot}/${id}`; }
 export function cloudOperationFromSearch(search) { const id = new URLSearchParams(search).get('operation') || ''; return uuid.test(id) ? id : ''; }

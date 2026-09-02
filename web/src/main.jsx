@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
+import { CloudConsoleShell } from './CloudConsoleShell.jsx';
 import { productInvitationDestination } from './cloud-products.mjs';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
 import { handoffRoute } from './owner-handoff.mjs';
 import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
 import './cloud-billing.css';
-import { cloudAPI, cloudURL, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
+import { cloudAPI, cloudURL, managedCloudRoute, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
@@ -16,6 +17,9 @@ import {
   billingSubpaths,
   canAccessCustomerRoute,
   canonicalCustomerPath,
+  cloudConsolePath,
+  cloudNavGroupsForCapabilities,
+  cloudRouteForSwitch,
   cloudIdFromPath,
   defaultBrandCloudRoute,
   isCustomerNavItemActive,
@@ -155,7 +159,7 @@ function brandCloudsURL({ query, status, tier, limit, offset }) {
   return `/api/admin/brand-clouds?${params.toString()}`;
 }
 
-function fleetDevicesURL(search = '') {
+function fleetDevicesURL(search = '', base = '/api') {
   const source = new URLSearchParams(search);
   const params = new URLSearchParams();
   for (const key of ['q', 'product_id', 'category', 'model', 'status', 'readiness', 'firmware', 'sort', 'direction', 'limit', 'offset']) {
@@ -170,7 +174,7 @@ function fleetDevicesURL(search = '') {
   }
   if (firmware) params.set('firmware', firmware);
   if (!params.has('limit')) params.set('limit', '100');
-  return `/api/fleet/devices?${params.toString()}`;
+  return `${base}/fleet/devices?${params.toString()}`;
 }
 
 
@@ -234,6 +238,7 @@ function App() {
   const [platformGrafanaStatus, setPlatformGrafanaStatus] = useState(null);
   const [brandClouds, setBrandClouds] = useState([]);
   const [developerBrandClouds, setDeveloperBrandClouds] = useState([]);
+  const [activeCloudDetail, setActiveCloudDetail] = useState(null);
   const [brandCloudPagination, setBrandCloudPagination] = useState({ limit: 25, offset: 0, total: 0 });
   const [brandCloudQuery, setBrandCloudQuery] = useState('');
   const [brandCloudStatus, setBrandCloudStatus] = useState('all');
@@ -268,7 +273,10 @@ function App() {
   const isPlatformView = isPlatformRouteId(active);
   const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept' || active === 'product-collaborator-invitation-accept';
   const navigationRoute = me?.kind === 'platform_admin' ? 'platform-dashboard' : me?.kind === 'customer' ? 'overview' : active;
-  const visibleNavGroups = navGroupsForCapabilities(navigationRoute, me?.capabilities);
+  const routeCloudId = cloudIdFromPath(window.location.pathname);
+  const visibleNavGroups = me?.kind === 'customer'
+    ? cloudNavGroupsForCapabilities(routeCloudId, me?.capabilities, { isOwner: activeCloudDetail?.my_role === 'owner' && activeCloudDetail?.owner_user_id === me?.user_id })
+    : navGroupsForCapabilities(navigationRoute, me?.capabilities);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
   const brandCloudsBlocked = active === 'platform-brand-clouds' && me?.kind === 'platform_admin' && !me?.upstream_account_manager;
   const customerViewPending = !isPlatformView && !isPublicRoute && me === null;
@@ -304,6 +312,7 @@ function App() {
     setPlatformGrafanaStatus(null);
     setBrandClouds([]);
     setDeveloperBrandClouds([]);
+    setActiveCloudDetail(null);
     setBrandCloudPagination({ limit: 25, offset: 0, total: 0 });
     setBrandCloudSource({ status: 'idle', message: '' });
     setSelectedBrandCloudId('');
@@ -328,7 +337,7 @@ function App() {
       setError('');
       setLoading(true);
       try {
-        const nextMe = await fetchJSON('/api/me');
+        let nextMe = await fetchJSON('/api/me');
         if (!alive) return;
         setMe(nextMe);
 
@@ -360,16 +369,26 @@ function App() {
         }
 
         const requestedCloudId = cloudIdFromPath(window.location.pathname);
-        if (nextMe.kind === 'customer' && requestedCloudId && requestedCloudId !== nextMe.active_org_id) {
-          const switchResponse = await fetch('/api/me/active-org', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ organization_id: requestedCloudId }) });
-          if (!switchResponse.ok) {
-            setError('Access forbidden: This Brand Cloud is not available to the signed-in developer.');
-            setLoading(false);
-            return;
-          }
-          window.location.reload();
+        const isGlobalDeveloperRoute = active === 'chipset-sdk';
+        if (nextMe.kind === 'customer' && !requestedCloudId && !isGlobalDeveloperRoute) {
+          window.location.replace('/console/clouds');
           return;
         }
+        if (nextMe.kind === 'customer' && requestedCloudId) {
+          const detail = await fetchJSON(cloudAPI(requestedCloudId));
+          if (!alive) return;
+          const cloud = detail.brand_cloud;
+          setActiveCloudDetail(cloud);
+          nextMe = { ...nextMe, active_org_id: requestedCloudId, capabilities: cloud.capabilities || [] };
+        } else {
+          setActiveCloudDetail(null);
+        }
+        setMe(nextMe);
+        const customerCapabilities = new Set(nextMe.capabilities || []);
+        const canReadFleet = ['fleet.read', 'customer.devices.read'].some((capability) => customerCapabilities.has(capability));
+        const canReadProducts = ['product.read', 'registry_device.read'].some((capability) => customerCapabilities.has(capability));
+        const canReadReports = ['reports.read', 'report.read', 'customer.reports.read'].some((capability) => customerCapabilities.has(capability));
+        const canReadStream = ['customer.stream.read', 'fleet.read'].some((capability) => customerCapabilities.has(capability));
 
         if (!isMemberInvitationAccept && !isPlatformView && nextMe.kind === 'customer' && !canAccessCustomerRoute(active, nextMe.capabilities)) {
           setBilling(null);
@@ -378,7 +397,7 @@ function App() {
         }
 
         if (nextMe.kind === 'customer') {
-          const developerCloudResult = await fetchJSON('/api/developer/brand-clouds').catch((err) => {
+          const developerCloudResult = await fetchJSON('/api/developer/brand-clouds?view=all&limit=100&offset=0').catch((err) => {
             if (err.isAuthError) throw err;
             return { brand_clouds: [] };
           });
@@ -388,7 +407,11 @@ function App() {
           setDeveloperBrandClouds([]);
         }
 
-        const prefix = useAdminApi ? '/api/admin' : '/api';
+        // The global ChipSet catalog remains outside Brand Cloud scope. Every
+        // cloud-owned feature uses the explicit cloud BFF prefix above; only
+        // this compatibility route falls back to the global developer APIs.
+        const customerPrefix = requestedCloudId ? cloudAPI(requestedCloudId) : '/api';
+        const prefix = useAdminApi ? '/api/admin' : customerPrefix;
         const baseRequests = useAdminApi
           ? [
               fetchJSON(`${prefix}/summary`),
@@ -400,9 +423,9 @@ function App() {
               fetchJSON(`${prefix}/platform-dashboard`),
             ]
           : [
-              fetchJSON(`${prefix}/summary`),
-              fetchJSON(`${prefix}/customers`),
-              fetchJSON('/api/fleet/devices?limit=100').then((page) => page.devices || []),
+              canReadFleet ? fetchJSON(`${prefix}/summary`) : Promise.resolve({ customers: 1, total_devices: 0 }),
+              Promise.resolve([]),
+              canReadFleet ? fetchJSON(`${prefix}/fleet/devices?limit=100`).then((page) => page.devices || []) : Promise.resolve([]),
               Promise.resolve([]),
               Promise.resolve([]),
               Promise.resolve([]),
@@ -411,8 +434,8 @@ function App() {
         const [nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit, nextPlatformDashboard] = await Promise.all(baseRequests);
         if (!alive) return;
         setSummary(nextSummary);
-        if (active === 'overview' && nextMe.kind !== 'platform_admin') {
-          const nextFleetSummary = await fetchJSON('/api/fleet/summary').catch((err) => {
+        if (active === 'overview' && nextMe.kind !== 'platform_admin' && canReadFleet) {
+          const nextFleetSummary = await fetchJSON(`${customerPrefix}/fleet/summary`).catch((err) => {
             if (err.isAuthError) throw err;
             return { source_status: 'unavailable', source_message: translate('Fleet statistics are temporarily unavailable.') };
           });
@@ -423,8 +446,8 @@ function App() {
         }
         setCustomers(nextCustomers);
         setDevices(nextDevices);
-        if (active === 'devices' && nextMe.kind !== 'platform_admin') {
-          const nextFleetDevices = await fetchJSON(fleetDevicesURL(window.location.search)).catch((err) => {
+        if (active === 'devices' && nextMe.kind !== 'platform_admin' && canReadFleet) {
+          const nextFleetDevices = await fetchJSON(fleetDevicesURL(window.location.search, customerPrefix)).catch((err) => {
             if (err.isAuthError) throw err;
             return { devices: [], pagination: { limit: 100, offset: 0, total: 0 }, source_status: 'unavailable', source_message: translate('The device query service is temporarily unavailable.') };
           });
@@ -446,7 +469,16 @@ function App() {
         } else {
           setServiceLogs(null);
         }
-        setAudit(nextAudit);
+        if (!useAdminApi && active === 'audit') {
+          const nextCloudAudit = await fetchJSON(`${customerPrefix}/audit`).catch((err) => {
+            if (err.isAuthError) throw err;
+            return [];
+          });
+          if (!alive) return;
+          setAudit(nextCloudAudit);
+        } else {
+          setAudit(nextAudit);
+        }
         setPlatformDashboard(nextPlatformDashboard);
         if (useAdminApi && active === 'platform-grafana') {
           const nextGrafanaStatus = await fetchJSON('/api/admin/grafana/status').catch((err) => {
@@ -525,7 +557,7 @@ function App() {
           setChipsets(null);
         }
         if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin' && firmwareProductId) {
-          const nextFirmwareDistribution = await fetchJSON(`/api/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`)
+          const nextFirmwareDistribution = await fetchJSON(`${customerPrefix}/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`)
             .catch((err) => {
               if (err.isAuthError) throw err;
               return sourceUnavailableFromError('firmware', err);
@@ -536,8 +568,8 @@ function App() {
           setFirmwareDistribution(null);
         }
 
-        if (['product-services', 'firmware-ota', 'reports'].includes(active) && nextMe.kind !== 'platform_admin') {
-          const nextProducts = await fetchJSON('/api/products').catch((err) => {
+        if (['product-services', 'firmware-ota', 'reports', 'analytics'].includes(active) && nextMe.kind !== 'platform_admin' && canReadProducts) {
+          const nextProducts = await fetchJSON(`${customerPrefix}/products?limit=100&offset=0`).catch((err) => {
             if (err.isAuthError) throw err;
             return { products: [], source_status: 'unavailable', source_message: translate('Product data is temporarily unavailable.') };
           });
@@ -545,7 +577,7 @@ function App() {
           setProducts(nextProducts);
           if (active === 'firmware-ota' && firmwareProductId && nextProducts?.products?.some((product) => product.id === firmwareProductId)) {
             const selectedProduct = nextProducts.products.find((product) => product.id === firmwareProductId);
-            const releaseResult = await fetchJSON(`/api/products/${encodeURIComponent(firmwareProductId)}/releases`).catch((err) => {
+            const releaseResult = await fetchJSON(`${customerPrefix}/products/${encodeURIComponent(firmwareProductId)}/releases`).catch((err) => {
               if (err.isAuthError) throw err;
               return { items: [], releases: [] };
             });
@@ -558,15 +590,24 @@ function App() {
           setProducts(null);
           setReleases([]);
         }
-        if (['reports', 'groups'].includes(active) && nextMe.kind !== 'platform_admin') {
-          const endpoint = active === 'reports' ? '/api/reports' : '/api/groups';
+        if (['reports', 'analytics'].includes(active) && nextMe.kind !== 'platform_admin' && canReadReports) {
+          const endpoint = `${customerPrefix}/reports`;
+          const result = await fetchJSON(endpoint).catch((err) => {
+            if (err.isAuthError) throw err;
+            return { reports: [], source_status: 'unavailable', source_message: translate('Data is temporarily unavailable.') };
+          });
+          if (!alive) return;
+          setReports(result);
+          setGroups(null);
+        } else if (active === 'groups' && nextMe.kind !== 'platform_admin') {
+          const endpoint = active === 'groups' ? `${customerPrefix}/groups` : `${customerPrefix}/reports`;
           const result = await fetchJSON(endpoint).catch((err) => {
             if (err.isAuthError) throw err;
             return { [active]: [], source_status: 'unavailable', source_message: translate('Data is temporarily unavailable.') };
           });
           if (!alive) return;
-          if (active === 'reports') setReports(result);
-          else setGroups(result);
+          setGroups(result);
+          setReports(null);
         } else {
           setReports(null);
           setGroups(null);
@@ -585,24 +626,24 @@ function App() {
         setBilling(null);
 
         if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
-          const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
+          const streamWindowToUse = active === 'stream-health' || active === 'analytics' ? streamWindow : overviewWindow;
           const [nextFleetHealth, nextStreamStats] = await Promise.all([
-            fetchJSON(`/api/fleet/health-summary?window=${overviewWindow}`)
+            canReadFleet ? fetchJSON(`${customerPrefix}/fleet/health-summary?window=${overviewWindow}`)
               .catch((err) => {
                 if (err.isAuthError) throw err;
                 return sourceUnavailableFromError('telemetry', err);
-              }),
-            fetchJSON(`/api/fleet/stream-stats?window=${streamWindowToUse}`)
+              }) : Promise.resolve(sourceUnavailableFromError('telemetry', new Error('Capability unavailable'))),
+            canReadStream ? fetchJSON(`${customerPrefix}/fleet/stream-stats?window=${streamWindowToUse}`)
               .catch((err) => {
                 if (err.isAuthError) throw err;
                 return sourceUnavailableFromError('stream', err);
-              }),
+              }) : Promise.resolve(sourceUnavailableFromError('stream', new Error('Capability unavailable'))),
           ]);
           if (!alive) return;
           setFleetHealth(nextFleetHealth);
           setStreamStats(nextStreamStats);
           if (active === 'overview' && sourceAvailable(nextFleetHealth)) {
-            const nextAlerts = await fetchRecentAlerts(nextDevices);
+            const nextAlerts = await fetchRecentAlerts(nextDevices, customerPrefix);
             if (!alive) return;
             setRecentAlerts(nextAlerts);
           } else {
@@ -644,7 +685,13 @@ function App() {
           setStreamStats(null);
           setRecentAlerts([]);
         }
-        if (alive) setError(active === 'platform-brand-clouds' ? userFacingBrandCloudError(err) : 'The requested data could not be loaded. Please try again.');
+        if (alive) {
+          if (!isPlatformView && [403, 404].includes(err.status) && cloudIdFromPath(window.location.pathname)) {
+            setError('Access forbidden: This Brand Cloud is not available to the signed-in developer.');
+          } else {
+            setError(active === 'platform-brand-clouds' ? userFacingBrandCloudError(err) : 'The requested data could not be loaded. Please try again.');
+          }
+        }
       } finally {
         if (alive) setLoading(false);
       }
@@ -735,11 +782,24 @@ function App() {
     };
   }, [mobileNavOpen]);
 
-  function navigate(item) {
-    const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
+  function pathForNavigationItem(item) {
+    if (item.global || me?.kind === 'platform_admin') return item.path;
+    const cloudId = me?.kind === 'customer' ? cloudIdFromPath(window.location.pathname) : '';
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
-    const targetPath = targetRoute === item.id ? item.path : `/console/${targetRoute}`;
-    const path = cloudId && targetPath.startsWith('/console/') ? `/console/${encodeURIComponent(cloudId)}/${targetPath.slice('/console/'.length)}` : targetPath;
+    return cloudConsolePath(cloudId, targetRoute);
+  }
+
+  function navigate(item) {
+    const path = pathForNavigationItem(item);
+    if (item.global || me?.kind === 'platform_admin') {
+      window.location.assign(path);
+      return;
+    }
+    const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
+    if (['product-services', 'access', 'settings', 'billing'].includes(targetRoute)) {
+      window.location.assign(path);
+      return;
+    }
     window.history.pushState({}, '', path);
     if (targetRoute === 'firmware-ota') {
       setFirmwareDistribution(null);
@@ -750,8 +810,8 @@ function App() {
   }
 
   function selectFirmwareProduct(productID) {
-    const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
-    const path = cloudId ? `/console/${encodeURIComponent(cloudId)}/firmware-ota` : '/console/firmware-ota';
+    const cloudId = me?.kind === 'customer' ? cloudIdFromPath(window.location.pathname) : '';
+    const path = cloudConsolePath(cloudId, 'firmware-ota');
     const params = new URLSearchParams();
     if (productID) params.set('product_id', productID);
     window.history.pushState({}, '', `${path}${params.size ? `?${params.toString()}` : ''}`);
@@ -760,10 +820,8 @@ function App() {
   }
 
   function navigateBrandCloudTab(targetRoute) {
-    const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
-    const path = cloudId ? `/console/${encodeURIComponent(cloudId)}/${targetRoute}` : `/console/${targetRoute}`;
-    window.history.pushState({}, '', path);
-    setActive(targetRoute);
+    const cloudId = me?.kind === 'customer' ? cloudIdFromPath(window.location.pathname) : '';
+    window.location.assign(cloudConsolePath(cloudId, targetRoute));
   }
 
   function selectDevice(deviceId) {
@@ -791,14 +849,16 @@ function App() {
   }
 
   const refreshFirmwareStatus = useCallback(async () => {
-    const next = await fetchJSON('/api/fleet/firmware-distribution').catch((err) => sourceUnavailableFromError('firmware', err));
+    const cloudId = cloudIdFromPath(window.location.pathname);
+    const suffix = firmwareProductId ? `?product_id=${encodeURIComponent(firmwareProductId)}` : '';
+    const next = await fetchJSON(`${cloudAPI(cloudId)}/fleet/firmware-distribution${suffix}`).catch((err) => sourceUnavailableFromError('firmware', err));
     setFirmwareDistribution(next);
     return next;
-  }, []);
+  }, [firmwareProductId]);
 
   async function runDeviceAction(deviceId, action) {
     setError('');
-    const response = await fetch(`/api/devices/${deviceId}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `device-${action}-${deviceId}-${Date.now()}` } });
+    const response = await fetch(`${cloudAPI(cloudIdFromPath(window.location.pathname))}/fleet/devices/${encodeURIComponent(deviceId)}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `device-${action}-${deviceId}-${Date.now()}` } });
     if (!response.ok) {
       setError(`${action} failed with ${response.status}`);
       return;
@@ -810,7 +870,7 @@ function App() {
 
   async function runUpdatePlanAction(campaignId, action, payload = {}) {
     setError('');
-    const response = await fetch(`/api/update-plans/${encodeURIComponent(campaignId)}/${action}`, {
+    const response = await fetch(`${cloudAPI(cloudIdFromPath(window.location.pathname))}/update-plans/${encodeURIComponent(campaignId)}/${action}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `ui-${campaignId}-${action}-${Date.now()}` },
       body: JSON.stringify({ reason: 'Executed by an operator in Fleet Management', ...payload }),
@@ -1043,29 +1103,16 @@ function App() {
   }
 
   async function handleSwitchOrg(orgId) {
-    setError('');
-    const response = await fetch('/api/me/active-org', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organization_id: orgId }),
-    });
-    if (!response.ok) {
-      setError(`Brand Cloud switch failed with ${response.status}; current Cloud is unchanged.`);
-      return;
-    }
-    clearDashboardState();
-    setSelectedDeviceId('');
-    setDeviceDrawerOpen(false);
-    const suffix = window.location.pathname.match(/^\/console\/(?:[^/]+\/)?(.+)$/)?.[1] || 'overview';
-    window.history.replaceState({}, '', `/console/${encodeURIComponent(orgId)}/${suffix}`);
-    setRefreshTick((tick) => tick + 1);
+    const target = developerBrandClouds.find((cloud) => (cloud.id || cloud.organization_id) === orgId)
+      || me?.memberships?.find((cloud) => (cloud.id || cloud.organization_id) === orgId);
+    window.location.assign(cloudRouteForSwitch(target || { id: orgId }, active, me?.user_id));
   }
 
   async function handleSwitchView(view) {
 	setError('');
 	try {
 	  const result = await postJSON('/api/me/view', { view });
-	  window.location.assign(result.kind === 'platform_admin' ? '/admin' : '/console');
+	  window.location.assign(result.kind === 'platform_admin' ? '/admin' : '/console/clouds');
 	} catch (err) {
 	  setError(err?.message || 'View switch failed.');
 	}
@@ -1091,14 +1138,15 @@ function App() {
     return brandClouds.find((brand) => brand.id === selectedBrandCloudId) || null;
   }, [brandClouds, selectedBrandCloudId]);
   const activeBrandCloud = useMemo(() => {
-    const cloudId = me?.active_org_id;
-    const cloud = developerBrandClouds.find((candidate) => (candidate.id || candidate.organization_id) === cloudId);
+    const cloudId = cloudIdFromPath(window.location.pathname);
+    const cloud = activeCloudDetail || developerBrandClouds.find((candidate) => (candidate.id || candidate.organization_id) === cloudId);
     const membership = (me?.memberships || []).find((candidate) => candidate.organization_id === cloudId || candidate.id === cloudId);
     return {
       id: cloudId || cloud?.id || membership?.organization_id || '',
       name: cloud?.name || cloud?.organization || membership?.organization || membership?.name || 'Brand Cloud',
+      ...cloud,
     };
-  }, [developerBrandClouds, me]);
+  }, [activeCloudDetail, developerBrandClouds, me]);
 
   if (isPublicRoute) {
     if (isAuthEntryRoute) {
@@ -1169,13 +1217,12 @@ function App() {
           </button>
         </div>
         <nav className="sidebar-nav-groups">
-          <a href="/console/clouds">My Clouds</a>
           {visibleNavGroups.map((group) => <section className="sidebar-nav-group" key={group.id}>
             <p className="sidebar-section-label">{translate(group.labelKey)}</p>
-            {group.items.map((item) => <button type="button" key={item.id} className={isCustomerNavItemActive(item, active) ? 'active' : ''} onClick={() => navigate(item)}>
+            {group.items.map((item) => <a key={item.id} className={isCustomerNavItemActive(item, active) ? 'active' : ''} aria-current={isCustomerNavItemActive(item, active) ? 'page' : undefined} href={pathForNavigationItem(item)} onClick={(event) => { event.preventDefault(); navigate(item); }}>
               {item.icon ? <Icon name={item.icon} /> : null}
               {translate(item.labelKey)}
-            </button>)}
+            </a>)}
           </section>)}
         </nav>
         <div className="sidebar-account">
@@ -1194,15 +1241,15 @@ function App() {
             <h1>{titleFor(active)}</h1>
           </div>
           <div className="topbar-controls">
-			{me?.authenticated && me?.kind === 'customer' && (me?.platform_capabilities?.length ?? 0) > 0 ? <button type="button" className="ghost-button" onClick={() => handleSwitchView('platform')}>Platform view</button> : null}
-			{me?.authenticated && me?.kind === 'platform_admin' && (me?.memberships?.length ?? 0) > 0 ? <button type="button" className="ghost-button" onClick={() => handleSwitchView('customer')}>Brand Cloud view</button> : null}
+			{me?.authenticated && me?.kind === 'customer' && (me?.platform_capabilities?.length ?? 0) > 0 ? <button type="button" className="ghost-button view-switch-button" onClick={() => handleSwitchView('platform')}>Platform view</button> : null}
+			{me?.authenticated && me?.kind === 'platform_admin' && (me?.memberships?.length ?? 0) > 0 ? <button type="button" className="ghost-button view-switch-button" onClick={() => handleSwitchView('customer')}>Brand Cloud view</button> : null}
 			{me?.authenticated && me?.kind === 'platform_admin' ? <span className="topbar-context-badge"><Icon name="shield-halved" />Platform Admin</span> : null}
             {me?.kind === 'customer' && (developerBrandClouds.length > 1 || (me?.memberships?.length ?? 0) > 1) ? (
               <select
                 className="org-switcher"
                 value={me.active_org_id || ''}
                 onChange={(e) => handleSwitchOrg(e.target.value)}
-                aria-label="Active organization"
+                aria-label="Brand Cloud"
               >
                 {(developerBrandClouds.length ? developerBrandClouds : (me.memberships || [])).map((m) => (
                   <option key={m.id || m.organization_id} value={m.id || m.organization_id}>{m.name || m.organization}</option>
@@ -1289,7 +1336,19 @@ function App() {
           />
         ) : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} products={products?.products || []} loading={loading} canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'reports.create')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'analytics' ? <>
+          <StreamHealthPage
+            devices={devices}
+            loading={loading}
+            stats={streamStats}
+            streamWindow={streamWindow}
+            setWindow={setStreamWindow}
+            onOpenDevice={selectDevice}
+          />
+          <ReportsPage data={reports} products={products?.products || []} loading={loading} canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'reports.create')} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
+        </> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'audit' ? <AuditLog audit={audit} loading={loading} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <section className="panel"><h2>Select a cloud for Billing</h2><p>Billing is scoped to the cloud URL, not the shared active-cloud session.</p><a href="/console/clouds">Open My Clouds</a></section> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
@@ -2450,6 +2509,7 @@ function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onC
 }
 
 function ProductsPage({ loading, data, onRefresh }) {
+  const scopedAPI = cloudAPI(cloudIdFromPath(window.location.pathname));
   const items = data?.products || [];
   const [showCreate, setShowCreate] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -2462,40 +2522,40 @@ function ProductsPage({ loading, data, onRefresh }) {
   const canManage = Boolean(data?.can_manage);
   async function loadCollaborators(product) {
     setCollaborationProduct(product); setCollaboration(null);
-    const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/collaborators`);
+    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(product.id)}/collaborators`);
     setCollaboration(response.ok ? await response.json() : { source_status: 'unavailable' });
   }
   async function inviteCollaborator(event) {
     event.preventDefault();
-    const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborator-invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-invite-${collaborationProduct.id}-${invite.email}` }, body: JSON.stringify(invite) });
+    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(collaborationProduct.id)}/collaborator-invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-invite-${collaborationProduct.id}-${invite.email}` }, body: JSON.stringify(invite) });
     setMessage(response.ok ? 'Product collaborator invitation sent.' : 'The invitation could not be sent. Confirm that the email belongs to a registered Developer who is not already a collaborator.');
     if (response.ok) { setInvite({ email: '', role: 'product_editor' }); await loadCollaborators(collaborationProduct); }
   }
   async function updateCollaborator(userId, role) {
-    const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-role-${collaborationProduct.id}-${userId}-${role}` }, body: JSON.stringify({ role }) });
+    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(collaborationProduct.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-role-${collaborationProduct.id}-${userId}-${role}` }, body: JSON.stringify({ role }) });
     setMessage(response.ok ? 'Collaborator role updated.' : 'Could not update collaborator role.'); if (response.ok) await loadCollaborators(collaborationProduct);
   }
   async function removeCollaborator(userId) {
-    const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `product-remove-${collaborationProduct.id}-${userId}` } });
+    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(collaborationProduct.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `product-remove-${collaborationProduct.id}-${userId}` } });
     setMessage(response.ok ? 'Collaborator removed.' : 'Could not remove collaborator.'); if (response.ok) await loadCollaborators(collaborationProduct);
   }
   async function transferOwner(userId) {
-    const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-owner-${collaborationProduct.id}-${userId}` }, body: JSON.stringify({ target_user_id: userId }) });
+    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(collaborationProduct.id)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-owner-${collaborationProduct.id}-${userId}` }, body: JSON.stringify({ target_user_id: userId }) });
     setMessage(response.ok ? 'Product ownership transferred.' : 'Product ownership could not be transferred.'); if (response.ok) { await loadCollaborators(collaborationProduct); onRefresh(); }
   }
   async function invitationAction(invitationId, action) {
-    const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborator-invitations/${encodeURIComponent(invitationId)}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `product-invite-${action}-${invitationId}-${Date.now()}` } });
+    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(collaborationProduct.id)}/collaborator-invitations/${encodeURIComponent(invitationId)}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `product-invite-${action}-${invitationId}-${Date.now()}` } });
     setMessage(response.ok ? (action === 'resend' ? 'Invitation resent.' : 'Invitation canceled.') : 'The invitation could not be updated.'); if (response.ok) await loadCollaborators(collaborationProduct);
   }
   async function createProduct(event) {
     event.preventDefault();
-    const response = await fetch(editingProduct ? `/api/products/${encodeURIComponent(editingProduct.id)}` : '/api/products', { method: editingProduct ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-write-${editingProduct?.id || form.name}` }, body: JSON.stringify(form) });
+    const response = await fetch(editingProduct ? `${scopedAPI}/products/${encodeURIComponent(editingProduct.id)}` : `${scopedAPI}/products`, { method: editingProduct ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-write-${editingProduct?.id || form.name}` }, body: JSON.stringify(form) });
     setMessage(response.ok ? (editingProduct ? 'Product updated.' : 'Product created.') : 'The Product cannot be saved right now.');
     if (response.ok) { setShowCreate(false); setEditingProduct(null); setPreview(null); onRefresh(); }
   }
   async function previewProduct() {
     if (!editingProduct) return;
-    const response = await fetch(`/api/products/${encodeURIComponent(editingProduct.id)}/impact-preview`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-impact-${editingProduct.id}-${Date.now()}` }, body: JSON.stringify(form) });
+    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(editingProduct.id)}/impact-preview`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-impact-${editingProduct.id}-${Date.now()}` }, body: JSON.stringify(form) });
     setPreview(response.ok ? await response.json() : { source_status: 'unavailable' });
   }
   const unavailable = data?.source_status === 'unavailable' || data?.source_status === 'unconfigured';
@@ -2529,7 +2589,7 @@ function ProductsPage({ loading, data, onRefresh }) {
                 <td>{product.device_policy?.setup_available || product.device_policy?.binding_available ? 'Set' : 'Not set'}</td>
                 <td>{product.firmware_policy?.ota_enabled ? 'Allow firmware updates' : 'Inactive'}</td>
                 <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? 'Manage Devices' : action === 'manage_updates' ? 'Manage Updates' : action === 'view_reports' ? 'View Reports' : action === 'manage_collaborators' ? 'Manage Collaborators' : action === 'edit_product' ? 'Edit Product' : 'View').join(', ') : 'Contact an administrator'}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: (product.service_capabilities || []).map(normalizeProductServiceCapability) }); setPreview(null); setShowCreate(true); }}>Edit</button> : null}</td>
-                <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{product.status === 'active' ? 'Activate' : 'Deactivate'}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}>Deactivate</button> : null}</td>
+                <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{product.status === 'active' ? 'Activate' : 'Deactivate'}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button" onClick={async () => { await fetch(`${scopedAPI}/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}>Deactivate</button> : null}</td>
               </tr>)}</tbody>
             </table>
           </div>
@@ -2541,6 +2601,7 @@ function ProductsPage({ loading, data, onRefresh }) {
 }
 
 function GroupsPage({ data, loading, onRefresh }) {
+  const scopedAPI = cloudAPI(cloudIdFromPath(window.location.pathname));
   const groups = data?.groups || [];
   const tags = data?.tags || [];
   const [showCreate, setShowCreate] = useState(false);
@@ -2549,13 +2610,13 @@ function GroupsPage({ data, loading, onRefresh }) {
   const canManage = data?.allowed_actions?.includes('manage');
   async function createGroup(event) {
     event.preventDefault();
-    const response = await fetch('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `group-create-${form.name}` }, body: JSON.stringify(form) });
+    const response = await fetch(`${scopedAPI}/groups`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `group-create-${form.name}` }, body: JSON.stringify(form) });
     setMessage(response.ok ? 'Group created.' : 'The group could not be created at this time.');
     if (response.ok) { setForm({ name: '', description: '' }); setShowCreate(false); onRefresh(); }
   }
   async function deleteGroup(group) {
     if (!window.confirm(`Are you sure you want to delete “${group.name}”?`)) return;
-    const response = await fetch(`/api/groups/${encodeURIComponent(group.id)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `group-delete-${group.id}` } });
+    const response = await fetch(`${scopedAPI}/groups/${encodeURIComponent(group.id)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `group-delete-${group.id}` } });
     setMessage(response.ok ? 'Group deleted.' : 'The group cannot be deleted at this time.');
     if (response.ok) onRefresh();
   }
@@ -2707,17 +2768,20 @@ const BillingScope = React.createContext(null);
 function CloudBillingApp() {
   const route = cloudBillingRoute(window.location.pathname), cloudId = route.cloudId;
   const [state, setState] = useState(null), [error,setError] = useState(''), [reload,setReload] = useState(0);
+  const [account,setAccount] = useState(null), [scopedCloud,setScopedCloud] = useState(null);
   useEffect(() => {
-    const controller = new AbortController(); setState(null); setError('');
+    const controller = new AbortController(); setState(null); setAccount(null); setScopedCloud(null); setError('');
     (async () => { try {
       const me = await managedCloudRequest('/api/me',{signal:controller.signal});
       if (!me.authenticated) { window.location.replace(loginPathFor(window.location.pathname)); return; }
+      if (!controller.signal.aborted) setAccount(me);
       const {brand_cloud:cloud} = await managedCloudRequest(cloudAPI(cloudId),{signal:controller.signal});
+      if (!controller.signal.aborted) setScopedCloud(cloud);
       if (cloud.my_role !== 'owner' || cloud.owner_user_id !== me.user_id || !cloud.capabilities?.includes('billing_account.read')) throw {status:403};
       const data = await fetchCloudBillingData(cloudId,{signal:controller.signal});
       if (String(cloud.ownership_version) !== data.ownershipVersion) throw {status:409};
-      if (!controller.signal.aborted) setState({cloud,data});
-    } catch (err) { if (!controller.signal.aborted) { setState(null); setError(billingScopeError(err.status)); } } })();
+      if (!controller.signal.aborted) setState({me,cloud,data});
+    } catch (err) { if (!controller.signal.aborted) { setState(null); if ([401,403,404].includes(err.status)) setScopedCloud(null); setError(billingScopeError(err.status)); } } })();
     return () => controller.abort();
   },[cloudId,reload]);
   useEffect(()=>{
@@ -2730,13 +2794,13 @@ function CloudBillingApp() {
         const {brand_cloud:cloud}=await managedCloudRequest(cloudAPI(cloudId),{signal:controller.signal});
         if (cloud.my_role!=='owner' || cloud.owner_user_id!==state.cloud.owner_user_id || !cloud.capabilities?.includes('billing_account.read')) throw {status:403};
         if (String(cloud.ownership_version)!==state.data.ownershipVersion) throw {status:409};
-      } catch(err) { if (!controller.signal.aborted) {setState(null);setError(billingScopeError(err.status));} }
+      } catch(err) { if (!controller.signal.aborted) {setState(null);setScopedCloud(null);setError(billingScopeError(err.status));} }
       finally {checking=false;}
     };
     const timer=setInterval(verify,10000);window.addEventListener('focus',verify);
     return ()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',verify);};
   },[cloudId,state?.cloud.id,state?.data.ownershipVersion]);
-  return <div className="my-clouds-shell"><header className="my-clouds-header"><a href={cloudURL(cloudId)}>Back to cloud</a><a href="/console/clouds">My Clouds</a></header><main className="my-clouds-main"><h1>{state?.cloud.name || 'Cloud'} / Billing</h1><p>Only your responsibility periods and the confirmed opening balance are visible. Previous owners’ payer details and payment methods are not transferred.</p>{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<button onClick={()=>setReload(v=>v+1)}>Refresh Billing and authority</button>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</main></div>;
+  return <CloudConsoleShell me={account} cloud={scopedCloud} clouds={account?.memberships || []} active="billing" title={`${scopedCloud?.name || 'Cloud'} / Billing`} onError={setError}><div className="my-clouds-main"><p>Only your responsibility periods and the confirmed opening balance are visible. Previous owners’ payer details and payment methods are not transferred.</p>{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<button onClick={()=>setReload(v=>v+1)}>Refresh Billing and authority</button>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setScopedCloud(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</div></CloudConsoleShell>;
 }
 
 function BillingPage({ data, loading, capabilities, onRefresh }) {
@@ -3091,6 +3155,7 @@ function PKITestBundleTool({ activeCloudId }) {
 }
 
 function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
+  const scopedAPI = cloudAPI(cloudIdFromPath(window.location.pathname));
   const reports = data?.reports || [];
   const [name, setName] = useState('Device Status Report');
   const [reportType, setReportType] = useState('fleet_status');
@@ -3104,7 +3169,7 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
     event.preventDefault();
     const scope = Object.fromEntries(Object.entries(filters).filter(([, value]) => value.trim()));
     const payload = { name, report_type: reportType, dimensions, timezone, time_range: { start_at: filters.start_at, end_at: filters.end_at }, format, scope };
-    const response = await fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `report-${JSON.stringify(payload)}` }, body: JSON.stringify(payload) });
+    const response = await fetch(`${scopedAPI}/reports`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `report-${JSON.stringify(payload)}` }, body: JSON.stringify(payload) });
     setMessage(response.ok ? 'The report has been created and you will see the results when you are done.' : 'Report cannot be created at this time.');
     if (response.ok) { onRefresh(); }
   }
@@ -3126,7 +3191,7 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
       <div className="report-builder-actions"><button type="submit" className="primary-button">Create Report</button></div>
     </form>{message ? <p className="notice">{message}</p> : null}</section>}
     {loading ? <section className="panel split-panel"><div><h3>Loading report</h3></div></section> : null}
-        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Report</th><th>Status</th><th>Scope / Freshness</th><th>Created By</th><th>Created</th><th>Results</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{batchJobStateLabel(report.state)}{report.failure_reason ? <small className="error-text">The report could not be completed. Please try again.</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} · expires {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={`/api/reports/${encodeURIComponent(report.id)}`}>View Results</a>{report.state === 'completed' ? <> <a href={`/api/reports/${encodeURIComponent(report.id)}?format=csv`}>Download CSV</a> <a href={`/api/reports/${encodeURIComponent(report.id)}?format=json`}>Download JSON</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">No reports are available.</p> : null}</div></section> : null}
+        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Report</th><th>Status</th><th>Scope / Freshness</th><th>Created By</th><th>Created</th><th>Results</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{batchJobStateLabel(report.state)}{report.failure_reason ? <small className="error-text">The report could not be completed. Please try again.</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} · expires {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={`${scopedAPI}/reports/${encodeURIComponent(report.id)}`}>View Results</a>{report.state === 'completed' ? <> <a href={`${scopedAPI}/reports/${encodeURIComponent(report.id)}?format=csv`}>Download CSV</a> <a href={`${scopedAPI}/reports/${encodeURIComponent(report.id)}?format=json`}>Download JSON</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">No reports are available.</p> : null}</div></section> : null}
   </section>;
 }
 
@@ -3143,6 +3208,7 @@ function batchJobStateLabel(state) {
 }
 
 function FirmwareOTAPage({ loading, distribution, selectedProductId, products, releases, onViewDevices, onCampaignAction, onStatusRefresh, canRelease, canManageOTA, onSelectProduct, onRefresh }) {
+  const scopedAPI = cloudAPI(cloudIdFromPath(window.location.pathname));
   const versions = distribution?.versions || [];
   const campaigns = sortFirmwareCampaignsByStartTime(distribution?.campaigns || []);
   const selectedProduct = products.find((product) => product.id === selectedProductId) || null;
@@ -3234,7 +3300,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
       setReleaseMessage('Please select a firmware binary and wait for its metadata to be calculated.');
       return;
     }
-    const response = await fetch(`/api/products/${encodeURIComponent(selectedProductId)}/releases`, {
+    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(selectedProductId)}/releases`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-${selectedProductId}-${releaseVersion.trim()}-${releaseArtifact.sha256.slice(0, 12)}` },
       body: JSON.stringify({ version: releaseVersion.trim(), build_number: releaseArtifact.buildNumber, artifact_size: releaseArtifact.size, artifact_sha256: releaseArtifact.sha256, hardware_revisions: releaseHardware.split(',').map((item) => item.trim()).filter(Boolean), content_type: releaseArtifact.contentType, anti_rollback_counter: 0 }),
     });
@@ -3261,7 +3327,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     event.preventDefault();
     const release = releases.find((item) => item.id === planRelease || item.release_id === planRelease);
     if (!release || !scopePreview?.scope) { setPlanMessage('Please get a valid server scope preview first.'); return; }
-    const response = await fetch('/api/update-plans', {
+    const response = await fetch(`${scopedAPI}/update-plans`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `plan-${release.product_id}-${release.id || release.release_id}-${Date.now()}` },
       body: JSON.stringify({ product_id: release.product_id, release_id: release.id || release.release_id, name: planName.trim() || `Update ${release.version}`, scope: scopePreview.scope, selector: scopePreview.scope.query, phases: [{ phase: 0, cumulative_percentage: 100, soak_seconds: 0 }], failure_policy: { minimum_sample_size: 10, failure_percentage: 10, timeout_percentage: 10 }, rate_limit_per_minute: Number(planRate) }),
     });
@@ -3276,8 +3342,8 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
       return values.length ? [[key, values]] : [];
     }));
     setScopeLoading(true);
-    const response = await fetch('/api/update-plans/scope-preview', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const response = await fetch(`${scopedAPI}/update-plans/scope-preview`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `plan-preview-${release.product_id}-${Date.now()}` },
       body: JSON.stringify({ product_id: release.product_id, query, excluded_device_ids: excludedDeviceText.split(/[,\s]+/).map((item) => item.trim()).filter(Boolean) }),
     });
     const body = await response.json().catch(() => ({}));
@@ -3288,7 +3354,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
   }
   async function releaseAction(release, action) {
     const id = release.id || release.release_id;
-    const response = await fetch(`/api/products/${encodeURIComponent(release.product_id)}/releases/${encodeURIComponent(id)}/${action}`, {
+    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(release.product_id)}/releases/${encodeURIComponent(id)}/${action}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-action-${id}-${action}-${Date.now()}` },
       body: JSON.stringify(action === 'revoke' ? { reason: 'Withdrawn by Brand Operator' } : {}),
     });
@@ -5440,7 +5506,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
     let alive = true;
     setTelemetryError('');
     setTelemetryLoadingId(selectedDevice.id);
-    fetchJSON(`/api/devices/${selectedDevice.id}/telemetry`)
+    fetchJSON(`${cloudAPI(cloudIdFromPath(window.location.pathname))}/fleet/devices/${encodeURIComponent(selectedDevice.id)}/telemetry`)
       .then((payload) => {
         if (!alive) return;
         setTelemetryById((current) => ({
@@ -6832,10 +6898,10 @@ async function sendJSONWithMethod(method, url, body) {
   return text ? JSON.parse(text) : null;
 }
 
-async function fetchRecentAlerts(devices) {
+async function fetchRecentAlerts(devices, scopedAPI) {
   if (!devices.length) return [];
   const settled = await Promise.allSettled(
-    devices.map((device) => fetchJSON(`/api/devices/${device.id}/telemetry`)),
+    devices.map((device) => fetchJSON(`${scopedAPI}/fleet/devices/${encodeURIComponent(device.id)}/telemetry`)),
   );
   const alerts = [];
   settled.forEach((result, index) => {
@@ -7055,6 +7121,7 @@ function filterQueryValue(value) {
 function updateDevicesLocation({ deviceId, health, status, signal, firmware, productID, q, sort, direction, offset } = {}) {
   const current = new URLSearchParams(window.location.search);
   const path = devicesPathWithFilters({
+    cloudId: cloudIdFromPath(window.location.pathname),
     deviceId: deviceId === undefined ? current.get('device') || '' : deviceId,
     health: health === undefined ? current.get('health') || '' : health,
     status: status === undefined ? current.get('status') || '' : status,
@@ -7070,9 +7137,18 @@ function updateDevicesLocation({ deviceId, health, status, signal, firmware, pro
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
+const initialCanonicalPath = canonicalCustomerPath(window.location.pathname);
+if (initialCanonicalPath !== window.location.pathname) {
+  window.history.replaceState({}, '', `${initialCanonicalPath}${window.location.search}${window.location.hash}`);
+}
+const initialManagedCloudRoute = managedCloudRoute(window.location.pathname);
+const usesManagedCloudApp = Boolean(initialManagedCloudRoute && (
+  !initialManagedCloudRoute.cloudId || ['products', 'members', 'settings'].includes(initialManagedCloudRoute.section)
+));
+
 document.documentElement.lang = i18n.language;
 createRoot(document.getElementById('root')).render(
   <I18nextProvider i18n={i18n}>
-    {handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : window.location.pathname === '/console/clouds' || window.location.pathname.startsWith('/console/clouds/') ? <MyCloudsApp /> : <App />}
+    {handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : usesManagedCloudApp ? <MyCloudsApp /> : <App />}
   </I18nextProvider>,
 );

@@ -35,19 +35,19 @@ export async function assertNoClientControlledTotal(response, expectedTotal) {
   return body;
 }
 
-export async function waitForJob(page, jobId, terminal = ['completed', 'partial_failed', 'failed', 'cancelled']) {
+export async function waitForJob(page, jobId, terminal = ['completed', 'partial_failed', 'failed', 'cancelled'], jobsAPI = '/api/jobs') {
   await expect.poll(async () => {
-    const response = await page.request.get(`/api/jobs/${encodeURIComponent(jobId)}`);
+    const response = await page.request.get(`${jobsAPI}/${encodeURIComponent(jobId)}`);
     if (!response.ok()) return 'unavailable';
     return (await response.json()).job?.state || 'unknown';
   }, { timeout: 20_000, intervals: [250, 500, 1_000] }).toMatch(new RegExp(`^(?:${terminal.join('|')})$`));
 }
 
-export async function waitForJobState(page, jobId, states, timeout = 20_000) {
+export async function waitForJobState(page, jobId, states, timeout = 20_000, jobsAPI = '/api/jobs') {
   const wanted = new Set(states);
   let observed = [];
   await expect.poll(async () => {
-    const response = await page.request.get(`/api/jobs/${encodeURIComponent(jobId)}`);
+    const response = await page.request.get(`${jobsAPI}/${encodeURIComponent(jobId)}`);
     if (!response.ok()) return 'unavailable';
     const state = (await response.json()).job?.state || 'unknown';
     if (!observed.includes(state)) observed.push(state);
@@ -56,8 +56,8 @@ export async function waitForJobState(page, jobId, states, timeout = 20_000) {
   return observed;
 }
 
-export async function assertAsyncJobProgress(page, jobId, expectedState) {
-  const response = await page.request.get(`/api/jobs/${encodeURIComponent(jobId)}`);
+export async function assertAsyncJobProgress(page, jobId, expectedState, jobsAPI = '/api/jobs') {
+  const response = await page.request.get(`${jobsAPI}/${encodeURIComponent(jobId)}`);
   expect(response.ok()).toBeTruthy();
   const body = await response.json();
   expect(body.job?.state).toBe(expectedState);

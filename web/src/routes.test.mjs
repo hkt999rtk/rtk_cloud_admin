@@ -4,6 +4,9 @@ import {
   billingSubpaths,
   canAccessCustomerRoute,
   canonicalCustomerPath,
+  cloudConsolePath,
+  cloudNavGroupsForCapabilities,
+  cloudRouteForSwitch,
   customerNavGroups,
   customerNavItems,
   defaultBrandCloudRoute,
@@ -65,33 +68,34 @@ test('maps Product collaborator invitation acceptance outside regular console na
 });
 
 test('maps customer shell paths to customer routes', () => {
-  assert.equal(routeFromPath('/console'), 'overview');
-  assert.equal(routeFromPath('/console/overview'), 'overview');
-  assert.equal(routeFromPath('/console/devices'), 'devices');
-  assert.equal(routeFromPath('/console/cloud-123/devices'), 'devices');
-  assert.equal(cloudIdFromPath('/console/cloud-123/devices'), 'cloud-123');
-  assert.equal(routeFromPath('/console/product-services'), 'product-services');
-  assert.equal(routeFromPath('/console/chipset-sdk'), 'chipset-sdk');
-  assert.equal(routeFromPath('/console/customers'), 'overview');
-  assert.equal(routeFromPath('/console/operations'), 'overview');
-  assert.equal(routeFromPath('/console/operations/history'), 'overview');
-  assert.equal(routeFromPath('/console/firmware-ota'), 'firmware-ota');
-  assert.equal(routeFromPath('/console/stream-health'), 'stream-health');
-  assert.equal(routeFromPath('/console/jobs'), 'firmware-ota');
-  assert.equal(routeFromPath('/console/cloud-123/jobs'), 'firmware-ota');
-  assert.equal(cloudIdFromPath('/console/cloud-123/jobs'), 'cloud-123');
-  assert.equal(canonicalCustomerPath('/console/jobs'), '/console/firmware-ota');
-  assert.equal(canonicalCustomerPath('/console/cloud-123/jobs'), '/console/cloud-123/firmware-ota');
-  assert.equal(routeFromPath('/console/reports'), 'reports');
-  assert.equal(routeFromPath('/console/groups'), 'groups');
-  assert.equal(routeFromPath('/console/groups/legacy'), 'groups');
-  assert.equal(routeFromPath('/console/access'), 'access');
-  assert.equal(routeFromPath('/console/settings'), 'settings');
-  assert.equal(routeFromPath('/console/cloud-123/settings'), 'settings');
-  assert.equal(cloudIdFromPath('/console/cloud-123/settings'), 'cloud-123');
-  assert.equal(routeFromPath('/console/billing'), 'billing');
-  assert.equal(routeFromPath('/console/cloud-123/billing'), 'billing');
-  assert.equal(cloudIdFromPath('/console/cloud-123/billing'), 'cloud-123');
+  const cloud = '11111111-1111-4111-8111-111111111111';
+  assert.equal(routeFromPath('/console/clouds'), 'my-clouds');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}`), 'overview');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/products`), 'product-services');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/fleet`), 'devices');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/firmware-ota`), 'firmware-ota');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/analytics`), 'analytics');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/members`), 'access');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/billing/invoices`), 'billing');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/settings`), 'settings');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/audit`), 'audit');
+  assert.equal(cloudIdFromPath(`/console/clouds/${cloud}/fleet`), cloud);
+  assert.equal(cloudIdFromPath('/console/clouds/not-a-uuid/fleet'), '');
+  assert.equal(cloudIdFromPath('/console/clouds/%/fleet'), '');
+  assert.equal(cloudIdFromPath(`/console/${cloud}/devices`), cloud);
+  assert.equal(cloudIdFromPath('/unrelated'), '');
+  assert.equal(canonicalCustomerPath('/console'), '/console/clouds');
+  assert.equal(canonicalCustomerPath('/console/clouds'), '/console/clouds');
+  assert.equal(canonicalCustomerPath(`/console/clouds/${cloud}/fleet`), `/console/clouds/${cloud}/fleet`);
+  assert.equal(canonicalCustomerPath('/console/chipset-sdk'), '/console/chipset-sdk');
+  assert.equal(canonicalCustomerPath('/console/jobs'), '/console/clouds');
+  assert.equal(canonicalCustomerPath(`/console/${cloud}/overview`), `/console/clouds/${cloud}`);
+  assert.equal(canonicalCustomerPath(`/console/${cloud}/jobs`), `/console/clouds/${cloud}/firmware-ota`);
+  assert.equal(canonicalCustomerPath(`/console/${cloud}/chipset-sdk`), '/console/chipset-sdk');
+  assert.equal(canonicalCustomerPath(`/console/${cloud}/devices`), `/console/clouds/${cloud}/fleet`);
+  assert.equal(canonicalCustomerPath(`/console/${cloud}/reports`), `/console/clouds/${cloud}/analytics`);
+  assert.equal(canonicalCustomerPath('/console/not-a-cloud/devices'), '/console/clouds');
+  assert.equal(canonicalCustomerPath('/unrelated'), '/unrelated');
 });
 
 test('billing subpaths remain addressable inside the tenant billing section', () => {
@@ -110,36 +114,57 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.labelKey),
-    ['Brand Cloud Home', 'Devices', 'Products and Services', 'ChipSet & SDK', 'Firmware OTA', 'Video Streaming Health', 'Reports', 'Billing and Automatic Top-Up'],
+    ['My Clouds', 'Overview', 'Products', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'],
   );
-  assert.deepEqual(customerNavGroups.map((group) => group.labelKey), ['Brand Cloud', 'Device Operations', 'Products and Updates', 'Monitoring and Analytics', 'Account Management']);
+  assert.deepEqual(customerNavGroups.map((group) => group.labelKey), ['Clouds', 'Brand Cloud', 'Features', 'Management']);
 });
 
 test('customer nav is derived from active membership capabilities', () => {
-  const labels = navItemsForCapabilities('overview', [
+  const cloud = '11111111-1111-4111-8111-111111111111';
+  const labels = cloudNavGroupsForCapabilities(cloud, [
     'fleet.read',
     'customer.devices.read',
     'customer.stream.read',
-  ]).map((item) => item.labelKey);
-  assert.deepEqual(labels, ['Brand Cloud Home', 'Devices', 'ChipSet & SDK', 'Video Streaming Health']);
-  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'overview'), true);
-  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'access'), false);
-  assert.equal(navItemsForCapabilities('overview', ['team.read']).some((item) => item.id === 'product-services'), false);
-  assert.equal(navItemsForCapabilities('overview', ['billing_account.read']).some((item) => item.id === 'billing'), true);
+  ]).flatMap((group) => group.items).map((item) => item.labelKey);
+  assert.deepEqual(labels, ['My Clouds', 'Overview', 'Fleet Management', 'Analytics', 'Settings', 'Audit']);
+  assert.equal(cloudNavGroupsForCapabilities(cloud, ['team.read']).flatMap((group) => group.items).some((item) => item.id === 'access'), true);
+  assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read']).flatMap((group) => group.items).some((item) => item.id === 'billing'), false);
+  assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read'], { isOwner: true }).flatMap((group) => group.items).some((item) => item.id === 'billing'), true);
+  assert.deepEqual(cloudNavGroupsForCapabilities('', null).flatMap((group) => group.items).map((item) => item.id), ['my-clouds']);
+  assert.deepEqual(navItemsForCapabilities('login', null), []);
+  assert.deepEqual(navItemsForCapabilities('overview', 'fleet.read').map((item) => item.id), ['my-clouds', 'overview', 'settings']);
+  assert.equal(navItemsForCapabilities('overview', ['product.read']).some((item) => item.id === 'product-services'), true);
 });
 
 test('Brand Cloud navigation and route access are evaluated independently', () => {
-  const brandCloudItem = customerNavItems[0];
+  const brandCloudItem = customerNavItems.find((item) => item.id === 'overview');
   assert.equal(isCustomerNavItemActive(brandCloudItem, 'overview'), true);
-  assert.equal(isCustomerNavItemActive(brandCloudItem, 'access'), true);
-  assert.equal(isCustomerNavItemActive(brandCloudItem, 'settings'), true);
-  assert.equal(canAccessCustomerRoute('overview', ['team.read']), false);
+  assert.equal(isCustomerNavItemActive(brandCloudItem, 'access'), false);
+  assert.equal(canAccessCustomerRoute('overview', ['team.read']), true);
   assert.equal(canAccessCustomerRoute('access', ['team.read']), true);
   assert.equal(canAccessCustomerRoute('settings', []), true);
   assert.equal(defaultBrandCloudRoute(['fleet.read']), 'overview');
-  assert.equal(defaultBrandCloudRoute(['team.read']), 'access');
-  assert.equal(defaultBrandCloudRoute([]), 'settings');
-  assert.deepEqual(navGroupsForCapabilities('overview', ['team.read']).map((group) => group.labelKey), ['Brand Cloud', 'Products and Updates']);
+  assert.equal(defaultBrandCloudRoute(['team.read']), 'overview');
+  assert.equal(defaultBrandCloudRoute([]), 'overview');
+  assert.equal(cloudConsolePath('11111111-1111-4111-8111-111111111111', 'devices'), '/console/clouds/11111111-1111-4111-8111-111111111111/fleet');
+  assert.equal(cloudConsolePath('', 'devices'), '/console/clouds');
+  assert.equal(cloudConsolePath('11111111-1111-4111-8111-111111111111', 'my-clouds'), '/console/clouds');
+  assert.equal(cloudConsolePath('11111111-1111-4111-8111-111111111111', 'missing'), '/console/clouds');
+  assert.equal(isCustomerNavItemActive({ id: 'overview', activeRoutes: ['overview', 'access'] }, 'access'), true);
+  assert.equal(canAccessCustomerRoute('my-clouds'), true);
+  assert.equal(canAccessCustomerRoute('chipset-sdk'), true);
+  assert.equal(canAccessCustomerRoute('missing', ['fleet.read']), false);
+});
+
+test('cloud switch keeps an authorized feature and falls back to overview otherwise', () => {
+  const first = '11111111-1111-4111-8111-111111111111';
+  const second = '22222222-2222-4222-8222-222222222222';
+  assert.equal(cloudRouteForSwitch({ id: first, role: 'viewer', capabilities: ['fleet.read'] }, 'devices'), `/console/clouds/${first}/fleet`);
+  assert.equal(cloudRouteForSwitch({ id: second, role: 'viewer', capabilities: ['product.read'] }, 'devices'), `/console/clouds/${second}`);
+  assert.equal(cloudRouteForSwitch({ id: second, role: 'viewer', owner_user_id: 'owner', capabilities: ['billing_account.read'] }, 'billing', 'viewer'), `/console/clouds/${second}`);
+  assert.equal(cloudRouteForSwitch({ id: second, role: 'owner', owner_user_id: 'owner', capabilities: ['billing_account.read'] }, 'billing', 'owner'), `/console/clouds/${second}/billing`);
+  assert.equal(cloudRouteForSwitch({ organization_id: first, my_role: 'owner', capabilities: ['billing_account.read'] }, 'billing'), `/console/clouds/${first}/billing`);
+  assert.equal(cloudRouteForSwitch(null, 'devices'), '/console/clouds');
 });
 
 test('retired customer pages are not exposed in section navigation', () => {
@@ -166,7 +191,7 @@ test('platform nav follows the unified shell group order', () => {
 });
 
 test('route kind selects one capability-filtered navigation hierarchy', () => {
-  assert.deepEqual(navGroupsForCapabilities('overview', []).map((group) => group.labelKey), ['Brand Cloud', 'Products and Updates']);
+  assert.deepEqual(navGroupsForCapabilities('overview', []).map((group) => group.labelKey), ['Clouds', 'Brand Cloud', 'Management']);
   assert.deepEqual(navGroupsForCapabilities('platform-dashboard', []).map((group) => group.labelKey), ['Platform Overview', 'Monitoring and Diagnostics', 'Organizations and Products', 'Operations and Audit']);
   assert.equal(navGroupsForCapabilities('platform-dashboard', [])[2].items.some((item) => item.id === 'platform-chipset-providers'), false);
   assert.equal(navGroupsForCapabilities('platform-dashboard', ['platform.chipset_sdk.read'])[2].items.some((item) => item.id === 'platform-chipset-providers'), true);
@@ -192,11 +217,16 @@ test('route classification selects the separated view navigation', () => {
 });
 
 test('builds devices URLs with supported filters only', () => {
-  assert.equal(devicesPathWithFilters(), '/console/devices');
-  assert.equal(devicesPathWithFilters({ deviceId: 'dev-001' }), '/console/devices?device=dev-001');
+  const cloud = '11111111-1111-4111-8111-111111111111';
+  assert.equal(devicesPathWithFilters(), '/console/clouds');
+  assert.equal(devicesPathWithFilters({ cloudId: cloud, deviceId: 'dev-001' }), `/console/clouds/${cloud}/fleet?device=dev-001`);
   assert.equal(
-    devicesPathWithFilters({ health: 'warning', status: 'online', signal: 'poor', firmware: 'v1.2.4', productID: 'product-alpha', ignored: 'x' }),
-    '/console/devices?health=warning&status=online&signal=poor&firmware=v1.2.4&product_id=product-alpha',
+    devicesPathWithFilters({ cloudId: cloud, health: 'warning', status: 'online', signal: 'poor', firmware: 'v1.2.4', productID: 'product-alpha', ignored: 'x' }),
+    `/console/clouds/${cloud}/fleet?health=warning&status=online&signal=poor&firmware=v1.2.4&product_id=product-alpha`,
+  );
+  assert.equal(
+    devicesPathWithFilters({ cloudId: cloud, q: 'camera', sort: 'status', direction: 'desc', offset: 20 }),
+    `/console/clouds/${cloud}/fleet?q=camera&sort=status&direction=desc&offset=20`,
   );
 });
 

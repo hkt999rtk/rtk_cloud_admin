@@ -453,8 +453,39 @@ nav button:hover .fa-solid {
   margin-bottom: 2px;
 }
 
-.sidebar-nav-group button {
+.sidebar-nav-group button,
+.sidebar-nav-group a {
+  align-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.78);
+  display: flex;
+  font-weight: 650;
+  gap: 10px;
+  min-height: 40px;
+  padding: 10px 12px;
+  text-align: left;
+  text-decoration: none;
   width: 100%;
+}
+
+.sidebar-nav-group a .fa-solid {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  text-align: center;
+  width: 18px;
+}
+
+.sidebar-nav-group a.active,
+.sidebar-nav-group a:hover {
+  background: var(--brand);
+  box-shadow: 0 10px 22px rgba(0, 104, 183, 0.22);
+  color: #fff;
+}
+
+.sidebar-nav-group a:focus-visible {
+  outline: 3px solid rgba(109, 206, 221, 0.9);
+  outline-offset: 2px;
 }
 
 main {
@@ -5967,7 +5998,8 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .sidebar nav button {
+  .sidebar nav button,
+  .sidebar nav a {
     border-radius: 8px;
     color: rgba(255, 255, 255, .82);
     min-height: 44px;
@@ -5978,7 +6010,9 @@ th {
   }
 
   .sidebar nav button.active,
-  .sidebar nav button:hover {
+  .sidebar nav button:hover,
+  .sidebar nav a.active,
+  .sidebar nav a:hover {
     background: var(--brand);
     box-shadow: none;
     color: #fff;
@@ -6044,6 +6078,10 @@ th {
 
   .topbar-controls > .ghost-button {
     display: none;
+  }
+
+  .topbar-controls > .view-switch-button {
+    display: inline-flex;
   }
 
   .org-switcher,

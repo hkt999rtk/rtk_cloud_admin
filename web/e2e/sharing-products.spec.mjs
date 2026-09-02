@@ -7,9 +7,10 @@ test('[UI-CA-SHARING-102] Product sharing preserves pages and rejects stale scop
   expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
   const productReads = [];
   page.on('request', r => { if (r.method() === 'GET' && new URL(r.url()).pathname === '/api/developer/brand-clouds/'+cloudA+'/products') productReads.push(r.url()); });
-  await page.goto('/console/clouds/' + cloudA);
+  await page.goto('/console/clouds/' + cloudA + '/products');
   await expect(page.getByTestId('cloud-products').getByRole('navigation')).toContainText('27 authorized Products');
   expect(productReads).toHaveLength(1);
+  await page.goto('/console/clouds/' + cloudA + '/members');
   const sharing = page.getByRole('region', {name:'Cloud sharing'});
   await sharing.getByRole('button', {name:'Share cloud', exact:true}).click();
   await sharing.getByRole('textbox', {name:'Developer email'}).fill('page-reader@example.test');
@@ -62,7 +63,7 @@ test('[UI-CA-SHARING-102] Product sharing preserves pages and rejects stale scop
   await expect(sharing.getByRole('heading', {name:'page-reader@example.test · pending', exact:true})).toBeVisible();
 
   const other = await context.newPage();
-  await other.goto('/console/clouds/'+cloudB);
+  await other.goto('/console/clouds/'+cloudB+'/products');
   await expect(other.getByRole('button', {name:'Share cloud', exact:true})).toHaveCount(0);
   await expect(other.getByTestId('cloud-products')).toContainText('Shared sensor');
   await sharing.getByRole('button', {name:'Share cloud', exact:true}).click();
