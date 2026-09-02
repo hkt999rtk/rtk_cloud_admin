@@ -5939,16 +5939,17 @@ func (s *Server) activeCustomerOrg(ctx context.Context, session store.Session) (
 	if nextTokens.AccessToken != session.AccessToken || nextTokens.RefreshToken != session.RefreshToken {
 		_ = s.sessions.UpdateSessionTokens(session.ID, nextTokens.AccessToken, nextTokens.RefreshToken, tokenTTL(nextTokens))
 	}
+	memberships := me.Memberships()
 	if session.ActiveOrgID != "" {
-		for _, org := range me.Organizations {
+		for _, org := range memberships {
 			if org.ID == session.ActiveOrgID {
 				return org, nextTokens, nil
 			}
 		}
 		return accountclient.Organization{}, nextTokens, errCustomerActiveOrgInvalid
 	}
-	if len(me.Organizations) > 0 {
-		return me.Organizations[0], nextTokens, nil
+	if len(memberships) > 0 {
+		return memberships[0], nextTokens, nil
 	}
 	return accountclient.Organization{}, accountclient.Tokens{}, fmt.Errorf("no accessible organizations available")
 }

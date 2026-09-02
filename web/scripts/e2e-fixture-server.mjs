@@ -147,7 +147,8 @@ function customerProfile(req) {
   };
   if (role === 'billing_owner' || role === 'billing_viewer') {
     const owner = role === 'billing_owner';
-    return {user:{id:owner?billingOwnerID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:`${role}@example.com`},brand_cloud_memberships:billingCloudIDs.map((id,index)=>({id,name:`Billing Cloud ${index+1}`,role:owner?'owner':'viewer',my_role:owner?'owner':'viewer',owner_user_id:billingOwnerID,owner_email:'billing.owner@example.com',ownership_version:7,status:'active',capabilities:owner?capabilitySets.developer:['product.read']}))};
+    const memberships = billingCloudIDs.map((id,index)=>({id,name:`Billing Cloud ${index+1}`,role:owner?'owner':'viewer',my_role:owner?'owner':'viewer',owner_user_id:billingOwnerID,owner_email:'billing.owner@example.com',ownership_version:7,status:'active',capabilities:owner?capabilitySets.developer:['product.read']}));
+    return {user:{id:owner?billingOwnerID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:`${role}@example.com`},brand_cloud_memberships:memberships};
   }
   const capabilities = capabilitySets[role] || [];
   const visibleClouds = role === 'outsider' || role.startsWith('platform_') ? [] : role === 'customer' ? state.brandClouds.slice(0, 1) : state.brandClouds;
@@ -284,7 +285,8 @@ async function handleCustomerResource(req, res, url) {
   const orgID = decodeURIComponent(match[1]);
   const suffix = match[2];
   if (![...developerCloudIDs, developerSharingCloudID, ...billingCloudIDs].includes(orgID)) return send(res, 403, { error: 'organization forbidden' });
-  if (billingCloudIDs.includes(orgID) && (req.headers['x-billing-actor-id'] !== billingOwnerID || req.headers['x-billing-ownership-version'] !== '7')) return send(res,403,{code:'BILLING_OWNER_REQUIRED'});
+  const billingProtected = /^\/(?:billing(?:\/|$)|payment-methods(?:\/|$)|topups(?:\/|$)|auto-topup(?:\/|$)|payment-intents(?:\/|$))/.test(suffix);
+  if (billingCloudIDs.includes(orgID) && billingProtected && (req.headers['x-billing-actor-id'] !== billingOwnerID || req.headers['x-billing-ownership-version'] !== '7')) return send(res,403,{code:'BILLING_OWNER_REQUIRED'});
   const devices = mode === 'empty' ? [] : cloudDevices(orgID);
   if (mode === 'slow' && req.method !== 'GET') await new Promise((resolve) => setTimeout(resolve, 350));
   const paymentMethod = {
