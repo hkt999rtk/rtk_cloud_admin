@@ -29,6 +29,7 @@ control and the following fixed feature groups:
 | Global | My Clouds | `/console/clouds` |
 | Brand Cloud | Overview | `/console/clouds/{cloudId}` |
 | Features | Products | `/console/clouds/{cloudId}/products` |
+| Features | ChipSet & SDK | `/console/chipset-sdk` |
 | Features | Fleet Management | `/console/clouds/{cloudId}/fleet` |
 | Features | Firmware & OTA | `/console/clouds/{cloudId}/firmware-ota` |
 | Features | Analytics | `/console/clouds/{cloudId}/analytics` |
@@ -72,6 +73,18 @@ renaming the rest. `Billing` appears only for the current sole owner with the
 required Billing capability; direct navigation is denied for every non-owner.
 `My Clouds` is available to every authenticated developer account, including an
 eligible account with no current memberships.
+
+`ChipSet & SDK` is a global developer resource displayed in the same shell and
+Features group. It remains usable with no selected cloud. When entered from a
+selected cloud, an optional validated `cloudId` query preserves navigation
+context only; the SDK catalog and download eligibility remain global.
+
+The page presents two independently loaded sections. **Cloud Client SDKs** reads
+the Portal-owned public catalog for Android, iOS, JavaScript/TypeScript, Native,
+FreeRTOS/Pro2, and the complete bundle. **Device & ChipSet SDKs** retains the
+Account Manager provider catalog, including Ameba Arduino and Ameba FreeRTOS
+resources. Portal failure must not hide ChipSet content, and ChipSet-provider
+failure must not hide a valid Cloud Client release.
 
 Cloud lifecycle is not hidden inside the Platform Admin console. The integrated
 My Clouds page owns create/edit/share/transfer/delete entry points for ordinary developers.
@@ -127,6 +140,14 @@ cloud.
 Global login, account/session, My Clouds list/create and platform APIs do not
 require a selected cloud. They validate their global account/platform authority;
 creating a cloud assigns the caller its initial ownership atomically.
+
+Cloud Client SDK cards show version, artifact kind, size, SHA-256, validation,
+capability labels, limitations, documentation, and a Portal download action.
+Android, iOS, JavaScript/TypeScript, and Native say `WebRTC signaling`;
+FreeRTOS/Pro2 says `WebRTC answerer integration`. Supporting copy explicitly
+states that the packages do not include a complete peer connection, media
+engine, renderer, or media-track runtime. Cloud Admin never generates a
+presigned URL; the action enters the Portal evaluation-terms flow.
 
 ### Explicit selected-cloud BFF inventory
 
