@@ -60,6 +60,12 @@ import {
   protectedPathFromLocation,
   removeQueryParameterFromAddress,
 } from './auth-routing.mjs';
+import {
+  forgetCloudPreference,
+  preferredCloudID,
+  readCloudPreference,
+  rememberCloudPreference,
+} from './cloud-preference.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import {
@@ -343,7 +349,7 @@ function App() {
 
         if (isLoginRoute) {
           if (nextMe.authenticated) {
-            window.location.replace(destinationForSession(nextMe, loginNextFromLocation(window.location)));
+            window.location.replace(browserSessionDestination(nextMe, loginNextFromLocation(window.location)));
             return;
           }
           clearDashboardState();
@@ -378,6 +384,7 @@ function App() {
           const detail = await fetchJSON(cloudAPI(requestedCloudId));
           if (!alive) return;
           const cloud = detail.brand_cloud;
+          if (cloud?.id === requestedCloudId) rememberCloudPreference(requestedCloudId);
           setActiveCloudDetail(cloud);
           nextMe = { ...nextMe, active_org_id: requestedCloudId, capabilities: cloud.capabilities || [] };
         } else {
@@ -994,8 +1001,9 @@ function App() {
     setError('');
     const nextPath = loginNextFromLocation(window.location);
     try {
-      const result = await postJSON('/api/auth/login', { ...credentials, next: nextPath });
-      window.location.assign(destinationForSession({ authenticated: true, kind: result.kind }, nextPath));
+      await postJSON('/api/auth/login', { ...credentials, next: nextPath });
+      const session = await fetchJSON('/api/me');
+      window.location.assign(browserSessionDestination(session, nextPath));
     } catch (err) {
       if (err?.status === 401 || /invalid credentials/i.test(err?.message || '')) throw new Error('Email or password is incorrect.');
       if (err?.status === 403) throw new Error('This account does not have access to an available view.');
@@ -1007,7 +1015,8 @@ function App() {
     setError('');
     try {
       const result = await postJSON('/api/auth/login/activate', { token });
-      window.location.assign(destinationForSession({ authenticated: true, kind: result.kind || 'customer' }, loginNextFromLocation(window.location)));
+      const session = await fetchJSON('/api/me');
+      window.location.assign(browserSessionDestination(session, loginNextFromLocation(window.location)));
       return result;
     } catch (err) {
       const nextError = userFacingLoginActivationError(err);
@@ -1050,7 +1059,8 @@ function App() {
     try {
       const result = await postJSON('/api/auth/customer/verify-email', payload);
       if (result.tokens?.access_token) {
-        window.location.assign(destinationForSession({ authenticated: true, kind: result.kind || 'customer' }, loginNextFromLocation(window.location)));
+        const session = await fetchJSON('/api/me');
+        window.location.assign(browserSessionDestination(session, loginNextFromLocation(window.location)));
       }
       return result;
     } catch (err) {
@@ -2777,6 +2787,7 @@ function CloudBillingApp() {
       if (!me.authenticated) { window.location.replace(loginPathFor(window.location.pathname)); return; }
       if (!controller.signal.aborted) setAccount(me);
       const {brand_cloud:cloud} = await managedCloudRequest(cloudAPI(cloudId),{signal:controller.signal});
+      if (cloud?.id === cloudId) rememberCloudPreference(cloudId);
       if (!controller.signal.aborted) setScopedCloud(cloud);
       if (cloud.my_role !== 'owner' || cloud.owner_user_id !== me.user_id || !cloud.capabilities?.includes('billing_account.read')) throw {status:403};
       const data = await fetchCloudBillingData(cloudId,{signal:controller.signal});
@@ -6879,6 +6890,14 @@ async function fetchJSON(url) {
   if (response.status === 403) throw new AuthError(403, 'Access denied.');
   if (!response.ok) throw new Error(`${url} failed with ${response.status}`);
   return response.json();
+}
+
+function browserSessionDestination(me, nextPath) {
+  const rememberedCloudID = readCloudPreference(document.cookie);
+  if (rememberedCloudID && preferredCloudID(me, rememberedCloudID) !== rememberedCloudID) {
+    forgetCloudPreference();
+  }
+  return destinationForSession(me, nextPath, rememberedCloudID);
 }
 
 async function sendJSONWithMethod(method, url, body) {

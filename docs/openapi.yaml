@@ -150,7 +150,7 @@ paths:
         - REQ-E2E-CA-SIGNUP-EMAIL-001
       tags: [Auth]
       summary: Verify a customer signup email and set its initial password
-      description: Proxies the callback token and new password to Account Manager. When tokens are returned, resolves global /v1/me before creating a unified account session, selects the first membership as the active Brand Cloud, and returns the selected view kind (membership first, otherwise platform capability). Accounts without either receive 403 without a session cookie. The Web UI consumes the opaque token from the callback URL without rendering it or exposing an editable token field and routes to the selected account view.
+      description: Proxies the callback token and new password to Account Manager. When tokens are returned, resolves global /v1/me before creating a unified account session, selects the first membership as the compatibility active Brand Cloud, and returns the selected view kind. The Web UI consumes the opaque token from the callback URL without rendering it or exposing an editable token field. It routes by authorized next, then a remembered cloud validated against current memberships, then the first membership; accounts without memberships can enter empty My Clouds. The compatibility active cloud and preference cookie are not request authorization.
       security: []
       requestBody:
         required: true

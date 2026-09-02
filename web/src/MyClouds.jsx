@@ -6,6 +6,7 @@ import { StartOwnerHandoff } from './OwnerHandoff.jsx';
 import { CloudProducts } from './CloudProducts.jsx';
 import { ProductDevices } from './ProductDevices.jsx';
 import { CloudConsoleShell } from './CloudConsoleShell.jsx';
+import { rememberCloudPreference } from './cloud-preference.mjs';
 
 function ownerAccountEmail(item, me) {
   if (item?.owner_email) return item.owner_email;
@@ -69,7 +70,10 @@ export function MyCloudsApp() {
           if (navigationCloudId) {
             try {
               const context = await managedCloudRequest(cloudAPI(navigationCloudId), { signal: controller.signal });
-              if (!controller.signal.aborted) setCloud(context.brand_cloud || null);
+              if (!controller.signal.aborted) {
+                if (context.brand_cloud?.id === navigationCloudId) rememberCloudPreference(navigationCloudId);
+                setCloud(context.brand_cloud || null);
+              }
             } catch (contextError) {
               if (contextError.status === 401) throw contextError;
               if (!controller.signal.aborted) window.history.replaceState({}, '', cloudRoot);
@@ -77,6 +81,7 @@ export function MyCloudsApp() {
           }
         } else {
           setPage(null);
+          if (result.brand_cloud?.id === cloudId) rememberCloudPreference(cloudId);
           setCloud(result.brand_cloud || null);
         }
       } catch (err) { if (!controller.signal.aborted) { setError(cloudError(err)); if ([401,403,404].includes(err.status)) { setForm(null); setOperation(null); } } }

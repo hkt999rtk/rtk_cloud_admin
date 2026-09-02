@@ -150,7 +150,7 @@ function customerProfile(req) {
     return {user:{id:owner?billingOwnerID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:`${role}@example.com`},brand_cloud_memberships:billingCloudIDs.map((id,index)=>({id,name:`Billing Cloud ${index+1}`,role:owner?'owner':'viewer',my_role:owner?'owner':'viewer',owner_user_id:billingOwnerID,owner_email:'billing.owner@example.com',ownership_version:7,status:'active',capabilities:owner?capabilitySets.developer:['product.read']}))};
   }
   const capabilities = capabilitySets[role] || [];
-  const visibleClouds = role === 'outsider' ? [] : role === 'customer' ? state.brandClouds.slice(0, 1) : state.brandClouds;
+  const visibleClouds = role === 'outsider' || role.startsWith('platform_') ? [] : role === 'customer' ? state.brandClouds.slice(0, 1) : state.brandClouds;
   const membershipRole = role === 'operations' ? 'admin' : role === 'observer' ? 'viewer' : 'owner';
   const clouds = visibleClouds.map((brand) => ({
     id: brand.id,

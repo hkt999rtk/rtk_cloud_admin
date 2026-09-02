@@ -319,10 +319,17 @@ Unified account sessions:
 - global route guards use global capabilities; cloud route guards resolve current
   membership/capabilities for that request's validated cloud UUID, not a shared
   active-organization snapshot, login path or UI role switch
-- a valid `next` route is honored only when authorized; otherwise the default is
-  My Clouds (`/console/clouds`) when memberships exist, then Platform View when platform access
-  exists, otherwise the empty My Clouds page; an authenticated account without
-  memberships may request cloud creation, subject to upstream eligibility and quota
+- a valid `next` route is honored only when authorized; an explicit My Clouds
+  next remains on `/console/clouds`. Without an explicit cloud destination, the
+  browser validates the `rtk_last_cloud_id` cookie against fresh memberships
+  and opens that cloud, or the first API-ordered membership when no valid
+  preference exists. Platform-only accounts enter Platform View; an
+  authenticated account without memberships enters empty My Clouds and may
+  request cloud creation, subject to upstream eligibility and quota
+- `rtk_last_cloud_id` stores only a cloud UUID with `Path=/`, `SameSite=Lax`, a
+  one-year maximum age and `Secure` on HTTPS. It is written only after a
+  successful cloud-detail read and is never accepted as authorization or BFF
+  mutation scope
 - accounts with both platform capability and Brand Cloud membership can switch
   views and organizations without logging in again
 - switching clouds revalidates the explicit route/request scope for that tab;
@@ -347,11 +354,12 @@ terminate in the global activation UI and subsequent logout/login uses the same
 
 When email verification returns account tokens, the BFF resolves `/v1/me`
 before creating the session, selects the first membership as the active Brand
-Cloud, and uses the same membership-first view selection as global login.
-Platform-only accounts enter the platform view; authenticated global accounts with
-neither membership nor platform capability enter the empty My Clouds page, where
-Account Manager still enforces cloud-creation eligibility. The verification
-response includes the selected `kind`, which the UI uses for its destination.
+Cloud for compatibility, and returns the selected account kind. The browser
+then applies the same authorized `next`, remembered-cloud, and first-membership
+navigation rule as global login; the compatibility active cloud is not request
+authority. Platform-only accounts enter the platform view; authenticated global
+accounts with neither membership nor platform capability enter the empty My
+Clouds page, where Account Manager still enforces cloud-creation eligibility.
 Logout remains reachable from the navigation drawer on narrow screens.
 
 ## Upstream Integration
@@ -609,6 +617,8 @@ On My Clouds, these fixed groups remain visible: without explicit cloud context
 their cloud-scoped entries are disabled rather than removed. A validated cloud
 query may preserve navigation context, but every operation remains authorized
 from its explicit cloud-scoped path and no cloud is inferred from session state.
+For login navigation only, a remembered cloud cookie is checked against current
+memberships; absent or invalid preference selects the first ordered membership.
 The top bar supplies the only My Clouds title. The page introduction explains
 owned/shared access and the features available after selection. Cards identify
 the sole owner by the authorized `owner_email` projection, never a UUID, and do

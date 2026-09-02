@@ -19,7 +19,10 @@ user explicitly selects a cloud, Overview, Products, Fleet Management, Firmware
 & OTA, Analytics and Management entries are disabled with a select-cloud cue,
 not hidden. A validated `cloudId` query on My Clouds may preserve the cloud the
 user came from for navigation continuity, but it is never an authorization
-source and never falls back to the last-used or first membership.
+source. Separately, login without an explicit cloud destination validates the
+`rtk_last_cloud_id` cookie against fresh memberships and opens that cloud, or
+the first membership when the cookie is missing or unusable. The cookie is
+written only after a successful cloud-detail authorization check.
 Owner-only Billing remains hidden when the account owns no cloud.
 
 Navigation and actions are derived from active-cloud capabilities, not a UI
@@ -29,10 +32,12 @@ uses the capability matrix in `roles.md`.
 The login page posts credentials exactly once to `POST /api/auth/login`. The BFF
 calls Account Manager global login and `/v1/me`; the browser never probes
 separate customer, platform, or tenant login endpoints. A valid deep-link
-`next` route wins when authorized. Otherwise the default landing is the
-integrated My Clouds page when at least one membership exists, Platform View
-when only platform access exists, and the empty My Clouds state for an eligible
-developer without memberships. A dual-capability account can
+`next` route wins when authorized, including an explicit My Clouds destination.
+Otherwise a valid remembered membership opens its cloud overview, falling back
+to the first API-ordered membership. Platform View is the default when only
+platform access exists, and the empty My Clouds state is the default for an
+eligible developer without memberships. The remembered cloud UUID is a
+client-side navigation preference, not BFF authority. A dual-capability account can
 switch Platform View, Brand Fleet, and active Brand Clouds without logging in
 again.
 

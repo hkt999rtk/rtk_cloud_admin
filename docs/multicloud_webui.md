@@ -6,9 +6,11 @@ sharing, deletion and Billing handoff. This document does not claim implementati
 ## Navigation and session
 
 One global account session serves developer and Platform views. Honor a safe,
-authorized login next first; otherwise memberships lead to `/console/clouds`,
-platform-only capability to Platform View, and an eligible developer without a
-membership to the empty My Clouds state.
+authorized login next first. An explicit `/console/clouds` next opens My Clouds.
+When login has no explicit cloud destination, an authorized remembered cloud
+opens directly; otherwise the first membership opens. Platform-only capability
+leads to Platform View, and an eligible developer without a membership reaches
+the empty My Clouds state.
 No additional login or per-cloud identity is introduced.
 For an eligible developer with no memberships, the no-access state explains the
 absence of cloud access and links to My Clouds/create; it is not an account lockout.
@@ -42,8 +44,18 @@ to My Clouds originates from an authorized cloud route, the link may preserve
 that explicit cloud as a validated URL query context so the same feature links
 remain usable. This query context is navigation state only: the BFF still takes
 scope from each cloud-scoped path and revalidates current membership and
-capabilities. An absent, invalid or unauthorized context never causes the UI to
-choose a recent or first cloud automatically.
+capabilities. This My Clouds query context does not itself choose a cloud.
+
+Login remembers the last successfully opened cloud in the client-readable
+`rtk_last_cloud_id` cookie (`Path=/`, `SameSite=Lax`, one-year maximum age and
+`Secure` on HTTPS). The value is a navigation preference containing only a
+cloud UUID, never an authorization credential. After login, the UI validates it
+against the fresh `/api/me` memberships. A valid membership opens that cloud's
+overview; a missing, malformed, or unauthorized value falls back to the first
+membership in the API's stable creation order. No memberships leads to the
+empty My Clouds state. The cookie is written only after the selected cloud's
+detail read succeeds, so a revoked preference cannot grant access or become
+request scope. Each cloud-scoped BFF call still authorizes the path `cloudId`.
 The owner-only Billing item is the exception: My Clouds may show it only when the
 account currently owns at least one cloud, and selecting a non-owner membership
 removes it under the normal selected-cloud capability rule.
@@ -84,8 +96,9 @@ version. Server-held jobs and downloads keep immutable scope and revalidate
 authority. Legacy `/console/overview`, `/console/devices`, `/console/billing`
 and `/console/{cloudId}/*` routes redirect only when scope is explicit or can be
 recovered unambiguously and authorization is revalidated. Otherwise they return
-to My Clouds for explicit selection. Never replay a mutation against a newly
-selected cloud.
+to My Clouds for explicit selection. The login preference does not supply
+missing scope to a legacy URL. Never replay a mutation against a newly selected
+cloud.
 Global login, account/session, My Clouds list/create and platform APIs do not
 require a selected cloud. They validate their global account/platform authority;
 creating a cloud assigns the caller its initial ownership atomically.
