@@ -629,6 +629,9 @@ The Products introduction explains that a Product normally maps to a device
 model/SKU or technically identical SKU group. It is the boundary for devices,
 firmware, OTA behavior and enabled cloud services; a SKU requiring different
 technical settings uses a separate Product so changes reach only its devices.
+The Members & Access introduction explains owner-only invitations, management
+roles versus read-only Viewer, selected-Product versus future-inclusive
+whole-cloud scope, revocation, and the sensitive access collaboration excludes.
 The design is not a claim of deployed UI completeness.
 
 The Developer console uses one global developer session and explicit per-request

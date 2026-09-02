@@ -25,6 +25,9 @@ function cloudIntroduction(section) {
   if (section === 'products') {
     return 'Products organize the device models you build and sell in this Brand Cloud. A Product usually represents one SKU—a sellable model or variant—or a group of SKUs that share the same technical configuration, firmware, cloud services, and update policy. This keeps devices, releases, and OTA updates separated so changes reach only the intended models. Create a separate Product whenever a SKU needs different firmware, services, or lifecycle rules.';
   }
+  if (section === 'members') {
+    return 'Members & Access controls who can work in this Brand Cloud and what they can see or change. The owner can invite a verified developer: choose Admin or Member for management work, or Viewer for read-only access to selected Products or the entire cloud. Entire-cloud Viewer access also includes Products created later. Removing access stops both cloud and Product access; Billing, payment methods, private keys, and video playback are never shared.';
+  }
   return 'This Brand Cloud keeps its Products, devices, team access, and service settings together. Billing is managed separately by the cloud owner.';
 }
 

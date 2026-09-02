@@ -97,6 +97,13 @@ needs different firmware, services or lifecycle rules needs a separate Product,
 which prevents a release or service change from reaching the wrong devices.
 The list panel separately states the immutable Product key/cloud constraint.
 
+The Members & Access introduction explains the page before presenting member
+rows or invitation controls. Only the owner can invite a verified developer.
+Admin and Member are management roles; Viewer is read-only and can be limited
+to selected Products or the whole cloud. Whole-cloud Viewer includes Products
+created later. Removing access ends both cloud and Product access, while
+collaboration never grants Billing, payment methods, private keys or playback.
+
 Every cloud-scoped BFF request binds explicit cloud ID from route/request and verifies it
 against current Account Manager membership, lifecycle and capabilities. Product
 ID must belong to that cloud. Do not let a session-global active cloud override

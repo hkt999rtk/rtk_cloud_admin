@@ -53,7 +53,7 @@ export function CloudSharing({ cloudId, onAccessLost }) {
   }
   return <section className="my-clouds-panel cloud-sharing" aria-label="Cloud sharing">
     <h2>Members and sharing</h2>
-    <p>Only this cloud’s owner can authorize collaborators. Viewer access never grants Billing, private keys, payment methods or video playback.</p>
+    <p>Start with read-only access to selected Products. Choose entire-cloud access only when the collaborator should also see every current and future Product.</p>
     {error && <p role="alert">{error} <button disabled={busy} onClick={() => setRefresh(v => v + 1)}>Refresh sharing</button></p>}
     {notice && <p role="status">{notice}</p>}
     {loading && <p role="status">Loading current grants…</p>}

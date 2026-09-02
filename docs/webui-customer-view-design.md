@@ -428,7 +428,9 @@ sidebar. The content responsibilities include:
   the current user's role.
 - **Members & Access:** members, pending invitations, available roles, and readable
   management scopes. The invitation form expands from an explicit action;
-  read-only users do not see write controls.
+  read-only users do not see write controls. Its introduction explains owner-only
+  admission, Admin/Member management roles, selected-Product versus whole-cloud
+  Viewer scope, future-Product inclusion, revocation, and excluded sensitive access.
 - **Billing:** the current sole owner's cloud-scoped balance, usage, invoices,
   activity, payment settings and profile. It never appears as a global account
   page or for a collaborator.
