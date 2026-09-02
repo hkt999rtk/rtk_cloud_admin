@@ -91,6 +91,38 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   await other.close();
 });
 
+test('[UI-CA-MULTICLOUD-ANALYTICS-001] unavailable Overview and Stream Health values use compact N/A labels', async ({ page }) => {
+  await login(page, 'billing_owner');
+  await page.route(`**/api/developer/brand-clouds/${cloudA}/fleet/health-summary*`, (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      source_status: 'unavailable',
+      unavailable_reason: 'No telemetry source configured.',
+    }),
+  }));
+  await page.route(`**/api/developer/brand-clouds/${cloudA}/fleet/stream-stats*`, (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      source_status: 'unavailable',
+      unavailable_reason: 'WebRTC session event source is not configured.',
+    }),
+  }));
+  await page.goto(`/console/clouds/${cloudA}`);
+
+  const overviewCards = page.locator('.overview-metrics .metric-card');
+  await expect(overviewCards.getByText('N/A', { exact: true })).toHaveCount(3);
+  await expect(overviewCards.getByText('Unavailable', { exact: true })).toHaveCount(0);
+
+  await page.goto(`/console/clouds/${cloudA}/analytics`);
+
+  const cards = page.locator('.stream-health-metrics .metric-card');
+  await expect(cards).toHaveCount(4);
+  await expect(cards.getByText('N/A', { exact: true })).toHaveCount(4);
+  await expect(cards.getByText('Unavailable', { exact: true })).toHaveCount(0);
+});
+
 test('[UI-CA-MULTICLOUD-PRODUCTS-001] Products explains its SKU boundary without repeating the cloud heading', async ({ page }) => {
   await login(page, 'billing_owner');
   await page.route(new RegExp(`/api/developer/brand-clouds/${cloudA}/products\\?`), (route) => route.fulfill({

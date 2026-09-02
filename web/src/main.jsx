@@ -2127,8 +2127,8 @@ function Overview({
   const onlineRate = telemetryAvailable ? fleetHealth?.online_rate_7d_pct : null;
   const needsAttention = telemetryAvailable && (current.warning !== undefined || current.critical !== undefined)
     ? (current.warning || 0) + (current.critical || 0)
-    : 'Unavailable';
-  const activeStreams = streamAvailable ? (streamStats?.active_sessions ?? 0) : 'Unavailable';
+    : 'N/A';
+  const activeStreams = streamAvailable ? (streamStats?.active_sessions ?? 0) : 'N/A';
   const telemetryReason = telemetryState.message || sourceMessage(fleetHealth, 'No telemetry source configured.');
   const streamReason = streamState.message || sourceMessage(streamStats, 'No stream source configured.');
   const attentionDevices = buildAttentionQueue(devices, recentAlerts);
@@ -2138,7 +2138,7 @@ function Overview({
       <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
       <section className="metrics overview-metrics">
         <MetricCard icon="video" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
-        <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
+        <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'N/A'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
         <MetricCard icon="triangle-exclamation" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : telemetryReason} tone={needsAttention === 0 ? 'good' : 'warn'} />
         <MetricCard icon="tower-broadcast" label="Active Streams" value={activeStreams} hint={streamAvailable ? `of ${summary?.total_devices ?? 0} devices` : streamReason} tone="info" />
       </section>
@@ -3746,28 +3746,28 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
       key: 'success-rate',
       icon: 'signal',
       label: `Stream Success Rate (${windowLabel})`,
-      value: available ? formatPercent(stats?.success_rate_pct ?? 0) : 'Unavailable',
+      value: available ? formatPercent(stats?.success_rate_pct ?? 0) : 'N/A',
       hint: available ? 'Percent of stream requests that succeeded in the selected window' : unavailableText,
     },
     {
       key: 'avg-duration',
       icon: 'clock',
       label: 'Avg Stream Duration',
-      value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'Unavailable',
+      value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'N/A',
       hint: available ? 'Average session length across observed requests' : unavailableText,
     },
     {
       key: 'active-sessions',
       icon: 'tower-broadcast',
       label: 'Active Sessions Now',
-      value: available ? (stats?.active_sessions ?? 0) : 'Unavailable',
+      value: available ? (stats?.active_sessions ?? 0) : 'N/A',
       hint: available ? 'Count of currently open stream sessions' : unavailableText,
     },
     {
       key: 'never-streamed',
       icon: 'circle-question',
       label: 'Devices Never Streamed',
-      value: available ? (stats?.never_streamed_count ?? 0) : 'Unavailable',
+      value: available ? (stats?.never_streamed_count ?? 0) : 'N/A',
       hint: available ? 'Online devices that have no stream history' : unavailableText,
     },
   ];
