@@ -104,6 +104,14 @@ to selected Products or the whole cloud. Whole-cloud Viewer includes Products
 created later. Removing access ends both cloud and Product access, while
 collaboration never grants Billing, payment methods, private keys or playback.
 
+The Settings introduction explains that the page reviews and edits cloud
+identity/description, starts ownership transfer and checks deletion readiness.
+It states that renaming does not change Cloud ID, tenant slug, Products or
+devices, and that transfer moves Billing responsibility only after handoff
+checks. The Cloud settings summary labels Cloud name, Description, Cloud ID,
+Tenant slug, Owner email, Owner ID and My role. It never substitutes an opaque
+owner UUID for the account email or leaves the description as an unlabeled line.
+
 Every cloud-scoped BFF request binds explicit cloud ID from route/request and verifies it
 against current Account Manager membership, lifecycle and capabilities. Product
 ID must belong to that cloud. Do not let a session-global active cloud override

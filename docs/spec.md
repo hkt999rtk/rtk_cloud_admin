@@ -632,6 +632,9 @@ technical settings uses a separate Product so changes reach only its devices.
 The Members & Access introduction explains owner-only invitations, management
 roles versus read-only Viewer, selected-Product versus future-inclusive
 whole-cloud scope, revocation, and the sensitive access collaboration excludes.
+The Settings introduction explains metadata edits, stable cloud identifiers,
+deletion checks and ownership/Billing handoff. Its Cloud settings summary labels
+Cloud name, Description, Cloud ID, Tenant slug, Owner email, Owner ID and My role.
 The design is not a claim of deployed UI completeness.
 
 The Developer console uses one global developer session and explicit per-request

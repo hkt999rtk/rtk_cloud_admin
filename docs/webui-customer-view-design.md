@@ -436,7 +436,9 @@ sidebar. The content responsibilities include:
   page or for a collaborator.
 - **Settings:** owner-transfer create/cancel for `team.manage`, owner-transfer token
   acceptance for every authenticated customer developer, and PKI test bundle
-  issuance for `pki.test.issue`.
+  issuance for `pki.test.issue`. Its summary labels Cloud name, Description,
+  Cloud ID, Tenant slug, Owner email, Owner ID and the current user's role; its
+  introduction explains rename stability, deletion checks and Billing handoff.
 
 The validated route/request cloud ID is the authority for that request's scope.
 The cloud selector navigates the current tab; it is not shared session state and
