@@ -44,7 +44,8 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
 
   const featureLabels = ['Overview', 'Products', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'];
   await page.goto('/console/clouds');
-  await expect(page.locator('.topbar-title').getByRole('heading', { name: 'My Clouds', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'My Clouds', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'My Clouds', exact: true })).toBeVisible();
   await expect(page.locator('.my-clouds-heading').getByRole('heading', { name: 'My Clouds', exact: true })).toHaveCount(0);
   await expect(page.getByText('Create and manage the Brand Clouds you own, or open clouds shared with your account.', { exact: false })).toBeVisible();
   await expect(page.getByText('billing.owner@example.com', { exact: true }).first()).toBeVisible();
@@ -67,6 +68,7 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   await page.getByRole('link', { name: 'My Clouds', exact: true }).click();
   await expect(page).toHaveURL(`/console/clouds?cloudId=${cloudA}`);
   await expect(page.getByRole('link', { name: 'Fleet Management', exact: true })).toHaveAttribute('href', `/console/clouds/${cloudA}/fleet`);
+  if (await mobileMenu.isVisible()) await mobileMenu.click();
   await page.getByRole('link', { name: 'Fleet Management', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudA}/fleet$`));
   await expect.poll(() => scopedReads.some((path) => path.startsWith(`/api/developer/brand-clouds/${cloudA}/fleet/`))).toBeTruthy();
