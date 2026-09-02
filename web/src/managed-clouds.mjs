@@ -9,6 +9,7 @@ export function managedCloudRoute(path) {
 }
 export function cloudURL(id) { if (!uuid.test(id)) throw new Error('Invalid cloud ID'); return `${cloudRoot}/${id}`; }
 export function cloudOperationFromSearch(search) { const id = new URLSearchParams(search).get('operation') || ''; return uuid.test(id) ? id : ''; }
+export function cloudContextFromSearch(search) { const id = new URLSearchParams(search).get('cloudId') || ''; return uuid.test(id) ? id : ''; }
 export function cloudAPI(id = '') { if (id && !uuid.test(id)) throw new Error('Invalid cloud ID'); return `/api/developer/brand-clouds${id ? `/${id}` : ''}`; }
 export function cloudError(error) {
   if (error?.status === 401) return 'Your session expired. Sign in again.';

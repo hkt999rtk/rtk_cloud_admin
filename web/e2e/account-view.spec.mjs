@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
 
+const cloudA = '33333333-3333-4333-8333-333333333333';
+const cloudB = '44444444-4444-4444-8444-444444444444';
+
+async function signInDualAccount(page) {
+  await page.getByLabel('Email').fill('identity.dual@example.com');
+  await page.getByLabel('Password').fill('e2e-identity-dual-password');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+}
+
 test('[UI-CA-AUTH-VIEW-001] dual-role account changes views and Brand Cloud without logging in again', async ({ page }) => {
   const loginRequests = [];
   const activeOrgWrites = [];
@@ -11,9 +20,7 @@ test('[UI-CA-AUTH-VIEW-001] dual-role account changes views and Brand Cloud with
     if (pathname === '/api/me/active-org' && request.method() !== 'GET') activeOrgWrites.push(pathname);
   });
   await page.goto('/login?next=%2Fadmin%3Ftab%3Dhealth%23status');
-  await page.getByLabel('Email').fill('identity.dual@example.com');
-  await page.getByLabel('Password').fill('e2e-identity-dual-password');
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await signInDualAccount(page);
   await expect(page).toHaveURL(/\/admin\?tab=health#status$/);
   await expect(page.getByRole('heading', { name: 'Platform Home', exact: true })).toBeVisible();
   const originalCookie = (await page.context().cookies()).find((cookie) => cookie.name === 'rtk_admin_session');
@@ -45,7 +52,7 @@ test('[UI-CA-AUTH-VIEW-001] dual-role account changes views and Brand Cloud with
     page.getByRole('button', { name: 'Brand Cloud view', exact: true }).click(),
   ]);
   await page.waitForLoadState('domcontentloaded');
-  await expect(page.locator('.my-clouds-heading').getByRole('heading', { name: 'My Clouds', exact: true })).toBeVisible();
+  await expect(page.locator('.topbar-title').getByRole('heading', { name: 'My Clouds', exact: true })).toBeVisible();
 
   const profile = await (await page.request.get('/api/me')).json();
   expect(profile.user_id).toBe('identity-dual-user');
@@ -53,4 +60,21 @@ test('[UI-CA-AUTH-VIEW-001] dual-role account changes views and Brand Cloud with
   expect((await page.context().cookies()).find((cookie) => cookie.name === 'rtk_admin_session')?.value).toBe(originalCookie.value);
   expect(loginRequests).toEqual(['/api/auth/login']);
   expect(activeOrgWrites).toEqual([]);
+});
+
+test('[UI-CA-AUTH-CLOUD-001] login selects the first cloud then reuses the last authorized cloud cookie', async ({ page }) => {
+  await page.goto('/login');
+  await signInDualAccount(page);
+  await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudA}$`));
+  await expect.poll(async () => (await page.context().cookies()).find((cookie) => cookie.name === 'rtk_last_cloud_id')?.value).toBe(cloudA);
+
+  await page.getByLabel('Brand Cloud', { exact: true }).selectOption(cloudB);
+  await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudB}$`));
+  await expect.poll(async () => (await page.context().cookies()).find((cookie) => cookie.name === 'rtk_last_cloud_id')?.value).toBe(cloudB);
+
+  await page.getByRole('button', { name: 'Logout', exact: true }).click();
+  await expect(page).toHaveURL(/\/login(?:\?|$)/);
+  await page.goto('/login');
+  await signInDualAccount(page);
+  await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudB}$`));
 });

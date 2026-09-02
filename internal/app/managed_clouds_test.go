@@ -33,8 +33,8 @@ type managedCloudFixture struct {
 func managedCloudFixtureServer(t *testing.T) (*httptest.Server, *managedCloudFixture) {
 	t.Helper()
 	f := &managedCloudFixture{clouds: map[string]accountclient.ManagedCloud{
-		cloudA: {ID: cloudA, Name: "Camera Lab", Description: "My owned cloud", TenantSlug: "camera-lab", OwnerUserID: "owner-1", MyRole: "owner", Status: "active", OwnershipVersion: 1, Capabilities: []string{"cloud.update", "product.read"}},
-		cloudB: {ID: cloudB, Name: "Shared Home", Description: "Read-only collaboration", TenantSlug: "shared-home", OwnerUserID: "owner-2", MyRole: "viewer", Status: "active", OwnershipVersion: 1, Capabilities: []string{"product.read"}},
+		cloudA: {ID: cloudA, Name: "Camera Lab", Description: "My owned cloud", TenantSlug: "camera-lab", OwnerUserID: "owner-1", OwnerEmail: "demo@example.test", MyRole: "owner", Status: "active", OwnershipVersion: 1, Capabilities: []string{"cloud.update", "product.read"}},
+		cloudB: {ID: cloudB, Name: "Shared Home", Description: "Read-only collaboration", TenantSlug: "shared-home", OwnerUserID: "owner-2", OwnerEmail: "other-owner@example.test", MyRole: "viewer", Status: "active", OwnershipVersion: 1, Capabilities: []string{"product.read"}},
 	}}
 	f.sharingMembers = map[string]accountclient.Member{"44444444-4444-4444-8444-444444444444": {OrganizationID: cloudA, UserID: "44444444-4444-4444-8444-444444444444", Email: "viewer@example.test", Role: "viewer", AccessScope: &accountclient.CloudAccessScope{Kind: "selected_products", ProductIDs: []string{productA}}}}
 	f.sharingInvites = map[string]accountclient.BrandCloudMemberInvitation{}
@@ -168,7 +168,7 @@ func TestManagedCloudBFFUsesExplicitScopeAndPreservesQuota(t *testing.T) {
 		return w
 	}
 	list := request("GET", "/api/developer/brand-clouds?view=shared", "")
-	if list.Code != 200 || !strings.Contains(list.Body.String(), `"owned_count":1`) || !strings.Contains(list.Body.String(), `"owner_user_id":"owner-2"`) || list.Header().Get("Cache-Control") != "no-store" {
+	if list.Code != 200 || !strings.Contains(list.Body.String(), `"owned_count":1`) || !strings.Contains(list.Body.String(), `"owner_email":"other-owner@example.test"`) || list.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("list %d %s", list.Code, list.Body.String())
 	}
 	for _, id := range []string{cloudA, cloudB} {

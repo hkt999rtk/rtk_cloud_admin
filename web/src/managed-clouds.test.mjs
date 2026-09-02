@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cloudAPI, cloudURL, cloudError, cloudWriteIntent, isCloudID, managedCloudRoute, cloudOperationFromSearch, managedCloudRequest } from './managed-clouds.mjs';
+import { cloudAPI, cloudURL, cloudError, cloudWriteIntent, isCloudID, managedCloudRoute, cloudOperationFromSearch, cloudContextFromSearch, managedCloudRequest } from './managed-clouds.mjs';
 const a = '11111111-1111-4111-8111-111111111111';
 const b = '22222222-2222-4222-8222-222222222222';
 test('managed routes bind valid cloud and Product identities, not a selected global cloud', () => {
@@ -12,6 +12,8 @@ test('managed routes bind valid cloud and Product identities, not a selected glo
   assert.throws(() => cloudAPI('../admin'));
   assert.equal(cloudOperationFromSearch(`?operation=${b}`), b);
   assert.equal(cloudOperationFromSearch('?operation=../../admin'), '');
+  assert.equal(cloudContextFromSearch(`?cloudId=${a}`), a);
+  assert.equal(cloudContextFromSearch('?cloudId=../../admin'), '');
 });
 test('retries keep the key but changing content or cloud never replays another intent', () => {
   let counter = 0; const generate = () => `key-${++counter}`;

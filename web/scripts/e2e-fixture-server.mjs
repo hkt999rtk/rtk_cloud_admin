@@ -53,6 +53,7 @@ const server = createServer(async (req, res) => {
       return res.end('<!doctype html><html><body><main><h1>NewebPay simulator</h1><p>TEST PAYMENT - no real charge is performed.</p></main></body></html>');
     }
     if (url.pathname === '/api/v1/query' || url.pathname === '/api/v1/query_range') return prometheusResponse(res);
+    if (url.pathname === '/api/sdk/catalog' && req.method === 'GET') return mode === 'unavailable' ? send(res, 503, { error: 'SDK catalog unavailable' }) : send(res, 200, sdkCatalogFixture());
     if (url.pathname === '/v1/logs') return send(res, 200, { events: state.logs.map((event) => ({ event_id: `${event.operation_id}-${event.request_id}`, service: event.service, level: event.level, ts: event.timestamp, msg: event.message, trace_id: event.trace_id, request_id: event.request_id, operation_id: event.operation_id })) });
     if (url.pathname === '/v1/auth/login' && req.method === 'POST') return login(req, res);
     if (url.pathname === '/v1/me') return send(res, 200, customerProfile(req));
@@ -103,6 +104,30 @@ async function load(name) {
   return JSON.parse(await readFile(path.join(fixtureDir, name), 'utf8'));
 }
 
+function sdkCatalogFixture() {
+  const specs = [
+    ['android', 'Android Kotlin', 'AAR, sources JAR, POM, and Gradle module metadata', ['Cloud API client', 'WebSocket control', 'WebRTC signaling']],
+    ['ios', 'iOS Swift', 'SwiftPM source package', ['Cloud API client', 'WebSocket control', 'WebRTC signaling']],
+    ['javascript', 'JavaScript / TypeScript', 'npm-compatible tarball with JavaScript and type declarations', ['Cloud API client', 'WebSocket control', 'WebRTC signaling']],
+    ['native', 'Native C/C++', 'Linux x86_64 and macOS arm64 static libraries, headers, and CMake metadata', ['Cloud API client', 'WebRTC signaling']],
+    ['freertos-pro2', 'FreeRTOS / Pro2', 'Cloud device-demo source, adapters, manifest, and validation evidence', ['Cloud device integration', 'WebRTC answerer integration']],
+  ];
+  const limitation = 'Does not include a WebRTC peer connection, media engine, renderer, or media-track runtime.';
+  const packages = specs.map(([slug, title, description, capabilities], index) => ({
+    slug, title, description,
+    filename: `rtk-cloud-client-${slug}-0.1.0-rc1.tar.gz`,
+    sha256: String(index + 1).repeat(64),
+    size_bytes: (index + 1) * 1024 * 1024,
+    validation_status: 'PASS', capabilities, limitations: [limitation],
+  }));
+  return {
+    schema: 'rtk-portal-sdk-public-catalog/v1', version: '0.1.0-rc1', release_train: 'rtk-cloud-client-0.1.0-rc1',
+    created_at: '2026-09-03T00:00:00Z', distribution: 'public-evaluation', signing_status: 'not_configured', terms_version: 'local-preview-2026-09',
+    packages,
+    complete_bundle: { slug: 'all', title: 'Complete SDK Bundle', description: 'All five Cloud Client SDK packages, reports, checksums, and evaluation terms', filename: 'rtk-cloud-client-sdk-0.1.0-rc1.tar.gz', sha256: 'f'.repeat(64), size_bytes: 18 * 1024 * 1024, validation_status: 'PASS', capabilities: specs.map(([, title]) => title), limitations: [limitation] },
+  };
+}
+
 function login(req, res) {
   return readBody(req).then((body) => {
     const identities = {
@@ -131,7 +156,7 @@ function customerProfile(req) {
       user: { id: 'identity-dual-user', email: 'identity.dual@example.com', name: 'Identity Dual User' },
       platform_capabilities: ['platform.audit.read', 'platform.chipset_sdk.read'],
       brand_cloud_memberships: state.brandClouds.map((brand) => ({
-        id: brand.id, name: brand.name, role: 'owner', tier: brand.tier, status: brand.status,
+        id: brand.id, name: brand.name, role: 'owner', tier: brand.tier, status: brand.status, owner_email: 'identity.dual@example.com',
         capabilities: ['fleet.read', 'product.read', 'team.read'],
       })),
     };
@@ -147,10 +172,11 @@ function customerProfile(req) {
   };
   if (role === 'billing_owner' || role === 'billing_viewer') {
     const owner = role === 'billing_owner';
-    return {user:{id:owner?billingOwnerID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:`${role}@example.com`},brand_cloud_memberships:billingCloudIDs.map((id,index)=>({id,name:`Billing Cloud ${index+1}`,role:owner?'owner':'viewer',my_role:owner?'owner':'viewer',owner_user_id:billingOwnerID,ownership_version:7,status:'active',capabilities:owner?capabilitySets.developer:['product.read']}))};
+    const memberships = billingCloudIDs.map((id,index)=>({id,name:`Billing Cloud ${index+1}`,role:owner?'owner':'viewer',my_role:owner?'owner':'viewer',owner_user_id:billingOwnerID,owner_email:'billing.owner@example.com',ownership_version:7,status:'active',capabilities:owner?capabilitySets.developer:['product.read']}));
+    return {user:{id:owner?billingOwnerID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:`${role}@example.com`},brand_cloud_memberships:memberships};
   }
   const capabilities = capabilitySets[role] || [];
-  const visibleClouds = role === 'outsider' ? [] : role === 'customer' ? state.brandClouds.slice(0, 1) : state.brandClouds;
+  const visibleClouds = role === 'outsider' || role.startsWith('platform_') ? [] : role === 'customer' ? state.brandClouds.slice(0, 1) : state.brandClouds;
   const membershipRole = role === 'operations' ? 'admin' : role === 'observer' ? 'viewer' : 'owner';
   const clouds = visibleClouds.map((brand) => ({
     id: brand.id,
@@ -158,6 +184,7 @@ function customerProfile(req) {
     role: membershipRole,
     my_role: membershipRole,
     owner_user_id: membershipRole === 'owner' ? `${role}-user` : 'developer-user',
+    owner_email: membershipRole === 'owner' ? `${role}@example.com` : 'developer@example.com',
     ownership_version: 1,
     tier: brand.tier,
     status: brand.status,
@@ -283,7 +310,8 @@ async function handleCustomerResource(req, res, url) {
   const orgID = decodeURIComponent(match[1]);
   const suffix = match[2];
   if (![...developerCloudIDs, developerSharingCloudID, ...billingCloudIDs].includes(orgID)) return send(res, 403, { error: 'organization forbidden' });
-  if (billingCloudIDs.includes(orgID) && (req.headers['x-billing-actor-id'] !== billingOwnerID || req.headers['x-billing-ownership-version'] !== '7')) return send(res,403,{code:'BILLING_OWNER_REQUIRED'});
+  const billingProtected = /^\/(?:billing(?:\/|$)|payment-methods(?:\/|$)|topups(?:\/|$)|auto-topup(?:\/|$)|payment-intents(?:\/|$))/.test(suffix);
+  if (billingCloudIDs.includes(orgID) && billingProtected && (req.headers['x-billing-actor-id'] !== billingOwnerID || req.headers['x-billing-ownership-version'] !== '7')) return send(res,403,{code:'BILLING_OWNER_REQUIRED'});
   const devices = mode === 'empty' ? [] : cloudDevices(orgID);
   if (mode === 'slow' && req.method !== 'GET') await new Promise((resolve) => setTimeout(resolve, 350));
   const paymentMethod = {

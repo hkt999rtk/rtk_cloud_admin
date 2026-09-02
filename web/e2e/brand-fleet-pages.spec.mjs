@@ -34,11 +34,25 @@ test('[UI-CA-FLEETPAGE-005] Brand Cloud overview access and settings share one n
   await page.getByRole('link', { name: 'Members & Access', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloud}/members$`));
   await expect(page.getByRole('heading', { name: 'Members and sharing' })).toBeVisible();
+  await expect(page.locator('.my-clouds-heading').getByRole('heading')).toHaveCount(0);
+  await expect(page.getByText('Members & Access controls who can work in this Brand Cloud', { exact: false })).toBeVisible();
+  await expect(page.getByText('Entire-cloud Viewer access also includes Products created later', { exact: false })).toBeVisible();
+  await expect(page.getByText('Start with read-only access to selected Products', { exact: false })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Members & Access', exact: true })).toHaveAttribute('aria-current', 'page');
   if (testInfo.project.name === 'mobile') await page.getByRole('button', { name: 'Open navigation' }).click();
   await page.getByRole('link', { name: 'Settings', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloud}/settings$`));
   await expect(page.getByRole('heading', { name: 'Cloud settings', exact: true })).toBeVisible();
+  await expect(page.locator('.my-clouds-heading').getByRole('heading')).toHaveCount(0);
+  await expect(page.getByText('Settings is where you review and update this Brand Cloud’s basic information', { exact: false })).toBeVisible();
+  const settingsPanel = page.locator('section.my-clouds-panel').filter({ has: page.getByRole('heading', { name: 'Cloud settings', exact: true }) });
+  for (const label of ['Cloud name', 'Description', 'Cloud ID', 'Tenant slug', 'Owner email', 'Owner ID', 'My role']) {
+    await expect(settingsPanel.getByText(label, { exact: true })).toBeVisible();
+  }
+  await expect(settingsPanel.getByText('E2E Alpha Cloud', { exact: true })).toBeVisible();
+  await expect(settingsPanel.getByText('developer@example.com', { exact: true })).toBeVisible();
+  await expect(settingsPanel.getByText('developer-user', { exact: true })).toBeVisible();
+  await expect(settingsPanel.getByText(cloud, { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Transfer ownership', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.goBack();

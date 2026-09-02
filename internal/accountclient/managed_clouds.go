@@ -18,6 +18,7 @@ type ManagedCloud struct {
 	Description      string   `json:"description"`
 	TenantSlug       string   `json:"tenant_slug"`
 	OwnerUserID      string   `json:"owner_user_id"`
+	OwnerEmail       string   `json:"owner_email"`
 	MyRole           string   `json:"my_role"`
 	Status           string   `json:"status"`
 	OwnershipVersion int64    `json:"ownership_version"`

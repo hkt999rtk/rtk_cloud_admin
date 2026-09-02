@@ -40,18 +40,21 @@ test('login page reads safe next from location search', () => {
 });
 
 test('session destination respects session kind and next path', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const customer = { authenticated: true, kind: 'customer', memberships: [{ organization_id: id }] };
   assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/admin/health'), '/admin/health');
   assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/console/devices'), '/admin');
-  assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/console/devices'), '/console/devices');
-  assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/admin'), '/console/clouds');
+  assert.equal(destinationForSession(customer, '/console/devices'), `/console/clouds/${id}`);
+  assert.equal(destinationForSession(customer, '/admin'), `/console/clouds/${id}`);
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/brand-cloud-member-invitation/accept?token=invite-token'), '/brand-cloud-member-invitation/accept?token=invite-token');
   assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/brand-cloud-member-invitation/accept?token=invite-token'), '/brand-cloud-member-invitation/accept?token=invite-token');
   assert.equal(destinationForSession({ authenticated: false }, '/admin'), '/login?next=%2Fadmin');
 });
 
 test('password login prefers the destination view', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
   assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/admin?tab=health#status'), '/admin?tab=health#status');
-  assert.equal(destinationForSession({ authenticated: true, kind: 'customer' }, '/console?cloud=brand-1#status'), '/console?cloud=brand-1#status');
+  assert.equal(destinationForSession({ authenticated: true, kind: 'customer', memberships: [{ organization_id: id }] }, '/console?cloud=brand-1#status'), `/console/clouds/${id}`);
 });
 
 test('platform login context requires a safe admin destination', () => {
@@ -64,14 +67,24 @@ test('platform login context requires a safe admin destination', () => {
   assert.equal(isPlatformLoginNext(''), false);
 });
 
-test('My Clouds is available without memberships; scoped next requires membership', () => {
+test('explicit My Clouds is preserved; scoped next requires membership', () => {
   const id = '11111111-1111-4111-8111-111111111111';
   const next = `/console/clouds/${id}?operation=22222222-2222-4222-8222-222222222222`;
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer', memberships: [] }, ''), '/console/clouds');
   assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin' }, '/console/clouds'), '/console/clouds');
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer', memberships: [] }, next), '/console/clouds');
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer', memberships: [{ organization_id: id }] }, next), next);
-  assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin', memberships: [{ id }] }, ''), '/console/clouds');
+  assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin', memberships: [{ id }] }, ''), `/console/clouds/${id}`);
+});
+
+test('login opens a valid remembered cloud or the first ordered membership', () => {
+  const first = '11111111-1111-4111-8111-111111111111';
+  const remembered = '22222222-2222-4222-8222-222222222222';
+  const stale = '33333333-3333-4333-8333-333333333333';
+  const me = { authenticated: true, kind: 'customer', memberships: [{ organization_id: first }, { organization_id: remembered }] };
+  assert.equal(destinationForSession(me, '', remembered), `/console/clouds/${remembered}`);
+  assert.equal(destinationForSession(me, '', stale), `/console/clouds/${first}`);
+  assert.equal(destinationForSession(me, '/console/clouds', remembered), '/console/clouds');
 });
 
 test('sensitive query parameters are removed without changing the rest of the address', () => {

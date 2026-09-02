@@ -20,6 +20,7 @@ import {
   cloudConsolePath,
   cloudNavGroupsForCapabilities,
   cloudRouteForSwitch,
+  cloudContextId,
   cloudIdFromPath,
   defaultBrandCloudRoute,
   isCustomerNavItemActive,
@@ -60,6 +61,12 @@ import {
   protectedPathFromLocation,
   removeQueryParameterFromAddress,
 } from './auth-routing.mjs';
+import {
+  forgetCloudPreference,
+  preferredCloudID,
+  readCloudPreference,
+  rememberCloudPreference,
+} from './cloud-preference.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import {
@@ -119,6 +126,7 @@ import {
   providerValidationErrorMessage,
   vendorInitials,
 } from './chipset-sdk.mjs';
+import { formatSDKBytes, sdkArtifactFormat, sdkArtifacts, sdkDocumentationURL } from './sdk-catalog.mjs';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import '@fontsource-variable/noto-sans-tc';
 import './styles.css';
@@ -248,6 +256,7 @@ function App() {
   const [brandCloudDrawerMode, setBrandCloudDrawerMode] = useState('');
   const [ssoProviders, setSSOProviders] = useState([]);
   const [chipsets, setChipsets] = useState(null);
+  const [sdkCatalog, setSDKCatalog] = useState(null);
   const [chipsetProviders, setChipsetProviders] = useState(null);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [firmwareProductId, setFirmwareProductId] = useState(() => new URLSearchParams(window.location.search).get('product_id') || '');
@@ -273,7 +282,7 @@ function App() {
   const isPlatformView = isPlatformRouteId(active);
   const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept' || active === 'product-collaborator-invitation-accept';
   const navigationRoute = me?.kind === 'platform_admin' ? 'platform-dashboard' : me?.kind === 'customer' ? 'overview' : active;
-  const routeCloudId = cloudIdFromPath(window.location.pathname);
+  const routeCloudId = cloudContextId(window.location.pathname, window.location.search);
   const visibleNavGroups = me?.kind === 'customer'
     ? cloudNavGroupsForCapabilities(routeCloudId, me?.capabilities, { isOwner: activeCloudDetail?.my_role === 'owner' && activeCloudDetail?.owner_user_id === me?.user_id })
     : navGroupsForCapabilities(navigationRoute, me?.capabilities);
@@ -319,6 +328,7 @@ function App() {
     setBrandCloudDrawerMode('');
     setSSOProviders([]);
     setChipsets(null);
+    setSDKCatalog(null);
     setChipsetProviders(null);
     setFirmwareDistribution(null);
     setFirmwareProductId('');
@@ -343,7 +353,7 @@ function App() {
 
         if (isLoginRoute) {
           if (nextMe.authenticated) {
-            window.location.replace(destinationForSession(nextMe, loginNextFromLocation(window.location)));
+            window.location.replace(browserSessionDestination(nextMe, loginNextFromLocation(window.location)));
             return;
           }
           clearDashboardState();
@@ -368,7 +378,7 @@ function App() {
           return;
         }
 
-        const requestedCloudId = cloudIdFromPath(window.location.pathname);
+        const requestedCloudId = cloudContextId(window.location.pathname, window.location.search);
         const isGlobalDeveloperRoute = active === 'chipset-sdk';
         if (nextMe.kind === 'customer' && !requestedCloudId && !isGlobalDeveloperRoute) {
           window.location.replace('/console/clouds');
@@ -378,6 +388,7 @@ function App() {
           const detail = await fetchJSON(cloudAPI(requestedCloudId));
           if (!alive) return;
           const cloud = detail.brand_cloud;
+          if (cloud?.id === requestedCloudId) rememberCloudPreference(requestedCloudId);
           setActiveCloudDetail(cloud);
           nextMe = { ...nextMe, active_org_id: requestedCloudId, capabilities: cloud.capabilities || [] };
         } else {
@@ -547,14 +558,22 @@ function App() {
           setChipsetProviders(null);
         }
         if (!useAdminApi && active === 'chipset-sdk' && nextMe.kind === 'customer') {
-          const result = await fetchJSON('/api/developer/chipsets').catch((err) => {
-            if (err.isAuthError) throw err;
-            return { chipsets: [], source_status: 'unavailable', source_message: 'ChipSet resources are unavailable.' };
-          });
+          const [result, releaseResult] = await Promise.all([
+            fetchJSON('/api/developer/chipsets').catch((err) => {
+              if (err.isAuthError) throw err;
+              return { chipsets: [], source_status: 'unavailable', source_message: 'ChipSet resources are unavailable.' };
+            }),
+            fetchJSON('/api/developer/sdk-releases/latest').catch((err) => {
+              if (err.isAuthError) throw err;
+              return { catalog: null, source_status: err.status === 503 ? 'unpublished' : 'unavailable', source_message: err.status === 503 ? 'No Cloud Client SDK release has been published yet.' : 'Cloud Client SDKs are temporarily unavailable.' };
+            }),
+          ]);
           if (!alive) return;
           setChipsets(result);
+          setSDKCatalog(releaseResult);
         } else {
           setChipsets(null);
+          setSDKCatalog(null);
         }
         if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin' && firmwareProductId) {
           const nextFirmwareDistribution = await fetchJSON(`${customerPrefix}/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`)
@@ -783,8 +802,10 @@ function App() {
   }, [mobileNavOpen]);
 
   function pathForNavigationItem(item) {
-    if (item.global || me?.kind === 'platform_admin') return item.path;
-    const cloudId = me?.kind === 'customer' ? cloudIdFromPath(window.location.pathname) : '';
+    const cloudId = me?.kind === 'customer' ? cloudContextId(window.location.pathname, window.location.search) : '';
+    if (item.id === 'my-clouds' && cloudId) return cloudConsolePath(cloudId, item.id);
+    if (item.global) return cloudConsolePath(cloudId, item.id);
+    if (me?.kind === 'platform_admin') return item.path;
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
     return cloudConsolePath(cloudId, targetRoute);
   }
@@ -993,8 +1014,9 @@ function App() {
     setError('');
     const nextPath = loginNextFromLocation(window.location);
     try {
-      const result = await postJSON('/api/auth/login', { ...credentials, next: nextPath });
-      window.location.assign(destinationForSession({ authenticated: true, kind: result.kind }, nextPath));
+      await postJSON('/api/auth/login', { ...credentials, next: nextPath });
+      const session = await fetchJSON('/api/me');
+      window.location.assign(browserSessionDestination(session, nextPath));
     } catch (err) {
       if (err?.status === 401 || /invalid credentials/i.test(err?.message || '')) throw new Error('Email or password is incorrect.');
       if (err?.status === 403) throw new Error('This account does not have access to an available view.');
@@ -1006,7 +1028,8 @@ function App() {
     setError('');
     try {
       const result = await postJSON('/api/auth/login/activate', { token });
-      window.location.assign(destinationForSession({ authenticated: true, kind: result.kind || 'customer' }, loginNextFromLocation(window.location)));
+      const session = await fetchJSON('/api/me');
+      window.location.assign(browserSessionDestination(session, loginNextFromLocation(window.location)));
       return result;
     } catch (err) {
       const nextError = userFacingLoginActivationError(err);
@@ -1049,7 +1072,8 @@ function App() {
     try {
       const result = await postJSON('/api/auth/customer/verify-email', payload);
       if (result.tokens?.access_token) {
-        window.location.assign(destinationForSession({ authenticated: true, kind: result.kind || 'customer' }, loginNextFromLocation(window.location)));
+        const session = await fetchJSON('/api/me');
+        window.location.assign(browserSessionDestination(session, loginNextFromLocation(window.location)));
       }
       return result;
     } catch (err) {
@@ -1308,7 +1332,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'product-services' ? (
           <ProductsPage loading={loading} data={products} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
         ) : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? <DeveloperChipsetResources data={chipsets} loading={loading} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? <DeveloperChipsetResources data={chipsets} sdkRelease={sdkCatalog} loading={loading} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'firmware-ota' ? (
           <FirmwareOTAPage
             loading={loading}
@@ -2116,8 +2140,8 @@ function Overview({
   const onlineRate = telemetryAvailable ? fleetHealth?.online_rate_7d_pct : null;
   const needsAttention = telemetryAvailable && (current.warning !== undefined || current.critical !== undefined)
     ? (current.warning || 0) + (current.critical || 0)
-    : 'Unavailable';
-  const activeStreams = streamAvailable ? (streamStats?.active_sessions ?? 0) : 'Unavailable';
+    : 'N/A';
+  const activeStreams = streamAvailable ? (streamStats?.active_sessions ?? 0) : 'N/A';
   const telemetryReason = telemetryState.message || sourceMessage(fleetHealth, 'No telemetry source configured.');
   const streamReason = streamState.message || sourceMessage(streamStats, 'No stream source configured.');
   const attentionDevices = buildAttentionQueue(devices, recentAlerts);
@@ -2127,7 +2151,7 @@ function Overview({
       <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
       <section className="metrics overview-metrics">
         <MetricCard icon="video" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
-        <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
+        <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'N/A'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
         <MetricCard icon="triangle-exclamation" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : telemetryReason} tone={needsAttention === 0 ? 'good' : 'warn'} />
         <MetricCard icon="tower-broadcast" label="Active Streams" value={activeStreams} hint={streamAvailable ? `of ${summary?.total_devices ?? 0} devices` : streamReason} tone="info" />
       </section>
@@ -2178,7 +2202,10 @@ function Overview({
 }
 
 function RegionFleetPanel({ summary, loading }) {
-  const regions = Object.entries(summary?.by_region || {}).sort((left, right) => right[1] - left[1]);
+  const regions = Object.entries(summary?.by_region || {})
+    .map(([region, count]) => [region, Number(count)])
+    .filter(([, count]) => Number.isFinite(count) && count > 0)
+    .sort((left, right) => right[1] - left[1]);
   const max = Math.max(...regions.map(([, count]) => count), 1);
   const unavailable = !summary || summary.source_status !== 'available';
   return (
@@ -2191,14 +2218,14 @@ function RegionFleetPanel({ summary, loading }) {
       </div>
       {loading ? <p className="empty-state">{translate('Loading regional data.')}</p> : null}
       {!loading && unavailable ? <p className="empty-state">{translate('Regional data is temporarily unavailable.')}</p> : null}
-      {!loading && !unavailable ? (
+      {!loading && !unavailable && !regions.length ? <p className="empty-state">{translate('No device locations have been reported yet.')}</p> : null}
+      {!loading && !unavailable && regions.length ? (
         <div className="region-fleet-grid">
           <div className="region-bars">
             {regions.slice(0, 8).map(([region, count]) => <div className="region-bar-row" key={region}>
               <div><strong>{region}</strong><span>{translate('{{count}} devices', { count: formatNumber(count) })}</span></div>
               <div className="region-bar-track"><span style={{ width: `${Math.max(4, count / max * 100)}%` }} /></div>
             </div>)}
-            {!regions.length ? <p className="empty-state">{translate('No regional data is available.')}</p> : null}
           </div>
           <div className="region-map-desktop"><RegionMap regions={regions} max={max} /></div>
           <details className="region-map-mobile">
@@ -2329,10 +2356,19 @@ function projectWorldPoint([longitude, latitude]) {
 
 function worldGeometryPath(geometry) {
   const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
-  return polygons.map((polygon) => polygon.map((ring) => ring.map((coordinate, index) => {
-    const [x, y] = projectWorldPoint(coordinate);
-    return `${index ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(' ') + 'Z').join(' ')).join(' ');
+  return polygons.map((polygon) => polygon.map((ring) => {
+    let previousLongitude = null;
+    let crossesDateLine = false;
+    const commands = ring.map((coordinate, index) => {
+      const [longitude] = coordinate;
+      const startsNewSegment = index > 0 && Math.abs(longitude - previousLongitude) > 180;
+      if (startsNewSegment) crossesDateLine = true;
+      previousLongitude = longitude;
+      const [x, y] = projectWorldPoint(coordinate);
+      return `${index && !startsNewSegment ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+    });
+    return commands.join(' ') + (crossesDateLine ? '' : 'Z');
+  }).join(' ')).join(' ');
 }
 
 function clampWorldViewport(viewport) {
@@ -2397,20 +2433,48 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
   </section>;
 }
 
-function DeveloperChipsetResources({ data, loading }) {
+function DeveloperChipsetResources({ data, sdkRelease, loading }) {
   const chipsets = data?.chipsets || [];
+  const artifacts = sdkArtifacts(sdkRelease?.catalog);
   const [query, setQuery] = useState('');
   const [vendor, setVendor] = useState('all');
   const [recommendedOnly, setRecommendedOnly] = useState(false);
   const vendors = useMemo(() => chipsetVendors(chipsets), [chipsets]);
   const visibleChipsets = useMemo(() => filterChipsets(chipsets, query, vendor, recommendedOnly), [chipsets, query, vendor, recommendedOnly]);
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
-    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><h2>ChipSet &amp; SDK</h2><p>{translate('Browse published ChipSets and development resources synchronized from official Information Providers. SDK and external links open in a new tab.')}</p></div></div>
-    {loading && !data ? <ChipsetCardSkeletons /> : null}
-    {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p></div></section> : null}
-    {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
-    {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
+    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a Cloud Client SDK for your mobile, web, native, or device application. Hardware-specific SDKs and board resources remain available separately below.</p></div></div>
+    <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
+      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading">Cloud Client SDKs</h2><p>Use these packages to connect an app or a PRO2 device to Realtek Connect+. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
+      {loading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
+      {!loading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>No Cloud Client SDK release yet</h3><p>{sdkRelease.source_message}</p></div></section> : null}
+      {!loading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Cloud Client SDKs are temporarily unavailable</h3><p>{sdkRelease.source_message}</p></div></section> : null}
+      {artifacts.length ? <div className="cloud-sdk-grid">{artifacts.map((artifact) => <CloudSDKCard artifact={artifact} release={sdkRelease} key={artifact.slug} />)}</div> : null}
+    </section>
+    <section className="sdk-catalog-section device-sdk-section" aria-labelledby="device-chipset-sdks-heading">
+      <div className="sdk-section-heading"><div><h2 id="device-chipset-sdks-heading">Device &amp; ChipSet SDKs</h2><p>Find the official board SDKs, datasheets, examples, and support resources for the chipset used by your product.</p></div></div>
+      {loading && !data ? <ChipsetCardSkeletons /> : null}
+      {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p></div></section> : null}
+      {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
+      {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
+    </section>
   </section>;
+}
+
+function CloudSDKCard({ artifact, release }) {
+  const docsURL = sdkDocumentationURL(release?.portal_url, artifact.slug);
+  const isPreview = Boolean(release?.local_preview);
+  return <article className={`panel cloud-sdk-card${artifact.slug === 'all' ? ' complete-bundle' : ''}`}>
+    <div className="cloud-sdk-card-heading"><div><p className="sdk-format">{sdkArtifactFormat(artifact.slug)}</p><h3>{artifact.title}</h3></div><span className="status-badge good">{artifact.validation_status}</span></div>
+    <p>{artifact.description}</p>
+    <dl className="cloud-sdk-metadata"><div><dt>Version</dt><dd>{release.catalog.version}</dd></div><div><dt>Size</dt><dd>{formatSDKBytes(artifact.size_bytes)}</dd></div><div className="checksum-row"><dt>SHA-256</dt><dd><code>{artifact.sha256}</code></dd></div></dl>
+    <div className="sdk-capability-list" aria-label={`${artifact.title} capabilities`}>{artifact.capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div>
+    <ul className="sdk-limitations">{artifact.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul>
+    <div className="cloud-sdk-actions">{isPreview ? <button type="button" className="ghost-button" disabled title="Documentation links are enabled with a published Portal release">Documentation preview</button> : docsURL ? <a className="ghost-button" href={docsURL} target="_blank" rel="noreferrer noopener">Documentation <Icon name="arrow-up-right-from-square" /></a> : null}{isPreview ? <button type="button" className="primary-button" disabled title="Local preview does not create downloadable artifacts">Local preview</button> : <a className="primary-button" href={`${release.portal_url}#downloads`} target="_blank" rel="noreferrer noopener">Review terms &amp; download <Icon name="arrow-up-right-from-square" /></a>}</div>
+  </article>;
+}
+
+function CloudSDKCardSkeletons() {
+  return <div className="cloud-sdk-grid" aria-label="Loading Cloud Client SDKs">{[0, 1, 2].map((index) => <article className="panel cloud-sdk-card chipset-card-skeleton" key={index}><span /><span /><span /><span /></article>)}</div>;
 }
 
 function ChipsetCards({ chipsets, showFreshness }) {
@@ -2776,6 +2840,7 @@ function CloudBillingApp() {
       if (!me.authenticated) { window.location.replace(loginPathFor(window.location.pathname)); return; }
       if (!controller.signal.aborted) setAccount(me);
       const {brand_cloud:cloud} = await managedCloudRequest(cloudAPI(cloudId),{signal:controller.signal});
+      if (cloud?.id === cloudId) rememberCloudPreference(cloudId);
       if (!controller.signal.aborted) setScopedCloud(cloud);
       if (cloud.my_role !== 'owner' || cloud.owner_user_id !== me.user_id || !cloud.capabilities?.includes('billing_account.read')) throw {status:403};
       const data = await fetchCloudBillingData(cloudId,{signal:controller.signal});
@@ -3734,28 +3799,28 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
       key: 'success-rate',
       icon: 'signal',
       label: `Stream Success Rate (${windowLabel})`,
-      value: available ? formatPercent(stats?.success_rate_pct ?? 0) : 'Unavailable',
+      value: available ? formatPercent(stats?.success_rate_pct ?? 0) : 'N/A',
       hint: available ? 'Percent of stream requests that succeeded in the selected window' : unavailableText,
     },
     {
       key: 'avg-duration',
       icon: 'clock',
       label: 'Avg Stream Duration',
-      value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'Unavailable',
+      value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'N/A',
       hint: available ? 'Average session length across observed requests' : unavailableText,
     },
     {
       key: 'active-sessions',
       icon: 'tower-broadcast',
       label: 'Active Sessions Now',
-      value: available ? (stats?.active_sessions ?? 0) : 'Unavailable',
+      value: available ? (stats?.active_sessions ?? 0) : 'N/A',
       hint: available ? 'Count of currently open stream sessions' : unavailableText,
     },
     {
       key: 'never-streamed',
       icon: 'circle-question',
       label: 'Devices Never Streamed',
-      value: available ? (stats?.never_streamed_count ?? 0) : 'Unavailable',
+      value: available ? (stats?.never_streamed_count ?? 0) : 'N/A',
       hint: available ? 'Online devices that have no stream history' : unavailableText,
     },
   ];
@@ -6876,8 +6941,20 @@ async function fetchJSON(url) {
   const response = await fetch(url);
   if (response.status === 401) throw new AuthError(401, 'Session expired; please sign in again.');
   if (response.status === 403) throw new AuthError(403, 'Access denied.');
-  if (!response.ok) throw new Error(`${url} failed with ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(`${url} failed with ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   return response.json();
+}
+
+function browserSessionDestination(me, nextPath) {
+  const rememberedCloudID = readCloudPreference(document.cookie);
+  if (rememberedCloudID && preferredCloudID(me, rememberedCloudID) !== rememberedCloudID) {
+    forgetCloudPreference();
+  }
+  return destinationForSession(me, nextPath, rememberedCloudID);
 }
 
 async function sendJSONWithMethod(method, url, body) {

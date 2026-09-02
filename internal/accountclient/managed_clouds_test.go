@@ -57,12 +57,15 @@ func TestManagedCloudsRequiresQuotaAndStripsSecrets(t *testing.T) {
 		})
 	}
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"brand_clouds":[{"id":"cloud","metadata":{"private_key":"secret"},"payment_method":"secret"}],"owned_limit":8}`))
+		_, _ = w.Write([]byte(`{"brand_clouds":[{"id":"cloud","owner_email":"owner@example.test","metadata":{"private_key":"secret"},"payment_method":"secret"}],"owned_limit":8}`))
 	}))
 	defer upstream.Close()
 	page, err := New(upstream.URL).ManagedClouds(context.Background(), "global-token", nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(page.BrandClouds) != 1 || page.BrandClouds[0].OwnerEmail != "owner@example.test" {
+		t.Fatalf("owner email projection missing: %+v", page.BrandClouds)
 	}
 	raw, err := json.Marshal(page)
 	if err != nil || strings.Contains(string(raw), "secret") || strings.Contains(string(raw), "metadata") {

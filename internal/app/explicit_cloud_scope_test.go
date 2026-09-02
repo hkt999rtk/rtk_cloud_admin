@@ -20,7 +20,7 @@ func TestExplicitBrandCloudScopeUsesPathWithoutMutatingSession(t *testing.T) {
 		case "/v1/me":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"user": map[string]any{"id": "developer-1", "email": "developer@example.com"},
-				"organizations": []map[string]any{
+				"brand_cloud_memberships": []map[string]any{
 					{"id": cloudA, "name": "Cloud A", "role": "owner", "capabilities": []string{capabilityFleetRead}},
 					{"id": cloudB, "name": "Cloud B", "role": "viewer", "capabilities": []string{capabilityFleetRead}},
 				},

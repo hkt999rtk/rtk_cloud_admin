@@ -6,9 +6,11 @@ sharing, deletion and Billing handoff. This document does not claim implementati
 ## Navigation and session
 
 One global account session serves developer and Platform views. Honor a safe,
-authorized login next first; otherwise memberships lead to `/console/clouds`,
-platform-only capability to Platform View, and an eligible developer without a
-membership to the empty My Clouds state.
+authorized login next first. An explicit `/console/clouds` next opens My Clouds.
+When login has no explicit cloud destination, an authorized remembered cloud
+opens directly; otherwise the first membership opens. Platform-only capability
+leads to Platform View, and an eligible developer without a membership reaches
+the empty My Clouds state.
 No additional login or per-cloud identity is introduced.
 For an eligible developer with no memberships, the no-access state explains the
 absence of cloud access and links to My Clouds/create; it is not an account lockout.
@@ -35,6 +37,29 @@ control and the following fixed feature groups:
 | Management | Billing | `/console/clouds/{cloudId}/billing` |
 | Management | Settings | `/console/clouds/{cloudId}/settings` |
 | Management | Audit | `/console/clouds/{cloudId}/audit` |
+
+The fixed sidebar groups and eligible labels remain visible on the global My Clouds page.
+When no cloud has been explicitly selected, cloud-scoped items are disabled and
+the shell asks the user to select a cloud; they are not removed. When navigation
+to My Clouds originates from an authorized cloud route, the link may preserve
+that explicit cloud as a validated URL query context so the same feature links
+remain usable. This query context is navigation state only: the BFF still takes
+scope from each cloud-scoped path and revalidates current membership and
+capabilities. This My Clouds query context does not itself choose a cloud.
+
+Login remembers the last successfully opened cloud in the client-readable
+`rtk_last_cloud_id` cookie (`Path=/`, `SameSite=Lax`, one-year maximum age and
+`Secure` on HTTPS). The value is a navigation preference containing only a
+cloud UUID, never an authorization credential. After login, the UI validates it
+against the fresh `/api/me` memberships. A valid membership opens that cloud's
+overview; a missing, malformed, or unauthorized value falls back to the first
+membership in the API's stable creation order. No memberships leads to the
+empty My Clouds state. The cookie is written only after the selected cloud's
+detail read succeeds, so a revoked preference cannot grant access or become
+request scope. Each cloud-scoped BFF call still authorizes the path `cloudId`.
+The owner-only Billing item is the exception: My Clouds may show it only when the
+account currently owns at least one cloud, and selecting a non-owner membership
+removes it under the normal selected-cloud capability rule.
 
 `Fleet Management` is the stable feature name and owns fleet health, Devices,
 groups/tags and batch operations. It must not be reduced to an unexplained
@@ -66,6 +91,40 @@ My Clouds page owns create/edit/share/transfer/delete entry points for ordinary 
 Backend capabilities control buttons; UI role labels are not authorization.
 Show filtered total separately from owned quota (shared clouds do not count).
 
+The shell top bar is the sole `My Clouds` or selected-cloud title; the content
+heading does not repeat it. The My Clouds introduction explains that users can create and manage
+owned Brand Clouds, open clouds shared with their account, and select a cloud to
+work with Products, Fleet Management, firmware, members, settings and owner-only
+Billing. Each cloud card identifies the sole owner by `owner_email`, never by an
+internal user UUID. The ordinary `active` lifecycle value is not rendered as a
+generic Status row. Non-active lifecycle states remain part of the backend
+contract and appear only as specific actionable warnings where relevant.
+
+The Products introduction is written for a developer seeing the hierarchy for
+the first time. It explains that a Product organizes the device model or SKU
+(sellable model or variant) the developer builds and sells, and owns the
+technical boundary for its devices, firmware, OTA updates and enabled cloud
+services. One Product can cover closely
+related sales SKUs only when they share those technical settings. A SKU that
+needs different firmware, services or lifecycle rules needs a separate Product,
+which prevents a release or service change from reaching the wrong devices.
+The list panel separately states the immutable Product key/cloud constraint.
+
+The Members & Access introduction explains the page before presenting member
+rows or invitation controls. Only the owner can invite a verified developer.
+Admin and Member are management roles; Viewer is read-only and can be limited
+to selected Products or the whole cloud. Whole-cloud Viewer includes Products
+created later. Removing access ends both cloud and Product access, while
+collaboration never grants Billing, payment methods, private keys or playback.
+
+The Settings introduction explains that the page reviews and edits cloud
+identity/description, starts ownership transfer and checks deletion readiness.
+It states that renaming does not change Cloud ID, tenant slug, Products or
+devices, and that transfer moves Billing responsibility only after handoff
+checks. The Cloud settings summary labels Cloud name, Description, Cloud ID,
+Tenant slug, Owner email, Owner ID and My role. It never substitutes an opaque
+owner UUID for the account email or leaves the description as an unlabeled line.
+
 Every cloud-scoped BFF request binds explicit cloud ID from route/request and verifies it
 against current Account Manager membership, lifecycle and capabilities. Product
 ID must belong to that cloud. Do not let a session-global active cloud override
@@ -75,8 +134,9 @@ version. Server-held jobs and downloads keep immutable scope and revalidate
 authority. Legacy `/console/overview`, `/console/devices`, `/console/billing`
 and `/console/{cloudId}/*` routes redirect only when scope is explicit or can be
 recovered unambiguously and authorization is revalidated. Otherwise they return
-to My Clouds for explicit selection. Never replay a mutation against a newly
-selected cloud.
+to My Clouds for explicit selection. The login preference does not supply
+missing scope to a legacy URL. Never replay a mutation against a newly selected
+cloud.
 Global login, account/session, My Clouds list/create and platform APIs do not
 require a selected cloud. They validate their global account/platform authority;
 creating a cloud assigns the caller its initial ownership atomically.
