@@ -1,13 +1,14 @@
-# My Clouds and Product-scoped console design
+# Integrated Brand Cloud console and Product-scoped design
 
-Status: design-first target. Canonical [multicloud_ownership.md](https://github.com/hkt999rtk/rtk_cloud_contracts_doc/blob/codex/multicloud-owner-design/multicloud_ownership.md) governs ownership,
+Status: design-first target. Canonical [multicloud_ownership.md](https://github.com/hkt999rtk/rtk_cloud_contracts_doc/blob/main/multicloud_ownership.md) governs ownership,
 sharing, deletion and Billing handoff. This document does not claim implementation.
 
 ## Navigation and session
 
 One global account session serves developer and Platform views. Honor a safe,
-authorized login next first; otherwise memberships lead to /console/clouds,
-platform-only capability to Platform View, and neither to a clear no-access page.
+authorized login next first; otherwise memberships lead to `/console/clouds`,
+platform-only capability to Platform View, and an eligible developer without a
+membership to the empty My Clouds state.
 No additional login or per-cloud identity is introduced.
 For an eligible developer with no memberships, the no-access state explains the
 absence of cloud access and links to My Clouds/create; it is not an account lockout.
@@ -15,14 +16,40 @@ My Clouds may show an empty list and quota without requiring existing ownership.
 Viewer-only developers and owners deleting their last cloud can create a new
 owned cloud. The backend rechecks account eligibility and quota on submission.
 
-| Page | Content and authority |
-| --- | --- |
-| /console/clouds | All / Owned / Shared tabs, cloud name, owner, my role, status, owned quota, pagination; Create for eligible accounts |
-| /console/clouds/{cloudId} | Cloud overview, Products, members/access, owner-only Billing, settings and audit |
-| /console/clouds/{cloudId}/products/{productId} | Product overview, Devices, Firmware, OTA and service settings under the same cloud |
+`My Clouds` and every selected-cloud feature use one persistent Brand Cloud app
+shell. `My Clouds` is the first global item in the sidebar. It does not disappear
+after a cloud is selected and it does not create an implicit active-cloud
+authority. Beneath it, selected-cloud pages display one cloud selector/context
+control and the following fixed feature groups:
 
-Cloud lifecycle is not hidden inside the Platform Admin console. The My Clouds
-page owns create/edit/share/transfer/delete entry points for ordinary developers.
+| Sidebar group | Item | Canonical route |
+| --- | --- | --- |
+| Global | My Clouds | `/console/clouds` |
+| Brand Cloud | Overview | `/console/clouds/{cloudId}` |
+| Features | Products | `/console/clouds/{cloudId}/products` |
+| Features | Fleet Management | `/console/clouds/{cloudId}/fleet` |
+| Features | Firmware & OTA | `/console/clouds/{cloudId}/firmware-ota` |
+| Features | Analytics | `/console/clouds/{cloudId}/analytics` |
+| Management | Members & Access | `/console/clouds/{cloudId}/members` |
+| Management | Billing | `/console/clouds/{cloudId}/billing` |
+| Management | Settings | `/console/clouds/{cloudId}/settings` |
+| Management | Audit | `/console/clouds/{cloudId}/audit` |
+
+`Fleet Management` is the stable feature name and owns fleet health, Devices,
+groups/tags and batch operations. It must not be reduced to an unexplained
+`Devices` sidebar item. Products remain children of the cloud; Product detail is
+`/console/clouds/{cloudId}/products/{productId}` with Devices, Firmware, OTA and
+service settings beneath the same Product/cloud scope.
+
+The sidebar retains this order on desktop and in the mobile navigation drawer.
+Capability filtering may remove inaccessible items without reordering or
+renaming the rest. `Billing` appears only for the current sole owner with the
+required Billing capability; direct navigation is denied for every non-owner.
+`My Clouds` is available to every authenticated developer account, including an
+eligible account with no current memberships.
+
+Cloud lifecycle is not hidden inside the Platform Admin console. The integrated
+My Clouds page owns create/edit/share/transfer/delete entry points for ordinary developers.
 Backend capabilities control buttons; UI role labels are not authorization.
 Show filtered total separately from owned quota (shared clouds do not count).
 
@@ -32,8 +59,11 @@ ID must belong to that cloud. Do not let a session-global active cloud override
 a tab's request. Two tabs may operate two clouds. Cancel outstanding requests on
 navigation, reject stale responses and partition caches by cloud/authorization
 version. Server-held jobs and downloads keep immutable scope and revalidate
-authority. Old routes redirect only when scope is unambiguous and authorized;
-never replay a mutation against a newly selected cloud.
+authority. Legacy `/console/overview`, `/console/devices`, `/console/billing`
+and `/console/{cloudId}/*` routes redirect only when scope is explicit or can be
+recovered unambiguously and authorization is revalidated. Otherwise they return
+to My Clouds for explicit selection. Never replay a mutation against a newly
+selected cloud.
 Global login, account/session, My Clouds list/create and platform APIs do not
 require a selected cloud. They validate their global account/platform authority;
 creating a cloud assigns the caller its initial ownership atomically.
@@ -75,7 +105,8 @@ Historical records are retained; no nonempty-cloud cascade-delete option exists.
 
 ## Ownership and Billing
 
-Only the cloud owner sees tenant Billing. Platform access remains a separate
+Only the cloud owner sees the `Billing` item in the selected Brand Cloud sidebar.
+Platform access remains a separate
 audited view and cannot use arbitrary actor/permission headers from the browser.
 An owner of another cloud receives no Billing visibility here.
 The scoped Billing page is `/console/clouds/{cloudId}/billing`, with usage,

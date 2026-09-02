@@ -149,46 +149,46 @@ Provisioning     →  operations log
 Platform Admin   →  customer count + service health
 ```
 
-### Current Brand Fleet Navigation
+### Current Brand Cloud Navigation
 
-**Brand Fleet View** — default landing for brand sub-tenant Developer and
-Operations roles:
+**Brand Cloud View** — My Clouds and selected-cloud features share one shell for
+Developer and Operations roles:
 
 ```
+Global
+└─ My Clouds
+
 Brand Cloud
-└─ Brand Cloud Home
-   ├─ Overview
-   ├─ Members and Permissions
-   └─ Settings
+└─ Overview
 
-Device Operations
-├─ Devices
-├─ Groups and Tags
-└─ Batch Jobs
+Features
+├─ Products
+├─ Fleet Management
+├─ Firmware & OTA
+└─ Analytics
 
-Products and Updates
-├─ Products and Services
-├─ ChipSet & SDK
-└─ Firmware Updates
-
-Monitoring and Analytics
-├─ Video Playback Health
-└─ Reports
-
-Account Management
-└─ Billing and Auto Top-Up
+Management
+├─ Members & Access
+├─ Billing
+├─ Settings
+└─ Audit
 ```
 
-Device Groups, Tags, Products, Device Profiles, Batch Jobs, and Reports are
-required Brand Fleet surfaces because the target tenant manages 100K+ devices.
+My Clouds remains the first sidebar destination before and after cloud
+selection. The selected cloud context appears in the sidebar, while every
+feature route carries the explicit cloud UUID. `Fleet Management` is the stable
+first-level feature name and contains fleet health, Devices, Groups and Tags,
+and Batch Jobs. Products, Device Profiles, Firmware/OTA and Analytics remain
+required Brand Cloud surfaces because the target tenant manages 100K+ devices.
 
-The groups are fixed and non-collapsible. `Team and Permissions` is no longer a separate
-sidebar destination: it is an addressable tab in `Brand Cloud Home`, alongside fleet
-overview and low-frequency settings. `/overview`, `/access`, and `/settings`
-remain distinct deep links while sharing the Brand Cloud name, Cloud ID,
-organization selector, and tab strip.
+The groups are fixed and non-collapsible. `Members & Access`, `Billing`,
+`Settings`, and `Audit` are addressable Management destinations in the same
+sidebar. Billing appears only for the selected cloud's current sole owner and
+remains server-authorized. Canonical routes live below
+`/console/clouds/{cloudId}`; old unscoped routes are redirect-only inputs and
+cannot infer authority from a prior selection.
 
-`Members and Permissions` uses the same scope model as the backend: a role assignment can
+`Members & Access` uses the same scope model as the backend: a role assignment can
 cover the whole organization, one Product, a region, a device group, or a single
 device. The tab shows role names and readable scope labels; raw permission
 names and internal actor identifiers stay out of the primary workflow. Owner
@@ -773,10 +773,10 @@ The following are intentionally deferred:
 
 - Device group creation and management UI (depends on device-group feature)
 - Alert notification rules and email/webhook delivery
-- Customer View multi-org fleet aggregation. Customer pages remain scoped to the
-  active organization; Platform View may still show cross-tenant admin read
-  models that are already documented in `spec.md` and
-  `backend-api-gap-audit.md`.
+- Customer View multi-cloud fleet aggregation. Customer pages remain scoped to
+  the cloud ID validated from their canonical route/request; Platform View may
+  still show cross-tenant admin read models that are already documented in
+  `spec.md` and `backend-api-gap-audit.md`.
 - Stream viewer / live preview
 - Tenant impersonation for Tier 1 Platform Admin
 - Role assignment UI

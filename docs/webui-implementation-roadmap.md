@@ -42,10 +42,13 @@ This roadmap tracks the completed first WebUI implementation sequence for
 Customer View, auth, Platform View pages, and Platform Dashboard. Brand Fleet
 Management remains the larger product sequence for brand sub-tenants. The
 Brand Cloud navigation and overview/access/settings integration described below
-is complete as of 2026-08-28.
-Platform Dashboard and Brand Clouds already have an implemented baseline; their
-remaining design/API work is tracked in
-[platform-admin-implementation-plan.md](platform-admin-implementation-plan.md).
+is the implemented baseline as of 2026-08-28, not the current design target.
+
+The approved next target is the integrated Brand Cloud shell in
+[multicloud_webui.md](multicloud_webui.md): persistent `My Clouds`, explicit
+`/console/clouds/{cloudId}/*` routes, named Product/Fleet/Firmware/Analytics
+features, and cloud-scoped owner-only Billing. The baseline below is retained
+only as implementation traceability until that target is delivered.
 
 ## Completed Follow-up: Unified Customer And Platform Shell
 
@@ -53,19 +56,21 @@ Customer Developer and Platform Admin sessions now share one `Connect+ Ops`
 shell, topbar, account summary, focus states, and responsive navigation. The
 former view switcher and Platform-only shell styling were removed.
 
-The login/session kind selects exactly one fixed navigation hierarchy. Customer
-keeps its five existing groups. Platform Admin uses four Chinese groups:
+The implemented login/session kind selects exactly one fixed navigation
+hierarchy. Customer currently keeps its five legacy groups. Platform Admin uses
+four Chinese groups:
 Platform Overview、Monitoring and Diagnostics、Organizations and Products、Operations and Audit. Platform login lands on
 `/admin`; all existing `/admin/*` and `/console/*` deep links remain unchanged.
 Opening a wrong-role route shows an access gate while keeping the signed-in
 role's navigation. No Platform API, Customer payload, session kind, capability,
 or backend authorization contract was changed.
 
-## Completed Follow-up: Brand Cloud Overview And Access Integration
+## Superseded Implemented Baseline: Brand Cloud Overview And Access Integration
 
-The Customer View shell now uses fixed groups: Brand Cloud、Device Operations、Products and Updates、
-Monitoring and Analytics、Account Management. Brand Cloud Home is the only Brand Cloud sidebar entry and owns
-three independently addressable tabs:
+The currently deployed Customer View shell uses fixed groups: Brand Cloud、Device
+Operations、Products and Updates、Monitoring and Analytics、Account Management.
+This structure is superseded by the integrated-shell target above. Brand Cloud
+Home is the baseline entry and owns three independently addressable legacy tabs:
 
 - `/console/{cloudId}/overview` — fleet overview plus capability-gated team
   summary.
@@ -73,10 +78,10 @@ three independently addressable tabs:
   scopes.
 - `/console/{cloudId}/settings` — owner transfer and PKI test tools.
 
-The unscoped compatibility routes remain supported. Navigation visibility and
-route authorization are separate, tab changes participate in browser history,
-and existing backend routes/schema are unchanged. The frontend composes
-members, invitations, and role assignments with panel-level failure isolation.
+These paths become redirect-only compatibility inputs when the canonical route
+family ships. Navigation visibility and route authorization remain separate,
+tab changes participate in browser history, and the frontend composes members,
+invitations, and role assignments with panel-level failure isolation.
 
 Implementation anchors:
 
@@ -543,7 +548,8 @@ sign-in path.
 - Signup is clearly evaluation-tier only.
 - Verification and login errors use user-facing copy without exposing internal
   upstream payloads.
-- Quota raise requests target only the active organization.
+- Quota raise requests target the explicitly validated Brand Cloud ID and do
+  not inherit a session-global active organization.
 - Password login is presented as the primary production path.
 
 ## Required Tests
