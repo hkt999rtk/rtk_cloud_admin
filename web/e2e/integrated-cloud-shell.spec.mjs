@@ -50,6 +50,7 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   await expect(page.getByText('billing.owner@example.com', { exact: true }).first()).toBeVisible();
   await expect(page.locator('.my-clouds-grid').getByText('Status', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'My Clouds', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'ChipSet & SDK', exact: true })).toHaveAttribute('href', '/console/chipset-sdk');
   for (const label of featureLabels) {
     await expect(page.locator('.sidebar-disabled', { hasText: label })).toHaveAttribute('aria-disabled', 'true');
   }
@@ -58,9 +59,10 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
 
   const mobileMenu = page.getByRole('button', { name: 'Open navigation' });
   if (await mobileMenu.isVisible()) await mobileMenu.click();
-  for (const label of ['My Clouds', ...featureLabels]) {
+  for (const label of ['My Clouds', 'ChipSet & SDK', ...featureLabels]) {
     await expect(page.getByRole('link', { name: label, exact: true })).toBeVisible();
   }
+  await expect(page.getByRole('link', { name: 'ChipSet & SDK', exact: true })).toHaveAttribute('href', `/console/chipset-sdk?cloudId=${cloudA}`);
   await expect(page.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.getByRole('link', { name: 'My Clouds', exact: true }).click();
   await expect(page).toHaveURL(`/console/clouds?cloudId=${cloudA}`);

@@ -18,6 +18,7 @@ export const customerNavGroups = [
     labelKey: 'Features',
     items: [
       { id: 'product-services', labelKey: 'Products', segment: 'products', icon: 'boxes-stacked', capabilities: ['product.read', 'registry_device.read'] },
+      { id: 'chipset-sdk', labelKey: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch', global: true, alwaysVisible: true },
       { id: 'devices', labelKey: 'Fleet Management', segment: 'fleet', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
       { id: 'firmware-ota', labelKey: 'Firmware & OTA', segment: 'firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
       { id: 'analytics', labelKey: 'Analytics', segment: 'analytics', icon: 'chart-column', capabilities: ['reports.read', 'report.read', 'customer.reports.read', 'customer.stream.read', 'fleet.read'] },
@@ -129,9 +130,12 @@ export function navGroupsForCapabilities(route, capabilities) {
 
 export function cloudConsolePath(cloudId, route = 'overview') {
   if (route === 'my-clouds') return myCloudsPath(cloudId);
-  if (!cloudId) return '/console/clouds';
   const item = customerNavItems.find((candidate) => candidate.id === route);
-  if (!item || item.global) return '/console/clouds';
+  if (item?.global) {
+    const context = decodedCloudID(cloudId);
+    return context ? `${item.path}?cloudId=${encodeURIComponent(context)}` : item.path;
+  }
+  if (!cloudId || !item) return '/console/clouds';
   const root = `/console/clouds/${encodeURIComponent(cloudId)}`;
   return item.segment ? `${root}/${item.segment}` : root;
 }
@@ -308,6 +312,16 @@ export function cloudIdFromPath(path) {
   if (/^\/console\/(?:overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/.test(String(path || ''))) return '';
   const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
   return match ? decodedCloudID(match[1]) : '';
+}
+
+export function cloudContextId(path, search = '') {
+  const pathID = cloudIdFromPath(path);
+  if (pathID) return pathID;
+  try {
+    return decodedCloudID(new URLSearchParams(search).get('cloudId'));
+  } catch {
+    return '';
+  }
 }
 
 export function routeFromLocation() {

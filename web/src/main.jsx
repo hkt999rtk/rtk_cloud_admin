@@ -20,6 +20,7 @@ import {
   cloudConsolePath,
   cloudNavGroupsForCapabilities,
   cloudRouteForSwitch,
+  cloudContextId,
   cloudIdFromPath,
   defaultBrandCloudRoute,
   isCustomerNavItemActive,
@@ -279,7 +280,7 @@ function App() {
   const isPlatformView = isPlatformRouteId(active);
   const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept' || active === 'product-collaborator-invitation-accept';
   const navigationRoute = me?.kind === 'platform_admin' ? 'platform-dashboard' : me?.kind === 'customer' ? 'overview' : active;
-  const routeCloudId = cloudIdFromPath(window.location.pathname);
+  const routeCloudId = cloudContextId(window.location.pathname, window.location.search);
   const visibleNavGroups = me?.kind === 'customer'
     ? cloudNavGroupsForCapabilities(routeCloudId, me?.capabilities, { isOwner: activeCloudDetail?.my_role === 'owner' && activeCloudDetail?.owner_user_id === me?.user_id })
     : navGroupsForCapabilities(navigationRoute, me?.capabilities);
@@ -374,7 +375,7 @@ function App() {
           return;
         }
 
-        const requestedCloudId = cloudIdFromPath(window.location.pathname);
+        const requestedCloudId = cloudContextId(window.location.pathname, window.location.search);
         const isGlobalDeveloperRoute = active === 'chipset-sdk';
         if (nextMe.kind === 'customer' && !requestedCloudId && !isGlobalDeveloperRoute) {
           window.location.replace('/console/clouds');
@@ -790,9 +791,10 @@ function App() {
   }, [mobileNavOpen]);
 
   function pathForNavigationItem(item) {
-    const cloudId = me?.kind === 'customer' ? cloudIdFromPath(window.location.pathname) : '';
+    const cloudId = me?.kind === 'customer' ? cloudContextId(window.location.pathname, window.location.search) : '';
     if (item.id === 'my-clouds' && cloudId) return cloudConsolePath(cloudId, item.id);
-    if (item.global || me?.kind === 'platform_admin') return item.path;
+    if (item.global) return cloudConsolePath(cloudId, item.id);
+    if (me?.kind === 'platform_admin') return item.path;
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
     return cloudConsolePath(cloudId, targetRoute);
   }
