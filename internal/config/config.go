@@ -10,6 +10,7 @@ type Config struct {
 	Port                         string
 	DatabasePath                 string
 	AccountManagerBaseURL        string
+	SDKPortalBaseURL             string
 	BillingServiceBaseURL        string
 	BillingServiceToken          string
 	VideoCloudBaseURL            string
@@ -31,6 +32,7 @@ func FromEnv() Config {
 		Port:                         getenv("PORT", "8080"),
 		DatabasePath:                 getenv("DATABASE_PATH", filepath.Join("data", "rtk-cloud-admin.db")),
 		AccountManagerBaseURL:        os.Getenv("ACCOUNT_MANAGER_BASE_URL"),
+		SDKPortalBaseURL:             os.Getenv("SDK_PORTAL_BASE_URL"),
 		BillingServiceBaseURL:        os.Getenv("BILLING_SERVICE_BASE_URL"),
 		BillingServiceToken:          os.Getenv("BILLING_SERVICE_TOKEN"),
 		VideoCloudBaseURL:            os.Getenv("VIDEO_CLOUD_BASE_URL"),

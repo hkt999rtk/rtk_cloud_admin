@@ -31,6 +31,7 @@ import (
 	"rtk_cloud_admin/internal/contracts"
 	"rtk_cloud_admin/internal/correlation"
 	"rtk_cloud_admin/internal/readinessfacts"
+	"rtk_cloud_admin/internal/sdkportalclient"
 	"rtk_cloud_admin/internal/store"
 	"rtk_cloud_admin/internal/videoclient"
 
@@ -50,6 +51,7 @@ type Server struct {
 	accountClient       *accountclient.Client
 	billingClient       *billingclient.Client
 	videoClient         *videoclient.Client
+	sdkPortalClient     *sdkportalclient.Client
 	logger              *zap.Logger
 }
 
@@ -93,6 +95,10 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 	if opts.BillingClient == nil && opts.Config.BillingServiceBaseURL != "" {
 		opts.BillingClient = billingclient.New(opts.Config.BillingServiceBaseURL, opts.Config.BillingServiceToken)
 	}
+	var sdkPortalClient *sdkportalclient.Client
+	if strings.TrimSpace(opts.Config.SDKPortalBaseURL) != "" {
+		sdkPortalClient, _ = sdkportalclient.New(opts.Config.SDKPortalBaseURL)
+	}
 	if opts.Logger == nil {
 		opts.Logger = cloudlogger.Nop()
 	}
@@ -107,6 +113,7 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 		accountClient:       opts.AccountClient,
 		billingClient:       opts.BillingClient,
 		videoClient:         opts.VideoClient,
+		sdkPortalClient:     sdkPortalClient,
 		logger:              opts.Logger,
 	}
 	s.routes()
@@ -316,6 +323,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiCloudSharing)
 	s.mux.HandleFunc("GET /api/developer/chipsets", s.apiDeveloperChipsets)
 	s.mux.HandleFunc("GET /api/developer/chipsets/{chipsetId}", s.apiDeveloperChipset)
+	s.mux.HandleFunc("GET /api/developer/sdk-releases/latest", s.apiDeveloperSDKReleaseLatest)
 	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer", s.apiOwnerHandoff)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}", s.apiOwnerHandoff)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/preview", s.apiOwnerHandoff)

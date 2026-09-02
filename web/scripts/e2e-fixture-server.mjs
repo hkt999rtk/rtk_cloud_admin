@@ -53,6 +53,7 @@ const server = createServer(async (req, res) => {
       return res.end('<!doctype html><html><body><main><h1>NewebPay simulator</h1><p>TEST PAYMENT - no real charge is performed.</p></main></body></html>');
     }
     if (url.pathname === '/api/v1/query' || url.pathname === '/api/v1/query_range') return prometheusResponse(res);
+    if (url.pathname === '/api/sdk/catalog' && req.method === 'GET') return mode === 'unavailable' ? send(res, 503, { error: 'SDK catalog unavailable' }) : send(res, 200, sdkCatalogFixture());
     if (url.pathname === '/v1/logs') return send(res, 200, { events: state.logs.map((event) => ({ event_id: `${event.operation_id}-${event.request_id}`, service: event.service, level: event.level, ts: event.timestamp, msg: event.message, trace_id: event.trace_id, request_id: event.request_id, operation_id: event.operation_id })) });
     if (url.pathname === '/v1/auth/login' && req.method === 'POST') return login(req, res);
     if (url.pathname === '/v1/me') return send(res, 200, customerProfile(req));
@@ -101,6 +102,30 @@ server.listen(port, '127.0.0.1', () => {
 
 async function load(name) {
   return JSON.parse(await readFile(path.join(fixtureDir, name), 'utf8'));
+}
+
+function sdkCatalogFixture() {
+  const specs = [
+    ['android', 'Android Kotlin', 'AAR, sources JAR, POM, and Gradle module metadata', ['Cloud API client', 'WebSocket control', 'WebRTC signaling']],
+    ['ios', 'iOS Swift', 'SwiftPM source package', ['Cloud API client', 'WebSocket control', 'WebRTC signaling']],
+    ['javascript', 'JavaScript / TypeScript', 'npm-compatible tarball with JavaScript and type declarations', ['Cloud API client', 'WebSocket control', 'WebRTC signaling']],
+    ['native', 'Native C/C++', 'Linux x86_64 and macOS arm64 static libraries, headers, and CMake metadata', ['Cloud API client', 'WebRTC signaling']],
+    ['freertos-pro2', 'FreeRTOS / Pro2', 'Cloud device-demo source, adapters, manifest, and validation evidence', ['Cloud device integration', 'WebRTC answerer integration']],
+  ];
+  const limitation = 'Does not include a WebRTC peer connection, media engine, renderer, or media-track runtime.';
+  const packages = specs.map(([slug, title, description, capabilities], index) => ({
+    slug, title, description,
+    filename: `rtk-cloud-client-${slug}-0.1.0-rc1.tar.gz`,
+    sha256: String(index + 1).repeat(64),
+    size_bytes: (index + 1) * 1024 * 1024,
+    validation_status: 'PASS', capabilities, limitations: [limitation],
+  }));
+  return {
+    schema: 'rtk-portal-sdk-public-catalog/v1', version: '0.1.0-rc1', release_train: 'rtk-cloud-client-0.1.0-rc1',
+    created_at: '2026-09-03T00:00:00Z', distribution: 'public-evaluation', signing_status: 'not_configured', terms_version: 'local-preview-2026-09',
+    packages,
+    complete_bundle: { slug: 'all', title: 'Complete SDK Bundle', description: 'All five Cloud Client SDK packages, reports, checksums, and evaluation terms', filename: 'rtk-cloud-client-sdk-0.1.0-rc1.tar.gz', sha256: 'f'.repeat(64), size_bytes: 18 * 1024 * 1024, validation_status: 'PASS', capabilities: specs.map(([, title]) => title), limitations: [limitation] },
+  };
 }
 
 function login(req, res) {

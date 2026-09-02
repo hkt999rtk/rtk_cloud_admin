@@ -73,6 +73,20 @@ test('[UI-CA-CHIPSET-003] provider and developer pages expose upstream unavailab
   await login(page, 'developer');
   await page.goto('/console/chipset-sdk');
   await expect(page.getByRole('heading', { name: 'Resources are temporarily unavailable' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cloud Client SDKs are temporarily unavailable' })).toBeVisible();
+});
+
+test('[UI-CA-CHIPSET-008] Portal failure does not hide Device and ChipSet resources @chipset-sdk', async ({ page }) => {
+  await login(page, 'developer');
+  await page.route('**/api/developer/sdk-releases/latest', (route) => route.fulfill({ status: 502, body: 'SDK catalog unavailable' }));
+  await page.route('**/api/developer/chipsets', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ chipsets: [{ id: 'chipset-independent', provider_name: 'Ameba IoT', chipset_key: 'realtek-amebapro2', vendor: 'Realtek', name: 'AmebaPro2', description: 'Independent device catalog', resources: [], sdk_releases: [], stale: false }], source_status: 'available' }),
+  }));
+  await page.goto('/console/chipset-sdk');
+  await expect(page.getByRole('heading', { name: 'Cloud Client SDKs are temporarily unavailable' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'AmebaPro2' })).toBeVisible();
 });
 
 test('[UI-CA-CHIPSET-007] developer resources do not install a global refresh timer @chipset-sdk', async ({ page }) => {
@@ -86,7 +100,8 @@ test('[UI-CA-CHIPSET-007] developer resources do not install a global refresh ti
   });
   await login(page, 'developer');
   await page.goto('/console/chipset-sdk');
-  await expect(page.getByRole('heading', { level: 2, name: 'ChipSet & SDK' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'ChipSet & SDK' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Cloud Client SDKs' })).toBeVisible();
   expect(await page.evaluate(() => window.__scheduledIntervals)).toEqual([]);
 });
 
@@ -143,7 +158,13 @@ test('[UI-CA-CHIPSET-004] provider publish, refresh, stale fallback, and unpubli
 
   await login(page, 'developer');
   await navigateAfterRoleSwitch(page, '/console/chipset-sdk');
-  await expect(page.getByRole('heading', { level: 2, name: 'ChipSet & SDK' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'ChipSet & SDK' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Cloud Client SDKs' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 3, name: 'Android Kotlin' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 3, name: 'iOS Swift' })).toBeVisible();
+  await expect(page.getByText('WebRTC signaling', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('WebRTC answerer integration', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Local preview' })).toHaveCount(6);
   await expect(page.getByRole('heading', { name: 'AmebaPro2' }).first()).toBeVisible();
   const initialRelease = page.locator('.sdk-release').filter({ hasText: 'Ameba Arduino Pro2 · 1.0.0' }).first();
   await expect(initialRelease.getByText('Ameba Arduino Pro2 · 1.0.0')).toBeVisible();

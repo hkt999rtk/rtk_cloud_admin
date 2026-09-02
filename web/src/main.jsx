@@ -126,6 +126,7 @@ import {
   providerValidationErrorMessage,
   vendorInitials,
 } from './chipset-sdk.mjs';
+import { formatSDKBytes, sdkArtifactFormat, sdkArtifacts, sdkDocumentationURL } from './sdk-catalog.mjs';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import '@fontsource-variable/noto-sans-tc';
 import './styles.css';
@@ -255,6 +256,7 @@ function App() {
   const [brandCloudDrawerMode, setBrandCloudDrawerMode] = useState('');
   const [ssoProviders, setSSOProviders] = useState([]);
   const [chipsets, setChipsets] = useState(null);
+  const [sdkCatalog, setSDKCatalog] = useState(null);
   const [chipsetProviders, setChipsetProviders] = useState(null);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [firmwareProductId, setFirmwareProductId] = useState(() => new URLSearchParams(window.location.search).get('product_id') || '');
@@ -326,6 +328,7 @@ function App() {
     setBrandCloudDrawerMode('');
     setSSOProviders([]);
     setChipsets(null);
+    setSDKCatalog(null);
     setChipsetProviders(null);
     setFirmwareDistribution(null);
     setFirmwareProductId('');
@@ -555,14 +558,22 @@ function App() {
           setChipsetProviders(null);
         }
         if (!useAdminApi && active === 'chipset-sdk' && nextMe.kind === 'customer') {
-          const result = await fetchJSON('/api/developer/chipsets').catch((err) => {
-            if (err.isAuthError) throw err;
-            return { chipsets: [], source_status: 'unavailable', source_message: 'ChipSet resources are unavailable.' };
-          });
+          const [result, releaseResult] = await Promise.all([
+            fetchJSON('/api/developer/chipsets').catch((err) => {
+              if (err.isAuthError) throw err;
+              return { chipsets: [], source_status: 'unavailable', source_message: 'ChipSet resources are unavailable.' };
+            }),
+            fetchJSON('/api/developer/sdk-releases/latest').catch((err) => {
+              if (err.isAuthError) throw err;
+              return { catalog: null, source_status: err.status === 503 ? 'unpublished' : 'unavailable', source_message: err.status === 503 ? 'No Cloud Client SDK release has been published yet.' : 'Cloud Client SDKs are temporarily unavailable.' };
+            }),
+          ]);
           if (!alive) return;
           setChipsets(result);
+          setSDKCatalog(releaseResult);
         } else {
           setChipsets(null);
+          setSDKCatalog(null);
         }
         if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin' && firmwareProductId) {
           const nextFirmwareDistribution = await fetchJSON(`${customerPrefix}/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`)
@@ -1321,7 +1332,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'product-services' ? (
           <ProductsPage loading={loading} data={products} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
         ) : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? <DeveloperChipsetResources data={chipsets} loading={loading} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? <DeveloperChipsetResources data={chipsets} sdkRelease={sdkCatalog} loading={loading} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'firmware-ota' ? (
           <FirmwareOTAPage
             loading={loading}
@@ -2422,20 +2433,48 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
   </section>;
 }
 
-function DeveloperChipsetResources({ data, loading }) {
+function DeveloperChipsetResources({ data, sdkRelease, loading }) {
   const chipsets = data?.chipsets || [];
+  const artifacts = sdkArtifacts(sdkRelease?.catalog);
   const [query, setQuery] = useState('');
   const [vendor, setVendor] = useState('all');
   const [recommendedOnly, setRecommendedOnly] = useState(false);
   const vendors = useMemo(() => chipsetVendors(chipsets), [chipsets]);
   const visibleChipsets = useMemo(() => filterChipsets(chipsets, query, vendor, recommendedOnly), [chipsets, query, vendor, recommendedOnly]);
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
-    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><h2>ChipSet &amp; SDK</h2><p>{translate('Browse published ChipSets and development resources synchronized from official Information Providers. SDK and external links open in a new tab.')}</p></div></div>
-    {loading && !data ? <ChipsetCardSkeletons /> : null}
-    {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p></div></section> : null}
-    {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
-    {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
+    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a Cloud Client SDK for your mobile, web, native, or device application. Hardware-specific SDKs and board resources remain available separately below.</p></div></div>
+    <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
+      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading">Cloud Client SDKs</h2><p>Use these packages to connect an app or a PRO2 device to Realtek Connect+. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
+      {loading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
+      {!loading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>No Cloud Client SDK release yet</h3><p>{sdkRelease.source_message}</p></div></section> : null}
+      {!loading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Cloud Client SDKs are temporarily unavailable</h3><p>{sdkRelease.source_message}</p></div></section> : null}
+      {artifacts.length ? <div className="cloud-sdk-grid">{artifacts.map((artifact) => <CloudSDKCard artifact={artifact} release={sdkRelease} key={artifact.slug} />)}</div> : null}
+    </section>
+    <section className="sdk-catalog-section device-sdk-section" aria-labelledby="device-chipset-sdks-heading">
+      <div className="sdk-section-heading"><div><h2 id="device-chipset-sdks-heading">Device &amp; ChipSet SDKs</h2><p>Find the official board SDKs, datasheets, examples, and support resources for the chipset used by your product.</p></div></div>
+      {loading && !data ? <ChipsetCardSkeletons /> : null}
+      {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p></div></section> : null}
+      {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
+      {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
+    </section>
   </section>;
+}
+
+function CloudSDKCard({ artifact, release }) {
+  const docsURL = sdkDocumentationURL(release?.portal_url, artifact.slug);
+  const isPreview = Boolean(release?.local_preview);
+  return <article className={`panel cloud-sdk-card${artifact.slug === 'all' ? ' complete-bundle' : ''}`}>
+    <div className="cloud-sdk-card-heading"><div><p className="sdk-format">{sdkArtifactFormat(artifact.slug)}</p><h3>{artifact.title}</h3></div><span className="status-badge good">{artifact.validation_status}</span></div>
+    <p>{artifact.description}</p>
+    <dl className="cloud-sdk-metadata"><div><dt>Version</dt><dd>{release.catalog.version}</dd></div><div><dt>Size</dt><dd>{formatSDKBytes(artifact.size_bytes)}</dd></div><div className="checksum-row"><dt>SHA-256</dt><dd><code>{artifact.sha256}</code></dd></div></dl>
+    <div className="sdk-capability-list" aria-label={`${artifact.title} capabilities`}>{artifact.capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div>
+    <ul className="sdk-limitations">{artifact.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul>
+    <div className="cloud-sdk-actions">{isPreview ? <button type="button" className="ghost-button" disabled title="Documentation links are enabled with a published Portal release">Documentation preview</button> : docsURL ? <a className="ghost-button" href={docsURL} target="_blank" rel="noreferrer noopener">Documentation <Icon name="arrow-up-right-from-square" /></a> : null}{isPreview ? <button type="button" className="primary-button" disabled title="Local preview does not create downloadable artifacts">Local preview</button> : <a className="primary-button" href={`${release.portal_url}#downloads`} target="_blank" rel="noreferrer noopener">Review terms &amp; download <Icon name="arrow-up-right-from-square" /></a>}</div>
+  </article>;
+}
+
+function CloudSDKCardSkeletons() {
+  return <div className="cloud-sdk-grid" aria-label="Loading Cloud Client SDKs">{[0, 1, 2].map((index) => <article className="panel cloud-sdk-card chipset-card-skeleton" key={index}><span /><span /><span /><span /></article>)}</div>;
 }
 
 function ChipsetCards({ chipsets, showFreshness }) {
@@ -6902,7 +6941,11 @@ async function fetchJSON(url) {
   const response = await fetch(url);
   if (response.status === 401) throw new AuthError(401, 'Session expired; please sign in again.');
   if (response.status === 403) throw new AuthError(403, 'Access denied.');
-  if (!response.ok) throw new Error(`${url} failed with ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(`${url} failed with ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   return response.json();
 }
 
