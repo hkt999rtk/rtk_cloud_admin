@@ -660,6 +660,560 @@ paths:
               schema: { $ref: '#/components/schemas/ManagedCloudOperationResult' }
         default: { $ref: '#/components/responses/ManagedCloudError' }
 
+  /api/developer/brand-clouds/{brandCloudID}/fleet/summary:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getScopedBrandCloudFleetSummary
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-001]
+      tags: [Developer, Fleet]
+      summary: Read fleet aggregates for one explicit Brand Cloud
+      description: The path cloud is reauthorized for this request and never inferred from active-org session state.
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Cloud-scoped fleet aggregates., content: { application/json: { schema: { $ref: "#/components/schemas/FleetSummary" } } } }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/summary:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getScopedBrandCloudSummary
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-001]
+      tags: [Developer, Fleet]
+      summary: Read the customer-safe dashboard summary for one explicit Brand Cloud
+      description: This request revalidates path-cloud membership and does not read or update active-org session state.
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Cloud-scoped customer dashboard summary. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/fleet/devices:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listScopedBrandCloudFleetDevices
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-002]
+      tags: [Developer, Fleet, Devices]
+      summary: Search a bounded device page in one explicit Brand Cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: product_id, in: query, schema: { type: string, format: uuid } }
+        - { name: group_id, in: query, schema: { type: string, format: uuid } }
+        - { name: region, in: query, schema: { type: string } }
+        - { name: model, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: readiness, in: query, schema: { type: string } }
+        - { name: firmware, in: query, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200":
+          description: Server-filtered page whose total is limited to the authorized cloud and Product scope.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [devices, pagination, query, source_status]
+                properties:
+                  devices: { type: array, items: { $ref: "#/components/schemas/CustomerDevice" } }
+                  pagination: { $ref: "#/components/schemas/Pagination" }
+                  query: { type: object, additionalProperties: true }
+                  source_status: { type: string }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/fleet/devices/{deviceID}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: deviceID, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getScopedBrandCloudFleetDevice
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-002]
+      tags: [Developer, Fleet, Devices]
+      summary: Read one device after validating its Brand Cloud and Product scope
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Customer-safe device detail. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/fleet/devices/{deviceID}/telemetry:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: deviceID, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getScopedBrandCloudFleetDeviceTelemetry
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-002]
+      tags: [Developer, Fleet, Devices]
+      summary: Read customer-safe telemetry for one device in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Telemetry and recent-event projection., content: { application/json: { schema: { $ref: "#/components/schemas/DeviceTelemetry" } } } }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/fleet/devices/{deviceID}/{action}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: deviceID, in: path, required: true, schema: { type: string } }
+      - { name: action, in: path, required: true, schema: { type: string, enum: [provision, deactivate] } }
+    post:
+      operationId: actOnScopedBrandCloudFleetDevice
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-002]
+      tags: [Developer, Fleet, Devices]
+      summary: Provision or deactivate a device within the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      responses:
+        "202": { description: Device lifecycle action accepted. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/fleet/health-summary:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getScopedBrandCloudFleetHealthSummary
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-001]
+      tags: [Developer, Fleet]
+      summary: Read fleet health for the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/FleetWindow" }]
+      responses:
+        "200": { description: Cloud-scoped fleet health., content: { application/json: { schema: { $ref: "#/components/schemas/FleetHealthSummary" } } } }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/fleet/stream-stats:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getScopedBrandCloudFleetStreamStats
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-001]
+      tags: [Developer, Fleet, Analytics]
+      summary: Read streaming statistics for the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/FleetWindow" }]
+      responses:
+        "200": { description: Cloud-scoped streaming statistics., content: { application/json: { schema: { $ref: "#/components/schemas/FleetStreamStats" } } } }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/fleet/firmware-distribution:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getScopedBrandCloudFleetFirmwareDistribution
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids: [REQ-UI-CA-OTA-001]
+      tags: [Developer, Fleet, Firmware]
+      summary: Read firmware distribution for the explicit cloud and optional Product
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: product_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Cloud-scoped firmware distribution., content: { application/json: { schema: { $ref: "#/components/schemas/FirmwareDistribution" } } } }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/groups:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listScopedBrandCloudGroups
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-001]
+      tags: [Developer, Fleet]
+      summary: List device groups in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Cloud-scoped device groups. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    post:
+      operationId: createScopedBrandCloudGroup
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-001]
+      tags: [Developer, Fleet]
+      summary: Create a device group in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DeviceGroupRequest" } } }
+      responses:
+        "201": { description: Device group created. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/groups/{groupID}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: groupID, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getScopedBrandCloudGroup
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-001]
+      tags: [Developer, Fleet]
+      summary: Read one device group in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Device group detail. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    patch:
+      operationId: updateScopedBrandCloudGroup
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-001]
+      tags: [Developer, Fleet]
+      summary: Update one device group in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DeviceGroupRequest" } } }
+      responses:
+        "200": { description: Device group updated. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    delete:
+      operationId: deleteScopedBrandCloudGroup
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-FLEETPAGE-001]
+      tags: [Developer, Fleet]
+      summary: Delete one device group in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      responses:
+        "204": { description: Device group deleted. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/products/{productID}/releases:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: productID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listScopedBrandCloudProductReleases
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids: [REQ-UI-CA-OTA-001]
+      tags: [Developer, Product, Firmware]
+      summary: List releases after validating the Product belongs to the explicit cloud
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Product-scoped firmware releases. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    post:
+      operationId: createScopedBrandCloudProductRelease
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids: [REQ-UI-CA-OTA-001]
+      tags: [Developer, Product, Firmware]
+      summary: Create a firmware release for a Product in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: true } } }
+      responses:
+        "201": { description: Firmware release created. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/products/{productID}/releases/{releaseID}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: productID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: releaseID, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getScopedBrandCloudProductRelease
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids: [REQ-UI-CA-OTA-001]
+      tags: [Developer, Product, Firmware]
+      summary: Read one firmware release in the explicit cloud and Product
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Firmware release detail. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/products/{productID}/releases/{releaseID}/{action}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: productID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: releaseID, in: path, required: true, schema: { type: string } }
+      - { name: action, in: path, required: true, schema: { type: string, enum: [finalize, publish, revoke] } }
+    post:
+      operationId: actOnScopedBrandCloudProductRelease
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids: [REQ-UI-CA-OTA-001]
+      tags: [Developer, Product, Firmware]
+      summary: Advance or revoke a release in the explicit cloud and Product
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      responses:
+        "200": { description: Firmware release action accepted. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/update-plans:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listScopedBrandCloudUpdatePlans
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids: [REQ-UI-CA-OTA-001]
+      tags: [Developer, Firmware]
+      summary: List Product-scoped update plans in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: product_id, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Cloud- and Product-scoped update plans. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    post:
+      operationId: createScopedBrandCloudUpdatePlan
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids: [REQ-UI-CA-OTA-001]
+      tags: [Developer, Firmware]
+      summary: Create an update plan in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: true } } }
+      responses:
+        "201": { description: Update plan created. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/update-plans/scope-preview:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: previewScopedBrandCloudUpdatePlanScope
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids: [REQ-UI-CA-OTA-001]
+      tags: [Developer, Firmware]
+      summary: Calculate an immutable OTA target scope inside the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id]
+              properties:
+                product_id: { type: string, format: uuid }
+                query: { type: object, additionalProperties: true }
+                excluded_device_ids: { type: array, items: { type: string } }
+      responses:
+        "200": { description: Server-calculated immutable target scope. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/update-plans/{planID}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: planID, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getScopedBrandCloudUpdatePlan
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids: [REQ-UI-CA-OTA-001]
+      tags: [Developer, Firmware]
+      summary: Read one update plan in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Update plan detail. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/update-plans/{planID}/{action}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: planID, in: path, required: true, schema: { type: string } }
+      - { name: action, in: path, required: true, schema: { type: string, enum: [start, pause, resume, cancel, retry] } }
+    post:
+      operationId: actOnScopedBrandCloudUpdatePlan
+      x-rtk-feature-id: FEAT-CA-RELEASE-001
+      x-rtk-requirement-ids: [REQ-UI-CA-OTA-001]
+      tags: [Developer, Firmware]
+      summary: Control an update plan in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      responses:
+        "200": { description: Update plan changed. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/jobs:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listScopedBrandCloudJobs
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids: [REQ-UI-CA-BATCH-002]
+      tags: [Developer, Fleet, Operations]
+      summary: List background jobs in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: state, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Bounded cloud-scoped job page. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    post:
+      operationId: createScopedBrandCloudJob
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids: [REQ-UI-CA-BATCH-001]
+      tags: [Developer, Fleet, Operations]
+      summary: Create a background job whose immutable scope is bound to the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: true } } }
+      responses:
+        "202": { description: Background job accepted. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/jobs/{jobID}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: jobID, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getScopedBrandCloudJob
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids: [REQ-UI-CA-BATCH-002]
+      tags: [Developer, Fleet, Operations]
+      summary: Read one job only within its original cloud scope
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Background job detail. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/jobs/{jobID}/retry:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: jobID, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: retryScopedBrandCloudJob
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids: [REQ-UI-CA-BATCH-001]
+      tags: [Developer, Fleet, Operations]
+      summary: Retry failed items without changing the job's cloud scope
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      responses:
+        "202": { description: Retry job accepted. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/jobs/{jobID}/{action}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: jobID, in: path, required: true, schema: { type: string } }
+      - { name: action, in: path, required: true, schema: { type: string, enum: [pause, resume, cancel] } }
+    post:
+      operationId: actOnScopedBrandCloudJob
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids: [REQ-UI-CA-BATCH-002]
+      tags: [Developer, Fleet, Operations]
+      summary: Control a job without changing its cloud scope
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      responses:
+        "202": { description: Job action accepted. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/jobs/{jobID}/result:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: jobID, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getScopedBrandCloudJobResult
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids: [REQ-UI-CA-BATCH-003]
+      tags: [Developer, Fleet, Operations]
+      summary: Download a job result only within its immutable cloud scope
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: format, in: query, schema: { type: string, enum: [json, csv] } }
+      responses:
+        "200": { description: Job result in the requested safe format. }
+        "410": { description: Result expired. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/reports:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listScopedBrandCloudReports
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids: [REQ-UI-CA-REPORT-004]
+      tags: [Developer, Analytics, Reports]
+      summary: List generated reports in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Cloud-scoped report list. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    post:
+      operationId: createScopedBrandCloudReport
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids: [REQ-UI-CA-REPORT-004]
+      tags: [Developer, Analytics, Reports]
+      summary: Start a report with immutable scope in the explicit cloud
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ManagedCloudIdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: true } } }
+      responses:
+        "202": { description: Report accepted. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/reports/{reportID}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: reportID, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getScopedBrandCloudReport
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids: [REQ-UI-CA-REPORT-004]
+      tags: [Developer, Analytics, Reports]
+      summary: Read or download one report only in its original cloud scope
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200": { description: Report state or result. }
+        "410": { description: Report result expired. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/audit:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listScopedBrandCloudAuditEvents
+      x-rtk-feature-id: FEAT-CA-OPS-001
+      x-rtk-requirement-ids: [REQ-UI-CA-AUDIT-001]
+      tags: [Developer, Audit]
+      summary: List the customer-safe audit projection for the explicit cloud
+      security: [{ SessionCookie: [] }]
+      responses:
+        "200":
+          description: Authorized audit events for this cloud.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AuditEvent" } }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
   /api/developer/brand-clouds/{brandCloudID}/products/{productID}/devices:
     get:
       operationId: listScopedProductDevices

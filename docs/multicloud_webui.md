@@ -68,6 +68,36 @@ Global login, account/session, My Clouds list/create and platform APIs do not
 require a selected cloud. They validate their global account/platform authority;
 creating a cloud assigns the caller its initial ownership atomically.
 
+### Explicit selected-cloud BFF inventory
+
+The integrated console uses the following selected-cloud route families. Every
+operation extracts `cloudId` from the path, treats it as untrusted input, and
+revalidates current membership, resource scope and capability without reading or
+changing `/api/me/active-org`:
+
+- `/api/developer/brand-clouds/{cloudId}/summary` and
+  `/api/developer/brand-clouds/{cloudId}/fleet/*` for the cloud/fleet summary,
+  paginated devices, device detail/actions/telemetry, health, stream statistics
+  and firmware distribution;
+- `/api/developer/brand-clouds/{cloudId}/groups/*` for device-group CRUD;
+- `/api/developer/brand-clouds/{cloudId}/products/{productId}/releases/*` for
+  firmware release reads and mutations;
+- `/api/developer/brand-clouds/{cloudId}/update-plans/*` for OTA preview,
+  creation, status and lifecycle actions;
+- `/api/developer/brand-clouds/{cloudId}/jobs/*` for batch job creation,
+  status, control, retry and result download;
+- `/api/developer/brand-clouds/{cloudId}/reports/*` for report creation, status
+  and result access; and
+- `/api/developer/brand-clouds/{cloudId}/audit` for the customer-safe audit
+  projection of that cloud.
+
+Product IDs, device IDs, release IDs, plan IDs, job IDs and report IDs are all
+rechecked as children of the path cloud. A matching capability in another cloud
+does not authorize the request. List totals, downloads, async work and mutation
+idempotency are bound to the same explicit cloud. Existing unscoped BFF routes
+remain compatibility-only while callers migrate; the integrated shell never
+uses them and they cannot be used to infer or override a selected-cloud route.
+
 ## CRUD and collaboration
 
 Create: name and optional description; show owned count/limit; generate one
