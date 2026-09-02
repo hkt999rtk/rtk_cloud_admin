@@ -34,6 +34,7 @@
 | `rtk_cloud_admin/internal/config` | 100.0% |
 | `rtk_cloud_admin/internal/correlation` | 90.5% |
 | `rtk_cloud_admin/internal/readinessfacts` | 86.0% |
+| `rtk_cloud_admin/internal/sdkportalclient` | 80.0% |
 | `rtk_cloud_admin/internal/store` | 80.4% |
 | `rtk_cloud_admin/internal/videoclient` | 86.3% |
 
