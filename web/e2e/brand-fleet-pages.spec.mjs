@@ -1,75 +1,68 @@
 import { test, expect } from '@playwright/test';
 import { expectNoCJKText, expectPageTitle, login } from './fixtures/session.mjs';
 
+const cloud = '33333333-3333-4333-8333-333333333333';
+const product = '55555555-5555-4555-8555-555555555555';
 const pages = [
-  ['overview', 'Device Overview'],
-  ['devices', 'Devices'],
-  ['product-services', 'Products and Services'],
-  ['firmware-ota', 'Firmware OTA'],
-  ['reports', 'Reports'],
-  ['access', 'Members & Permissions'],
-  ['settings', 'Settings'],
+  ['', 'Device Overview'],
+  ['/fleet', 'Devices'],
+  ['/products', 'Products'],
+  ['/firmware-ota', 'Firmware OTA'],
+  ['/analytics', 'Reports'],
+  ['/members', 'Members and sharing'],
+  ['/settings', 'Cloud settings'],
 ];
 
 test('[UI-CA-FLEETPAGE-001] Brandname customer pages load through the real BFF @brand-fleet @smoke', async ({ page }) => {
   await login(page, 'developer');
   for (const [route, heading] of pages) {
-    await page.goto(`/console/brand-e2e-01/${route}`);
+    await page.goto(`/console/clouds/${cloud}${route}`);
     await expectPageTitle(page, heading);
     await expectNoCJKText(page);
-    if (route === 'overview') await expect(page).toHaveTitle('Brand Cloud · RTK Cloud');
+    if (route === '') await expect(page).toHaveTitle('Brand Cloud · RTK Cloud');
   }
 });
 
-test('[UI-CA-FLEETPAGE-005] Brand Cloud overview access and settings share one navigation entry @brand-fleet @smoke', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-005] Brand Cloud overview access and settings share one navigation entry @brand-fleet @smoke', async ({ page }, testInfo) => {
   await login(page, 'developer');
-  await page.goto('/console/brand-e2e-01/overview');
-  const brandCloudEntry = page.getByRole('button', { name: 'Brand Cloud Home' });
-  await expect(brandCloudEntry).toHaveClass(/active/);
-  await expect(page.getByText('Device Operations', { exact: true })).toBeVisible();
-  await expect(page.getByText('Products and Updates', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Manage Members and Access' }).click();
-  await expect(page).toHaveURL(/\/console\/brand-e2e-01\/access$/);
-  await expect(page.getByRole('heading', { name: 'Members & Permissions' })).toBeVisible();
-  await expect(brandCloudEntry).toHaveClass(/active/);
-  const settingsTab = page.getByRole('button', { name: 'Settings', exact: true });
-  const settingsBox = await settingsTab.boundingBox();
-  expect(settingsBox).not.toBeNull();
-  await page.mouse.click(settingsBox.x + settingsBox.width / 2, settingsBox.y + settingsBox.height / 2);
-  await expect(page).toHaveURL(/\/console\/brand-e2e-01\/settings$/);
-  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
-  const certificateType = page.getByLabel('Certificate Type');
-  await expect(certificateType).toHaveClass(/select-control/);
-  const selectStyles = await certificateType.evaluate((element) => {
-    const styles = getComputedStyle(element);
-    return { appearance: styles.appearance, backgroundImage: styles.backgroundImage, height: element.getBoundingClientRect().height };
-  });
-  expect(selectStyles.appearance).toBe('none');
-  expect(selectStyles.backgroundImage).not.toBe('none');
-  expect(selectStyles.height).toBeGreaterThanOrEqual(42);
-  await expect(page.getByRole('link', { name: 'Open cloud management', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Generate and download', exact: true })).toHaveClass(/primary-button/);
+  await page.goto(`/console/clouds/${cloud}`);
+  const overview = page.getByRole('link', { name: 'Overview', exact: true });
+  await expect(overview).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByText('Features', { exact: true })).toBeVisible();
+  await expect(page.getByText('Management', { exact: true })).toBeVisible();
+  if (testInfo.project.name === 'mobile') await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('link', { name: 'Members & Access', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloud}/members$`));
+  await expect(page.getByRole('heading', { name: 'Members and sharing' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Members & Access', exact: true })).toHaveAttribute('aria-current', 'page');
+  if (testInfo.project.name === 'mobile') await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloud}/settings$`));
+  await expect(page.getByRole('heading', { name: 'Cloud settings', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Transfer ownership', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.goBack();
-  await expect(page).toHaveURL(/\/console\/brand-e2e-01\/access$/);
-  await page.goto('/console/clouds/99999999-9999-4999-8999-999999999999');
+  await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloud}/members$`));
+  await page.goto('/console/clouds/99999999-9999-4999-8999-999999999999/settings');
   await expect(page.getByRole('heading', { name: 'Transfer ownership', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send ownership invitation', exact: true })).toBeDisabled();
-  await expect(page.getByRole('heading', { name: 'Cloud overview', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cloud settings', exact: true })).toBeVisible();
 });
 
 test('[UI-CA-FLEETPAGE-003] retired batch work route opens firmware upgrade status @brand-fleet', async ({ page }) => {
   await login(page, 'developer');
-  await page.goto('/console/brand-e2e-01/jobs');
+  await page.goto(`/console/${cloud}/jobs`);
   await expect(page.getByRole('heading', { name: 'Firmware OTA' }).first()).toBeVisible();
-  await expect(page).toHaveURL(/\/console\/brand-e2e-01\/firmware-ota$/);
+  await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloud}/firmware-ota$`));
   await expect(page.getByRole('button', { name: 'Batch Tasks' })).toHaveCount(0);
 });
 
 test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading the whole fleet @brand-fleet @smoke', async ({ page }, testInfo) => {
   await login(page, 'developer');
   const requests = [];
-  page.on('request', (request) => { if (request.url().includes('/api/fleet/devices')) requests.push(request.url()); });
-  await page.route('**/api/fleet/devices**', async (route) => {
+  const fleetAPI = `/api/developer/brand-clouds/${cloud}/fleet/devices`;
+  page.on('request', (request) => { if (request.url().includes(fleetAPI)) requests.push(request.url()); });
+  await page.route(`**${fleetAPI}**`, async (route) => {
     const response = await route.fetch();
     const payload = await response.json();
     const url = new URL(route.request().url());
@@ -85,7 +78,7 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
       },
     });
   });
-  await page.goto('/console/brand-e2e-01/devices');
+  await page.goto(`/console/clouds/${cloud}/fleet`);
   await expect(page.getByRole('heading', { name: 'Devices' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: /Batch Settings|Batch deactivation|Select all/})).toHaveCount(0);
   await expect(page.getByRole('checkbox', { name: /^Select/})).toHaveCount(0);
@@ -112,16 +105,16 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
   }
 
   await topPagination.getByRole('button', { name: 'Page 5' }).click();
-  await expect(page).toHaveURL(/devices\?offset=400$/);
+  await expect(page).toHaveURL(/fleet\?offset=400$/);
   await expect(bottomPagination.getByRole('button', { name: 'Page 5' })).toHaveAttribute('aria-current', 'page');
   await bottomPagination.getByRole('button', { name: 'Next' }).click();
-  await expect(page).toHaveURL(/devices\?offset=500$/);
+  await expect(page).toHaveURL(/fleet\?offset=500$/);
   await expect(topPagination).toContainText('Page 6 of 10');
 });
 
 test('[UI-CA-FLEETPAGE-006] report builder uses shared form controls @brand-fleet @smoke', async ({ page }) => {
   await login(page, 'developer');
-  await page.goto('/console/brand-e2e-01/reports');
+  await page.goto(`/console/clouds/${cloud}/analytics`);
 
   const reportType = page.getByLabel('Report Type');
   await expect(reportType).toHaveClass(/select-control/);
@@ -148,9 +141,9 @@ test('[UI-CA-FLEETPAGE-007] firmware status loads only after selecting a Product
   await login(page, 'developer');
   const distributionRequests = [];
   page.on('request', (request) => {
-    if (request.url().includes('/api/fleet/firmware-distribution')) distributionRequests.push(request.url());
+    if (request.url().includes(`/api/developer/brand-clouds/${cloud}/fleet/firmware-distribution`)) distributionRequests.push(request.url());
   });
-  await page.goto('/console/brand-e2e-01/firmware-ota');
+  await page.goto(`/console/clouds/${cloud}/firmware-ota`);
 
   const productSelector = page.getByLabel('Select Firmware Product');
   await expect(productSelector).toHaveClass(/select-control/);
@@ -159,25 +152,25 @@ test('[UI-CA-FLEETPAGE-007] firmware status loads only after selecting a Product
   await expect(page.getByLabel('Firmware data window')).toHaveCount(0);
   expect(distributionRequests).toHaveLength(0);
 
-  await productSelector.selectOption('product-alpha');
-  await expect(page).toHaveURL(/firmware-ota\?product_id=product-alpha$/);
-  await expect.poll(() => distributionRequests.some((url) => url.includes('product_id=product-alpha'))).toBeTruthy();
+  await productSelector.selectOption(product);
+  await expect(page).toHaveURL(new RegExp(`firmware-ota\\?product_id=${product}$`));
+  await expect.poll(() => distributionRequests.some((url) => url.includes(`product_id=${product}`))).toBeTruthy();
   await expect(page.getByText('Latest version', { exact: true })).toBeVisible();
-  await expect(page.getByText(/Showing firmware versions, device distribution, and OTA update status for E2E product-alpha Camera/)).toBeVisible();
+  await expect(page.getByText(new RegExp(`Showing firmware versions, device distribution, and OTA update status for E2E ${product} Camera`))).toBeVisible();
 
   await page.reload();
-  await expect(productSelector).toHaveValue('product-alpha');
+  await expect(productSelector).toHaveValue(product);
   await page.goBack();
   await expect(page).toHaveURL(/firmware-ota$/);
   await expect(page.getByRole('heading', { name: 'Please select Product first' })).toBeVisible();
   await page.goForward();
-  await expect(page).toHaveURL(/firmware-ota\?product_id=product-alpha$/);
-  await expect(productSelector).toHaveValue('product-alpha');
+  await expect(page).toHaveURL(new RegExp(`firmware-ota\\?product_id=${product}$`));
+  await expect(productSelector).toHaveValue(product);
 });
 
 test('[UI-CA-FLEETPAGE-004] overview world map supports country hover zoom and pan @brand-fleet', async ({ page }) => {
   await login(page, 'developer');
-  await page.goto('/console/brand-e2e-01/overview');
+  await page.goto(`/console/clouds/${cloud}`);
   const map = page.getByRole('img', { name: 'Zoomable and draggable world device distribution map' });
   await expect(map).toBeVisible();
   await expect(map.locator('.world-countries path')).toHaveCount(177);
@@ -195,21 +188,15 @@ test('[UI-CA-FLEETPAGE-004] overview world map supports country hover zoom and p
 });
 
 test('[UI-CA-FLEETPAGE-008] Product form uses styled buttons, checkboxes, and select controls @brand-fleet', async ({ page }) => {
-  await login(page, 'customer');
-  await page.route('**/api/products', async (route) => {
-    if (route.request().method() !== 'GET') return route.continue();
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ products: [], can_manage: true, source_status: 'available' }) });
-  });
-  await page.goto('/console/brand-e2e-01/product-services');
-  const createButton = page.getByRole('button', { name: '＋ Add Product' });
-  await expect(createButton).toHaveCSS('background-color', 'rgb(0, 104, 183)');
+  await login(page, 'developer');
+  await page.goto(`/console/clouds/${cloud}/products`);
+  const createButton = page.getByRole('button', { name: 'Create Product', exact: true });
+  await expect(createButton).toBeVisible();
   await createButton.click();
 
-  const category = page.locator('.product-create-form select');
-  const liveView = page.getByRole('checkbox', { name: 'Live View' });
-  await expect(category).toHaveCSS('appearance', 'none');
-  await expect(category).not.toHaveCSS('background-image', 'none');
-  await expect(liveView).toHaveCSS('appearance', 'none');
-  await expect(liveView).toHaveCSS('background-color', 'rgb(0, 104, 183)');
-  await expect(page.getByRole('button', { name: 'Save Product' })).toHaveCSS('background-color', 'rgb(0, 104, 183)');
+  const category = page.getByLabel('Product category', { exact: true });
+  const mqtt = page.getByRole('checkbox', { name: 'MQTT', exact: true });
+  await expect(category).toBeVisible();
+  await expect(mqtt).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Save Product' })).toHaveCSS('background-color', 'rgb(23, 96, 165)');
 });

@@ -4,7 +4,7 @@ import {deviceAPI,deviceURL,fetchProductDevices,deviceError} from './product-dev
 import {managedCloudRoute} from './managed-clouds.mjs';
 const c='11111111-1111-4111-8111-111111111111',p='33333333-3333-4333-8333-333333333333',d='77777777-7777-4777-8777-000000000000';
 test('device URLs require all three explicit identities',()=>{
- assert.deepEqual(managedCloudRoute(deviceURL(c,p,d)),{cloudId:c,productId:p,deviceId:d});
+ assert.deepEqual(managedCloudRoute(deviceURL(c,p,d)),{cloudId:c,section:'products',productId:p,deviceId:d});
  for(const id of ['', '../other','%2f']){assert.throws(()=>deviceURL(c,p,id));assert.throws(()=>deviceAPI(c,id));}
  assert.equal(managedCloudRoute(`/console/clouds/${c}/products/${p}/devices/../other`),null);
 });

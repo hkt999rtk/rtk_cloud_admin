@@ -265,6 +265,40 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}", s.apiManagedCloud)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/deletion-preflight", s.apiManagedCloud)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/operations/{operationID}", s.apiManagedCloud)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/summary", s.withExplicitBrandCloudScope(s.apiSummary))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/fleet/devices", s.withExplicitBrandCloudScope(s.apiFleetDevices))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/fleet/devices/{id}", s.withExplicitBrandCloudScope(s.apiDevice))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/fleet/devices/{id}/telemetry", s.withExplicitBrandCloudScope(s.apiDeviceTelemetry))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/fleet/devices/{id}/provision", s.withExplicitBrandCloudScope(s.apiProvisionDevice))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/fleet/devices/{id}/deactivate", s.withExplicitBrandCloudScope(s.apiDeactivateDevice))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/fleet/summary", s.withExplicitBrandCloudScope(s.apiFleetSummary))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/fleet/health-summary", s.withExplicitBrandCloudScope(s.apiFleetHealthSummary))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/fleet/stream-stats", s.withExplicitBrandCloudScope(s.apiFleetStreamStats))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/fleet/firmware-distribution", s.withExplicitBrandCloudScope(s.apiFleetFirmwareDistribution))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/groups", s.withExplicitBrandCloudScope(s.apiGroups))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/groups", s.withExplicitBrandCloudScope(s.apiGroups))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/groups/{id}", s.withExplicitBrandCloudScope(s.apiGroup))
+	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/groups/{id}", s.withExplicitBrandCloudScope(s.apiGroup))
+	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/groups/{id}", s.withExplicitBrandCloudScope(s.apiGroup))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{id}/releases", s.withExplicitBrandCloudScope(s.apiProductReleases))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/products/{id}/releases", s.withExplicitBrandCloudScope(s.apiProductReleases))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{id}/releases/{releaseId}", s.withExplicitBrandCloudScope(s.apiProductRelease))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/products/{id}/releases/{releaseId}/{action}", s.withExplicitBrandCloudScope(s.apiProductRelease))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/update-plans", s.withExplicitBrandCloudScope(s.apiUpdatePlans))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/update-plans", s.withExplicitBrandCloudScope(s.apiUpdatePlans))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/update-plans/scope-preview", s.withExplicitBrandCloudScope(s.apiUpdatePlanScopePreview))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/update-plans/{id}", s.withExplicitBrandCloudScope(s.apiUpdatePlans))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/update-plans/{id}/{action}", s.withExplicitBrandCloudScope(s.apiUpdatePlans))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/jobs", s.withExplicitBrandCloudScope(s.apiJobs))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/jobs", s.withExplicitBrandCloudScope(s.apiJobs))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/jobs/{id}", s.withExplicitBrandCloudScope(s.apiJob))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/jobs/{id}/retry", s.withExplicitBrandCloudScope(s.apiJobRetry))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/jobs/{id}/{action}", s.withExplicitBrandCloudScope(s.apiJobAction))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/jobs/{id}/result", s.withExplicitBrandCloudScope(s.apiJobResult))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/reports", s.withExplicitBrandCloudScope(s.apiReports))
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/reports", s.withExplicitBrandCloudScope(s.apiReports))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/reports/{id}", s.withExplicitBrandCloudScope(s.apiReport))
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/audit", s.withExplicitBrandCloudScope(s.apiAudit))
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products", s.apiManagedCloudProducts)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}", s.apiManagedCloudProducts)
 	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/products", s.apiManagedCloudProducts)
@@ -566,6 +600,16 @@ func serveDistIndex(w http.ResponseWriter, r *http.Request) bool {
 
 func (s *Server) apiSummary(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
+		if _, explicit := explicitBrandCloudScopeFromContext(r.Context()); explicit {
+			org, _, err := s.activeCustomerOrg(r.Context(), session)
+			if err != nil {
+				s.writeCustomerErrorForSession(w, session.ID, err)
+				return
+			}
+			if !requireCustomerCapability(w, org, capabilityFleetRead, capabilityCustomerDevicesRead) {
+				return
+			}
+		}
 		summary, err := s.customerSummary(r.Context(), session)
 		if err != nil {
 			s.writeCustomerErrorForSession(w, session.ID, err)
@@ -3060,6 +3104,16 @@ func (s *Server) apiAdminDevices(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) apiDevice(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
+		if _, explicit := explicitBrandCloudScopeFromContext(r.Context()); explicit {
+			org, _, err := s.activeCustomerOrg(r.Context(), session)
+			if err != nil {
+				s.writeCustomerErrorForSession(w, session.ID, err)
+				return
+			}
+			if !requireCustomerCapability(w, org, capabilityFleetRead, capabilityCustomerDevicesRead) {
+				return
+			}
+		}
 		devices, err := s.customerDevices(r.Context(), session)
 		if err != nil {
 			s.writeCustomerErrorForSession(w, session.ID, err)
@@ -3098,6 +3152,17 @@ func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	orgID, err := s.customerOrgIDForSession(r.Context(), session)
+	if _, explicit := explicitBrandCloudScopeFromContext(r.Context()); explicit {
+		org, _, scopeErr := s.activeCustomerOrg(r.Context(), session)
+		if scopeErr != nil {
+			s.writeCustomerErrorForSession(w, session.ID, scopeErr)
+			return
+		}
+		if !requireCustomerCapability(w, org, capabilityFleetRead, capabilityCustomerDevicesRead) {
+			return
+		}
+		orgID, err = org.ID, nil
+	}
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -3118,6 +3183,17 @@ func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	orgID, err := s.customerOrgIDForSession(r.Context(), session)
+	if _, explicit := explicitBrandCloudScopeFromContext(r.Context()); explicit {
+		org, _, scopeErr := s.activeCustomerOrg(r.Context(), session)
+		if scopeErr != nil {
+			s.writeCustomerErrorForSession(w, session.ID, scopeErr)
+			return
+		}
+		if !requireCustomerCapability(w, org, capabilityCustomerStreamRead, capabilityFleetRead) {
+			return
+		}
+		orgID, err = org.ID, nil
+	}
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -3149,6 +3225,33 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 		return
 	}
 	orgID, err := s.customerOrgIDForSession(r.Context(), session)
+	productID := strings.TrimSpace(r.URL.Query().Get("product_id"))
+	if len(productID) > 200 {
+		http.Error(w, "product_id is too long", http.StatusBadRequest)
+		return
+	}
+	if _, explicit := explicitBrandCloudScopeFromContext(r.Context()); explicit {
+		org, tokens, scopeErr := s.activeCustomerOrg(r.Context(), session)
+		if scopeErr != nil {
+			s.writeCustomerErrorForSession(w, session.ID, scopeErr)
+			return
+		}
+		if !requireCustomerCapability(w, org, capabilityCustomerFirmwareRead, capabilityFirmwareReleaseRead, capabilityOTAPlanRead) {
+			return
+		}
+		orgID, err = org.ID, nil
+		if productID != "" && s.accountClient.Enabled() {
+			allowed, checkErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, "registry_device.read", "product", productID)
+			if checkErr != nil {
+				s.writeCustomerErrorForSession(w, session.ID, checkErr)
+				return
+			}
+			if !allowed {
+				writeJSONStatus(w, http.StatusForbidden, map[string]any{"code": "RESOURCE_SCOPE_FORBIDDEN", "resource": "product", "message": "Current membership does not allow this Product scope."})
+				return
+			}
+		}
+	}
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -3156,11 +3259,6 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 	devices, err := s.firmwareDistributionDevices(r.Context(), session, orgID)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
-	productID := strings.TrimSpace(r.URL.Query().Get("product_id"))
-	if len(productID) > 200 {
-		http.Error(w, "product_id is too long", http.StatusBadRequest)
 		return
 	}
 	devices = filterDevicesByProduct(devices, productID)
@@ -4346,6 +4444,16 @@ func (s *Server) apiDeviceTelemetry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
+	if _, explicit := explicitBrandCloudScopeFromContext(r.Context()); explicit {
+		org, _, err := s.activeCustomerOrg(r.Context(), session)
+		if err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		if !requireCustomerCapability(w, org, capabilityFleetRead, capabilityCustomerDevicesRead) {
+			return
+		}
+	}
 	if s.accountClient.Enabled() {
 		devices, err := s.customerDevices(r.Context(), session)
 		if err != nil {
@@ -5356,6 +5464,16 @@ func adminSensitiveLogKey(key string) bool {
 
 func (s *Server) apiAudit(w http.ResponseWriter, r *http.Request) {
 	if session, ok := s.customerSession(r); ok {
+		if _, explicit := explicitBrandCloudScopeFromContext(r.Context()); explicit {
+			org, _, err := s.activeCustomerOrg(r.Context(), session)
+			if err != nil {
+				s.writeCustomerErrorForSession(w, session.ID, err)
+				return
+			}
+			if !requireCustomerCapability(w, org, "audit.read", "customer.audit.read", capabilityFleetRead) {
+				return
+			}
+		}
 		events, err := s.customerAudit(r.Context(), session)
 		if err != nil {
 			s.writeCustomerErrorForSession(w, session.ID, err)
@@ -5771,6 +5889,9 @@ func (s *Server) customerAudit(ctx context.Context, session store.Session) ([]co
 }
 
 func (s *Server) activeCustomerOrg(ctx context.Context, session store.Session) (accountclient.Organization, accountclient.Tokens, error) {
+	if scope, ok := explicitBrandCloudScopeFromContext(ctx); ok && scope.cloudID == session.ActiveOrgID {
+		return scope.org, scope.tokens, nil
+	}
 	tokens := accountclient.Tokens{
 		AccessToken:  session.AccessToken,
 		RefreshToken: session.RefreshToken,
@@ -5891,7 +6012,10 @@ func (s *Server) requestSession(r *http.Request) (store.Session, bool) {
 		return store.Session{}, false
 	}
 	session, err := s.sessions.GetSession(cookie.Value)
-	return session, err == nil
+	if err != nil {
+		return store.Session{}, false
+	}
+	return applyExplicitBrandCloudScope(r.Context(), session), true
 }
 
 func setSessionCookie(w http.ResponseWriter, value string) {

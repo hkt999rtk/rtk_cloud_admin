@@ -4,7 +4,7 @@ import { enterPlatform, login } from './fixtures/session.mjs';
 test('[UI-CA-AUDIT-001] platform admin can review local audit records after a Brand Cloud action', async ({ page }) => {
   await login(page, 'platform_admin');
   await enterPlatform(page);
-  await page.getByRole('button', { name: 'Brand Cloud Management', exact: true }).click();
+  await page.getByRole('link', { name: 'Brand Cloud Management', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Brand Clouds' }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Create Brand Cloud', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Create Brand Cloud' });

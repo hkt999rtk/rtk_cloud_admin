@@ -9,20 +9,26 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(__dirname, '..');
 const artifactsDir = path.resolve(webRoot, '..', '.artifacts', 'browser-smoke');
 const now = new Date('2026-05-13T12:00:00.000Z');
+const cloudId = '11111111-1111-4111-8111-111111111111';
+const productId = '22222222-2222-4222-8222-222222222222';
+const customerCapabilities = ['fleet.read', 'customer.devices.read', 'customer.devices.provision', 'customer.devices.deactivate', 'product.read', 'firmware.release.read', 'ota.plan.read', 'customer.firmware.read', 'customer.stream.read', 'reports.read', 'reports.create', 'team.read', 'audit.read'];
+const managedCloud = { id: cloudId, name: 'Acme Smart Camera', description: 'Browser smoke cloud', tenant_slug: 'acme-smart-camera', owner_user_id: 'fleet-manager-user', my_role: 'owner', status: 'active', ownership_version: 1, capabilities: customerCapabilities };
+const managedProduct = { id: productId, brand_cloud_id: cloudId, name: 'Camera Product', profile_key: 'camera-product', status: 'active', product_model: 'RTL-CAM-A1', category: 'ip_camera', service_options: ['video_streaming'], my_role: 'product_owner', allowed_actions: ['read', 'edit', 'disable'] };
 
 const customerMe = {
   authenticated: true,
   kind: 'customer',
+  user_id: 'fleet-manager-user',
   email: 'fleet.manager@example.com',
-  active_org_id: 'org-acme',
-  capabilities: ['customer.devices.read', 'customer.devices.provision', 'customer.devices.deactivate', 'customer.firmware.read', 'customer.stream.read', 'reports.read', 'reports.create'],
+  active_org_id: cloudId,
+  capabilities: customerCapabilities,
   memberships: [{
-    organization_id: 'org-acme',
+    organization_id: cloudId,
     organization: 'Acme Smart Camera',
-    role: 'fleet_manager',
+    role: 'owner',
     tier: 'evaluation',
     evaluation_device_quota: 5,
-    capabilities: ['customer.devices.read', 'customer.devices.provision', 'customer.devices.deactivate', 'customer.firmware.read', 'customer.stream.read', 'reports.read', 'reports.create'],
+    capabilities: customerCapabilities,
   }],
 };
 
@@ -407,7 +413,7 @@ try {
 async function installApiMocks(page, { sessionForPath } = {}) {
   await page.route('**/api/**', async (route, request) => {
     const url = new URL(request.url());
-    const framePath = request.frame()?.url() ? new URL(request.frame().url()).pathname : '/console/overview';
+    const framePath = request.frame()?.url() ? new URL(request.frame().url()).pathname : '/console/clouds';
     const isPlatformFrame = framePath.startsWith('/admin');
     const pathName = url.pathname;
 
@@ -481,27 +487,33 @@ async function installApiMocks(page, { sessionForPath } = {}) {
       }
       return route.fulfill({ json: { email: 'existing.customer@example.com' } });
     }
-    if (pathName === '/api/summary' || pathName === '/api/admin/summary') return route.fulfill({ json: summary });
-    if (pathName === '/api/developer/brand-clouds') return route.fulfill({ json: { brand_clouds: [] } });
+    const cloudAPI = `/api/developer/brand-clouds/${cloudId}`;
+    if (pathName === '/api/admin/summary' || pathName === `${cloudAPI}/summary`) return route.fulfill({ json: summary });
+    if (pathName === '/api/developer/brand-clouds') return route.fulfill({ json: { brand_clouds: [managedCloud], pagination: { limit: 25, offset: 0, total: 1 }, owned_count: 1, owned_limit: 8, reserved_count: 0 } });
+    if (pathName === cloudAPI) return route.fulfill({ json: { brand_cloud: managedCloud } });
+    if (pathName === `${cloudAPI}/members`) return route.fulfill({ json: { members: [{ organization_id: cloudId, user_id: 'fleet-manager-user', email: customerMe.email, role: 'owner' }], pagination: { limit: 25, offset: 0, total: 1 } } });
+    if (pathName === `${cloudAPI}/members/invitations`) return route.fulfill({ json: { invitations: [] } });
     if (pathName === '/api/customers' || pathName === '/api/admin/customers') return route.fulfill({ json: customers });
     if (pathName === '/api/devices' || pathName === '/api/admin/devices') return route.fulfill({ json: devices });
-    if (pathName === '/api/fleet/devices') return route.fulfill({ json: { devices, pagination: { limit: 100, offset: 0, total: devices.length }, query: { server_side: true } } });
-    if (pathName === '/api/fleet/summary') return route.fulfill({ json: { total: devices.length, by_status: { online: 2, offline: 1 }, by_product: { 'product-camera': devices.length }, by_model: { 'RTL-CAM-A1': devices.length }, by_firmware: { '1.4.2': 2, '1.3.9': 1 }, by_region: { 'Taiwan': devices.length }, service_enabled: { video_streaming: devices.length }, source_status: 'available' } });
-    if (pathName === '/api/products') return route.fulfill({ json: { products: [], source_status: 'available' } });
-    if (pathName === '/api/groups') return route.fulfill({ json: { groups: [], source_status: 'available' } });
-    if (pathName === '/api/jobs') return route.fulfill({ json: { jobs: [], source_status: 'available' } });
-    if (pathName === '/api/reports') return route.fulfill({ json: { reports: [], source_status: 'available' } });
-    if (pathName === '/api/fleet/health-summary') return route.fulfill({ json: fleetHealth });
-    if (pathName === '/api/fleet/stream-stats') return route.fulfill({ json: streamStats });
-    if (pathName === '/api/fleet/firmware-distribution') return route.fulfill({ json: firmwareDistribution });
+    if (pathName === `${cloudAPI}/fleet/devices`) return route.fulfill({ json: { devices, pagination: { limit: 100, offset: 0, total: devices.length }, query: { server_side: true } } });
+    if (pathName === `${cloudAPI}/fleet/summary`) return route.fulfill({ json: { total: devices.length, by_status: { online: 2, offline: 1 }, by_product: { [productId]: devices.length }, by_model: { 'RTL-CAM-A1': devices.length }, by_firmware: { '1.4.2': 2, '1.3.9': 1 }, by_region: { 'Taiwan': devices.length }, service_enabled: { video_streaming: devices.length }, source_status: 'available' } });
+    if (pathName === `${cloudAPI}/products`) return route.fulfill({ json: { products: [managedProduct], pagination: { limit: Number(url.searchParams.get('limit') || 25), offset: Number(url.searchParams.get('offset') || 0), total: 1 }, can_create: true, source_status: 'available' } });
+    if (pathName === `${cloudAPI}/products/${productId}/releases`) return route.fulfill({ json: { items: [], releases: [] } });
+    if (pathName === `${cloudAPI}/groups`) return route.fulfill({ json: { groups: [], source_status: 'available' } });
+    if (pathName === `${cloudAPI}/jobs`) return route.fulfill({ json: { jobs: [], source_status: 'available' } });
+    if (pathName === `${cloudAPI}/reports`) return route.fulfill({ json: { reports: [], source_status: 'available' } });
+    if (pathName === `${cloudAPI}/audit`) return route.fulfill({ json: audit });
+    if (pathName === `${cloudAPI}/fleet/health-summary`) return route.fulfill({ json: fleetHealth });
+    if (pathName === `${cloudAPI}/fleet/stream-stats`) return route.fulfill({ json: streamStats });
+    if (pathName === `${cloudAPI}/fleet/firmware-distribution`) return route.fulfill({ json: firmwareDistribution });
     if (pathName === '/api/admin/platform-dashboard') return route.fulfill({ json: platformDashboard });
     if (pathName === '/api/admin/service-health') return route.fulfill({ json: platformHealth });
     if (pathName === '/api/admin/service-logs') return route.fulfill({ json: { status: 'ok', events: [{ event_id: 'log-1', ts: '2026-05-13T11:58:00Z', service: 'video-cloud', level: 'info', msg: 'Platform health sample available.', trace_id: 'trace-1', request_id: 'req-1' }] } });
     if (pathName === '/api/admin/operations') return route.fulfill({ json: platformOperations });
     if (pathName === '/api/admin/audit') return route.fulfill({ json: audit });
     if (pathName === '/api/admin/sso/providers') return route.fulfill({ json: { providers: [] } });
-    if (pathName.startsWith('/api/devices/') && pathName.endsWith('/telemetry')) {
-      const deviceID = pathName.split('/')[3];
+    if (pathName.startsWith(`${cloudAPI}/fleet/devices/`) && pathName.endsWith('/telemetry')) {
+      const deviceID = pathName.split('/').at(-2);
       return route.fulfill({ json: telemetryByDevice[deviceID] || {
         telemetry_status: 'unavailable',
         unavailable_reason: 'No telemetry sample found.',
@@ -522,7 +534,7 @@ async function runAuthSmoke(browserContext) {
   if (page.url() !== `${baseURL}/login?next=%2Fadmin`) {
     throw new Error(`Unauthenticated admin route should redirect to login, got ${page.url()}`);
   }
-  await expectText(page, 'Admin Console');
+  await expectText(page, 'Platform Admin sign in');
   const sidebarVisible = await page.locator('.sidebar').isVisible();
   if (sidebarVisible) {
     throw new Error('Login page must not render dashboard sidebar navigation.');
@@ -533,13 +545,16 @@ async function runAuthSmoke(browserContext) {
   if (await page.locator('.login-preview').count()) {
     throw new Error('Login page must not render destination preview panels.');
   }
-  const loginTab = page.getByRole('tab', { name: 'Login', exact: true });
-  const signUpTab = page.getByRole('tab', { name: 'Sign Up', exact: true });
+  await screenshot(page, 'desktop-platform-login.png');
+  await page.goto(`${baseURL}/login`, { waitUntil: 'networkidle' });
+  await expectText(page, 'Sign in to Connect+');
+  const loginTab = page.getByRole('tab', { name: 'Sign in', exact: true });
+  const signUpTab = page.getByRole('tab', { name: 'Create account', exact: true });
   if (await loginTab.getAttribute('aria-selected') !== 'true') {
     throw new Error('Login must be the default auth tab.');
   }
-  if (await page.getByRole('tab', { name: 'Sign-in', exact: true }).count()) {
-    throw new Error('Login page must not expose the retired Sign-in tab.');
+  if (await page.getByRole('tab', { name: 'Login', exact: true }).count()) {
+    throw new Error('Login page must not expose the retired Login tab.');
   }
   await screenshot(page, 'desktop-login.png');
 
@@ -582,7 +597,7 @@ async function runAuthSmoke(browserContext) {
   }
   await page.getByLabel('New password').fill('password123');
   await page.getByRole('button', { name: 'Verify and continue', exact: true }).click();
-  await page.waitForURL(`${baseURL}/console/overview`);
+  await page.waitForURL(`${baseURL}/console/clouds`);
   await page.goto(`${baseURL}/reset-password?token=synthetic-reset-token`, { waitUntil: 'networkidle' });
   await page.waitForURL(`${baseURL}/reset-password`);
   await expectText(page, 'Secure reset link recognized');
@@ -637,7 +652,10 @@ function assertNoBreakGlassField(payload, label) {
 async function runDesktopSmoke(page) {
   await page.setViewportSize({ width: 1440, height: 1000 });
 
-  await gotoAndAssert(page, '/console/overview', 'Device Overview');
+  await gotoAndAssert(page, '/console/clouds', 'My Clouds');
+  await screenshot(page, 'desktop-my-clouds.png');
+
+  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Device Overview');
   await expectText(page, 'Online Rate');
   await expectText(page, 'Needs Attention');
   await expectText(page, 'Active Streams');
@@ -656,7 +674,7 @@ async function runDesktopSmoke(page) {
   }
   await screenshot(page, 'desktop-public-auth.png');
 
-  await gotoAndAssert(page, '/console/org-acme/reports', 'Reports');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}/analytics`, 'Analytics');
   const reportNameBox = await page.getByLabel('Report Name').boundingBox();
   const reportTypeBox = await page.getByLabel('Report Type').boundingBox();
   if (!reportNameBox || !reportTypeBox || Math.abs(reportNameBox.height - reportTypeBox.height) > 1) {
@@ -681,13 +699,13 @@ async function runDesktopSmoke(page) {
   }
   await screenshot(page, 'desktop-reports-controls.png');
 
-  await gotoAndAssert(page, '/console/devices?device=dev-1002', 'Devices');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}/fleet?device=dev-1002`, 'Fleet Management');
   await screenshot(page, 'desktop-devices-drawer.png');
 
-  await gotoAndAssert(page, '/console/firmware-ota', 'Firmware Update');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}/firmware-ota`, 'Firmware OTA');
   await screenshot(page, 'desktop-firmware.png');
 
-  await gotoAndAssert(page, '/console/stream-health', 'Stream Health');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}/analytics`, 'Stream Health');
   await screenshot(page, 'desktop-stream-open-device.png');
 
   await gotoAndAssert(page, '/admin', 'Platform Home');
@@ -725,13 +743,13 @@ async function runMobileSmoke(browserContext) {
   await page.clock.setFixedTime(now);
   await page.setViewportSize({ width: 390, height: 844 });
   await installApiMocks(page, { sessionForPath: () => anonymousMe });
-  await page.goto(`${baseURL}/login?next=%2Fconsole%2Fdevices`, { waitUntil: 'networkidle' });
-  await expectText(page, 'Admin Console');
+  await page.goto(`${baseURL}/login?next=${encodeURIComponent(`/console/clouds/${cloudId}/fleet`)}`, { waitUntil: 'networkidle' });
+  await expectText(page, 'Sign in to Connect+');
   if (await page.getByText('Platform admin recovery').count()) {
     throw new Error('Mobile login page must not render recovery access controls.');
   }
   await screenshot(page, 'mobile-login.png');
-  await page.getByRole('tab', { name: 'Sign Up', exact: true }).click();
+  await page.getByRole('tab', { name: 'Create account', exact: true }).click();
   await expectText(page, 'Create account');
   const signupOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   if (signupOverflow) {
@@ -755,12 +773,12 @@ async function runMobileSmoke(browserContext) {
   await installApiMocks(page);
 
   await page.setViewportSize({ width: 360, height: 800 });
-  await gotoAndAssert(page, '/console/overview', 'Device Overview');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Device Overview');
   await expectText(page, 'Devices that need attention');
   await assertNoHorizontalOverflow(page, '360px Overview');
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await gotoAndAssert(page, '/console/overview', 'Device Overview');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Device Overview');
   await assertNoHorizontalOverflow(page, '390px Overview');
   const menuButton = page.getByRole('button', { name: 'Open navigation' });
   if (await menuButton.getAttribute('aria-expanded') !== 'false') {
@@ -785,20 +803,20 @@ async function runMobileSmoke(browserContext) {
   await screenshot(page, 'mobile-overview.png');
 
   await page.setViewportSize({ width: 768, height: 1024 });
-  await gotoAndAssert(page, '/console/overview', 'Device Overview');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Device Overview');
   await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
   await assertOverviewStartsInViewport(page, '768px Overview');
   await assertNoHorizontalOverflow(page, '768px Overview');
   await screenshot(page, 'tablet-overview.png');
 
   await page.setViewportSize({ width: 1024, height: 768 });
-  await gotoAndAssert(page, '/console/overview', 'Device Overview');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Device Overview');
   await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
   await assertNoHorizontalOverflow(page, '1024px Overview');
   await screenshot(page, 'compact-desktop-overview.png');
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await gotoAndAssert(page, '/console/devices', 'Devices');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}/fleet`, 'Fleet Management');
   await page.getByLabel('Compact device list').waitFor({ state: 'visible', timeout: 5000 });
 
   const tableVisible = await page.locator('.device-table-panel table').isVisible();

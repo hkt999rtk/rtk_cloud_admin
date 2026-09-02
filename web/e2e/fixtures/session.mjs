@@ -16,13 +16,13 @@ export async function login(page, kind) {
     platform_reader: ['platform.reader@example.com', 'e2e-platform-reader-password'],
   };
   const [email, password] = platformIdentity[kind] || customerIdentity[kind] || customerIdentity.customer;
-	const next = kind.startsWith('platform_') ? '/admin' : '/console';
+	const next = kind.startsWith('platform_') ? '/admin' : '/console/clouds';
 	const response = await page.request.post(endpoint, { data: { email, password, next } });
   expect(response.ok()).toBeTruthy();
 }
 
-export async function enterCustomer(page, cloudId = 'brand-e2e-01') {
-  await page.goto(`/console/${encodeURIComponent(cloudId)}/overview`);
+export async function enterCustomer(page, cloudId = '33333333-3333-4333-8333-333333333333') {
+  await page.goto(`/console/clouds/${encodeURIComponent(cloudId)}`);
   await expect(page.getByText('Brand Fleet', { exact: true })).toBeVisible();
 }
 
@@ -38,16 +38,6 @@ export async function expectPageTitle(page, title) {
 export async function expectNoCJKText(page) {
   const renderedText = await page.locator('body').innerText();
   expect(renderedText).not.toMatch(/[\u3400-\u9fff]/);
-}
-
-export async function waitForJobState(page, jobId, states = ['completed'], timeout = 15_000) {
-  const pattern = new RegExp(`^(?:${states.join('|')})$`);
-  await expect.poll(async () => {
-    const response = await page.request.get(`/api/jobs/${encodeURIComponent(jobId)}`);
-    if (!response.ok()) return 'unavailable';
-    const body = await response.json();
-    return body.job?.state || 'unknown';
-  }, { timeout }).toMatch(pattern);
 }
 
 export async function loginWithStagingSession(page, kind = 'platform') {
