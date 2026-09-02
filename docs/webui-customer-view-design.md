@@ -105,7 +105,7 @@ identity:
 | Reports | Async builder with type, dimensions, range, timezone, scope, output, freshness and expiry |
 | Team | Backend-defined display roles, capabilities, scope, invitations, member lifecycle and owner transfer |
 | Provisioning | CSV/source or compatibility JSON input, immutable validation, confirmation, execution, retry/cancel/result |
-| ChipSet & SDK | Published ChipSet cards, SDK versions, recommended release, supported models, endpoint links, stale/LKG state |
+| ChipSet & SDK | Portal Cloud Client cards for Android, iOS, JavaScript/TypeScript, Native and FreeRTOS/Pro2 plus the existing published ChipSet cards; show version, validation, checksum, WebRTC boundary, supported models, endpoint links, and independent source states |
 
 The mockup's sample counts and state buttons are visual examples only. Every
 production action shown in the mockup must either call a documented API or be
@@ -127,7 +127,7 @@ removed from the production UI.
 | Platform View: Operations Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Platform View: Audit Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Brand-cloud management UI | No | [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md) plus backend/BFF contract | Platform View draft, outside Customer View |
-| ChipSet & SDK resource center | Yes | [chipset-sdk-information-provider-mock.html](assets/webui-design/chipset-sdk-information-provider-mock.html) | Developer read-only resource center; global published catalog |
+| ChipSet & SDK resource center | Yes | [chipset-sdk-information-provider-mock.html](assets/webui-design/chipset-sdk-information-provider-mock.html) plus this contract | Developer read-only resource center; separate global Portal and ChipSet catalogs on one page |
 | Brand Cloud members and settings | Yes | This document plus backend/BFF contracts | Implemented as addressable page tabs |
 | Groups and Tags | Yes | `brand-fleet-management-mock.html` | Implemented for large-fleet targeting |
 | Batch Jobs and Reports | Yes | `brand-fleet-management-mock.html` | Implemented asynchronous operations surfaces |
@@ -141,6 +141,9 @@ OTA workflow, and key non-ideal states.
 Open [`chipset-sdk-information-provider-mock.html`](assets/webui-design/chipset-sdk-information-provider-mock.html#%2Fdeveloper)
 to review the global Developer resource center, SDK version hierarchy,
 recommended release treatment, external endpoints, and stale/unavailable states.
+The production page extends that reference with a leading Cloud Client SDK
+section sourced from the Portal. It does not represent Android/iOS/JavaScript or
+Native packages as children of AmebaPro2.
 
 ### Known Asset Differences
 

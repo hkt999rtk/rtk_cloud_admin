@@ -264,6 +264,9 @@ Environment variables:
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token
 - `VIDEO_CLOUD_PROMETHEUS_BASE_URL`: optional private Prometheus query endpoint
+- `SDK_PORTAL_BASE_URL`: allowlisted Portal origin for the global Cloud Client
+  SDK catalog and evaluation-terms download flow; no Object Storage credential
+  is stored in Cloud Admin
 - `CUSTOMER_PASSWORD_LOGIN_ENABLED`: set to `false` to disable customer password login; default `true`
 
 Platform Admin password login posts credentials to Account Manager and creates a

@@ -551,6 +551,9 @@ Environment variables:
 - `BILLING_SERVICE_TOKEN`: dedicated service credential; Cloud Admin sends the resolved actor and one exact billing permission separately.
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL.
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token.
+- `SDK_PORTAL_BASE_URL`: allowlisted Realtek Connect+ Portal origin used by the
+  global SDK catalog BFF and terms/download links. Cloud Admin receives no SDK
+  Object Storage credential.
 - `ADMIN_BREAK_GLASS_ENABLED`: deprecated compatibility flag; local
   break-glass login is not supported and deployments should set it to `false`.
 - `ACCOUNT_PASSWORD_LOGIN_ENABLED`: disables the single human password login
@@ -574,6 +577,10 @@ Environment variables:
   routing, default landing order, multi-Brand switching, platform/Brand view
   switching, invalid credentials, unactivated/no-access accounts, removed
   legacy login routes, and owner logout/re-login after email activation.
+- SDK catalog tests cover Portal schema validation and redaction, five packages
+  plus complete bundle, independent Portal/ChipSet failures, local-preview
+  labeling, WebRTC capability/limitation copy, and identical global results for
+  no cloud and multiple `cloudId` navigation contexts on desktop and mobile.
 
 ## ChipSet and SDK Resource Catalog
 
@@ -598,6 +605,26 @@ in SQLite.
 The normative schema, lifecycle, SSRF controls, error contract, and ownership
 boundary are defined by
 `rtk_cloud_contracts_doc/chipset_sdk_information_provider.md`.
+
+The same developer page also presents the separate Portal-owned Cloud Client
+SDK release catalog defined by `rtk_cloud_contracts_doc/sdk_distribution.md`.
+The BFF exposes authenticated `GET /api/developer/sdk-releases/latest`, calls
+only the configured `SDK_PORTAL_BASE_URL` plus `/api/sdk/catalog`, validates the
+safe public schema, and returns it without persisting a second copy. It never
+receives Object Storage credentials, returns an object key or presigned URL, or
+routes Cloud Client packages through Account Manager's ChipSet provider model.
+
+The page renders **Cloud Client SDKs** before **Device & ChipSet SDKs**. It shows
+the five public-evaluation packages and complete bundle, including WebRTC
+signaling/answerer capability and current media-engine limitations. Download
+actions go to the configured Portal terms flow. The two catalog requests and
+their loading, empty, unavailable, and retry states remain independent. A local
+fixture renders all metadata but labels downloads `Local preview` and never
+creates a fake artifact.
+
+The public SDK catalog is global. `cloudId` may be retained in the browser URL
+only to return to the previous cloud shell; it is not sent upstream as SDK
+authority and does not change the catalog response.
 # Developer Brand Cloud Console contract
 
 The multi-cloud target UI is specified in [multicloud_webui.md](multicloud_webui.md).

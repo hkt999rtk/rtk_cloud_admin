@@ -1960,6 +1960,30 @@ paths:
         "401": { $ref: "#/components/responses/PlainTextError" }
         "502": { $ref: "#/components/responses/PlainTextError" }
 
+  /api/developer/sdk-releases/latest:
+    get:
+      operationId: getApiDeveloperSDKReleasesLatest
+      x-rtk-feature-id: FEAT-CONTRACT-SDK-DISTRIBUTION-001
+      x-rtk-requirement-ids:
+        - REQ-SDK-CATALOG-001
+        - REQ-SDK-CONSOLE-INTEGRATION-001
+      tags: [ChipSet SDK]
+      summary: Read the latest safe Portal Cloud Client SDK catalog
+      description: >
+        Requires an authenticated global developer session. The BFF calls only
+        the configured SDK Portal origin, validates its public catalog, and
+        never receives or returns Object Storage keys, credentials, or
+        presigned URLs. Brand Cloud selection is not an authorization input.
+      responses:
+        "200":
+          description: Latest complete Portal SDK catalog and safe Portal navigation URL.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SDKCatalogBFFResponse" }
+        "401": { $ref: "#/components/responses/PlainTextError" }
+        "502": { $ref: "#/components/responses/PlainTextError" }
+        "503": { $ref: "#/components/responses/PlainTextError" }
+
   /api/developer/chipsets/{chipsetId}:
     get:
       operationId: getApiDeveloperChipsetsByChipsetId
@@ -6260,3 +6284,44 @@ components:
         sdk_releases: { type: array, items: { $ref: "#/components/schemas/ChipsetSDKRelease" } }
         stale: { type: boolean }
         last_successful_refresh: { type: string, format: date-time }
+    PublicSDKArtifact:
+      type: object
+      additionalProperties: false
+      required: [slug, title, description, filename, sha256, size_bytes, validation_status, capabilities, limitations]
+      properties:
+        slug: { type: string, enum: [native, android, javascript, ios, freertos-pro2, all] }
+        title: { type: string }
+        description: { type: string }
+        filename: { type: string }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        size_bytes: { type: integer, format: int64, minimum: 1 }
+        validation_status: { type: string, enum: [PASS] }
+        capabilities: { type: array, uniqueItems: true, items: { type: string } }
+        limitations: { type: array, uniqueItems: true, items: { type: string } }
+    PublicSDKCatalog:
+      type: object
+      additionalProperties: false
+      required: [schema, version, release_train, created_at, distribution, signing_status, terms_version, packages, complete_bundle]
+      properties:
+        schema: { type: string, enum: [rtk-portal-sdk-public-catalog/v1] }
+        version: { type: string }
+        release_train: { type: string }
+        created_at: { type: string, format: date-time }
+        distribution: { type: string, enum: [public-evaluation] }
+        signing_status: { type: string, enum: [not_configured, signed] }
+        terms_version: { type: string }
+        packages:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items: { $ref: "#/components/schemas/PublicSDKArtifact" }
+        complete_bundle: { $ref: "#/components/schemas/PublicSDKArtifact" }
+    SDKCatalogBFFResponse:
+      type: object
+      additionalProperties: false
+      required: [catalog, source_status, portal_url, local_preview]
+      properties:
+        catalog: { $ref: "#/components/schemas/PublicSDKCatalog" }
+        source_status: { type: string, enum: [available] }
+        portal_url: { type: string, format: uri }
+        local_preview: { type: boolean }
