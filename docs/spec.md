@@ -428,11 +428,12 @@ never expose or enable the simulator.
 {"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
-Acceptance: Directly linkable customer and platform routes use compact operational layout, canonical readiness/status vocabulary, source-fact detail, and the shared frontend style contract without marketing heroes or decorative card grids.
+Acceptance: Directly linkable customer and platform routes use compact operational layout, canonical readiness/status vocabulary, source-fact detail, and the shared frontend style contract without marketing heroes or decorative card grids. The customer console renders My Clouds and every selected-cloud feature in one persistent Brand Cloud shell; Fleet Management remains a named first-level feature, and Billing is visible and directly accessible only to the selected cloud's current sole owner.
 
 The visual system follows `docs/rtk_cloud_contracts_doc/frontend_style.md` and should feel like an operational B2B console:
 
-- compact left sidebar navigation
+- compact left sidebar navigation with a persistent global `My Clouds` item,
+  selected-cloud context and capability-filtered feature groups
 - restrained white/gray surfaces
 - blue/teal status accents
 - KPI strips for fleet state
@@ -597,18 +598,22 @@ in SQLite.
 The normative schema, lifecycle, SSRF controls, error contract, and ownership
 boundary are defined by
 `rtk_cloud_contracts_doc/chipset_sdk_information_provider.md`.
-# Developer Brand Fleet Dashboard contract
+# Developer Brand Cloud Console contract
 
-The multi-cloud target UI is specified in [multicloud_webui.md](multicloud_webui.md):
-My Clouds precedes cloud management and Product navigation, and tenant Billing
-requires the sole owner. The design is not a claim of deployed UI completeness.
+The multi-cloud target UI is specified in [multicloud_webui.md](multicloud_webui.md).
+My Clouds, cloud selection and cloud-scoped features share one Brand Cloud app
+shell. My Clouds is the persistent global sidebar destination; after selecting a
+cloud, Overview, Products, Fleet Management, Firmware & OTA, Analytics, Members
+& Access, owner-only Billing, Settings and Audit appear in the same sidebar.
+The design is not a claim of deployed UI completeness.
 
 The Developer console uses one global developer session and explicit per-request
 Brand Cloud scope. `/api/developer/brand-clouds` is the list/selector source of
 truth; switching validates membership, refreshes capabilities, and isolates
 cloud-scoped frontend state. A browser cloud ID is untrusted input to validate,
 not permission, and a session-global selection cannot override another tab's
-scope. Fleet routes do not trust browser-supplied totals.
+scope. Fleet routes do not trust browser-supplied totals. The sidebar and cloud
+selector only navigate; they never provide authority.
 
 Authorization uses explicit capabilities rather than a UI role switch. Jobs,
 reports, and provisioning store immutable server-side scope snapshots and

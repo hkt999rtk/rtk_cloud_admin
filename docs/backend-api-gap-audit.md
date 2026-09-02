@@ -88,7 +88,8 @@ design follow-ups, not urgent API work.
 
 ### Membership and Quota Contract
 
-Status: implemented.
+Status: implemented legacy baseline; the multi-cloud route/request contract
+supersedes session-global active-organization selection for new work.
 
 The backend stabilizes `/api/me` for customer sessions and platform-admin
 sessions. Membership objects contain:
@@ -100,10 +101,12 @@ sessions. Membership objects contain:
 - `evaluation_device_quota`
 
 `POST /api/me/active-org` rejects organizations outside the current membership
-set.
+set, but remains a compatibility surface only. Canonical multi-cloud BFF routes
+carry an explicit cloud ID and revalidate it against the current account.
 
-Quota raise requests are scoped to the active organization and return stable
-errors for non-active organizations and Account Manager failures.
+Canonical quota raise requests are scoped to the explicitly validated cloud ID
+and return stable errors for unauthorized clouds and Account Manager failures;
+they never fall back to the compatibility active-organization value.
 
 ### Platform Admin Read Models
 
@@ -163,9 +166,9 @@ Status: implemented.
 - customer-safe source facts with `layer`, `state`, `detail`, `retryable`,
   `error_code`, and `updated_at` where available
 
-Customer sessions are scoped to the active organization. Customer View payloads
-must not include platform-only identifiers; Platform Admin payloads may keep the
-full internal projection.
+Canonical Customer View requests are scoped to the cloud ID validated from the
+route/request. Customer View payloads must not include platform-only
+identifiers; Platform Admin payloads may keep the full internal projection.
 
 ### Production Data Source Requirements
 

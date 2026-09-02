@@ -12,24 +12,26 @@ against the approved design assets in `docs/assets/webui-design/`.
 
 - Sidebar uses the Realtek Ops Console navy background and primary blue active
   nav state.
-- Sidebar groups are fixed and non-collapsible, in this order: Brand Cloud、Device Operations、
-  Products and Updates、Monitoring and Analytics、Account Management.
-- Group items appear in the approved order: Brand Cloud Home; Devices, Groups, and Tags、
-  Batch Jobs; Products and Services、ChipSet & SDK、Firmware Updates; Video Playback Health、
-  Reports; Billing and Auto Top-Up.
-- Team and Permissions is not a separate sidebar item. Brand Cloud Home remains active for the
-  Overview、Members and Permissions、Settings tabs.
+- Sidebar groups are fixed and non-collapsible, in this order: Global、Brand
+  Cloud、Features、Management.
+- Group items appear in the approved order: My Clouds; Overview; Products、Fleet
+  Management、Firmware & OTA、Analytics; Members & Access、Billing、Settings、Audit.
+- My Clouds remains visible on every selected-cloud page. The selected cloud
+  context and role are distinct from the signed-in account summary.
+- Fleet Management is a named first-level feature, not only a generic Devices
+  item. Billing appears only for the selected cloud's current sole owner.
 - No `Switch to Platform View` or `Switch to Customer View` control is present.
   Customer and Platform sessions use the same Connect+ Ops shell, but each
   session renders only its own grouped navigation.
 - Sidebar account summary shows role and email only; it does not repeat the
-  active organization name.
+  selected Brand Cloud name.
 - Header contains page title, relevant window control, refresh action, and
-  logout action when signed in. It does not show a passive active-organization
-  label or global last-updated text.
-- Organization selector lists only `/api/me.memberships`, switches through
-  `/api/me/active-org`, and clears org-specific filters after a successful
-  switch.
+  logout action when signed in. It does not show a passive selected-cloud label
+  or global last-updated text.
+- Cloud selector lists only authorized `/api/developer/brand-clouds` results,
+  navigates to an explicit `/console/clouds/{cloudId}/*` route, cancels old
+  requests, and clears cloud-specific filters without changing shared session
+  authority.
 - Cards, panels, buttons, filters, badges, and tables use 8px radius, fine
   borders, and low shadows.
 - Customer View does not show platform-only panels or internal-only fields such
@@ -43,26 +45,27 @@ against the approved design assets in `docs/assets/webui-design/`.
 - Loading, empty, filtered-empty, source-unavailable, and gateway-error states
   are handled at panel level without leaking raw upstream payloads.
 
-## Brand Cloud Shell And Tabs
+## Integrated Brand Cloud Shell
 
-- `/console/{cloudId}/overview`, `/access`, and `/settings` render the same
-  Brand Cloud name, Cloud ID, organization selector, and tab strip.
+- `/console/clouds`, `/console/clouds/{cloudId}` and all selected-cloud feature
+  routes render the same Brand Cloud application shell.
 - Direct navigation, refresh, Back, and Forward preserve the URL and selected
-  tab. Existing unscoped `/console/overview`, `/console/access`, and
-  `/console/settings` routes remain usable.
-- Clicking Brand Cloud Home opens the first accessible tab in the order Overview,
-  Members and Permissions, Settings. Sidebar active state is present on every Brand Cloud tab.
+  feature. Existing unscoped `/console/overview`, `/console/devices`, and
+  `/console/billing` routes only redirect after unambiguous cloud recovery and
+  authorization; otherwise they open My Clouds.
+- Each canonical route marks exactly one sidebar item active. Switching clouds
+  preserves the equivalent authorized feature or falls back to the target
+  cloud Overview without displaying stale data.
 - Overview shows the team summary only when team or role-assignment read access is
   available. A failed team source does not hide fleet KPIs or fleet panels.
-- Members and Permissions shows members, pending invitations, roles, and readable management
+- Members & Access shows members, pending invitations, roles, and readable management
   scopes. Invite/member mutation controls are absent for read-only users.
 - Settings always exposes owner-transfer token acceptance to authenticated customer
   developers. Owner-transfer management requires `team.manage`; PKI test bundle
   issuance requires `pki.test.issue`.
 - A failed fleet source does not hide usable team administration. Members,
   invitations, and role-assignment source failures are rendered independently.
-- On mobile, grouped navigation and tabs remain usable without converting the
-  three routes into a single long page.
+- On mobile, the same ordered navigation is available in an off-canvas drawer.
 
 ## Fleet Health Overview
 

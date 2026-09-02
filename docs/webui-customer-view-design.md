@@ -22,9 +22,10 @@ uses the capability matrix in `roles.md`.
 The login page posts credentials exactly once to `POST /api/auth/login`. The BFF
 calls Account Manager global login and `/v1/me`; the browser never probes
 separate customer, platform, or tenant login endpoints. A valid deep-link
-`next` route wins when authorized. Otherwise the default landing is My Clouds
-when at least one membership exists, Platform View when only platform access
-exists, and a no-access page when neither exists. A dual-capability account can
+`next` route wins when authorized. Otherwise the default landing is the
+integrated My Clouds page when at least one membership exists, Platform View
+when only platform access exists, and the empty My Clouds state for an eligible
+developer without memberships. A dual-capability account can
 switch Platform View, Brand Fleet, and active Brand Clouds without logging in
 again.
 
@@ -41,12 +42,15 @@ async validation-then-execution workflow.
 > Supersession note: the earlier small-fleet Customer View concept in this
 > document is retained as historical context only. The current product target
 > is the brand sub-tenant Fleet Management console for Developer / Release
-> Manager and Operations users managing 100K+ devices. The authoritative
-> prototype is `brand-fleet-management-mock.html`.
+> Manager and Operations users managing 100K+ devices. The HTML prototype
+> `brand-fleet-management-mock.html` remains authoritative for the Fleet work
+> area only; [multicloud_webui.md](multicloud_webui.md) is authoritative for the
+> application shell, sidebar, routes, cloud scope and Billing placement.
 
 Original date: 2026-05-09
 
-Last updated: 2026-08-30 — unified human login and account session
+Last updated: 2026-09-02 — integrated My Clouds, Fleet Management and
+cloud-scoped Billing navigation
 
 Audience:
 
@@ -70,9 +74,11 @@ calm B2B operations console based on the Realtek Connect+ palette from
 
 The current Brand Fleet surface covers:
 
+- My Clouds list/create/switch in the persistent Brand Cloud sidebar
 - Fleet Overview, Devices, provisioning status, groups/tags, products/profiles
 - Firmware Releases and full Update Plans
 - Batch Jobs, Reports, and Team/Permission management
+- owner-only Billing inside the selected Brand Cloud navigation scope
 - A separate global `ChipSet & SDK` resource center for published development
   resources; it is not scoped to the active Brand Cloud in v1.
 
@@ -310,11 +316,18 @@ the full sidebar must not consume the first mobile viewport.
 Sidebar:
 
 - Brand label: `Connect+ Ops`.
-- Brand Fleet navigation uses fixed, non-collapsible groups: `Brand Cloud`,
-  `Device Operations`, `Products and Updates`, `Monitoring and Analytics`, and `Account Management`.
-- `Brand Cloud Home` is the single sidebar entry for the Brand Cloud resource. Its
-  page-level tabs are `Overview`, `Members and Permissions`, and `Settings`; the entry remains active
-  across all three routes.
+- `My Clouds` is the first global destination and remains visible throughout
+  every Brand Cloud route. It uses the same application shell rather than a
+  separate landing-page layout.
+- A cloud selector/context control follows My Clouds on selected-cloud routes
+  and displays the validated cloud name and current user's role. Selecting a
+  cloud navigates; it does not mutate shared session authority.
+- Brand Cloud navigation uses fixed, non-collapsible groups: `Brand Cloud`,
+  `Features`, and `Management`.
+- `Fleet Management` is an explicit first-level feature. Fleet Overview,
+  Devices, groups/tags and batch work remain subviews of that named feature.
+- `Billing` is a selected-cloud Management item. It is present only for the
+  current sole owner with Billing capability; direct URLs remain backend gated.
 - Navigation items and Brand Cloud tabs are role-aware. Hidden affordances do
   not replace backend authorization checks.
 - Active nav item uses primary blue fill.
@@ -322,82 +335,86 @@ Sidebar:
   only Platform groups, including when the current deep link is rejected by a
   wrong-role access gate.
 - Platform View content must not appear inside Customer View pages.
-- Sidebar account summary shows the signed-in role and email only. It does not
-  repeat the active organization name.
+- Sidebar account summary shows signed-in identity separately from the selected
+  cloud context so account role and cloud role are not conflated.
 
 The fixed group and item order is:
 
 | Group | Items |
 | --- | --- |
-| Brand Cloud | Brand Cloud Home |
-| Device Operations | Devices, Groups, and Tags、Batch Jobs |
-| Products and Updates | Products and Services、ChipSet & SDK、Firmware Updates |
-| Monitoring and Analytics | Video Playback Health、Reports |
-| Account Management | Billing and Auto Top-Up |
+| Global | My Clouds |
+| Brand Cloud | Overview |
+| Features | Products、Fleet Management、Firmware & OTA、Analytics |
+| Management | Members & Access、Billing、Settings、Audit |
 
 Groups are always expanded. Capability filtering removes unavailable items but
 does not reorder the remaining items or collapse the group hierarchy. The
-`Brand Cloud Home` item is always the navigation entry for the active Brand Cloud;
-route authorization independently chooses its first accessible tab.
+`My Clouds` item is always available to authenticated developer accounts.
+Selected-cloud items do not render until the route cloud has been validated;
+route authorization independently chooses the first accessible cloud feature.
 
 Main header:
 
 - Page title at the top-left of the content area.
-- Organization selector only when the account session has multiple
-  memberships.
+- Do not duplicate the sidebar cloud selector in the header. A compact cloud
+  breadcrumb may identify scope but cannot change it.
 - Window controls where relevant, usually `7d` / `30d`.
 - Refresh affordance and signed-in actions on the right.
 - Do not show a passive active-organization label or global last-updated
   timestamp in the header.
 
-Brand Cloud page:
+Brand Cloud pages share one shell while remaining independently addressable.
+Overview includes fleet and team summaries when their sources and capabilities
+are available. Members & Access contains invitations, members, roles and scopes.
+Settings contains ownership transfer, deletion and low-frequency cloud controls.
 
-- `/console/{cloudId}/overview`, `/access`, and `/settings` share one Brand
-  Cloud header and tab shell while remaining independently addressable.
-- Overview includes a team summary when team read capability is available.
-- Members and access contains invitations, members, roles, and scope
-  assignments. Settings contains ownership transfer and PKI test tooling.
+### Brand Cloud route contract
 
-### Brand Cloud route and tab contract
+Each sidebar feature has a cloud-explicit URL rather than a query parameter or
+session-selected tenant:
 
-The three tabs preserve their own URLs instead of using a query parameter or a
-single long page:
+| Item | Canonical route | Minimum frontend access |
+| --- | --- | --- |
+| My Clouds | `/console/clouds` | Authenticated global developer account |
+| Overview | `/console/clouds/{cloudId}` | Current cloud membership |
+| Products | `/console/clouds/{cloudId}/products` | Effective Product read scope |
+| Fleet Management | `/console/clouds/{cloudId}/fleet` | `fleet.read` or `customer.devices.read` |
+| Firmware & OTA | `/console/clouds/{cloudId}/firmware-ota` | Effective firmware or OTA read scope |
+| Analytics | `/console/clouds/{cloudId}/analytics` | Effective reports, fleet or stream-read scope |
+| Members & Access | `/console/clouds/{cloudId}/members` | `team.read` or `role_assignment.read`; owner-only writes |
+| Billing | `/console/clouds/{cloudId}/billing` | Current sole owner plus operation capability |
+| Settings | `/console/clouds/{cloudId}/settings` | Current cloud membership; tools remain capability gated |
+| Audit | `/console/clouds/{cloudId}/audit` | Effective cloud audit-read scope |
 
-| Tab | Scoped route | Unscoped compatibility route | Minimum frontend access |
-| --- | --- | --- | --- |
-| Overview | `/console/{cloudId}/overview` | `/console/overview` | `fleet.read` or `customer.devices.read` |
-| Members and Permissions | `/console/{cloudId}/access` | `/console/access` | `team.read` or `role_assignment.read` |
-| Settings | `/console/{cloudId}/settings` | `/console/settings` | Any authenticated customer developer; individual tools remain capability-gated |
-
-Opening `Brand Cloud Home` selects the first accessible route in the order above.
-The sidebar item stays active on all three routes. Navigation visibility and
-route access are separate decisions: removing an `access` sidebar item must not
-make `/access` inaccessible or bypass its capability guard.
-
-Tab changes use browser history navigation. Direct links, refresh, Back, and
-Forward must restore the same active tab. Existing invitation acceptance links
-continue to land on `/console/{cloudId}/access`; no redirect or backend contract
-change is required.
+Direct links, refresh, Back, and Forward restore the same active destination.
+Invitation acceptance resolves to `/console/clouds/{cloudId}/members` after
+successful scope validation. Legacy `/console/overview`, `/console/devices`,
+`/console/billing` and `/console/{cloudId}/*` paths are redirect-only inputs:
+they may navigate to a canonical route only when cloud scope is explicit or
+unambiguous and reauthorized; otherwise they lead to My Clouds.
 
 ### Shared Brand Cloud shell
 
-All tabs share the Brand Cloud name, Cloud ID, active-organization selector,
-and tab strip. The content responsibilities are:
+All cloud features share the Brand Cloud name, Cloud ID, cloud selector and
+sidebar. The content responsibilities include:
 
 - **Overview:** fleet KPIs, health trend, region distribution, attention devices,
   and a compact team summary with member count, owner, pending invitations, and
   the current user's role.
-- **Members and Permissions:** members, pending invitations, available roles, and readable
+- **Members & Access:** members, pending invitations, available roles, and readable
   management scopes. The invitation form expands from an explicit action;
   read-only users do not see write controls.
+- **Billing:** the current sole owner's cloud-scoped balance, usage, invoices,
+  activity, payment settings and profile. It never appears as a global account
+  page or for a collaborator.
 - **Settings:** owner-transfer create/cancel for `team.manage`, owner-transfer token
   acceptance for every authenticated customer developer, and PKI test bundle
   issuance for `pki.test.issue`.
 
 The validated route/request cloud ID is the authority for that request's scope.
-The organization selector navigates the current tab; it is not shared session
-state and cannot redirect another tab's operations. Avoid duplicate pickers in
-one page header.
+The cloud selector navigates the current tab; it is not shared session state and
+cannot redirect another tab's operations. Avoid duplicate pickers in one page
+header.
 
 ### Access data composition and failure isolation
 
@@ -413,10 +430,9 @@ The WebUI composes existing APIs; there is no new aggregate backend endpoint:
 - Existing idempotency keys, request paths, success/error messages, and backend
   authorization remain authoritative for every write action.
 
-On mobile, fixed groups remain visible in a compact horizontal navigation area
-above the work area. The Brand Cloud tabs may scroll horizontally but must keep
-the active tab, Cloud ID, and primary content readable without changing route
-semantics.
+On mobile, the same ordered groups move into an off-canvas navigation drawer.
+The active feature, cloud name, Cloud ID, and primary content remain readable
+without changing route semantics.
 
 Login page:
 
@@ -453,17 +469,20 @@ Login page:
   Account Manager, and returns to `/login` after success. The reset flow uses
   the same server-side token delivery lifecycle as email sign-in.
 
-Organization selector:
+Cloud selector:
 
-- Customer sessions with multiple memberships can switch only to organizations
-  returned by `/api/me.memberships`.
-- Switching organization calls `POST /api/me/active-org`, refreshes all
-  page-level data, and clears page filters that reference org-specific values
-  such as firmware versions or device IDs.
+- Customer sessions can navigate only to clouds returned by
+  `/api/developer/brand-clouds` and permitted by the current account session.
+- Selecting a cloud navigates the current tab to an explicit
+  `/console/clouds/{cloudId}/*` route, cancels old in-flight requests, isolates
+  caches by cloud ID, and clears filters that reference cloud-specific values
+  such as firmware versions or device IDs. It does not call or depend on
+  `POST /api/me/active-org`.
 - The selector must not offer cross-tenant search, platform customer browsing,
   or tenant impersonation. Platform Admin impersonation is deferred.
-- If switching fails, keep the previous active organization visible and show a
-  concise retryable error near the selector.
+- If navigation or authorization fails, keep the current route cloud visible
+  and show a concise retryable error near the selector. Never silently fall
+  back to a different cloud.
 
 Customer-safe field policy:
 
@@ -772,7 +791,7 @@ The WebUI lifecycle is:
 | Valid link | The non-consuming status check returns `valid` | `/verify` shows only the new-password form and never renders the token | Submit `token` and `new_password` to complete verification |
 | Expired link | The status check returns `expired` | Immediately replace the location with `/signup/verification-expired`; show no password field or token | `Sign up again` opens `/signup` |
 | Restart after expiry | The account is still unverified and signup-pending, with no active verification token | Accept the same email as a recovery signup | Reuse the pending account and Brand Cloud, issue a fresh token, and return to `/signup/check-email` |
-| Completed | Email is verified, signup-pending is cleared, the password is stored, and an initial session exists | Redirect to `/console/overview` | Future access uses `Login` |
+| Completed | Email is verified, signup-pending is cleared, the password is stored, and an initial session exists | Redirect to `/console/clouds` | Future access uses `Login` |
 
 Exception rules:
 
