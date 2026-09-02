@@ -98,6 +98,12 @@ area, not a complete application-state inventory. The implementation must also s
 coverage addendum below for auth, quota, capability, error, and source-state
 requirements from `spec.md`, `roles.md`, and `backend-api-gap-audit.md`.
 
+My Clouds uses the shell title only, followed by a concise two-sentence page
+introduction instead of a duplicate content title. Cloud cards show the sole
+owner's account email from the authorized `owner_email` projection. They omit
+the routine `active` Status row; pending activation or disabled lifecycle states
+use contextual warnings rather than presenting an editable status concept.
+
 ### Functional parity checklist
 
 The React application is accepted against this checklist, not against pixel

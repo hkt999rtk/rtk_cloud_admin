@@ -609,6 +609,11 @@ On My Clouds, these fixed groups remain visible: without explicit cloud context
 their cloud-scoped entries are disabled rather than removed. A validated cloud
 query may preserve navigation context, but every operation remains authorized
 from its explicit cloud-scoped path and no cloud is inferred from session state.
+The top bar supplies the only My Clouds title. The page introduction explains
+owned/shared access and the features available after selection. Cards identify
+the sole owner by the authorized `owner_email` projection, never a UUID, and do
+not render routine `active` state as a Status row; non-active lifecycle state is
+still enforced by the backend and shown only as an actionable warning.
 The design is not a claim of deployed UI completeness.
 
 The Developer console uses one global developer session and explicit per-request

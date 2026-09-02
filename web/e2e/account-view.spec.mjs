@@ -45,7 +45,7 @@ test('[UI-CA-AUTH-VIEW-001] dual-role account changes views and Brand Cloud with
     page.getByRole('button', { name: 'Brand Cloud view', exact: true }).click(),
   ]);
   await page.waitForLoadState('domcontentloaded');
-  await expect(page.locator('.my-clouds-heading').getByRole('heading', { name: 'My Clouds', exact: true })).toBeVisible();
+  await expect(page.locator('.topbar-title').getByRole('heading', { name: 'My Clouds', exact: true })).toBeVisible();
 
   const profile = await (await page.request.get('/api/me')).json();
   expect(profile.user_id).toBe('identity-dual-user');

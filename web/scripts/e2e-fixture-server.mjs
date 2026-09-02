@@ -131,7 +131,7 @@ function customerProfile(req) {
       user: { id: 'identity-dual-user', email: 'identity.dual@example.com', name: 'Identity Dual User' },
       platform_capabilities: ['platform.audit.read', 'platform.chipset_sdk.read'],
       brand_cloud_memberships: state.brandClouds.map((brand) => ({
-        id: brand.id, name: brand.name, role: 'owner', tier: brand.tier, status: brand.status,
+        id: brand.id, name: brand.name, role: 'owner', tier: brand.tier, status: brand.status, owner_email: 'identity.dual@example.com',
         capabilities: ['fleet.read', 'product.read', 'team.read'],
       })),
     };
@@ -147,7 +147,7 @@ function customerProfile(req) {
   };
   if (role === 'billing_owner' || role === 'billing_viewer') {
     const owner = role === 'billing_owner';
-    return {user:{id:owner?billingOwnerID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:`${role}@example.com`},brand_cloud_memberships:billingCloudIDs.map((id,index)=>({id,name:`Billing Cloud ${index+1}`,role:owner?'owner':'viewer',my_role:owner?'owner':'viewer',owner_user_id:billingOwnerID,ownership_version:7,status:'active',capabilities:owner?capabilitySets.developer:['product.read']}))};
+    return {user:{id:owner?billingOwnerID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:`${role}@example.com`},brand_cloud_memberships:billingCloudIDs.map((id,index)=>({id,name:`Billing Cloud ${index+1}`,role:owner?'owner':'viewer',my_role:owner?'owner':'viewer',owner_user_id:billingOwnerID,owner_email:'billing.owner@example.com',ownership_version:7,status:'active',capabilities:owner?capabilitySets.developer:['product.read']}))};
   }
   const capabilities = capabilitySets[role] || [];
   const visibleClouds = role === 'outsider' ? [] : role === 'customer' ? state.brandClouds.slice(0, 1) : state.brandClouds;
@@ -158,6 +158,7 @@ function customerProfile(req) {
     role: membershipRole,
     my_role: membershipRole,
     owner_user_id: membershipRole === 'owner' ? `${role}-user` : 'developer-user',
+    owner_email: membershipRole === 'owner' ? `${role}@example.com` : 'developer@example.com',
     ownership_version: 1,
     tier: brand.tier,
     status: brand.status,

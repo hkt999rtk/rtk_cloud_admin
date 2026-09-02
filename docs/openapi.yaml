@@ -5231,13 +5231,14 @@ components:
 
     DeveloperBrandCloud:
       type: object
-      required: [id, name, description, tenant_slug, owner_user_id, my_role, status, ownership_version, capabilities]
+      required: [id, name, description, tenant_slug, owner_user_id, owner_email, my_role, status, ownership_version, capabilities]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
         tenant_slug: { type: string }
         owner_user_id: { type: string, format: uuid }
+        owner_email: { type: string, format: email, description: Normalized global-account email derived from the sole owner membership; read-only and exposed only within an authorized Brand Cloud representation. }
         status: { type: string }
         my_role: { type: string, enum: [owner, admin, member, viewer] }
         ownership_version: { type: integer, format: int64 }

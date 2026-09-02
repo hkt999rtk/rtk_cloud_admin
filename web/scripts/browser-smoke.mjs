@@ -12,7 +12,7 @@ const now = new Date('2026-05-13T12:00:00.000Z');
 const cloudId = '11111111-1111-4111-8111-111111111111';
 const productId = '22222222-2222-4222-8222-222222222222';
 const customerCapabilities = ['fleet.read', 'customer.devices.read', 'customer.devices.provision', 'customer.devices.deactivate', 'product.read', 'firmware.release.read', 'ota.plan.read', 'customer.firmware.read', 'customer.stream.read', 'reports.read', 'reports.create', 'team.read', 'audit.read'];
-const managedCloud = { id: cloudId, name: 'Acme Smart Camera', description: 'Browser smoke cloud', tenant_slug: 'acme-smart-camera', owner_user_id: 'fleet-manager-user', my_role: 'owner', status: 'active', ownership_version: 1, capabilities: customerCapabilities };
+const managedCloud = { id: cloudId, name: 'Acme Smart Camera', description: 'Browser smoke cloud', tenant_slug: 'acme-smart-camera', owner_user_id: 'fleet-manager-user', owner_email: 'fleet.manager@example.com', my_role: 'owner', status: 'active', ownership_version: 1, capabilities: customerCapabilities };
 const managedProduct = { id: productId, brand_cloud_id: cloudId, name: 'Camera Product', profile_key: 'camera-product', status: 'active', product_model: 'RTL-CAM-A1', category: 'ip_camera', service_options: ['video_streaming'], my_role: 'product_owner', allowed_actions: ['read', 'edit', 'disable'] };
 
 const customerMe = {

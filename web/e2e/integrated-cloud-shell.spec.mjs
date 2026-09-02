@@ -11,6 +11,7 @@ function cloud(id, index) {
     name: `Billing Cloud ${index}`,
     my_role: 'owner',
     owner_user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    owner_email: 'billing.owner@example.com',
     ownership_version: 7,
     status: 'active',
     capabilities: [
@@ -43,6 +44,11 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
 
   const featureLabels = ['Overview', 'Products', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'];
   await page.goto('/console/clouds');
+  await expect(page.locator('.topbar-title').getByRole('heading', { name: 'My Clouds', exact: true })).toBeVisible();
+  await expect(page.locator('.my-clouds-heading').getByRole('heading', { name: 'My Clouds', exact: true })).toHaveCount(0);
+  await expect(page.getByText('Create and manage the Brand Clouds you own, or open clouds shared with your account.', { exact: false })).toBeVisible();
+  await expect(page.getByText('billing.owner@example.com', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('.my-clouds-grid').getByText('Status', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'My Clouds', exact: true })).toBeVisible();
   for (const label of featureLabels) {
     await expect(page.locator('.sidebar-disabled', { hasText: label })).toHaveAttribute('aria-disabled', 'true');

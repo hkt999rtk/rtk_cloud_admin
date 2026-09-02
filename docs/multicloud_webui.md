@@ -66,6 +66,15 @@ My Clouds page owns create/edit/share/transfer/delete entry points for ordinary 
 Backend capabilities control buttons; UI role labels are not authorization.
 Show filtered total separately from owned quota (shared clouds do not count).
 
+The shell top bar is the sole `My Clouds` page title; the content heading does
+not repeat it. The page introduction explains that users can create and manage
+owned Brand Clouds, open clouds shared with their account, and select a cloud to
+work with Products, Fleet Management, firmware, members, settings and owner-only
+Billing. Each cloud card identifies the sole owner by `owner_email`, never by an
+internal user UUID. The ordinary `active` lifecycle value is not rendered as a
+generic Status row. Non-active lifecycle states remain part of the backend
+contract and appear only as specific actionable warnings where relevant.
+
 Every cloud-scoped BFF request binds explicit cloud ID from route/request and verifies it
 against current Account Manager membership, lifecycle and capabilities. Product
 ID must belong to that cloud. Do not let a session-global active cloud override
