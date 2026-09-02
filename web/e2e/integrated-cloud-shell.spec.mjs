@@ -90,3 +90,19 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   expect(scopedReads.some((path) => path.includes(cloudA))).toBeTruthy();
   await other.close();
 });
+
+test('[UI-CA-MULTICLOUD-PRODUCTS-001] Products explains its SKU boundary without repeating the cloud heading', async ({ page }) => {
+  await login(page, 'billing_owner');
+  await page.route(new RegExp(`/api/developer/brand-clouds/${cloudA}/products\\?`), (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ products: [], pagination: { limit: 25, offset: 0, total: 0 }, can_create: true }),
+  }));
+  await page.goto(`/console/clouds/${cloudA}/products`);
+
+  await expect(page.locator('.topbar-title').getByRole('heading', { name: 'Billing Cloud 1', exact: true })).toBeVisible();
+  await expect(page.locator('.my-clouds-heading').getByRole('heading', { name: 'Billing Cloud 1', exact: true })).toHaveCount(0);
+  await expect(page.getByText('A Product usually represents one SKU', { exact: false })).toBeVisible();
+  await expect(page.getByText('changes reach only the intended models', { exact: false })).toBeVisible();
+  await expect(page.getByText('Each Product has a permanent Product key', { exact: false })).toBeVisible();
+});

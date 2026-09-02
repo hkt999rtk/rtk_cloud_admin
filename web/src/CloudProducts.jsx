@@ -54,7 +54,7 @@ export function CloudProducts({cloudId,productId='',onAccessLost}) {
   }
   return <section className="my-clouds-panel cloud-products" data-testid="cloud-products">
     <div className="my-clouds-card-head"><h2>{productId?'Product overview':'Products'}</h2>{!productId && data?.can_create && <button disabled={busy} onClick={()=>edit(null)}>Create Product</button>}</div>
-    <p>Products belong to this cloud. The Product key and cloud cannot be changed after creation.</p>
+    <p>Each Product has a permanent Product key and stays in this Brand Cloud after it is created.</p>
     {productId && <nav aria-label="Product location"><a href={cloudURL(cloudId)}>Back to this cloud</a></nav>}
     {!productId && <label>Product status<select aria-label="Product status" disabled={busy} value={status} onChange={e=>{setStatus(e.target.value);setOffset(0);setForm(null);setDisable(null);}}><option value="">All statuses</option><option value="active">Active</option><option value="disabled">Disabled</option></select></label>}
     {error && <div role="alert">{error} <button onClick={()=>setReload(v=>v+1)}>Refresh Products</button></div>}

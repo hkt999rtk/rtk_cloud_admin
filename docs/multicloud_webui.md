@@ -78,14 +78,24 @@ My Clouds page owns create/edit/share/transfer/delete entry points for ordinary 
 Backend capabilities control buttons; UI role labels are not authorization.
 Show filtered total separately from owned quota (shared clouds do not count).
 
-The shell top bar is the sole `My Clouds` page title; the content heading does
-not repeat it. The page introduction explains that users can create and manage
+The shell top bar is the sole `My Clouds` or selected-cloud title; the content
+heading does not repeat it. The My Clouds introduction explains that users can create and manage
 owned Brand Clouds, open clouds shared with their account, and select a cloud to
 work with Products, Fleet Management, firmware, members, settings and owner-only
 Billing. Each cloud card identifies the sole owner by `owner_email`, never by an
 internal user UUID. The ordinary `active` lifecycle value is not rendered as a
 generic Status row. Non-active lifecycle states remain part of the backend
 contract and appear only as specific actionable warnings where relevant.
+
+The Products introduction is written for a developer seeing the hierarchy for
+the first time. It explains that a Product organizes the device model or SKU
+(sellable model or variant) the developer builds and sells, and owns the
+technical boundary for its devices, firmware, OTA updates and enabled cloud
+services. One Product can cover closely
+related sales SKUs only when they share those technical settings. A SKU that
+needs different firmware, services or lifecycle rules needs a separate Product,
+which prevents a release or service change from reaching the wrong devices.
+The list panel separately states the immutable Product key/cloud constraint.
 
 Every cloud-scoped BFF request binds explicit cloud ID from route/request and verifies it
 against current Account Manager membership, lifecycle and capabilities. Product

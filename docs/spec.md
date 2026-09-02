@@ -619,11 +619,16 @@ query may preserve navigation context, but every operation remains authorized
 from its explicit cloud-scoped path and no cloud is inferred from session state.
 For login navigation only, a remembered cloud cookie is checked against current
 memberships; absent or invalid preference selects the first ordered membership.
-The top bar supplies the only My Clouds title. The page introduction explains
+The top bar supplies the only My Clouds or selected-cloud heading; content does
+not repeat the cloud name. The My Clouds page introduction explains
 owned/shared access and the features available after selection. Cards identify
 the sole owner by the authorized `owner_email` projection, never a UUID, and do
 not render routine `active` state as a Status row; non-active lifecycle state is
 still enforced by the backend and shown only as an actionable warning.
+The Products introduction explains that a Product normally maps to a device
+model/SKU or technically identical SKU group. It is the boundary for devices,
+firmware, OTA behavior and enabled cloud services; a SKU requiring different
+technical settings uses a separate Product so changes reach only its devices.
 The design is not a claim of deployed UI completeness.
 
 The Developer console uses one global developer session and explicit per-request

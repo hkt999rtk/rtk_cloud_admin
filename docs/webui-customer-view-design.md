@@ -374,6 +374,8 @@ route authorization independently chooses the first accessible cloud feature.
 Main header:
 
 - Page title at the top-left of the content area.
+- The shell title is the only occurrence of the selected Brand Cloud name as a
+  page heading; a feature content introduction must not repeat the cloud name.
 - Do not duplicate the sidebar cloud selector in the header. A compact cloud
   breadcrumb may identify scope but cannot change it.
 - Window controls where relevant, usually `7d` / `30d`.
@@ -385,6 +387,11 @@ Brand Cloud pages share one shell while remaining independently addressable.
 Overview includes fleet and team summaries when their sources and capabilities
 are available. Members & Access contains invitations, members, roles and scopes.
 Settings contains ownership transfer, deletion and low-frequency cloud controls.
+The Products introduction explains Product in business language before exposing
+fields: it usually represents a device model/SKU, or a group of SKUs sharing the
+same technical configuration. Devices, firmware, OTA behavior and cloud-service
+options are separated by Product; SKUs requiring different settings use separate
+Products so changes target only the intended fleet.
 
 ### Brand Cloud route contract
 

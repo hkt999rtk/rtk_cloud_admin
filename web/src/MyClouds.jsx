@@ -21,6 +21,13 @@ function lifecycleWarning(status) {
   return 'This cloud is unavailable.';
 }
 
+function cloudIntroduction(section) {
+  if (section === 'products') {
+    return 'Products organize the device models you build and sell in this Brand Cloud. A Product usually represents one SKU—a sellable model or variant—or a group of SKUs that share the same technical configuration, firmware, cloud services, and update policy. This keeps devices, releases, and OTA updates separated so changes reach only the intended models. Create a separate Product whenever a SKU needs different firmware, services, or lifecycle rules.';
+  }
+  return 'This Brand Cloud keeps its Products, devices, team access, and service settings together. Billing is managed separately by the cloud owner.';
+}
+
 export function MyCloudsApp() {
   const route = managedCloudRoute(window.location.pathname);
   const cloudId = route?.cloudId || '';
@@ -152,7 +159,7 @@ export function MyCloudsApp() {
   const shellActive = section === 'products' ? 'product-services' : section === 'members' ? 'access' : section === 'settings' ? 'settings' : 'my-clouds';
   return <CloudConsoleShell me={me} cloud={cloud} clouds={page?.brand_clouds || me?.memberships || []} active={shellActive} title={cloudId ? cloud?.name || 'Brand Cloud' : 'My Clouds'} onError={setError}>
     <div className="my-clouds-main">
-      <div className="my-clouds-heading"><div><p className="my-clouds-eyebrow">DEVELOPER CONSOLE</p>{cloudId && <h1>{cloud?.name || 'Cloud management'}</h1>}<p>{cloudId ? 'Products and collaborators belong to this cloud. Billing remains the sole owner’s responsibility.' : 'Create and manage the Brand Clouds you own, or open clouds shared with your account. Select a cloud to work with its Products, Fleet Management, firmware, members, settings, and owner-only Billing.'}</p></div>{!cloudId && page && <button disabled={!canCreate || busy} onClick={() => { intent.current = null; setForm({ id: '', name: '', description: '' }); }}>Create cloud</button>}</div>
+      <div className="my-clouds-heading"><div><p className="my-clouds-eyebrow">DEVELOPER CONSOLE</p><p>{cloudId ? cloudIntroduction(section) : 'Create and manage the Brand Clouds you own, or open clouds shared with your account. Select a cloud to work with its Products, Fleet Management, firmware, members, settings, and owner-only Billing.'}</p></div>{!cloudId && page && <button disabled={!canCreate || busy} onClick={() => { intent.current = null; setForm({ id: '', name: '', description: '' }); }}>Create cloud</button>}</div>
       {error && <div role="alert" className="my-clouds-error">{error} <button onClick={() => setReload((v) => v + 1)}>Refresh</button>{error.includes('Sign in') && <a href={loginURL}>Sign in</a>}</div>}
       {me?.kind === 'platform_admin' && <section className="my-clouds-panel"><h2>Platform admin cannot use the Brand Cloud console</h2><p>Switch to Brand Cloud view before opening My Clouds or a cloud-scoped feature.</p></section>}
       {form && <section className="my-clouds-panel"><h2>{form.id ? 'Edit cloud' : 'Create cloud'}</h2><form onSubmit={submit}><label>Name<input required maxLength={255} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} disabled={busy} /></label><label>Description<textarea maxLength={2000} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} disabled={busy} /></label><p>The cloud ID and tenant slug do not change when renamed.</p><div className="my-clouds-actions"><button disabled={busy} type="submit">{busy ? 'Saving…' : 'Save cloud'}</button><button type="button" disabled={busy} onClick={() => setForm(null)}>Cancel</button></div></form></section>}
