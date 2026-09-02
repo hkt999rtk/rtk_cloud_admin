@@ -41,13 +41,24 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
     }),
   }));
 
-  await page.goto(`/console/clouds/${cloudA}`);
+  const featureLabels = ['Overview', 'Products', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'];
+  await page.goto('/console/clouds');
+  await expect(page.getByRole('link', { name: 'My Clouds', exact: true })).toBeVisible();
+  for (const label of featureLabels) {
+    await expect(page.locator('.sidebar-disabled', { hasText: label })).toHaveAttribute('aria-disabled', 'true');
+  }
+  await page.getByLabel('Brand Cloud').selectOption(cloudA);
+  await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudA}$`));
+
   const mobileMenu = page.getByRole('button', { name: 'Open navigation' });
   if (await mobileMenu.isVisible()) await mobileMenu.click();
-  for (const label of ['My Clouds', 'Overview', 'Products', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit']) {
+  for (const label of ['My Clouds', ...featureLabels]) {
     await expect(page.getByRole('link', { name: label, exact: true })).toBeVisible();
   }
   await expect(page.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.getByRole('link', { name: 'My Clouds', exact: true }).click();
+  await expect(page).toHaveURL(`/console/clouds?cloudId=${cloudA}`);
+  await expect(page.getByRole('link', { name: 'Fleet Management', exact: true })).toHaveAttribute('href', `/console/clouds/${cloudA}/fleet`);
   await page.getByRole('link', { name: 'Fleet Management', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudA}/fleet$`));
   await expect.poll(() => scopedReads.some((path) => path.startsWith(`/api/developer/brand-clouds/${cloudA}/fleet/`))).toBeTruthy();

@@ -7,6 +7,7 @@ import {
   cloudConsolePath,
   cloudNavGroupsForCapabilities,
   cloudRouteForSwitch,
+  cloudShellNavGroups,
   customerNavGroups,
   customerNavItems,
   defaultBrandCloudRoute,
@@ -17,6 +18,7 @@ import {
   navGroupsForCapabilities,
   navItemsForCapabilities,
   navItemsForRoute,
+  myCloudsPath,
   platformNavGroups,
   platformNavItems,
   routeFromPath,
@@ -131,6 +133,11 @@ test('customer nav is derived from active membership capabilities', () => {
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read']).flatMap((group) => group.items).some((item) => item.id === 'billing'), false);
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read'], { isOwner: true }).flatMap((group) => group.items).some((item) => item.id === 'billing'), true);
   assert.deepEqual(cloudNavGroupsForCapabilities('', null).flatMap((group) => group.items).map((item) => item.id), ['my-clouds']);
+  const unscoped = cloudShellNavGroups('', null, { showOwnerOnly: true }).flatMap((group) => group.items);
+  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit']);
+  assert.equal(unscoped.find((item) => item.id === 'my-clouds').disabled, false);
+  assert.equal(unscoped.filter((item) => item.id !== 'my-clouds').every((item) => item.disabled), true);
+  assert.equal(cloudShellNavGroups('', null).flatMap((group) => group.items).some((item) => item.id === 'billing'), false);
   assert.deepEqual(navItemsForCapabilities('login', null), []);
   assert.deepEqual(navItemsForCapabilities('overview', 'fleet.read').map((item) => item.id), ['my-clouds', 'overview', 'settings']);
   assert.equal(navItemsForCapabilities('overview', ['product.read']).some((item) => item.id === 'product-services'), true);
@@ -148,7 +155,9 @@ test('Brand Cloud navigation and route access are evaluated independently', () =
   assert.equal(defaultBrandCloudRoute([]), 'overview');
   assert.equal(cloudConsolePath('11111111-1111-4111-8111-111111111111', 'devices'), '/console/clouds/11111111-1111-4111-8111-111111111111/fleet');
   assert.equal(cloudConsolePath('', 'devices'), '/console/clouds');
-  assert.equal(cloudConsolePath('11111111-1111-4111-8111-111111111111', 'my-clouds'), '/console/clouds');
+  assert.equal(cloudConsolePath('11111111-1111-4111-8111-111111111111', 'my-clouds'), '/console/clouds?cloudId=11111111-1111-4111-8111-111111111111');
+  assert.equal(myCloudsPath('11111111-1111-4111-8111-111111111111'), '/console/clouds?cloudId=11111111-1111-4111-8111-111111111111');
+  assert.equal(myCloudsPath('../not-a-cloud'), '/console/clouds');
   assert.equal(cloudConsolePath('11111111-1111-4111-8111-111111111111', 'missing'), '/console/clouds');
   assert.equal(isCustomerNavItemActive({ id: 'overview', activeRoutes: ['overview', 'access'] }, 'access'), true);
   assert.equal(canAccessCustomerRoute('my-clouds'), true);
@@ -160,6 +169,7 @@ test('cloud switch keeps an authorized feature and falls back to overview otherw
   const first = '11111111-1111-4111-8111-111111111111';
   const second = '22222222-2222-4222-8222-222222222222';
   assert.equal(cloudRouteForSwitch({ id: first, role: 'viewer', capabilities: ['fleet.read'] }, 'devices'), `/console/clouds/${first}/fleet`);
+  assert.equal(cloudRouteForSwitch({ id: first, role: 'viewer', capabilities: ['fleet.read'] }, 'my-clouds'), `/console/clouds/${first}`);
   assert.equal(cloudRouteForSwitch({ id: second, role: 'viewer', capabilities: ['product.read'] }, 'devices'), `/console/clouds/${second}`);
   assert.equal(cloudRouteForSwitch({ id: second, role: 'viewer', owner_user_id: 'owner', capabilities: ['billing_account.read'] }, 'billing', 'viewer'), `/console/clouds/${second}`);
   assert.equal(cloudRouteForSwitch({ id: second, role: 'owner', owner_user_id: 'owner', capabilities: ['billing_account.read'] }, 'billing', 'owner'), `/console/clouds/${second}/billing`);

@@ -605,6 +605,10 @@ My Clouds, cloud selection and cloud-scoped features share one Brand Cloud app
 shell. My Clouds is the persistent global sidebar destination; after selecting a
 cloud, Overview, Products, Fleet Management, Firmware & OTA, Analytics, Members
 & Access, owner-only Billing, Settings and Audit appear in the same sidebar.
+On My Clouds, these fixed groups remain visible: without explicit cloud context
+their cloud-scoped entries are disabled rather than removed. A validated cloud
+query may preserve navigation context, but every operation remains authorized
+from its explicit cloud-scoped path and no cloud is inferred from session state.
 The design is not a claim of deployed UI completeness.
 
 The Developer console uses one global developer session and explicit per-request

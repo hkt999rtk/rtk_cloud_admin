@@ -128,11 +128,17 @@ export function navGroupsForCapabilities(route, capabilities) {
 }
 
 export function cloudConsolePath(cloudId, route = 'overview') {
-  if (route === 'my-clouds' || !cloudId) return '/console/clouds';
+  if (route === 'my-clouds') return myCloudsPath(cloudId);
+  if (!cloudId) return '/console/clouds';
   const item = customerNavItems.find((candidate) => candidate.id === route);
   if (!item || item.global) return '/console/clouds';
   const root = `/console/clouds/${encodeURIComponent(cloudId)}`;
   return item.segment ? `${root}/${item.segment}` : root;
+}
+
+export function myCloudsPath(cloudId = '') {
+  const context = decodedCloudID(cloudId);
+  return context ? `/console/clouds?cloudId=${encodeURIComponent(context)}` : '/console/clouds';
 }
 
 export function cloudNavGroupsForCapabilities(cloudId, capabilities, { isOwner = false } = {}) {
@@ -149,13 +155,26 @@ export function cloudNavGroupsForCapabilities(cloudId, capabilities, { isOwner =
     .filter((group) => group.items.length > 0);
 }
 
+export function cloudShellNavGroups(cloudId, capabilities, options = {}) {
+  if (cloudId) return cloudNavGroupsForCapabilities(cloudId, capabilities, options);
+  return customerNavGroups
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .filter((item) => !item.ownerOnly || options.showOwnerOnly)
+        .map((item) => ({ ...item, disabled: !item.global })),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
 export function cloudRouteForSwitch(cloud, route, userId = '') {
   const cloudId = cloud?.id || cloud?.organization_id || '';
   const role = cloud?.my_role || cloud?.role || '';
   const isOwner = role === 'owner' && (!userId || !cloud?.owner_user_id || cloud.owner_user_id === userId);
+  const targetRoute = route === 'my-clouds' ? 'overview' : route;
   const available = cloudNavGroupsForCapabilities(cloudId, cloud?.capabilities || [], { isOwner })
-    .some((group) => group.items.some((item) => item.id === route));
-  return cloudConsolePath(cloudId, available ? route : 'overview');
+    .some((group) => group.items.some((item) => item.id === targetRoute));
+  return cloudConsolePath(cloudId, available ? targetRoute : 'overview');
 }
 
 export function isCustomerNavItemActive(item, route) {

@@ -35,6 +35,19 @@ control and the following fixed feature groups:
 | Management | Settings | `/console/clouds/{cloudId}/settings` |
 | Management | Audit | `/console/clouds/{cloudId}/audit` |
 
+The fixed sidebar groups and eligible labels remain visible on the global My Clouds page.
+When no cloud has been explicitly selected, cloud-scoped items are disabled and
+the shell asks the user to select a cloud; they are not removed. When navigation
+to My Clouds originates from an authorized cloud route, the link may preserve
+that explicit cloud as a validated URL query context so the same feature links
+remain usable. This query context is navigation state only: the BFF still takes
+scope from each cloud-scoped path and revalidates current membership and
+capabilities. An absent, invalid or unauthorized context never causes the UI to
+choose a recent or first cloud automatically.
+The owner-only Billing item is the exception: My Clouds may show it only when the
+account currently owns at least one cloud, and selecting a non-owner membership
+removes it under the normal selected-cloud capability rule.
+
 `Fleet Management` is the stable feature name and owns fleet health, Devices,
 groups/tags and batch operations. It must not be reduced to an unexplained
 `Devices` sidebar item. Products remain children of the cloud; Product detail is

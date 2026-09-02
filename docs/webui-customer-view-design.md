@@ -14,6 +14,13 @@ override it. The shell selector is populated by `GET /api/developer/brand-clouds
 and navigates only its own tab. Switching cancels old requests and isolates caches
 by cloud; failure preserves the current tab's authorized route. URLs support
 deep-link/refresh only after scope validation, never by trusting a browser ID.
+The My Clouds page keeps the complete Brand Cloud sidebar visible. Until the
+user explicitly selects a cloud, Overview, Products, Fleet Management, Firmware
+& OTA, Analytics and Management entries are disabled with a select-cloud cue,
+not hidden. A validated `cloudId` query on My Clouds may preserve the cloud the
+user came from for navigation continuity, but it is never an authorization
+source and never falls back to the last-used or first membership.
+Owner-only Billing remains hidden when the account owns no cloud.
 
 Navigation and actions are derived from active-cloud capabilities, not a UI
 role switch. Display roles remain useful for explanation, but authorization

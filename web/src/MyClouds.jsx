@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { cloudRoot, cloudURL, cloudAPI, cloudError, managedCloudRoute, managedCloudRequest, cloudWriteIntent, cloudOperationFromSearch, blockerLabels, isCloudID } from './managed-clouds.mjs';
+import { cloudRoot, cloudURL, cloudAPI, cloudError, managedCloudRoute, managedCloudRequest, cloudWriteIntent, cloudOperationFromSearch, cloudContextFromSearch, blockerLabels, isCloudID } from './managed-clouds.mjs';
 import './my-clouds.css';
 import { CloudSharing } from './CloudSharing.jsx';
 import { StartOwnerHandoff } from './OwnerHandoff.jsx';
@@ -10,6 +10,7 @@ import { CloudConsoleShell } from './CloudConsoleShell.jsx';
 export function MyCloudsApp() {
   const route = managedCloudRoute(window.location.pathname);
   const cloudId = route?.cloudId || '';
+  const navigationCloudId = cloudId ? '' : cloudContextFromSearch(window.location.search);
   const section = route?.section || (cloudId ? 'overview' : 'my-clouds');
   const productId = route?.productId || '';
   const deviceId = route?.deviceId || '';
@@ -52,15 +53,24 @@ export function MyCloudsApp() {
           const validClouds = (result.brand_clouds || []).filter((item) => isCloudID(item?.id));
           if (validClouds.length !== (result.brand_clouds || []).length) setError('Some clouds could not be displayed because the service returned an invalid cloud ID.');
           setPage({ ...result, brand_clouds: validClouds });
+          if (navigationCloudId) {
+            try {
+              const context = await managedCloudRequest(cloudAPI(navigationCloudId), { signal: controller.signal });
+              if (!controller.signal.aborted) setCloud(context.brand_cloud || null);
+            } catch (contextError) {
+              if (contextError.status === 401) throw contextError;
+              if (!controller.signal.aborted) window.history.replaceState({}, '', cloudRoot);
+            }
+          }
         } else {
           setPage(null);
+          setCloud(result.brand_cloud || null);
         }
-        setCloud(result.brand_cloud || null);
       } catch (err) { if (!controller.signal.aborted) { setError(cloudError(err)); if ([401,403,404].includes(err.status)) { setForm(null); setOperation(null); } } }
       finally { if (!controller.signal.aborted) setLoading(false); }
     })();
     return () => controller.abort();
-  }, [cloudId, productId, deviceId, view, offset, reload]);
+  }, [cloudId, navigationCloudId, productId, deviceId, view, offset, reload]);
   useEffect(() => {
     if (!operation || ['succeeded', 'canceled', 'failed'].includes(operation.state)) return;
     const controller = new AbortController();

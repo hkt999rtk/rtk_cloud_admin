@@ -783,8 +783,9 @@ function App() {
   }, [mobileNavOpen]);
 
   function pathForNavigationItem(item) {
-    if (item.global || me?.kind === 'platform_admin') return item.path;
     const cloudId = me?.kind === 'customer' ? cloudIdFromPath(window.location.pathname) : '';
+    if (item.id === 'my-clouds' && cloudId) return cloudConsolePath(cloudId, item.id);
+    if (item.global || me?.kind === 'platform_admin') return item.path;
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
     return cloudConsolePath(cloudId, targetRoute);
   }

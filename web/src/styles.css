@@ -454,7 +454,8 @@ nav button:hover .fa-solid {
 }
 
 .sidebar-nav-group button,
-.sidebar-nav-group a {
+.sidebar-nav-group a,
+.sidebar-nav-group .sidebar-disabled {
   align-items: center;
   border: 0;
   border-radius: 8px;
@@ -469,11 +470,17 @@ nav button:hover .fa-solid {
   width: 100%;
 }
 
-.sidebar-nav-group a .fa-solid {
+.sidebar-nav-group a .fa-solid,
+.sidebar-nav-group .sidebar-disabled .fa-solid {
   color: rgba(255, 255, 255, 0.72);
   font-size: 14px;
   text-align: center;
   width: 18px;
+}
+
+.sidebar-nav-group .sidebar-disabled {
+  color: rgba(255, 255, 255, 0.42);
+  cursor: not-allowed;
 }
 
 .sidebar-nav-group a.active,
