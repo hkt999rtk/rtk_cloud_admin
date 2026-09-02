@@ -2189,7 +2189,10 @@ function Overview({
 }
 
 function RegionFleetPanel({ summary, loading }) {
-  const regions = Object.entries(summary?.by_region || {}).sort((left, right) => right[1] - left[1]);
+  const regions = Object.entries(summary?.by_region || {})
+    .map(([region, count]) => [region, Number(count)])
+    .filter(([, count]) => Number.isFinite(count) && count > 0)
+    .sort((left, right) => right[1] - left[1]);
   const max = Math.max(...regions.map(([, count]) => count), 1);
   const unavailable = !summary || summary.source_status !== 'available';
   return (
@@ -2202,14 +2205,14 @@ function RegionFleetPanel({ summary, loading }) {
       </div>
       {loading ? <p className="empty-state">{translate('Loading regional data.')}</p> : null}
       {!loading && unavailable ? <p className="empty-state">{translate('Regional data is temporarily unavailable.')}</p> : null}
-      {!loading && !unavailable ? (
+      {!loading && !unavailable && !regions.length ? <p className="empty-state">{translate('No device locations have been reported yet.')}</p> : null}
+      {!loading && !unavailable && regions.length ? (
         <div className="region-fleet-grid">
           <div className="region-bars">
             {regions.slice(0, 8).map(([region, count]) => <div className="region-bar-row" key={region}>
               <div><strong>{region}</strong><span>{translate('{{count}} devices', { count: formatNumber(count) })}</span></div>
               <div className="region-bar-track"><span style={{ width: `${Math.max(4, count / max * 100)}%` }} /></div>
             </div>)}
-            {!regions.length ? <p className="empty-state">{translate('No regional data is available.')}</p> : null}
           </div>
           <div className="region-map-desktop"><RegionMap regions={regions} max={max} /></div>
           <details className="region-map-mobile">
@@ -2340,10 +2343,19 @@ function projectWorldPoint([longitude, latitude]) {
 
 function worldGeometryPath(geometry) {
   const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
-  return polygons.map((polygon) => polygon.map((ring) => ring.map((coordinate, index) => {
-    const [x, y] = projectWorldPoint(coordinate);
-    return `${index ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(' ') + 'Z').join(' ')).join(' ');
+  return polygons.map((polygon) => polygon.map((ring) => {
+    let previousLongitude = null;
+    let crossesDateLine = false;
+    const commands = ring.map((coordinate, index) => {
+      const [longitude] = coordinate;
+      const startsNewSegment = index > 0 && Math.abs(longitude - previousLongitude) > 180;
+      if (startsNewSegment) crossesDateLine = true;
+      previousLongitude = longitude;
+      const [x, y] = projectWorldPoint(coordinate);
+      return `${index && !startsNewSegment ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+    });
+    return commands.join(' ') + (crossesDateLine ? '' : 'Z');
+  }).join(' ')).join(' ');
 }
 
 function clampWorldViewport(viewport) {

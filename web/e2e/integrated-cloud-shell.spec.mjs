@@ -123,6 +123,15 @@ test('[UI-CA-MULTICLOUD-ANALYTICS-001] unavailable Overview and Stream Health va
   await expect(cards.getByText('Unavailable', { exact: true })).toHaveCount(0);
 });
 
+test('[UI-CA-MULTICLOUD-REGIONS-001] zero-count regions use an empty state instead of a misleading map', async ({ page }) => {
+  await login(page, 'billing_owner');
+  await page.goto(`/console/clouds/${cloudA}`);
+
+  await expect(page.getByText('No device locations have been reported yet.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Zoomable and draggable world device distribution map' })).toHaveCount(0);
+  await expect(page.getByText('na', { exact: true })).toHaveCount(0);
+});
+
 test('[UI-CA-MULTICLOUD-PRODUCTS-001] Products explains its SKU boundary without repeating the cloud heading', async ({ page }) => {
   await login(page, 'billing_owner');
   await page.route(new RegExp(`/api/developer/brand-clouds/${cloudA}/products\\?`), (route) => route.fulfill({
