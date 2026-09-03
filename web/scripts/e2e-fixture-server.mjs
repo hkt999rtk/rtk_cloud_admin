@@ -8,6 +8,12 @@ const fixtureDir = process.env.E2E_FIXTURE_DIR;
 const port = Number(process.env.E2E_FIXTURE_PORT || 0);
 const mode = process.env.E2E_SCENARIO_MODE || 'normal';
 const prometheusMode = process.env.E2E_PROMETHEUS_MODE || mode;
+const developerCloudIDs = ['33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444'];
+const developerProductIDs = ['55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666'];
+const generatedCloudIDs = new Map([
+  ['brand-e2e-01', developerCloudIDs[0]],
+  ['brand-e2e-02', developerCloudIDs[1]],
+]);
 const billingCloudIDs = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222'];
 const billingOwnerID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const developerSharingCloudID = '99999999-9999-4999-8999-999999999999';
@@ -18,6 +24,13 @@ const [brandClouds, users, members, devices, operations, logs, sessions, prometh
   load('brand-clouds.json'), load('brand-cloud-users.json'), load('brand-cloud-members.json'), load('devices.json'),
   load('operations.json'), load('service-logs.json'), load('sessions.json'), load('prometheus-series.json'),
 ]);
+for (const collection of [brandClouds, users, members, devices, operations, logs, sessions]) {
+  for (const item of collection) {
+    for (const key of ['id', 'brand_cloud_id', 'organization_id']) {
+      if (generatedCloudIDs.has(item[key])) item[key] = generatedCloudIDs.get(item[key]);
+    }
+  }
+}
 const state = { brandClouds, users, members, devices, operations, logs, sessions, prometheus, jobs: [], reports: [], sources: [], transfers: [], invitations: [], chipsetProviders: [], idempotency: new Map(), requestLog: [] };
 for (const user of state.users) {
   if (!user.brand_cloud_id || state.members.some((member) => member.organization_id === user.brand_cloud_id && member.user_id === user.id)) continue;
@@ -40,6 +53,7 @@ const server = createServer(async (req, res) => {
       return res.end('<!doctype html><html><body><main><h1>NewebPay simulator</h1><p>TEST PAYMENT - no real charge is performed.</p></main></body></html>');
     }
     if (url.pathname === '/api/v1/query' || url.pathname === '/api/v1/query_range') return prometheusResponse(res);
+    if (url.pathname === '/api/sdk/catalog' && req.method === 'GET') return mode === 'unavailable' ? send(res, 503, { error: 'SDK catalog unavailable' }) : send(res, 200, sdkCatalogFixture());
     if (url.pathname === '/v1/logs') return send(res, 200, { events: state.logs.map((event) => ({ event_id: `${event.operation_id}-${event.request_id}`, service: event.service, level: event.level, ts: event.timestamp, msg: event.message, trace_id: event.trace_id, request_id: event.request_id, operation_id: event.operation_id })) });
     if (url.pathname === '/v1/auth/login' && req.method === 'POST') return login(req, res);
     if (url.pathname === '/v1/me') return send(res, 200, customerProfile(req));
@@ -90,6 +104,30 @@ async function load(name) {
   return JSON.parse(await readFile(path.join(fixtureDir, name), 'utf8'));
 }
 
+function sdkCatalogFixture() {
+  const specs = [
+    ['android', 'Android Kotlin', 'AAR, sources JAR, POM, and Gradle module metadata', ['Cloud API client', 'WebSocket control', 'WebRTC signaling']],
+    ['ios', 'iOS Swift', 'SwiftPM source package', ['Cloud API client', 'WebSocket control', 'WebRTC signaling']],
+    ['javascript', 'JavaScript / TypeScript', 'npm-compatible tarball with JavaScript and type declarations', ['Cloud API client', 'WebSocket control', 'WebRTC signaling']],
+    ['native', 'Native C/C++', 'Linux x86_64 and macOS arm64 static libraries, headers, and CMake metadata', ['Cloud API client', 'WebRTC signaling']],
+    ['freertos-pro2', 'FreeRTOS / Pro2', 'Cloud device-demo source, adapters, manifest, and validation evidence', ['Cloud device integration', 'WebRTC answerer integration']],
+  ];
+  const limitation = 'Does not include a WebRTC peer connection, media engine, renderer, or media-track runtime.';
+  const packages = specs.map(([slug, title, description, capabilities], index) => ({
+    slug, title, description,
+    filename: `rtk-cloud-client-${slug}-0.1.0-rc1.tar.gz`,
+    sha256: String(index + 1).repeat(64),
+    size_bytes: (index + 1) * 1024 * 1024,
+    validation_status: 'PASS', capabilities, limitations: [limitation],
+  }));
+  return {
+    schema: 'rtk-portal-sdk-public-catalog/v1', version: '0.1.0-rc1', release_train: 'rtk-cloud-client-0.1.0-rc1',
+    created_at: '2026-09-03T00:00:00Z', distribution: 'public-evaluation', signing_status: 'not_configured', terms_version: 'local-preview-2026-09',
+    packages,
+    complete_bundle: { slug: 'all', title: 'Complete SDK Bundle', description: 'All five Cloud Client SDK packages, reports, checksums, and evaluation terms', filename: 'rtk-cloud-client-sdk-0.1.0-rc1.tar.gz', sha256: 'f'.repeat(64), size_bytes: 18 * 1024 * 1024, validation_status: 'PASS', capabilities: specs.map(([, title]) => title), limitations: [limitation] },
+  };
+}
+
 function login(req, res) {
   return readBody(req).then((body) => {
     const identities = {
@@ -118,7 +156,7 @@ function customerProfile(req) {
       user: { id: 'identity-dual-user', email: 'identity.dual@example.com', name: 'Identity Dual User' },
       platform_capabilities: ['platform.audit.read', 'platform.chipset_sdk.read'],
       brand_cloud_memberships: state.brandClouds.map((brand) => ({
-        id: brand.id, name: brand.name, role: 'owner', tier: brand.tier, status: brand.status,
+        id: brand.id, name: brand.name, role: 'owner', tier: brand.tier, status: brand.status, owner_email: 'identity.dual@example.com',
         capabilities: ['fleet.read', 'product.read', 'team.read'],
       })),
     };
@@ -134,11 +172,24 @@ function customerProfile(req) {
   };
   if (role === 'billing_owner' || role === 'billing_viewer') {
     const owner = role === 'billing_owner';
-    return {user:{id:owner?billingOwnerID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:`${role}@example.com`},brand_cloud_memberships:billingCloudIDs.map((id,index)=>({id,name:`Billing Cloud ${index+1}`,role:owner?'owner':'viewer',my_role:owner?'owner':'viewer',owner_user_id:billingOwnerID,ownership_version:7,status:'active',capabilities:owner?capabilitySets.developer:['product.read']}))};
+    const memberships = billingCloudIDs.map((id,index)=>({id,name:`Billing Cloud ${index+1}`,role:owner?'owner':'viewer',my_role:owner?'owner':'viewer',owner_user_id:billingOwnerID,owner_email:'billing.owner@example.com',ownership_version:7,status:'active',capabilities:owner?capabilitySets.developer:['product.read']}));
+    return {user:{id:owner?billingOwnerID:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:`${role}@example.com`},brand_cloud_memberships:memberships};
   }
   const capabilities = capabilitySets[role] || [];
-  const visibleClouds = role === 'outsider' ? [] : role === 'customer' ? state.brandClouds.slice(0, 1) : state.brandClouds;
-  const clouds = visibleClouds.map((brand) => ({ id: brand.id, name: brand.name, role: role === 'operations' ? 'Operations' : role === 'observer' ? 'Observer' : 'Developer / Release', tier: brand.tier, status: brand.status, capabilities }));
+  const visibleClouds = role === 'outsider' || role.startsWith('platform_') ? [] : role === 'customer' ? state.brandClouds.slice(0, 1) : state.brandClouds;
+  const membershipRole = role === 'operations' ? 'admin' : role === 'observer' ? 'viewer' : 'owner';
+  const clouds = visibleClouds.map((brand) => ({
+    id: brand.id,
+    name: brand.name,
+    role: membershipRole,
+    my_role: membershipRole,
+    owner_user_id: membershipRole === 'owner' ? `${role}-user` : 'developer-user',
+    owner_email: membershipRole === 'owner' ? `${role}@example.com` : 'developer@example.com',
+    ownership_version: 1,
+    tier: brand.tier,
+    status: brand.status,
+    capabilities,
+  }));
   return { user: { id: `${role}-user`, email: `${role}@example.com`, name: `${role} E2E User` }, organizations: clouds, capabilities };
 }
 
@@ -147,7 +198,7 @@ function roleFromRequest(req) {
 }
 
 function cloudDevices(orgID) {
-  return (state.devices || []).filter((device) => String(device.organization_id || device.organization || '').includes(orgID === 'brand-e2e-02' ? '02' : '01')).map((device, index) => ({
+  return (state.devices || []).filter((device) => device.organization_id === orgID).map((device, index) => ({
     id: device.id || `device-${orgID}-${index + 1}`,
     organization_id: orgID,
     name: device.name || `E2E Device ${index + 1}`,
@@ -159,12 +210,12 @@ function cloudDevices(orgID) {
     readiness: device.readiness || 'ready',
     last_seen_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    device_item_profile_id: device.device_item_profile_id || `product-${orgID === 'brand-e2e-02' ? 'beta' : 'alpha'}`,
-    metadata: { region: orgID === 'brand-e2e-02' ? 'eu' : 'na', firmware_version: index % 2 ? 'v3.7.0' : 'v3.8.0', group_id: `group-${orgID}` },
+    device_item_profile_id: device.device_item_profile_id || (orgID === developerCloudIDs[1] ? developerProductIDs[1] : developerProductIDs[0]),
+    metadata: { region: orgID === developerCloudIDs[1] ? 'eu' : 'na', firmware_version: index % 2 ? 'v3.7.0' : 'v3.8.0', group_id: `group-${orgID}` },
   }));
 }
 
-function profileFor(orgID, id = `product-${orgID === 'brand-e2e-02' ? 'beta' : 'alpha'}`) {
+function profileFor(orgID, id = orgID === developerCloudIDs[1] ? developerProductIDs[1] : developerProductIDs[0]) {
   return { id, brand_cloud_id: orgID, profile_key: id, display_name: `E2E ${id} Camera`, status: 'active', category: 'camera', model: 'RTK-CAM-A', service_options: ['stream', 'record'], claim_policy: {}, provisioning_policy: {}, metadata_defaults: {}, metadata_schema: {}, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
 }
 
@@ -258,8 +309,9 @@ async function handleCustomerResource(req, res, url) {
   if (!match) return send(res, 404, { error: 'not found' });
   const orgID = decodeURIComponent(match[1]);
   const suffix = match[2];
-  if (!['brand-e2e-01', 'brand-e2e-02', developerSharingCloudID, ...billingCloudIDs].includes(orgID)) return send(res, 403, { error: 'organization forbidden' });
-  if (billingCloudIDs.includes(orgID) && (req.headers['x-billing-actor-id'] !== billingOwnerID || req.headers['x-billing-ownership-version'] !== '7')) return send(res,403,{code:'BILLING_OWNER_REQUIRED'});
+  if (![...developerCloudIDs, developerSharingCloudID, ...billingCloudIDs].includes(orgID)) return send(res, 403, { error: 'organization forbidden' });
+  const billingProtected = /^\/(?:billing(?:\/|$)|payment-methods(?:\/|$)|topups(?:\/|$)|auto-topup(?:\/|$)|payment-intents(?:\/|$))/.test(suffix);
+  if (billingCloudIDs.includes(orgID) && billingProtected && (req.headers['x-billing-actor-id'] !== billingOwnerID || req.headers['x-billing-ownership-version'] !== '7')) return send(res,403,{code:'BILLING_OWNER_REQUIRED'});
   const devices = mode === 'empty' ? [] : cloudDevices(orgID);
   if (mode === 'slow' && req.method !== 'GET') await new Promise((resolve) => setTimeout(resolve, 350));
   const paymentMethod = {
@@ -325,7 +377,7 @@ async function handleCustomerResource(req, res, url) {
     const offset = Number(query.get('offset') || 0);
     return send(res, 200, { devices: filtered.slice(offset, offset + limit), pagination: { limit, offset, total: filtered.length }, query: { server_side: true } });
   }
-  if (suffix === '/fleet/summary' && req.method === 'GET') return send(res, 200, { total: devices.length, by_status: { online: devices.length }, by_product: { [`product-${orgID === 'brand-e2e-02' ? 'beta' : 'alpha'}`]: devices.length }, by_model: { 'RTK-CAM-A': devices.length }, by_firmware: { 'v3.8.0': devices.length }, by_region: { [orgID === 'brand-e2e-02' ? 'eu' : 'na']: devices.length }, service_enabled: {}, by_product_region: {}, by_product_firmware: {}, updated_at: mode === 'stale' ? '2020-01-01T00:00:00Z' : new Date().toISOString() });
+  if (suffix === '/fleet/summary' && req.method === 'GET') return send(res, 200, { total: devices.length, by_status: { online: devices.length }, by_product: { [orgID === developerCloudIDs[1] ? developerProductIDs[1] : developerProductIDs[0]]: devices.length }, by_model: { 'RTK-CAM-A': devices.length }, by_firmware: { 'v3.8.0': devices.length }, by_region: { [orgID === developerCloudIDs[1] ? 'eu' : 'na']: devices.length }, service_enabled: {}, by_product_region: {}, by_product_firmware: {}, updated_at: mode === 'stale' ? '2020-01-01T00:00:00Z' : new Date().toISOString() });
   if (suffix === '/devices' && req.method === 'GET') return send(res, 200, { devices });
   const deviceMatch = suffix.match(/^\/devices\/([^/]+)$/);
   if (deviceMatch && req.method === 'GET') {
@@ -409,8 +461,17 @@ async function handleDeveloperResource(req, res, url) {
     const cloud = memberships.find(item=>item.id===cloudID);
     return cloud ? send(res,200,{brand_cloud:cloud}) : send(res,403,{code:'MEMBERSHIP_REQUIRED'});
   }
-  const clouds = state.brandClouds.map((brand) => ({ ...brand, role: 'owner', capabilities: memberships.find((item) => item.id === brand.id)?.capabilities || [] }));
-  if (!cloudID && req.method === 'GET') return send(res, 200, { brand_clouds: clouds, pagination: { limit: 25, offset: 0, total: clouds.length }, developer_cloud_limit: 5 });
+  const clouds = memberships.map((membership) => {
+    const brand = state.brandClouds.find((item) => item.id === membership.id) || {};
+    return { ...brand, ...membership, role: membership.role || 'viewer', my_role: membership.my_role || membership.role || 'viewer', capabilities: membership.capabilities || [] };
+  });
+  if (!cloudID && req.method === 'GET') return send(res, 200, {
+    brand_clouds: clouds,
+    pagination: { limit: 25, offset: 0, total: clouds.length },
+    owned_count: clouds.filter((cloud) => cloud.my_role === 'owner').length,
+    owned_limit: 8,
+    reserved_count: 0,
+  });
   const fixtureCloud = clouds.find((brand) => brand.id === cloudID) || (cloudID === developerSharingCloudID ? { ...clouds[0], id: cloudID, tenant_slug: 'brand-e2e-01', owner_user_id: 'developer-user', my_role: 'owner', role: 'owner', ownership_version: 1, capabilities: ['cloud.update', 'team.manage', 'billing_account.read', 'product.read', 'product.manage'] } : null);
   if (!fixtureCloud) return send(res, 403, { code: 'MEMBERSHIP_REQUIRED', message: 'Current developer is not a member of this Brand Cloud.' });
   if (!suffix && req.method === 'GET') return send(res, 200, { brand_cloud: fixtureCloud, membership: { organization_id: cloudID, user_id: 'developer-user', role: 'owner', capabilities: fixtureCloud.capabilities } });
@@ -472,7 +533,7 @@ async function handleOTA(req, res, url) {
 
 async function createBrandCloud(req, res) {
   const body = await readBody(req);
-  const id = `brand-e2e-created-${state.brandClouds.length + 1}`;
+  const id = randomUUID();
   const brand = { id, name: body.name || 'E2E Created Cloud', role: 'platform_admin', organization_kind: 'brand_cloud', status: body.status || 'active', tier: 'evaluation', evaluation_device_quota: 10, metadata: { ...(body.metadata || {}), run_id: state.prometheus.run_id, setup_status: 'ready' } };
   state.brandClouds.push(brand);
   return send(res, 201, { brand_cloud: brand });

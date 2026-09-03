@@ -319,10 +319,17 @@ Unified account sessions:
 - global route guards use global capabilities; cloud route guards resolve current
   membership/capabilities for that request's validated cloud UUID, not a shared
   active-organization snapshot, login path or UI role switch
-- a valid `next` route is honored only when authorized; otherwise the default is
-  My Clouds (`/console/clouds`) when memberships exist, then Platform View when platform access
-  exists, otherwise the empty My Clouds page; an authenticated account without
-  memberships may request cloud creation, subject to upstream eligibility and quota
+- a valid `next` route is honored only when authorized; an explicit My Clouds
+  next remains on `/console/clouds`. Without an explicit cloud destination, the
+  browser validates the `rtk_last_cloud_id` cookie against fresh memberships
+  and opens that cloud, or the first API-ordered membership when no valid
+  preference exists. Platform-only accounts enter Platform View; an
+  authenticated account without memberships enters empty My Clouds and may
+  request cloud creation, subject to upstream eligibility and quota
+- `rtk_last_cloud_id` stores only a cloud UUID with `Path=/`, `SameSite=Lax`, a
+  one-year maximum age and `Secure` on HTTPS. It is written only after a
+  successful cloud-detail read and is never accepted as authorization or BFF
+  mutation scope
 - accounts with both platform capability and Brand Cloud membership can switch
   views and organizations without logging in again
 - switching clouds revalidates the explicit route/request scope for that tab;
@@ -347,11 +354,12 @@ terminate in the global activation UI and subsequent logout/login uses the same
 
 When email verification returns account tokens, the BFF resolves `/v1/me`
 before creating the session, selects the first membership as the active Brand
-Cloud, and uses the same membership-first view selection as global login.
-Platform-only accounts enter the platform view; authenticated global accounts with
-neither membership nor platform capability enter the empty My Clouds page, where
-Account Manager still enforces cloud-creation eligibility. The verification
-response includes the selected `kind`, which the UI uses for its destination.
+Cloud for compatibility, and returns the selected account kind. The browser
+then applies the same authorized `next`, remembered-cloud, and first-membership
+navigation rule as global login; the compatibility active cloud is not request
+authority. Platform-only accounts enter the platform view; authenticated global
+accounts with neither membership nor platform capability enter the empty My
+Clouds page, where Account Manager still enforces cloud-creation eligibility.
 Logout remains reachable from the navigation drawer on narrow screens.
 
 ## Upstream Integration
@@ -551,6 +559,9 @@ Environment variables:
 - `BILLING_SERVICE_TOKEN`: dedicated service credential; Cloud Admin sends the resolved actor and one exact billing permission separately.
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL.
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token.
+- `SDK_PORTAL_BASE_URL`: allowlisted Realtek Connect+ Portal origin used by the
+  global SDK catalog BFF and terms/download links. Cloud Admin receives no SDK
+  Object Storage credential.
 - `ADMIN_BREAK_GLASS_ENABLED`: deprecated compatibility flag; local
   break-glass login is not supported and deployments should set it to `false`.
 - `ACCOUNT_PASSWORD_LOGIN_ENABLED`: disables the single human password login
@@ -574,6 +585,10 @@ Environment variables:
   routing, default landing order, multi-Brand switching, platform/Brand view
   switching, invalid credentials, unactivated/no-access accounts, removed
   legacy login routes, and owner logout/re-login after email activation.
+- SDK catalog tests cover Portal schema validation and redaction, five packages
+  plus complete bundle, independent Portal/ChipSet failures, local-preview
+  labeling, WebRTC capability/limitation copy, and identical global results for
+  no cloud and multiple `cloudId` navigation contexts on desktop and mobile.
 
 ## ChipSet and SDK Resource Catalog
 
@@ -598,6 +613,26 @@ in SQLite.
 The normative schema, lifecycle, SSRF controls, error contract, and ownership
 boundary are defined by
 `rtk_cloud_contracts_doc/chipset_sdk_information_provider.md`.
+
+The same developer page also presents the separate Portal-owned Cloud Client
+SDK release catalog defined by `rtk_cloud_contracts_doc/sdk_distribution.md`.
+The BFF exposes authenticated `GET /api/developer/sdk-releases/latest`, calls
+only the configured `SDK_PORTAL_BASE_URL` plus `/api/sdk/catalog`, validates the
+safe public schema, and returns it without persisting a second copy. It never
+receives Object Storage credentials, returns an object key or presigned URL, or
+routes Cloud Client packages through Account Manager's ChipSet provider model.
+
+The page renders **Cloud Client SDKs** before **Device & ChipSet SDKs**. It shows
+the five public-evaluation packages and complete bundle, including WebRTC
+signaling/answerer capability and current media-engine limitations. Download
+actions go to the configured Portal terms flow. The two catalog requests and
+their loading, empty, unavailable, and retry states remain independent. A local
+fixture renders all metadata but labels downloads `Local preview` and never
+creates a fake artifact.
+
+The public SDK catalog is global. `cloudId` may be retained in the browser URL
+only to return to the previous cloud shell; it is not sent upstream as SDK
+authority and does not change the catalog response.
 # Developer Brand Cloud Console contract
 
 The multi-cloud target UI is specified in [multicloud_webui.md](multicloud_webui.md).
@@ -605,6 +640,28 @@ My Clouds, cloud selection and cloud-scoped features share one Brand Cloud app
 shell. My Clouds is the persistent global sidebar destination; after selecting a
 cloud, Overview, Products, Fleet Management, Firmware & OTA, Analytics, Members
 & Access, owner-only Billing, Settings and Audit appear in the same sidebar.
+On My Clouds, these fixed groups remain visible: without explicit cloud context
+their cloud-scoped entries are disabled rather than removed. A validated cloud
+query may preserve navigation context, but every operation remains authorized
+from its explicit cloud-scoped path and no cloud is inferred from session state.
+For login navigation only, a remembered cloud cookie is checked against current
+memberships; absent or invalid preference selects the first ordered membership.
+The top bar supplies the only My Clouds or selected-cloud heading; content does
+not repeat the cloud name. The My Clouds page introduction explains
+owned/shared access and the features available after selection. Cards identify
+the sole owner by the authorized `owner_email` projection, never a UUID, and do
+not render routine `active` state as a Status row; non-active lifecycle state is
+still enforced by the backend and shown only as an actionable warning.
+The Products introduction explains that a Product normally maps to a device
+model/SKU or technically identical SKU group. It is the boundary for devices,
+firmware, OTA behavior and enabled cloud services; a SKU requiring different
+technical settings uses a separate Product so changes reach only its devices.
+The Members & Access introduction explains owner-only invitations, management
+roles versus read-only Viewer, selected-Product versus future-inclusive
+whole-cloud scope, revocation, and the sensitive access collaboration excludes.
+The Settings introduction explains metadata edits, stable cloud identifiers,
+deletion checks and ownership/Billing handoff. Its Cloud settings summary labels
+Cloud name, Description, Cloud ID, Tenant slug, Owner email, Owner ID and My role.
 The design is not a claim of deployed UI completeness.
 
 The Developer console uses one global developer session and explicit per-request

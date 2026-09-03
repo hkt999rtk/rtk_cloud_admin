@@ -5,6 +5,10 @@ import { handoffAcceptPath, handoffRoute, handoffURL, handoffAPI, handoffError, 
 import './my-clouds.css';
 import './owner-handoff.css';
 
+function SemanticIcon({ name, color }) {
+  return <i className={`fa-solid fa-${name}`} aria-hidden="true" style={color ? { color } : undefined} />;
+}
+
 const policy = 'Positive credit stays with this cloud. Old payment methods and automatic-charge consent do not transfer. Cost-producing actions may pause during settlement. The former owner loses all cloud and Product access after owner commit; existing other collaborators retain their grants.';
 
 export function StartOwnerHandoff({ cloudId }) {
@@ -19,7 +23,7 @@ export function StartOwnerHandoff({ cloudId }) {
     catch (err) { if (alive.current) setError(handoffError(err)); }
     finally { locked.current = false; if (alive.current) setBusy(false); }
   }
-  return <section className="my-clouds-panel owner-handoff"><h2>Transfer ownership</h2><p>The available balance must be nonnegative (zero is allowed), and Billing must confirm settlement with no unresolved financial work.</p><p>{policy}</p>{error && <p role="alert">{error}</p>}<form onSubmit={submit}><label>New owner’s verified email<input type="email" required disabled={busy} value={email} onChange={e => setEmail(e.target.value)} /></label><label><input type="checkbox" checked={ack} disabled={busy} onChange={e => setAck(e.target.checked)} />I understand the ownership and Billing consequences.</label><button disabled={busy || !ack}>{busy ? 'Requesting…' : 'Send ownership invitation'}</button></form><p>Invitation acceptance starts the handoff. It does not complete ownership transfer.</p></section>;
+  return <section className="my-clouds-panel owner-handoff"><h2><SemanticIcon name="right-left" />Transfer ownership</h2><p>The available balance must be nonnegative (zero is allowed), and Billing must confirm settlement with no unresolved financial work.</p><p>{policy}</p>{error && <p role="alert"><SemanticIcon name="triangle-exclamation" />{error}</p>}<form onSubmit={submit}><label><SemanticIcon name="envelope-circle-check" />New owner’s verified email<input type="email" required disabled={busy} value={email} onChange={e => setEmail(e.target.value)} /></label><label><input type="checkbox" checked={ack} disabled={busy} onChange={e => setAck(e.target.checked)} /><SemanticIcon name="triangle-exclamation" color="#b42318" />I understand the ownership and Billing consequences.</label><button className="icon-text" disabled={busy || !ack}><SemanticIcon name="paper-plane" />{busy ? 'Requesting…' : 'Send ownership invitation'}</button></form><p><SemanticIcon name="circle-info" />Invitation acceptance starts the handoff. It does not complete ownership transfer.</p></section>;
 }
 
 export function OwnerHandoffPage() {

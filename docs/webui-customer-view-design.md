@@ -14,6 +14,16 @@ override it. The shell selector is populated by `GET /api/developer/brand-clouds
 and navigates only its own tab. Switching cancels old requests and isolates caches
 by cloud; failure preserves the current tab's authorized route. URLs support
 deep-link/refresh only after scope validation, never by trusting a browser ID.
+The My Clouds page keeps the complete Brand Cloud sidebar visible. Until the
+user explicitly selects a cloud, Overview, Products, Fleet Management, Firmware
+& OTA, Analytics and Management entries are disabled with a select-cloud cue,
+not hidden. A validated `cloudId` query on My Clouds may preserve the cloud the
+user came from for navigation continuity, but it is never an authorization
+source. Separately, login without an explicit cloud destination validates the
+`rtk_last_cloud_id` cookie against fresh memberships and opens that cloud, or
+the first membership when the cookie is missing or unusable. The cookie is
+written only after a successful cloud-detail authorization check.
+Owner-only Billing remains hidden when the account owns no cloud.
 
 Navigation and actions are derived from active-cloud capabilities, not a UI
 role switch. Display roles remain useful for explanation, but authorization
@@ -22,10 +32,12 @@ uses the capability matrix in `roles.md`.
 The login page posts credentials exactly once to `POST /api/auth/login`. The BFF
 calls Account Manager global login and `/v1/me`; the browser never probes
 separate customer, platform, or tenant login endpoints. A valid deep-link
-`next` route wins when authorized. Otherwise the default landing is the
-integrated My Clouds page when at least one membership exists, Platform View
-when only platform access exists, and the empty My Clouds state for an eligible
-developer without memberships. A dual-capability account can
+`next` route wins when authorized, including an explicit My Clouds destination.
+Otherwise a valid remembered membership opens its cloud overview, falling back
+to the first API-ordered membership. Platform View is the default when only
+platform access exists, and the empty My Clouds state is the default for an
+eligible developer without memberships. The remembered cloud UUID is a
+client-side navigation preference, not BFF authority. A dual-capability account can
 switch Platform View, Brand Fleet, and active Brand Clouds without logging in
 again.
 
@@ -91,6 +103,12 @@ area, not a complete application-state inventory. The implementation must also s
 coverage addendum below for auth, quota, capability, error, and source-state
 requirements from `spec.md`, `roles.md`, and `backend-api-gap-audit.md`.
 
+My Clouds uses the shell title only, followed by a concise two-sentence page
+introduction instead of a duplicate content title. Cloud cards show the sole
+owner's account email from the authorized `owner_email` projection. They omit
+the routine `active` Status row; pending activation or disabled lifecycle states
+use contextual warnings rather than presenting an editable status concept.
+
 ### Functional parity checklist
 
 The React application is accepted against this checklist, not against pixel
@@ -105,7 +123,7 @@ identity:
 | Reports | Async builder with type, dimensions, range, timezone, scope, output, freshness and expiry |
 | Team | Backend-defined display roles, capabilities, scope, invitations, member lifecycle and owner transfer |
 | Provisioning | CSV/source or compatibility JSON input, immutable validation, confirmation, execution, retry/cancel/result |
-| ChipSet & SDK | Published ChipSet cards, SDK versions, recommended release, supported models, endpoint links, stale/LKG state |
+| ChipSet & SDK | Portal Cloud Client cards for Android, iOS, JavaScript/TypeScript, Native and FreeRTOS/Pro2 plus the existing published ChipSet cards; show version, validation, checksum, WebRTC boundary, supported models, endpoint links, and independent source states |
 
 The mockup's sample counts and state buttons are visual examples only. Every
 production action shown in the mockup must either call a documented API or be
@@ -127,7 +145,7 @@ removed from the production UI.
 | Platform View: Operations Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Platform View: Audit Log | Yes | `admin-dashboard-redesign.md` | Required outside Customer View PNG batch |
 | Brand-cloud management UI | No | [platform-brand-cloud-management-design.md](platform-brand-cloud-management-design.md) plus backend/BFF contract | Platform View draft, outside Customer View |
-| ChipSet & SDK resource center | Yes | [chipset-sdk-information-provider-mock.html](assets/webui-design/chipset-sdk-information-provider-mock.html) | Developer read-only resource center; global published catalog |
+| ChipSet & SDK resource center | Yes | [chipset-sdk-information-provider-mock.html](assets/webui-design/chipset-sdk-information-provider-mock.html) plus this contract | Developer read-only resource center; separate global Portal and ChipSet catalogs on one page |
 | Brand Cloud members and settings | Yes | This document plus backend/BFF contracts | Implemented as addressable page tabs |
 | Groups and Tags | Yes | `brand-fleet-management-mock.html` | Implemented for large-fleet targeting |
 | Batch Jobs and Reports | Yes | `brand-fleet-management-mock.html` | Implemented asynchronous operations surfaces |
@@ -141,6 +159,9 @@ OTA workflow, and key non-ideal states.
 Open [`chipset-sdk-information-provider-mock.html`](assets/webui-design/chipset-sdk-information-provider-mock.html#%2Fdeveloper)
 to review the global Developer resource center, SDK version hierarchy,
 recommended release treatment, external endpoints, and stale/unavailable states.
+The production page extends that reference with a leading Cloud Client SDK
+section sourced from the Portal. It does not represent Android/iOS/JavaScript or
+Native packages as children of AmebaPro2.
 
 ### Known Asset Differences
 
@@ -356,6 +377,8 @@ route authorization independently chooses the first accessible cloud feature.
 Main header:
 
 - Page title at the top-left of the content area.
+- The shell title is the only occurrence of the selected Brand Cloud name as a
+  page heading; a feature content introduction must not repeat the cloud name.
 - Do not duplicate the sidebar cloud selector in the header. A compact cloud
   breadcrumb may identify scope but cannot change it.
 - Window controls where relevant, usually `7d` / `30d`.
@@ -367,6 +390,11 @@ Brand Cloud pages share one shell while remaining independently addressable.
 Overview includes fleet and team summaries when their sources and capabilities
 are available. Members & Access contains invitations, members, roles and scopes.
 Settings contains ownership transfer, deletion and low-frequency cloud controls.
+The Products introduction explains Product in business language before exposing
+fields: it usually represents a device model/SKU, or a group of SKUs sharing the
+same technical configuration. Devices, firmware, OTA behavior and cloud-service
+options are separated by Product; SKUs requiring different settings use separate
+Products so changes target only the intended fleet.
 
 ### Brand Cloud route contract
 
@@ -403,13 +431,17 @@ sidebar. The content responsibilities include:
   the current user's role.
 - **Members & Access:** members, pending invitations, available roles, and readable
   management scopes. The invitation form expands from an explicit action;
-  read-only users do not see write controls.
+  read-only users do not see write controls. Its introduction explains owner-only
+  admission, Admin/Member management roles, selected-Product versus whole-cloud
+  Viewer scope, future-Product inclusion, revocation, and excluded sensitive access.
 - **Billing:** the current sole owner's cloud-scoped balance, usage, invoices,
   activity, payment settings and profile. It never appears as a global account
   page or for a collaborator.
 - **Settings:** owner-transfer create/cancel for `team.manage`, owner-transfer token
   acceptance for every authenticated customer developer, and PKI test bundle
-  issuance for `pki.test.issue`.
+  issuance for `pki.test.issue`. Its summary labels Cloud name, Description,
+  Cloud ID, Tenant slug, Owner email, Owner ID and the current user's role; its
+  introduction explains rename stability, deletion checks and Billing handoff.
 
 The validated route/request cloud ID is the authority for that request's scope.
 The cloud selector navigates the current tab; it is not shared session state and

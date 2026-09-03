@@ -5,10 +5,11 @@ const shared='55555555-5555-4555-8555-555555555555';
 test('[UI-CA-PRODUCTS-101] scoped Product CRUD pagination viewer and revocation @smoke',async({page,context,request,baseURL},testInfo)=>{
  expect(new URL(baseURL).hostname).toBe('127.0.0.1');
  expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
- await page.goto('/console/clouds/'+cloudA);
+ await page.goto('/console/clouds/'+cloudA+'/settings');
+ await expect(page.getByRole('heading',{name:'Transfer ownership',exact:true})).toHaveCount(1);
+ await page.goto('/console/clouds/'+cloudA+'/products');
  const panel=page.getByTestId('cloud-products');
  await expect(panel.getByRole('navigation',{name:'Product pages'})).toContainText('27 authorized Products');
- await expect(page.getByRole('heading',{name:'Transfer ownership',exact:true})).toHaveCount(1);
  await panel.getByRole('combobox',{name:'Product status',exact:true}).selectOption('disabled');
  await expect(panel).toContainText('No Products in your authorized scope.');
  await expect(panel.getByRole('navigation',{name:'Product pages'})).toContainText('0 authorized Products');

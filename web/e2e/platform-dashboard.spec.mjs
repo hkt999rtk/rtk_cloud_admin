@@ -25,10 +25,10 @@ test('[UI-CA-DASH-001] platform admin can triage platform dashboard @smoke', asy
   await expect(page.locator('.platform-dashboard .fa-solid:visible').first()).toBeVisible();
   await expect(page.getByRole('link', { name: /View service health/ }).first()).toBeVisible();
 
-  await page.goto('/console/overview');
+  await page.goto('/console/clouds');
   await expect(page.getByRole('heading', { name: 'Platform admin cannot use the Brand Cloud console', exact: true })).toBeVisible();
-  await expect(page.getByText('Platform Overview', { exact: true })).toBeVisible();
-  await expect(page.getByText('Brand Cloud Home', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Brand Cloud view', exact: true })).toBeVisible();
+  await expect(page.getByText('E2E Alpha Cloud', { exact: true })).toHaveCount(0);
 });
 
 test('[UI-CA-DASH-002] dashboard shows degraded state when Prometheus fixture is unavailable', async ({ page }) => {
