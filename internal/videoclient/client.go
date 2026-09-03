@@ -30,6 +30,11 @@ type OTAResponse struct {
 	Header     http.Header
 }
 
+type OTAConfig struct {
+	SystemMaxRateLimitPerMinute int `json:"system_max_rate_limit_per_minute"`
+	DefaultRateLimitPerMinute   int `json:"default_rate_limit_per_minute"`
+}
+
 type OTACampaignRecord struct {
 	ID                  string `json:"campaign_id"`
 	ProductID           string `json:"product_id"`
@@ -341,6 +346,21 @@ func (c *Client) DoOTA(ctx context.Context, method, path, adminToken, brandCloud
 		return OTAResponse{}, err
 	}
 	return OTAResponse{StatusCode: resp.StatusCode, Body: raw, Header: resp.Header.Clone()}, nil
+}
+
+func (c *Client) OTAConfig(ctx context.Context, adminToken, brandCloudID string) (OTAConfig, error) {
+	response, err := c.DoOTA(ctx, http.MethodGet, "/v1/ota/config", adminToken, brandCloudID, "", nil)
+	if err != nil {
+		return OTAConfig{}, err
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return OTAConfig{}, HTTPStatusError{StatusCode: response.StatusCode, Body: string(response.Body)}
+	}
+	var config OTAConfig
+	if err := json.Unmarshal(response.Body, &config); err != nil {
+		return OTAConfig{}, err
+	}
+	return config, nil
 }
 
 func (c *Client) ListOTACampaigns(ctx context.Context, adminToken, brandCloudID, productID string) ([]OTACampaignRecord, error) {
