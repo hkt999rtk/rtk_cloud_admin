@@ -165,7 +165,7 @@ test('platform nav follows the unified shell group order', () => {
   assert.deepEqual(platformNavGroups.map((group) => group.labelKey), ['Platform Overview', 'Monitoring and Diagnostics', 'Organizations and Products', 'Operations and Audit']);
   assert.deepEqual(
     platformNavItems.map((item) => item.labelKey),
-    ['Platform Home', 'Grafana', 'Service Health', 'Service Logs', 'Brand Cloud Management', 'ChipSet & SDK Providers', 'SSO Providers', 'Operations Log', 'Audit Log'],
+    ['Platform Home', 'Grafana', 'Service Health', 'Service Logs', 'Brand Cloud Management', 'SSO Providers', 'Operations Log', 'Audit Log'],
   );
   assert.deepEqual(
     platformNavItems.map((item) => item.path),
