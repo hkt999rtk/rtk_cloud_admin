@@ -16,7 +16,11 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o /out/rtk-cloud-a
 FROM debian:bookworm-slim
 
 WORKDIR /app
-RUN useradd -r -u 10001 app && chown app:app /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -u 10001 app \
+    && chown app:app /app
 
 COPY --from=builder /out/rtk-cloud-admin /app/rtk-cloud-admin
 COPY --from=web /src/web/dist /app/web/dist
