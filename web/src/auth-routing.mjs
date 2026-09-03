@@ -62,6 +62,7 @@ export function destinationForSession(me, nextPath, rememberedCloudID = '') {
     // A handoff participant need not be a cloud member. The scoped BFF still
     // authorizes source/target identity before revealing any operation details.
     if (handoffRoute(pathname)) return next;
+    if (isGlobalDeveloperPath(pathname)) return next;
     if (pathname === '/console/clouds' || pathname === '/console/clouds/') return next;
     const scoped = pathname.match(/^\/console\/clouds\/([^/]+)(?:\/|$)/);
     if (scoped) return (me.memberships || []).some((m) => (m.organization_id || m.id) === scoped[1]) ? next : fallback;
@@ -91,4 +92,8 @@ function isAllowedConsolePath(pathname) {
 
 function isAllowedDeveloperInvitationPath(pathname) {
   return pathname === '/brand-cloud-member-invitation/accept' || pathname === handoffAcceptPath;
+}
+
+function isGlobalDeveloperPath(pathname) {
+  return pathname === '/console/chipset-sdk';
 }
