@@ -145,6 +145,144 @@ func TestBatchJobsPersistByOrganizationAndCanRetry(t *testing.T) {
 	}
 }
 
+func TestDurableBatchJobCASLeaseCheckpointAndItems(t *testing.T) {
+	st, err := Open(t.TempDir() + "/durable-jobs.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err = st.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	job, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "cloud-a", Type: "device_provision", CreatedBy: "owner@example.test", Scope: map[string]any{"product_id": "product-1"}, Total: 2, AuthorizationID: "grant-1", AuthorizationStatus: "active"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	paused, receipt, replay, err := st.ActBatchJob("cloud-a", job.ID, "pause", "action-1")
+	if err != nil || replay || paused.State != "paused" || receipt.FromState != "queued" {
+		t.Fatalf("pause=%+v receipt=%+v replay=%v err=%v", paused, receipt, replay, err)
+	}
+	_, same, replay, err := st.ActBatchJob("cloud-a", job.ID, "pause", "action-1")
+	if err != nil || !replay || same.StateVersion != receipt.StateVersion {
+		t.Fatalf("idempotent receipt=%+v replay=%v err=%v", same, replay, err)
+	}
+	if _, _, _, err = st.ActBatchJob("cloud-a", job.ID, "cancel", "action-1"); err == nil {
+		t.Fatal("same action key accepted a different action")
+	}
+	if _, _, _, err = st.ActBatchJob("cloud-a", job.ID, "resume", "action-2"); err != nil {
+		t.Fatal(err)
+	}
+	running, err := st.AcquireBatchJob("worker-1", time.Now().UTC(), time.Minute)
+	if err != nil || running.ID != job.ID || running.State != "running" {
+		t.Fatalf("acquired=%+v err=%v", running, err)
+	}
+	if _, _, _, err = st.ActBatchJob("cloud-a", job.ID, "pause", "action-3"); err != nil {
+		t.Fatal(err)
+	}
+	progress, err := st.UpdateBatchJobWorkerProgress("cloud-a", job.ID, "running", 1, 0, 0)
+	if err != nil || progress.State != "pausing" {
+		t.Fatalf("progress overwrote pausing: %+v err=%v", progress, err)
+	}
+	boundary, err := st.CompleteBatchJobBoundary("cloud-a", job.ID, "worker-1")
+	if err != nil || boundary.State != "paused" {
+		t.Fatalf("boundary=%+v err=%v", boundary, err)
+	}
+	if err = st.UpsertBatchJobItem(contracts.BatchJobItem{JobID: job.ID, ItemKey: "device-1", Position: 0, State: "completed", Attempt: 1, UpstreamOperationID: "operation-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = st.UpsertBatchJobItem(contracts.BatchJobItem{JobID: job.ID, ItemKey: "device-2", Position: 1, State: "failed", Attempt: 1, FailureCode: "UPSTREAM_TRANSIENT", Retryable: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = st.UpdateBatchJobProgress("cloud-a", job.ID, "partial_failed", 1, 1, 0); err != nil {
+		t.Fatal(err)
+	}
+	retryableJob, err := st.GetBatchJob("cloud-a", job.ID)
+	if err != nil || !retryableJob.Retryable || len(retryableJob.AllowedActions) != 1 || retryableJob.AllowedActions[0] != "retry" {
+		t.Fatalf("retryable job actions=%+v retryable=%v err=%v", retryableJob.AllowedActions, retryableJob.Retryable, err)
+	}
+	retryable := true
+	page, err := st.ListBatchJobItems("cloud-a", job.ID, "", &retryable, 100, 0)
+	if err != nil || page.Total != 1 || page.Items[0].ItemKey != "device-2" {
+		t.Fatalf("items=%+v err=%v", page, err)
+	}
+	if err = st.UpdateBatchJobCheckpoint("cloud-a", job.ID, map[string]any{"next_position": 1}); err != nil {
+		t.Fatal(err)
+	}
+	checkpoint, err := st.GetBatchJob("cloud-a", job.ID)
+	if err != nil || checkpoint.Checkpoint["next_position"] != float64(1) {
+		t.Fatalf("checkpoint=%+v err=%v", checkpoint.Checkpoint, err)
+	}
+	if err = st.UpdateBatchJobAuthorizationStatus("cloud-a", job.ID, "revocation_pending"); err != nil {
+		t.Fatal(err)
+	}
+	pending, err := st.ListPendingBatchJobRevocations(10)
+	if err != nil || len(pending) != 1 || pending[0].ID != job.ID {
+		t.Fatalf("pending revocations=%+v err=%v", pending, err)
+	}
+}
+
+func TestProvisioningJobDoesNotOfferRetryForPermanentFailures(t *testing.T) {
+	st, err := Open(t.TempDir() + "/permanent-failure.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err = st.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	job, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "cloud-a", Type: "provisioning_validation", State: "partial_failed", Total: 1, Failed: 1, AuthorizationID: "grant-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = st.UpsertBatchJobItem(contracts.BatchJobItem{JobID: job.ID, ItemKey: "device-1", State: "failed", FailureCode: "UPSTREAM_REJECTED", Retryable: false}); err != nil {
+		t.Fatal(err)
+	}
+	job, err = st.GetBatchJob("cloud-a", job.ID)
+	if err != nil || job.Retryable || len(job.AllowedActions) != 0 {
+		t.Fatalf("permanent failure exposed retry: job=%+v err=%v", job, err)
+	}
+}
+
+func TestRecoverBatchJobLeaseStopsAtItemBoundary(t *testing.T) {
+	st, err := Open(t.TempDir() + "/recovery.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err = st.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, state := range []string{"running", "pausing", "cancelling"} {
+		job, createErr := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "cloud-a", Type: "device_provision", State: state, Total: 3, Completed: 1, AuthorizationID: "grant-" + state})
+		if createErr != nil {
+			t.Fatal(createErr)
+		}
+		if _, err = st.db.Exec(`UPDATE batch_jobs SET lease_owner='dead-worker',lease_until=? WHERE id=?`, time.Now().Add(-time.Minute).UTC().Format(time.RFC3339Nano), job.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = st.RecoverBatchJobLeases(time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	var counts = map[string]int{}
+	rows, err := st.db.Query(`SELECT state,count(*) FROM batch_jobs GROUP BY state`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var state string
+		var count int
+		if err = rows.Scan(&state, &count); err != nil {
+			t.Fatal(err)
+		}
+		counts[state] = count
+	}
+	if counts["queued"] != 1 || counts["paused"] != 1 || counts["cancelled"] != 1 {
+		t.Fatalf("recovered states=%v", counts)
+	}
+}
+
 func TestMigrateTracksVersionsAndIsIdempotent(t *testing.T) {
 	t.Parallel()
 

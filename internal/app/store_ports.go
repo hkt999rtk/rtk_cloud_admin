@@ -38,6 +38,11 @@ type lifecycleOperationStore interface {
 }
 
 type batchJobStore interface {
+	CreateOTAScopePreview(preview contracts.OTAScopePreview) (contracts.OTAScopePreview, error)
+	GetOTAScopePreview(organizationID, id string) (contracts.OTAScopePreview, error)
+	CreateProvisioningSource(source contracts.ProvisioningSource, idempotencyKey string) (contracts.ProvisioningSource, error)
+	GetProvisioningSource(organizationID, id string) (contracts.ProvisioningSource, error)
+	GetProvisioningSourceByIdempotency(organizationID, key string) (contracts.ProvisioningSource, error)
 	CreateBatchJob(job contracts.BatchJob) (contracts.BatchJob, error)
 	GetBatchJobByIdempotency(organizationID, key string) (contracts.BatchJob, error)
 	ListBatchJobs(organizationID string, limit int) ([]contracts.BatchJob, error)
@@ -45,8 +50,22 @@ type batchJobStore interface {
 	GetBatchJob(organizationID, id string) (contracts.BatchJob, error)
 	UpdateBatchJobState(organizationID, id, state string) (contracts.BatchJob, error)
 	UpdateBatchJobProgress(organizationID, id, state string, completed, failed, skipped int) (contracts.BatchJob, error)
+	UpdateBatchJobWorkerProgress(organizationID, id, state string, completed, failed, skipped int) (contracts.BatchJob, error)
 	UpdateBatchJobScope(organizationID, id string, scope map[string]any) (contracts.BatchJob, error)
 	UpdateBatchJobResult(organizationID, id string, result []map[string]any) (contracts.BatchJob, error)
+	BindBatchJobAuthorization(organizationID, id, authorizationID string) (contracts.BatchJob, error)
+	RecoverBatchJobLeases(now time.Time) error
+	AcquireBatchJob(owner string, now time.Time, lease time.Duration) (contracts.BatchJob, error)
+	RenewBatchJobLease(organizationID, id, owner string, now time.Time, lease time.Duration) error
+	ReleaseBatchJobLease(organizationID, id, owner string) error
+	ActBatchJob(organizationID, id, action, key string) (contracts.BatchJob, store.BatchJobActionReceipt, bool, error)
+	CompleteBatchJobBoundary(organizationID, id, owner string) (contracts.BatchJob, error)
+	UpsertBatchJobItem(item contracts.BatchJobItem) error
+	ListBatchJobItems(organizationID, id, state string, retryable *bool, limit, offset int) (contracts.BatchJobItemPage, error)
+	UpdateBatchJobCheckpoint(organizationID, id string, checkpoint map[string]any) error
+	UpdateBatchJobAuthorizationStatus(organizationID, id, status string) error
+	ListPendingBatchJobRevocations(limit int) ([]contracts.BatchJob, error)
+	FailBatchJobAuthorization(organizationID, id string) error
 }
 
 var (

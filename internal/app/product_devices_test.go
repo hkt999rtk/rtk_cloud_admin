@@ -151,3 +151,43 @@ func TestProductDevicesExplicitScopeAndSafeDisplay(t *testing.T) {
 		t.Fatal("shared session scope was modified")
 	}
 }
+
+func TestFleetDeviceRouteUsesExplicitCloudWithoutChangingSession(t *testing.T) {
+	up, _ := newScopedProductsFixture(t)
+	st := mustOpenStore(t)
+	session, err := st.CreateSession("customer", "owner-1", "owner@example.test", "global", "", cloudB, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := NewWithOptions(st, Options{AccountClient: accountclient.New(up.URL)})
+	r := httptest.NewRequest(http.MethodGet, "/api/developer/brand-clouds/"+cloudA+"/fleet/devices?limit=25&product_id="+productA, nil)
+	r.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("scoped fleet status=%d body=%s", w.Code, w.Body.String())
+	}
+	var body struct {
+		Devices []struct {
+			OrganizationID string `json:"organization_id"`
+		} `json:"devices"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Devices) == 0 {
+		t.Fatal("scoped fleet returned no devices")
+	}
+	for _, device := range body.Devices {
+		if device.OrganizationID != cloudA {
+			t.Fatalf("device escaped explicit cloud: %q", device.OrganizationID)
+		}
+	}
+	current, err := st.GetSession(session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.ActiveOrgID != cloudB {
+		t.Fatalf("explicit scoped read mutated session: %q", current.ActiveOrgID)
+	}
+}

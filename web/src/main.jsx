@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
-import { CloudConsoleShell } from './CloudConsoleShell.jsx';
 import { productInvitationDestination } from './cloud-products.mjs';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
 import { handoffRoute } from './owner-handoff.mjs';
 import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
 import './cloud-billing.css';
-import { cloudAPI, cloudURL, managedCloudRoute, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
+import { cloudAPI, cloudURL, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
+import { cloudConsolePath, scopedCustomerAPI } from './cloud-scope.mjs';
+import { ProvisioningPage } from './ProvisioningPage.jsx';
 import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
@@ -17,15 +18,10 @@ import {
   billingSubpaths,
   canAccessCustomerRoute,
   canonicalCustomerPath,
-  cloudConsolePath,
-  cloudNavGroupsForCapabilities,
-  cloudRouteForSwitch,
-  cloudContextId,
   cloudIdFromPath,
   defaultBrandCloudRoute,
   isCustomerNavItemActive,
   navGroupsForCapabilities,
-  pageIconFor,
   devicesPathWithFilters,
   isPlatformRouteId,
   isPublicRouteId,
@@ -62,12 +58,6 @@ import {
   protectedPathFromLocation,
   removeQueryParameterFromAddress,
 } from './auth-routing.mjs';
-import {
-  forgetCloudPreference,
-  preferredCloudID,
-  readCloudPreference,
-  rememberCloudPreference,
-} from './cloud-preference.mjs';
 import { quotaRaiseErrorMessage, quotaUsageLabel } from './auth-state.mjs';
 import { canUseCapability, deviceActionState, isReadOnlyRole } from './device-actions.mjs';
 import {
@@ -127,7 +117,6 @@ import {
   providerValidationErrorMessage,
   vendorInitials,
 } from './chipset-sdk.mjs';
-import { formatSDKBytes, sdkArtifactFormat, sdkArtifacts, sdkDocumentationURL } from './sdk-catalog.mjs';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import '@fontsource-variable/noto-sans-tc';
 import './styles.css';
@@ -168,7 +157,7 @@ function brandCloudsURL({ query, status, tier, limit, offset }) {
   return `/api/admin/brand-clouds?${params.toString()}`;
 }
 
-function fleetDevicesURL(search = '', base = '/api') {
+function fleetDevicesURL(search = '') {
   const source = new URLSearchParams(search);
   const params = new URLSearchParams();
   for (const key of ['q', 'product_id', 'category', 'model', 'status', 'readiness', 'firmware', 'sort', 'direction', 'limit', 'offset']) {
@@ -183,7 +172,7 @@ function fleetDevicesURL(search = '', base = '/api') {
   }
   if (firmware) params.set('firmware', firmware);
   if (!params.has('limit')) params.set('limit', '100');
-  return `${base}/fleet/devices?${params.toString()}`;
+  return `/api/fleet/devices?${params.toString()}`;
 }
 
 
@@ -229,6 +218,8 @@ async function fetchBrandCloudAccessData(cloudId, { includeAssignments = false }
 }
 
 function App() {
+  const urlCloudId = cloudIdFromPath(window.location.pathname);
+  const apiPath = useCallback((path) => scopedCustomerAPI(path, urlCloudId), [urlCloudId]);
   const [active, setActive] = useState(routeFromLocation());
   const [me, setMe] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -247,7 +238,6 @@ function App() {
   const [platformGrafanaStatus, setPlatformGrafanaStatus] = useState(null);
   const [brandClouds, setBrandClouds] = useState([]);
   const [developerBrandClouds, setDeveloperBrandClouds] = useState([]);
-  const [activeCloudDetail, setActiveCloudDetail] = useState(null);
   const [brandCloudPagination, setBrandCloudPagination] = useState({ limit: 25, offset: 0, total: 0 });
   const [brandCloudQuery, setBrandCloudQuery] = useState('');
   const [brandCloudStatus, setBrandCloudStatus] = useState('all');
@@ -257,7 +247,6 @@ function App() {
   const [brandCloudDrawerMode, setBrandCloudDrawerMode] = useState('');
   const [ssoProviders, setSSOProviders] = useState([]);
   const [chipsets, setChipsets] = useState(null);
-  const [sdkCatalog, setSDKCatalog] = useState(null);
   const [chipsetProviders, setChipsetProviders] = useState(null);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [firmwareProductId, setFirmwareProductId] = useState(() => new URLSearchParams(window.location.search).get('product_id') || '');
@@ -283,10 +272,7 @@ function App() {
   const isPlatformView = isPlatformRouteId(active);
   const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept' || active === 'product-collaborator-invitation-accept';
   const navigationRoute = me?.kind === 'platform_admin' ? 'platform-dashboard' : me?.kind === 'customer' ? 'overview' : active;
-  const routeCloudId = cloudContextId(window.location.pathname, window.location.search);
-  const visibleNavGroups = me?.kind === 'customer'
-    ? cloudNavGroupsForCapabilities(routeCloudId, me?.capabilities, { isOwner: activeCloudDetail?.my_role === 'owner' && activeCloudDetail?.owner_user_id === me?.user_id })
-    : navGroupsForCapabilities(navigationRoute, me?.capabilities);
+  const visibleNavGroups = navGroupsForCapabilities(navigationRoute, me?.capabilities);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
   const brandCloudsBlocked = active === 'platform-brand-clouds' && me?.kind === 'platform_admin' && !me?.upstream_account_manager;
   const customerViewPending = !isPlatformView && !isPublicRoute && me === null;
@@ -322,14 +308,12 @@ function App() {
     setPlatformGrafanaStatus(null);
     setBrandClouds([]);
     setDeveloperBrandClouds([]);
-    setActiveCloudDetail(null);
     setBrandCloudPagination({ limit: 25, offset: 0, total: 0 });
     setBrandCloudSource({ status: 'idle', message: '' });
     setSelectedBrandCloudId('');
     setBrandCloudDrawerMode('');
     setSSOProviders([]);
     setChipsets(null);
-    setSDKCatalog(null);
     setChipsetProviders(null);
     setFirmwareDistribution(null);
     setFirmwareProductId('');
@@ -354,7 +338,7 @@ function App() {
 
         if (isLoginRoute) {
           if (nextMe.authenticated) {
-            window.location.replace(browserSessionDestination(nextMe, loginNextFromLocation(window.location)));
+            window.location.replace(destinationForSession(nextMe, loginNextFromLocation(window.location)));
             return;
           }
           clearDashboardState();
@@ -379,28 +363,27 @@ function App() {
           return;
         }
 
-        const requestedCloudId = cloudContextId(window.location.pathname, window.location.search);
-        const isGlobalDeveloperRoute = active === 'chipset-sdk';
-        if (nextMe.kind === 'customer' && !requestedCloudId && !isGlobalDeveloperRoute) {
-          window.location.replace('/console/clouds');
+        const requestedCloudId = cloudIdFromPath(window.location.pathname);
+        if (nextMe.kind === 'customer' && requestedCloudId && window.location.pathname.startsWith('/console/clouds/')) {
+          const scopedCloud = await fetchJSON(cloudAPI(requestedCloudId));
+          nextMe = {
+            ...nextMe,
+            active_org_id: requestedCloudId,
+            active_organization: scopedCloud.brand_cloud,
+            capabilities: scopedCloud.brand_cloud?.capabilities || [],
+          };
+          if (!alive) return;
+          setMe(nextMe);
+        } else if (nextMe.kind === 'customer' && requestedCloudId && requestedCloudId !== nextMe.active_org_id) {
+          const switchResponse = await fetch('/api/me/active-org', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ organization_id: requestedCloudId }) });
+          if (!switchResponse.ok) {
+            setError('Access forbidden: This Brand Cloud is not available to the signed-in developer.');
+            setLoading(false);
+            return;
+          }
+          window.location.reload();
           return;
         }
-        if (nextMe.kind === 'customer' && requestedCloudId) {
-          const detail = await fetchJSON(cloudAPI(requestedCloudId));
-          if (!alive) return;
-          const cloud = detail.brand_cloud;
-          if (cloud?.id === requestedCloudId) rememberCloudPreference(requestedCloudId);
-          setActiveCloudDetail(cloud);
-          nextMe = { ...nextMe, active_org_id: requestedCloudId, capabilities: cloud.capabilities || [] };
-        } else {
-          setActiveCloudDetail(null);
-        }
-        setMe(nextMe);
-        const customerCapabilities = new Set(nextMe.capabilities || []);
-        const canReadFleet = ['fleet.read', 'customer.devices.read'].some((capability) => customerCapabilities.has(capability));
-        const canReadProducts = ['product.read', 'registry_device.read'].some((capability) => customerCapabilities.has(capability));
-        const canReadReports = ['reports.read', 'report.read', 'customer.reports.read'].some((capability) => customerCapabilities.has(capability));
-        const canReadStream = ['customer.stream.read', 'fleet.read'].some((capability) => customerCapabilities.has(capability));
 
         if (!isMemberInvitationAccept && !isPlatformView && nextMe.kind === 'customer' && !canAccessCustomerRoute(active, nextMe.capabilities)) {
           setBilling(null);
@@ -409,7 +392,7 @@ function App() {
         }
 
         if (nextMe.kind === 'customer') {
-          const developerCloudResult = await fetchJSON('/api/developer/brand-clouds?view=all&limit=100&offset=0').catch((err) => {
+          const developerCloudResult = await fetchJSON('/api/developer/brand-clouds').catch((err) => {
             if (err.isAuthError) throw err;
             return { brand_clouds: [] };
           });
@@ -419,11 +402,7 @@ function App() {
           setDeveloperBrandClouds([]);
         }
 
-        // The global ChipSet catalog remains outside Brand Cloud scope. Every
-        // cloud-owned feature uses the explicit cloud BFF prefix above; only
-        // this compatibility route falls back to the global developer APIs.
-        const customerPrefix = requestedCloudId ? cloudAPI(requestedCloudId) : '/api';
-        const prefix = useAdminApi ? '/api/admin' : customerPrefix;
+        const prefix = useAdminApi ? '/api/admin' : '/api';
         const baseRequests = useAdminApi
           ? [
               fetchJSON(`${prefix}/summary`),
@@ -435,9 +414,9 @@ function App() {
               fetchJSON(`${prefix}/platform-dashboard`),
             ]
           : [
-              canReadFleet ? fetchJSON(`${prefix}/summary`) : Promise.resolve({ customers: 1, total_devices: 0 }),
+              fetchJSON(apiPath('/api/fleet/summary')),
               Promise.resolve([]),
-              canReadFleet ? fetchJSON(`${prefix}/fleet/devices?limit=100`).then((page) => page.devices || []) : Promise.resolve([]),
+              fetchJSON(apiPath('/api/fleet/devices?limit=100')).then((page) => page.devices || []),
               Promise.resolve([]),
               Promise.resolve([]),
               Promise.resolve([]),
@@ -446,8 +425,8 @@ function App() {
         const [nextSummary, nextCustomers, nextDevices, nextOperations, nextHealth, nextAudit, nextPlatformDashboard] = await Promise.all(baseRequests);
         if (!alive) return;
         setSummary(nextSummary);
-        if (active === 'overview' && nextMe.kind !== 'platform_admin' && canReadFleet) {
-          const nextFleetSummary = await fetchJSON(`${customerPrefix}/fleet/summary`).catch((err) => {
+        if (active === 'overview' && nextMe.kind !== 'platform_admin') {
+          const nextFleetSummary = await fetchJSON(apiPath('/api/fleet/summary')).catch((err) => {
             if (err.isAuthError) throw err;
             return { source_status: 'unavailable', source_message: translate('Fleet statistics are temporarily unavailable.') };
           });
@@ -458,8 +437,8 @@ function App() {
         }
         setCustomers(nextCustomers);
         setDevices(nextDevices);
-        if (active === 'devices' && nextMe.kind !== 'platform_admin' && canReadFleet) {
-          const nextFleetDevices = await fetchJSON(fleetDevicesURL(window.location.search, customerPrefix)).catch((err) => {
+        if (active === 'devices' && nextMe.kind !== 'platform_admin') {
+          const nextFleetDevices = await fetchJSON(apiPath(fleetDevicesURL(window.location.search))).catch((err) => {
             if (err.isAuthError) throw err;
             return { devices: [], pagination: { limit: 100, offset: 0, total: 0 }, source_status: 'unavailable', source_message: translate('The device query service is temporarily unavailable.') };
           });
@@ -481,16 +460,7 @@ function App() {
         } else {
           setServiceLogs(null);
         }
-        if (!useAdminApi && active === 'audit') {
-          const nextCloudAudit = await fetchJSON(`${customerPrefix}/audit`).catch((err) => {
-            if (err.isAuthError) throw err;
-            return [];
-          });
-          if (!alive) return;
-          setAudit(nextCloudAudit);
-        } else {
-          setAudit(nextAudit);
-        }
+        setAudit(nextAudit);
         setPlatformDashboard(nextPlatformDashboard);
         if (useAdminApi && active === 'platform-grafana') {
           const nextGrafanaStatus = await fetchJSON('/api/admin/grafana/status').catch((err) => {
@@ -559,25 +529,17 @@ function App() {
           setChipsetProviders(null);
         }
         if (!useAdminApi && active === 'chipset-sdk' && nextMe.kind === 'customer') {
-          const [result, releaseResult] = await Promise.all([
-            fetchJSON('/api/developer/chipsets').catch((err) => {
-              if (err.isAuthError) throw err;
-              return { chipsets: [], source_status: 'unavailable', source_message: 'ChipSet resources are unavailable.' };
-            }),
-            fetchJSON('/api/developer/sdk-releases/latest').catch((err) => {
-              if (err.isAuthError) throw err;
-              return { catalog: null, source_status: err.status === 503 ? 'unpublished' : 'unavailable', source_message: err.status === 503 ? 'No Cloud Client SDK release has been published yet.' : 'Cloud Client SDKs are temporarily unavailable.' };
-            }),
-          ]);
+          const result = await fetchJSON('/api/developer/chipsets').catch((err) => {
+            if (err.isAuthError) throw err;
+            return { chipsets: [], source_status: 'unavailable', source_message: 'ChipSet resources are unavailable.' };
+          });
           if (!alive) return;
           setChipsets(result);
-          setSDKCatalog(releaseResult);
         } else {
           setChipsets(null);
-          setSDKCatalog(null);
         }
         if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin' && firmwareProductId) {
-          const nextFirmwareDistribution = await fetchJSON(`${customerPrefix}/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`)
+          const nextFirmwareDistribution = await fetchJSON(apiPath(`/api/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`))
             .catch((err) => {
               if (err.isAuthError) throw err;
               return sourceUnavailableFromError('firmware', err);
@@ -588,8 +550,8 @@ function App() {
           setFirmwareDistribution(null);
         }
 
-        if (['product-services', 'firmware-ota', 'reports', 'analytics'].includes(active) && nextMe.kind !== 'platform_admin' && canReadProducts) {
-          const nextProducts = await fetchJSON(`${customerPrefix}/products?limit=100&offset=0`).catch((err) => {
+        if (['product-services', 'firmware-ota', 'reports', 'provisioning'].includes(active) && nextMe.kind !== 'platform_admin') {
+          const nextProducts = await fetchJSON(apiPath('/api/products')).catch((err) => {
             if (err.isAuthError) throw err;
             return { products: [], source_status: 'unavailable', source_message: translate('Product data is temporarily unavailable.') };
           });
@@ -597,7 +559,7 @@ function App() {
           setProducts(nextProducts);
           if (active === 'firmware-ota' && firmwareProductId && nextProducts?.products?.some((product) => product.id === firmwareProductId)) {
             const selectedProduct = nextProducts.products.find((product) => product.id === firmwareProductId);
-            const releaseResult = await fetchJSON(`${customerPrefix}/products/${encodeURIComponent(firmwareProductId)}/releases`).catch((err) => {
+            const releaseResult = await fetchJSON(apiPath(`/api/products/${encodeURIComponent(firmwareProductId)}/releases`)).catch((err) => {
               if (err.isAuthError) throw err;
               return { items: [], releases: [] };
             });
@@ -610,24 +572,15 @@ function App() {
           setProducts(null);
           setReleases([]);
         }
-        if (['reports', 'analytics'].includes(active) && nextMe.kind !== 'platform_admin' && canReadReports) {
-          const endpoint = `${customerPrefix}/reports`;
-          const result = await fetchJSON(endpoint).catch((err) => {
-            if (err.isAuthError) throw err;
-            return { reports: [], source_status: 'unavailable', source_message: translate('Data is temporarily unavailable.') };
-          });
-          if (!alive) return;
-          setReports(result);
-          setGroups(null);
-        } else if (active === 'groups' && nextMe.kind !== 'platform_admin') {
-          const endpoint = active === 'groups' ? `${customerPrefix}/groups` : `${customerPrefix}/reports`;
+        if (['reports', 'groups'].includes(active) && nextMe.kind !== 'platform_admin') {
+          const endpoint = apiPath(active === 'reports' ? '/api/reports' : '/api/groups');
           const result = await fetchJSON(endpoint).catch((err) => {
             if (err.isAuthError) throw err;
             return { [active]: [], source_status: 'unavailable', source_message: translate('Data is temporarily unavailable.') };
           });
           if (!alive) return;
-          setGroups(result);
-          setReports(null);
+          if (active === 'reports') setReports(result);
+          else setGroups(result);
         } else {
           setReports(null);
           setGroups(null);
@@ -646,24 +599,24 @@ function App() {
         setBilling(null);
 
         if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
-          const streamWindowToUse = active === 'stream-health' || active === 'analytics' ? streamWindow : overviewWindow;
+          const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
           const [nextFleetHealth, nextStreamStats] = await Promise.all([
-            canReadFleet ? fetchJSON(`${customerPrefix}/fleet/health-summary?window=${overviewWindow}`)
+            fetchJSON(apiPath(`/api/fleet/health-summary?window=${overviewWindow}`))
               .catch((err) => {
                 if (err.isAuthError) throw err;
                 return sourceUnavailableFromError('telemetry', err);
-              }) : Promise.resolve(sourceUnavailableFromError('telemetry', new Error('Capability unavailable'))),
-            canReadStream ? fetchJSON(`${customerPrefix}/fleet/stream-stats?window=${streamWindowToUse}`)
+              }),
+            fetchJSON(apiPath(`/api/fleet/stream-stats?window=${streamWindowToUse}`))
               .catch((err) => {
                 if (err.isAuthError) throw err;
                 return sourceUnavailableFromError('stream', err);
-              }) : Promise.resolve(sourceUnavailableFromError('stream', new Error('Capability unavailable'))),
+              }),
           ]);
           if (!alive) return;
           setFleetHealth(nextFleetHealth);
           setStreamStats(nextStreamStats);
           if (active === 'overview' && sourceAvailable(nextFleetHealth)) {
-            const nextAlerts = await fetchRecentAlerts(nextDevices, customerPrefix);
+            const nextAlerts = await fetchRecentAlerts(nextDevices, requestedCloudId);
             if (!alive) return;
             setRecentAlerts(nextAlerts);
           } else {
@@ -705,13 +658,7 @@ function App() {
           setStreamStats(null);
           setRecentAlerts([]);
         }
-        if (alive) {
-          if (!isPlatformView && [403, 404].includes(err.status) && cloudIdFromPath(window.location.pathname)) {
-            setError('Access forbidden: This Brand Cloud is not available to the signed-in developer.');
-          } else {
-            setError(active === 'platform-brand-clouds' ? userFacingBrandCloudError(err) : 'The requested data could not be loaded. Please try again.');
-          }
-        }
+        if (alive) setError(active === 'platform-brand-clouds' ? userFacingBrandCloudError(err) : 'The requested data could not be loaded. Please try again.');
       } finally {
         if (alive) setLoading(false);
       }
@@ -720,7 +667,7 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, brandCloudPagination.limit, brandCloudPagination.offset, brandCloudQuery, brandCloudStatus, brandCloudTierFilter, firmwareProductId, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
+  }, [active, apiPath, brandCloudPagination.limit, brandCloudPagination.offset, brandCloudQuery, brandCloudStatus, brandCloudTierFilter, firmwareProductId, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
 
   useEffect(() => {
     if (!isPublicRoute || isLoginRoute) return;
@@ -802,26 +749,11 @@ function App() {
     };
   }, [mobileNavOpen]);
 
-  function pathForNavigationItem(item) {
-    const cloudId = me?.kind === 'customer' ? cloudContextId(window.location.pathname, window.location.search) : '';
-    if (item.id === 'my-clouds' && cloudId) return cloudConsolePath(cloudId, item.id);
-    if (item.global) return cloudConsolePath(cloudId, item.id);
-    if (me?.kind === 'platform_admin') return item.path;
-    const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
-    return cloudConsolePath(cloudId, targetRoute);
-  }
-
   function navigate(item) {
-    const path = pathForNavigationItem(item);
-    if (item.global || me?.kind === 'platform_admin') {
-      window.location.assign(path);
-      return;
-    }
+    const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
-    if (['product-services', 'access', 'settings', 'billing'].includes(targetRoute)) {
-      window.location.assign(path);
-      return;
-    }
+    const targetPath = targetRoute === item.id ? item.path : `/console/${targetRoute}`;
+    const path = cloudId ? cloudConsolePath(cloudId, targetRoute) : targetPath;
     window.history.pushState({}, '', path);
     if (targetRoute === 'firmware-ota') {
       setFirmwareDistribution(null);
@@ -832,8 +764,8 @@ function App() {
   }
 
   function selectFirmwareProduct(productID) {
-    const cloudId = me?.kind === 'customer' ? cloudIdFromPath(window.location.pathname) : '';
-    const path = cloudConsolePath(cloudId, 'firmware-ota');
+    const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
+    const path = cloudId ? cloudConsolePath(cloudId, 'firmware-ota') : '/console/firmware-ota';
     const params = new URLSearchParams();
     if (productID) params.set('product_id', productID);
     window.history.pushState({}, '', `${path}${params.size ? `?${params.toString()}` : ''}`);
@@ -842,8 +774,10 @@ function App() {
   }
 
   function navigateBrandCloudTab(targetRoute) {
-    const cloudId = me?.kind === 'customer' ? cloudIdFromPath(window.location.pathname) : '';
-    window.location.assign(cloudConsolePath(cloudId, targetRoute));
+    const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
+    const path = cloudId ? cloudConsolePath(cloudId, targetRoute) : `/console/${targetRoute}`;
+    window.history.pushState({}, '', path);
+    setActive(targetRoute);
   }
 
   function selectDevice(deviceId) {
@@ -871,16 +805,14 @@ function App() {
   }
 
   const refreshFirmwareStatus = useCallback(async () => {
-    const cloudId = cloudIdFromPath(window.location.pathname);
-    const suffix = firmwareProductId ? `?product_id=${encodeURIComponent(firmwareProductId)}` : '';
-    const next = await fetchJSON(`${cloudAPI(cloudId)}/fleet/firmware-distribution${suffix}`).catch((err) => sourceUnavailableFromError('firmware', err));
+    const next = await fetchJSON(apiPath('/api/fleet/firmware-distribution')).catch((err) => sourceUnavailableFromError('firmware', err));
     setFirmwareDistribution(next);
     return next;
-  }, [firmwareProductId]);
+  }, [apiPath]);
 
   async function runDeviceAction(deviceId, action) {
     setError('');
-    const response = await fetch(`${cloudAPI(cloudIdFromPath(window.location.pathname))}/fleet/devices/${encodeURIComponent(deviceId)}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `device-${action}-${deviceId}-${Date.now()}` } });
+    const response = await fetch(apiPath(`/api/devices/${deviceId}/${action}`), { method: 'POST', headers: { 'Idempotency-Key': `device-${action}-${deviceId}-${Date.now()}` } });
     if (!response.ok) {
       setError(`${action} failed with ${response.status}`);
       return;
@@ -892,7 +824,7 @@ function App() {
 
   async function runUpdatePlanAction(campaignId, action, payload = {}) {
     setError('');
-    const response = await fetch(`${cloudAPI(cloudIdFromPath(window.location.pathname))}/update-plans/${encodeURIComponent(campaignId)}/${action}`, {
+    const response = await fetch(apiPath(`/api/update-plans/${encodeURIComponent(campaignId)}/${action}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `ui-${campaignId}-${action}-${Date.now()}` },
       body: JSON.stringify({ reason: 'Executed by an operator in Fleet Management', ...payload }),
@@ -1015,9 +947,8 @@ function App() {
     setError('');
     const nextPath = loginNextFromLocation(window.location);
     try {
-      await postJSON('/api/auth/login', { ...credentials, next: nextPath });
-      const session = await fetchJSON('/api/me');
-      window.location.assign(browserSessionDestination(session, nextPath));
+      const result = await postJSON('/api/auth/login', { ...credentials, next: nextPath });
+      window.location.assign(destinationForSession({ authenticated: true, kind: result.kind }, nextPath));
     } catch (err) {
       if (err?.status === 401 || /invalid credentials/i.test(err?.message || '')) throw new Error('Email or password is incorrect.');
       if (err?.status === 403) throw new Error('This account does not have access to an available view.');
@@ -1029,8 +960,7 @@ function App() {
     setError('');
     try {
       const result = await postJSON('/api/auth/login/activate', { token });
-      const session = await fetchJSON('/api/me');
-      window.location.assign(browserSessionDestination(session, loginNextFromLocation(window.location)));
+      window.location.assign(destinationForSession({ authenticated: true, kind: result.kind || 'customer' }, loginNextFromLocation(window.location)));
       return result;
     } catch (err) {
       const nextError = userFacingLoginActivationError(err);
@@ -1073,8 +1003,7 @@ function App() {
     try {
       const result = await postJSON('/api/auth/customer/verify-email', payload);
       if (result.tokens?.access_token) {
-        const session = await fetchJSON('/api/me');
-        window.location.assign(browserSessionDestination(session, loginNextFromLocation(window.location)));
+        window.location.assign(destinationForSession({ authenticated: true, kind: result.kind || 'customer' }, loginNextFromLocation(window.location)));
       }
       return result;
     } catch (err) {
@@ -1128,16 +1057,33 @@ function App() {
   }
 
   async function handleSwitchOrg(orgId) {
-    const target = developerBrandClouds.find((cloud) => (cloud.id || cloud.organization_id) === orgId)
-      || me?.memberships?.find((cloud) => (cloud.id || cloud.organization_id) === orgId);
-    window.location.assign(cloudRouteForSwitch(target || { id: orgId }, active, me?.user_id));
+    setError('');
+    if (window.location.pathname.startsWith('/console/clouds/')) {
+      window.location.assign(cloudConsolePath(orgId, active));
+      return;
+    }
+    const response = await fetch('/api/me/active-org', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ organization_id: orgId }),
+    });
+    if (!response.ok) {
+      setError(`Brand Cloud switch failed with ${response.status}; current Cloud is unchanged.`);
+      return;
+    }
+    clearDashboardState();
+    setSelectedDeviceId('');
+    setDeviceDrawerOpen(false);
+    const suffix = window.location.pathname.match(/^\/console\/(?:[^/]+\/)?(.+)$/)?.[1] || 'overview';
+    window.history.replaceState({}, '', `/console/${encodeURIComponent(orgId)}/${suffix}`);
+    setRefreshTick((tick) => tick + 1);
   }
 
   async function handleSwitchView(view) {
 	setError('');
 	try {
 	  const result = await postJSON('/api/me/view', { view });
-	  window.location.assign(result.kind === 'platform_admin' ? '/admin' : '/console/clouds');
+	  window.location.assign(result.kind === 'platform_admin' ? '/admin' : '/console');
 	} catch (err) {
 	  setError(err?.message || 'View switch failed.');
 	}
@@ -1163,15 +1109,14 @@ function App() {
     return brandClouds.find((brand) => brand.id === selectedBrandCloudId) || null;
   }, [brandClouds, selectedBrandCloudId]);
   const activeBrandCloud = useMemo(() => {
-    const cloudId = cloudIdFromPath(window.location.pathname);
-    const cloud = activeCloudDetail || developerBrandClouds.find((candidate) => (candidate.id || candidate.organization_id) === cloudId);
+    const cloudId = me?.active_org_id;
+    const cloud = developerBrandClouds.find((candidate) => (candidate.id || candidate.organization_id) === cloudId);
     const membership = (me?.memberships || []).find((candidate) => candidate.organization_id === cloudId || candidate.id === cloudId);
     return {
       id: cloudId || cloud?.id || membership?.organization_id || '',
       name: cloud?.name || cloud?.organization || membership?.organization || membership?.name || 'Brand Cloud',
-      ...cloud,
     };
-  }, [activeCloudDetail, developerBrandClouds, me]);
+  }, [developerBrandClouds, me]);
 
   if (isPublicRoute) {
     if (isAuthEntryRoute) {
@@ -1218,7 +1163,7 @@ function App() {
         >
           <Icon name="bars" />
         </button>
-        <PageHeading icon={pageIconFor(active)}>{titleFor(active)}</PageHeading>
+        <h1>{titleFor(active)}</h1>
         <span className="mobile-appbar-mark" aria-hidden="true">C+</span>
       </header>
       <button
@@ -1242,12 +1187,13 @@ function App() {
           </button>
         </div>
         <nav className="sidebar-nav-groups">
+          <a href="/console/clouds">My Clouds</a>
           {visibleNavGroups.map((group) => <section className="sidebar-nav-group" key={group.id}>
             <p className="sidebar-section-label">{translate(group.labelKey)}</p>
-            {group.items.map((item) => <a key={item.id} className={isCustomerNavItemActive(item, active) ? 'active' : ''} aria-current={isCustomerNavItemActive(item, active) ? 'page' : undefined} href={pathForNavigationItem(item)} onClick={(event) => { event.preventDefault(); navigate(item); }}>
+            {group.items.map((item) => <button type="button" key={item.id} className={isCustomerNavItemActive(item, active) ? 'active' : ''} onClick={() => navigate(item)}>
               {item.icon ? <Icon name={item.icon} /> : null}
               {translate(item.labelKey)}
-            </a>)}
+            </button>)}
           </section>)}
         </nav>
         <div className="sidebar-account">
@@ -1263,18 +1209,18 @@ function App() {
       <main>
         <header className="topbar">
           <div className="topbar-title">
-            <PageHeading icon={pageIconFor(active)}>{titleFor(active)}</PageHeading>
+            <h1>{titleFor(active)}</h1>
           </div>
           <div className="topbar-controls">
-			{me?.authenticated && me?.kind === 'customer' && (me?.platform_capabilities?.length ?? 0) > 0 ? <button type="button" className="ghost-button view-switch-button" onClick={() => handleSwitchView('platform')}>Platform view</button> : null}
-			{me?.authenticated && me?.kind === 'platform_admin' && (me?.memberships?.length ?? 0) > 0 ? <button type="button" className="ghost-button view-switch-button" onClick={() => handleSwitchView('customer')}>Brand Cloud view</button> : null}
+			{me?.authenticated && me?.kind === 'customer' && (me?.platform_capabilities?.length ?? 0) > 0 ? <button type="button" className="ghost-button" onClick={() => handleSwitchView('platform')}>Platform view</button> : null}
+			{me?.authenticated && me?.kind === 'platform_admin' && (me?.memberships?.length ?? 0) > 0 ? <button type="button" className="ghost-button" onClick={() => handleSwitchView('customer')}>Brand Cloud view</button> : null}
 			{me?.authenticated && me?.kind === 'platform_admin' ? <span className="topbar-context-badge"><Icon name="shield-halved" />Platform Admin</span> : null}
             {me?.kind === 'customer' && (developerBrandClouds.length > 1 || (me?.memberships?.length ?? 0) > 1) ? (
               <select
                 className="org-switcher"
                 value={me.active_org_id || ''}
                 onChange={(e) => handleSwitchOrg(e.target.value)}
-                aria-label="Brand Cloud"
+                aria-label="Active organization"
               >
                 {(developerBrandClouds.length ? developerBrandClouds : (me.memberships || [])).map((m) => (
                   <option key={m.id || m.organization_id} value={m.id || m.organization_id}>{m.name || m.organization}</option>
@@ -1330,10 +1276,11 @@ function App() {
             onAction={runDeviceAction}
           />
         ) : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'provisioning' ? <ProvisioningPage products={products?.products || []} canCreate={canUseCapability(me, 'provisioning.create')} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'product-services' ? (
           <ProductsPage loading={loading} data={products} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
         ) : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? <DeveloperChipsetResources data={chipsets} sdkRelease={sdkCatalog} loading={loading} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? <DeveloperChipsetResources data={chipsets} loading={loading} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'firmware-ota' ? (
           <FirmwareOTAPage
             loading={loading}
@@ -1361,19 +1308,7 @@ function App() {
           />
         ) : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} products={products?.products || []} loading={loading} canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'reports.create')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'analytics' ? <>
-          <StreamHealthPage
-            devices={devices}
-            loading={loading}
-            stats={streamStats}
-            streamWindow={streamWindow}
-            setWindow={setStreamWindow}
-            onOpenDevice={selectDevice}
-          />
-          <ReportsPage data={reports} products={products?.products || []} loading={loading} canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'reports.create')} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
-        </> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'audit' ? <AuditLog audit={audit} loading={loading} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <section className="panel"><h2>Select a cloud for Billing</h2><p>Billing is scoped to the cloud URL, not the shared active-cloud session.</p><a href="/console/clouds">Open My Clouds</a></section> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
@@ -1483,7 +1418,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
             <img src="/assets/realtek-logo.png" alt="Realtek" />
             <strong>Connect+</strong>
           </div>
-          <PageHeading id="login-title" icon={pageIconFor(active === 'reset-password' ? 'reset-password' : 'login')}>{pageHeading}</PageHeading>
+          <h1 id="login-title">{pageHeading}</h1>
           <p className="login-copy">{pageCopy}</p>
           {content}
           {error ? <div className="error">{error}</div> : null}
@@ -1552,8 +1487,8 @@ function LoginPasswordForm({ initialEmail = '', onPasswordLogin, disabled }) {
         Password
         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required />
       </label>
-      <button type="submit" disabled={busy || disabled}><Icon name="right-to-bracket" />{busy ? 'Signing in' : 'Sign in'}</button>
-      <a className="auth-link icon-text" href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}><Icon name="key" />Forgot password?</a>
+      <button type="submit" disabled={busy || disabled}>{busy ? 'Signing in' : 'Sign in'}</button>
+      <a className="auth-link" href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}>Forgot password?</a>
       {localError ? <p className="error">{localError}</p> : null}
     </form>
   );
@@ -1565,7 +1500,7 @@ function LoginCheckEmail({ email }) {
       <p>Check your email for a sign-in link.</p>
       <p className="auth-status">If an eligible account exists, the link will activate this browser session.</p>
       {email ? <p className="auth-meta">{email}</p> : null}
-      <a className="auth-link icon-text" href="/login"><Icon name="arrow-left" />Back to sign in</a>
+      <a className="auth-link" href="/login">Back to sign in</a>
     </div>
   );
 }
@@ -1606,7 +1541,7 @@ function LoginActivateView({ token, onLoginActivate }) {
     <div className="auth-stack">
       <form className="auth-inline" onSubmit={submit}>
         <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Sign-in token" required />
-        <button type="submit" disabled={busy}><Icon name="right-to-bracket" />{busy ? 'Activating' : 'Activate'}</button>
+        <button type="submit" disabled={busy}>{busy ? 'Activating' : 'Activate'}</button>
       </form>
       <p className="auth-status">{status}</p>
       {error ? <p className="error">{error}</p> : null}
@@ -1639,10 +1574,10 @@ function ForgotPasswordView({ email, onForgotPassword }) {
         Email
         <input type="email" value={value} onChange={(event) => setValue(event.target.value)} placeholder="name@company.com" required />
       </label>
-      <button type="submit" disabled={busy}><Icon name="paper-plane" />{busy ? 'Sending' : 'Send reset link'}</button>
+      <button type="submit" disabled={busy}>{busy ? 'Sending' : 'Send reset link'}</button>
       {status ? <p className="auth-status">{status}</p> : null}
       {error ? <p className="error">{error}</p> : null}
-      <a className="auth-link icon-text" href="/login"><Icon name="arrow-left" />Back to sign in</a>
+      <a className="auth-link" href="/login">Back to sign in</a>
     </form>
   );
 }
@@ -1737,9 +1672,9 @@ function ResetPasswordView({ token, email, onResetPassword }) {
       </label>
       <p className="password-requirement">Use at least 8 characters.</p>
       {passwordsDoNotMatch ? <p className="field-error" role="alert">Passwords do not match.</p> : null}
-      <button type="submit" disabled={busy || passwordsDoNotMatch}><Icon name="lock" />{busy ? 'Updating password' : 'Update password'}</button>
+      <button type="submit" disabled={busy || passwordsDoNotMatch}>{busy ? 'Updating password' : 'Update password'}</button>
       {error && !passwordsDoNotMatch ? <p className="error">{error}</p> : null}
-      <a className="auth-link icon-text" href="/login"><Icon name="arrow-left" />Back to sign in</a>
+      <a className="auth-link" href="/login">Back to sign in</a>
     </form>
   );
 }
@@ -1753,7 +1688,7 @@ function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify
     <div className="public-auth-shell">
       <section className="auth-hero">
         <p className="eyebrow">Evaluation tier access</p>
-        <PageHeading icon={pageIconFor(active)}>{titleFor(active)}</PageHeading>
+        <h1>{titleFor(active)}</h1>
         <p>Self-service signup and verification for the public evaluation tier.</p>
       </section>
       <section className="panel auth-panel">
@@ -1804,7 +1739,7 @@ function SignupForm({ onSignup, disabled = false }) {
         Leave this field empty
         <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
       </label>
-      <button type="submit" disabled={busy || disabled || !!honeypot}><Icon name="user-plus" />Create account</button>
+      <button type="submit" disabled={busy || disabled || !!honeypot}>Create account</button>
       {error ? <p className="error">{error}</p> : null}
     </form>
   );
@@ -1839,7 +1774,7 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
       <p>We sent a verification link to {email || 'your email address'}.</p>
       <form className="auth-inline" onSubmit={resend}>
         <input type="email" value={resendEmail} onChange={(event) => setResendEmail(event.target.value)} placeholder="Email address" required />
-        <button type="submit" disabled={busy}><Icon name="rotate" />Resend</button>
+        <button type="submit" disabled={busy}>Resend</button>
       </form>
       {status ? <p className="auth-status">{status}</p> : null}
       {error ? <p className="error">{error}</p> : null}
@@ -1850,7 +1785,7 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
 function ExpiredVerificationPage() {
   return (
     <div className="auth-stack expired-verification-page">
-      <h2 className="heading-with-icon"><Icon name="clock-rotate-left" />Verification link expired</h2>
+      <h2>Verification link expired</h2>
       <p>Your account was not verified. Start Sign Up again to receive a new verification email.</p>
       <a className="primary-button auth-primary-link" href="/signup">Sign up again</a>
       <a className="auth-link" href="/login">Back to Login</a>
@@ -1984,7 +1919,7 @@ function QuotaRaiseForm({ organizationId, organizationName, currentUsage, curren
         Contact name
         <input value={contactName} onChange={(event) => setContactName(event.target.value)} />
       </label>
-      <button type="submit" className="icon-text" disabled={busy}><Icon name="arrow-up-right" />Request quota raise</button>
+      <button type="submit" disabled={busy}>Request quota raise</button>
       {lastStatus ? <p className="auth-status">{lastStatus}</p> : null}
       {error ? <p className="error">{error}</p> : null}
     </form>
@@ -2082,8 +2017,8 @@ function TeamSummaryCard({ data, loading, me, onOpen }) {
 
   return <section className="panel team-summary-card">
     <div className="panel-head">
-      <div><h2 className="heading-with-icon"><Icon name="users" />{translate('Team Summary')}</h2><p>{translate('Review members, invitations, and your current role.')}</p></div>
-      <button type="button" className="ghost-button icon-text" onClick={onOpen}><Icon name="user-gear" />{translate('Manage Members and Access')}</button>
+      <div><h2>{translate('Team Summary')}</h2><p>{translate('Review members, invitations, and your current role.')}</p></div>
+      <button type="button" className="ghost-button" onClick={onOpen}>{translate('Manage Members and Access')}</button>
     </div>
     {loading && !data ? <p className="empty-state">{translate('Loading team data.')}</p> : null}
     {unavailable ? <p className="empty-state">{sourceMessage(data, translate('Team data is temporarily unavailable.'))}</p> : null}
@@ -2141,18 +2076,18 @@ function Overview({
   const onlineRate = telemetryAvailable ? fleetHealth?.online_rate_7d_pct : null;
   const needsAttention = telemetryAvailable && (current.warning !== undefined || current.critical !== undefined)
     ? (current.warning || 0) + (current.critical || 0)
-    : 'N/A';
-  const activeStreams = streamAvailable ? (streamStats?.active_sessions ?? 0) : 'N/A';
+    : 'Unavailable';
+  const activeStreams = streamAvailable ? (streamStats?.active_sessions ?? 0) : 'Unavailable';
   const telemetryReason = telemetryState.message || sourceMessage(fleetHealth, 'No telemetry source configured.');
   const streamReason = streamState.message || sourceMessage(streamStats, 'No stream source configured.');
   const attentionDevices = buildAttentionQueue(devices, recentAlerts);
 
   return (
     <div className="overview-layout">
-      <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2 className="heading-with-icon"><Icon name="gauge-high" />{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
+      <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
       <section className="metrics overview-metrics">
-        <MetricCard icon="wifi" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
-        <MetricCard icon="gauge-high" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'N/A'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
+        <MetricCard icon="video" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
+        <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'Unavailable'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
         <MetricCard icon="triangle-exclamation" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : telemetryReason} tone={needsAttention === 0 ? 'good' : 'warn'} />
         <MetricCard icon="tower-broadcast" label="Active Streams" value={activeStreams} hint={streamAvailable ? `of ${summary?.total_devices ?? 0} devices` : streamReason} tone="info" />
       </section>
@@ -2186,7 +2121,7 @@ function Overview({
       {me?.authenticated && isEvaluation && nearQuota ? (
         <section className="panel quota-callout">
           <div>
-            <h2 className="heading-with-icon"><Icon name="gauge-high" />Evaluation quota</h2>
+            <h2>Evaluation quota</h2>
             <p>{tierLabel} account for {activeMembership?.organization || 'your active organization'} is near its {quotaRatio} cap.</p>
           </div>
           <QuotaRaiseForm
@@ -2203,30 +2138,27 @@ function Overview({
 }
 
 function RegionFleetPanel({ summary, loading }) {
-  const regions = Object.entries(summary?.by_region || {})
-    .map(([region, count]) => [region, Number(count)])
-    .filter(([, count]) => Number.isFinite(count) && count > 0)
-    .sort((left, right) => right[1] - left[1]);
+  const regions = Object.entries(summary?.by_region || {}).sort((left, right) => right[1] - left[1]);
   const max = Math.max(...regions.map(([, count]) => count), 1);
   const unavailable = !summary || summary.source_status !== 'available';
   return (
     <section className="panel region-fleet-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="map-location-dot" />{translate('Device Status by Region')}</h2>
+          <h2>{translate('Device Status by Region')}</h2>
           <p>{translate('Use the map to locate regions and compare fleet size by device count.')}</p>
         </div>
       </div>
       {loading ? <p className="empty-state">{translate('Loading regional data.')}</p> : null}
       {!loading && unavailable ? <p className="empty-state">{translate('Regional data is temporarily unavailable.')}</p> : null}
-      {!loading && !unavailable && !regions.length ? <p className="empty-state">{translate('No device locations have been reported yet.')}</p> : null}
-      {!loading && !unavailable && regions.length ? (
+      {!loading && !unavailable ? (
         <div className="region-fleet-grid">
           <div className="region-bars">
             {regions.slice(0, 8).map(([region, count]) => <div className="region-bar-row" key={region}>
               <div><strong>{region}</strong><span>{translate('{{count}} devices', { count: formatNumber(count) })}</span></div>
               <div className="region-bar-track"><span style={{ width: `${Math.max(4, count / max * 100)}%` }} /></div>
             </div>)}
+            {!regions.length ? <p className="empty-state">{translate('No regional data is available.')}</p> : null}
           </div>
           <div className="region-map-desktop"><RegionMap regions={regions} max={max} /></div>
           <details className="region-map-mobile">
@@ -2357,19 +2289,10 @@ function projectWorldPoint([longitude, latitude]) {
 
 function worldGeometryPath(geometry) {
   const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
-  return polygons.map((polygon) => polygon.map((ring) => {
-    let previousLongitude = null;
-    let crossesDateLine = false;
-    const commands = ring.map((coordinate, index) => {
-      const [longitude] = coordinate;
-      const startsNewSegment = index > 0 && Math.abs(longitude - previousLongitude) > 180;
-      if (startsNewSegment) crossesDateLine = true;
-      previousLongitude = longitude;
-      const [x, y] = projectWorldPoint(coordinate);
-      return `${index && !startsNewSegment ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
-    });
-    return commands.join(' ') + (crossesDateLine ? '' : 'Z');
-  }).join(' ')).join(' ');
+  return polygons.map((polygon) => polygon.map((ring) => ring.map((coordinate, index) => {
+    const [x, y] = projectWorldPoint(coordinate);
+    return `${index ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(' ') + 'Z').join(' ')).join(' ');
 }
 
 function clampWorldViewport(viewport) {
@@ -2434,52 +2357,20 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
   </section>;
 }
 
-function DeveloperChipsetResources({ data, sdkRelease, loading }) {
+function DeveloperChipsetResources({ data, loading }) {
   const chipsets = data?.chipsets || [];
-  const artifacts = sdkArtifacts(sdkRelease?.catalog);
   const [query, setQuery] = useState('');
   const [vendor, setVendor] = useState('all');
   const [recommendedOnly, setRecommendedOnly] = useState(false);
   const vendors = useMemo(() => chipsetVendors(chipsets), [chipsets]);
   const visibleChipsets = useMemo(() => filterChipsets(chipsets, query, vendor, recommendedOnly), [chipsets, query, vendor, recommendedOnly]);
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
-    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a Cloud Client SDK for your mobile, web, native, or device application. Hardware-specific SDKs and board resources remain available separately below.</p></div></div>
-    <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
-    <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading" className="heading-with-icon"><Icon name="code-branch" />Cloud Client SDKs</h2><p>Use these packages to connect an app or a PRO2 device to Realtek Connect+. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
-      {loading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
-      {!loading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>No Cloud Client SDK release yet</h3><p>{sdkRelease.source_message}</p></div></section> : null}
-      {!loading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Cloud Client SDKs are temporarily unavailable</h3><p>{sdkRelease.source_message}</p></div></section> : null}
-      {artifacts.length ? <div className="cloud-sdk-grid">{artifacts.map((artifact) => <CloudSDKCard artifact={artifact} release={sdkRelease} key={artifact.slug} />)}</div> : null}
-    </section>
-    <section className="sdk-catalog-section device-sdk-section" aria-labelledby="device-chipset-sdks-heading">
-    <div className="sdk-section-heading"><div><h2 id="device-chipset-sdks-heading" className="heading-with-icon"><Icon name="microchip" />Device &amp; ChipSet SDKs</h2><p>Find the official board SDKs, datasheets, examples, and support resources for the chipset used by your product.</p></div></div>
-      {loading && !data ? <ChipsetCardSkeletons /> : null}
-      {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p></div></section> : null}
-      {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3 className="heading-with-icon"><Icon name="box-open" />{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
-      {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
-    </section>
+    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><h2>ChipSet &amp; SDK</h2><p>{translate('Browse published ChipSets and development resources synchronized from official Information Providers. SDK and external links open in a new tab.')}</p></div></div>
+    {loading && !data ? <ChipsetCardSkeletons /> : null}
+    {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p></div></section> : null}
+    {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
+    {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
   </section>;
-}
-
-function sdkArtifactIcon(slug) {
-  return { android: 'mobile-screen', ios: 'apple', javascript: 'code', native: 'terminal', device: 'microchip', all: 'boxes-stacked' }[slug] || 'box';
-}
-
-function CloudSDKCard({ artifact, release }) {
-  const docsURL = sdkDocumentationURL(release?.portal_url, artifact.slug);
-  const isPreview = Boolean(release?.local_preview);
-  return <article className={`panel cloud-sdk-card${artifact.slug === 'all' ? ' complete-bundle' : ''}`}>
-    <div className="cloud-sdk-card-heading"><div><p className="sdk-format icon-text"><Icon name={sdkArtifactIcon(artifact.slug)} />{sdkArtifactFormat(artifact.slug)}</p><h3>{artifact.title}</h3></div><span className="status-badge good"><Icon name="circle-check" />{artifact.validation_status}</span></div>
-    <p>{artifact.description}</p>
-    <dl className="cloud-sdk-metadata"><div><dt>Version</dt><dd>{release.catalog.version}</dd></div><div><dt>Size</dt><dd>{formatSDKBytes(artifact.size_bytes)}</dd></div><div className="checksum-row"><dt>SHA-256</dt><dd><code>{artifact.sha256}</code></dd></div></dl>
-    <div className="sdk-capability-list" aria-label={`${artifact.title} capabilities`}>{artifact.capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div>
-    <ul className="sdk-limitations">{artifact.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul>
-    <div className="cloud-sdk-actions">{isPreview ? <button type="button" className="ghost-button icon-text" disabled title="Documentation links are enabled with a published Portal release"><Icon name="book-open" />Documentation preview</button> : docsURL ? <a className="ghost-button" href={docsURL} target="_blank" rel="noreferrer noopener">Documentation <Icon name="arrow-up-right-from-square" /></a> : null}{isPreview ? <button type="button" className="primary-button icon-text" disabled title="Local preview does not create downloadable artifacts"><Icon name="eye" />Local preview</button> : <a className="primary-button" href={`${release.portal_url}#downloads`} target="_blank" rel="noreferrer noopener">Review terms &amp; download <Icon name="arrow-up-right-from-square" /></a>}</div>
-  </article>;
-}
-
-function CloudSDKCardSkeletons() {
-  return <div className="cloud-sdk-grid" aria-label="Loading Cloud Client SDKs">{[0, 1, 2].map((index) => <article className="panel cloud-sdk-card chipset-card-skeleton" key={index}><span /><span /><span /><span /></article>)}</div>;
 }
 
 function ChipsetCards({ chipsets, showFreshness }) {
@@ -2578,7 +2469,6 @@ function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onC
 }
 
 function ProductsPage({ loading, data, onRefresh }) {
-  const scopedAPI = cloudAPI(cloudIdFromPath(window.location.pathname));
   const items = data?.products || [];
   const [showCreate, setShowCreate] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -2591,40 +2481,40 @@ function ProductsPage({ loading, data, onRefresh }) {
   const canManage = Boolean(data?.can_manage);
   async function loadCollaborators(product) {
     setCollaborationProduct(product); setCollaboration(null);
-    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(product.id)}/collaborators`);
+    const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/collaborators`);
     setCollaboration(response.ok ? await response.json() : { source_status: 'unavailable' });
   }
   async function inviteCollaborator(event) {
     event.preventDefault();
-    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(collaborationProduct.id)}/collaborator-invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-invite-${collaborationProduct.id}-${invite.email}` }, body: JSON.stringify(invite) });
+    const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborator-invitations`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-invite-${collaborationProduct.id}-${invite.email}` }, body: JSON.stringify(invite) });
     setMessage(response.ok ? 'Product collaborator invitation sent.' : 'The invitation could not be sent. Confirm that the email belongs to a registered Developer who is not already a collaborator.');
     if (response.ok) { setInvite({ email: '', role: 'product_editor' }); await loadCollaborators(collaborationProduct); }
   }
   async function updateCollaborator(userId, role) {
-    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(collaborationProduct.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-role-${collaborationProduct.id}-${userId}-${role}` }, body: JSON.stringify({ role }) });
+    const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-role-${collaborationProduct.id}-${userId}-${role}` }, body: JSON.stringify({ role }) });
     setMessage(response.ok ? 'Collaborator role updated.' : 'Could not update collaborator role.'); if (response.ok) await loadCollaborators(collaborationProduct);
   }
   async function removeCollaborator(userId) {
-    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(collaborationProduct.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `product-remove-${collaborationProduct.id}-${userId}` } });
+    const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborators/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `product-remove-${collaborationProduct.id}-${userId}` } });
     setMessage(response.ok ? 'Collaborator removed.' : 'Could not remove collaborator.'); if (response.ok) await loadCollaborators(collaborationProduct);
   }
   async function transferOwner(userId) {
-    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(collaborationProduct.id)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-owner-${collaborationProduct.id}-${userId}` }, body: JSON.stringify({ target_user_id: userId }) });
+    const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/owner-transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-owner-${collaborationProduct.id}-${userId}` }, body: JSON.stringify({ target_user_id: userId }) });
     setMessage(response.ok ? 'Product ownership transferred.' : 'Product ownership could not be transferred.'); if (response.ok) { await loadCollaborators(collaborationProduct); onRefresh(); }
   }
   async function invitationAction(invitationId, action) {
-    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(collaborationProduct.id)}/collaborator-invitations/${encodeURIComponent(invitationId)}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `product-invite-${action}-${invitationId}-${Date.now()}` } });
+    const response = await fetch(`/api/products/${encodeURIComponent(collaborationProduct.id)}/collaborator-invitations/${encodeURIComponent(invitationId)}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `product-invite-${action}-${invitationId}-${Date.now()}` } });
     setMessage(response.ok ? (action === 'resend' ? 'Invitation resent.' : 'Invitation canceled.') : 'The invitation could not be updated.'); if (response.ok) await loadCollaborators(collaborationProduct);
   }
   async function createProduct(event) {
     event.preventDefault();
-    const response = await fetch(editingProduct ? `${scopedAPI}/products/${encodeURIComponent(editingProduct.id)}` : `${scopedAPI}/products`, { method: editingProduct ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-write-${editingProduct?.id || form.name}` }, body: JSON.stringify(form) });
+    const response = await fetch(editingProduct ? `/api/products/${encodeURIComponent(editingProduct.id)}` : '/api/products', { method: editingProduct ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-write-${editingProduct?.id || form.name}` }, body: JSON.stringify(form) });
     setMessage(response.ok ? (editingProduct ? 'Product updated.' : 'Product created.') : 'The Product cannot be saved right now.');
     if (response.ok) { setShowCreate(false); setEditingProduct(null); setPreview(null); onRefresh(); }
   }
   async function previewProduct() {
     if (!editingProduct) return;
-    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(editingProduct.id)}/impact-preview`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-impact-${editingProduct.id}-${Date.now()}` }, body: JSON.stringify(form) });
+    const response = await fetch(`/api/products/${encodeURIComponent(editingProduct.id)}/impact-preview`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `product-impact-${editingProduct.id}-${Date.now()}` }, body: JSON.stringify(form) });
     setPreview(response.ok ? await response.json() : { source_status: 'unavailable' });
   }
   const unavailable = data?.source_status === 'unavailable' || data?.source_status === 'unconfigured';
@@ -2633,10 +2523,10 @@ function ProductsPage({ loading, data, onRefresh }) {
       <div className="page-intro">
         <div>
           <p className="eyebrow">Brand Fleet</p>
-          <h2 className="heading-with-icon"><Icon name="boxes-stacked" />Products and Services</h2>
+          <h2>Products and Services</h2>
           <p>See what services are available for each product and what your current role can manage.</p>
         </div>
-        {canManage ? <button type="button" className="primary-button icon-text" onClick={() => { setEditingProduct(null); setPreview(null); setShowCreate((value) => !value); }}><Icon name="plus" />Add Product</button> : null}
+        {canManage ? <button type="button" className="primary-button" onClick={() => { setEditingProduct(null); setPreview(null); setShowCreate((value) => !value); }}>＋ Add Product</button> : null}
       </div>
       {message ? <div className="notice">{message}</div> : null}
       {showCreate ? <section className="panel"><form className="product-create-form" onSubmit={createProduct}><input required placeholder="Product Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input required placeholder="Product Model" value={form.product_model} onChange={(event) => setForm({ ...form, product_model: event.target.value })} /><select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="ip_camera">Imaging Device</option><option value="mqtt_device">Telemetry Device</option><option value="generic">General Device</option></select><div className="service-checks">{PRODUCT_SERVICE_CAPABILITIES.map((service) => <label key={service.code}><input type="checkbox" checked={form.service_capabilities.includes(service.code)} onChange={(event) => setForm({ ...form, service_capabilities: event.target.checked ? [...form.service_capabilities, service.code] : form.service_capabilities.filter((item) => item !== service.code) })} />{translate(service.label)}</label>)}</div>{editingProduct ? <button type="button" className="ghost-button" onClick={previewProduct}>{translate('Preview Change Impact')}</button> : null}<button type="submit" className="primary">{editingProduct ? translate('Save Changes') : translate('Save Product')}</button>{preview ? <p className="notice">{preview.source_status === 'available' ? translate('{{count}} devices will be affected. {{impact}}', { count: formatNumber(preview.affected_devices || 0), impact: preview.requires_reprovision ? 'Reconfiguration may be required.' : 'No reconfiguration is required.' }) : translate('Impact preview is currently unavailable.')}</p> : null}</form></section> : null}
@@ -2650,15 +2540,15 @@ function ProductsPage({ loading, data, onRefresh }) {
               <thead><tr><th>Product</th><th>My Role</th><th>Product Model</th><th>Devices</th><th>Production Runs</th><th>Available Services</th><th>Device Policy</th><th>Firmware Policy</th><th>Available Actions</th><th>Status</th></tr></thead>
               <tbody>{items.map((product) => <tr key={product.id}>
                 <td><strong>{product.name}</strong><small>{product.id}</small></td>
-                <td><span className="status-badge neutral"><Icon name="user-shield" />{product.current_user_role === 'brand_owner' ? 'Brand Owner' : product.current_user_role === 'product_owner' ? 'Owner' : product.current_user_role === 'product_editor' ? 'Editor' : 'Viewer'}</span>{product.allowed_actions?.includes('manage_collaborators') ? <button type="button" className="link-button icon-text" onClick={() => loadCollaborators(product)}><Icon name="users" />Collaborators ({product.collaborator_count || 0})</button> : null}</td>
+                <td><span className="status-badge neutral">{product.current_user_role === 'brand_owner' ? 'Brand Owner' : product.current_user_role === 'product_owner' ? 'Owner' : product.current_user_role === 'product_editor' ? 'Editor' : 'Viewer'}</span>{product.allowed_actions?.includes('manage_collaborators') ? <button type="button" className="link-button" onClick={() => loadCollaborators(product)}>Collaborators ({product.collaborator_count || 0})</button> : null}</td>
                 <td>{product.product_model || product.category || '—'}</td>
                 <td>{formatNumber(product.device_count || 0)}</td>
                 <td>{formatNumber(product.production_run_count || 0)} production runs</td>
-                <td>{product.service_capabilities?.length ? <span className="icon-text"><Icon name="plug" />{product.service_capabilities.map(productServiceCapabilityLabel).join(', ')}</span> : 'Inactive'}</td>
-                <td><span className="icon-text"><Icon name="gear" />{product.device_policy?.setup_available || product.device_policy?.binding_available ? 'Set' : 'Not set'}</span></td>
-                <td><span className="icon-text"><Icon name="microchip" />{product.firmware_policy?.ota_enabled ? 'Allow firmware updates' : 'Inactive'}</span></td>
-                <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? 'Manage Devices' : action === 'manage_updates' ? 'Manage Updates' : action === 'view_reports' ? 'View Reports' : action === 'manage_collaborators' ? 'Manage Collaborators' : action === 'edit_product' ? 'Edit Product' : 'View').join(', ') : 'Contact an administrator'}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button icon-text" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: (product.service_capabilities || []).map(normalizeProductServiceCapability) }); setPreview(null); setShowCreate(true); }}><Icon name="pen-to-square" />Edit</button> : null}</td>
-                <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}><Icon name={product.status === 'active' ? 'circle-check' : 'circle-minus'} />{product.status === 'active' ? 'Active' : 'Inactive'}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button icon-text" onClick={async () => { await fetch(`${scopedAPI}/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}><Icon name="ban" />Deactivate</button> : null}</td>
+                <td>{product.service_capabilities?.length ? product.service_capabilities.map(productServiceCapabilityLabel).join(', ') : 'Inactive'}</td>
+                <td>{product.device_policy?.setup_available || product.device_policy?.binding_available ? 'Set' : 'Not set'}</td>
+                <td>{product.firmware_policy?.ota_enabled ? 'Allow firmware updates' : 'Inactive'}</td>
+                <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? 'Manage Devices' : action === 'manage_updates' ? 'Manage Updates' : action === 'view_reports' ? 'View Reports' : action === 'manage_collaborators' ? 'Manage Collaborators' : action === 'edit_product' ? 'Edit Product' : 'View').join(', ') : 'Contact an administrator'}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: (product.service_capabilities || []).map(normalizeProductServiceCapability) }); setPreview(null); setShowCreate(true); }}>Edit</button> : null}</td>
+                <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{product.status === 'active' ? 'Activate' : 'Deactivate'}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}>Deactivate</button> : null}</td>
               </tr>)}</tbody>
             </table>
           </div>
@@ -2670,23 +2560,43 @@ function ProductsPage({ loading, data, onRefresh }) {
 }
 
 function GroupsPage({ data, loading, onRefresh }) {
-  const scopedAPI = cloudAPI(cloudIdFromPath(window.location.pathname));
   const groups = data?.groups || [];
   const tags = data?.tags || [];
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
   const [message, setMessage] = useState('');
+  const [editingTag, setEditingTag] = useState(null);
+  const [tagName, setTagName] = useState('');
+  const [newTagName, setNewTagName] = useState('');
   const canManage = data?.allowed_actions?.includes('manage');
   async function createGroup(event) {
     event.preventDefault();
-    const response = await fetch(`${scopedAPI}/groups`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `group-create-${form.name}` }, body: JSON.stringify(form) });
+    const response = await fetch(scopedCustomerAPI('/api/groups', cloudIdFromPath(window.location.pathname)), { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `group-create-${form.name}` }, body: JSON.stringify(form) });
     setMessage(response.ok ? 'Group created.' : 'The group could not be created at this time.');
     if (response.ok) { setForm({ name: '', description: '' }); setShowCreate(false); onRefresh(); }
   }
   async function deleteGroup(group) {
     if (!window.confirm(`Are you sure you want to delete “${group.name}”?`)) return;
-    const response = await fetch(`${scopedAPI}/groups/${encodeURIComponent(group.id)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `group-delete-${group.id}` } });
+    const response = await fetch(scopedCustomerAPI(`/api/groups/${encodeURIComponent(group.id)}`, cloudIdFromPath(window.location.pathname)), { method: 'DELETE', headers: { 'Idempotency-Key': `group-delete-${group.id}` } });
     setMessage(response.ok ? 'Group deleted.' : 'The group cannot be deleted at this time.');
+    if (response.ok) onRefresh();
+  }
+  async function renameTag(event) {
+    event.preventDefault();
+    const response = await fetch(scopedCustomerAPI(`/api/tags/${encodeURIComponent(editingTag.tag)}`, cloudIdFromPath(window.location.pathname)), { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `tag-rename-${editingTag.tag}-${tagName}` }, body: JSON.stringify({ name: tagName }) });
+    setMessage(response.ok ? 'Tag renamed.' : 'The tag could not be renamed.');
+    if (response.ok) { setEditingTag(null); setTagName(''); onRefresh(); }
+  }
+  async function createTag(event) {
+    event.preventDefault();
+    const response = await fetch(scopedCustomerAPI('/api/tags', cloudIdFromPath(window.location.pathname)), { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `tag-create-${newTagName}` }, body: JSON.stringify({ name: newTagName }) });
+    setMessage(response.ok ? 'Tag created.' : 'The tag could not be created.');
+    if (response.ok) { setNewTagName(''); onRefresh(); }
+  }
+  async function deleteTag(tag) {
+    if (!window.confirm(`Delete tag “${tag.tag}” from all devices?`)) return;
+    const response = await fetch(scopedCustomerAPI(`/api/tags/${encodeURIComponent(tag.tag)}`, cloudIdFromPath(window.location.pathname)), { method: 'DELETE', headers: { 'Idempotency-Key': `tag-delete-${tag.tag}` } });
+    setMessage(response.ok ? 'Tag deleted.' : 'The tag could not be deleted.');
     if (response.ok) onRefresh();
   }
   return <section className="page-content">
@@ -2696,7 +2606,7 @@ function GroupsPage({ data, loading, onRefresh }) {
     {loading ? <section className="panel split-panel"><div><h3>Loading groups</h3></div></section> : null}
     {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>Group data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
     {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Group</th><th>Description</th><th>Devices</th>{canManage ? <th>Action</th> : null}</tr></thead><tbody>{groups.map((group) => <tr key={group.id}><td><strong>{group.name}</strong><small>{group.id}</small></td><td>{group.description || '—'}</td><td>{formatNumber(group.device_count || 0)} devices</td>{canManage ? <td><button type="button" className="link-button" onClick={() => deleteGroup(group)}>Delete</button></td> : null}</tr>)}</tbody></table>{!groups.length ? <p className="empty-state">No groups yet.</p> : null}</div></section> : null}
-    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="panel-head"><div><h3>Tags</h3><p>Tags can be used to search for devices and define firmware update scopes.</p></div></div><div className="chip-list">{tags.map((tag) => <span className="status-badge neutral" key={tag.tag}>{tag.tag} · {formatNumber(tag.device_count)} devices</span>)}</div>{!tags.length ? <p className="empty-state">No tags yet.</p> : null}</section> : null}
+    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="panel-head"><div><h3>Tags</h3><p>Tags can be used to search for devices and define firmware update scopes.</p></div></div>{canManage ? <form className="inline-form" onSubmit={createTag}><input required maxLength="100" placeholder="New tag name" value={newTagName} onChange={(event) => setNewTagName(event.target.value)} /><button type="submit" className="primary">Add Tag</button></form> : null}{editingTag ? <form className="inline-form" onSubmit={renameTag}><input required maxLength="100" value={tagName} onChange={(event) => setTagName(event.target.value)} /><button type="submit" className="primary">Save Tag</button><button type="button" className="link-button" onClick={() => setEditingTag(null)}>Cancel</button></form> : null}<div className="chip-list">{tags.map((tag) => <span className="status-badge neutral" key={tag.tag}>{tag.tag} · {formatNumber(tag.device_count)} devices{canManage ? <><button type="button" className="link-button" onClick={() => { setEditingTag(tag); setTagName(tag.tag); }}>Rename</button><button type="button" className="link-button" onClick={() => deleteTag(tag)}>Delete</button></> : null}</span>)}</div>{!tags.length ? <p className="empty-state">No tags yet.</p> : null}</section> : null}
   </section>;
 }
 
@@ -2803,8 +2713,8 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
   }
 
   return <section className="page-content team-access-page">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2 className="heading-with-icon"><Icon name="users" />Members & Permissions</h2><p>The role determines what can be done, and the scope determines which Products, Regions, Groups, or Devices can be managed.</p></div>
-      {canManage && activeCloudId ? <button type="button" className="primary icon-text" onClick={() => setShowInviteForm((visible) => !visible)}><Icon name="user-plus" />Invite members</button> : null}
+    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>Members & Permissions</h2><p>The role determines what can be done, and the scope determines which Products, Regions, Groups, or Devices can be managed.</p></div>
+      {canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setShowInviteForm((visible) => !visible)}>＋ Invite members</button> : null}
     </div>
     {showInviteForm ? <section className="panel invite-member-panel"><form className="inline-form" onSubmit={inviteMember}>
       <input required type="email" placeholder="Member Email" value={email} onChange={(event) => setEmail(event.target.value)} />
@@ -2813,8 +2723,8 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
       <button type="button" className="ghost-button" onClick={() => setShowInviteForm(false)}>Cancel</button>
     </form></section> : null}
     {message ? <div className="notice">{message}</div> : null}
-    {loading && !data ? <section className="panel split-panel"><div><h3 className="heading-with-icon"><Icon name="spinner" />Loading permissions</h3></div></section> : null}
-    {!loading && data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3 className="heading-with-icon"><Icon name="triangle-exclamation" />Permission data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
+    {loading && !data ? <section className="panel split-panel"><div><h3>Loading permissions</h3></div></section> : null}
+    {!loading && data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Permission data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
     {canManage && sourceAvailableFor('invitations_source_status') ? <section className="panel"><div className="panel-head"><div><h3>Pending invitations</h3><p>Invitation links are valid for 30 minutes. Resending immediately expires the previous link.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expires</th><th>Action</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td>{invitation.target_email}</td><td>{invitation.role}</td><td><span className="status-badge neutral">Pending acceptance</span></td><td>{formatProviderTimestamp(invitation.expires_at)}</td><td><button type="button" className="link-button" onClick={() => invitationAction(invitation, 'resend')}>Resend</button> <button type="button" className="link-button" onClick={() => invitationAction(invitation, 'cancel')}>Cancel</button></td></tr>)}</tbody></table>{!invitations.length ? <p className="empty-state">No pending invitations.</p> : null}</div></section> : null}
     {sourceAvailableFor('members_source_status') ? <section className="panel"><div className="panel-head"><div><h3>Brand Cloud Members</h3><p>Member data and membership scope are provided by the Account Manager.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Members</th><th>Role</th><th>Status</th>{canManage ? <th>Action</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong><small>{member.email}</small></td><td>{canManage && member.role !== 'owner' ? <select value={member.role} onChange={(event) => updateMember(member, 'role', event.target.value)}><option value="admin">Admin</option><option value="member">Member</option></select> : member.role}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}>{member.disabled_at ? 'Deactivate' : 'Activate'}</span></td>{canManage ? <td>{member.role === 'owner' ? 'Owner transfer only' : <><button type="button" className="link-button" onClick={() => updateMember(member, member.disabled_at ? 'enable' : 'disable')}>{member.disabled_at ? 'Activate' : 'Deactivate'}</button> <button type="button" className="link-button" onClick={() => updateMember(member, 'remove')}>Remove</button></>}</td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">There are currently no Brand Cloud members.</p> : null}</div></section> : null}
     {sourceAvailableFor('assignments_source_status') ? <>
@@ -2837,21 +2747,17 @@ const BillingScope = React.createContext(null);
 function CloudBillingApp() {
   const route = cloudBillingRoute(window.location.pathname), cloudId = route.cloudId;
   const [state, setState] = useState(null), [error,setError] = useState(''), [reload,setReload] = useState(0);
-  const [account,setAccount] = useState(null), [scopedCloud,setScopedCloud] = useState(null);
   useEffect(() => {
-    const controller = new AbortController(); setState(null); setAccount(null); setScopedCloud(null); setError('');
+    const controller = new AbortController(); setState(null); setError('');
     (async () => { try {
       const me = await managedCloudRequest('/api/me',{signal:controller.signal});
       if (!me.authenticated) { window.location.replace(loginPathFor(window.location.pathname)); return; }
-      if (!controller.signal.aborted) setAccount(me);
       const {brand_cloud:cloud} = await managedCloudRequest(cloudAPI(cloudId),{signal:controller.signal});
-      if (cloud?.id === cloudId) rememberCloudPreference(cloudId);
-      if (!controller.signal.aborted) setScopedCloud(cloud);
       if (cloud.my_role !== 'owner' || cloud.owner_user_id !== me.user_id || !cloud.capabilities?.includes('billing_account.read')) throw {status:403};
       const data = await fetchCloudBillingData(cloudId,{signal:controller.signal});
       if (String(cloud.ownership_version) !== data.ownershipVersion) throw {status:409};
-      if (!controller.signal.aborted) setState({me,cloud,data});
-    } catch (err) { if (!controller.signal.aborted) { setState(null); if ([401,403,404].includes(err.status)) setScopedCloud(null); setError(billingScopeError(err.status)); } } })();
+      if (!controller.signal.aborted) setState({cloud,data});
+    } catch (err) { if (!controller.signal.aborted) { setState(null); setError(billingScopeError(err.status)); } } })();
     return () => controller.abort();
   },[cloudId,reload]);
   useEffect(()=>{
@@ -2864,13 +2770,13 @@ function CloudBillingApp() {
         const {brand_cloud:cloud}=await managedCloudRequest(cloudAPI(cloudId),{signal:controller.signal});
         if (cloud.my_role!=='owner' || cloud.owner_user_id!==state.cloud.owner_user_id || !cloud.capabilities?.includes('billing_account.read')) throw {status:403};
         if (String(cloud.ownership_version)!==state.data.ownershipVersion) throw {status:409};
-      } catch(err) { if (!controller.signal.aborted) {setState(null);setScopedCloud(null);setError(billingScopeError(err.status));} }
+      } catch(err) { if (!controller.signal.aborted) {setState(null);setError(billingScopeError(err.status));} }
       finally {checking=false;}
     };
     const timer=setInterval(verify,10000);window.addEventListener('focus',verify);
     return ()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',verify);};
   },[cloudId,state?.cloud.id,state?.data.ownershipVersion]);
-  return <CloudConsoleShell me={account} cloud={scopedCloud} clouds={account?.memberships || []} active="billing" title={`${scopedCloud?.name || 'Cloud'} / Billing`} onError={setError}><div className="my-clouds-main"><p>Only your responsibility periods and the confirmed opening balance are visible. Previous owners’ payer details and payment methods are not transferred.</p>{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<button onClick={()=>setReload(v=>v+1)}>Refresh Billing and authority</button>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setScopedCloud(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</div></CloudConsoleShell>;
+  return <div className="my-clouds-shell"><header className="my-clouds-header"><a href={cloudURL(cloudId)}>Back to cloud</a><a href="/console/clouds">My Clouds</a></header><main className="my-clouds-main"><h1>{state?.cloud.name || 'Cloud'} / Billing</h1><p>Only your responsibility periods and the confirmed opening balance are visible. Previous owners’ payer details and payment methods are not transferred.</p>{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<button onClick={()=>setReload(v=>v+1)}>Refresh Billing and authority</button>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</main></div>;
 }
 
 function BillingPage({ data, loading, capabilities, onRefresh }) {
@@ -3225,7 +3131,6 @@ function PKITestBundleTool({ activeCloudId }) {
 }
 
 function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
-  const scopedAPI = cloudAPI(cloudIdFromPath(window.location.pathname));
   const reports = data?.reports || [];
   const [name, setName] = useState('Device Status Report');
   const [reportType, setReportType] = useState('fleet_status');
@@ -3234,18 +3139,19 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
   const [dimensions, setDimensions] = useState(['product', 'model', 'status', 'region']);
   const [filters, setFilters] = useState({ product_id: '', region: '', group_id: '', firmware: '', status: '', start_at: '', end_at: '' });
   const [message, setMessage] = useState('');
+  const reportURL = (id, format = '') => scopedCustomerAPI(`/api/reports/${encodeURIComponent(id)}${format ? `?format=${format}` : ''}`, cloudIdFromPath(window.location.pathname));
   const toggleDimension = (dimension) => setDimensions((current) => current.includes(dimension) ? current.filter((item) => item !== dimension) : [...current, dimension]);
   async function createReport(event) {
     event.preventDefault();
     const scope = Object.fromEntries(Object.entries(filters).filter(([, value]) => value.trim()));
     const payload = { name, report_type: reportType, dimensions, timezone, time_range: { start_at: filters.start_at, end_at: filters.end_at }, format, scope };
-    const response = await fetch(`${scopedAPI}/reports`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `report-${JSON.stringify(payload)}` }, body: JSON.stringify(payload) });
+    const response = await fetch(scopedCustomerAPI('/api/reports', cloudIdFromPath(window.location.pathname)), { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `report-${JSON.stringify(payload)}` }, body: JSON.stringify(payload) });
     setMessage(response.ok ? 'The report has been created and you will see the results when you are done.' : 'Report cannot be created at this time.');
     if (response.ok) { onRefresh(); }
   }
     return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2 className="heading-with-icon"><Icon name="file-chart-column" />Reports</h2><p>Organize operational results by product, region, group, firmware, and timeframe.</p></div></div>
-    {!canCreate ? <section className="panel split-panel"><div><h3 className="heading-with-icon"><Icon name="lock" />You currently do not have reports.create permission</h3><p>Existing reports can be viewed, but new reports cannot be created.</p></div></section> : <section className="panel report-builder-panel"><form className="report-builder" onSubmit={createReport}>
+    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>Reports</h2><p>Organize operational results by product, region, group, firmware, and timeframe.</p></div></div>
+    {!canCreate ? <section className="panel split-panel"><div><h3>You currently do not have reports.create permission</h3><p>Existing reports can be viewed, but new reports cannot be created.</p></div></section> : <section className="panel report-builder-panel"><form className="report-builder" onSubmit={createReport}>
       <input value={name} onChange={(event) => setName(event.target.value)} aria-label="Report Name" />
       <select className="select-control" aria-label="Report Type" value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">Device Status</option><option value="firmware_coverage">Firmware Coverage</option></select>
       <select className="select-control" aria-label="Output Format" value={format} onChange={(event) => setFormat(event.target.value)}><option value="json">JSON</option><option value="csv">CSV</option></select>
@@ -3261,7 +3167,7 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
       <div className="report-builder-actions"><button type="submit" className="primary-button">Create Report</button></div>
     </form>{message ? <p className="notice">{message}</p> : null}</section>}
     {loading ? <section className="panel split-panel"><div><h3>Loading report</h3></div></section> : null}
-        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Report</th><th>Status</th><th>Scope / Freshness</th><th>Created By</th><th>Created</th><th>Results</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{batchJobStateLabel(report.state)}{report.failure_reason ? <small className="error-text">The report could not be completed. Please try again.</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} · expires {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={`${scopedAPI}/reports/${encodeURIComponent(report.id)}`}>View Results</a>{report.state === 'completed' ? <> <a href={`${scopedAPI}/reports/${encodeURIComponent(report.id)}?format=csv`}>Download CSV</a> <a href={`${scopedAPI}/reports/${encodeURIComponent(report.id)}?format=json`}>Download JSON</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">No reports are available.</p> : null}</div></section> : null}
+        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Report</th><th>Status</th><th>Scope / Freshness</th><th>Created By</th><th>Created</th><th>Results</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{batchJobStateLabel(report.state)}{report.failure_reason ? <small className="error-text">The report could not be completed. Please try again.</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} · expires {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={reportURL(report.id)}>View Results</a>{report.state === 'completed' ? <> <a href={reportURL(report.id, 'csv')}>Download CSV</a> <a href={reportURL(report.id, 'json')}>Download JSON</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">No reports are available.</p> : null}</div></section> : null}
   </section>;
 }
 
@@ -3278,7 +3184,6 @@ function batchJobStateLabel(state) {
 }
 
 function FirmwareOTAPage({ loading, distribution, selectedProductId, products, releases, onViewDevices, onCampaignAction, onStatusRefresh, canRelease, canManageOTA, onSelectProduct, onRefresh }) {
-  const scopedAPI = cloudAPI(cloudIdFromPath(window.location.pathname));
   const versions = distribution?.versions || [];
   const campaigns = sortFirmwareCampaignsByStartTime(distribution?.campaigns || []);
   const selectedProduct = products.find((product) => product.id === selectedProductId) || null;
@@ -3370,7 +3275,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
       setReleaseMessage('Please select a firmware binary and wait for its metadata to be calculated.');
       return;
     }
-    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(selectedProductId)}/releases`, {
+    const response = await fetch(scopedCustomerAPI(`/api/products/${encodeURIComponent(selectedProductId)}/releases`, cloudIdFromPath(window.location.pathname)), {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-${selectedProductId}-${releaseVersion.trim()}-${releaseArtifact.sha256.slice(0, 12)}` },
       body: JSON.stringify({ version: releaseVersion.trim(), build_number: releaseArtifact.buildNumber, artifact_size: releaseArtifact.size, artifact_sha256: releaseArtifact.sha256, hardware_revisions: releaseHardware.split(',').map((item) => item.trim()).filter(Boolean), content_type: releaseArtifact.contentType, anti_rollback_counter: 0 }),
     });
@@ -3397,7 +3302,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     event.preventDefault();
     const release = releases.find((item) => item.id === planRelease || item.release_id === planRelease);
     if (!release || !scopePreview?.scope) { setPlanMessage('Please get a valid server scope preview first.'); return; }
-    const response = await fetch(`${scopedAPI}/update-plans`, {
+    const response = await fetch(scopedCustomerAPI('/api/update-plans', cloudIdFromPath(window.location.pathname)), {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `plan-${release.product_id}-${release.id || release.release_id}-${Date.now()}` },
       body: JSON.stringify({ product_id: release.product_id, release_id: release.id || release.release_id, name: planName.trim() || `Update ${release.version}`, scope: scopePreview.scope, selector: scopePreview.scope.query, phases: [{ phase: 0, cumulative_percentage: 100, soak_seconds: 0 }], failure_policy: { minimum_sample_size: 10, failure_percentage: 10, timeout_percentage: 10 }, rate_limit_per_minute: Number(planRate) }),
     });
@@ -3412,8 +3317,8 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
       return values.length ? [[key, values]] : [];
     }));
     setScopeLoading(true);
-    const response = await fetch(`${scopedAPI}/update-plans/scope-preview`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `plan-preview-${release.product_id}-${Date.now()}` },
+    const response = await fetch(scopedCustomerAPI('/api/update-plans/scope-preview', cloudIdFromPath(window.location.pathname)), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ product_id: release.product_id, query, excluded_device_ids: excludedDeviceText.split(/[,\s]+/).map((item) => item.trim()).filter(Boolean) }),
     });
     const body = await response.json().catch(() => ({}));
@@ -3424,7 +3329,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
   }
   async function releaseAction(release, action) {
     const id = release.id || release.release_id;
-    const response = await fetch(`${scopedAPI}/products/${encodeURIComponent(release.product_id)}/releases/${encodeURIComponent(id)}/${action}`, {
+    const response = await fetch(scopedCustomerAPI(`/api/products/${encodeURIComponent(release.product_id)}/releases/${encodeURIComponent(id)}/${action}`, cloudIdFromPath(window.location.pathname)), {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-action-${id}-${action}-${Date.now()}` },
       body: JSON.stringify(action === 'revoke' ? { reason: 'Withdrawn by Brand Operator' } : {}),
     });
@@ -3453,15 +3358,15 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     <section className="panel firmware-ota-page">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="microchip" />Firmware OTA</h2>
+          <h2>Firmware OTA</h2>
           <p>Start and stop OTA rollouts, publish firmware versions, and track device progress for the selected Product.</p>
         </div>
-        <button type="button" className="ghost-button icon-text" disabled={!hasSelection || statusRefreshing} onClick={refreshStatus}><Icon name="rotate" />{statusRefreshing ? 'Updating status…' : 'Refresh status'}</button>
+        <button type="button" className="ghost-button" disabled={!hasSelection || statusRefreshing} onClick={refreshStatus}>{statusRefreshing ? 'Updating status…' : 'Refresh status'}</button>
       </div>
 
       <section className="firmware-product-selector" aria-label="Firmware Product selector">
         <label className="firmware-product-field">
-          <span className="icon-text"><Icon name="boxes-stacked" />Product</span>
+          <span>Product</span>
           <select className="select-control" aria-label="Select Firmware Product" value={selectedProductId} onChange={selectProduct} disabled={!products.length}>
             <option value="">Please select Product first</option>
             {products.map((product) => <option value={product.id} key={product.id}>{product.name}</option>)}
@@ -3470,7 +3375,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
         <p>{selectedProduct ? `Showing firmware versions, device distribution, and OTA update status for ${selectedProduct.name}.` : 'Select a Product to load its firmware and OTA status.'}</p>
       </section>
 
-      {!hasSelection ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3 className="heading-with-icon"><Icon name="circle-info" />Please select Product first</h3><p>Different Product hardware models, firmware versions and update plans are independent of each other.</p></div></section> : null}
+      {!hasSelection ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3>Please select Product first</h3><p>Different Product hardware models, firmware versions and update plans are independent of each other.</p></div></section> : null}
 
       {hasSelection && available ? <section className="metrics firmware-page-metrics">
         <MetricCard icon="microchip" label="Latest version" value={latestVersion} hint="Current target version" tone="info" />
@@ -3490,7 +3395,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
         />
       ) : null}
 
-      {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3 className="heading-with-icon"><Icon name="cloud-arrow-up" />Add firmware version</h3><p>The version will be registered to {selectedProduct.name}. You can then create an update plan for the same Product.</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="Version, e.g. 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input ref={releaseFileInput} name="artifact" required type="file" accept="application/octet-stream,.bin" aria-label="Firmware binary" onChange={selectReleaseArtifact} /><input required placeholder="Hardware versions (comma separated)" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} />{releaseArtifactLoading ? <div className="firmware-artifact-metadata" role="status">Calculating firmware metadata…</div> : null}{releaseArtifact ? <dl className="firmware-artifact-metadata" aria-label="Firmware binary metadata"><div><dt>File</dt><dd>{releaseArtifact.name}</dd></div><div><dt>Size</dt><dd>{formatFirmwareSize(releaseArtifact.size)}{releaseArtifact.size >= 1024 ? ` (${releaseArtifact.size.toLocaleString('en-US')} bytes)` : ''}</dd></div><div><dt>SHA-256</dt><dd><code>{releaseArtifact.sha256}</code></dd></div></dl> : null}<button type="submit" className="primary-button icon-text" disabled={releaseArtifactLoading || !releaseArtifact}><Icon name="cloud-arrow-up" />Create version</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
+      {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Add firmware version</h3><p>The version will be registered to {selectedProduct.name}. You can then create an update plan for the same Product.</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="Version, e.g. 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input ref={releaseFileInput} name="artifact" required type="file" accept="application/octet-stream,.bin" aria-label="Firmware binary" onChange={selectReleaseArtifact} /><input required placeholder="Hardware versions (comma separated)" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} />{releaseArtifactLoading ? <div className="firmware-artifact-metadata" role="status">Calculating firmware metadata…</div> : null}{releaseArtifact ? <dl className="firmware-artifact-metadata" aria-label="Firmware binary metadata"><div><dt>File</dt><dd>{releaseArtifact.name}</dd></div><div><dt>Size</dt><dd>{formatFirmwareSize(releaseArtifact.size)}{releaseArtifact.size >= 1024 ? ` (${releaseArtifact.size.toLocaleString('en-US')} bytes)` : ''}</dd></div><div><dt>SHA-256</dt><dd><code>{releaseArtifact.sha256}</code></dd></div></dl> : null}<button type="submit" className="primary-button" disabled={releaseArtifactLoading || !releaseArtifact}>Create version</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
       {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Create an update plan</h3><p>Obtain the server scope preview before creating the immutable OTA plan; the browser does not determine the target count.</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">Select firmware version</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder="Plan name (optional)" value={planName} onChange={(event) => setPlanName(event.target.value)} /><label className="ota-rate-field"><span>Upgrade rate (devices/minute)</span><input required type="number" min="1" max="10000" step="1" value={planRate} onChange={(event) => setPlanRate(event.target.value)} /></label><input placeholder="Regions (comma separated)" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="Group IDs (comma separated)" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="Firmware versions (comma separated)" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="Health statuses (comma separated)" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="Exclude device IDs (comma or space separated)" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? 'Calculating scope…' : 'Preview server scope'}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope || Number(planRate) < 1 || Number(planRate) > 10000}>Create update plan</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{formatNumber(scopePreview.target_count || 0)}</strong></span><span>Excluded <strong>{formatNumber(scopePreview.excluded_count || 0)}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
       {hasSelection && releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Firmware Version</h3><p>The version must be uploaded and checked before it can be published to the update plan.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Product</th><th>Version</th><th>Status</th><th>Action</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.product_id}:${release.id || release.release_id}`}><td>{selectedProduct.name}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>Publish</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>Withdraw</button> : null}{!canRelease ? <span className="muted">Read-only</span> : null}</td></tr>)}</tbody></table></div></section> : null}
 
@@ -3804,28 +3709,28 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
       key: 'success-rate',
       icon: 'signal',
       label: `Stream Success Rate (${windowLabel})`,
-      value: available ? formatPercent(stats?.success_rate_pct ?? 0) : 'N/A',
+      value: available ? formatPercent(stats?.success_rate_pct ?? 0) : 'Unavailable',
       hint: available ? 'Percent of stream requests that succeeded in the selected window' : unavailableText,
     },
     {
       key: 'avg-duration',
       icon: 'clock',
       label: 'Avg Stream Duration',
-      value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'N/A',
+      value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'Unavailable',
       hint: available ? 'Average session length across observed requests' : unavailableText,
     },
     {
       key: 'active-sessions',
       icon: 'tower-broadcast',
       label: 'Active Sessions Now',
-      value: available ? (stats?.active_sessions ?? 0) : 'N/A',
+      value: available ? (stats?.active_sessions ?? 0) : 'Unavailable',
       hint: available ? 'Count of currently open stream sessions' : unavailableText,
     },
     {
       key: 'never-streamed',
       icon: 'circle-question',
       label: 'Devices Never Streamed',
-      value: available ? (stats?.never_streamed_count ?? 0) : 'N/A',
+      value: available ? (stats?.never_streamed_count ?? 0) : 'Unavailable',
       hint: available ? 'Online devices that have no stream history' : unavailableText,
     },
   ];
@@ -3834,7 +3739,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
     <section className="panel stream-health-page">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="tower-broadcast" />Stream Health</h2>
+          <h2>Stream Health</h2>
           <p>Are device streams succeeding for end users, and where are the worst failures concentrated?</p>
         </div>
       </div>
@@ -3861,7 +3766,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
           <section className="panel stream-trend-panel">
             <div className="panel-head">
               <div>
-                <h3 className="heading-with-icon"><Icon name="chart-line" />Success trend</h3>
+                <h3>Success trend</h3>
                 <p>Daily WebRTC request volume and success-rate lines.</p>
               </div>
             </div>
@@ -3939,7 +3844,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
           <section className="panel stream-table-panel">
             <div className="panel-head">
               <div>
-                <h3 className="heading-with-icon"><Icon name="triangle-exclamation" />Worst devices</h3>
+                <h3>Worst devices</h3>
                 <p>Devices ordered by failure rate, worst first.</p>
               </div>
             </div>
@@ -5287,18 +5192,17 @@ function SSOProviderCard({ provider, onSave }) {
 function MetricGrid({ summary }) {
   const data = summary || {};
   const metrics = [
-    ['Total devices', data.total_devices ?? '-', 'video'],
-    ['Online', data.online_devices ?? '-', 'wifi'],
-    ['Activated', data.activated_devices ?? '-', 'circle-check'],
-    ['Pending', data.pending_devices ?? '-', 'clock'],
-    ['Failed', data.failed_devices ?? '-', 'triangle-exclamation'],
-    ['Open ops', data.open_operations ?? '-', 'list-check'],
+    ['Total devices', data.total_devices ?? '-'],
+    ['Online', data.online_devices ?? '-'],
+    ['Activated', data.activated_devices ?? '-'],
+    ['Pending', data.pending_devices ?? '-'],
+    ['Failed', data.failed_devices ?? '-'],
+    ['Open ops', data.open_operations ?? '-'],
   ];
   return (
     <section className="metrics">
-      {metrics.map(([label, value, icon]) => (
+      {metrics.map(([label, value]) => (
         <div className="metric" key={label}>
-          <span className="metric-inline-icon" aria-hidden="true"><Icon name={icon} /></span>
           <span>{label}</span>
           <strong>{value}</strong>
         </div>
@@ -5342,7 +5246,7 @@ function SourceBlockedState({ title, message }) {
   return (
     <section className="panel source-blocked">
       <div>
-        <h2 className="heading-with-icon"><Icon name="triangle-exclamation" />{title}</h2>
+        <h2>{title}</h2>
         <p>{message}</p>
       </div>
     </section>
@@ -5356,7 +5260,7 @@ function FleetHealthTrendPanel({ loading, trend, source }) {
     <section className="panel overview-panel trend-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="chart-line" />Fleet health trend</h2>
+          <h2>Fleet health trend</h2>
           <p>Daily online share and warning/critical volume across the current window.</p>
         </div>
       </div>
@@ -5424,7 +5328,7 @@ function HealthDistributionPanel({ loading, current, onFilter, source }) {
     <section className="panel overview-panel distribution-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="heart-pulse" />Health distribution</h2>
+          <h2>Health distribution</h2>
           <p>Breakdown of the current fleet by telemetry health state.</p>
         </div>
       </div>
@@ -5470,7 +5374,7 @@ function AttentionQueuePanel({ loading, items, onOpenDevice }) {
     <section className="panel overview-panel attention-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="triangle-exclamation" />Devices that need attention ({items.length})</h2>
+          <h2>Devices that need attention ({items.length})</h2>
           <p>Prioritized by current health, signal quality, and recent alerts.</p>
         </div>
       </div>
@@ -5506,7 +5410,7 @@ function StreamAttentionPanel({ stats, onOpenDevice }) {
     <section className="panel stream-attention-panel">
       <div className="panel-head">
         <div>
-          <h3 className="heading-with-icon"><Icon name="triangle-exclamation" />Devices needing stream attention</h3>
+          <h3>Devices needing stream attention</h3>
           <p>Customer-readable stream reliability risks.</p>
         </div>
       </div>
@@ -5577,7 +5481,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
     let alive = true;
     setTelemetryError('');
     setTelemetryLoadingId(selectedDevice.id);
-    fetchJSON(`${cloudAPI(cloudIdFromPath(window.location.pathname))}/fleet/devices/${encodeURIComponent(selectedDevice.id)}/telemetry`)
+    fetchJSON(scopedCustomerAPI(`/api/devices/${selectedDevice.id}/telemetry`, cloudIdFromPath(window.location.pathname)))
       .then((payload) => {
         if (!alive) return;
         setTelemetryById((current) => ({
@@ -5701,7 +5605,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             setSelectedDeviceId(device.id);
           }}
         >
-          <Icon name="eye" />View
+          View
         </button>
       ),
     },
@@ -5747,13 +5651,13 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
       <div className="panel device-table-panel">
         <div className="panel-head">
           <div>
-            <h2 className="heading-with-icon"><Icon name="microchip" />Devices</h2>
+            <h2>Devices</h2>
             <p>Search, filter, and inspect fleet devices without exposing internal platform identifiers.</p>
           </div>
         </div>
         <div className="device-filters">
           <label className="device-filter">
-            <span><Icon name="heart-pulse" />Health</span>
+            <span>Health</span>
             <select value={healthFilter} onChange={(event) => updateFilter({ health: event.target.value })}>
               {processedDevices.healthValues.map((value) => (
                 <option key={`health-${value}`} value={value}>{value}</option>
@@ -5761,7 +5665,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             </select>
           </label>
           <label className="device-filter">
-            <span><Icon name="bolt" />Readiness</span>
+            <span>Readiness</span>
             <select value={readinessFilter} onChange={(event) => updateFilter({ readiness: event.target.value })}>
               {processedDevices.readinessValues.map((value) => (
                 <option key={`readiness-${value}`} value={value}>{value}</option>
@@ -5769,7 +5673,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             </select>
           </label>
           <label className="device-filter">
-            <span><Icon name="wifi" />Signal</span>
+            <span>Signal</span>
             <select value={signalFilter} onChange={(event) => updateFilter({ signal: event.target.value })}>
               {processedDevices.signalValues.map((value) => (
                 <option key={`signal-${value}`} value={value}>{value}</option>
@@ -5777,7 +5681,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             </select>
           </label>
           <label className="device-filter">
-            <span><Icon name="microchip" />Firmware</span>
+            <span>Firmware</span>
             <select value={firmwareFilter} onChange={(event) => updateFilter({ firmware: event.target.value })}>
               {processedDevices.firmwareValues.map((value) => (
                 <option key={`firmware-${value}`} value={value}>{value}</option>
@@ -5795,7 +5699,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
               updateDevicesLocation({ deviceId: '', health: '', status: '', signal: '', firmware: '' });
             }}
           >
-            <Icon name="rotate" />Clear filters
+            Clear filters
           </button>
         </div>
         <DataTable
@@ -5923,7 +5827,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
         <div className="drawer-header">
           <div>
             <p className="eyebrow">Device detail</p>
-            <h2 className="heading-with-icon"><Icon name="microchip" />{drawerName}</h2>
+            <h2>{drawerName}</h2>
             <p>{device ? `${drawerOrganization} · ${drawerModel}` : 'Select a device row to inspect its telemetry.'}</p>
           </div>
           <button type="button" className="drawer-close" onClick={onClose} aria-label="Close device drawer">
@@ -5937,19 +5841,19 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
           <>
             <section className="drawer-identity">
               <div>
-                <span><Icon name="microchip" />Device</span>
+                <span>Device</span>
                 <strong>{drawerName}</strong>
               </div>
               <div>
-                <span><Icon name="barcode" />Serial</span>
+                <span>Serial</span>
                 <strong>{drawerSerial}</strong>
               </div>
               <div>
-                <span><Icon name="cube" />Model</span>
+                <span>Model</span>
                 <strong>{drawerModel}</strong>
               </div>
               <div>
-                <span><Icon name="building" />Organization</span>
+                <span>Organization</span>
                 <strong>{drawerOrganization}</strong>
               </div>
             </section>
@@ -5957,24 +5861,24 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             {loading ? <p className="empty-state">Loading telemetry for this device.</p> : null}
             {!loading && (error || (telemetry && !telemetryAvailable)) ? (
               <section className="drawer-unavailable">
-                <strong><Icon name="triangle-exclamation" />{telemetryState.title}</strong>
+                <strong>{telemetryState.title}</strong>
                 <p>{telemetryUnavailableText}</p>
               </section>
             ) : null}
 
             <section className="drawer-summary">
-              <div className="summary-card summary-card-health">
-                <span><Icon name="heart-pulse" />Health</span>
+              <div className="summary-card">
+                <span>Health</span>
                 <StatusBadge value={normalizeStatusKey(telemetry?.health || device.health || 'unknown')} label={toTitleCase(telemetry?.health || device.health || 'unknown')} />
                 <small>{telemetryAvailable ? `Signals: ${telemetry.signals?.length ? telemetry.signals.map(formatTelemetrySignal).join(', ') : 'none reported'}` : telemetryUnavailableText}</small>
               </div>
               <div className="summary-card">
-                <span><Icon name="file-code" />Firmware</span>
+                <span>Firmware</span>
                 <strong>{drawerFirmware}</strong>
                 <small>{telemetry?.recent_events?.[0]?.occurred_at ? `Last updated ${formatRelativeTime(telemetry.recent_events[0].occurred_at)}` : drawerLastSeen ? `Last seen ${formatRelativeTime(drawerLastSeen)}` : 'No update timestamp available.'}</small>
               </div>
-              <div className="summary-card summary-card-stream">
-                <span><Icon name="tower-broadcast" />Active stream</span>
+              <div className="summary-card">
+                <span>Active stream</span>
                 <StatusBadge value={streamStatus.tone} label={streamStatus.label} />
                 <small>{streamStatus.detail}</small>
               </div>
@@ -6010,7 +5914,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             <section className="drawer-events">
               <div className="panel-head">
                 <div>
-                  <h3 className="heading-with-icon"><Icon name="clock-rotate-left" />Recent events</h3>
+                  <h3>Recent events</h3>
                   <p>Last 10 telemetry events from this device.</p>
                 </div>
               </div>
@@ -6032,7 +5936,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             </section>
 
             <div className="drawer-actions">
-              <button type="button" className="destructive icon-text" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}><Icon name="ban" />Deactivate device</button>
+              <button type="button" className="destructive" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}>Deactivate device</button>
               <small>{!deactivateState.enabled ? deactivateState.reason : 'Device setup and enrollment are handled by existing processes; only status and deactivation are shown here.'}</small>
             </div>
           </>
@@ -6044,13 +5948,13 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
 
 function SourceFactsTimeline({ facts }) {
   return (
-            <section className="source-facts">
-      <h3 className="heading-with-icon"><Icon name="diagram-project" />Readiness / Source Facts</h3>
+    <section className="source-facts">
+      <h3>Readiness / Source Facts</h3>
       {facts.length ? facts.map((fact) => (
         <article className="source-fact" key={`${fact.layer}:${fact.operation_id || fact.updated_at || fact.state}`}>
           <div>
-            <strong><Icon name={sourceFactIconName(fact.layer)} />{sourceFactLayerLabel(fact.layer)}</strong>
-            <span className="source-fact-state"><Icon name="circle-check" />{sourceFactStateLabel(fact.state)}</span>
+            <strong>{sourceFactLayerLabel(fact.layer)}</strong>
+            <span>{sourceFactStateLabel(fact.state)}</span>
             <small>{fact.detail}</small>
           </div>
           <time>{fact.updated_at ? formatRelativeTime(fact.updated_at) : '—'}</time>
@@ -6060,14 +5964,6 @@ function SourceFactsTimeline({ facts }) {
       )}
     </section>
   );
-}
-
-function sourceFactIconName(layer) {
-  const normalized = String(layer || '').toLowerCase();
-  if (normalized.includes('account')) return 'address-book';
-  if (normalized.includes('cloud')) return 'cloud';
-  if (normalized.includes('transport')) return 'tower-broadcast';
-  return 'circle-info';
 }
 
 function TelemetryChart({ title, subtitle, samples, valueKey, valueFormatter, tone, ariaLabel, emptyLabel, sampleLabel }) {
@@ -6293,7 +6189,7 @@ function OperationList({ operations, detailed = false }) {
 
 function AuditLog({ audit, compact = false, loading = false }) {
   const columns = useMemo(() => [
-    { key: 'action', label: 'Action', value: (event) => event.action, render: (event) => <span className="icon-text"><Icon name={auditActionIconName(event.action)} />{event.action}</span> },
+    { key: 'action', label: 'Action', value: (event) => event.action },
     { key: 'actor', label: 'Actor', value: (event) => event.actor },
     { key: 'target', label: 'Target', value: (event) => event.target },
     { key: 'created_at', label: 'Created', value: (event) => event.created_at },
@@ -6303,18 +6199,18 @@ function AuditLog({ audit, compact = false, loading = false }) {
     <section className="panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="clipboard-list" />{compact ? 'Recent audit' : 'Audit log'}</h2>
+          <h2>{compact ? 'Recent audit' : 'Audit log'}</h2>
           <p>{auditCoverageCopy()}</p>
         </div>
       </div>
       {loading && !audit.length ? (
-        <p className="empty-state icon-text"><Icon name="spinner" />Loading audit events.</p>
+        <p className="empty-state">Loading audit events.</p>
       ) : compact && audit.length ? (
         <div className="audit-list">
           {audit.map((event) => (
             <article className="audit-event" key={event.id}>
               <div>
-                <strong className="icon-text"><Icon name={auditActionIconName(event.action)} />{event.action}</strong>
+                <strong>{event.action}</strong>
                 <span>{event.actor} / {event.target}</span>
                 <small>{[event.actor_kind, event.organization_id, event.result, event.upstream_operation_id].filter(Boolean).join(' / ')}</small>
               </div>
@@ -6323,9 +6219,9 @@ function AuditLog({ audit, compact = false, loading = false }) {
           ))}
         </div>
       ) : !audit.length ? (
-        <p className="empty-state icon-text"><Icon name="circle-info" />No audit events recorded.</p>
+        <p className="empty-state">No audit events recorded.</p>
       ) : compact ? (
-        <p className="empty-state icon-text"><Icon name="circle-info" />No audit events recorded.</p>
+        <p className="empty-state">No audit events recorded.</p>
       ) : (
         <DataTable
           columns={columns}
@@ -6340,16 +6236,6 @@ function AuditLog({ audit, compact = false, loading = false }) {
       )}
     </section>
   );
-}
-
-function auditActionIconName(action) {
-  const value = String(action || '').toLowerCase();
-  if (value.includes('login') || value.includes('sign_in')) return 'right-to-bracket';
-  if (value.includes('logout') || value.includes('sign_out')) return 'right-from-bracket';
-  if (value.includes('sso') || value.includes('auth')) return 'key';
-  if (value.includes('lifecycle') || value.includes('device')) return 'arrows-rotate';
-  if (value.includes('delete') || value.includes('remove')) return 'trash-can';
-  return 'file-lines';
 }
 
 function DataTable({
@@ -6479,7 +6365,7 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
           disabled={currentPage <= 1}
           onClick={() => onPage(Math.max(1, currentPage - 1))}
         >
-          <Icon name="chevron-left" />
+          ‹
         </button>
         {items.map((item, index) => item === 'ellipsis' ? (
           <span className="pagination-ellipsis" aria-hidden="true" key={`ellipsis-${index}`}>…</span>
@@ -6502,7 +6388,7 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
           disabled={currentPage >= totalPages}
           onClick={() => onPage(Math.min(totalPages, currentPage + 1))}
         >
-          <Icon name="chevron-right" />
+          ›
         </button>
       </div>
     </nav>
@@ -6676,15 +6562,6 @@ function statusDisplayText(value) {
 
 function Icon({ name }) {
   return <i className={`fa-solid fa-${name}`} aria-hidden="true" />;
-}
-
-function PanelHeading({ icon = 'layer-group', title, description, level = 'h2', actions = null }) {
-  const Heading = level === 'h3' ? 'h3' : 'h2';
-  return <div className="panel-head"><div><Heading className="heading-with-icon"><Icon name={icon} />{title}</Heading>{description ? <p>{description}</p> : null}</div>{actions}</div>;
-}
-
-function PageHeading({ icon, children, id }) {
-  return <h1 id={id} className="page-heading-with-icon"><span className="page-title-icon"><Icon name={icon} /></span><span className="page-heading-text">{children}</span></h1>;
 }
 
 function statusIconName(value) {
@@ -6974,20 +6851,8 @@ async function fetchJSON(url) {
   const response = await fetch(url);
   if (response.status === 401) throw new AuthError(401, 'Session expired; please sign in again.');
   if (response.status === 403) throw new AuthError(403, 'Access denied.');
-  if (!response.ok) {
-    const error = new Error(`${url} failed with ${response.status}`);
-    error.status = response.status;
-    throw error;
-  }
+  if (!response.ok) throw new Error(`${url} failed with ${response.status}`);
   return response.json();
-}
-
-function browserSessionDestination(me, nextPath) {
-  const rememberedCloudID = readCloudPreference(document.cookie);
-  if (rememberedCloudID && preferredCloudID(me, rememberedCloudID) !== rememberedCloudID) {
-    forgetCloudPreference();
-  }
-  return destinationForSession(me, nextPath, rememberedCloudID);
 }
 
 async function sendJSONWithMethod(method, url, body) {
@@ -7008,10 +6873,10 @@ async function sendJSONWithMethod(method, url, body) {
   return text ? JSON.parse(text) : null;
 }
 
-async function fetchRecentAlerts(devices, scopedAPI) {
+async function fetchRecentAlerts(devices, cloudId = '') {
   if (!devices.length) return [];
   const settled = await Promise.allSettled(
-    devices.map((device) => fetchJSON(`${scopedAPI}/fleet/devices/${encodeURIComponent(device.id)}/telemetry`)),
+    devices.map((device) => fetchJSON(scopedCustomerAPI(`/api/devices/${device.id}/telemetry`, cloudId))),
   );
   const alerts = [];
   settled.forEach((result, index) => {
@@ -7231,7 +7096,6 @@ function filterQueryValue(value) {
 function updateDevicesLocation({ deviceId, health, status, signal, firmware, productID, q, sort, direction, offset } = {}) {
   const current = new URLSearchParams(window.location.search);
   const path = devicesPathWithFilters({
-    cloudId: cloudIdFromPath(window.location.pathname),
     deviceId: deviceId === undefined ? current.get('device') || '' : deviceId,
     health: health === undefined ? current.get('health') || '' : health,
     status: status === undefined ? current.get('status') || '' : status,
@@ -7247,18 +7111,10 @@ function updateDevicesLocation({ deviceId, health, status, signal, firmware, pro
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
-const initialCanonicalPath = canonicalCustomerPath(window.location.pathname);
-if (initialCanonicalPath !== window.location.pathname) {
-  window.history.replaceState({}, '', `${initialCanonicalPath}${window.location.search}${window.location.hash}`);
-}
-const initialManagedCloudRoute = managedCloudRoute(window.location.pathname);
-const usesManagedCloudApp = Boolean(initialManagedCloudRoute && (
-  !initialManagedCloudRoute.cloudId || ['products', 'members', 'settings'].includes(initialManagedCloudRoute.section)
-));
-
 document.documentElement.lang = i18n.language;
+const canonicalOperationsRoute = /^\/console\/clouds\/[^/]+\/(?:fleet(?:\/.*)?|firmware-ota(?:\/.*)?|analytics(?:\/.*)?|members(?:\/.*)?|settings(?:\/.*)?)\/?$/;
 createRoot(document.getElementById('root')).render(
   <I18nextProvider i18n={i18n}>
-    {handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : usesManagedCloudApp ? <MyCloudsApp /> : <App />}
+    {handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : canonicalOperationsRoute.test(window.location.pathname) ? <App /> : window.location.pathname === '/console/clouds' || window.location.pathname.startsWith('/console/clouds/') ? <MyCloudsApp /> : <App />}
   </I18nextProvider>,
 );
