@@ -3513,12 +3513,16 @@ p {
 }
 
 .login-form button {
+  align-items: center;
   background: var(--brand);
   border: 0;
   border-radius: 8px;
   color: #fff;
   cursor: pointer;
+  display: inline-flex;
   font-weight: 800;
+  gap: 8px;
+  justify-content: center;
   min-height: 46px;
   padding: 0 16px;
 }
