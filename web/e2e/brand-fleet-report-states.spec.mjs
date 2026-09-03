@@ -4,6 +4,19 @@ import { login } from './fixtures/session.mjs';
 const cloudId = '33333333-3333-4333-8333-333333333333';
 const reportsAPI = `/api/developer/brand-clouds/${cloudId}/reports`;
 
+function collectKeys(value, keys = new Set()) {
+  if (!value || typeof value !== 'object') return keys;
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectKeys(item, keys));
+    return keys;
+  }
+  Object.entries(value).forEach(([key, item]) => {
+    keys.add(key.toLowerCase());
+    collectKeys(item, keys);
+  });
+  return keys;
+}
+
 test('[UI-CA-REPORT-001] report failure is customer-safe when upstream is unavailable @brand-fleet @errors', async ({ page }) => {
   test.skip(process.env.E2E_SCENARIO_MODE !== 'unavailable', 'run with E2E_SCENARIO_MODE=unavailable');
   await login(page, 'developer');
@@ -21,7 +34,10 @@ test('[UI-CA-REPORT-001] report failure is customer-safe when upstream is unavai
   }).toBe('failed');
   const failed = await page.request.get(`${reportsAPI}/${report.id}`);
   expect(failed.ok()).toBeTruthy();
-  expect(JSON.stringify(await failed.json())).not.toMatch(/access_token|raw_payload|authorization|tenant_id/i);
+  const keys = collectKeys(await failed.json());
+  for (const sensitiveKey of ['access_token', 'raw_payload', 'authorization', 'tenant_id']) {
+    expect(keys.has(sensitiveKey)).toBeFalsy();
+  }
 });
 
 test('[UI-CA-REPORT-002] expired report result returns explicit expired state @brand-fleet @errors', async ({ page }) => {

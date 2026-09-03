@@ -237,7 +237,9 @@ type FleetHealthTrendPoint struct {
 
 type FleetHealthSummary struct {
 	OrgID           string                  `json:"org_id"`
+	SourceStatus    string                  `json:"source_status"`
 	SourceFreshness string                  `json:"source_freshness"`
+	SourceMessage   string                  `json:"source_message"`
 	Distribution    FleetHealthDistribution `json:"distribution"`
 	Trend7D         []FleetHealthTrendPoint `json:"trend_7d"`
 	Trend30D        []FleetHealthTrendPoint `json:"trend_30d"`

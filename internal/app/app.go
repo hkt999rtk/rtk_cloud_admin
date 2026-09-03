@@ -4623,9 +4623,9 @@ func mapVideoCloudFleetHealthSummary(summary videoclient.FleetHealthSummary, org
 	}
 	return contracts.FleetHealthSummary{
 		OrgID:           fallback(summary.OrgID, orgID),
-		SourceStatus:    "available",
+		SourceStatus:    fallback(summary.SourceStatus, "available"),
 		SourceFreshness: summary.SourceFreshness,
-		SourceMessage:   "Telemetry source loaded from Video Cloud.",
+		SourceMessage:   fallback(summary.SourceMessage, "Telemetry source loaded from Video Cloud."),
 		Current:         contracts.FleetHealthCurrent{Healthy: summary.Distribution.Healthy, Warning: summary.Distribution.Warning, Critical: summary.Distribution.Critical, Unknown: summary.Distribution.Unknown},
 		Trend:           trend,
 	}
