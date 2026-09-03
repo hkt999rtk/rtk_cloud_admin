@@ -9,6 +9,7 @@ import './cloud-billing.css';
 import { cloudAPI, cloudURL, managedCloudRoute, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { scopedCustomerAPI } from './cloud-scope.mjs';
 import { ProvisioningPage } from './ProvisioningPage.jsx';
+import { BrandCloudCreateDrawer } from './BrandCloudCreateDrawer.jsx';
 import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
@@ -926,6 +927,30 @@ function App() {
     }));
   }
 
+  async function handleCreateBrandCloud(payload) {
+    setError('');
+    try {
+      const result = await postJSON('/api/admin/brand-clouds', payload.brandCloud);
+      let memberError = '';
+      if (payload.initialUser?.email) {
+        try {
+          await postJSON(`/api/admin/brand-clouds/${encodeURIComponent(result.brand_cloud.id)}/users`, payload.initialUser);
+        } catch (err) {
+          memberError = userFacingBrandCloudError(err);
+        }
+      }
+      await refreshBrandClouds();
+      if (memberError) setError(`Brand Cloud created, but initial admin setup needs attention: ${memberError}`);
+      setSelectedBrandCloudId(result.brand_cloud.id);
+      setBrandCloudDrawerMode('detail');
+      return { brandCloud: result.brand_cloud, memberError };
+    } catch (err) {
+      const message = userFacingBrandCloudError(err);
+      setError(message);
+      throw new Error(message);
+    }
+  }
+
   async function handleUpdateBrandCloud(brandCloudID, patch) {
     setError('');
     try {
@@ -1375,10 +1400,15 @@ function App() {
               setSelectedBrandCloudId(brand.id);
               setBrandCloudDrawerMode('detail');
             }}
+            onCreate={() => {
+              setSelectedBrandCloudId('');
+              setBrandCloudDrawerMode('create');
+            }}
             onCloseDrawer={() => {
               setSelectedBrandCloudId('');
               setBrandCloudDrawerMode('');
             }}
+            onCreateBrand={handleCreateBrandCloud}
             onUpdateBrand={handleUpdateBrandCloud}
             onCreateUser={handleCreateBrandCloudUser}
           />
@@ -4667,7 +4697,9 @@ function PlatformBrandClouds({
   onFilterChange,
   onPageChange,
   onOpenBrand,
+  onCreate,
   onCloseDrawer,
+  onCreateBrand,
   onUpdateBrand,
   onCreateUser,
 }) {
@@ -4695,7 +4727,7 @@ function PlatformBrandClouds({
             <h2>Brand Clouds</h2>
             <p>Licensed brand operators backed by Account Manager.</p>
           </div>
-          <span className="platform-scope-note"><Icon name="shield-halved" />Manage existing Brand Cloud status and access</span>
+          <button type="button" className="primary-button" onClick={onCreate}>Create Brand Cloud</button>
         </div>
         <div className="table-toolbar">
           <input className="input" value={query} onChange={(event) => onFilterChange({ query: event.target.value })} placeholder="Search brand, org id, owner" aria-label="Search Brand Clouds" />
@@ -4760,6 +4792,7 @@ function PlatformBrandClouds({
         ) : null}
       </section>
 
+      {drawerMode === 'create' ? <BrandCloudCreateDrawer onClose={onCloseDrawer} onCreate={onCreateBrand} /> : null}
       {drawerMode === 'detail' && selectedBrand ? (
         <BrandCloudDetailDrawer
           brand={selectedBrand}

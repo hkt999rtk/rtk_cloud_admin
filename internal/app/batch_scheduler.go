@@ -14,9 +14,11 @@ import (
 	"rtk_cloud_admin/internal/contracts"
 )
 
-func (s *Server) StartBatchScheduler(ctx context.Context) {
+func (s *Server) StartBatchScheduler(ctx context.Context) <-chan struct{} {
+	done := make(chan struct{})
 	if s.jobs == nil {
-		return
+		close(done)
+		return done
 	}
 	_ = s.jobs.RecoverBatchJobLeases(time.Now().UTC())
 	owner := "worker-" + fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%d", time.Now().UnixNano()))))[:12]
@@ -25,6 +27,7 @@ func (s *Server) StartBatchScheduler(ctx context.Context) {
 		interval = time.Second
 	}
 	go func() {
+		defer close(done)
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
@@ -37,6 +40,7 @@ func (s *Server) StartBatchScheduler(ctx context.Context) {
 			}
 		}
 	}()
+	return done
 }
 
 func (s *Server) retryPendingBatchJobRevocations() {

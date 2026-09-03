@@ -140,7 +140,7 @@ func TestFleetHealthSummary(t *testing.T) {
 			t.Fatalf("Authorization = %q", r.Header.Get("Authorization"))
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"org_id": "org-1", "source_freshness": "2026-09-03T01:02:03Z",
+			"org_id": "org-1", "source_status": "stale", "source_freshness": "2026-09-03T01:02:03Z", "source_message": "Last safe snapshot.",
 			"distribution": map[string]int{"healthy": 2, "warning": 1, "critical": 0, "unknown": 1},
 			"trend_7d":     []map[string]any{{"date": "2026-09-03", "healthy": 2, "warning": 1, "critical": 0, "unknown": 1}},
 			"trend_30d":    []map[string]any{},
@@ -152,7 +152,7 @@ func TestFleetHealthSummary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if summary.Distribution.Healthy != 2 || summary.SourceFreshness == "" || len(summary.Trend7D) != 1 {
+	if summary.Distribution.Healthy != 2 || summary.SourceStatus != "stale" || summary.SourceMessage != "Last safe snapshot." || summary.SourceFreshness == "" || len(summary.Trend7D) != 1 {
 		t.Fatalf("summary = %+v", summary)
 	}
 }

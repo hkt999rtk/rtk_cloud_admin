@@ -61,8 +61,11 @@ func TestScopedProvisioningCSVValidationAndExecution(t *testing.T) {
 	}
 	s := NewWithOptions(st, Options{AccountClient: accountclient.New(upstream.URL), Config: config.Config{AccountManagerJobAuthorizationToken: strings.Repeat("j", 32), BatchWorkerPollInterval: 5 * time.Millisecond, BatchWorkerLeaseDuration: time.Second}})
 	workerCtx, cancelWorkers := context.WithCancel(context.Background())
-	defer cancelWorkers()
-	s.StartBatchScheduler(workerCtx)
+	workersDone := s.StartBatchScheduler(workerCtx)
+	t.Cleanup(func() {
+		cancelWorkers()
+		<-workersDone
+	})
 	root := "/api/developer/brand-clouds/" + cloudA
 	request := func(method, path, contentType, key string, body *bytes.Buffer) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, path, body)
