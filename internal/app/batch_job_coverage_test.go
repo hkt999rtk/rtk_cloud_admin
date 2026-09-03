@@ -443,6 +443,20 @@ func TestOTAUpdatePlanProxyAndFirmwareRetry(t *testing.T) {
 		"target_count":        0,
 	}
 	scope["scope_hash"] = batchScopeHash(map[string]any{"query": query, "excluded_device_ids": excluded})
+	preview, err := st.CreateOTAScopePreview(contracts.OTAScopePreview{
+		OrganizationID: "org-acme",
+		ProductID:      "product-1",
+		Scope:          scope,
+		ScopeHash:      fmt.Sprint(scope["scope_hash"]),
+		TargetCount:    0,
+		MatchedCount:   0,
+		ExcludedCount:  1,
+		ExpiresAt:      fmt.Sprint(scope["expires_at"]),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope["preview_id"] = preview.ID
 	payload, err := json.Marshal(map[string]any{"product_id": "product-1", "name": "Qualification", "scope": scope, "rate_limit_per_minute": 100})
 	if err != nil {
 		t.Fatal(err)

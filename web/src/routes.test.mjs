@@ -110,9 +110,17 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.labelKey),
-    ['Brand Cloud Home', 'Devices', 'Products and Services', 'ChipSet & SDK', 'Firmware OTA', 'Video Streaming Health', 'Reports', 'Billing and Automatic Top-Up'],
+    ['Brand Cloud Home', 'Devices', 'CSV Provisioning', 'Products and Services', 'ChipSet & SDK', 'Firmware OTA', 'Video Streaming Health', 'Reports', 'Billing and Automatic Top-Up'],
   );
   assert.deepEqual(customerNavGroups.map((group) => group.labelKey), ['Brand Cloud', 'Device Operations', 'Products and Updates', 'Monitoring and Analytics', 'Account Management']);
+});
+
+test('canonical cloud URLs keep the cloud identity in the route', () => {
+  const cloud = '11111111-1111-4111-8111-111111111111';
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/fleet`), 'devices');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/fleet/provisioning`), 'provisioning');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/analytics/reports`), 'reports');
+  assert.equal(cloudIdFromPath(`/console/clouds/${cloud}/firmware-ota`), cloud);
 });
 
 test('customer nav is derived from active membership capabilities', () => {

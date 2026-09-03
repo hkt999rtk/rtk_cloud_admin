@@ -215,6 +215,29 @@ type FleetStreamStats struct {
 	WorstDevices       []FleetStreamWorstDevice        `json:"worst_devices"`
 }
 
+type FleetHealthDistribution struct {
+	Healthy  int `json:"healthy"`
+	Warning  int `json:"warning"`
+	Critical int `json:"critical"`
+	Unknown  int `json:"unknown"`
+}
+
+type FleetHealthTrendPoint struct {
+	Date     string `json:"date"`
+	Healthy  int    `json:"healthy"`
+	Warning  int    `json:"warning"`
+	Critical int    `json:"critical"`
+	Unknown  int    `json:"unknown"`
+}
+
+type FleetHealthSummary struct {
+	OrgID           string                  `json:"org_id"`
+	SourceFreshness string                  `json:"source_freshness"`
+	Distribution    FleetHealthDistribution `json:"distribution"`
+	Trend7D         []FleetHealthTrendPoint `json:"trend_7d"`
+	Trend30D        []FleetHealthTrendPoint `json:"trend_30d"`
+}
+
 func New(baseURL string) *Client {
 	return NewWithHTTPClient(baseURL, &http.Client{Timeout: 6 * time.Second})
 }
@@ -584,6 +607,18 @@ func (c *Client) FleetStreamStats(ctx context.Context, adminToken, orgID, window
 	var out FleetStreamStats
 	if err := c.doJSON(ctx, http.MethodGet, path, adminToken, nil, &out); err != nil {
 		return FleetStreamStats{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) FleetHealthSummary(ctx context.Context, adminToken, orgID string) (FleetHealthSummary, error) {
+	if !c.Enabled() {
+		return FleetHealthSummary{}, fmt.Errorf("video cloud base URL is not configured")
+	}
+	path := "/api/fleet/health-summary?org_id=" + url.QueryEscape(strings.TrimSpace(orgID))
+	var out FleetHealthSummary
+	if err := c.doJSON(ctx, http.MethodGet, path, adminToken, nil, &out); err != nil {
+		return FleetHealthSummary{}, err
 	}
 	return out, nil
 }

@@ -7,6 +7,8 @@ import { handoffRoute } from './owner-handoff.mjs';
 import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
 import './cloud-billing.css';
 import { cloudAPI, cloudURL, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
+import { cloudConsolePath, scopedCustomerAPI } from './cloud-scope.mjs';
+import { ProvisioningPage } from './ProvisioningPage.jsx';
 import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
@@ -216,6 +218,8 @@ async function fetchBrandCloudAccessData(cloudId, { includeAssignments = false }
 }
 
 function App() {
+  const urlCloudId = cloudIdFromPath(window.location.pathname);
+  const apiPath = useCallback((path) => scopedCustomerAPI(path, urlCloudId), [urlCloudId]);
   const [active, setActive] = useState(routeFromLocation());
   const [me, setMe] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -328,7 +332,7 @@ function App() {
       setError('');
       setLoading(true);
       try {
-        const nextMe = await fetchJSON('/api/me');
+        let nextMe = await fetchJSON('/api/me');
         if (!alive) return;
         setMe(nextMe);
 
@@ -360,7 +364,17 @@ function App() {
         }
 
         const requestedCloudId = cloudIdFromPath(window.location.pathname);
-        if (nextMe.kind === 'customer' && requestedCloudId && requestedCloudId !== nextMe.active_org_id) {
+        if (nextMe.kind === 'customer' && requestedCloudId && window.location.pathname.startsWith('/console/clouds/')) {
+          const scopedCloud = await fetchJSON(cloudAPI(requestedCloudId));
+          nextMe = {
+            ...nextMe,
+            active_org_id: requestedCloudId,
+            active_organization: scopedCloud.brand_cloud,
+            capabilities: scopedCloud.brand_cloud?.capabilities || [],
+          };
+          if (!alive) return;
+          setMe(nextMe);
+        } else if (nextMe.kind === 'customer' && requestedCloudId && requestedCloudId !== nextMe.active_org_id) {
           const switchResponse = await fetch('/api/me/active-org', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ organization_id: requestedCloudId }) });
           if (!switchResponse.ok) {
             setError('Access forbidden: This Brand Cloud is not available to the signed-in developer.');
@@ -400,9 +414,9 @@ function App() {
               fetchJSON(`${prefix}/platform-dashboard`),
             ]
           : [
-              fetchJSON(`${prefix}/summary`),
-              fetchJSON(`${prefix}/customers`),
-              fetchJSON('/api/fleet/devices?limit=100').then((page) => page.devices || []),
+              fetchJSON(apiPath('/api/fleet/summary')),
+              Promise.resolve([]),
+              fetchJSON(apiPath('/api/fleet/devices?limit=100')).then((page) => page.devices || []),
               Promise.resolve([]),
               Promise.resolve([]),
               Promise.resolve([]),
@@ -412,7 +426,7 @@ function App() {
         if (!alive) return;
         setSummary(nextSummary);
         if (active === 'overview' && nextMe.kind !== 'platform_admin') {
-          const nextFleetSummary = await fetchJSON('/api/fleet/summary').catch((err) => {
+          const nextFleetSummary = await fetchJSON(apiPath('/api/fleet/summary')).catch((err) => {
             if (err.isAuthError) throw err;
             return { source_status: 'unavailable', source_message: translate('Fleet statistics are temporarily unavailable.') };
           });
@@ -424,7 +438,7 @@ function App() {
         setCustomers(nextCustomers);
         setDevices(nextDevices);
         if (active === 'devices' && nextMe.kind !== 'platform_admin') {
-          const nextFleetDevices = await fetchJSON(fleetDevicesURL(window.location.search)).catch((err) => {
+          const nextFleetDevices = await fetchJSON(apiPath(fleetDevicesURL(window.location.search))).catch((err) => {
             if (err.isAuthError) throw err;
             return { devices: [], pagination: { limit: 100, offset: 0, total: 0 }, source_status: 'unavailable', source_message: translate('The device query service is temporarily unavailable.') };
           });
@@ -525,7 +539,7 @@ function App() {
           setChipsets(null);
         }
         if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin' && firmwareProductId) {
-          const nextFirmwareDistribution = await fetchJSON(`/api/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`)
+          const nextFirmwareDistribution = await fetchJSON(apiPath(`/api/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`))
             .catch((err) => {
               if (err.isAuthError) throw err;
               return sourceUnavailableFromError('firmware', err);
@@ -536,8 +550,8 @@ function App() {
           setFirmwareDistribution(null);
         }
 
-        if (['product-services', 'firmware-ota', 'reports'].includes(active) && nextMe.kind !== 'platform_admin') {
-          const nextProducts = await fetchJSON('/api/products').catch((err) => {
+        if (['product-services', 'firmware-ota', 'reports', 'provisioning'].includes(active) && nextMe.kind !== 'platform_admin') {
+          const nextProducts = await fetchJSON(apiPath('/api/products')).catch((err) => {
             if (err.isAuthError) throw err;
             return { products: [], source_status: 'unavailable', source_message: translate('Product data is temporarily unavailable.') };
           });
@@ -545,7 +559,7 @@ function App() {
           setProducts(nextProducts);
           if (active === 'firmware-ota' && firmwareProductId && nextProducts?.products?.some((product) => product.id === firmwareProductId)) {
             const selectedProduct = nextProducts.products.find((product) => product.id === firmwareProductId);
-            const releaseResult = await fetchJSON(`/api/products/${encodeURIComponent(firmwareProductId)}/releases`).catch((err) => {
+            const releaseResult = await fetchJSON(apiPath(`/api/products/${encodeURIComponent(firmwareProductId)}/releases`)).catch((err) => {
               if (err.isAuthError) throw err;
               return { items: [], releases: [] };
             });
@@ -559,7 +573,7 @@ function App() {
           setReleases([]);
         }
         if (['reports', 'groups'].includes(active) && nextMe.kind !== 'platform_admin') {
-          const endpoint = active === 'reports' ? '/api/reports' : '/api/groups';
+          const endpoint = apiPath(active === 'reports' ? '/api/reports' : '/api/groups');
           const result = await fetchJSON(endpoint).catch((err) => {
             if (err.isAuthError) throw err;
             return { [active]: [], source_status: 'unavailable', source_message: translate('Data is temporarily unavailable.') };
@@ -587,12 +601,12 @@ function App() {
         if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
           const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
           const [nextFleetHealth, nextStreamStats] = await Promise.all([
-            fetchJSON(`/api/fleet/health-summary?window=${overviewWindow}`)
+            fetchJSON(apiPath(`/api/fleet/health-summary?window=${overviewWindow}`))
               .catch((err) => {
                 if (err.isAuthError) throw err;
                 return sourceUnavailableFromError('telemetry', err);
               }),
-            fetchJSON(`/api/fleet/stream-stats?window=${streamWindowToUse}`)
+            fetchJSON(apiPath(`/api/fleet/stream-stats?window=${streamWindowToUse}`))
               .catch((err) => {
                 if (err.isAuthError) throw err;
                 return sourceUnavailableFromError('stream', err);
@@ -602,7 +616,7 @@ function App() {
           setFleetHealth(nextFleetHealth);
           setStreamStats(nextStreamStats);
           if (active === 'overview' && sourceAvailable(nextFleetHealth)) {
-            const nextAlerts = await fetchRecentAlerts(nextDevices);
+            const nextAlerts = await fetchRecentAlerts(nextDevices, requestedCloudId);
             if (!alive) return;
             setRecentAlerts(nextAlerts);
           } else {
@@ -653,7 +667,7 @@ function App() {
     return () => {
       alive = false;
     };
-  }, [active, brandCloudPagination.limit, brandCloudPagination.offset, brandCloudQuery, brandCloudStatus, brandCloudTierFilter, firmwareProductId, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
+  }, [active, apiPath, brandCloudPagination.limit, brandCloudPagination.offset, brandCloudQuery, brandCloudStatus, brandCloudTierFilter, firmwareProductId, isLoginRoute, isPublicRoute, overviewWindow, refreshTick, streamWindow]);
 
   useEffect(() => {
     if (!isPublicRoute || isLoginRoute) return;
@@ -739,7 +753,7 @@ function App() {
     const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
     const targetPath = targetRoute === item.id ? item.path : `/console/${targetRoute}`;
-    const path = cloudId && targetPath.startsWith('/console/') ? `/console/${encodeURIComponent(cloudId)}/${targetPath.slice('/console/'.length)}` : targetPath;
+    const path = cloudId ? cloudConsolePath(cloudId, targetRoute) : targetPath;
     window.history.pushState({}, '', path);
     if (targetRoute === 'firmware-ota') {
       setFirmwareDistribution(null);
@@ -751,7 +765,7 @@ function App() {
 
   function selectFirmwareProduct(productID) {
     const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
-    const path = cloudId ? `/console/${encodeURIComponent(cloudId)}/firmware-ota` : '/console/firmware-ota';
+    const path = cloudId ? cloudConsolePath(cloudId, 'firmware-ota') : '/console/firmware-ota';
     const params = new URLSearchParams();
     if (productID) params.set('product_id', productID);
     window.history.pushState({}, '', `${path}${params.size ? `?${params.toString()}` : ''}`);
@@ -761,7 +775,7 @@ function App() {
 
   function navigateBrandCloudTab(targetRoute) {
     const cloudId = me?.kind === 'customer' ? me.active_org_id : '';
-    const path = cloudId ? `/console/${encodeURIComponent(cloudId)}/${targetRoute}` : `/console/${targetRoute}`;
+    const path = cloudId ? cloudConsolePath(cloudId, targetRoute) : `/console/${targetRoute}`;
     window.history.pushState({}, '', path);
     setActive(targetRoute);
   }
@@ -791,14 +805,14 @@ function App() {
   }
 
   const refreshFirmwareStatus = useCallback(async () => {
-    const next = await fetchJSON('/api/fleet/firmware-distribution').catch((err) => sourceUnavailableFromError('firmware', err));
+    const next = await fetchJSON(apiPath('/api/fleet/firmware-distribution')).catch((err) => sourceUnavailableFromError('firmware', err));
     setFirmwareDistribution(next);
     return next;
-  }, []);
+  }, [apiPath]);
 
   async function runDeviceAction(deviceId, action) {
     setError('');
-    const response = await fetch(`/api/devices/${deviceId}/${action}`, { method: 'POST', headers: { 'Idempotency-Key': `device-${action}-${deviceId}-${Date.now()}` } });
+    const response = await fetch(apiPath(`/api/devices/${deviceId}/${action}`), { method: 'POST', headers: { 'Idempotency-Key': `device-${action}-${deviceId}-${Date.now()}` } });
     if (!response.ok) {
       setError(`${action} failed with ${response.status}`);
       return;
@@ -810,7 +824,7 @@ function App() {
 
   async function runUpdatePlanAction(campaignId, action, payload = {}) {
     setError('');
-    const response = await fetch(`/api/update-plans/${encodeURIComponent(campaignId)}/${action}`, {
+    const response = await fetch(apiPath(`/api/update-plans/${encodeURIComponent(campaignId)}/${action}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `ui-${campaignId}-${action}-${Date.now()}` },
       body: JSON.stringify({ reason: 'Executed by an operator in Fleet Management', ...payload }),
@@ -1044,6 +1058,10 @@ function App() {
 
   async function handleSwitchOrg(orgId) {
     setError('');
+    if (window.location.pathname.startsWith('/console/clouds/')) {
+      window.location.assign(cloudConsolePath(orgId, active));
+      return;
+    }
     const response = await fetch('/api/me/active-org', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1258,6 +1276,7 @@ function App() {
             onAction={runDeviceAction}
           />
         ) : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'provisioning' ? <ProvisioningPage products={products?.products || []} canCreate={canUseCapability(me, 'provisioning.create')} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'product-services' ? (
           <ProductsPage loading={loading} data={products} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
         ) : null}
@@ -2549,13 +2568,13 @@ function GroupsPage({ data, loading, onRefresh }) {
   const canManage = data?.allowed_actions?.includes('manage');
   async function createGroup(event) {
     event.preventDefault();
-    const response = await fetch('/api/groups', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `group-create-${form.name}` }, body: JSON.stringify(form) });
+    const response = await fetch(scopedCustomerAPI('/api/groups', cloudIdFromPath(window.location.pathname)), { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `group-create-${form.name}` }, body: JSON.stringify(form) });
     setMessage(response.ok ? 'Group created.' : 'The group could not be created at this time.');
     if (response.ok) { setForm({ name: '', description: '' }); setShowCreate(false); onRefresh(); }
   }
   async function deleteGroup(group) {
     if (!window.confirm(`Are you sure you want to delete “${group.name}”?`)) return;
-    const response = await fetch(`/api/groups/${encodeURIComponent(group.id)}`, { method: 'DELETE', headers: { 'Idempotency-Key': `group-delete-${group.id}` } });
+    const response = await fetch(scopedCustomerAPI(`/api/groups/${encodeURIComponent(group.id)}`, cloudIdFromPath(window.location.pathname)), { method: 'DELETE', headers: { 'Idempotency-Key': `group-delete-${group.id}` } });
     setMessage(response.ok ? 'Group deleted.' : 'The group cannot be deleted at this time.');
     if (response.ok) onRefresh();
   }
@@ -3099,12 +3118,13 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
   const [dimensions, setDimensions] = useState(['product', 'model', 'status', 'region']);
   const [filters, setFilters] = useState({ product_id: '', region: '', group_id: '', firmware: '', status: '', start_at: '', end_at: '' });
   const [message, setMessage] = useState('');
+  const reportURL = (id, format = '') => scopedCustomerAPI(`/api/reports/${encodeURIComponent(id)}${format ? `?format=${format}` : ''}`, cloudIdFromPath(window.location.pathname));
   const toggleDimension = (dimension) => setDimensions((current) => current.includes(dimension) ? current.filter((item) => item !== dimension) : [...current, dimension]);
   async function createReport(event) {
     event.preventDefault();
     const scope = Object.fromEntries(Object.entries(filters).filter(([, value]) => value.trim()));
     const payload = { name, report_type: reportType, dimensions, timezone, time_range: { start_at: filters.start_at, end_at: filters.end_at }, format, scope };
-    const response = await fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `report-${JSON.stringify(payload)}` }, body: JSON.stringify(payload) });
+    const response = await fetch(scopedCustomerAPI('/api/reports', cloudIdFromPath(window.location.pathname)), { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `report-${JSON.stringify(payload)}` }, body: JSON.stringify(payload) });
     setMessage(response.ok ? 'The report has been created and you will see the results when you are done.' : 'Report cannot be created at this time.');
     if (response.ok) { onRefresh(); }
   }
@@ -3126,7 +3146,7 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
       <div className="report-builder-actions"><button type="submit" className="primary-button">Create Report</button></div>
     </form>{message ? <p className="notice">{message}</p> : null}</section>}
     {loading ? <section className="panel split-panel"><div><h3>Loading report</h3></div></section> : null}
-        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Report</th><th>Status</th><th>Scope / Freshness</th><th>Created By</th><th>Created</th><th>Results</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{batchJobStateLabel(report.state)}{report.failure_reason ? <small className="error-text">The report could not be completed. Please try again.</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} · expires {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={`/api/reports/${encodeURIComponent(report.id)}`}>View Results</a>{report.state === 'completed' ? <> <a href={`/api/reports/${encodeURIComponent(report.id)}?format=csv`}>Download CSV</a> <a href={`/api/reports/${encodeURIComponent(report.id)}?format=json`}>Download JSON</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">No reports are available.</p> : null}</div></section> : null}
+        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Report</th><th>Status</th><th>Scope / Freshness</th><th>Created By</th><th>Created</th><th>Results</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{batchJobStateLabel(report.state)}{report.failure_reason ? <small className="error-text">The report could not be completed. Please try again.</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} · expires {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={reportURL(report.id)}>View Results</a>{report.state === 'completed' ? <> <a href={reportURL(report.id, 'csv')}>Download CSV</a> <a href={reportURL(report.id, 'json')}>Download JSON</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">No reports are available.</p> : null}</div></section> : null}
   </section>;
 }
 
@@ -3234,7 +3254,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
       setReleaseMessage('Please select a firmware binary and wait for its metadata to be calculated.');
       return;
     }
-    const response = await fetch(`/api/products/${encodeURIComponent(selectedProductId)}/releases`, {
+    const response = await fetch(scopedCustomerAPI(`/api/products/${encodeURIComponent(selectedProductId)}/releases`, cloudIdFromPath(window.location.pathname)), {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-${selectedProductId}-${releaseVersion.trim()}-${releaseArtifact.sha256.slice(0, 12)}` },
       body: JSON.stringify({ version: releaseVersion.trim(), build_number: releaseArtifact.buildNumber, artifact_size: releaseArtifact.size, artifact_sha256: releaseArtifact.sha256, hardware_revisions: releaseHardware.split(',').map((item) => item.trim()).filter(Boolean), content_type: releaseArtifact.contentType, anti_rollback_counter: 0 }),
     });
@@ -3261,7 +3281,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     event.preventDefault();
     const release = releases.find((item) => item.id === planRelease || item.release_id === planRelease);
     if (!release || !scopePreview?.scope) { setPlanMessage('Please get a valid server scope preview first.'); return; }
-    const response = await fetch('/api/update-plans', {
+    const response = await fetch(scopedCustomerAPI('/api/update-plans', cloudIdFromPath(window.location.pathname)), {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `plan-${release.product_id}-${release.id || release.release_id}-${Date.now()}` },
       body: JSON.stringify({ product_id: release.product_id, release_id: release.id || release.release_id, name: planName.trim() || `Update ${release.version}`, scope: scopePreview.scope, selector: scopePreview.scope.query, phases: [{ phase: 0, cumulative_percentage: 100, soak_seconds: 0 }], failure_policy: { minimum_sample_size: 10, failure_percentage: 10, timeout_percentage: 10 }, rate_limit_per_minute: Number(planRate) }),
     });
@@ -3276,7 +3296,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
       return values.length ? [[key, values]] : [];
     }));
     setScopeLoading(true);
-    const response = await fetch('/api/update-plans/scope-preview', {
+    const response = await fetch(scopedCustomerAPI('/api/update-plans/scope-preview', cloudIdFromPath(window.location.pathname)), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ product_id: release.product_id, query, excluded_device_ids: excludedDeviceText.split(/[,\s]+/).map((item) => item.trim()).filter(Boolean) }),
     });
@@ -3288,7 +3308,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
   }
   async function releaseAction(release, action) {
     const id = release.id || release.release_id;
-    const response = await fetch(`/api/products/${encodeURIComponent(release.product_id)}/releases/${encodeURIComponent(id)}/${action}`, {
+    const response = await fetch(scopedCustomerAPI(`/api/products/${encodeURIComponent(release.product_id)}/releases/${encodeURIComponent(id)}/${action}`, cloudIdFromPath(window.location.pathname)), {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `release-action-${id}-${action}-${Date.now()}` },
       body: JSON.stringify(action === 'revoke' ? { reason: 'Withdrawn by Brand Operator' } : {}),
     });
@@ -5440,7 +5460,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
     let alive = true;
     setTelemetryError('');
     setTelemetryLoadingId(selectedDevice.id);
-    fetchJSON(`/api/devices/${selectedDevice.id}/telemetry`)
+    fetchJSON(scopedCustomerAPI(`/api/devices/${selectedDevice.id}/telemetry`, cloudIdFromPath(window.location.pathname)))
       .then((payload) => {
         if (!alive) return;
         setTelemetryById((current) => ({
@@ -6832,10 +6852,10 @@ async function sendJSONWithMethod(method, url, body) {
   return text ? JSON.parse(text) : null;
 }
 
-async function fetchRecentAlerts(devices) {
+async function fetchRecentAlerts(devices, cloudId = '') {
   if (!devices.length) return [];
   const settled = await Promise.allSettled(
-    devices.map((device) => fetchJSON(`/api/devices/${device.id}/telemetry`)),
+    devices.map((device) => fetchJSON(scopedCustomerAPI(`/api/devices/${device.id}/telemetry`, cloudId))),
   );
   const alerts = [];
   settled.forEach((result, index) => {
@@ -7071,8 +7091,9 @@ function updateDevicesLocation({ deviceId, health, status, signal, firmware, pro
 }
 
 document.documentElement.lang = i18n.language;
+const canonicalOperationsRoute = /^\/console\/clouds\/[^/]+\/(?:fleet(?:\/.*)?|firmware-ota(?:\/.*)?|analytics(?:\/.*)?|members(?:\/.*)?|settings(?:\/.*)?)\/?$/;
 createRoot(document.getElementById('root')).render(
   <I18nextProvider i18n={i18n}>
-    {handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : window.location.pathname === '/console/clouds' || window.location.pathname.startsWith('/console/clouds/') ? <MyCloudsApp /> : <App />}
+    {handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : canonicalOperationsRoute.test(window.location.pathname) ? <App /> : window.location.pathname === '/console/clouds' || window.location.pathname.startsWith('/console/clouds/') ? <MyCloudsApp /> : <App />}
   </I18nextProvider>,
 );

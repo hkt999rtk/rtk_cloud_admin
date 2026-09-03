@@ -15,8 +15,9 @@ info:
     organizations, membership, brand-cloud records, registry devices, quota
     requests, and SSO provider configuration. Video Cloud remains authoritative
     for activation, telemetry, firmware, and streaming facts. Admin Console
-    stores local sessions, audit metadata, and demo
-    projections.
+    stores local sessions, audit metadata, short-lived OTA previews, provisioning
+    source metadata, and asynchronous job metadata. Production service facts are
+    never replaced with demo data.
 
     All JSON endpoints may return `text/plain` error responses from Go
     `http.Error` for validation, authorization, and upstream failures.
@@ -2075,6 +2076,79 @@ paths:
         "200": { description: Job result. }
         "410": { description: Result expired. }
 
+  /api/developer/brand-clouds/{brandCloudID}/jobs/{id}:
+    get:
+      operationId: getCloudBatchJob
+      x-rtk-feature-id: FEAT-CONTRACT-BATCH-001
+      x-rtk-requirement-ids: [REQ-CONTRACT-BATCH-STATE-001, REQ-CONTRACT-BATCH-RECOVERY-001]
+      tags: [Developer, Jobs]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Durable cloud-scoped job, content: { application/json: { schema: { type: object, properties: { job: { $ref: '#/components/schemas/BatchJob' } } } } } }
+        "404": { $ref: '#/components/responses/PlainTextError' }
+  /api/developer/brand-clouds/{brandCloudID}/jobs/{id}/items:
+    get:
+      operationId: listCloudBatchJobItems
+      x-rtk-feature-id: FEAT-CONTRACT-BATCH-001
+      x-rtk-requirement-ids: [REQ-CONTRACT-BATCH-RESULT-001]
+      tags: [Developer, Jobs]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+        - { name: retryable, in: query, schema: { type: boolean } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 250 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200": { description: Paginated safe item results. }
+  /api/developer/brand-clouds/{brandCloudID}/jobs/{id}/retry:
+    post:
+      operationId: retryCloudBatchJob
+      x-rtk-feature-id: FEAT-CONTRACT-BATCH-001
+      x-rtk-requirement-ids: [REQ-CONTRACT-BATCH-STATE-001, REQ-CONTRACT-BATCH-RESULT-001]
+      tags: [Developer, Jobs]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        "202": { description: A new job containing only recoverable failed rows. }
+        "409": { $ref: '#/components/responses/PlainTextError' }
+  /api/developer/brand-clouds/{brandCloudID}/jobs/{id}/result:
+    get:
+      operationId: downloadCloudBatchJobResult
+      x-rtk-feature-id: FEAT-CONTRACT-BATCH-001
+      x-rtk-requirement-ids: [REQ-CONTRACT-BATCH-RESULT-001]
+      tags: [Developer, Jobs]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: format, in: query, schema: { type: string, enum: [json, csv] } }
+      responses:
+        "200": { description: Audited JSON or CSV result. }
+        "410": { description: Result expired. }
+  /api/developer/brand-clouds/{brandCloudID}/jobs/{id}/{action}:
+    post:
+      operationId: actCloudBatchJob
+      x-rtk-feature-id: FEAT-CONTRACT-BATCH-001
+      x-rtk-requirement-ids: [REQ-CONTRACT-BATCH-STATE-001]
+      tags: [Developer, Jobs]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [pause, resume, cancel] } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        "202": { description: CAS action accepted or idempotently replayed. }
+        "409": { $ref: '#/components/responses/PlainTextError' }
+
   /api/developer/brand-clouds/{brandCloudID}/billing/summary:
     parameters:
       - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
@@ -2462,6 +2536,179 @@ paths:
       responses:
         "200": { description: Safe intent detail. }
         "404": { $ref: "#/components/responses/PaymentError" }
+
+  /api/developer/brand-clouds/{brandCloudID}/fleet/devices:
+    get:
+      operationId: listCloudFleetDevices
+      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
+      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
+      tags: [Developer, Fleet]
+      summary: List devices using an explicit Brand Cloud scope
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200": { description: Server-filtered and paginated fleet page. }
+        "403": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/brand-clouds/{brandCloudID}/fleet/health-summary:
+    get:
+      operationId: getCloudFleetHealthSummary
+      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
+      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
+      tags: [Developer, Fleet]
+      summary: Read cloud-scoped telemetry health and trend
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/FleetWindow"
+      responses:
+        "200": { description: Health summary with source_status and source freshness. }
+
+  /api/developer/brand-clouds/{brandCloudID}/fleet/stream-stats:
+    get:
+      operationId: getCloudFleetStreamStats
+      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
+      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
+      tags: [Developer, Fleet]
+      summary: Read cloud-scoped WebRTC reliability facts
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/FleetWindow"
+      responses:
+        "200": { description: Streaming summary, active sessions, never-streamed count and worst devices. }
+
+  /api/developer/brand-clouds/{brandCloudID}/provisioning/sources:
+    post:
+      operationId: uploadCloudProvisioningSource
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-PROV-002, REQ-UI-CA-PROV-004]
+      tags: [Developer, Fleet]
+      summary: Upload a seven-day immutable checksum-bound CSV source
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/ManagedCloudIdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, product_id]
+              properties:
+                file: { type: string, format: binary }
+                product_id: { type: string, format: uuid }
+                production_run: { type: string }
+      responses:
+        "201": { description: Immutable source metadata; device IDs are not echoed. }
+        "409": { description: Idempotency key was reused with different source content. }
+        "422": { description: CSV header, row, duplicate, Product, or size validation failed. }
+
+  /api/developer/brand-clouds/{brandCloudID}/provisioning/validate:
+    post:
+      operationId: validateCloudProvisioningSource
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-PROV-001, REQ-UI-CA-PROV-004]
+      tags: [Developer, Fleet]
+      summary: Start per-row validation for an immutable source
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/ManagedCloudIdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_id]
+              properties: { source_id: { type: string } }
+      responses:
+        "202": { description: Validation BatchJob accepted. }
+        "410": { description: Source expired. }
+
+  /api/developer/brand-clouds/{brandCloudID}/provisioning/jobs:
+    post:
+      operationId: executeCloudProvisioningSource
+      x-rtk-feature-id: FEAT-CA-PROV-001
+      x-rtk-requirement-ids: [REQ-UI-CA-PROV-005]
+      tags: [Developer, Fleet]
+      summary: Confirm execution after a successful validation job
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/ManagedCloudIdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_id, validation_job_id]
+              properties:
+                source_id: { type: string }
+                validation_job_id: { type: string }
+      responses:
+        "202": { description: Provisioning BatchJob accepted. }
+        "409": { description: Validation is incomplete, invalid, or belongs to another immutable source. }
+        "410": { description: Source expired. }
+
+  /api/developer/brand-clouds/{brandCloudID}/update-plans/scope-preview:
+    post:
+      operationId: previewCloudUpdatePlanScope
+      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
+      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
+      tags: [Developer, Fleet, Firmware]
+      summary: Persist a short-lived OTA scope preview bound to cloud and Product
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Fifteen-minute preview including preview_id, scope hash, counts, freshness and expiry.
+        "422": { description: Product, filters, or exclusions are invalid for this cloud. }
+
+  /api/developer/brand-clouds/{brandCloudID}/update-plans:
+    get:
+      operationId: listCloudUpdatePlans
+      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
+      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
+      tags: [Developer, Fleet, Firmware]
+      summary: List Product update plans in one explicit cloud
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: product_id, in: query, required: true, schema: { type: string, format: uuid } }
+      responses: { "200": { description: Update plan list. } }
+    post:
+      operationId: createCloudUpdatePlan
+      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
+      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
+      tags: [Developer, Fleet, Firmware]
+      summary: Create an update plan from a revalidated persisted preview
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/ManagedCloudIdempotencyKey"
+      responses:
+        "201": { description: Update plan created. }
+        "409": { description: Preview expired, was modified, or its target set drifted. }
+
+  /api/developer/brand-clouds/{brandCloudID}/reports:
+    get:
+      operationId: listCloudReports
+      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
+      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
+      tags: [Developer, Fleet, Reports]
+      summary: List immutable-scope report jobs in one explicit cloud
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { "200": { description: Report jobs and download states. } }
+    post:
+      operationId: createCloudReport
+      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
+      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
+      tags: [Developer, Fleet, Reports]
+      summary: Create a JSON or CSV report from an immutable Fleet scope
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/ManagedCloudIdempotencyKey"
+      responses: { "202": { description: Report accepted. } }
 
   /api/reports:
     get:
@@ -4455,7 +4702,7 @@ components:
 
     BatchJob:
       type: object
-      required: [id, type, name, organization_id, created_by, scope, state, total, completed, failed, skipped, created_at, updated_at]
+      required: [id, type, name, organization_id, created_by, scope, state, state_version, allowed_actions, authorization_status, total, completed, failed, skipped, created_at, updated_at]
       properties:
         id: { type: string }
         idempotency_key: { type: string }
@@ -4464,7 +4711,13 @@ components:
         organization_id: { type: string }
         created_by: { type: string }
         scope: { type: object, additionalProperties: true }
-        state: { type: string, enum: [queued, running, paused, completed, partial_failed, failed, cancelled] }
+        state: { type: string, enum: [queued, running, pausing, paused, cancelling, cancelled, completed, partial_failed, failed, expired] }
+        state_version: { type: integer, format: int64, minimum: 1 }
+        allowed_actions: { type: array, items: { type: string, enum: [pause, resume, cancel, retry] } }
+        authorization_id: { type: string, format: uuid }
+        authorization_status: { type: string, enum: [not_required, active, revoked, expired] }
+        checkpoint: { type: object, additionalProperties: true }
+        failure_code: { type: string }
         total: { type: integer, minimum: 0 }
         completed: { type: integer, minimum: 0 }
         failed: { type: integer, minimum: 0 }
@@ -4476,6 +4729,21 @@ components:
         result_metadata: { type: object, additionalProperties: true }
         expires_at: { type: string, format: date-time }
         failure_reason: { type: string }
+
+    BatchJobItem:
+      type: object
+      required: [job_id, item_key, position, state, attempt, retryable, updated_at]
+      properties:
+        job_id: { type: string }
+        item_key: { type: string }
+        position: { type: integer, minimum: 0 }
+        state: { type: string, enum: [pending, running, validated, completed, failed, skipped] }
+        attempt: { type: integer, minimum: 0 }
+        failure_code: { type: string }
+        failure_reason: { type: string }
+        retryable: { type: boolean }
+        upstream_operation_id: { type: string, format: uuid }
+        updated_at: { type: string, format: date-time }
 
     BatchJobRequest:
       type: object

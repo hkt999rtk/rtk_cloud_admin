@@ -20,6 +20,25 @@ type Client struct {
 	httpClient *http.Client
 }
 
+type JobAuthorization struct {
+	ID                   string `json:"id"`
+	JobID                string `json:"job_id"`
+	BrandCloudID         string `json:"brand_cloud_id"`
+	ScopeHash            string `json:"scope_hash"`
+	Capability           string `json:"capability"`
+	AuthorizationVersion int64  `json:"authorization_version"`
+	OwnershipVersion     int64  `json:"ownership_version"`
+	Status               string `json:"status"`
+}
+
+type JobToken struct {
+	AccessToken          string `json:"access_token"`
+	TokenType            string `json:"token_type"`
+	ExpiresIn            int    `json:"expires_in"`
+	AuthorizationVersion int64  `json:"authorization_version"`
+	OwnershipVersion     int64  `json:"ownership_version"`
+}
+
 type ChipsetEndpoint struct {
 	Type       string         `json:"type"`
 	Title      string         `json:"title"`
@@ -1383,11 +1402,25 @@ func (c *Client) Provision(ctx context.Context, accessToken, orgID, deviceID str
 	return c.lifecycle(ctx, accessToken, orgID, deviceID, "provision")
 }
 
+func (c *Client) ProvisionWithOperationID(ctx context.Context, accessToken, orgID string, device Device, operationID string) (Operation, error) {
+	body := map[string]string{"operation_id": operationID, "video_cloud_devid": device.VideoCloudDevID}
+	for _, key := range []string{"activity_id", "clip_public_key"} {
+		if value, ok := device.Metadata[key].(string); ok {
+			body[key] = value
+		}
+	}
+	return c.lifecycleBody(ctx, accessToken, orgID, device.ID, "provision", body)
+}
+
 func (c *Client) Deactivate(ctx context.Context, accessToken, orgID, deviceID string) (Operation, error) {
 	return c.lifecycle(ctx, accessToken, orgID, deviceID, "deactivate")
 }
 
 func (c *Client) lifecycle(ctx context.Context, accessToken, orgID, deviceID, action string) (Operation, error) {
+	return c.lifecycleBody(ctx, accessToken, orgID, deviceID, action, map[string]string{})
+}
+
+func (c *Client) lifecycleBody(ctx context.Context, accessToken, orgID, deviceID, action string, request map[string]string) (Operation, error) {
 	var body struct {
 		Operation Operation `json:"operation"`
 		ID        string    `json:"id"`
@@ -1396,13 +1429,32 @@ func (c *Client) lifecycle(ctx context.Context, accessToken, orgID, deviceID, ac
 		UpdatedAt string    `json:"updated_at"`
 	}
 	path := fmt.Sprintf("/v1/orgs/%s/devices/%s/%s", url.PathEscape(orgID), url.PathEscape(deviceID), action)
-	if err := c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{}, &body); err != nil {
+	if err := c.doJSON(ctx, http.MethodPost, path, accessToken, request, &body); err != nil {
 		return Operation{}, err
 	}
 	if body.Operation.ID != "" {
 		return body.Operation, nil
 	}
 	return Operation{ID: body.ID, State: body.State, Message: body.Message, UpdatedAt: body.UpdatedAt}, nil
+}
+
+func (c *Client) CreateJobAuthorization(ctx context.Context, accessToken, cloudID, jobID, scopeHash, capability string, productIDs []string, expiresAt time.Time) (JobAuthorization, error) {
+	var out JobAuthorization
+	path := "/v1/developer/brand-clouds/" + url.PathEscape(cloudID) + "/job-authorizations"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]any{"job_id": jobID, "scope_hash": scopeHash, "capability": capability, "product_ids": productIDs, "expires_at": expiresAt.UTC().Format(time.RFC3339Nano)}, &out)
+	return out, err
+}
+
+func (c *Client) ExchangeJobAuthorization(ctx context.Context, serviceToken, authorizationID, jobID, scopeHash string) (JobToken, error) {
+	var out JobToken
+	path := "/v1/internal/job-authorizations/" + url.PathEscape(authorizationID) + "/exchange"
+	err := c.doJSON(ctx, http.MethodPost, path, serviceToken, map[string]string{"job_id": jobID, "scope_hash": scopeHash}, &out)
+	return out, err
+}
+
+func (c *Client) RevokeJobAuthorization(ctx context.Context, serviceToken, authorizationID string) error {
+	path := "/v1/internal/job-authorizations/" + url.PathEscape(authorizationID) + "/revoke"
+	return c.doJSON(ctx, http.MethodPost, path, serviceToken, nil, nil)
 }
 
 func (c *Client) Health(ctx context.Context) error {

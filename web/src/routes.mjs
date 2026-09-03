@@ -11,6 +11,7 @@ export const customerNavGroups = [
     labelKey: 'Device Operations',
     items: [
       { id: 'devices', labelKey: 'Devices', path: '/console/devices', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
+      { id: 'provisioning', labelKey: 'CSV Provisioning', path: '/console/provisioning', icon: 'file-csv', capabilities: ['provisioning.read', 'provisioning.create'] },
     ],
   },
   {
@@ -162,6 +163,7 @@ export function titleFor(active) {
     'firmware-ota': 'Firmware OTA',
     'stream-health': 'Video Streaming Health',
     reports: 'Reports',
+    provisioning: 'CSV Provisioning',
     billing: 'Billing and Automatic Top-Up',
     'platform-dashboard': 'Platform Home',
     'platform-grafana': 'Grafana',
@@ -200,6 +202,22 @@ export function routeFromPath(path) {
   if (path === '/admin/operations' || path.startsWith('/admin/operations/')) return 'platform-operations';
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
   if (path.startsWith('/admin/')) return 'platform-dashboard';
+  const canonicalCloud = String(path || '').match(/^\/console\/clouds\/[^/]+(?:\/(.*))?\/?$/);
+  if (canonicalCloud) {
+    const suffix = String(canonicalCloud[1] || '').replace(/\/$/, '');
+    if (!suffix) return 'overview';
+    if (suffix === 'fleet') return 'devices';
+    if (suffix === 'fleet/groups') return 'groups';
+    if (suffix === 'fleet/jobs') return 'firmware-ota';
+    if (suffix === 'fleet/provisioning') return 'provisioning';
+    if (suffix === 'products') return 'product-services';
+    if (suffix === 'firmware-ota') return 'firmware-ota';
+    if (suffix === 'analytics') return 'stream-health';
+    if (suffix === 'analytics/reports') return 'reports';
+    if (suffix === 'members') return 'access';
+    if (suffix === 'settings') return 'settings';
+    if (suffix === 'billing') return 'billing';
+  }
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
   const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|billing)(?:\/|$)/);
@@ -226,6 +244,8 @@ export function routeFromPath(path) {
 }
 
 export function cloudIdFromPath(path) {
+  const canonical = String(path || '').match(/^\/console\/clouds\/([^/]+)(?:\/|$)/);
+  if (canonical) return decodeURIComponent(canonical[1]);
   if (/^\/console\/(?:overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/.test(String(path || ''))) return '';
   const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
   return match ? decodeURIComponent(match[1]) : '';
