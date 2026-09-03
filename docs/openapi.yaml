@@ -3179,47 +3179,6 @@ paths:
         "200": { description: Safe intent detail. }
         "404": { $ref: "#/components/responses/PaymentError" }
 
-  /api/developer/brand-clouds/{brandCloudID}/fleet/devices:
-    get:
-      operationId: listCloudFleetDevices
-      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
-      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
-      tags: [Developer, Fleet]
-      summary: List devices using an explicit Brand Cloud scope
-      parameters:
-        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
-        - { name: offset, in: query, schema: { type: integer, minimum: 0 } }
-      responses:
-        "200": { description: Server-filtered and paginated fleet page. }
-        "403": { $ref: "#/components/responses/PlainTextError" }
-
-  /api/developer/brand-clouds/{brandCloudID}/fleet/health-summary:
-    get:
-      operationId: getCloudFleetHealthSummary
-      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
-      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
-      tags: [Developer, Fleet]
-      summary: Read cloud-scoped telemetry health and trend
-      parameters:
-        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
-        - $ref: "#/components/parameters/FleetWindow"
-      responses:
-        "200": { description: Health summary with source_status and source freshness. }
-
-  /api/developer/brand-clouds/{brandCloudID}/fleet/stream-stats:
-    get:
-      operationId: getCloudFleetStreamStats
-      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
-      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
-      tags: [Developer, Fleet]
-      summary: Read cloud-scoped WebRTC reliability facts
-      parameters:
-        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
-        - $ref: "#/components/parameters/FleetWindow"
-      responses:
-        "200": { description: "Streaming summary, active sessions, never-streamed count and worst devices." }
-
   /api/developer/brand-clouds/{brandCloudID}/provisioning/sources:
     post:
       operationId: uploadCloudProvisioningSource
@@ -3292,80 +3251,6 @@ paths:
         "202": { description: Provisioning BatchJob accepted. }
         "409": { description: "Validation is incomplete, invalid, or belongs to another immutable source." }
         "410": { description: Source expired. }
-
-  /api/developer/brand-clouds/{brandCloudID}/update-plans/scope-preview:
-    post:
-      operationId: previewCloudUpdatePlanScope
-      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
-      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
-      tags: [Developer, Fleet, Firmware]
-      summary: Persist a short-lived OTA scope preview bound to cloud and Product
-      parameters:
-        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
-      responses:
-        "200":
-          description: Fifteen-minute preview including preview_id, scope hash, counts, freshness and expiry.
-        "422": { description: "Product, filters, or exclusions are invalid for this cloud." }
-
-  /api/developer/brand-clouds/{brandCloudID}/update-plans:
-    get:
-      operationId: listCloudUpdatePlans
-      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
-      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
-      tags: [Developer, Fleet, Firmware]
-      summary: List Product update plans in one explicit cloud
-      parameters:
-        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
-        - { name: product_id, in: query, required: true, schema: { type: string, format: uuid } }
-      responses: { "200": { description: Update plan list. } }
-    post:
-      operationId: createCloudUpdatePlan
-      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
-      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
-      tags: [Developer, Fleet, Firmware]
-      summary: Create an update plan from a revalidated persisted preview
-      parameters:
-        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
-        - $ref: "#/components/parameters/ManagedCloudIdempotencyKey"
-      responses:
-        "201": { description: Update plan created. }
-        "409": { description: "Preview expired, was modified, or its target set drifted." }
-
-  /api/developer/brand-clouds/{brandCloudID}/reports:
-    get:
-      operationId: listCloudReports
-      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
-      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
-      tags: [Developer, Fleet, Reports]
-      summary: List immutable-scope report jobs in one explicit cloud
-      parameters:
-        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
-      responses: { "200": { description: Report jobs and download states. } }
-    post:
-      operationId: createCloudReport
-      x-rtk-feature-id: FEAT-CONTRACT-MULTICLOUD-001
-      x-rtk-requirement-ids: [REQ-MULTICLOUD-BFF-SCOPE-001]
-      tags: [Developer, Fleet, Reports]
-      summary: Create a JSON or CSV report from an immutable Fleet scope
-      parameters:
-        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
-        - $ref: "#/components/parameters/ManagedCloudIdempotencyKey"
-      responses: { "202": { description: Report accepted. } }
-
-  /api/developer/brand-clouds/{brandCloudID}/reports/{reportID}:
-    get:
-      operationId: getCloudReport
-      x-rtk-feature-id: FEAT-P1-REPORT-001
-      x-rtk-requirement-ids: [REQ-P1-REPORT-001, REQ-P1-REPORT-002]
-      tags: [Developer, Fleet, Reports]
-      summary: Get immutable report metadata and a short-lived download URL
-      parameters:
-        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
-        - { name: reportID, in: path, required: true, schema: { type: string } }
-      responses:
-        "200": { description: Report metadata and download status. }
-        "404": { description: Report not found. }
-        "410": { description: Report result expired. }
 
   /api/reports:
     get:
