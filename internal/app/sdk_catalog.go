@@ -3,7 +3,20 @@ package app
 import (
 	"net/http"
 	"strings"
+
+	"rtk_cloud_admin/internal/sdkportalclient"
 )
+
+func (s *Server) configureSDKPortal() {
+	client, err := sdkportalclient.New(s.cfg.SDKPortalBaseURL)
+	if err == nil {
+		s.sdkPortalClient = client
+	}
+}
+
+func (s *Server) registerSDKPortalRoutes() {
+	s.mux.HandleFunc("GET /api/developer/sdk-releases/latest", s.apiDeveloperSDKReleaseLatest)
+}
 
 func (s *Server) apiDeveloperSDKReleaseLatest(w http.ResponseWriter, r *http.Request) {
 	_, ok := s.customerSession(r)

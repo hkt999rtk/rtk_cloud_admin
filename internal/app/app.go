@@ -32,6 +32,7 @@ import (
 	"rtk_cloud_admin/internal/correlation"
 	"rtk_cloud_admin/internal/readinessfacts"
 	"rtk_cloud_admin/internal/reportstorage"
+	"rtk_cloud_admin/internal/sdkportalclient"
 	"rtk_cloud_admin/internal/store"
 	"rtk_cloud_admin/internal/videoclient"
 
@@ -53,6 +54,7 @@ type Server struct {
 	videoClient         *videoclient.Client
 	logger              *zap.Logger
 	reportStorage       reportstorage.Store
+	sdkPortalClient     *sdkportalclient.Client
 }
 
 type Options struct {
@@ -67,9 +69,9 @@ type customerScopeContextKey struct{}
 
 func scopedCustomer(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cloudID := strings.TrimSpace(r.PathValue("brandCloudID"))
-		if cloudID == "" {
-			http.NotFound(w, r)
+		cloudID := strings.ToLower(strings.TrimSpace(r.PathValue("brandCloudID")))
+		if !managedCloudUUID.MatchString(cloudID) {
+			http.Error(w, "invalid Brand Cloud ID", http.StatusBadRequest)
 			return
 		}
 		handler(w, r.WithContext(context.WithValue(r.Context(), customerScopeContextKey{}, cloudID)))
@@ -145,6 +147,7 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 		logger:              opts.Logger,
 		reportStorage:       reportstorage.Store{Endpoint: opts.Config.ReportObjectStorageEndpoint, Bucket: opts.Config.ReportObjectStorageBucket, Region: opts.Config.ReportObjectStorageRegion, AccessKey: opts.Config.ReportObjectStorageAccessKey, SecretKey: opts.Config.ReportObjectStorageSecretKey},
 	}
+	s.configureSDKPortal()
 	s.routes()
 	s.handler = requestContextMiddleware(cloudlogger.HTTPMiddleware(opts.Logger)(s.mux))
 	return s
@@ -336,6 +339,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/members/{userID}", s.apiCloudSharing)
 	s.mux.HandleFunc("GET /api/developer/chipsets", s.apiDeveloperChipsets)
 	s.mux.HandleFunc("GET /api/developer/chipsets/{chipsetId}", s.apiDeveloperChipset)
+	s.registerSDKPortalRoutes()
 	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/owner-transfer", s.apiOwnerHandoff)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}", s.apiOwnerHandoff)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/owner-transfer/{transferID}/preview", s.apiOwnerHandoff)
@@ -3475,11 +3479,15 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-	orgID, err := s.customerOrgIDForSession(r.Context(), session)
+	org, _, err := s.activeCustomerOrg(r.Context(), session)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	if !requireCustomerCapability(w, org, capabilityCustomerFirmwareRead, capabilityFirmwareReleaseRead) {
+		return
+	}
+	orgID := org.ID
 	devices, err := s.firmwareDistributionDevices(r.Context(), session, orgID)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
