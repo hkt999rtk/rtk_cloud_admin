@@ -1026,13 +1026,13 @@ paginated per-row results without reconstructing authority client-side.
 ### [FEAT-CA-RELEASE-001] OTA and chipset release administration
 
 <!-- rtk-feature
-{"owner":"rtk_cloud_admin","risk":"high","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","repos/rtk_cloud_admin/web/e2e/chipset-sdk.visual.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","selector":"[UI-CA-CHIPSET-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","selector":"[UI-CA-CHIPSET-002]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","selector":"[UI-CA-CHIPSET-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","selector":"[UI-CA-CHIPSET-004]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.visual.spec.mjs","selector":"[UI-CA-CHIPSET-005]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.visual.spec.mjs","selector":"[UI-CA-CHIPSET-006]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","selector":"[UI-CA-OTA-001]"}]}
+{"owner":"rtk_cloud_admin","risk":"high","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","repos/rtk_cloud_admin/web/e2e/chipset-sdk.visual.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.spec.mjs","selector":"[UI-CA-CHIPSET-003]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/chipset-sdk.visual.spec.mjs","selector":"[UI-CA-CHIPSET-006]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-workflows.spec.mjs","selector":"[UI-CA-OTA-001]"}]}
 -->
 
 #### [REQ-UI-CA-CHIPSET-001] Chipset provider page exposes loading and validation states
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The Platform provider editor was intentionally retired; route and navigation retirement are covered by unit tests.","approved_at":"2026-09-03"}
 -->
 
 Acceptance: Chipset provider page exposes loading and validation states.
@@ -1040,23 +1040,23 @@ Acceptance: Chipset provider page exposes loading and validation states.
 #### [REQ-UI-CA-CHIPSET-002] Read-only provider capability hides mutation controls
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The Platform provider editor was intentionally retired; route and navigation retirement are covered by unit tests.","approved_at":"2026-09-03"}
 -->
 
 Acceptance: Read-only provider capability hides mutation controls.
 
-#### [REQ-UI-CA-CHIPSET-003] Provider and developer pages expose safe upstream-unavailable states
+#### [REQ-UI-CA-CHIPSET-003] Developer resources expose safe upstream-unavailable states
 
 <!-- rtk-requirement
 {"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
-Acceptance: Provider and developer pages expose safe upstream-unavailable states.
+Acceptance: The customer-facing ChipSet and SDK resource page exposes safe upstream-unavailable states without relying on the retired Platform provider editor.
 
 #### [REQ-UI-CA-CHIPSET-004] Provider publish refresh fallback and unpublish lifecycle works
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The Platform provider editor and its publish lifecycle UI were intentionally retired.","approved_at":"2026-09-03"}
 -->
 
 Acceptance: Provider publish refresh fallback and unpublish lifecycle works.
@@ -1064,7 +1064,7 @@ Acceptance: Provider publish refresh fallback and unpublish lifecycle works.
 #### [REQ-UI-CA-CHIPSET-005] Platform provider design matches the approved visual baseline
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The Platform provider editor was intentionally retired, so its visual baseline is no longer a product requirement.","approved_at":"2026-09-03"}
 -->
 
 Acceptance: Platform provider design matches the approved visual baseline.
