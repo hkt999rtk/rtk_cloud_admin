@@ -880,30 +880,6 @@ function App() {
     }));
   }
 
-  async function handleCreateBrandCloud(payload) {
-    setError('');
-    try {
-      const result = await postJSON('/api/admin/brand-clouds', payload.brandCloud);
-      let memberError = '';
-      if (payload.initialUser?.email) {
-        try {
-          await postJSON(`/api/admin/brand-clouds/${encodeURIComponent(result.brand_cloud.id)}/users`, payload.initialUser);
-        } catch (err) {
-          memberError = userFacingBrandCloudError(err);
-        }
-      }
-      await refreshBrandClouds();
-      if (memberError) setError(`Brand Cloud created, but initial admin setup needs attention: ${memberError}`);
-      setSelectedBrandCloudId(result.brand_cloud.id);
-      setBrandCloudDrawerMode('detail');
-      return { brandCloud: result.brand_cloud, memberError };
-    } catch (err) {
-      const message = userFacingBrandCloudError(err);
-      setError(message);
-      throw new Error(message);
-    }
-  }
-
   async function handleUpdateBrandCloud(brandCloudID, patch) {
     setError('');
     try {
@@ -1340,15 +1316,10 @@ function App() {
               setSelectedBrandCloudId(brand.id);
               setBrandCloudDrawerMode('detail');
             }}
-            onCreate={() => {
-              setSelectedBrandCloudId('');
-              setBrandCloudDrawerMode('create');
-            }}
             onCloseDrawer={() => {
               setSelectedBrandCloudId('');
               setBrandCloudDrawerMode('');
             }}
-            onCreateBrand={handleCreateBrandCloud}
             onUpdateBrand={handleUpdateBrandCloud}
             onCreateUser={handleCreateBrandCloudUser}
           />
@@ -2338,14 +2309,14 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
     if (response.ok) onRefresh();
   }
   return <section className="page-content chipset-provider-page" data-testid="chipset-provider-page">
-    <div className="page-intro"><div><p className="eyebrow">Developer Enablement</p><h2>ChipSet &amp; SDK Providers</h2><p>{translate('Publish external Information Provider manifests. The platform manages sources, publication state, and synchronization health without modifying parsed SDK endpoints.')}</p></div><div className="page-intro-actions"><button type="button" className="ghost-button" onClick={onRefresh}>{translate('Refresh Status')}</button>{canEdit ? <button type="button" className="primary-button" onClick={() => setDrawer({ mode: 'create', provider: null })}>{translate('Add Provider')}</button> : null}</div></div>
+    <div className="page-intro"><div><p className="eyebrow">Platform Catalog Management</p><h2 className="heading-with-icon"><Icon name="database" />ChipSet &amp; SDK Providers</h2><p>{translate('Manage Information Provider sources, publication state, and synchronization health for the platform catalog.')}</p></div><div className="page-intro-actions"><button type="button" className="ghost-button icon-text" onClick={onRefresh}><Icon name="rotate" />{translate('Refresh Status')}</button>{canEdit ? <button type="button" className="primary-button icon-text" onClick={() => setDrawer({ mode: 'create', provider: null })}><Icon name="plus" />{translate('Add Provider')}</button> : null}</div></div>
     <section className="metrics chipset-provider-kpis" aria-label="ChipSet provider summary">
       <MetricCard icon="database" label="Providers" value={kpis.total} hint={`${kpis.published} published · ${kpis.total - kpis.published} not published`} tone="info" />
       <MetricCard icon="microchip" label="Published ChipSets" value={kpis.publishedChipsets} hint={`${kpis.publishedSDKs} SDK releases`} tone="info" />
       <MetricCard icon="clock-rotate-left" label="Last successful sync" value={kpis.lastSuccess ? formatRelativeTime(kpis.lastSuccess) : '—'} hint={kpis.lastSuccess ? 'background refresh healthy' : 'No successful sync'} tone="good" />
       <MetricCard icon="triangle-exclamation" label="Needs attention" value={kpis.needsAttention} hint="last-known-good remains available" tone={kpis.needsAttention ? 'warn' : 'good'} />
     </section>
-    {staleProviders.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>{translate('{{name}} manifest is delayed', { name: staleProviders[0].name })}</strong><span>{translate('The last valid data remains available to developers. Check the provider endpoint.')}</span></div><button type="button" className="link-button" onClick={() => setDrawer({ mode: 'preview', provider: staleProviders[0] })}>{translate('View Error')}</button></div> : null}
+    {staleProviders.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>{translate('{{name}} manifest is delayed', { name: staleProviders[0].name })}</strong><span>{translate('The last valid data remains available to downstream consumers. Check the provider endpoint.')}</span></div><button type="button" className="link-button icon-text" onClick={() => setDrawer({ mode: 'preview', provider: staleProviders[0] })}><Icon name="magnifying-glass" />{translate('View Error')}</button></div> : null}
     {message ? <div className="notice">{message}</div> : null}
     {loading && !data ? <section className="panel chipset-loading-state"><p>{translate('Loading providers…')}</p></section> : null}
     {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Provider catalog unavailable</h3><p>{data.source_message}</p></div></section> : null}
@@ -4058,9 +4029,9 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations, logs
         <FootprintPanel rows={footprintRows} />
         <PlatformActivityPanel health={health} />
         <PlatformIncidentContext logs={logs} />
-        <PlatformMetricPanel title="Cross-Service Risk" rows={crossServiceRows} />
-        <PlatformMetricPanel title="Business Signals" rows={businessRows} secondary />
-        <PlatformMetricPanel title="Infrastructure Health" rows={infrastructureRows} />
+        <PlatformMetricPanel title="Cross-Service Risk" icon="diagram-project" rows={crossServiceRows} />
+        <PlatformMetricPanel title="Business Signals" icon="chart-line" rows={businessRows} secondary />
+        <PlatformMetricPanel title="Infrastructure Health" icon="microchip" rows={infrastructureRows} />
         {serverResources.length ? <ServerResourceStatus resources={serverResources} source={dashboard?.panel_sources?.server_resources || source} legacy /> : null}
       </section>
     </section>
@@ -4104,7 +4075,7 @@ function ScrapeHealthPanel({ groups }) {
     <article className="panel platform-dashboard-panel platform-compact-panel">
       <div className="panel-head">
         <div>
-          <h2>Scrape Health</h2>
+          <h2 className="heading-with-icon"><Icon name="gauge-high" />Scrape Health</h2>
           <p>Grouped Prometheus target status.</p>
         </div>
       </div>
@@ -4129,7 +4100,7 @@ function FootprintPanel({ rows }) {
     <article className="panel platform-dashboard-panel platform-compact-panel">
       <div className="panel-head">
         <div>
-          <h2>Tenant & Device Footprint</h2>
+          <h2 className="heading-with-icon"><Icon name="building" />Tenant &amp; Device Footprint</h2>
           <p>Admin read-model totals.</p>
         </div>
       </div>
@@ -4150,7 +4121,7 @@ function OperationRiskPanel({ risk, operations }) {
     <article className="panel platform-dashboard-panel operation-risk-panel">
       <div className="panel-head">
         <div>
-          <h2>Operation Risk</h2>
+          <h2 className="heading-with-icon"><Icon name="triangle-exclamation" />Operation Risk</h2>
           <p>{risk.failed_operations || risk.dead_lettered_operations ? 'Failures need operator attention.' : 'No failed lifecycle work currently reported.'}</p>
         </div>
         <div className="operation-risk-legend" aria-label="Operation risk legend">
@@ -4184,7 +4155,7 @@ function PlatformActivityPanel({ health }) {
     <article className="panel platform-dashboard-panel platform-activity-panel platform-compact-panel">
       <div className="panel-head">
         <div>
-          <h2>Platform Activity</h2>
+          <h2 className="heading-with-icon"><Icon name="chart-line" />Platform Activity</h2>
           <p>{health.filter((item) => item.status === 'ok').length} of {health.length} services healthy.</p>
         </div>
       </div>
@@ -4199,7 +4170,7 @@ function PlatformIncidentContext({ logs }) {
     <article className="panel platform-dashboard-panel platform-compact-panel platform-incident-panel">
       <div className="panel-head">
         <div>
-          <h2>Recent Incident Context</h2>
+          <h2 className="heading-with-icon"><Icon name="triangle-exclamation" />Recent Incident Context</h2>
           <p>Recent log events that help explain degraded platform state.</p>
         </div>
         <a className="inline-action" href="/admin/logs">View service logs <Icon name="arrow-up-right-from-square" /></a>
@@ -4230,7 +4201,7 @@ function ServiceMetricsTable({ metrics, source }) {
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2>Service Health</h2>
+          <h2 className="heading-with-icon"><Icon name="heart-pulse" />Service Health</h2>
           <p>Current k8s service target health and basic runtime metrics. Long-term trends live in Grafana.</p>
         </div>
         <a className="inline-action" href="/admin/health">View service health <Icon name="arrow-right" /></a>
@@ -4277,7 +4248,7 @@ function WorkloadHealthTable({ workloads, source }) {
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2>K8s Workloads</h2>
+          <h2 className="heading-with-icon"><Icon name="boxes-stacked" />K8s Workloads</h2>
           <p>Deployment replica, pod readiness, restart, and crashloop status.</p>
         </div>
         <a className="inline-action" href="/admin/health">View workload health <Icon name="arrow-right" /></a>
@@ -4326,7 +4297,7 @@ function ClusterNodeSummary({ nodes, source }) {
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2>Cluster Nodes</h2>
+          <h2 className="heading-with-icon"><Icon name="server" />Cluster Nodes</h2>
           <p>Current k8s node readiness and resource snapshot.</p>
         </div>
         <a className="inline-action" href="/admin/health">View service health <Icon name="arrow-right" /></a>
@@ -4369,7 +4340,7 @@ function ServiceExporterStatus({ exporters, source }) {
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2>Service Exporter Status</h2>
+          <h2 className="heading-with-icon"><Icon name="file-export" />Service Exporter Status</h2>
           <p>Application and service-owned exporters published into the admin Prometheus boundary.</p>
         </div>
       </div>
@@ -4409,7 +4380,7 @@ function ServerResourceStatus({ resources, source, legacy = false }) {
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2>{legacy ? 'Legacy Server Resource Status' : 'Server Resource Status'}</h2>
+          <h2 className="heading-with-icon"><Icon name="server" />{legacy ? 'Legacy Server Resource Status' : 'Server Resource Status'}</h2>
           <p>{legacy ? 'Transition-only VM/server fallback while k8s metrics become the primary dashboard source.' : 'Per-server CPU, memory, root disk, and network throughput from the admin Prometheus boundary.'}</p>
         </div>
       </div>
@@ -4455,12 +4426,12 @@ function ServerResourceStatus({ resources, source, legacy = false }) {
   );
 }
 
-function PlatformMetricPanel({ title, rows, secondary = false }) {
+function PlatformMetricPanel({ title, icon = 'layer-group', rows, secondary = false }) {
   return (
     <article className={`panel platform-dashboard-panel ${secondary ? 'platform-dashboard-panel-secondary' : ''}`}>
       <div className="panel-head">
         <div>
-          <h2>{title}</h2>
+          <h2 className="heading-with-icon"><Icon name={icon} />{title}</h2>
         </div>
       </div>
       <div className="metric-row-list">
@@ -4515,16 +4486,16 @@ function PlatformHealth({ summary, health }) {
     <>
       <section className="panel split-panel">
         <div>
-          <h2>Platform Operations</h2>
+          <h2 className="heading-with-icon"><Icon name="server" />Platform Operations</h2>
           <p>Cross-customer view for service and operations support teams.</p>
           <div className="admin-kpis">
-            <div><strong>{customerCount}</strong><span>Customers</span></div>
-            <div><strong>{health.length}</strong><span>Service checks</span></div>
+            <div><Icon name="building" /><strong>{customerCount}</strong><span>Customers</span></div>
+            <div><Icon name="heart-pulse" /><strong>{health.length}</strong><span>Service checks</span></div>
           </div>
         </div>
         <ServiceHealth health={health} compact />
       </section>
-      {hasDemo ? <section className="panel demo-banner"><p>{`Demo services active: ${demoServices.map((service) => service.name).join(', ')}`}</p></section> : null}
+      {hasDemo ? <section className="panel demo-banner"><p><Icon name="flask" />{`Demo services active: ${demoServices.map((service) => service.name).join(', ')}`}</p></section> : null}
     </>
   );
 }
@@ -4532,42 +4503,60 @@ function PlatformHealth({ summary, health }) {
 function PlatformServiceLogs({ logs, loading }) {
   const events = logs?.events || [];
   const status = logs?.status || (loading ? 'loading' : 'unavailable');
+  const [filters, setFilters] = useState({ query: '', level: '', service: '' });
+  const visibleEvents = events.filter((event) => {
+    const query = filters.query.trim().toLowerCase();
+    const matchesQuery = !query || [event.msg, event.trace_id, event.request_id, event.operation_id, event.device_id, event.org_id, event.user_id]
+      .some((value) => String(value || '').toLowerCase().includes(query));
+    const matchesLevel = !filters.level || String(event.level || '').toLowerCase() === filters.level;
+    const matchesService = !filters.service || String(event.service || '').toLowerCase() === filters.service;
+    return matchesQuery && matchesLevel && matchesService;
+  });
+  const levels = [...new Set(events.map((event) => String(event.level || '').toLowerCase()).filter(Boolean))];
+  const services = [...new Set(events.map((event) => String(event.service || '').toLowerCase()).filter(Boolean))];
+  const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
+  const clearFilters = () => setFilters({ query: '', level: '', service: '' });
   return (
     <section className="panel platform-dashboard-panel">
       <div className="panel-head">
         <div>
-          <h2>Cloud Service Logs</h2>
-          <p>Centralized application logs from Account Manager, Video Cloud, Cloud Admin, and staging hosts.</p>
+          <h2 className="heading-with-icon"><Icon name="file-lines" />Cloud Service Logs</h2>
+          <p>Use this page to find a failed request, identify the affected service, and follow its trace or request ID.</p>
         </div>
-        <span className={`status-pill ${status === 'ok' ? 'ok' : 'warn'}`}>{status}</span>
+        <span className={`status-pill ${status === 'ok' ? 'ok' : 'warn'}`}><Icon name={status === 'ok' ? 'circle-check' : 'triangle-exclamation'} />{status}</span>
       </div>
-      <div className="filter-row">
-        {['service', 'host', 'unit', 'level', 'trace_id', 'request_id', 'operation_id', 'device_id', 'org_id', 'user_id'].map((field) => (
-          <label key={field}>
-            <span>{field}</span>
-            <input readOnly value="" placeholder={field} />
-          </label>
-        ))}
+      <div className="logs-start-here">
+        <strong><Icon name="wand-magic-sparkles" />Start here</strong>
+        <span>Choose a level or service, or search an ID/message to investigate a specific incident.</span>
+      </div>
+      <div className="logs-filter-panel">
+        <div className="logs-filter-heading"><strong><Icon name="filter" />Find log events</strong><span>{visibleEvents.length} of {events.length} events</span></div>
+        <div className="filter-row logs-filter-row">
+          <label className="logs-search-field"><span><Icon name="magnifying-glass" />Search message or ID</span><input value={filters.query} onChange={(event) => updateFilter('query', event.target.value)} placeholder="e.g. trace-e2e-001" /></label>
+          <label><span><Icon name="layer-group" />Level</span><select value={filters.level} onChange={(event) => updateFilter('level', event.target.value)}><option value="">All levels</option>{levels.map((level) => <option key={level} value={level}>{toTitleCase(level)}</option>)}</select></label>
+          <label><span><Icon name="server" />Service</span><select value={filters.service} onChange={(event) => updateFilter('service', event.target.value)}><option value="">All services</option>{services.map((service) => <option key={service} value={service}>{service}</option>)}</select></label>
+          <button type="button" className="ghost-button logs-clear-button" onClick={clearFilters} disabled={!filters.query && !filters.level && !filters.service}><Icon name="rotate-left" />Clear filters</button>
+        </div>
       </div>
       {logs?.message ? <p className="source-note">{logs.message}</p> : null}
       <div className="table-wrap">
         <table>
           <thead>
-            <tr><th>Time</th><th>Service</th><th>Level</th><th>Host</th><th>Message</th><th>Trace</th><th>Request</th></tr>
+            <tr><th><Icon name="clock" />Time</th><th><Icon name="server" />Service</th><th><Icon name="shield-halved" />Level</th><th><Icon name="desktop" />Host</th><th><Icon name="message" />Message</th><th><Icon name="route" />Trace</th><th><Icon name="arrow-right-to-bracket" />Request</th></tr>
           </thead>
           <tbody>
-            {events.map((event) => (
+            {visibleEvents.map((event) => (
               <tr key={event.event_id || `${event.ts}-${event.msg}`}>
                 <td>{event.ts || '-'}</td>
                 <td>{event.service || '-'}</td>
-                <td>{event.level || '-'}</td>
+                <td><span className={`log-level log-level-${String(event.level || 'unknown').toLowerCase()}`}><Icon name={statusIconName(event.level)} />{event.level || '-'}</span></td>
                 <td>{event.host || '-'}</td>
                 <td>{event.msg || '-'}</td>
                 <td>{event.trace_id || '-'}</td>
                 <td>{event.request_id || '-'}</td>
               </tr>
             ))}
-            {!events.length ? <tr><td colSpan="7">{loading ? 'Loading service logs' : 'No service log events found'}</td></tr> : null}
+            {!visibleEvents.length ? <tr><td colSpan="7"><div className="logs-empty"><Icon name={events.length ? 'filter-circle-xmark' : loading ? 'spinner' : 'inbox'} /><strong>{loading ? 'Loading service logs' : events.length ? 'No matching log events' : 'No service log events found'}</strong><span>{events.length ? 'Try clearing a filter or searching for another message or ID.' : 'When an event is available, start with its level and follow the trace or request ID.'}</span></div></td></tr> : null}
           </tbody>
         </table>
       </div>
@@ -4588,9 +4577,7 @@ function PlatformBrandClouds({
   onFilterChange,
   onPageChange,
   onOpenBrand,
-  onCreate,
   onCloseDrawer,
-  onCreateBrand,
   onUpdateBrand,
   onCreateUser,
 }) {
@@ -4618,7 +4605,7 @@ function PlatformBrandClouds({
             <h2>Brand Clouds</h2>
             <p>Licensed brand operators backed by Account Manager.</p>
           </div>
-          <button type="button" className="primary-button" onClick={onCreate}>Create Brand Cloud</button>
+          <span className="platform-scope-note"><Icon name="shield-halved" />Manage existing Brand Cloud status and access</span>
         </div>
         <div className="table-toolbar">
           <input className="input" value={query} onChange={(event) => onFilterChange({ query: event.target.value })} placeholder="Search brand, org id, owner" aria-label="Search Brand Clouds" />
@@ -4683,9 +4670,6 @@ function PlatformBrandClouds({
         ) : null}
       </section>
 
-      {drawerMode === 'create' ? (
-        <BrandCloudCreateDrawer onClose={onCloseDrawer} onCreateBrand={onCreateBrand} />
-      ) : null}
       {drawerMode === 'detail' && selectedBrand ? (
         <BrandCloudDetailDrawer
           brand={selectedBrand}
@@ -4695,130 +4679,6 @@ function PlatformBrandClouds({
         />
       ) : null}
     </section>
-  );
-}
-
-function BrandCloudCreateDrawer({ onClose, onCreateBrand }) {
-  const [form, setForm] = useState({
-    name: '',
-    region: '',
-    tier: 'Evaluation',
-    initialMode: 'none',
-	email: '',
-    displayName: '',
-    role: 'owner',
-  });
-  const [step, setStep] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
-
-  function update(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
-  }
-
-  async function submit(event) {
-    event.preventDefault();
-    setMessage('');
-    if (!form.name.trim()) {
-      setMessage('Brand display name is required.');
-      return;
-    }
-    if (step < 3) {
-	  if (step === 2 && form.initialMode === 'create' && !form.email.trim()) {
-		setMessage('Initial owner email is required.');
-        return;
-      }
-      setStep((current) => current + 1);
-      return;
-    }
-	if (form.initialMode === 'create' && !form.email.trim()) {
-	  setMessage('Initial owner email is required.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const payload = {
-        brandCloud: {
-          name: form.name.trim(),
-          metadata: {
-            region: form.region.trim() || undefined,
-            tier: form.tier,
-          },
-        },
-		initialUser: form.initialMode === 'create' ? {
-		  email: form.email.trim(),
-		  display_name: form.displayName.trim() || undefined,
-		  role: form.role,
-		  activation_mode: 'email',
-        } : null,
-      };
-      const result = await onCreateBrand(payload);
-      setMessage(result.memberError ? `Brand Cloud created. ${result.memberError}` : 'Brand Cloud created.');
-    } catch (err) {
-      setMessage(userFacingBrandCloudError(err));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="drawer-backdrop" role="presentation" onClick={onClose}>
-      <aside className="drawer-panel brand-cloud-drawer" role="dialog" aria-modal="true" aria-label="Create Brand Cloud" onClick={(event) => event.stopPropagation()}>
-        <div className="drawer-header">
-          <div>
-            <h2>Create Brand Cloud</h2>
-            <p>Creates an Account Manager `organization_kind=brand_cloud` record.</p>
-          </div>
-          <button type="button" className="drawer-close" onClick={onClose} aria-label="Close Brand Cloud drawer">x</button>
-        </div>
-        <div className="brand-cloud-stepper" aria-label="Create Brand Cloud steps">
-          {['Identity', 'Initial Admin', 'Review'].map((label, index) => <span className={step === index + 1 ? 'active' : step > index + 1 ? 'complete' : ''} key={label}>{index + 1}. {label}</span>)}
-        </div>
-        <form className="drawer-form" onSubmit={submit}>
-          {step === 1 ? (
-            <>
-              <label>Brand display name<input className="input" value={form.name} onChange={(event) => update('name', event.target.value)} /></label>
-              <div className="form-grid">
-                <label>Region<input className="input" value={form.region} onChange={(event) => update('region', event.target.value)} placeholder="Optional" /></label>
-                <label>Tier<select className="input" value={form.tier} onChange={(event) => update('tier', event.target.value)}><option>Evaluation</option><option>Commercial</option></select></label>
-              </div>
-              <p className="source-note">Organization kind is fixed as <code>brand_cloud</code>.</p>
-            </>
-          ) : null}
-          {step === 2 ? (
-            <>
-              <label>Initial admin mode<select className="input" value={form.initialMode} onChange={(event) => update('initialMode', event.target.value)}>
-                <option value="none">Assign later</option>
-				<option value="create">Invite global user by email</option>
-			  </select></label>
-			  {form.initialMode === 'create' ? (
-				<>
-				  <label>Email<input className="input" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
-				  <label>Display name<input className="input" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} /></label>
-				  <p className="source-note">The owner receives the global account activation email; no tenant password is created.</p>
-                </>
-              ) : null}
-              {form.initialMode !== 'none' ? <label>Role<select className="input" value={form.role} onChange={(event) => update('role', event.target.value)}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label> : null}
-            </>
-          ) : null}
-          {step === 3 ? (
-            <section className="drawer-summary create-review-summary">
-              <h3>Review</h3>
-              <div><span>Brand</span><strong>{form.name}</strong></div>
-              <div><span>Tier</span><strong>{form.tier}</strong></div>
-			  <div><span>Initial owner</span><strong>{form.initialMode === 'none' ? 'Assign later' : form.email}</strong></div>
-              <p className="source-note">Quota and SSO setup can be completed after creation.</p>
-            </section>
-          ) : null}
-          {message ? <p className="form-message">{message}</p> : null}
-          <div className="drawer-actions">
-            <button type="button" className="ghost-button" onClick={onClose}>Cancel</button>
-            {step > 1 ? <button type="button" className="ghost-button" onClick={() => setStep((current) => current - 1)} disabled={submitting}>Back</button> : null}
-            <button type="submit" className="primary-button" disabled={submitting}>{submitting ? 'Creating...' : step < 3 ? 'Continue' : 'Create Brand Cloud'}</button>
-          </div>
-        </form>
-      </aside>
-    </div>
   );
 }
 
@@ -6112,32 +5972,34 @@ function Operations({ operations }) {
     {
       key: 'summary',
       label: 'Friendly Summary',
+      icon: 'list-check',
       value: (operation) => operationSummary(operation),
       render: (operation) => (
         <div className="operation-summary">
+          <Icon name={operationIconName(operation.state)} />
           <strong>{operationSummary(operation)}</strong>
           <span className="operation-summary__raw">
-            <small>Raw type: {operation.type}</small>
-            <small>Raw state: <StatusBadge value={operation.state} /></small>
+            <small><Icon name="code" />{operation.type}</small>
+            <small><StatusBadge value={operation.state} /></small>
           </span>
         </div>
       ),
     },
-    { key: 'organization', label: 'Customer', value: (operation) => operation.organization },
-    { key: 'device_name', label: 'Device', value: (operation) => operation.device_name },
-    { key: 'updated_at', label: 'Updated', value: (operation) => operation.updated_at },
-    { key: 'message', label: 'Message', value: (operation) => operation.message },
+    { key: 'organization', label: 'Customer', icon: 'building', value: (operation) => operation.organization },
+    { key: 'device_name', label: 'Device', icon: 'microchip', value: (operation) => operation.device_name },
+    { key: 'updated_at', label: 'Updated', icon: 'clock', value: (operation) => operation.updated_at },
+    { key: 'message', label: 'Message', icon: 'message', value: (operation) => operation.message },
   ], []);
 
   return (
-    <section className="panel">
+    <section className="panel operations-page">
       <div className="panel-head">
         <div>
-          <h2>Lifecycle operations</h2>
+          <h2 className="heading-with-icon"><Icon name="list-check" />Lifecycle operations</h2>
           <p>Provisioning and deactivation commands projected from account/video contracts.</p>
         </div>
         <label className="operation-filter">
-          <span>State</span>
+          <span><Icon name="traffic-light" />State</span>
           <select
             value={stateFilter}
             onChange={(event) => setStateFilter(event.target.value)}
@@ -6306,9 +6168,9 @@ function DataTable({
               {columns.map((column) => (
                 <th key={column.key}>
                   {column.sortable === false ? (
-                    column.label
+                    <span className="data-table-heading">{column.icon ? <Icon name={column.icon} /> : null}{column.label}</span>
                   ) : (
-                      <button className="sort-button" onClick={() => {
+                    <button className="sort-button" onClick={() => {
                         if (serverMode) {
                           const nextDirection = sort.key === column.key && sort.direction === 'asc' ? 'desc' : 'asc';
                           onServerSort?.(column.key, nextDirection);
@@ -6316,7 +6178,7 @@ function DataTable({
                           requestSort(column.key);
                         }
                       }}>
-                      <span>{column.label}</span>
+                      <span className="data-table-heading">{column.icon ? <Icon name={column.icon} /> : null}{column.label}</span>
                       <span aria-hidden="true">{sort.key === column.key ? (sort.direction === 'asc' ? '^' : 'v') : '-'}</span>
                     </button>
                   )}

@@ -42,6 +42,35 @@ export const customerNavGroups = [
 
 export const customerNavItems = customerNavGroups.flatMap((group) => group.items);
 
+// Page-level meaning is separate from sidebar navigation so headings can stay
+// semantic without changing the existing navigation structure.
+export const pageIcons = Object.freeze({
+  'my-clouds': 'cloud', overview: 'gauge-high', devices: 'video',
+  'product-services': 'boxes-stacked', 'chipset-sdk': 'code-branch',
+  groups: 'tags', access: 'user-shield', settings: 'gear', billing: 'credit-card',
+  'firmware-ota': 'microchip', 'stream-health': 'tower-broadcast', reports: 'chart-column', analytics: 'chart-column', audit: 'shield-halved',
+  'platform-dashboard': 'gauge-high', 'platform-grafana': 'chart-simple', 'platform-health': 'heart-pulse',
+  'platform-logs': 'file-lines', 'platform-brand-clouds': 'cloud',
+  'platform-sso': 'key', 'platform-operations': 'list-check', 'platform-audit': 'shield-halved',
+  login: 'right-to-bracket', 'login-check-email': 'envelope', 'login-activate': 'right-to-bracket',
+  signup: 'user-plus', 'signup-check-email': 'envelope', 'signup-verification-expired': 'clock-rotate-left', verify: 'envelope-circle-check',
+  'forgot-password': 'key', 'reset-password': 'lock', 'brand-cloud-member-invitation-accept': 'user-plus', 'product-collaborator-invitation-accept': 'handshake',
+});
+
+export function pageIconFor(route) {
+  return pageIcons[route] || 'circle-info';
+}
+const cloudUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function decodedCloudID(value) {
+  try {
+    const decoded = decodeURIComponent(String(value || ''));
+    return cloudUUID.test(decoded) ? decoded : '';
+  } catch {
+    return '';
+  }
+}
+
 export const billingSubpaths = Object.freeze({
   overview: '/console/billing',
   usage: '/console/billing/usage',
@@ -73,7 +102,6 @@ export const platformNavGroups = [
     labelKey: 'Organizations and Products',
     items: [
       { id: 'platform-brand-clouds', labelKey: 'Brand Cloud Management', path: '/admin/brand-clouds', icon: 'cloud' },
-      { id: 'platform-chipset-providers', labelKey: 'ChipSet & SDK Providers', path: '/admin/chipset-providers', icon: 'code-branch', capabilities: ['platform.chipset_sdk.read', 'platform.chipset_sdk.edit', 'platform.chipset_sdk.publish'] },
       { id: 'platform-sso', labelKey: 'SSO Providers', path: '/admin/sso', icon: 'key' },
     ],
   },
@@ -169,7 +197,6 @@ export function titleFor(active) {
     'platform-grafana': 'Grafana',
     'platform-health': 'Service Health',
     'platform-brand-clouds': 'Brand Cloud Management',
-    'platform-chipset-providers': 'ChipSet & SDK Providers',
     'platform-sso': 'SSO Providers',
     'platform-logs': 'Service Logs',
     'platform-operations': 'Operations Log',
@@ -195,7 +222,7 @@ export function routeFromPath(path) {
   if (path === '/admin/resources' || path.startsWith('/admin/resources/')) return 'platform-dashboard';
   if (path === '/admin/health' || path.startsWith('/admin/health/')) return 'platform-health';
   if (path === '/admin/brand-clouds' || path.startsWith('/admin/brand-clouds/')) return 'platform-brand-clouds';
-  if (path === '/admin/chipset-providers' || path.startsWith('/admin/chipset-providers/')) return 'platform-chipset-providers';
+  if (path === '/admin/chipset-providers' || path.startsWith('/admin/chipset-providers/')) return 'platform-dashboard';
   if (path === '/admin/sso' || path.startsWith('/admin/sso/')) return 'platform-sso';
   if (path === '/admin/logs' || path.startsWith('/admin/logs/')) return 'platform-logs';
   if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
