@@ -95,6 +95,41 @@ func TestDisabledClient(t *testing.T) {
 	}
 }
 
+func TestOTAConfigSuccessAndErrors(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/ota/config" || r.Header.Get("X-Brand-Cloud-ID") != "cloud-a" {
+			http.NotFound(w, r)
+			return
+		}
+		switch r.Header.Get("Authorization") {
+		case "Bearer good":
+			_ = json.NewEncoder(w).Encode(map[string]any{"system_max_rate_limit_per_minute": 250})
+		case "Bearer malformed":
+			_, _ = w.Write([]byte(`{`))
+		default:
+			http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	config, err := client.OTAConfig(t.Context(), "good", "cloud-a")
+	if err != nil || config.SystemMaxRateLimitPerMinute != 250 {
+		t.Fatalf("config=%+v err=%v", config, err)
+	}
+	if _, err := client.OTAConfig(t.Context(), "rejected", "cloud-a"); err == nil || !strings.Contains(err.Error(), "503") {
+		t.Fatalf("status error=%v", err)
+	}
+	if _, err := client.OTAConfig(t.Context(), "malformed", "cloud-a"); err == nil {
+		t.Fatal("malformed OTA config succeeded")
+	}
+	if got := (HTTPStatusError{StatusCode: 409, Body: "scope drift"}).Error(); !strings.Contains(got, "409") || !strings.Contains(got, "scope drift") {
+		t.Fatalf("HTTPStatusError.Error()=%q", got)
+	}
+}
+
 func TestFleetHealthSummary(t *testing.T) {
 	t.Parallel()
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

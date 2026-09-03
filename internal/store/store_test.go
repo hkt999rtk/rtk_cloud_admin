@@ -91,6 +91,97 @@ func TestStoreInitializesWithSeedData(t *testing.T) {
 	}
 }
 
+func TestOTAPreviewAndDelegatedJobLeaseLifecycle(t *testing.T) {
+	t.Parallel()
+
+	st, err := Open(t.TempDir() + "/p0-lifecycle.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+
+	preview, err := st.CreateOTAScopePreview(contracts.OTAScopePreview{
+		OrganizationID: "org-a", ProductID: "product-a", Scope: map[string]any{"status": "online"},
+		ScopeHash: "scope-hash", TargetCount: 2, MatchedCount: 3, ExcludedCount: 1,
+		SourceFreshness: "fresh", ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	})
+	if err != nil || preview.ID == "" {
+		t.Fatalf("create preview: preview=%+v err=%v", preview, err)
+	}
+	loaded, err := st.GetOTAScopePreview("org-a", preview.ID)
+	if err != nil || loaded.ScopeHash != "scope-hash" || loaded.Scope["status"] != "online" {
+		t.Fatalf("get preview: preview=%+v err=%v", loaded, err)
+	}
+	if _, err := st.GetOTAScopePreview("org-b", preview.ID); err == nil {
+		t.Fatal("cross-organization preview lookup succeeded")
+	}
+
+	job, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "org-a", Type: "device_provision", State: "queued", Total: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err = st.BindBatchJobAuthorization("org-a", job.ID, "authorization-1")
+	if err != nil || job.AuthorizationStatus != "active" {
+		t.Fatalf("bind authorization: job=%+v err=%v", job, err)
+	}
+	if _, err := st.BindBatchJobAuthorization("org-a", job.ID, "authorization-2"); err == nil {
+		t.Fatal("running authorization was rebound")
+	}
+
+	now := time.Now().UTC()
+	job, err = st.AcquireBatchJob("worker-1", now, time.Minute)
+	if err != nil || job.State != "running" || job.LeaseOwner != "worker-1" {
+		t.Fatalf("acquire job: job=%+v err=%v", job, err)
+	}
+	if err := st.RenewBatchJobLease("org-a", job.ID, "worker-1", now.Add(time.Second), time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.RenewBatchJobLease("org-a", job.ID, "other-worker", now, time.Minute); err == nil {
+		t.Fatal("foreign worker renewed lease")
+	}
+	if err := st.ReleaseBatchJobLease("org-a", job.ID, "worker-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateBatchJobCheckpoint("org-a", job.ID, map[string]any{"position": 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateBatchJobAuthorizationStatus("org-a", job.ID, "revocation_pending"); err != nil {
+		t.Fatal(err)
+	}
+	pending, err := st.ListPendingBatchJobRevocations(0)
+	if err != nil || len(pending) != 1 || pending[0].ID != job.ID {
+		t.Fatalf("pending revocations=%+v err=%v", pending, err)
+	}
+	if err := st.UpdateBatchJobAuthorizationStatus("org-b", job.ID, "revoked"); err == nil {
+		t.Fatal("cross-organization authorization status update succeeded")
+	}
+	if _, err := st.UpdateBatchJobScope("org-a", job.ID, map[string]any{"invalid": make(chan int)}); err == nil {
+		t.Fatal("non-JSON job scope was accepted")
+	}
+	if _, err := st.UpdateBatchJobResult("org-a", job.ID, []map[string]any{{"invalid": make(chan int)}}); err == nil {
+		t.Fatal("non-JSON job result was accepted")
+	}
+	if err := st.FailBatchJobAuthorization("org-a", job.ID); err != nil {
+		t.Fatal(err)
+	}
+	failed, err := st.GetBatchJob("org-a", job.ID)
+	if err != nil || failed.State != "failed" || failed.FailureCode != "AUTHORIZATION_REVOKED" || failed.AuthorizationStatus != "revoked" {
+		t.Fatalf("failed authorization job=%+v err=%v", failed, err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.UpdateBatchJobState("org-a", job.ID, "completed"); err == nil {
+		t.Fatal("state update on closed store succeeded")
+	}
+	if _, err := st.UpdateBatchJobProgress("org-a", job.ID, "completed", 2, 0, 0); err == nil {
+		t.Fatal("progress update on closed store succeeded")
+	}
+}
+
 func TestBatchJobsPersistByOrganizationAndCanRetry(t *testing.T) {
 	st, err := Open(t.TempDir() + "/jobs.db")
 	if err != nil {
