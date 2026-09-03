@@ -25,6 +25,7 @@ import {
   defaultBrandCloudRoute,
   isCustomerNavItemActive,
   navGroupsForCapabilities,
+  pageIconFor,
   devicesPathWithFilters,
   isPlatformRouteId,
   isPublicRouteId,
@@ -1217,7 +1218,7 @@ function App() {
         >
           <Icon name="bars" />
         </button>
-        <h1>{titleFor(active)}</h1>
+        <PageHeading icon={pageIconFor(active)}>{titleFor(active)}</PageHeading>
         <span className="mobile-appbar-mark" aria-hidden="true">C+</span>
       </header>
       <button
@@ -1262,7 +1263,7 @@ function App() {
       <main>
         <header className="topbar">
           <div className="topbar-title">
-            <h1>{titleFor(active)}</h1>
+            <PageHeading icon={pageIconFor(active)}>{titleFor(active)}</PageHeading>
           </div>
           <div className="topbar-controls">
 			{me?.authenticated && me?.kind === 'customer' && (me?.platform_capabilities?.length ?? 0) > 0 ? <button type="button" className="ghost-button view-switch-button" onClick={() => handleSwitchView('platform')}>Platform view</button> : null}
@@ -1482,7 +1483,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
             <img src="/assets/realtek-logo.png" alt="Realtek" />
             <strong>Connect+</strong>
           </div>
-          <h1 id="login-title">{pageHeading}</h1>
+          <PageHeading id="login-title" icon={pageIconFor(active === 'reset-password' ? 'reset-password' : 'login')}>{pageHeading}</PageHeading>
           <p className="login-copy">{pageCopy}</p>
           {content}
           {error ? <div className="error">{error}</div> : null}
@@ -1551,8 +1552,8 @@ function LoginPasswordForm({ initialEmail = '', onPasswordLogin, disabled }) {
         Password
         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required />
       </label>
-      <button type="submit" disabled={busy || disabled}>{busy ? 'Signing in' : 'Sign in'}</button>
-      <a className="auth-link" href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}>Forgot password?</a>
+      <button type="submit" disabled={busy || disabled}><Icon name="right-to-bracket" />{busy ? 'Signing in' : 'Sign in'}</button>
+      <a className="auth-link icon-text" href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}><Icon name="key" />Forgot password?</a>
       {localError ? <p className="error">{localError}</p> : null}
     </form>
   );
@@ -1564,7 +1565,7 @@ function LoginCheckEmail({ email }) {
       <p>Check your email for a sign-in link.</p>
       <p className="auth-status">If an eligible account exists, the link will activate this browser session.</p>
       {email ? <p className="auth-meta">{email}</p> : null}
-      <a className="auth-link" href="/login">Back to sign in</a>
+      <a className="auth-link icon-text" href="/login"><Icon name="arrow-left" />Back to sign in</a>
     </div>
   );
 }
@@ -1605,7 +1606,7 @@ function LoginActivateView({ token, onLoginActivate }) {
     <div className="auth-stack">
       <form className="auth-inline" onSubmit={submit}>
         <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Sign-in token" required />
-        <button type="submit" disabled={busy}>{busy ? 'Activating' : 'Activate'}</button>
+        <button type="submit" disabled={busy}><Icon name="right-to-bracket" />{busy ? 'Activating' : 'Activate'}</button>
       </form>
       <p className="auth-status">{status}</p>
       {error ? <p className="error">{error}</p> : null}
@@ -1638,10 +1639,10 @@ function ForgotPasswordView({ email, onForgotPassword }) {
         Email
         <input type="email" value={value} onChange={(event) => setValue(event.target.value)} placeholder="name@company.com" required />
       </label>
-      <button type="submit" disabled={busy}>{busy ? 'Sending' : 'Send reset link'}</button>
+      <button type="submit" disabled={busy}><Icon name="paper-plane" />{busy ? 'Sending' : 'Send reset link'}</button>
       {status ? <p className="auth-status">{status}</p> : null}
       {error ? <p className="error">{error}</p> : null}
-      <a className="auth-link" href="/login">Back to sign in</a>
+      <a className="auth-link icon-text" href="/login"><Icon name="arrow-left" />Back to sign in</a>
     </form>
   );
 }
@@ -1736,9 +1737,9 @@ function ResetPasswordView({ token, email, onResetPassword }) {
       </label>
       <p className="password-requirement">Use at least 8 characters.</p>
       {passwordsDoNotMatch ? <p className="field-error" role="alert">Passwords do not match.</p> : null}
-      <button type="submit" disabled={busy || passwordsDoNotMatch}>{busy ? 'Updating password' : 'Update password'}</button>
+      <button type="submit" disabled={busy || passwordsDoNotMatch}><Icon name="lock" />{busy ? 'Updating password' : 'Update password'}</button>
       {error && !passwordsDoNotMatch ? <p className="error">{error}</p> : null}
-      <a className="auth-link" href="/login">Back to sign in</a>
+      <a className="auth-link icon-text" href="/login"><Icon name="arrow-left" />Back to sign in</a>
     </form>
   );
 }
@@ -1752,7 +1753,7 @@ function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify
     <div className="public-auth-shell">
       <section className="auth-hero">
         <p className="eyebrow">Evaluation tier access</p>
-        <h1>{titleFor(active)}</h1>
+        <PageHeading icon={pageIconFor(active)}>{titleFor(active)}</PageHeading>
         <p>Self-service signup and verification for the public evaluation tier.</p>
       </section>
       <section className="panel auth-panel">
@@ -1803,7 +1804,7 @@ function SignupForm({ onSignup, disabled = false }) {
         Leave this field empty
         <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
       </label>
-      <button type="submit" disabled={busy || disabled || !!honeypot}>Create account</button>
+      <button type="submit" disabled={busy || disabled || !!honeypot}><Icon name="user-plus" />Create account</button>
       {error ? <p className="error">{error}</p> : null}
     </form>
   );
@@ -1838,7 +1839,7 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
       <p>We sent a verification link to {email || 'your email address'}.</p>
       <form className="auth-inline" onSubmit={resend}>
         <input type="email" value={resendEmail} onChange={(event) => setResendEmail(event.target.value)} placeholder="Email address" required />
-        <button type="submit" disabled={busy}>Resend</button>
+        <button type="submit" disabled={busy}><Icon name="rotate" />Resend</button>
       </form>
       {status ? <p className="auth-status">{status}</p> : null}
       {error ? <p className="error">{error}</p> : null}
@@ -1849,7 +1850,7 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
 function ExpiredVerificationPage() {
   return (
     <div className="auth-stack expired-verification-page">
-      <h2>Verification link expired</h2>
+      <h2 className="heading-with-icon"><Icon name="clock-rotate-left" />Verification link expired</h2>
       <p>Your account was not verified. Start Sign Up again to receive a new verification email.</p>
       <a className="primary-button auth-primary-link" href="/signup">Sign up again</a>
       <a className="auth-link" href="/login">Back to Login</a>
@@ -1983,7 +1984,7 @@ function QuotaRaiseForm({ organizationId, organizationName, currentUsage, curren
         Contact name
         <input value={contactName} onChange={(event) => setContactName(event.target.value)} />
       </label>
-      <button type="submit" disabled={busy}>Request quota raise</button>
+      <button type="submit" className="icon-text" disabled={busy}><Icon name="arrow-up-right" />Request quota raise</button>
       {lastStatus ? <p className="auth-status">{lastStatus}</p> : null}
       {error ? <p className="error">{error}</p> : null}
     </form>
@@ -2081,8 +2082,8 @@ function TeamSummaryCard({ data, loading, me, onOpen }) {
 
   return <section className="panel team-summary-card">
     <div className="panel-head">
-      <div><h2>{translate('Team Summary')}</h2><p>{translate('Review members, invitations, and your current role.')}</p></div>
-      <button type="button" className="ghost-button" onClick={onOpen}>{translate('Manage Members and Access')}</button>
+      <div><h2 className="heading-with-icon"><Icon name="users" />{translate('Team Summary')}</h2><p>{translate('Review members, invitations, and your current role.')}</p></div>
+      <button type="button" className="ghost-button icon-text" onClick={onOpen}><Icon name="user-gear" />{translate('Manage Members and Access')}</button>
     </div>
     {loading && !data ? <p className="empty-state">{translate('Loading team data.')}</p> : null}
     {unavailable ? <p className="empty-state">{sourceMessage(data, translate('Team data is temporarily unavailable.'))}</p> : null}
@@ -2148,10 +2149,10 @@ function Overview({
 
   return (
     <div className="overview-layout">
-      <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
+      <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2 className="heading-with-icon"><Icon name="gauge-high" />{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
       <section className="metrics overview-metrics">
-        <MetricCard icon="video" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
-        <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'N/A'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
+        <MetricCard icon="wifi" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
+        <MetricCard icon="gauge-high" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'N/A'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
         <MetricCard icon="triangle-exclamation" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : telemetryReason} tone={needsAttention === 0 ? 'good' : 'warn'} />
         <MetricCard icon="tower-broadcast" label="Active Streams" value={activeStreams} hint={streamAvailable ? `of ${summary?.total_devices ?? 0} devices` : streamReason} tone="info" />
       </section>
@@ -2185,7 +2186,7 @@ function Overview({
       {me?.authenticated && isEvaluation && nearQuota ? (
         <section className="panel quota-callout">
           <div>
-            <h2>Evaluation quota</h2>
+            <h2 className="heading-with-icon"><Icon name="gauge-high" />Evaluation quota</h2>
             <p>{tierLabel} account for {activeMembership?.organization || 'your active organization'} is near its {quotaRatio} cap.</p>
           </div>
           <QuotaRaiseForm
@@ -2212,7 +2213,7 @@ function RegionFleetPanel({ summary, loading }) {
     <section className="panel region-fleet-panel">
       <div className="panel-head">
         <div>
-          <h2>{translate('Device Status by Region')}</h2>
+          <h2 className="heading-with-icon"><Icon name="map-location-dot" />{translate('Device Status by Region')}</h2>
           <p>{translate('Use the map to locate regions and compare fleet size by device count.')}</p>
         </div>
       </div>
@@ -2444,32 +2445,36 @@ function DeveloperChipsetResources({ data, sdkRelease, loading }) {
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
     <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a Cloud Client SDK for your mobile, web, native, or device application. Hardware-specific SDKs and board resources remain available separately below.</p></div></div>
     <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
-      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading">Cloud Client SDKs</h2><p>Use these packages to connect an app or a PRO2 device to Realtek Connect+. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
+    <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading" className="heading-with-icon"><Icon name="code-branch" />Cloud Client SDKs</h2><p>Use these packages to connect an app or a PRO2 device to Realtek Connect+. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
       {loading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
       {!loading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>No Cloud Client SDK release yet</h3><p>{sdkRelease.source_message}</p></div></section> : null}
       {!loading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Cloud Client SDKs are temporarily unavailable</h3><p>{sdkRelease.source_message}</p></div></section> : null}
       {artifacts.length ? <div className="cloud-sdk-grid">{artifacts.map((artifact) => <CloudSDKCard artifact={artifact} release={sdkRelease} key={artifact.slug} />)}</div> : null}
     </section>
     <section className="sdk-catalog-section device-sdk-section" aria-labelledby="device-chipset-sdks-heading">
-      <div className="sdk-section-heading"><div><h2 id="device-chipset-sdks-heading">Device &amp; ChipSet SDKs</h2><p>Find the official board SDKs, datasheets, examples, and support resources for the chipset used by your product.</p></div></div>
+    <div className="sdk-section-heading"><div><h2 id="device-chipset-sdks-heading" className="heading-with-icon"><Icon name="microchip" />Device &amp; ChipSet SDKs</h2><p>Find the official board SDKs, datasheets, examples, and support resources for the chipset used by your product.</p></div></div>
       {loading && !data ? <ChipsetCardSkeletons /> : null}
       {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p></div></section> : null}
-      {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
+      {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3 className="heading-with-icon"><Icon name="box-open" />{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
       {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
     </section>
   </section>;
+}
+
+function sdkArtifactIcon(slug) {
+  return { android: 'mobile-screen', ios: 'apple', javascript: 'code', native: 'terminal', device: 'microchip', all: 'boxes-stacked' }[slug] || 'box';
 }
 
 function CloudSDKCard({ artifact, release }) {
   const docsURL = sdkDocumentationURL(release?.portal_url, artifact.slug);
   const isPreview = Boolean(release?.local_preview);
   return <article className={`panel cloud-sdk-card${artifact.slug === 'all' ? ' complete-bundle' : ''}`}>
-    <div className="cloud-sdk-card-heading"><div><p className="sdk-format">{sdkArtifactFormat(artifact.slug)}</p><h3>{artifact.title}</h3></div><span className="status-badge good">{artifact.validation_status}</span></div>
+    <div className="cloud-sdk-card-heading"><div><p className="sdk-format icon-text"><Icon name={sdkArtifactIcon(artifact.slug)} />{sdkArtifactFormat(artifact.slug)}</p><h3>{artifact.title}</h3></div><span className="status-badge good"><Icon name="circle-check" />{artifact.validation_status}</span></div>
     <p>{artifact.description}</p>
     <dl className="cloud-sdk-metadata"><div><dt>Version</dt><dd>{release.catalog.version}</dd></div><div><dt>Size</dt><dd>{formatSDKBytes(artifact.size_bytes)}</dd></div><div className="checksum-row"><dt>SHA-256</dt><dd><code>{artifact.sha256}</code></dd></div></dl>
     <div className="sdk-capability-list" aria-label={`${artifact.title} capabilities`}>{artifact.capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div>
     <ul className="sdk-limitations">{artifact.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul>
-    <div className="cloud-sdk-actions">{isPreview ? <button type="button" className="ghost-button" disabled title="Documentation links are enabled with a published Portal release">Documentation preview</button> : docsURL ? <a className="ghost-button" href={docsURL} target="_blank" rel="noreferrer noopener">Documentation <Icon name="arrow-up-right-from-square" /></a> : null}{isPreview ? <button type="button" className="primary-button" disabled title="Local preview does not create downloadable artifacts">Local preview</button> : <a className="primary-button" href={`${release.portal_url}#downloads`} target="_blank" rel="noreferrer noopener">Review terms &amp; download <Icon name="arrow-up-right-from-square" /></a>}</div>
+    <div className="cloud-sdk-actions">{isPreview ? <button type="button" className="ghost-button icon-text" disabled title="Documentation links are enabled with a published Portal release"><Icon name="book-open" />Documentation preview</button> : docsURL ? <a className="ghost-button" href={docsURL} target="_blank" rel="noreferrer noopener">Documentation <Icon name="arrow-up-right-from-square" /></a> : null}{isPreview ? <button type="button" className="primary-button icon-text" disabled title="Local preview does not create downloadable artifacts"><Icon name="eye" />Local preview</button> : <a className="primary-button" href={`${release.portal_url}#downloads`} target="_blank" rel="noreferrer noopener">Review terms &amp; download <Icon name="arrow-up-right-from-square" /></a>}</div>
   </article>;
 }
 
@@ -2628,10 +2633,10 @@ function ProductsPage({ loading, data, onRefresh }) {
       <div className="page-intro">
         <div>
           <p className="eyebrow">Brand Fleet</p>
-          <h2>Products and Services</h2>
+          <h2 className="heading-with-icon"><Icon name="boxes-stacked" />Products and Services</h2>
           <p>See what services are available for each product and what your current role can manage.</p>
         </div>
-        {canManage ? <button type="button" className="primary-button" onClick={() => { setEditingProduct(null); setPreview(null); setShowCreate((value) => !value); }}>＋ Add Product</button> : null}
+        {canManage ? <button type="button" className="primary-button icon-text" onClick={() => { setEditingProduct(null); setPreview(null); setShowCreate((value) => !value); }}><Icon name="plus" />Add Product</button> : null}
       </div>
       {message ? <div className="notice">{message}</div> : null}
       {showCreate ? <section className="panel"><form className="product-create-form" onSubmit={createProduct}><input required placeholder="Product Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input required placeholder="Product Model" value={form.product_model} onChange={(event) => setForm({ ...form, product_model: event.target.value })} /><select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="ip_camera">Imaging Device</option><option value="mqtt_device">Telemetry Device</option><option value="generic">General Device</option></select><div className="service-checks">{PRODUCT_SERVICE_CAPABILITIES.map((service) => <label key={service.code}><input type="checkbox" checked={form.service_capabilities.includes(service.code)} onChange={(event) => setForm({ ...form, service_capabilities: event.target.checked ? [...form.service_capabilities, service.code] : form.service_capabilities.filter((item) => item !== service.code) })} />{translate(service.label)}</label>)}</div>{editingProduct ? <button type="button" className="ghost-button" onClick={previewProduct}>{translate('Preview Change Impact')}</button> : null}<button type="submit" className="primary">{editingProduct ? translate('Save Changes') : translate('Save Product')}</button>{preview ? <p className="notice">{preview.source_status === 'available' ? translate('{{count}} devices will be affected. {{impact}}', { count: formatNumber(preview.affected_devices || 0), impact: preview.requires_reprovision ? 'Reconfiguration may be required.' : 'No reconfiguration is required.' }) : translate('Impact preview is currently unavailable.')}</p> : null}</form></section> : null}
@@ -2645,15 +2650,15 @@ function ProductsPage({ loading, data, onRefresh }) {
               <thead><tr><th>Product</th><th>My Role</th><th>Product Model</th><th>Devices</th><th>Production Runs</th><th>Available Services</th><th>Device Policy</th><th>Firmware Policy</th><th>Available Actions</th><th>Status</th></tr></thead>
               <tbody>{items.map((product) => <tr key={product.id}>
                 <td><strong>{product.name}</strong><small>{product.id}</small></td>
-                <td><span className="status-badge neutral">{product.current_user_role === 'brand_owner' ? 'Brand Owner' : product.current_user_role === 'product_owner' ? 'Owner' : product.current_user_role === 'product_editor' ? 'Editor' : 'Viewer'}</span>{product.allowed_actions?.includes('manage_collaborators') ? <button type="button" className="link-button" onClick={() => loadCollaborators(product)}>Collaborators ({product.collaborator_count || 0})</button> : null}</td>
+                <td><span className="status-badge neutral"><Icon name="user-shield" />{product.current_user_role === 'brand_owner' ? 'Brand Owner' : product.current_user_role === 'product_owner' ? 'Owner' : product.current_user_role === 'product_editor' ? 'Editor' : 'Viewer'}</span>{product.allowed_actions?.includes('manage_collaborators') ? <button type="button" className="link-button icon-text" onClick={() => loadCollaborators(product)}><Icon name="users" />Collaborators ({product.collaborator_count || 0})</button> : null}</td>
                 <td>{product.product_model || product.category || '—'}</td>
                 <td>{formatNumber(product.device_count || 0)}</td>
                 <td>{formatNumber(product.production_run_count || 0)} production runs</td>
-                <td>{product.service_capabilities?.length ? product.service_capabilities.map(productServiceCapabilityLabel).join(', ') : 'Inactive'}</td>
-                <td>{product.device_policy?.setup_available || product.device_policy?.binding_available ? 'Set' : 'Not set'}</td>
-                <td>{product.firmware_policy?.ota_enabled ? 'Allow firmware updates' : 'Inactive'}</td>
-                <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? 'Manage Devices' : action === 'manage_updates' ? 'Manage Updates' : action === 'view_reports' ? 'View Reports' : action === 'manage_collaborators' ? 'Manage Collaborators' : action === 'edit_product' ? 'Edit Product' : 'View').join(', ') : 'Contact an administrator'}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: (product.service_capabilities || []).map(normalizeProductServiceCapability) }); setPreview(null); setShowCreate(true); }}>Edit</button> : null}</td>
-                <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{product.status === 'active' ? 'Activate' : 'Deactivate'}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button" onClick={async () => { await fetch(`${scopedAPI}/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}>Deactivate</button> : null}</td>
+                <td>{product.service_capabilities?.length ? <span className="icon-text"><Icon name="plug" />{product.service_capabilities.map(productServiceCapabilityLabel).join(', ')}</span> : 'Inactive'}</td>
+                <td><span className="icon-text"><Icon name="gear" />{product.device_policy?.setup_available || product.device_policy?.binding_available ? 'Set' : 'Not set'}</span></td>
+                <td><span className="icon-text"><Icon name="microchip" />{product.firmware_policy?.ota_enabled ? 'Allow firmware updates' : 'Inactive'}</span></td>
+                <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? 'Manage Devices' : action === 'manage_updates' ? 'Manage Updates' : action === 'view_reports' ? 'View Reports' : action === 'manage_collaborators' ? 'Manage Collaborators' : action === 'edit_product' ? 'Edit Product' : 'View').join(', ') : 'Contact an administrator'}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button icon-text" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: (product.service_capabilities || []).map(normalizeProductServiceCapability) }); setPreview(null); setShowCreate(true); }}><Icon name="pen-to-square" />Edit</button> : null}</td>
+                <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}><Icon name={product.status === 'active' ? 'circle-check' : 'circle-minus'} />{product.status === 'active' ? 'Active' : 'Inactive'}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button icon-text" onClick={async () => { await fetch(`${scopedAPI}/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}><Icon name="ban" />Deactivate</button> : null}</td>
               </tr>)}</tbody>
             </table>
           </div>
@@ -2798,8 +2803,8 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
   }
 
   return <section className="page-content team-access-page">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>Members & Permissions</h2><p>The role determines what can be done, and the scope determines which Products, Regions, Groups, or Devices can be managed.</p></div>
-      {canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setShowInviteForm((visible) => !visible)}>＋ Invite members</button> : null}
+    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2 className="heading-with-icon"><Icon name="users" />Members & Permissions</h2><p>The role determines what can be done, and the scope determines which Products, Regions, Groups, or Devices can be managed.</p></div>
+      {canManage && activeCloudId ? <button type="button" className="primary icon-text" onClick={() => setShowInviteForm((visible) => !visible)}><Icon name="user-plus" />Invite members</button> : null}
     </div>
     {showInviteForm ? <section className="panel invite-member-panel"><form className="inline-form" onSubmit={inviteMember}>
       <input required type="email" placeholder="Member Email" value={email} onChange={(event) => setEmail(event.target.value)} />
@@ -2808,8 +2813,8 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
       <button type="button" className="ghost-button" onClick={() => setShowInviteForm(false)}>Cancel</button>
     </form></section> : null}
     {message ? <div className="notice">{message}</div> : null}
-    {loading && !data ? <section className="panel split-panel"><div><h3>Loading permissions</h3></div></section> : null}
-    {!loading && data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Permission data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
+    {loading && !data ? <section className="panel split-panel"><div><h3 className="heading-with-icon"><Icon name="spinner" />Loading permissions</h3></div></section> : null}
+    {!loading && data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3 className="heading-with-icon"><Icon name="triangle-exclamation" />Permission data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
     {canManage && sourceAvailableFor('invitations_source_status') ? <section className="panel"><div className="panel-head"><div><h3>Pending invitations</h3><p>Invitation links are valid for 30 minutes. Resending immediately expires the previous link.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expires</th><th>Action</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td>{invitation.target_email}</td><td>{invitation.role}</td><td><span className="status-badge neutral">Pending acceptance</span></td><td>{formatProviderTimestamp(invitation.expires_at)}</td><td><button type="button" className="link-button" onClick={() => invitationAction(invitation, 'resend')}>Resend</button> <button type="button" className="link-button" onClick={() => invitationAction(invitation, 'cancel')}>Cancel</button></td></tr>)}</tbody></table>{!invitations.length ? <p className="empty-state">No pending invitations.</p> : null}</div></section> : null}
     {sourceAvailableFor('members_source_status') ? <section className="panel"><div className="panel-head"><div><h3>Brand Cloud Members</h3><p>Member data and membership scope are provided by the Account Manager.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Members</th><th>Role</th><th>Status</th>{canManage ? <th>Action</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong><small>{member.email}</small></td><td>{canManage && member.role !== 'owner' ? <select value={member.role} onChange={(event) => updateMember(member, 'role', event.target.value)}><option value="admin">Admin</option><option value="member">Member</option></select> : member.role}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}>{member.disabled_at ? 'Deactivate' : 'Activate'}</span></td>{canManage ? <td>{member.role === 'owner' ? 'Owner transfer only' : <><button type="button" className="link-button" onClick={() => updateMember(member, member.disabled_at ? 'enable' : 'disable')}>{member.disabled_at ? 'Activate' : 'Deactivate'}</button> <button type="button" className="link-button" onClick={() => updateMember(member, 'remove')}>Remove</button></>}</td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">There are currently no Brand Cloud members.</p> : null}</div></section> : null}
     {sourceAvailableFor('assignments_source_status') ? <>
@@ -3239,8 +3244,8 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
     if (response.ok) { onRefresh(); }
   }
     return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>Reports</h2><p>Organize operational results by product, region, group, firmware, and timeframe.</p></div></div>
-    {!canCreate ? <section className="panel split-panel"><div><h3>You currently do not have reports.create permission</h3><p>Existing reports can be viewed, but new reports cannot be created.</p></div></section> : <section className="panel report-builder-panel"><form className="report-builder" onSubmit={createReport}>
+    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2 className="heading-with-icon"><Icon name="file-chart-column" />Reports</h2><p>Organize operational results by product, region, group, firmware, and timeframe.</p></div></div>
+    {!canCreate ? <section className="panel split-panel"><div><h3 className="heading-with-icon"><Icon name="lock" />You currently do not have reports.create permission</h3><p>Existing reports can be viewed, but new reports cannot be created.</p></div></section> : <section className="panel report-builder-panel"><form className="report-builder" onSubmit={createReport}>
       <input value={name} onChange={(event) => setName(event.target.value)} aria-label="Report Name" />
       <select className="select-control" aria-label="Report Type" value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">Device Status</option><option value="firmware_coverage">Firmware Coverage</option></select>
       <select className="select-control" aria-label="Output Format" value={format} onChange={(event) => setFormat(event.target.value)}><option value="json">JSON</option><option value="csv">CSV</option></select>
@@ -3448,15 +3453,15 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     <section className="panel firmware-ota-page">
       <div className="panel-head">
         <div>
-          <h2>Firmware OTA</h2>
+          <h2 className="heading-with-icon"><Icon name="microchip" />Firmware OTA</h2>
           <p>Start and stop OTA rollouts, publish firmware versions, and track device progress for the selected Product.</p>
         </div>
-        <button type="button" className="ghost-button" disabled={!hasSelection || statusRefreshing} onClick={refreshStatus}>{statusRefreshing ? 'Updating status…' : 'Refresh status'}</button>
+        <button type="button" className="ghost-button icon-text" disabled={!hasSelection || statusRefreshing} onClick={refreshStatus}><Icon name="rotate" />{statusRefreshing ? 'Updating status…' : 'Refresh status'}</button>
       </div>
 
       <section className="firmware-product-selector" aria-label="Firmware Product selector">
         <label className="firmware-product-field">
-          <span>Product</span>
+          <span className="icon-text"><Icon name="boxes-stacked" />Product</span>
           <select className="select-control" aria-label="Select Firmware Product" value={selectedProductId} onChange={selectProduct} disabled={!products.length}>
             <option value="">Please select Product first</option>
             {products.map((product) => <option value={product.id} key={product.id}>{product.name}</option>)}
@@ -3465,7 +3470,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
         <p>{selectedProduct ? `Showing firmware versions, device distribution, and OTA update status for ${selectedProduct.name}.` : 'Select a Product to load its firmware and OTA status.'}</p>
       </section>
 
-      {!hasSelection ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3>Please select Product first</h3><p>Different Product hardware models, firmware versions and update plans are independent of each other.</p></div></section> : null}
+      {!hasSelection ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3 className="heading-with-icon"><Icon name="circle-info" />Please select Product first</h3><p>Different Product hardware models, firmware versions and update plans are independent of each other.</p></div></section> : null}
 
       {hasSelection && available ? <section className="metrics firmware-page-metrics">
         <MetricCard icon="microchip" label="Latest version" value={latestVersion} hint="Current target version" tone="info" />
@@ -3485,7 +3490,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
         />
       ) : null}
 
-      {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Add firmware version</h3><p>The version will be registered to {selectedProduct.name}. You can then create an update plan for the same Product.</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="Version, e.g. 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input ref={releaseFileInput} name="artifact" required type="file" accept="application/octet-stream,.bin" aria-label="Firmware binary" onChange={selectReleaseArtifact} /><input required placeholder="Hardware versions (comma separated)" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} />{releaseArtifactLoading ? <div className="firmware-artifact-metadata" role="status">Calculating firmware metadata…</div> : null}{releaseArtifact ? <dl className="firmware-artifact-metadata" aria-label="Firmware binary metadata"><div><dt>File</dt><dd>{releaseArtifact.name}</dd></div><div><dt>Size</dt><dd>{formatFirmwareSize(releaseArtifact.size)}{releaseArtifact.size >= 1024 ? ` (${releaseArtifact.size.toLocaleString('en-US')} bytes)` : ''}</dd></div><div><dt>SHA-256</dt><dd><code>{releaseArtifact.sha256}</code></dd></div></dl> : null}<button type="submit" className="primary-button" disabled={releaseArtifactLoading || !releaseArtifact}>Create version</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
+      {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3 className="heading-with-icon"><Icon name="cloud-arrow-up" />Add firmware version</h3><p>The version will be registered to {selectedProduct.name}. You can then create an update plan for the same Product.</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="Version, e.g. 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input ref={releaseFileInput} name="artifact" required type="file" accept="application/octet-stream,.bin" aria-label="Firmware binary" onChange={selectReleaseArtifact} /><input required placeholder="Hardware versions (comma separated)" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} />{releaseArtifactLoading ? <div className="firmware-artifact-metadata" role="status">Calculating firmware metadata…</div> : null}{releaseArtifact ? <dl className="firmware-artifact-metadata" aria-label="Firmware binary metadata"><div><dt>File</dt><dd>{releaseArtifact.name}</dd></div><div><dt>Size</dt><dd>{formatFirmwareSize(releaseArtifact.size)}{releaseArtifact.size >= 1024 ? ` (${releaseArtifact.size.toLocaleString('en-US')} bytes)` : ''}</dd></div><div><dt>SHA-256</dt><dd><code>{releaseArtifact.sha256}</code></dd></div></dl> : null}<button type="submit" className="primary-button icon-text" disabled={releaseArtifactLoading || !releaseArtifact}><Icon name="cloud-arrow-up" />Create version</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
       {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Create an update plan</h3><p>Obtain the server scope preview before creating the immutable OTA plan; the browser does not determine the target count.</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">Select firmware version</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder="Plan name (optional)" value={planName} onChange={(event) => setPlanName(event.target.value)} /><label className="ota-rate-field"><span>Upgrade rate (devices/minute)</span><input required type="number" min="1" max="10000" step="1" value={planRate} onChange={(event) => setPlanRate(event.target.value)} /></label><input placeholder="Regions (comma separated)" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="Group IDs (comma separated)" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="Firmware versions (comma separated)" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="Health statuses (comma separated)" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="Exclude device IDs (comma or space separated)" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? 'Calculating scope…' : 'Preview server scope'}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope || Number(planRate) < 1 || Number(planRate) > 10000}>Create update plan</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{formatNumber(scopePreview.target_count || 0)}</strong></span><span>Excluded <strong>{formatNumber(scopePreview.excluded_count || 0)}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
       {hasSelection && releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Firmware Version</h3><p>The version must be uploaded and checked before it can be published to the update plan.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Product</th><th>Version</th><th>Status</th><th>Action</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.product_id}:${release.id || release.release_id}`}><td>{selectedProduct.name}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>Publish</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>Withdraw</button> : null}{!canRelease ? <span className="muted">Read-only</span> : null}</td></tr>)}</tbody></table></div></section> : null}
 
@@ -3829,7 +3834,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
     <section className="panel stream-health-page">
       <div className="panel-head">
         <div>
-          <h2>Stream Health</h2>
+          <h2 className="heading-with-icon"><Icon name="tower-broadcast" />Stream Health</h2>
           <p>Are device streams succeeding for end users, and where are the worst failures concentrated?</p>
         </div>
       </div>
@@ -3856,7 +3861,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
           <section className="panel stream-trend-panel">
             <div className="panel-head">
               <div>
-                <h3>Success trend</h3>
+                <h3 className="heading-with-icon"><Icon name="chart-line" />Success trend</h3>
                 <p>Daily WebRTC request volume and success-rate lines.</p>
               </div>
             </div>
@@ -3934,7 +3939,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
           <section className="panel stream-table-panel">
             <div className="panel-head">
               <div>
-                <h3>Worst devices</h3>
+                <h3 className="heading-with-icon"><Icon name="triangle-exclamation" />Worst devices</h3>
                 <p>Devices ordered by failure rate, worst first.</p>
               </div>
             </div>
@@ -5282,17 +5287,18 @@ function SSOProviderCard({ provider, onSave }) {
 function MetricGrid({ summary }) {
   const data = summary || {};
   const metrics = [
-    ['Total devices', data.total_devices ?? '-'],
-    ['Online', data.online_devices ?? '-'],
-    ['Activated', data.activated_devices ?? '-'],
-    ['Pending', data.pending_devices ?? '-'],
-    ['Failed', data.failed_devices ?? '-'],
-    ['Open ops', data.open_operations ?? '-'],
+    ['Total devices', data.total_devices ?? '-', 'video'],
+    ['Online', data.online_devices ?? '-', 'wifi'],
+    ['Activated', data.activated_devices ?? '-', 'circle-check'],
+    ['Pending', data.pending_devices ?? '-', 'clock'],
+    ['Failed', data.failed_devices ?? '-', 'triangle-exclamation'],
+    ['Open ops', data.open_operations ?? '-', 'list-check'],
   ];
   return (
     <section className="metrics">
-      {metrics.map(([label, value]) => (
+      {metrics.map(([label, value, icon]) => (
         <div className="metric" key={label}>
+          <span className="metric-inline-icon" aria-hidden="true"><Icon name={icon} /></span>
           <span>{label}</span>
           <strong>{value}</strong>
         </div>
@@ -5336,7 +5342,7 @@ function SourceBlockedState({ title, message }) {
   return (
     <section className="panel source-blocked">
       <div>
-        <h2>{title}</h2>
+        <h2 className="heading-with-icon"><Icon name="triangle-exclamation" />{title}</h2>
         <p>{message}</p>
       </div>
     </section>
@@ -5350,7 +5356,7 @@ function FleetHealthTrendPanel({ loading, trend, source }) {
     <section className="panel overview-panel trend-panel">
       <div className="panel-head">
         <div>
-          <h2>Fleet health trend</h2>
+          <h2 className="heading-with-icon"><Icon name="chart-line" />Fleet health trend</h2>
           <p>Daily online share and warning/critical volume across the current window.</p>
         </div>
       </div>
@@ -5418,7 +5424,7 @@ function HealthDistributionPanel({ loading, current, onFilter, source }) {
     <section className="panel overview-panel distribution-panel">
       <div className="panel-head">
         <div>
-          <h2>Health distribution</h2>
+          <h2 className="heading-with-icon"><Icon name="heart-pulse" />Health distribution</h2>
           <p>Breakdown of the current fleet by telemetry health state.</p>
         </div>
       </div>
@@ -5464,7 +5470,7 @@ function AttentionQueuePanel({ loading, items, onOpenDevice }) {
     <section className="panel overview-panel attention-panel">
       <div className="panel-head">
         <div>
-          <h2>Devices that need attention ({items.length})</h2>
+          <h2 className="heading-with-icon"><Icon name="triangle-exclamation" />Devices that need attention ({items.length})</h2>
           <p>Prioritized by current health, signal quality, and recent alerts.</p>
         </div>
       </div>
@@ -5500,7 +5506,7 @@ function StreamAttentionPanel({ stats, onOpenDevice }) {
     <section className="panel stream-attention-panel">
       <div className="panel-head">
         <div>
-          <h3>Devices needing stream attention</h3>
+          <h3 className="heading-with-icon"><Icon name="triangle-exclamation" />Devices needing stream attention</h3>
           <p>Customer-readable stream reliability risks.</p>
         </div>
       </div>
@@ -5695,7 +5701,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             setSelectedDeviceId(device.id);
           }}
         >
-          View
+          <Icon name="eye" />View
         </button>
       ),
     },
@@ -5741,13 +5747,13 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
       <div className="panel device-table-panel">
         <div className="panel-head">
           <div>
-            <h2>Devices</h2>
+            <h2 className="heading-with-icon"><Icon name="microchip" />Devices</h2>
             <p>Search, filter, and inspect fleet devices without exposing internal platform identifiers.</p>
           </div>
         </div>
         <div className="device-filters">
           <label className="device-filter">
-            <span>Health</span>
+            <span><Icon name="heart-pulse" />Health</span>
             <select value={healthFilter} onChange={(event) => updateFilter({ health: event.target.value })}>
               {processedDevices.healthValues.map((value) => (
                 <option key={`health-${value}`} value={value}>{value}</option>
@@ -5755,7 +5761,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             </select>
           </label>
           <label className="device-filter">
-            <span>Readiness</span>
+            <span><Icon name="bolt" />Readiness</span>
             <select value={readinessFilter} onChange={(event) => updateFilter({ readiness: event.target.value })}>
               {processedDevices.readinessValues.map((value) => (
                 <option key={`readiness-${value}`} value={value}>{value}</option>
@@ -5763,7 +5769,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             </select>
           </label>
           <label className="device-filter">
-            <span>Signal</span>
+            <span><Icon name="wifi" />Signal</span>
             <select value={signalFilter} onChange={(event) => updateFilter({ signal: event.target.value })}>
               {processedDevices.signalValues.map((value) => (
                 <option key={`signal-${value}`} value={value}>{value}</option>
@@ -5771,7 +5777,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             </select>
           </label>
           <label className="device-filter">
-            <span>Firmware</span>
+            <span><Icon name="microchip" />Firmware</span>
             <select value={firmwareFilter} onChange={(event) => updateFilter({ firmware: event.target.value })}>
               {processedDevices.firmwareValues.map((value) => (
                 <option key={`firmware-${value}`} value={value}>{value}</option>
@@ -5789,7 +5795,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
               updateDevicesLocation({ deviceId: '', health: '', status: '', signal: '', firmware: '' });
             }}
           >
-            Clear filters
+            <Icon name="rotate" />Clear filters
           </button>
         </div>
         <DataTable
@@ -5917,7 +5923,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
         <div className="drawer-header">
           <div>
             <p className="eyebrow">Device detail</p>
-            <h2>{drawerName}</h2>
+            <h2 className="heading-with-icon"><Icon name="microchip" />{drawerName}</h2>
             <p>{device ? `${drawerOrganization} · ${drawerModel}` : 'Select a device row to inspect its telemetry.'}</p>
           </div>
           <button type="button" className="drawer-close" onClick={onClose} aria-label="Close device drawer">
@@ -5931,19 +5937,19 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
           <>
             <section className="drawer-identity">
               <div>
-                <span>Device</span>
+                <span><Icon name="microchip" />Device</span>
                 <strong>{drawerName}</strong>
               </div>
               <div>
-                <span>Serial</span>
+                <span><Icon name="barcode" />Serial</span>
                 <strong>{drawerSerial}</strong>
               </div>
               <div>
-                <span>Model</span>
+                <span><Icon name="cube" />Model</span>
                 <strong>{drawerModel}</strong>
               </div>
               <div>
-                <span>Organization</span>
+                <span><Icon name="building" />Organization</span>
                 <strong>{drawerOrganization}</strong>
               </div>
             </section>
@@ -5951,24 +5957,24 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             {loading ? <p className="empty-state">Loading telemetry for this device.</p> : null}
             {!loading && (error || (telemetry && !telemetryAvailable)) ? (
               <section className="drawer-unavailable">
-                <strong>{telemetryState.title}</strong>
+                <strong><Icon name="triangle-exclamation" />{telemetryState.title}</strong>
                 <p>{telemetryUnavailableText}</p>
               </section>
             ) : null}
 
             <section className="drawer-summary">
-              <div className="summary-card">
-                <span>Health</span>
+              <div className="summary-card summary-card-health">
+                <span><Icon name="heart-pulse" />Health</span>
                 <StatusBadge value={normalizeStatusKey(telemetry?.health || device.health || 'unknown')} label={toTitleCase(telemetry?.health || device.health || 'unknown')} />
                 <small>{telemetryAvailable ? `Signals: ${telemetry.signals?.length ? telemetry.signals.map(formatTelemetrySignal).join(', ') : 'none reported'}` : telemetryUnavailableText}</small>
               </div>
               <div className="summary-card">
-                <span>Firmware</span>
+                <span><Icon name="file-code" />Firmware</span>
                 <strong>{drawerFirmware}</strong>
                 <small>{telemetry?.recent_events?.[0]?.occurred_at ? `Last updated ${formatRelativeTime(telemetry.recent_events[0].occurred_at)}` : drawerLastSeen ? `Last seen ${formatRelativeTime(drawerLastSeen)}` : 'No update timestamp available.'}</small>
               </div>
-              <div className="summary-card">
-                <span>Active stream</span>
+              <div className="summary-card summary-card-stream">
+                <span><Icon name="tower-broadcast" />Active stream</span>
                 <StatusBadge value={streamStatus.tone} label={streamStatus.label} />
                 <small>{streamStatus.detail}</small>
               </div>
@@ -6004,7 +6010,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             <section className="drawer-events">
               <div className="panel-head">
                 <div>
-                  <h3>Recent events</h3>
+                  <h3 className="heading-with-icon"><Icon name="clock-rotate-left" />Recent events</h3>
                   <p>Last 10 telemetry events from this device.</p>
                 </div>
               </div>
@@ -6026,7 +6032,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             </section>
 
             <div className="drawer-actions">
-              <button type="button" className="destructive" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}>Deactivate device</button>
+              <button type="button" className="destructive icon-text" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}><Icon name="ban" />Deactivate device</button>
               <small>{!deactivateState.enabled ? deactivateState.reason : 'Device setup and enrollment are handled by existing processes; only status and deactivation are shown here.'}</small>
             </div>
           </>
@@ -6038,13 +6044,13 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
 
 function SourceFactsTimeline({ facts }) {
   return (
-    <section className="source-facts">
-      <h3>Readiness / Source Facts</h3>
+            <section className="source-facts">
+      <h3 className="heading-with-icon"><Icon name="diagram-project" />Readiness / Source Facts</h3>
       {facts.length ? facts.map((fact) => (
         <article className="source-fact" key={`${fact.layer}:${fact.operation_id || fact.updated_at || fact.state}`}>
           <div>
-            <strong>{sourceFactLayerLabel(fact.layer)}</strong>
-            <span>{sourceFactStateLabel(fact.state)}</span>
+            <strong><Icon name={sourceFactIconName(fact.layer)} />{sourceFactLayerLabel(fact.layer)}</strong>
+            <span className="source-fact-state"><Icon name="circle-check" />{sourceFactStateLabel(fact.state)}</span>
             <small>{fact.detail}</small>
           </div>
           <time>{fact.updated_at ? formatRelativeTime(fact.updated_at) : '—'}</time>
@@ -6054,6 +6060,14 @@ function SourceFactsTimeline({ facts }) {
       )}
     </section>
   );
+}
+
+function sourceFactIconName(layer) {
+  const normalized = String(layer || '').toLowerCase();
+  if (normalized.includes('account')) return 'address-book';
+  if (normalized.includes('cloud')) return 'cloud';
+  if (normalized.includes('transport')) return 'tower-broadcast';
+  return 'circle-info';
 }
 
 function TelemetryChart({ title, subtitle, samples, valueKey, valueFormatter, tone, ariaLabel, emptyLabel, sampleLabel }) {
@@ -6279,7 +6293,7 @@ function OperationList({ operations, detailed = false }) {
 
 function AuditLog({ audit, compact = false, loading = false }) {
   const columns = useMemo(() => [
-    { key: 'action', label: 'Action', value: (event) => event.action },
+    { key: 'action', label: 'Action', value: (event) => event.action, render: (event) => <span className="icon-text"><Icon name={auditActionIconName(event.action)} />{event.action}</span> },
     { key: 'actor', label: 'Actor', value: (event) => event.actor },
     { key: 'target', label: 'Target', value: (event) => event.target },
     { key: 'created_at', label: 'Created', value: (event) => event.created_at },
@@ -6289,18 +6303,18 @@ function AuditLog({ audit, compact = false, loading = false }) {
     <section className="panel">
       <div className="panel-head">
         <div>
-          <h2>{compact ? 'Recent audit' : 'Audit log'}</h2>
+          <h2 className="heading-with-icon"><Icon name="clipboard-list" />{compact ? 'Recent audit' : 'Audit log'}</h2>
           <p>{auditCoverageCopy()}</p>
         </div>
       </div>
       {loading && !audit.length ? (
-        <p className="empty-state">Loading audit events.</p>
+        <p className="empty-state icon-text"><Icon name="spinner" />Loading audit events.</p>
       ) : compact && audit.length ? (
         <div className="audit-list">
           {audit.map((event) => (
             <article className="audit-event" key={event.id}>
               <div>
-                <strong>{event.action}</strong>
+                <strong className="icon-text"><Icon name={auditActionIconName(event.action)} />{event.action}</strong>
                 <span>{event.actor} / {event.target}</span>
                 <small>{[event.actor_kind, event.organization_id, event.result, event.upstream_operation_id].filter(Boolean).join(' / ')}</small>
               </div>
@@ -6309,9 +6323,9 @@ function AuditLog({ audit, compact = false, loading = false }) {
           ))}
         </div>
       ) : !audit.length ? (
-        <p className="empty-state">No audit events recorded.</p>
+        <p className="empty-state icon-text"><Icon name="circle-info" />No audit events recorded.</p>
       ) : compact ? (
-        <p className="empty-state">No audit events recorded.</p>
+        <p className="empty-state icon-text"><Icon name="circle-info" />No audit events recorded.</p>
       ) : (
         <DataTable
           columns={columns}
@@ -6326,6 +6340,16 @@ function AuditLog({ audit, compact = false, loading = false }) {
       )}
     </section>
   );
+}
+
+function auditActionIconName(action) {
+  const value = String(action || '').toLowerCase();
+  if (value.includes('login') || value.includes('sign_in')) return 'right-to-bracket';
+  if (value.includes('logout') || value.includes('sign_out')) return 'right-from-bracket';
+  if (value.includes('sso') || value.includes('auth')) return 'key';
+  if (value.includes('lifecycle') || value.includes('device')) return 'arrows-rotate';
+  if (value.includes('delete') || value.includes('remove')) return 'trash-can';
+  return 'file-lines';
 }
 
 function DataTable({
@@ -6455,7 +6479,7 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
           disabled={currentPage <= 1}
           onClick={() => onPage(Math.max(1, currentPage - 1))}
         >
-          ‹
+          <Icon name="chevron-left" />
         </button>
         {items.map((item, index) => item === 'ellipsis' ? (
           <span className="pagination-ellipsis" aria-hidden="true" key={`ellipsis-${index}`}>…</span>
@@ -6478,7 +6502,7 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
           disabled={currentPage >= totalPages}
           onClick={() => onPage(Math.min(totalPages, currentPage + 1))}
         >
-          ›
+          <Icon name="chevron-right" />
         </button>
       </div>
     </nav>
@@ -6652,6 +6676,15 @@ function statusDisplayText(value) {
 
 function Icon({ name }) {
   return <i className={`fa-solid fa-${name}`} aria-hidden="true" />;
+}
+
+function PanelHeading({ icon = 'layer-group', title, description, level = 'h2', actions = null }) {
+  const Heading = level === 'h3' ? 'h3' : 'h2';
+  return <div className="panel-head"><div><Heading className="heading-with-icon"><Icon name={icon} />{title}</Heading>{description ? <p>{description}</p> : null}</div>{actions}</div>;
+}
+
+function PageHeading({ icon, children, id }) {
+  return <h1 id={id} className="page-heading-with-icon"><span className="page-title-icon"><Icon name={icon} /></span><span className="page-heading-text">{children}</span></h1>;
 }
 
 function statusIconName(value) {

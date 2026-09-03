@@ -37,6 +37,25 @@ export const customerNavGroups = [
 ];
 
 export const customerNavItems = customerNavGroups.flatMap((group) => group.items);
+
+// Page-level meaning is separate from sidebar navigation so headings can stay
+// semantic without changing the existing navigation structure.
+export const pageIcons = Object.freeze({
+  'my-clouds': 'cloud', overview: 'gauge-high', devices: 'video',
+  'product-services': 'boxes-stacked', 'chipset-sdk': 'code-branch',
+  groups: 'tags', access: 'user-shield', settings: 'gear', billing: 'credit-card',
+  'firmware-ota': 'microchip', 'stream-health': 'tower-broadcast', reports: 'chart-column', analytics: 'chart-column', audit: 'shield-halved',
+  'platform-dashboard': 'gauge-high', 'platform-grafana': 'chart-simple', 'platform-health': 'heart-pulse',
+  'platform-logs': 'file-lines', 'platform-brand-clouds': 'cloud', 'platform-chipset-providers': 'code-branch',
+  'platform-sso': 'key', 'platform-operations': 'list-check', 'platform-audit': 'shield-halved',
+  login: 'right-to-bracket', 'login-check-email': 'envelope', 'login-activate': 'right-to-bracket',
+  signup: 'user-plus', 'signup-check-email': 'envelope', 'signup-verification-expired': 'clock-rotate-left', verify: 'envelope-circle-check',
+  'forgot-password': 'key', 'reset-password': 'lock', 'brand-cloud-member-invitation-accept': 'user-plus', 'product-collaborator-invitation-accept': 'handshake',
+});
+
+export function pageIconFor(route) {
+  return pageIcons[route] || 'circle-info';
+}
 const cloudUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function decodedCloudID(value) {

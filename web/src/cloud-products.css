@@ -1,4 +1,12 @@
 .cloud-products select{font:inherit;padding:10px;border:1px solid #b8c8d7;border-radius:7px;background:white;max-width:100%}
+.cloud-products .heading-with-icon{align-items:center;display:flex;gap:8px}
+.cloud-products .heading-with-icon .fa-solid,.cloud-products dt .fa-solid{color:var(--brand)}
+.cloud-products .product-status-filter{align-items:center;display:flex;gap:10px;margin-top:14px}
+.cloud-products .product-status-filter>span{font-weight:700}
+.cloud-products .product-status-line{align-items:center;display:flex;gap:7px}
+.cloud-products .product-status-line .fa-solid{color:var(--brand)}
+.cloud-products dt{align-items:center;display:flex;gap:6px}
+.cloud-products .my-clouds-actions button{align-items:center;display:inline-flex;gap:7px}
 .cloud-products fieldset{border:1px solid #dce3ec;border-radius:8px;padding:16px;margin:20px 0}
 .cloud-products fieldset label{display:flex;align-items:center;gap:8px;margin:10px 0}
 .cloud-products input[type=checkbox]{display:inline-block;width:auto;margin:0;padding:0}
