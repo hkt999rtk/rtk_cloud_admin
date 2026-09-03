@@ -90,6 +90,36 @@ func TestDisabledClient(t *testing.T) {
 	if _, err := client.FleetStreamStats(t.Context(), "tok", "org-1", "7d", []string{"d1"}); err == nil {
 		t.Fatal("expected disabled FleetStreamStats error")
 	}
+	if _, err := client.FleetHealthSummary(t.Context(), "tok", "org-1"); err == nil {
+		t.Fatal("expected disabled FleetHealthSummary error")
+	}
+}
+
+func TestFleetHealthSummary(t *testing.T) {
+	t.Parallel()
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/fleet/health-summary" || r.URL.Query().Get("org_id") != "org-1" {
+			t.Fatalf("request = %s?%s", r.URL.Path, r.URL.RawQuery)
+		}
+		if r.Header.Get("Authorization") != "Bearer secret" {
+			t.Fatalf("Authorization = %q", r.Header.Get("Authorization"))
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"org_id": "org-1", "source_freshness": "2026-09-03T01:02:03Z",
+			"distribution": map[string]int{"healthy": 2, "warning": 1, "critical": 0, "unknown": 1},
+			"trend_7d":     []map[string]any{{"date": "2026-09-03", "healthy": 2, "warning": 1, "critical": 0, "unknown": 1}},
+			"trend_30d":    []map[string]any{},
+		})
+	}))
+	defer upstream.Close()
+
+	summary, err := New(upstream.URL).FleetHealthSummary(t.Context(), "secret", "org-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.Distribution.Healthy != 2 || summary.SourceFreshness == "" || len(summary.Trend7D) != 1 {
+		t.Fatalf("summary = %+v", summary)
+	}
 }
 
 func TestFleetStreamStats(t *testing.T) {

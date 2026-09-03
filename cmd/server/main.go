@@ -45,6 +45,9 @@ func main() {
 		exitWithError(logger, "seed demo data", err)
 	}
 	handler := app.NewWithOptions(st, app.Options{Config: cfg, Logger: logger})
+	workerCtx, stopWorkers := context.WithCancel(context.Background())
+	defer stopWorkers()
+	handler.StartBatchScheduler(workerCtx)
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           handler,

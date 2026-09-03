@@ -30,6 +30,11 @@ type OTAResponse struct {
 	Header     http.Header
 }
 
+type OTAConfig struct {
+	SystemMaxRateLimitPerMinute int `json:"system_max_rate_limit_per_minute"`
+	DefaultRateLimitPerMinute   int `json:"default_rate_limit_per_minute"`
+}
+
 type OTACampaignRecord struct {
 	ID                  string `json:"campaign_id"`
 	ProductID           string `json:"product_id"`
@@ -215,6 +220,29 @@ type FleetStreamStats struct {
 	WorstDevices       []FleetStreamWorstDevice        `json:"worst_devices"`
 }
 
+type FleetHealthDistribution struct {
+	Healthy  int `json:"healthy"`
+	Warning  int `json:"warning"`
+	Critical int `json:"critical"`
+	Unknown  int `json:"unknown"`
+}
+
+type FleetHealthTrendPoint struct {
+	Date     string `json:"date"`
+	Healthy  int    `json:"healthy"`
+	Warning  int    `json:"warning"`
+	Critical int    `json:"critical"`
+	Unknown  int    `json:"unknown"`
+}
+
+type FleetHealthSummary struct {
+	OrgID           string                  `json:"org_id"`
+	SourceFreshness string                  `json:"source_freshness"`
+	Distribution    FleetHealthDistribution `json:"distribution"`
+	Trend7D         []FleetHealthTrendPoint `json:"trend_7d"`
+	Trend30D        []FleetHealthTrendPoint `json:"trend_30d"`
+}
+
 func New(baseURL string) *Client {
 	return NewWithHTTPClient(baseURL, &http.Client{Timeout: 6 * time.Second})
 }
@@ -318,6 +346,21 @@ func (c *Client) DoOTA(ctx context.Context, method, path, adminToken, brandCloud
 		return OTAResponse{}, err
 	}
 	return OTAResponse{StatusCode: resp.StatusCode, Body: raw, Header: resp.Header.Clone()}, nil
+}
+
+func (c *Client) OTAConfig(ctx context.Context, adminToken, brandCloudID string) (OTAConfig, error) {
+	response, err := c.DoOTA(ctx, http.MethodGet, "/v1/ota/config", adminToken, brandCloudID, "", nil)
+	if err != nil {
+		return OTAConfig{}, err
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return OTAConfig{}, HTTPStatusError{StatusCode: response.StatusCode, Body: string(response.Body)}
+	}
+	var config OTAConfig
+	if err := json.Unmarshal(response.Body, &config); err != nil {
+		return OTAConfig{}, err
+	}
+	return config, nil
 }
 
 func (c *Client) ListOTACampaigns(ctx context.Context, adminToken, brandCloudID, productID string) ([]OTACampaignRecord, error) {
@@ -584,6 +627,18 @@ func (c *Client) FleetStreamStats(ctx context.Context, adminToken, orgID, window
 	var out FleetStreamStats
 	if err := c.doJSON(ctx, http.MethodGet, path, adminToken, nil, &out); err != nil {
 		return FleetStreamStats{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) FleetHealthSummary(ctx context.Context, adminToken, orgID string) (FleetHealthSummary, error) {
+	if !c.Enabled() {
+		return FleetHealthSummary{}, fmt.Errorf("video cloud base URL is not configured")
+	}
+	path := "/api/fleet/health-summary?org_id=" + url.QueryEscape(strings.TrimSpace(orgID))
+	var out FleetHealthSummary
+	if err := c.doJSON(ctx, http.MethodGet, path, adminToken, nil, &out); err != nil {
+		return FleetHealthSummary{}, err
 	}
 	return out, nil
 }

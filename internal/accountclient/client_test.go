@@ -118,7 +118,11 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests++
 		if strings.HasPrefix(r.URL.Path, "/v1/") && !strings.HasPrefix(r.URL.Path, "/v1/auth/") {
-			if got := r.Header.Get("Authorization"); got != "Bearer access" {
+			want := "Bearer access"
+			if strings.HasPrefix(r.URL.Path, "/v1/internal/job-authorizations/") {
+				want = "Bearer service"
+			}
+			if got := r.Header.Get("Authorization"); got != want {
 				t.Errorf("%s Authorization = %q", r.URL.Path, got)
 			}
 		}
@@ -215,10 +219,15 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	check("FleetSummary", err)
 	_, err = client.DeviceGroups(ctx, "access", "org/1", query)
 	check("DeviceGroups", err)
+	_, err = client.DeviceGroupAggregates(ctx, "access", "org/1", query)
+	check("DeviceGroupAggregates", err)
 	_, err = client.DeviceGroup(ctx, "access", "org/1", "group/1")
 	check("DeviceGroup", err)
 	_, err = client.DeviceTags(ctx, "access", "org/1", query)
 	check("DeviceTags", err)
+	check("CreateOrganizationTag", client.CreateOrganizationTag(ctx, "access", "org/1", "critical/tag"))
+	check("RenameOrganizationTag", client.RenameOrganizationTag(ctx, "access", "org/1", "critical/tag", "priority/tag"))
+	check("DeleteOrganizationTag", client.DeleteOrganizationTag(ctx, "access", "org/1", "priority/tag"))
 	_, err = client.CreateDeviceGroup(ctx, "access", "org/1", DeviceGroupRequest{})
 	check("CreateDeviceGroup", err)
 	_, err = client.UpdateDeviceGroup(ctx, "access", "org/1", "group/1", DeviceGroupRequest{})
@@ -251,8 +260,15 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	check("UpdateDeviceItemProfile", err)
 	_, err = client.DisableDeviceItemProfile(ctx, "access", "org/1", "profile/1")
 	check("DisableDeviceItemProfile", err)
+	_, err = client.ProvisionWithOperationID(ctx, "access", "org/1", Device{ID: "device/1", VideoCloudDevID: "video/1", Metadata: map[string]any{"activity_id": "activity/1", "clip_public_key": "public-key"}}, "operation/1")
+	check("ProvisionWithOperationID", err)
+	_, err = client.CreateJobAuthorization(ctx, "access", "brand/1", "job/1", "scope-hash", "provisioning.create", []string{"product/1"}, time.Now().Add(time.Hour))
+	check("CreateJobAuthorization", err)
+	_, err = client.ExchangeJobAuthorization(ctx, "service", "authorization/1", "job/1", "scope-hash")
+	check("ExchangeJobAuthorization", err)
+	check("RevokeJobAuthorization", client.RevokeJobAuthorization(ctx, "service", "authorization/1"))
 
-	if requests < 55 {
+	if requests < 63 {
 		t.Fatalf("requests = %d, want broad wrapper coverage", requests)
 	}
 }

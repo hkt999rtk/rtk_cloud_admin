@@ -1,37 +1,41 @@
 export const customerNavGroups = [
   {
-    id: 'global',
-    labelKey: 'Clouds',
-    items: [
-      { id: 'my-clouds', labelKey: 'My Clouds', path: '/console/clouds', icon: 'cloud', global: true, alwaysVisible: true },
-    ],
-  },
-  {
     id: 'brand-cloud',
     labelKey: 'Brand Cloud',
     items: [
-      { id: 'overview', labelKey: 'Overview', segment: '', icon: 'gauge-high', capabilities: ['fleet.read', 'customer.devices.read'], alwaysVisible: true },
+      { id: 'overview', labelKey: 'Brand Cloud Home', path: '/console/overview', icon: 'gauge-high', capabilities: ['fleet.read', 'customer.devices.read'], activeRoutes: ['overview', 'access', 'settings'], alwaysVisible: true },
     ],
   },
   {
-    id: 'features',
-    labelKey: 'Features',
+    id: 'device-operations',
+    labelKey: 'Device Operations',
     items: [
-      { id: 'product-services', labelKey: 'Products', segment: 'products', icon: 'boxes-stacked', capabilities: ['product.read', 'registry_device.read'] },
-      { id: 'chipset-sdk', labelKey: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch', global: true, alwaysVisible: true },
-      { id: 'devices', labelKey: 'Fleet Management', segment: 'fleet', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
-      { id: 'firmware-ota', labelKey: 'Firmware & OTA', segment: 'firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
-      { id: 'analytics', labelKey: 'Analytics', segment: 'analytics', icon: 'chart-column', capabilities: ['reports.read', 'report.read', 'customer.reports.read', 'customer.stream.read', 'fleet.read'] },
+      { id: 'devices', labelKey: 'Devices', path: '/console/devices', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
+      { id: 'provisioning', labelKey: 'CSV Provisioning', path: '/console/provisioning', icon: 'file-csv', capabilities: ['provisioning.read', 'provisioning.create'] },
     ],
   },
   {
-    id: 'management',
-    labelKey: 'Management',
+    id: 'product-updates',
+    labelKey: 'Products and Updates',
     items: [
-      { id: 'access', labelKey: 'Members & Access', segment: 'members', icon: 'users', capabilities: ['team.read', 'role_assignment.read'] },
-      { id: 'billing', labelKey: 'Billing', segment: 'billing', icon: 'credit-card', capabilities: ['billing_account.read'], ownerOnly: true },
-      { id: 'settings', labelKey: 'Settings', segment: 'settings', icon: 'gear', alwaysVisible: true },
-      { id: 'audit', labelKey: 'Audit', segment: 'audit', icon: 'shield-halved', capabilities: ['audit.read', 'customer.audit.read', 'fleet.read'] },
+      { id: 'product-services', labelKey: 'Products and Services', path: '/console/product-services', icon: 'boxes-stacked', capabilities: ['product.read', 'registry_device.read'] },
+      { id: 'chipset-sdk', labelKey: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch' },
+      { id: 'firmware-ota', labelKey: 'Firmware OTA', path: '/console/firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
+    ],
+  },
+  {
+    id: 'monitoring-analytics',
+    labelKey: 'Monitoring and Analytics',
+    items: [
+      { id: 'stream-health', labelKey: 'Video Streaming Health', path: '/console/stream-health', icon: 'tower-broadcast', capabilities: ['customer.stream.read'] },
+      { id: 'reports', labelKey: 'Reports', path: '/console/reports', icon: 'chart-column', capabilities: ['reports.read', 'report.read', 'customer.reports.read'] },
+    ],
+  },
+  {
+    id: 'account-management',
+    labelKey: 'Account Management',
+    items: [
+      { id: 'billing', labelKey: 'Billing and Automatic Top-Up', path: '/console/billing', icon: 'credit-card', capabilities: ['billing_account.read'] },
     ],
   },
 ];
@@ -146,72 +150,16 @@ export function navGroupsForCapabilities(route, capabilities) {
     .filter((group) => group.items.length > 0);
 }
 
-export function cloudConsolePath(cloudId, route = 'overview') {
-  if (route === 'my-clouds') return myCloudsPath(cloudId);
-  const item = customerNavItems.find((candidate) => candidate.id === route);
-  if (item?.global) {
-    const context = decodedCloudID(cloudId);
-    return context ? `${item.path}?cloudId=${encodeURIComponent(context)}` : item.path;
-  }
-  if (!cloudId || !item) return '/console/clouds';
-  const root = `/console/clouds/${encodeURIComponent(cloudId)}`;
-  return item.segment ? `${root}/${item.segment}` : root;
-}
-
-export function myCloudsPath(cloudId = '') {
-  const context = decodedCloudID(cloudId);
-  return context ? `/console/clouds?cloudId=${encodeURIComponent(context)}` : '/console/clouds';
-}
-
-export function cloudNavGroupsForCapabilities(cloudId, capabilities, { isOwner = false } = {}) {
-  const values = new Set(Array.isArray(capabilities) ? capabilities : []);
-  return customerNavGroups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => {
-        if (!cloudId && !item.global) return false;
-        if (item.ownerOnly && !isOwner) return false;
-        return item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability));
-      }),
-    }))
-    .filter((group) => group.items.length > 0);
-}
-
-export function cloudShellNavGroups(cloudId, capabilities, options = {}) {
-  if (cloudId) return cloudNavGroupsForCapabilities(cloudId, capabilities, options);
-  return customerNavGroups
-    .map((group) => ({
-      ...group,
-      items: group.items
-        .filter((item) => !item.ownerOnly || options.showOwnerOnly)
-        .map((item) => ({ ...item, disabled: !item.global })),
-    }))
-    .filter((group) => group.items.length > 0);
-}
-
-export function cloudRouteForSwitch(cloud, route, userId = '') {
-  const cloudId = cloud?.id || cloud?.organization_id || '';
-  const role = cloud?.my_role || cloud?.role || '';
-  const isOwner = role === 'owner' && (!userId || !cloud?.owner_user_id || cloud.owner_user_id === userId);
-  const targetRoute = route === 'my-clouds' ? 'overview' : route;
-  const available = cloudNavGroupsForCapabilities(cloudId, cloud?.capabilities || [], { isOwner })
-    .some((group) => group.items.some((item) => item.id === targetRoute));
-  return cloudConsolePath(cloudId, available ? targetRoute : 'overview');
-}
-
 export function isCustomerNavItemActive(item, route) {
   return (item.activeRoutes || [item.id]).includes(route);
 }
 
 export function canAccessCustomerRoute(route, capabilities) {
   const values = new Set(Array.isArray(capabilities) ? capabilities : []);
-  if (route === 'my-clouds') return true;
-  // ChipSet & SDK is a global developer resource rather than a Brand Cloud
-  // feature. Keep its established URL available without deriving a cloud from
-  // the active-org compatibility session.
-  if (route === 'chipset-sdk') return true;
+  if (route === 'settings') return true;
+  if (route === 'access') return ['team.read', 'role_assignment.read'].some((capability) => values.has(capability));
   const item = customerNavItems.find((candidate) => candidate.id === route);
-  return Boolean(item && (item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability))));
+  return Boolean(item && (!item.capabilities?.length || item.capabilities.some((capability) => values.has(capability))));
 }
 
 export function defaultBrandCloudRoute(capabilities) {
@@ -233,10 +181,9 @@ export function titleFor(active) {
     verify: 'Verify email',
     'brand-cloud-member-invitation-accept': 'Accept Brand Cloud invitation',
     'product-collaborator-invitation-accept': 'Accept Product collaboration invitation',
-    'my-clouds': 'My Clouds',
     overview: 'Brand Cloud',
-    devices: 'Fleet Management',
-    'product-services': 'Products',
+    devices: 'Devices',
+    'product-services': 'Products and Services',
     'chipset-sdk': 'ChipSet & SDK',
     groups: 'Groups and Tags',
     access: 'Brand Cloud',
@@ -244,9 +191,8 @@ export function titleFor(active) {
     'firmware-ota': 'Firmware OTA',
     'stream-health': 'Video Streaming Health',
     reports: 'Reports',
-    analytics: 'Analytics',
-    audit: 'Audit',
-    billing: 'Billing',
+    provisioning: 'CSV Provisioning',
+    billing: 'Billing and Automatic Top-Up',
     'platform-dashboard': 'Platform Home',
     'platform-grafana': 'Grafana',
     'platform-health': 'Service Health',
@@ -283,20 +229,21 @@ export function routeFromPath(path) {
   if (path === '/admin/operations' || path.startsWith('/admin/operations/')) return 'platform-operations';
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
   if (path.startsWith('/admin/')) return 'platform-dashboard';
-  if (path === '/console/clouds' || path === '/console/clouds/') return 'my-clouds';
-  const canonicalCloud = String(path || '').match(/^\/console\/clouds\/([^/]+)(?:\/(products|fleet|firmware-ota|analytics|members|billing|settings|audit))?(?:\/|$)/);
+  const canonicalCloud = String(path || '').match(/^\/console\/clouds\/[^/]+(?:\/(.*))?\/?$/);
   if (canonicalCloud) {
-    return {
-      '': 'overview',
-      products: 'product-services',
-      fleet: 'devices',
-      'firmware-ota': 'firmware-ota',
-      analytics: 'analytics',
-      members: 'access',
-      billing: 'billing',
-      settings: 'settings',
-      audit: 'audit',
-    }[canonicalCloud[2] || ''];
+    const suffix = String(canonicalCloud[1] || '').replace(/\/$/, '');
+    if (!suffix) return 'overview';
+    if (suffix === 'fleet') return 'devices';
+    if (suffix === 'fleet/groups') return 'groups';
+    if (suffix === 'fleet/jobs') return 'firmware-ota';
+    if (suffix === 'fleet/provisioning') return 'provisioning';
+    if (suffix === 'products') return 'product-services';
+    if (suffix === 'firmware-ota') return 'firmware-ota';
+    if (suffix === 'analytics') return 'stream-health';
+    if (suffix === 'analytics/reports') return 'reports';
+    if (suffix === 'members') return 'access';
+    if (suffix === 'settings') return 'settings';
+    if (suffix === 'billing') return 'billing';
   }
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
@@ -325,20 +272,10 @@ export function routeFromPath(path) {
 
 export function cloudIdFromPath(path) {
   const canonical = String(path || '').match(/^\/console\/clouds\/([^/]+)(?:\/|$)/);
-  if (canonical) return decodedCloudID(canonical[1]);
+  if (canonical) return decodeURIComponent(canonical[1]);
   if (/^\/console\/(?:overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/.test(String(path || ''))) return '';
   const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
-  return match ? decodedCloudID(match[1]) : '';
-}
-
-export function cloudContextId(path, search = '') {
-  const pathID = cloudIdFromPath(path);
-  if (pathID) return pathID;
-  try {
-    return decodedCloudID(new URLSearchParams(search).get('cloudId'));
-  } catch {
-    return '';
-  }
+  return match ? decodeURIComponent(match[1]) : '';
 }
 
 export function routeFromLocation() {
@@ -346,39 +283,13 @@ export function routeFromLocation() {
 }
 
 export function canonicalCustomerPath(path) {
-  if (path === '/console' || path === '/console/') return '/console/clouds';
-  if (path === '/console/clouds' || String(path || '').startsWith('/console/clouds/')) return path;
-  if (path === '/console/chipset-sdk' || String(path || '').startsWith('/console/chipset-sdk/')) return path;
-  const explicit = String(path || '').match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|billing|audit)(?:\/.*)?$/);
-  if (explicit) {
-    const cloudId = decodedCloudID(explicit[1]);
-    if (!cloudId) return '/console/clouds';
-    if (explicit[2] === 'chipset-sdk') return '/console/chipset-sdk';
-    const mapped = {
-      overview: '',
-      devices: 'fleet',
-      'product-services': 'products',
-      groups: 'fleet',
-      access: 'members',
-      settings: 'settings',
-      'firmware-ota': 'firmware-ota',
-      'stream-health': 'analytics',
-      jobs: 'firmware-ota',
-      reports: 'analytics',
-      billing: 'billing',
-      audit: 'audit',
-    }[explicit[2]];
-    const root = `/console/clouds/${encodeURIComponent(cloudId)}`;
-    return mapped ? `${root}/${mapped}` : root;
-  }
-  if (/^\/console\/(?:overview|devices|product-services|groups|access|settings|firmware-ota|stream-health|jobs|reports|billing|audit)(?:\/|$)/.test(String(path || ''))) return '/console/clouds';
   const scoped = String(path || '').match(/^\/console\/([^/]+)\/jobs(?:\/.*)?$/);
   if (scoped) return `/console/${scoped[1]}/firmware-ota`;
   if (path === '/console/jobs' || String(path || '').startsWith('/console/jobs/')) return '/console/firmware-ota';
   return path;
 }
 
-export function devicesPathWithFilters({ cloudId = '', deviceId = '', health = '', status = '', signal = '', firmware = '', productID = '', q = '', sort = '', direction = '', offset = '' } = {}) {
+export function devicesPathWithFilters({ deviceId = '', health = '', status = '', signal = '', firmware = '', productID = '', q = '', sort = '', direction = '', offset = '' } = {}) {
   const params = new URLSearchParams();
   if (deviceId) params.set('device', deviceId);
   if (health) params.set('health', health);
@@ -391,6 +302,5 @@ export function devicesPathWithFilters({ cloudId = '', deviceId = '', health = '
   if (direction) params.set('direction', direction);
   if (offset) params.set('offset', String(offset));
   const query = params.toString();
-  const root = cloudId ? cloudConsolePath(cloudId, 'devices') : '/console/clouds';
-  return query ? `${root}?${query}` : root;
+  return query ? `/console/devices?${query}` : '/console/devices';
 }

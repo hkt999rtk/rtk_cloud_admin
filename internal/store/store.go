@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -292,6 +293,62 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_batch_jobs_org_idempotency ON batch_jobs (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_provisioning_sources_org_idempotency ON provisioning_sources (organization_id, idempotency_key) WHERE idempotency_key <> '';
 CREATE INDEX IF NOT EXISTS idx_provisioning_sources_org_expires ON provisioning_sources (organization_id, expires_at);`,
+	},
+	{
+		version: 9,
+		name:    "ota_scope_previews",
+		sql: `CREATE TABLE IF NOT EXISTS ota_scope_previews (
+	id TEXT PRIMARY KEY,
+	organization_id TEXT NOT NULL,
+	product_id TEXT NOT NULL,
+	scope_json TEXT NOT NULL,
+	scope_hash TEXT NOT NULL,
+	target_count INTEGER NOT NULL,
+	matched_count INTEGER NOT NULL,
+	excluded_count INTEGER NOT NULL,
+	source_freshness TEXT NOT NULL,
+	expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ota_scope_previews_org_expires ON ota_scope_previews (organization_id, expires_at);`,
+	},
+	{
+		version: 10,
+		name:    "durable_batch_scheduler",
+		sql: `ALTER TABLE batch_jobs ADD COLUMN authorization_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE batch_jobs ADD COLUMN authorization_status TEXT NOT NULL DEFAULT 'not_required';
+ALTER TABLE batch_jobs ADD COLUMN state_version INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE batch_jobs ADD COLUMN checkpoint_json TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE batch_jobs ADD COLUMN failure_code TEXT NOT NULL DEFAULT '';
+ALTER TABLE batch_jobs ADD COLUMN lease_owner TEXT NOT NULL DEFAULT '';
+ALTER TABLE batch_jobs ADD COLUMN lease_until TEXT NOT NULL DEFAULT '';
+ALTER TABLE batch_jobs ADD COLUMN started_at TEXT NOT NULL DEFAULT '';
+ALTER TABLE batch_jobs ADD COLUMN paused_at TEXT NOT NULL DEFAULT '';
+ALTER TABLE batch_jobs ADD COLUMN cancelled_at TEXT NOT NULL DEFAULT '';
+ALTER TABLE batch_jobs ADD COLUMN completed_at TEXT NOT NULL DEFAULT '';
+CREATE TABLE IF NOT EXISTS batch_job_items (
+	job_id TEXT NOT NULL REFERENCES batch_jobs(id) ON DELETE CASCADE,
+	item_key TEXT NOT NULL,
+	position INTEGER NOT NULL,
+	state TEXT NOT NULL,
+	attempt INTEGER NOT NULL DEFAULT 0,
+	failure_code TEXT NOT NULL DEFAULT '',
+	failure_reason TEXT NOT NULL DEFAULT '',
+	retryable INTEGER NOT NULL DEFAULT 0,
+	upstream_operation_id TEXT NOT NULL DEFAULT '',
+	updated_at TEXT NOT NULL,
+	PRIMARY KEY(job_id,item_key)
+);
+CREATE INDEX IF NOT EXISTS idx_batch_job_items_page ON batch_job_items(job_id,position);
+CREATE TABLE IF NOT EXISTS batch_job_action_receipts (
+	job_id TEXT NOT NULL REFERENCES batch_jobs(id) ON DELETE CASCADE,
+	action_key TEXT NOT NULL,
+	action TEXT NOT NULL,
+	from_state TEXT NOT NULL,
+	to_state TEXT NOT NULL,
+	state_version INTEGER NOT NULL,
+	created_at TEXT NOT NULL,
+	PRIMARY KEY(job_id,action_key)
+);`,
 	},
 }
 
@@ -618,6 +675,12 @@ func (s *Store) CreateBatchJob(job contracts.BatchJob) (contracts.BatchJob, erro
 		job.CreatedAt = now
 	}
 	job.UpdatedAt = now
+	if job.StateVersion == 0 {
+		job.StateVersion = 1
+	}
+	if job.AuthorizationStatus == "" {
+		job.AuthorizationStatus = "not_required"
+	}
 	scope, err := json.Marshal(job.Scope)
 	if err != nil {
 		return contracts.BatchJob{}, err
@@ -626,7 +689,11 @@ func (s *Store) CreateBatchJob(job contracts.BatchJob) (contracts.BatchJob, erro
 	if err != nil {
 		return contracts.BatchJob{}, err
 	}
-	_, err = s.db.Exec(`INSERT INTO batch_jobs (id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.ID, job.OrganizationID, job.Type, job.Name, job.CreatedBy, scope, job.State, job.Total, job.Completed, job.Failed, job.Skipped, job.CreatedAt, job.UpdatedAt, result, job.IdempotencyKey)
+	checkpoint, err := json.Marshal(job.Checkpoint)
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	_, err = s.db.Exec(`INSERT INTO batch_jobs (id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json, idempotency_key,authorization_id,authorization_status,state_version,checkpoint_json,failure_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.ID, job.OrganizationID, job.Type, job.Name, job.CreatedBy, scope, job.State, job.Total, job.Completed, job.Failed, job.Skipped, job.CreatedAt, job.UpdatedAt, result, job.IdempotencyKey, job.AuthorizationID, job.AuthorizationStatus, job.StateVersion, string(checkpoint), job.FailureCode)
 	return job, err
 }
 
@@ -646,6 +713,31 @@ func (s *Store) CreateProvisioningSource(source contracts.ProvisioningSource, id
 	}
 	_, err = s.db.Exec(`INSERT INTO provisioning_sources (id, organization_id, product_id, production_run, filename, checksum, row_count, device_ids_json, created_at, expires_at, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, source.ID, source.OrganizationID, source.Product, source.ProductionRun, source.Filename, source.Checksum, source.RowCount, string(raw), source.CreatedAt, source.ExpiresAt, idempotencyKey)
 	return source, err
+}
+
+func (s *Store) CreateOTAScopePreview(preview contracts.OTAScopePreview) (contracts.OTAScopePreview, error) {
+	if preview.ID == "" {
+		preview.ID = "preview-" + randomHex(12)
+	}
+	raw, err := json.Marshal(preview.Scope)
+	if err != nil {
+		return contracts.OTAScopePreview{}, err
+	}
+	_, err = s.db.Exec(`INSERT INTO ota_scope_previews (id, organization_id, product_id, scope_json, scope_hash, target_count, matched_count, excluded_count, source_freshness, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, preview.ID, preview.OrganizationID, preview.ProductID, string(raw), preview.ScopeHash, preview.TargetCount, preview.MatchedCount, preview.ExcludedCount, preview.SourceFreshness, preview.ExpiresAt)
+	return preview, err
+}
+
+func (s *Store) GetOTAScopePreview(organizationID, id string) (contracts.OTAScopePreview, error) {
+	var preview contracts.OTAScopePreview
+	var raw string
+	err := s.db.QueryRow(`SELECT id, organization_id, product_id, scope_json, scope_hash, target_count, matched_count, excluded_count, source_freshness, expires_at FROM ota_scope_previews WHERE organization_id = ? AND id = ?`, organizationID, id).Scan(&preview.ID, &preview.OrganizationID, &preview.ProductID, &raw, &preview.ScopeHash, &preview.TargetCount, &preview.MatchedCount, &preview.ExcludedCount, &preview.SourceFreshness, &preview.ExpiresAt)
+	if err != nil {
+		return contracts.OTAScopePreview{}, err
+	}
+	if err := json.Unmarshal([]byte(raw), &preview.Scope); err != nil {
+		return contracts.OTAScopePreview{}, err
+	}
+	return preview, nil
 }
 
 func (s *Store) GetProvisioningSource(organizationID, id string) (contracts.ProvisioningSource, error) {
@@ -668,8 +760,10 @@ func scanProvisioningSource(row rowScannerSQL) (contracts.ProvisioningSource, er
 	return source, nil
 }
 
+const batchJobColumns = `id,organization_id,type,name,created_by,scope_json,state,total,completed,failed,skipped,created_at,updated_at,result_json,idempotency_key,authorization_id,authorization_status,state_version,checkpoint_json,failure_code,lease_owner,lease_until,CASE WHEN type IN ('provisioning_validation','device_provision') THEN EXISTS(SELECT 1 FROM batch_job_items bi WHERE bi.job_id=batch_jobs.id AND bi.state='failed' AND bi.retryable=1) ELSE state IN ('failed','partial_failed') END`
+
 func (s *Store) GetBatchJobByIdempotency(organizationID, key string) (contracts.BatchJob, error) {
-	return scanBatchJob(s.db.QueryRow(`SELECT id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json, idempotency_key FROM batch_jobs WHERE organization_id = ? AND idempotency_key = ?`, organizationID, key))
+	return scanBatchJob(s.db.QueryRow(`SELECT `+batchJobColumns+` FROM batch_jobs WHERE organization_id = ? AND idempotency_key = ?`, organizationID, key))
 }
 
 func (s *Store) ListBatchJobs(organizationID string, limit int) ([]contracts.BatchJob, error) {
@@ -705,7 +799,7 @@ func (s *Store) ListBatchJobsPage(organizationID string, query contracts.BatchJo
 	if err := s.db.QueryRow("SELECT COUNT(*) FROM batch_jobs WHERE "+clause, args...).Scan(&total); err != nil {
 		return contracts.BatchJobPage{}, err
 	}
-	rows, err := s.db.Query("SELECT id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json, idempotency_key FROM batch_jobs WHERE "+clause+" ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?", append(args, query.Limit, query.Offset)...)
+	rows, err := s.db.Query("SELECT "+batchJobColumns+" FROM batch_jobs WHERE "+clause+" ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?", append(args, query.Limit, query.Offset)...)
 	if err != nil {
 		return contracts.BatchJobPage{}, err
 	}
@@ -722,11 +816,11 @@ func (s *Store) ListBatchJobsPage(organizationID string, query contracts.BatchJo
 }
 
 func (s *Store) GetBatchJob(organizationID, id string) (contracts.BatchJob, error) {
-	return scanBatchJob(s.db.QueryRow(`SELECT id, organization_id, type, name, created_by, scope_json, state, total, completed, failed, skipped, created_at, updated_at, result_json, idempotency_key FROM batch_jobs WHERE organization_id = ? AND id = ?`, organizationID, id))
+	return scanBatchJob(s.db.QueryRow(`SELECT `+batchJobColumns+` FROM batch_jobs WHERE organization_id = ? AND id = ?`, organizationID, id))
 }
 
 func (s *Store) UpdateBatchJobState(organizationID, id, state string) (contracts.BatchJob, error) {
-	if _, err := s.db.Exec(`UPDATE batch_jobs SET state = ?, updated_at = ? WHERE organization_id = ? AND id = ?`, state, time.Now().UTC().Format(time.RFC3339), organizationID, id); err != nil {
+	if _, err := s.db.Exec(`UPDATE batch_jobs SET state = ?, state_version=state_version+1, updated_at = ? WHERE organization_id = ? AND id = ?`, state, time.Now().UTC().Format(time.RFC3339), organizationID, id); err != nil {
 		return contracts.BatchJob{}, err
 	}
 	return s.GetBatchJob(organizationID, id)
@@ -734,6 +828,14 @@ func (s *Store) UpdateBatchJobState(organizationID, id, state string) (contracts
 
 func (s *Store) UpdateBatchJobProgress(organizationID, id, state string, completed, failed, skipped int) (contracts.BatchJob, error) {
 	if _, err := s.db.Exec(`UPDATE batch_jobs SET state = ?, completed = ?, failed = ?, skipped = ?, updated_at = ? WHERE organization_id = ? AND id = ?`, state, completed, failed, skipped, time.Now().UTC().Format(time.RFC3339), organizationID, id); err != nil {
+		return contracts.BatchJob{}, err
+	}
+	return s.GetBatchJob(organizationID, id)
+}
+
+func (s *Store) UpdateBatchJobWorkerProgress(organizationID, id, state string, completed, failed, skipped int) (contracts.BatchJob, error) {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err := s.db.Exec(`UPDATE batch_jobs SET state=CASE WHEN state IN ('pausing','cancelling') THEN state ELSE ? END,completed=?,failed=?,skipped=?,updated_at=? WHERE organization_id=? AND id=?`, state, completed, failed, skipped, now, organizationID, id); err != nil {
 		return contracts.BatchJob{}, err
 	}
 	return s.GetBatchJob(organizationID, id)
@@ -761,12 +863,260 @@ func (s *Store) UpdateBatchJobResult(organizationID, id string, result []map[str
 	return s.GetBatchJob(organizationID, id)
 }
 
+func (s *Store) BindBatchJobAuthorization(organizationID, id, authorizationID string) (contracts.BatchJob, error) {
+	result, err := s.db.Exec(`UPDATE batch_jobs SET authorization_id=?,authorization_status='active',state_version=state_version+1,updated_at=? WHERE organization_id=? AND id=? AND state='queued'`, authorizationID, time.Now().UTC().Format(time.RFC3339Nano), organizationID, id)
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		return contracts.BatchJob{}, sql.ErrNoRows
+	}
+	return s.GetBatchJob(organizationID, id)
+}
+
+func (s *Store) RecoverBatchJobLeases(now time.Time) error {
+	stamp := now.UTC().Format(time.RFC3339Nano)
+	if _, err := s.db.Exec(`UPDATE batch_jobs SET state='paused',lease_owner='',lease_until='',state_version=state_version+1,updated_at=? WHERE state='pausing' AND lease_until<>'' AND lease_until<=?`, stamp, stamp); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(`UPDATE batch_jobs SET state='cancelled',skipped=MAX(total-completed-failed,0),lease_owner='',lease_until='',cancelled_at=?,state_version=state_version+1,updated_at=? WHERE state='cancelling' AND lease_until<>'' AND lease_until<=?`, stamp, stamp, stamp); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`UPDATE batch_jobs SET state='queued',lease_owner='',lease_until='',state_version=state_version+1,updated_at=? WHERE state='running' AND lease_until<>'' AND lease_until<=?`, stamp, stamp)
+	return err
+}
+
+func (s *Store) AcquireBatchJob(owner string, now time.Time, lease time.Duration) (contracts.BatchJob, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	defer tx.Rollback()
+	stamp := now.UTC().Format(time.RFC3339Nano)
+	var organizationID, id string
+	err = tx.QueryRow(`SELECT organization_id,id FROM batch_jobs WHERE state='queued' AND authorization_id<>'' AND (lease_until='' OR lease_until<=?) ORDER BY created_at,id LIMIT 1`, stamp).Scan(&organizationID, &id)
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	until := now.Add(lease).UTC().Format(time.RFC3339Nano)
+	result, err := tx.Exec(`UPDATE batch_jobs SET state='running',lease_owner=?,lease_until=?,started_at=CASE WHEN started_at='' THEN ? ELSE started_at END,state_version=state_version+1,updated_at=? WHERE organization_id=? AND id=? AND state='queued'`, owner, until, stamp, stamp, organizationID, id)
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		return contracts.BatchJob{}, sql.ErrNoRows
+	}
+	if err = tx.Commit(); err != nil {
+		return contracts.BatchJob{}, err
+	}
+	return s.GetBatchJob(organizationID, id)
+}
+
+func (s *Store) RenewBatchJobLease(organizationID, id, owner string, now time.Time, lease time.Duration) error {
+	result, err := s.db.Exec(`UPDATE batch_jobs SET lease_until=?,updated_at=? WHERE organization_id=? AND id=? AND lease_owner=? AND state IN ('running','pausing','cancelling')`, now.Add(lease).UTC().Format(time.RFC3339Nano), now.UTC().Format(time.RFC3339Nano), organizationID, id, owner)
+	if err != nil {
+		return err
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (s *Store) ReleaseBatchJobLease(organizationID, id, owner string) error {
+	_, err := s.db.Exec(`UPDATE batch_jobs SET lease_owner='',lease_until='' WHERE organization_id=? AND id=? AND lease_owner=?`, organizationID, id, owner)
+	return err
+}
+
+type BatchJobActionReceipt struct {
+	Action       string
+	FromState    string
+	ToState      string
+	StateVersion int64
+}
+
+func (s *Store) ActBatchJob(organizationID, id, action, key string) (contracts.BatchJob, BatchJobActionReceipt, bool, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return contracts.BatchJob{}, BatchJobActionReceipt{}, false, err
+	}
+	defer tx.Rollback()
+	var receipt BatchJobActionReceipt
+	if err = tx.QueryRow(`SELECT action,from_state,to_state,state_version FROM batch_job_action_receipts WHERE job_id=? AND action_key=?`, id, key).Scan(&receipt.Action, &receipt.FromState, &receipt.ToState, &receipt.StateVersion); err == nil {
+		if receipt.Action != action {
+			return contracts.BatchJob{}, receipt, true, fmt.Errorf("action key conflict")
+		}
+		if err = tx.Commit(); err != nil {
+			return contracts.BatchJob{}, receipt, true, err
+		}
+		job, getErr := s.GetBatchJob(organizationID, id)
+		return job, receipt, true, getErr
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return contracts.BatchJob{}, receipt, false, err
+	}
+	var state string
+	var version int64
+	if err = tx.QueryRow(`SELECT state,state_version FROM batch_jobs WHERE organization_id=? AND id=?`, organizationID, id).Scan(&state, &version); err != nil {
+		return contracts.BatchJob{}, receipt, false, err
+	}
+	target := ""
+	switch action {
+	case "pause":
+		if state == "queued" {
+			target = "paused"
+		} else if state == "running" {
+			target = "pausing"
+		}
+	case "resume":
+		if state == "paused" {
+			target = "queued"
+		}
+	case "cancel":
+		if state == "queued" || state == "paused" {
+			target = "cancelled"
+		} else if state == "running" || state == "pausing" {
+			target = "cancelling"
+		}
+	}
+	if target == "" {
+		return contracts.BatchJob{}, receipt, false, fmt.Errorf("invalid transition")
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	result, err := tx.Exec(`UPDATE batch_jobs SET state=?,state_version=state_version+1,updated_at=?,cancelled_at=CASE WHEN ?='cancelled' THEN ? ELSE cancelled_at END WHERE organization_id=? AND id=? AND state_version=?`, target, now, target, now, organizationID, id, version)
+	if err != nil {
+		return contracts.BatchJob{}, receipt, false, err
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		return contracts.BatchJob{}, receipt, false, fmt.Errorf("concurrent transition")
+	}
+	receipt = BatchJobActionReceipt{Action: action, FromState: state, ToState: target, StateVersion: version + 1}
+	if _, err = tx.Exec(`INSERT INTO batch_job_action_receipts(job_id,action_key,action,from_state,to_state,state_version,created_at) VALUES(?,?,?,?,?,?,?)`, id, key, action, state, target, version+1, now); err != nil {
+		return contracts.BatchJob{}, receipt, false, err
+	}
+	if err = tx.Commit(); err != nil {
+		return contracts.BatchJob{}, receipt, false, err
+	}
+	job, getErr := s.GetBatchJob(organizationID, id)
+	return job, receipt, false, getErr
+}
+
+func (s *Store) CompleteBatchJobBoundary(organizationID, id, owner string) (contracts.BatchJob, error) {
+	job, err := s.GetBatchJob(organizationID, id)
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	switch job.State {
+	case "pausing":
+		_, err = s.db.Exec(`UPDATE batch_jobs SET state='paused',paused_at=?,lease_owner='',lease_until='',state_version=state_version+1,updated_at=? WHERE organization_id=? AND id=? AND lease_owner=? AND state='pausing'`, now, now, organizationID, id, owner)
+	case "cancelling":
+		_, err = s.db.Exec(`UPDATE batch_jobs SET state='cancelled',skipped=MAX(total-completed-failed,0),cancelled_at=?,lease_owner='',lease_until='',state_version=state_version+1,updated_at=? WHERE organization_id=? AND id=? AND lease_owner=? AND state='cancelling'`, now, now, organizationID, id, owner)
+	}
+	if err != nil {
+		return contracts.BatchJob{}, err
+	}
+	return s.GetBatchJob(organizationID, id)
+}
+
+func (s *Store) UpsertBatchJobItem(item contracts.BatchJobItem) error {
+	if item.UpdatedAt == "" {
+		item.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	_, err := s.db.Exec(`INSERT INTO batch_job_items(job_id,item_key,position,state,attempt,failure_code,failure_reason,retryable,upstream_operation_id,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)
+		ON CONFLICT(job_id,item_key) DO UPDATE SET state=excluded.state,attempt=excluded.attempt,failure_code=excluded.failure_code,failure_reason=excluded.failure_reason,retryable=excluded.retryable,upstream_operation_id=excluded.upstream_operation_id,updated_at=excluded.updated_at`, item.JobID, item.ItemKey, item.Position, item.State, item.Attempt, item.FailureCode, item.FailureReason, item.Retryable, item.UpstreamOperationID, item.UpdatedAt)
+	return err
+}
+
+func (s *Store) ListBatchJobItems(organizationID, id, state string, retryable *bool, limit, offset int) (contracts.BatchJobItemPage, error) {
+	if limit <= 0 || limit > 250 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	where := []string{"i.job_id=?", "j.organization_id=?"}
+	args := []any{id, organizationID}
+	if state != "" {
+		where = append(where, "i.state=?")
+		args = append(args, state)
+	}
+	if retryable != nil {
+		where = append(where, "i.retryable=?")
+		args = append(args, *retryable)
+	}
+	clause := strings.Join(where, " AND ")
+	var total int
+	if err := s.db.QueryRow(`SELECT count(*) FROM batch_job_items i JOIN batch_jobs j ON j.id=i.job_id WHERE `+clause, args...).Scan(&total); err != nil {
+		return contracts.BatchJobItemPage{}, err
+	}
+	rows, err := s.db.Query(`SELECT i.job_id,i.item_key,i.position,i.state,i.attempt,i.failure_code,i.failure_reason,i.retryable,i.upstream_operation_id,i.updated_at FROM batch_job_items i JOIN batch_jobs j ON j.id=i.job_id WHERE `+clause+` ORDER BY i.position LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+	if err != nil {
+		return contracts.BatchJobItemPage{}, err
+	}
+	defer rows.Close()
+	items := []contracts.BatchJobItem{}
+	for rows.Next() {
+		var item contracts.BatchJobItem
+		if err = rows.Scan(&item.JobID, &item.ItemKey, &item.Position, &item.State, &item.Attempt, &item.FailureCode, &item.FailureReason, &item.Retryable, &item.UpstreamOperationID, &item.UpdatedAt); err != nil {
+			return contracts.BatchJobItemPage{}, err
+		}
+		items = append(items, item)
+	}
+	return contracts.BatchJobItemPage{Items: items, Total: total, Limit: limit, Offset: offset}, rows.Err()
+}
+
+func (s *Store) UpdateBatchJobCheckpoint(organizationID, id string, checkpoint map[string]any) error {
+	raw, err := json.Marshal(checkpoint)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`UPDATE batch_jobs SET checkpoint_json=?,updated_at=? WHERE organization_id=? AND id=?`, string(raw), time.Now().UTC().Format(time.RFC3339Nano), organizationID, id)
+	return err
+}
+
+func (s *Store) UpdateBatchJobAuthorizationStatus(organizationID, id, status string) error {
+	result, err := s.db.Exec(`UPDATE batch_jobs SET authorization_status=?,updated_at=? WHERE organization_id=? AND id=?`, status, time.Now().UTC().Format(time.RFC3339Nano), organizationID, id)
+	if err != nil {
+		return err
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (s *Store) ListPendingBatchJobRevocations(limit int) ([]contracts.BatchJob, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 25
+	}
+	rows, err := s.db.Query(`SELECT `+batchJobColumns+` FROM batch_jobs WHERE authorization_status='revocation_pending' AND authorization_id<>'' ORDER BY updated_at,id LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	jobs := []contracts.BatchJob{}
+	for rows.Next() {
+		job, scanErr := scanBatchJob(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
+}
+
+func (s *Store) FailBatchJobAuthorization(organizationID, id string) error {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err := s.db.Exec(`UPDATE batch_jobs SET state='failed',failure_code='AUTHORIZATION_REVOKED',authorization_status='revoked',lease_owner='',lease_until='',completed_at=?,state_version=state_version+1,updated_at=? WHERE organization_id=? AND id=?`, now, now, organizationID, id)
+	return err
+}
+
 type rowScannerSQL interface{ Scan(...any) error }
 
 func scanBatchJob(row rowScannerSQL) (contracts.BatchJob, error) {
 	var job contracts.BatchJob
-	var rawScope, rawResult string
-	if err := row.Scan(&job.ID, &job.OrganizationID, &job.Type, &job.Name, &job.CreatedBy, &rawScope, &job.State, &job.Total, &job.Completed, &job.Failed, &job.Skipped, &job.CreatedAt, &job.UpdatedAt, &rawResult, &job.IdempotencyKey); err != nil {
+	var rawScope, rawResult, rawCheckpoint string
+	if err := row.Scan(&job.ID, &job.OrganizationID, &job.Type, &job.Name, &job.CreatedBy, &rawScope, &job.State, &job.Total, &job.Completed, &job.Failed, &job.Skipped, &job.CreatedAt, &job.UpdatedAt, &rawResult, &job.IdempotencyKey, &job.AuthorizationID, &job.AuthorizationStatus, &job.StateVersion, &rawCheckpoint, &job.FailureCode, &job.LeaseOwner, &job.LeaseUntil, &job.Retryable); err != nil {
 		return contracts.BatchJob{}, err
 	}
 	if err := json.Unmarshal([]byte(rawScope), &job.Scope); err != nil {
@@ -775,7 +1125,10 @@ func scanBatchJob(row rowScannerSQL) (contracts.BatchJob, error) {
 	if err := json.Unmarshal([]byte(rawResult), &job.Result); err != nil {
 		return contracts.BatchJob{}, err
 	}
-	job.Retryable = job.State == "failed" || job.State == "partial_failed"
+	if err := json.Unmarshal([]byte(rawCheckpoint), &job.Checkpoint); err != nil {
+		return contracts.BatchJob{}, err
+	}
+	job.AllowedActions = allowedBatchJobActions(job.State, job.Retryable)
 	if created, err := time.Parse(time.RFC3339, job.CreatedAt); err == nil {
 		if os.Getenv("E2E_RESULT_EXPIRED") == "true" {
 			job.ExpiresAt = created.Add(-time.Hour).Format(time.RFC3339)
@@ -795,6 +1148,22 @@ func scanBatchJob(row rowScannerSQL) (contracts.BatchJob, error) {
 		job.FailureReason = value
 	}
 	return job, nil
+}
+
+func allowedBatchJobActions(state string, retryable bool) []string {
+	switch state {
+	case "queued", "running":
+		return []string{"pause", "cancel"}
+	case "pausing":
+		return []string{"cancel"}
+	case "paused":
+		return []string{"resume", "cancel"}
+	case "failed", "partial_failed":
+		if retryable {
+			return []string{"retry"}
+		}
+	}
+	return []string{}
 }
 
 func randomHex(bytesLen int) string {

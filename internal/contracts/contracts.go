@@ -99,25 +99,53 @@ type FleetSummary struct {
 }
 
 type BatchJob struct {
-	ID             string           `json:"id"`
-	IdempotencyKey string           `json:"idempotency_key,omitempty"`
-	Type           string           `json:"type"`
-	Name           string           `json:"name"`
-	OrganizationID string           `json:"organization_id"`
-	CreatedBy      string           `json:"created_by"`
-	Scope          map[string]any   `json:"scope"`
-	State          string           `json:"state"`
-	Total          int              `json:"total"`
-	Completed      int              `json:"completed"`
-	Failed         int              `json:"failed"`
-	Skipped        int              `json:"skipped"`
-	CreatedAt      string           `json:"created_at"`
-	UpdatedAt      string           `json:"updated_at"`
-	Result         []map[string]any `json:"result,omitempty"`
-	Retryable      bool             `json:"retryable"`
-	ResultMetadata map[string]any   `json:"result_metadata,omitempty"`
-	ExpiresAt      string           `json:"expires_at,omitempty"`
-	FailureReason  string           `json:"failure_reason,omitempty"`
+	ID                  string           `json:"id"`
+	IdempotencyKey      string           `json:"idempotency_key,omitempty"`
+	Type                string           `json:"type"`
+	Name                string           `json:"name"`
+	OrganizationID      string           `json:"organization_id"`
+	CreatedBy           string           `json:"created_by"`
+	Scope               map[string]any   `json:"scope"`
+	State               string           `json:"state"`
+	Total               int              `json:"total"`
+	Completed           int              `json:"completed"`
+	Failed              int              `json:"failed"`
+	Skipped             int              `json:"skipped"`
+	CreatedAt           string           `json:"created_at"`
+	UpdatedAt           string           `json:"updated_at"`
+	Result              []map[string]any `json:"result,omitempty"`
+	Retryable           bool             `json:"retryable"`
+	ResultMetadata      map[string]any   `json:"result_metadata,omitempty"`
+	ExpiresAt           string           `json:"expires_at,omitempty"`
+	FailureReason       string           `json:"failure_reason,omitempty"`
+	FailureCode         string           `json:"failure_code,omitempty"`
+	StateVersion        int64            `json:"state_version"`
+	AllowedActions      []string         `json:"allowed_actions"`
+	AuthorizationID     string           `json:"authorization_id,omitempty"`
+	AuthorizationStatus string           `json:"authorization_status,omitempty"`
+	Checkpoint          map[string]any   `json:"checkpoint,omitempty"`
+	LeaseOwner          string           `json:"-"`
+	LeaseUntil          string           `json:"-"`
+}
+
+type BatchJobItem struct {
+	JobID               string `json:"job_id"`
+	ItemKey             string `json:"item_key"`
+	Position            int    `json:"position"`
+	State               string `json:"state"`
+	Attempt             int    `json:"attempt"`
+	FailureCode         string `json:"failure_code,omitempty"`
+	FailureReason       string `json:"failure_reason,omitempty"`
+	Retryable           bool   `json:"retryable"`
+	UpstreamOperationID string `json:"upstream_operation_id,omitempty"`
+	UpdatedAt           string `json:"updated_at"`
+}
+
+type BatchJobItemPage struct {
+	Items  []BatchJobItem `json:"items"`
+	Total  int            `json:"total"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
 }
 
 type ProvisioningSource struct {
@@ -481,6 +509,7 @@ type FleetHealthTrendPoint struct {
 type FleetHealthSummary struct {
 	OrgID           string                  `json:"org_id"`
 	SourceStatus    string                  `json:"source_status"`
+	SourceFreshness string                  `json:"source_freshness,omitempty"`
 	SourceMessage   string                  `json:"source_message,omitempty"`
 	Current         FleetHealthCurrent      `json:"current"`
 	OnlineRate7dPct float64                 `json:"online_rate_7d_pct"`
@@ -517,6 +546,7 @@ type FleetStreamStats struct {
 	OrgID              string                          `json:"org_id"`
 	Window             string                          `json:"window"`
 	SourceStatus       string                          `json:"source_status"`
+	SourceFreshness    string                          `json:"source_freshness,omitempty"`
 	SourceMessage      string                          `json:"source_message,omitempty"`
 	SuccessRatePct     float64                         `json:"success_rate_pct"`
 	AvgDurationSeconds float64                         `json:"avg_duration_seconds"`
@@ -564,10 +594,24 @@ type FirmwareDistributionCampaign struct {
 }
 
 type FirmwareDistribution struct {
-	OrgID         string                         `json:"org_id"`
-	Product       string                         `json:"product_id,omitempty"`
-	SourceStatus  string                         `json:"source_status"`
-	SourceMessage string                         `json:"source_message,omitempty"`
-	Versions      []FirmwareDistributionVersion  `json:"versions"`
-	Campaigns     []FirmwareDistributionCampaign `json:"campaigns"`
+	OrgID           string                         `json:"org_id"`
+	Product         string                         `json:"product_id,omitempty"`
+	SourceStatus    string                         `json:"source_status"`
+	SourceFreshness string                         `json:"source_freshness,omitempty"`
+	SourceMessage   string                         `json:"source_message,omitempty"`
+	Versions        []FirmwareDistributionVersion  `json:"versions"`
+	Campaigns       []FirmwareDistributionCampaign `json:"campaigns"`
+}
+
+type OTAScopePreview struct {
+	ID              string         `json:"preview_id"`
+	OrganizationID  string         `json:"organization_id,omitempty"`
+	ProductID       string         `json:"product_id"`
+	Scope           map[string]any `json:"scope"`
+	ScopeHash       string         `json:"scope_hash"`
+	TargetCount     int            `json:"target_count"`
+	MatchedCount    int            `json:"matched_count"`
+	ExcludedCount   int            `json:"excluded_count"`
+	SourceFreshness string         `json:"source_freshness"`
+	ExpiresAt       string         `json:"expires_at"`
 }

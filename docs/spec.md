@@ -881,6 +881,10 @@ Acceptance: Customer-safe errors do not expose upstream credentials.
 {"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
+The durable scheduler and delegated authorization implementation are defined in
+[batch_job_scheduler.md](batch_job_scheduler.md) and the canonical
+`rtk_cloud_contracts_doc/batch_jobs.md` contract.
+
 Acceptance: Partial batch failure preserves item results and supports a new retry attempt.
 
 #### [REQ-UI-CA-BATCH-002] Batch jobs enforce valid pause resume and cancel transitions
@@ -947,10 +951,10 @@ Acceptance: Reports preserve scope metadata and expose async download.
 
 Acceptance: Report idempotency replay and conflict preserve original scope.
 
-### [FEAT-CA-PROV-001] Fleet pages after provisioning UI retirement
+### [FEAT-CA-PROV-001] Durable CSV provisioning workflow
 
 <!-- rtk-feature
-{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**","repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs","selector":"[UI-CA-FLEETPAGE-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/brand-fleet-pages.spec.mjs","selector":"[UI-CA-FLEETPAGE-002]"}]}
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/provisioning-durable.spec.mjs","selector":"[UI-CA-PROV-P0-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/provisioning-durable.spec.mjs","selector":"[UI-CA-PROV-P0-002]"}]}
 -->
 
 #### [REQ-UI-CA-FLEETPAGE-001] Customer fleet pages load through the real BFF
@@ -972,7 +976,7 @@ Acceptance: Device fleet remains server paginated.
 #### [REQ-UI-CA-PROV-001] Invalid-device validation is immutable and cannot execute
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"retired"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Invalid-device validation is immutable and cannot execute.
@@ -980,7 +984,7 @@ Acceptance: Invalid-device validation is immutable and cannot execute.
 #### [REQ-UI-CA-PROV-002] Provisioning upload replay is idempotent and conflicts are rejected
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"retired"}
+{"acceptance_layer":"integration","operation_model":"independent","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
 -->
 
 Acceptance: Provisioning upload replay is idempotent and conflicts are rejected.
@@ -988,7 +992,7 @@ Acceptance: Provisioning upload replay is idempotent and conflicts are rejected.
 #### [REQ-UI-CA-PROV-003] Observers cannot start provisioning from browser or API
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"retired"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Observers cannot start provisioning from browser or API.
@@ -996,7 +1000,7 @@ Acceptance: Observers cannot start provisioning from browser or API.
 #### [REQ-UI-CA-PROV-004] Provisioning CSV upload starts browser validation
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"retired"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Provisioning CSV upload starts browser validation.
@@ -1004,10 +1008,20 @@ Acceptance: Provisioning CSV upload starts browser validation.
 #### [REQ-UI-CA-PROV-005] Provisioning upload validates before creating an execution job
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"retired"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Provisioning upload validates before creating an execution job.
+
+#### [REQ-UI-CA-PROV-006] Provisioning lifecycle controls and row results are server driven
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: The browser renders Pause, Resume, Cancel, and Retry only from the
+job's `allowed_actions`, uses `cancelled` consistently, and displays filtered,
+paginated per-row results without reconstructing authority client-side.
 
 ### [FEAT-CA-RELEASE-001] OTA and chipset release administration
 
