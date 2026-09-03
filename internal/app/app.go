@@ -31,6 +31,7 @@ import (
 	"rtk_cloud_admin/internal/contracts"
 	"rtk_cloud_admin/internal/correlation"
 	"rtk_cloud_admin/internal/readinessfacts"
+	"rtk_cloud_admin/internal/reportstorage"
 	"rtk_cloud_admin/internal/store"
 	"rtk_cloud_admin/internal/videoclient"
 
@@ -51,6 +52,7 @@ type Server struct {
 	billingClient       *billingclient.Client
 	videoClient         *videoclient.Client
 	logger              *zap.Logger
+	reportStorage       reportstorage.Store
 }
 
 type Options struct {
@@ -72,6 +74,14 @@ func scopedCustomer(handler http.HandlerFunc) http.HandlerFunc {
 		}
 		handler(w, r.WithContext(context.WithValue(r.Context(), customerScopeContextKey{}, cloudID)))
 	}
+}
+
+func retiredCustomerRoute(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	writeJSONStatus(w, http.StatusNotFound, map[string]any{"code": "SCOPED_ROUTE_REQUIRED", "message": "This customer resource requires an explicit cloud scope."})
 }
 
 func scopedCustomerProduct(handler http.HandlerFunc) http.HandlerFunc {
@@ -133,6 +143,7 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 		billingClient:       opts.BillingClient,
 		videoClient:         opts.VideoClient,
 		logger:              opts.Logger,
+		reportStorage:       reportstorage.Store{Endpoint: opts.Config.ReportObjectStorageEndpoint, Bucket: opts.Config.ReportObjectStorageBucket, Region: opts.Config.ReportObjectStorageRegion, AccessKey: opts.Config.ReportObjectStorageAccessKey, SecretKey: opts.Config.ReportObjectStorageSecretKey},
 	}
 	s.routes()
 	s.handler = requestContextMiddleware(cloudlogger.HTTPMiddleware(opts.Logger)(s.mux))
@@ -140,7 +151,25 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.RetireLegacyCustomerRoutes && isRetiredLegacyCustomerPath(r.URL.Path) {
+		retiredCustomerRoute(w, r)
+		return
+	}
 	s.handler.ServeHTTP(w, r)
+}
+
+func isRetiredLegacyCustomerPath(path string) bool {
+	for _, prefix := range []string{
+		"/api/fleet", "/api/groups", "/api/tags", "/api/jobs", "/api/provisioning",
+		"/api/reports", "/api/update-plans", "/api/ota", "/api/audit", "/api/billing",
+		"/console/fleet", "/console/groups", "/console/tags", "/console/jobs",
+		"/console/reports", "/console/update-plans", "/console/ota", "/console/billing",
+	} {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) apiAdminGrafanaStatus(w http.ResponseWriter, r *http.Request) {
@@ -500,11 +529,15 @@ func (s *Server) scopedCustomerRoutes() {
 	register("POST "+root+"/devices/{id}/provision", s.apiProvisionDevice)
 	register("POST "+root+"/devices/{id}/deactivate", s.apiDeactivateDevice)
 	register("GET "+root+"/groups", s.apiGroups)
+	register("GET "+root+"/groups/aggregates", s.apiGroupAggregates)
 	register("POST "+root+"/groups", s.apiGroups)
 	register("GET "+root+"/groups/{id}", s.apiGroup)
 	register("PATCH "+root+"/groups/{id}", s.apiGroup)
 	register("DELETE "+root+"/groups/{id}", s.apiGroup)
 	register("GET "+root+"/tags", s.apiTags)
+	register("POST "+root+"/tags", s.apiTags)
+	register("PATCH "+root+"/tags/{tag}", s.apiTag)
+	register("DELETE "+root+"/tags/{tag}", s.apiTag)
 	register("GET "+root+"/jobs", s.apiJobs)
 	register("POST "+root+"/jobs", s.apiJobs)
 	register("GET "+root+"/jobs/{id}", s.apiJob)
@@ -1453,6 +1486,36 @@ func (s *Server) apiGroups(w http.ResponseWriter, r *http.Request) {
 	writeJSONStatus(w, http.StatusCreated, map[string]any{"source_status": "available"})
 }
 
+func (s *Server) apiGroupAggregates(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if !requireCustomerCapability(w, org, capabilityFleetRead, "device_group.read", capabilityCustomerDevicesRead) {
+		return
+	}
+	var aggregates []accountclient.DeviceGroupAggregate
+	tokens, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		aggregates, callErr = s.accountClient.DeviceGroupAggregates(r.Context(), token, org.ID, r.URL.Query())
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+	}
+	writeJSON(w, map[string]any{"aggregates": aggregates, "source_status": "available"})
+}
+
 func (s *Server) apiTags(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.customerSession(r)
 	if !ok {
@@ -1464,12 +1527,82 @@ func (s *Server) apiTags(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	if r.Method == http.MethodPost {
+		if !requireCustomerCapability(w, org, "device_tag.assign", capabilityFleetDeviceManage) {
+			return
+		}
+		var body struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || strings.TrimSpace(body.Name) == "" {
+			http.Error(w, "tag name is required", http.StatusBadRequest)
+			return
+		}
+		if _, ok := requireIdempotencyKey(w, r); !ok {
+			return
+		}
+		if err := s.accountClient.CreateOrganizationTag(r.Context(), tokens.AccessToken, org.ID, strings.TrimSpace(body.Name)); err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		writeJSONStatus(w, http.StatusCreated, map[string]any{"tag": strings.TrimSpace(body.Name), "source_status": "available"})
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	tags, err := s.accountClient.DeviceTags(r.Context(), tokens.AccessToken, org.ID, r.URL.Query())
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
 	writeJSON(w, map[string]any{"tags": tags, "source_status": "available"})
+}
+
+func (s *Server) apiTag(w http.ResponseWriter, r *http.Request) {
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if !requireCustomerCapability(w, org, "device_tag.assign", capabilityFleetDeviceManage) {
+		return
+	}
+	tag := strings.TrimSpace(r.PathValue("tag"))
+	if tag == "" {
+		http.Error(w, "tag is required", http.StatusBadRequest)
+		return
+	}
+	if _, ok := requireIdempotencyKey(w, r); !ok {
+		return
+	}
+	if r.Method == http.MethodPatch {
+		var body struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || strings.TrimSpace(body.Name) == "" {
+			http.Error(w, "tag name is required", http.StatusBadRequest)
+			return
+		}
+		err = s.accountClient.RenameOrganizationTag(r.Context(), tokens.AccessToken, org.ID, tag, strings.TrimSpace(body.Name))
+	} else {
+		err = s.accountClient.DeleteOrganizationTag(r.Context(), tokens.AccessToken, org.ID, tag)
+	}
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if r.Method == http.MethodPatch {
+		writeJSON(w, map[string]any{"tag": strings.TrimSpace(tag), "source_status": "available"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func groupAllowedActions(capabilities []string) []string {
@@ -2065,6 +2198,14 @@ func (s *Server) apiJobResult(w http.ResponseWriter, r *http.Request) {
 		writeJSONStatus(w, http.StatusGone, map[string]any{"code": "RESULT_EXPIRED", "message": "This job result has expired."})
 		return
 	}
+	if r.URL.Query().Get("format") == "" {
+		if key, ok := job.Scope["object_key"].(string); ok && strings.TrimSpace(key) != "" && s.reportStorage.Enabled() {
+			if signedURL, signErr := s.reportStorage.PresignGet(key, 10*time.Minute); signErr == nil {
+				writeJSON(w, map[string]any{"report": job, "items": job.Result, "download": map[string]any{"status": "ready", "url": signedURL, "expires_at": time.Now().UTC().Add(10 * time.Minute).Format(time.RFC3339)}, "source_status": "available"})
+				return
+			}
+		}
+	}
 	auditPrefix := "fleet"
 	if job.Type == "provisioning_validation" || job.Type == "device_provision" {
 		auditPrefix = "provisioning"
@@ -2219,6 +2360,16 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 		if _, err := s.jobs.UpdateBatchJobResult(job.OrganizationID, job.ID, result); err != nil {
 			_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, 1, 0)
 			return
+		}
+		if s.reportStorage.Enabled() {
+			if payload, marshalErr := json.Marshal(result); marshalErr == nil {
+				key := fmt.Sprintf("reports/%s/%s/%s/result.json", s.cfg.Environment, job.OrganizationID, job.ID)
+				if putErr := s.reportStorage.Put(ctx, key, payload, "application/json"); putErr != nil {
+					_, _ = s.jobs.UpdateBatchJobScope(job.OrganizationID, job.ID, mergeBatchJobScope(job.Scope, map[string]any{"download_status": "unavailable", "download_failure_code": "OBJECT_STORAGE_UNAVAILABLE"}))
+				} else {
+					_, _ = s.jobs.UpdateBatchJobScope(job.OrganizationID, job.ID, mergeBatchJobScope(job.Scope, map[string]any{"download_status": "ready", "object_key": key, "object_prefix": fmt.Sprintf("reports/%s/%s/%s/", s.cfg.Environment, job.OrganizationID, job.ID)}))
+				}
+			}
 		}
 		_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "completed", 1, 0, 0)
 		return
@@ -3534,6 +3685,11 @@ func (s *Server) apiUpdatePlans(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) validatePersistedOTAScope(ctx context.Context, accessToken, organizationID, productID string, scope map[string]any) error {
+	if rawStatus, exists := scope["quota_status"]; exists {
+		if status := strings.TrimSpace(fmt.Sprint(rawStatus)); status != "" && status != "available" {
+			return errors.New("OTA scope quota is exceeded")
+		}
+	}
 	previewID := strings.TrimSpace(fmt.Sprint(scope["preview_id"]))
 	if previewID == "" {
 		return errors.New("OTA scope preview_id is required")
@@ -3700,9 +3856,10 @@ func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var request struct {
-		Product           string         `json:"product_id"`
-		Query             map[string]any `json:"query"`
-		ExcludedDeviceIDs []string       `json:"excluded_device_ids"`
+		Product            string         `json:"product_id"`
+		Query              map[string]any `json:"query"`
+		ExcludedDeviceIDs  []string       `json:"excluded_device_ids"`
+		RateLimitPerMinute int            `json:"rate_limit_per_minute"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
 		http.Error(w, "scope preview data is invalid", http.StatusBadRequest)
@@ -3742,6 +3899,20 @@ func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Reques
 		uniqueExcluded = append(uniqueExcluded, id)
 	}
 	total := 0
+	quotaStatus := "available"
+	maxRate := 10000
+	if s.videoClient != nil && s.videoClient.Enabled() && strings.TrimSpace(s.cfg.VideoCloudAdminToken) != "" {
+		if otaConfig, configErr := s.videoClient.OTAConfig(r.Context(), s.cfg.VideoCloudAdminToken, org.ID); configErr == nil && otaConfig.SystemMaxRateLimitPerMinute > 0 {
+			maxRate = otaConfig.SystemMaxRateLimitPerMinute
+		}
+	}
+	if request.RateLimitPerMinute > maxRate {
+		quotaStatus = "exceeded"
+	}
+	if quotaStatus == "exceeded" {
+		writeJSONStatus(w, http.StatusUnprocessableEntity, map[string]any{"code": "OTA_RATE_LIMIT_QUOTA_EXCEEDED", "quota_status": quotaStatus, "maximum_rate_limit_per_minute": maxRate})
+		return
+	}
 	if s.accountClient.Enabled() {
 		if err := s.validateExcludedOTADevices(r.Context(), tokens.AccessToken, org.ID, queryScope, uniqueExcluded); err != nil {
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
@@ -3768,6 +3939,8 @@ func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Reques
 	scope["scope_hash"] = batchScopeHash(scope)
 	scope["target_count"] = maxInt(total-len(uniqueExcluded), 0)
 	scope["expires_at"] = expiresAt
+	scope["quota_status"] = quotaStatus
+	scope["maximum_rate_limit_per_minute"] = maxRate
 	preview, storeErr := s.jobs.CreateOTAScopePreview(contracts.OTAScopePreview{
 		OrganizationID:  org.ID,
 		ProductID:       strings.TrimSpace(request.Product),
@@ -3790,8 +3963,9 @@ func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Reques
 		"target_count":     maxInt(total-len(uniqueExcluded), 0),
 		"matched_count":    total,
 		"excluded_count":   len(uniqueExcluded),
-		"quota_status":     "available",
-		"rollout_guard":    map[string]any{"minimum_sample_size": 10, "failure_percentage": 10},
+		"quota_status":     quotaStatus,
+		"quota":            map[string]any{"requested_rate_limit_per_minute": request.RateLimitPerMinute, "maximum_rate_limit_per_minute": maxRate},
+		"rollout_guard":    map[string]any{"status": "available", "minimum_sample_size": 10, "failure_percentage": 10},
 		"source_freshness": preview.SourceFreshness,
 		"source_status":    "available",
 	})

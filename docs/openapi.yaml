@@ -1888,6 +1888,18 @@ paths:
         "204": { description: Group deleted. }
         "401": { $ref: "#/components/responses/PlainTextError" }
 
+  /api/developer/brand-clouds/{brandCloudID}/groups/aggregates:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listCloudGroupAggregates
+      x-rtk-feature-id: FEAT-P1-TAGS-001
+      x-rtk-requirement-ids: [REQ-P1-TAGS-002]
+      tags: [Developer, Fleet]
+      summary: List server-side group aggregates in one explicit brand cloud
+      security: [{ SessionCookie: [] }]
+      responses: { "200": { description: "Group member, status, health, and firmware aggregates." } }
+
   /api/tags:
     get:
       operationId: getApiTags
@@ -1900,6 +1912,58 @@ paths:
       responses:
         "200": { description: Customer-scoped tag usage summary. }
         "401": { $ref: "#/components/responses/PlainTextError" }
+
+  /api/developer/brand-clouds/{brandCloudID}/tags:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: createCloudTag
+      x-rtk-feature-id: FEAT-P1-TAGS-001
+      x-rtk-requirement-ids: [REQ-P1-TAGS-001]
+      tags: [Developer, Fleet]
+      summary: Create a tag in one explicit brand cloud
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tag]
+              properties:
+                tag: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        "201": { description: Tag created. }
+        "409": { description: Tag already exists. }
+    get:
+      operationId: listCloudTags
+      x-rtk-feature-id: FEAT-P1-TAGS-001
+      x-rtk-requirement-ids: [REQ-P1-TAGS-001]
+      tags: [Developer, Fleet]
+      summary: List tags and member counts in one explicit brand cloud
+      security: [{ SessionCookie: [] }]
+      responses: { "200": { description: Tag catalog with member counts. } }
+
+  /api/developer/brand-clouds/{brandCloudID}/tags/{tag}:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: tag, in: path, required: true, schema: { type: string } }
+    patch:
+      operationId: renameCloudTag
+      x-rtk-feature-id: FEAT-P1-TAGS-001
+      x-rtk-requirement-ids: [REQ-P1-TAGS-001]
+      tags: [Developer, Fleet]
+      summary: Rename a tag in one explicit brand cloud
+      security: [{ SessionCookie: [] }]
+      responses: { "200": { description: Tag renamed. }, "409": { description: Name already exists. } }
+    delete:
+      operationId: deleteCloudTag
+      x-rtk-feature-id: FEAT-P1-TAGS-001
+      x-rtk-requirement-ids: [REQ-P1-TAGS-001]
+      tags: [Developer, Fleet]
+      summary: Delete a tag in one explicit brand cloud
+      security: [{ SessionCookie: [] }]
+      responses: { "204": { description: Tag deleted. } }
 
   /api/roles:
     get:
@@ -2576,7 +2640,7 @@ paths:
         - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
         - $ref: "#/components/parameters/FleetWindow"
       responses:
-        "200": { description: Streaming summary, active sessions, never-streamed count and worst devices. }
+        "200": { description: "Streaming summary, active sessions, never-streamed count and worst devices." }
 
   /api/developer/brand-clouds/{brandCloudID}/provisioning/sources:
     post:
@@ -2602,7 +2666,7 @@ paths:
       responses:
         "201": { description: Immutable source metadata; device IDs are not echoed. }
         "409": { description: Idempotency key was reused with different source content. }
-        "422": { description: CSV header, row, duplicate, Product, or size validation failed. }
+        "422": { description: "CSV header, row, duplicate, Product, or size validation failed." }
 
   /api/developer/brand-clouds/{brandCloudID}/provisioning/validate:
     post:
@@ -2648,7 +2712,7 @@ paths:
                 validation_job_id: { type: string }
       responses:
         "202": { description: Provisioning BatchJob accepted. }
-        "409": { description: Validation is incomplete, invalid, or belongs to another immutable source. }
+        "409": { description: "Validation is incomplete, invalid, or belongs to another immutable source." }
         "410": { description: Source expired. }
 
   /api/developer/brand-clouds/{brandCloudID}/update-plans/scope-preview:
@@ -2663,7 +2727,7 @@ paths:
       responses:
         "200":
           description: Fifteen-minute preview including preview_id, scope hash, counts, freshness and expiry.
-        "422": { description: Product, filters, or exclusions are invalid for this cloud. }
+        "422": { description: "Product, filters, or exclusions are invalid for this cloud." }
 
   /api/developer/brand-clouds/{brandCloudID}/update-plans:
     get:
@@ -2687,7 +2751,7 @@ paths:
         - $ref: "#/components/parameters/ManagedCloudIdempotencyKey"
       responses:
         "201": { description: Update plan created. }
-        "409": { description: Preview expired, was modified, or its target set drifted. }
+        "409": { description: "Preview expired, was modified, or its target set drifted." }
 
   /api/developer/brand-clouds/{brandCloudID}/reports:
     get:
@@ -2709,6 +2773,21 @@ paths:
         - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
         - $ref: "#/components/parameters/ManagedCloudIdempotencyKey"
       responses: { "202": { description: Report accepted. } }
+
+  /api/developer/brand-clouds/{brandCloudID}/reports/{reportID}:
+    get:
+      operationId: getCloudReport
+      x-rtk-feature-id: FEAT-P1-REPORT-001
+      x-rtk-requirement-ids: [REQ-P1-REPORT-001, REQ-P1-REPORT-002]
+      tags: [Developer, Fleet, Reports]
+      summary: Get immutable report metadata and a short-lived download URL
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: reportID, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Report metadata and download status. }
+        "404": { description: Report not found. }
+        "410": { description: Report result expired. }
 
   /api/reports:
     get:

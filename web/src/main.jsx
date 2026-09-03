@@ -2565,6 +2565,9 @@ function GroupsPage({ data, loading, onRefresh }) {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
   const [message, setMessage] = useState('');
+  const [editingTag, setEditingTag] = useState(null);
+  const [tagName, setTagName] = useState('');
+  const [newTagName, setNewTagName] = useState('');
   const canManage = data?.allowed_actions?.includes('manage');
   async function createGroup(event) {
     event.preventDefault();
@@ -2578,6 +2581,24 @@ function GroupsPage({ data, loading, onRefresh }) {
     setMessage(response.ok ? 'Group deleted.' : 'The group cannot be deleted at this time.');
     if (response.ok) onRefresh();
   }
+  async function renameTag(event) {
+    event.preventDefault();
+    const response = await fetch(scopedCustomerAPI(`/api/tags/${encodeURIComponent(editingTag.tag)}`, cloudIdFromPath(window.location.pathname)), { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `tag-rename-${editingTag.tag}-${tagName}` }, body: JSON.stringify({ name: tagName }) });
+    setMessage(response.ok ? 'Tag renamed.' : 'The tag could not be renamed.');
+    if (response.ok) { setEditingTag(null); setTagName(''); onRefresh(); }
+  }
+  async function createTag(event) {
+    event.preventDefault();
+    const response = await fetch(scopedCustomerAPI('/api/tags', cloudIdFromPath(window.location.pathname)), { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `tag-create-${newTagName}` }, body: JSON.stringify({ name: newTagName }) });
+    setMessage(response.ok ? 'Tag created.' : 'The tag could not be created.');
+    if (response.ok) { setNewTagName(''); onRefresh(); }
+  }
+  async function deleteTag(tag) {
+    if (!window.confirm(`Delete tag “${tag.tag}” from all devices?`)) return;
+    const response = await fetch(scopedCustomerAPI(`/api/tags/${encodeURIComponent(tag.tag)}`, cloudIdFromPath(window.location.pathname)), { method: 'DELETE', headers: { 'Idempotency-Key': `tag-delete-${tag.tag}` } });
+    setMessage(response.ok ? 'Tag deleted.' : 'The tag could not be deleted.');
+    if (response.ok) onRefresh();
+  }
   return <section className="page-content">
     <div className="page-intro"><div><p className="eyebrow">Fleet Organization</p><h2>Groups and Tags</h2><p>Organize devices into groups to manage firmware updates and reports.</p></div>{canManage ? <button type="button" className="primary" onClick={() => setShowCreate((value) => !value)}>＋ Add Group</button> : null}</div>
     {message ? <div className="notice">{message}</div> : null}
@@ -2585,7 +2606,7 @@ function GroupsPage({ data, loading, onRefresh }) {
     {loading ? <section className="panel split-panel"><div><h3>Loading groups</h3></div></section> : null}
     {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>Group data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
     {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Group</th><th>Description</th><th>Devices</th>{canManage ? <th>Action</th> : null}</tr></thead><tbody>{groups.map((group) => <tr key={group.id}><td><strong>{group.name}</strong><small>{group.id}</small></td><td>{group.description || '—'}</td><td>{formatNumber(group.device_count || 0)} devices</td>{canManage ? <td><button type="button" className="link-button" onClick={() => deleteGroup(group)}>Delete</button></td> : null}</tr>)}</tbody></table>{!groups.length ? <p className="empty-state">No groups yet.</p> : null}</div></section> : null}
-    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="panel-head"><div><h3>Tags</h3><p>Tags can be used to search for devices and define firmware update scopes.</p></div></div><div className="chip-list">{tags.map((tag) => <span className="status-badge neutral" key={tag.tag}>{tag.tag} · {formatNumber(tag.device_count)} devices</span>)}</div>{!tags.length ? <p className="empty-state">No tags yet.</p> : null}</section> : null}
+    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="panel-head"><div><h3>Tags</h3><p>Tags can be used to search for devices and define firmware update scopes.</p></div></div>{canManage ? <form className="inline-form" onSubmit={createTag}><input required maxLength="100" placeholder="New tag name" value={newTagName} onChange={(event) => setNewTagName(event.target.value)} /><button type="submit" className="primary">Add Tag</button></form> : null}{editingTag ? <form className="inline-form" onSubmit={renameTag}><input required maxLength="100" value={tagName} onChange={(event) => setTagName(event.target.value)} /><button type="submit" className="primary">Save Tag</button><button type="button" className="link-button" onClick={() => setEditingTag(null)}>Cancel</button></form> : null}<div className="chip-list">{tags.map((tag) => <span className="status-badge neutral" key={tag.tag}>{tag.tag} · {formatNumber(tag.device_count)} devices{canManage ? <><button type="button" className="link-button" onClick={() => { setEditingTag(tag); setTagName(tag.tag); }}>Rename</button><button type="button" className="link-button" onClick={() => deleteTag(tag)}>Delete</button></> : null}</span>)}</div>{!tags.length ? <p className="empty-state">No tags yet.</p> : null}</section> : null}
   </section>;
 }
 

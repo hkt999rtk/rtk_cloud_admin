@@ -296,6 +296,15 @@ type DeviceGroup struct {
 	DeviceCount    int    `json:"device_count,omitempty"`
 }
 
+type DeviceGroupAggregate struct {
+	GroupID              string         `json:"group_id"`
+	MemberCount          int            `json:"member_count"`
+	OnlineCount          int            `json:"online_count"`
+	OfflineCount         int            `json:"offline_count"`
+	HealthDistribution   map[string]int `json:"health_distribution"`
+	FirmwareDistribution map[string]int `json:"firmware_distribution"`
+}
+
 type DeviceGroupRequest struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
@@ -1160,6 +1169,20 @@ func (c *Client) DeviceGroups(ctx context.Context, accessToken, orgID string, qu
 	return body.Groups, nil
 }
 
+func (c *Client) DeviceGroupAggregates(ctx context.Context, accessToken, orgID string, query url.Values) ([]DeviceGroupAggregate, error) {
+	var body struct {
+		Aggregates []DeviceGroupAggregate `json:"aggregates"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-groups/aggregates"
+	if len(query) > 0 {
+		path += "?" + query.Encode()
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Aggregates, nil
+}
+
 func (c *Client) DeviceGroup(ctx context.Context, accessToken, orgID, groupID string) (DeviceGroup, error) {
 	var body struct {
 		Group DeviceGroup `json:"group"`
@@ -1183,6 +1206,21 @@ func (c *Client) DeviceTags(ctx context.Context, accessToken, orgID string, quer
 		return nil, err
 	}
 	return body.Tags, nil
+}
+
+func (c *Client) CreateOrganizationTag(ctx context.Context, accessToken, orgID, name string) error {
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/tags"
+	return c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{"name": name}, nil)
+}
+
+func (c *Client) RenameOrganizationTag(ctx context.Context, accessToken, orgID, tag, name string) error {
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/tags/" + url.PathEscape(tag)
+	return c.doJSON(ctx, http.MethodPatch, path, accessToken, map[string]string{"name": name}, nil)
+}
+
+func (c *Client) DeleteOrganizationTag(ctx context.Context, accessToken, orgID, tag string) error {
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/tags/" + url.PathEscape(tag)
+	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)
 }
 
 func (c *Client) CreateDeviceGroup(ctx context.Context, accessToken, orgID string, request DeviceGroupRequest) (DeviceGroup, error) {

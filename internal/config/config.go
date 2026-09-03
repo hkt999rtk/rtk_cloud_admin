@@ -29,6 +29,12 @@ type Config struct {
 	AccountManagerJobAuthorizationToken string
 	BatchWorkerPollInterval             time.Duration
 	BatchWorkerLeaseDuration            time.Duration
+	ReportObjectStorageEndpoint         string
+	ReportObjectStorageBucket           string
+	ReportObjectStorageRegion           string
+	ReportObjectStorageAccessKey        string
+	ReportObjectStorageSecretKey        string
+	RetireLegacyCustomerRoutes          bool
 }
 
 func FromEnv() Config {
@@ -53,6 +59,12 @@ func FromEnv() Config {
 		AccountManagerJobAuthorizationToken: os.Getenv("ACCOUNT_MANAGER_JOB_AUTHORIZATION_TOKEN"),
 		BatchWorkerPollInterval:             duration("BATCH_WORKER_POLL_INTERVAL", time.Second),
 		BatchWorkerLeaseDuration:            duration("BATCH_WORKER_LEASE_DURATION", 30*time.Second),
+		ReportObjectStorageEndpoint:         os.Getenv("REPORT_OBJECT_STORAGE_ENDPOINT"),
+		ReportObjectStorageBucket:           os.Getenv("REPORT_OBJECT_STORAGE_BUCKET"),
+		ReportObjectStorageRegion:           getenv("REPORT_OBJECT_STORAGE_REGION", "us-east-1"),
+		ReportObjectStorageAccessKey:        os.Getenv("REPORT_OBJECT_STORAGE_ACCESS_KEY"),
+		ReportObjectStorageSecretKey:        os.Getenv("REPORT_OBJECT_STORAGE_SECRET_KEY"),
+		RetireLegacyCustomerRoutes:          truthy(getenv("RETIRE_LEGACY_CUSTOMER_ROUTES", "true")),
 	}
 }
 
