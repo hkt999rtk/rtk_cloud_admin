@@ -76,3 +76,27 @@ func TestDeveloperSDKCatalogBFFFailsClosed(t *testing.T) {
 		}
 	}
 }
+
+func TestSDKPortalAndReportStorageConfigurationCoexist(t *testing.T) {
+	srv := newSeededTestServer(t, config.Config{
+		SDKPortalBaseURL:             "https://portal.example",
+		ReportObjectStorageEndpoint:  "http://minio.example:9000",
+		ReportObjectStorageBucket:    "reports",
+		ReportObjectStorageRegion:    "us-east-1",
+		ReportObjectStorageAccessKey: "test-access-key",
+		ReportObjectStorageSecretKey: "test-secret-key",
+	})
+	if srv.sdkPortalClient == nil {
+		t.Fatal("SDK Portal client was not configured")
+	}
+	if !srv.reportStorage.Enabled() {
+		t.Fatal("report object storage was not configured")
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/developer/sdk-releases/latest", nil)
+	response := httptest.NewRecorder()
+	srv.ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("SDK Portal route status = %d, want %d", response.Code, http.StatusUnauthorized)
+	}
+}
