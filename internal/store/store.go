@@ -864,7 +864,7 @@ func (s *Store) UpdateBatchJobResult(organizationID, id string, result []map[str
 }
 
 func (s *Store) BindBatchJobAuthorization(organizationID, id, authorizationID string) (contracts.BatchJob, error) {
-	result, err := s.db.Exec(`UPDATE batch_jobs SET authorization_id=?,authorization_status='active',state_version=state_version+1,updated_at=? WHERE organization_id=? AND id=? AND state='queued'`, authorizationID, time.Now().UTC().Format(time.RFC3339Nano), organizationID, id)
+	result, err := s.db.Exec(`UPDATE batch_jobs SET authorization_id=?,authorization_status='active',state_version=state_version+1,updated_at=? WHERE organization_id=? AND id=? AND state='queued' AND authorization_id=''`, authorizationID, time.Now().UTC().Format(time.RFC3339Nano), organizationID, id)
 	if err != nil {
 		return contracts.BatchJob{}, err
 	}
