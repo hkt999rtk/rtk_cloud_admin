@@ -34,7 +34,7 @@ test('maps platform shell paths to platform routes', () => {
   assert.equal(routeFromPath('/admin/health'), 'platform-health');
   assert.equal(routeFromPath('/admin/brand-clouds'), 'platform-brand-clouds');
   assert.equal(routeFromPath('/admin/brand-clouds/brand-001'), 'platform-brand-clouds');
-  assert.equal(routeFromPath('/admin/chipset-providers'), 'platform-chipset-providers');
+  assert.equal(routeFromPath('/admin/chipset-providers'), 'platform-dashboard');
   assert.equal(routeFromPath('/admin/sso'), 'platform-sso');
   assert.equal(routeFromPath('/admin/logs'), 'platform-logs');
   assert.equal(routeFromPath('/admin/ops'), 'platform-operations');
@@ -202,7 +202,7 @@ test('platform nav follows the unified shell group order', () => {
   );
   assert.deepEqual(
     platformNavItems.map((item) => item.path),
-    ['/admin', '/admin/grafana', '/admin/health', '/admin/logs', '/admin/brand-clouds', '/admin/chipset-providers', '/admin/sso', '/admin/ops', '/admin/audit'],
+    ['/admin', '/admin/grafana', '/admin/health', '/admin/logs', '/admin/brand-clouds', '/admin/sso', '/admin/ops', '/admin/audit'],
   );
 });
 
@@ -210,7 +210,7 @@ test('route kind selects one capability-filtered navigation hierarchy', () => {
   assert.deepEqual(navGroupsForCapabilities('overview', []).map((group) => group.labelKey), ['Clouds', 'Brand Cloud', 'Features', 'Management']);
   assert.deepEqual(navGroupsForCapabilities('platform-dashboard', []).map((group) => group.labelKey), ['Platform Overview', 'Monitoring and Diagnostics', 'Organizations and Products', 'Operations and Audit']);
   assert.equal(navGroupsForCapabilities('platform-dashboard', [])[2].items.some((item) => item.id === 'platform-chipset-providers'), false);
-  assert.equal(navGroupsForCapabilities('platform-dashboard', ['platform.chipset_sdk.read'])[2].items.some((item) => item.id === 'platform-chipset-providers'), true);
+  assert.equal(navGroupsForCapabilities('platform-dashboard', ['platform.chipset_sdk.read'])[2].items.some((item) => item.id === 'platform-chipset-providers'), false);
   assert.deepEqual(navGroupsForCapabilities('login', []), []);
 });
 
