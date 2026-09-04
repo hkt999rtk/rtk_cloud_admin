@@ -807,7 +807,7 @@ function App() {
       return;
     }
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
-    if (['product-services', 'access', 'settings', 'billing'].includes(targetRoute)) {
+    if (['product-services', 'access', 'settings', 'billing', 'test-lab'].includes(targetRoute)) {
       window.location.assign(path);
       return;
     }
@@ -7175,7 +7175,7 @@ if (initialCanonicalPath !== window.location.pathname) {
 }
 const initialManagedCloudRoute = managedCloudRoute(window.location.pathname);
 const usesManagedCloudApp = Boolean(initialManagedCloudRoute && (
-  !initialManagedCloudRoute.cloudId || ['products', 'members', 'settings'].includes(initialManagedCloudRoute.section)
+  !initialManagedCloudRoute.cloudId || ['products', 'members', 'settings', 'test-lab'].includes(initialManagedCloudRoute.section)
 ));
 
 document.documentElement.lang = i18n.language;

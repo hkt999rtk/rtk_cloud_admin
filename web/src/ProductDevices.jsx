@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {productURL} from './cloud-products.mjs';
 import {cloudWriteIntent,managedCloudRequest} from './managed-clouds.mjs';
 import {deviceAPI,deviceURL,fetchProductDevices,deviceError} from './product-devices.mjs';
+import {testLabURL} from './test-lab.mjs';
 
 export function ProductDevices({cloudId,productId,deviceId='',onAccessLost}) {
  const [data,setData]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
@@ -33,6 +34,7 @@ export function ProductDevices({cloudId,productId,deviceId='',onAccessLost}) {
  }
  return <section className="my-clouds-panel" data-testid="product-devices">
   <h2>{deviceId?'Device details':'Devices'}</h2><p>Only devices in this Product and your current authorized scope are shown.</p>
+  <a href={testLabURL(cloudId,productId,deviceId)}>Open Cloud Test Lab</a>
   {deviceId?<a href={productURL(cloudId,productId)}>Back to Product devices</a>:<form onSubmit={e=>{e.preventDefault();setOffset(0);setQ(search.trim());}}><label>Search devices<input aria-label="Search devices" value={search} maxLength={200} onChange={e=>setSearch(e.target.value)}/></label><button>Search devices</button></form>}
   {error&&<div role="alert">{error} <button onClick={()=>setReload(v=>v+1)}>Refresh devices</button></div>}
   {loading&&<p role="status">Loading devices…</p>}
