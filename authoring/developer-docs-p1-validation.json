@@ -1,0 +1,18 @@
+{
+  "date": "2026-09-04",
+  "pages": 23,
+  "navigation_groups": 6,
+  "diagrams": 21,
+  "new_p1_diagrams": 5,
+  "demo_behavior_tests": 6,
+  "recovery_policy_tests": 8,
+  "navigation_unit_tests": 3,
+  "full_link_browser_tests": 6,
+  "build": "pass",
+  "diagram_visual_review": "pass",
+  "docs_rag_active_files": 26,
+  "live_environment_qualification": "not_run",
+  "deployment": "not_deployed",
+  "note": "Earlier mixed-build browser run was interrupted and replaced by a clean six-test run.",
+  "final_structure_and_field_anchor_browser_tests": 2
+}

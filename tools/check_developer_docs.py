@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+import zipfile
 import xml.etree.ElementTree as ET
 
 import yaml
@@ -18,8 +19,21 @@ ROOT = REPO / 'web/content/developer-docs'
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--render', action='store_true', help='Regenerate SVGs using mmdc')
+    parser.add_argument('--package-example', action='store_true', help='Regenerate deterministic sample ZIP')
     args = parser.parse_args()
+    if args.package_example:
+        with zipfile.ZipFile(ROOT / 'assets/shadow-demo.zip', 'w') as archive:
+            for name in ['README.md', 'demo.py', 'recover.py', 'verify.py', 'requirements.txt']:
+                info = zipfile.ZipInfo(name, (2026, 9, 4, 0, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.external_attr = 0o100644 << 16
+                archive.writestr(info, (ROOT / 'examples/shadow-demo' / name).read_bytes())
     index = yaml.safe_load((ROOT / 'index.en.yaml').read_text())
+    with zipfile.ZipFile(ROOT / 'assets/shadow-demo.zip') as archive:
+        expected = ['README.md', 'demo.py', 'recover.py', 'verify.py', 'requirements.txt']
+        assert sorted(archive.namelist()) == sorted(expected), 'Unexpected sample archive files'
+        for name in expected:
+            assert archive.read(name) == (ROOT / 'examples/shadow-demo' / name).read_bytes(), f'Stale sample archive: {name}'
     records = []
     diagram_count = 0
     for source in sorted((ROOT / 'assets').glob('*.mmd')):
@@ -53,6 +67,7 @@ def main():
             assert meta.get(field), f'{source}: missing {field}'
         assert meta['language'] == 'en'
         assert meta['title'] == section['title']
+        assert meta['category'] == section['category'], f'{source}: navigation category differs from frontmatter'
         headings = []
         for language, code in re.findall(r'^```([^\n]*)\n(.*?)^```', body, re.M | re.S):
             if language == 'json':

@@ -1,0 +1,10 @@
+flowchart TB
+    App["App / Backend intent"] -->|"conventional writer"| Desired["state.desired: power on"]
+    Hardware["Device operation and readback"] -->|"conventional writer"| Reported["state.reported: power off"]
+    Desired --> Difference["Service computes desired differences"]
+    Reported --> Difference
+    Difference --> Delta["state.delta: power on"]
+    Desired --> Stored["One device / Shadow document"]
+    Reported --> Stored
+    Service["Service-owned metadata, version and timestamp"] --> Stored
+    Note["Writer roles shown are conventions, not built-in field ACLs"] -.-> App

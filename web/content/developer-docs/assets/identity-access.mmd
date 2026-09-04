@@ -1,0 +1,12 @@
+flowchart TB
+    Factory["Factory identity and device key"] --> Device["Device firmware"]
+    subgraph Account["Account authorization boundary"]
+        User["Developer user / consumer APP end user"] --> Binding["Membership, scope and device binding"]
+        Claim["Possession proof / Claim Token"] --> Binding
+    end
+    Binding --> Decision["Token issuance authorization"]
+    Device -->|"Device certificate over mTLS"| Decision
+    App["App-local key and user certificate"] -->|"App certificate over mTLS"| Decision
+    Decision --> Runtime["Scoped runtime JWT / requested SigV4 bundle"]
+    Runtime --> MQTT["MQTT and Shadow access"]
+    Note["Sharing changes grants. It does not copy keys or factory identity."] -.-> Binding

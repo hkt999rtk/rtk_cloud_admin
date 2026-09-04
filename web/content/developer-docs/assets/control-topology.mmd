@@ -1,0 +1,11 @@
+flowchart TB
+    App["App / Backend"] -->|"MQTT or signed HTTP"| Shadow["Shadow state service"]
+    Shadow <-->|"GET, desired, reported"| Device["Device firmware"]
+    Device --> Broker["MQTT broker"]
+    Device --> WS["Device WebSocket endpoint"]
+    Broker -->|"SDK owner protocol"| Owner["Single active owner transport"]
+    WS -->|"higher priority"| Owner
+    Command["Supported device command routing"] --> Owner
+    Owner -->|"current owner only"| Device
+    Observer["Shadow-only tutorial client"] --> Broker
+    Observer -.->|"does not establish owner lifecycle"| Owner

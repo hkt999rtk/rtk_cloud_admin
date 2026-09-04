@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Owner as Current owner
+    participant AM as Account Manager
+    participant Cloud as Video Cloud
+    participant Next as Next owner
+    Note over Owner,AM: R = /v1/orgs/{orgId}/devices/{deviceId}
+    Owner->>AM: HTTPS POST R/unprovision (Account bearer)
+    alt Authorized binding release
+        AM-->>Owner: 200 unprovision.status=unprovisioned
+        AM->>Cloud: Async binding cleanup via internal integration
+        Note over AM,Cloud: Preserve factory identity and canonical entitlements
+        Next->>AM: HTTPS POST /v1/orgs/{orgId}/devices/claim/resolve (fresh possession proof)
+        AM-->>Next: Claim result or rejection
+        Note over Next,Cloud: Successful new binding still requires activation workflow
+    else Permission or lifecycle conflict
+        AM-->>Owner: HTTP 403 or 409
+    end

@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant App
+    participant Shadow as MQTT / Shadow service
+    participant Device
+    Note over App,Device: R = $vc/devices/device-1/shadow/name/tutorial
+    App->>Shadow: PUBLISH R/update (desired intent)
+    Shadow-->>App: R/update/accepted
+    Shadow-->>Device: R/update/delta
+    Device->>Device: Validate schema, range and supported operation
+    alt Supported and hardware succeeds
+        Device->>Device: Apply and read back actual state
+        Device->>Shadow: PUBLISH R/update (truthful reported state)
+    else Unsupported or hardware failure
+        Device->>Shadow: PUBLISH R/update (actual reported and application-defined lastApply)
+        Note over Device: Bound retries for unchanged failing intent
+    end
+    Shadow-->>Device: R/update/accepted
+    App->>Shadow: PUBLISH R/get
+    Shadow-->>App: R/get/accepted (current state)
+    Note over App: Decide whether to correct desired or surface failure

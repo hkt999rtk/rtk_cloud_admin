@@ -1,19 +1,25 @@
 ---
-title: "Before You Start"
-description: "Prepare a test device, authorized identities, endpoints, and command-line tools."
-category: "Start here"
-keywords: ["prerequisites", "endpoint", "TLS", "certificate", "setup"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: Before You Start
+description: Prepare a test device, authorized identities, endpoints, and command-line
+  tools.
+category: Start here
+keywords:
+- prerequisites
+- endpoint
+- TLS
+- certificate
+- setup
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # Before You Start
 
 ## What you need
 
-Use a dedicated test device and an authorized app identity for the same device and Brand Cloud. Ask your project administrator to complete device registration/activation and grant the required capabilities before starting.
+Use a dedicated test device and an authorized app identity for the same device and Brand Cloud. Follow [Set Up Your First Cloud and Device](setup-cloud-device.en.md) and [Device and App Credential Setup](credential-setup.en.md) to complete registration, activation, authorization and credential acquisition before starting.
 
 | Input | How to obtain it |
 | --- | --- |
@@ -66,3 +72,5 @@ Copy the same `TUTORIAL_DIR` value into the other terminals. Do not enable shell
 Confirm the device is active, the app is authorized for that device, and both capabilities are enabled. Obtain separate device and app runtime token files using [Authentication and Access Control](authentication.en.md). A successful token response is the first milestone; successful MQTT connection and subscription are separate checks.
 
 Next: [exchange an MQTT message](mqtt-quickstart.en.md).
+
+Architecture: [Credential types and destinations](credential-setup.en.md).

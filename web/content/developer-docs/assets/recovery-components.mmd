@@ -1,0 +1,10 @@
+flowchart TB
+    Cert["Local certificate / key and trusted endpoint settings"] --> Supervisor["recover.py: lifetime and retry policy"]
+    Supervisor <-->|"HTTPS reissue or mTLS bootstrap"| Token["Runtime token service"]
+    Supervisor --> File["Private temporary token file"]
+    Supervisor -->|"start, await and stop"| Worker["demo.py device worker"]
+    File --> Worker
+    Worker <-->|"TLS, MQTT and exact subscriptions"| Broker["MQTT / Shadow service"]
+    Worker --> Reconcile["GET current desired, apply supported state, report actual state"]
+    Reconcile --> Broker
+    Limits["Bounded duration and retries. Real hardware needs its own persistent state handling."] -.-> Supervisor

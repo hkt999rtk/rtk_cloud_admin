@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Device as Device
+    participant Factory as Authorized factory
+    participant Enroll as Factory enrollment
+    participant Cloud as Runtime token service
+    Device->>Device: Generate and retain device private key
+    Device->>Factory: CSR and immutable production context
+    Factory->>Enroll: HTTPS POST /v1/factory/enroll (factory JWT, CSR)
+    alt Factory authorization and production context valid
+        Enroll-->>Factory: Issued device certificate and metadata
+        Factory-->>Device: Certificate matching retained key
+        Note over Device,Cloud: Claim and activation are separate prerequisites
+        Device->>Cloud: mTLS POST /request_token (scope=device, devid)
+        Cloud-->>Device: Runtime token or policy rejection
+    else Enrollment denied
+        Enroll-->>Factory: HTTP error, no usable identity
+    end

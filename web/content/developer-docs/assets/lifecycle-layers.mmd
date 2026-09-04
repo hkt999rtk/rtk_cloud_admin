@@ -1,0 +1,22 @@
+flowchart TB
+    subgraph Factory["Factory layer"]
+        Identity["Device identity and canonical entitlements"]
+    end
+    subgraph Account["Account layer"]
+        Claim["Claim / user-org binding"] --> Activation["Asynchronous provisioning operation"]
+        Release["Unprovision"] -->|"releases"| Claim
+    end
+    subgraph Runtime["Runtime layer"]
+        Enabled["Cloud activation state"]
+        Owner["Current owner transport"]
+        Shadow["Persistent Shadow state"]
+    end
+    Identity --> Claim
+    Activation --> Enabled
+    Enabled -->|"permits authorized runtime use"| Owner
+    Enabled -->|"permits authorized state access"| Shadow
+    Release -.->|"preserves"| Identity
+    Owner -.->|"independent from stored state"| Shadow
+    Status["Fleet / readiness display: inspect source and observation time"]
+    Activation --> Status
+    Owner --> Status

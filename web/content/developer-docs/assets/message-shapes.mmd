@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant App
+    participant MQTT as MQTT / Shadow service
+    participant Device
+    Note over App,Device: R = $vc/devices/device-1/shadow/name/tutorial
+    App->>MQTT: MQTT PUBLISH R/update (desired.power=on, version=7)
+    MQTT-->>App: PUBACK (transport acknowledgement)
+    alt Version accepted
+        MQTT-->>App: R/update/accepted (patch, version=8)
+        MQTT-->>Device: R/update/delta (state.power=on, version=8)
+        MQTT-->>App: R/update/documents (previous/current, current.version=8)
+        Note over App,Device: Notifications shown for subscribed clients, not cross-client ordering
+        Device->>MQTT: MQTT PUBLISH R/update (reported.power=on)
+        MQTT-->>Device: R/update/accepted
+        App->>MQTT: MQTT PUBLISH R/get (clientToken=read-current)
+        MQTT-->>App: R/get/accepted (full state, matching clientToken)
+    else Stale version
+        MQTT-->>App: R/update/rejected (code=409)
+    end

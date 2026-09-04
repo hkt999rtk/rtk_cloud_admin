@@ -1,12 +1,18 @@
 ---
-title: "Quickstart: Connect and Exchange Messages"
-description: "Publish a JSON message and receive it through a second authenticated MQTT connection."
-category: "Tutorials"
-keywords: ["publish", "subscribe", "SUBACK", "PUBACK", "mosquitto"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: 'Quickstart: Connect and Exchange Messages'
+description: Publish a JSON message and receive it through a second authenticated
+  MQTT connection.
+category: Tutorials
+keywords:
+- publish
+- subscribe
+- SUBACK
+- PUBACK
+- mosquitto
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # Quickstart: Connect and Exchange Messages
@@ -50,7 +56,7 @@ mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" --cafile "$CA_FILE" \
 Terminal A should print:
 
 ```text
-tutorials/device-1/temperature temperature_c          
+tutorials/device-1/temperature {"temperature_c":23}
 ```
 
 The JSON is your application's example schema; the broker does not turn it into Shadow state. The publish command finishing at QoS 1 acknowledges transport receipt, not subscriber business logic. Duplicate deliveries remain possible. Stop the subscriber with Ctrl-C when finished.
@@ -60,3 +66,5 @@ The JSON is your application's example schema; the broker does not turn it into 
 Check successful SUBACK, matching topic spelling, matching Brand Cloud identities, and distinct Client IDs. Do not expect an earlier non-retained message to replay when you subscribe later. A general topic succeeding does not demonstrate Shadow permission.
 
 Next: [connection behavior](mqtt-connection.en.md), [Topic reference](mqtt-topics.en.md), or [Shadow Quickstart](shadow-quickstart.en.md).
+
+Architecture: [MQTT topic architecture](mqtt-topics.en.md).

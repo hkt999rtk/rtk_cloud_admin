@@ -1,0 +1,107 @@
+{
+  "date": "2026-09-04",
+  "query": "app_csr_pem csr_required",
+  "remote_embeddings": false,
+  "remote_answers": false,
+  "citations": [
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/api_usage.md",
+      "lines": [
+        133,
+        177
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "API Usage Guide > Issue A Scoped Token > App First Login Certificate Pinning And Token Bootstrap",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/auth.md",
+      "lines": [
+        291,
+        335
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "Auth Contract > [FEAT-CONTRACT-AUTH-001] Runtime bearer and certificate authentication > [REQ-CONTRACT-AUTH-APP-BOOTSTRAP-001] App login and CSR issuance lead to a subject-bound bearer token > App Certificate Pinning And Token Bootstrap",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/provision.md",
+      "lines": [
+        441,
+        485
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "Device Provisioning And Activation Contract > [FEAT-PROV-ONBOARD-001] Factory enrollment and cross-service onboarding > [REQ-E2E-PROV-ACCOUNT-001] Account and Video Cloud provisioning workflow reaches an authenticated owner transport > Account User And Organization Bootstrap",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.0909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/api_usage.md",
+      "lines": [
+        178,
+        186
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "API Usage Guide > Issue A Scoped Token > App First Login Certificate Pinning And Token Bootstrap",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.0909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+      "lines": [
+        6241,
+        6285
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "openapi.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.0909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/feature_workflows.yaml",
+      "lines": [
+        2081,
+        2125
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "feature_workflows.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.0909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/feature_workflows.yaml",
+      "lines": [
+        1646,
+        1680
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "feature_workflows.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.0909
+    }
+  ],
+  "note": "Retrieved passages were checked against source; stale subject wording was rejected.",
+  "docs_index": {
+    "active_files": 20,
+    "remote_embeddings": false,
+    "remote_answers": false,
+    "smoke_query": "csr_required",
+    "returned_source": "credential-setup.en.md"
+  }
+}

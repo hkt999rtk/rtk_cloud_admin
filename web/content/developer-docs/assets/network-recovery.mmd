@@ -1,0 +1,25 @@
+sequenceDiagram
+    participant Device
+    participant Token as Token service
+    participant MQTT as MQTT / Shadow service
+    participant App
+    Note over Device,MQTT: R = $vc/devices/device-1/shadow/name/tutorial
+    Note over Device: Network loss, old socket closed
+    App->>MQTT: PUBLISH R/update (new desired)
+    MQTT-->>App: R/update/accepted if authorized
+    loop Bounded reconnect attempts
+        Device->>Token: HTTPS token reissue or mTLS bootstrap
+        Token-->>Device: Current credentials or error
+        Device->>MQTT: TLS and MQTT CONNECT
+        MQTT-->>Device: CONNACK or rejection
+    end
+    opt Connected
+        Device->>MQTT: SUBSCRIBE R/get/accepted, R/get/rejected, R/update/accepted, R/update/rejected, R/update/delta
+        MQTT-->>Device: SUBACK
+        Device->>MQTT: PUBLISH R/get (new correlation)
+        MQTT-->>Device: R/get/accepted (current desired) or rejected
+        Note over Device: Reconcile hardware with current desired
+        Device->>MQTT: PUBLISH R/update (actual reported)
+        MQTT-->>Device: R/update/accepted
+    end
+    Note over Device,MQTT: No offline replay or cross-client ordering is assumed

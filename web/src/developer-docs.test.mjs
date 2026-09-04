@@ -30,3 +30,12 @@ test('every published chapter, including overview, remains a global documentatio
     assert.equal(cloudIdFromPath(path), '', slug);
   }
 });
+
+test('exact title precedes cross references and code searches expose matching text', async () => {
+  const { documentationSnippet } = await import('./developer-docs.mjs');
+  const reference = { title: 'Overview', description: 'Introduction', keywords: [], text: 'Read MQTT Connection Guide. A version conflict returns 409.' };
+  const guide = { title: 'MQTT Connection Guide', description: 'Connection settings', keywords: [], text: 'Configure MQTT.' };
+  assert.equal(searchDeveloperDocs([reference, guide], 'MQTT Connection Guide')[0], guide);
+  assert.match(documentationSnippet(reference, '409'), /version conflict returns 409/);
+  assert.equal(documentationSnippet(reference, ' '), reference.description);
+});

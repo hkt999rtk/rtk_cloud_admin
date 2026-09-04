@@ -1,0 +1,44 @@
+sequenceDiagram
+    participant App as App client
+    participant Broker as MQTT broker
+    participant Shadow as Shadow service
+    participant Device as Device simulator
+    Note over App,Device: R = $vc/devices/device-1/shadow/name/tutorial
+    App->>Broker: MQTT CONNECT (app token)
+    Broker-->>App: CONNACK
+    Device->>Broker: MQTT CONNECT (device token)
+    Broker-->>Device: CONNACK
+    App->>Broker: SUBSCRIBE R/get/accepted, R/get/rejected, R/update/accepted, R/update/rejected, R/update/delta
+    Broker-->>App: SUBACK
+    Device->>Broker: SUBSCRIBE same exact response and delta topics
+    Broker-->>Device: SUBACK
+    Device->>Broker: PUBLISH R/get (startup clientToken)
+    Broker->>Shadow: R/get
+    Shadow-->>Broker: R/get/accepted or R/get/rejected (404)
+    Broker-->>Device: Current desired state or missing Shadow
+    Note over Device: Apply current desired, or report initial off when missing
+    App->>Broker: PUBLISH R/update (desired.power=on, clientToken)
+    Broker-->>App: PUBACK (transport only)
+    Broker->>Shadow: R/update
+    alt Update accepted
+        Shadow-->>Broker: R/update/accepted and R/update/delta
+        Broker-->>App: R/update/accepted (matching clientToken)
+        Broker-->>Device: R/update/delta (power=on)
+        Note over Device: Apply simulated hardware change before reporting
+        Device->>Broker: PUBLISH R/update (reported.power=on)
+        Broker->>Shadow: R/update
+        Shadow-->>Broker: R/update/accepted
+        Broker-->>Device: R/update/accepted (device clientToken)
+        loop Until convergence or deadline
+            App->>Broker: PUBLISH R/get (new clientToken)
+            Broker->>Shadow: R/get
+            Shadow-->>Broker: R/get/accepted (version, desired, reported)
+            Broker-->>App: Correlated current state
+        end
+        Note over App: PASS only after fresh desired=reported=on
+    else Update rejected or response timed out
+        Shadow-->>Broker: R/update/rejected if rejected
+        Broker-->>App: Rejection if delivered
+        Note over App: Exit with error, read current state before retry
+    end
+    Note over App,Device: Arrows illustrate a successful run, not cross-client delivery ordering

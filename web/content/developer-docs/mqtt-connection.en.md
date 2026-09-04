@@ -1,12 +1,19 @@
 ---
-title: "MQTT Connection Guide"
-description: "Configure client identity and recovery without assuming durable offline delivery."
-category: "Guides"
-keywords: ["Client ID", "QoS", "Keep Alive", "session", "reconnect", "retain"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: MQTT Connection Guide
+description: Configure client identity and recovery without assuming durable offline
+  delivery.
+category: Build integrations
+keywords:
+- Client ID
+- QoS
+- Keep Alive
+- session
+- reconnect
+- retain
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # MQTT Connection Guide
@@ -48,3 +55,7 @@ Keep connection identity stable for the intended role while its credentials rema
 Do not retry a non-idempotent operation solely because the connection dropped before you saw its result. Read current state or use the application's operation identity first. Shadow `clientToken` correlates a request; it is not a server-side deduplication guarantee.
 
 Next: [offline and conflict recipes](integration-recipes.en.md).
+
+Continue: [Run the credential recovery supervisor](credential-recovery.en.md).
+
+Continue: [Device presence and owner transport](device-presence.en.md).
