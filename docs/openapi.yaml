@@ -1886,6 +1886,10 @@ paths:
       tags: [Developer]
       summary: Issue a short-lived device certificate bundle for SDK smoke testing
       description: |
+        Implementation baseline, not the accepted target design. See
+        docs/developer-pki-test-bundles.md for automatic Device ID allocation,
+        server-generated keys/CSRs, and complete test-device provisioning.
+        That workflow requires a coordinated API/contract implementation update.
         Local/staging SDK test utility only. The browser generates an exportable
         P-256 private key and CSR, while the BFF constrains issuance to the active
         Brand Cloud and an active device item profile. This does not replace formal
@@ -4424,15 +4428,11 @@ components:
     DeveloperPKIDeviceBundleRequest:
       type: object
       additionalProperties: false
-      required: [brand_cloud_id, device_item_profile_id, device_id, serial_number, csr_pem]
+      required: [brand_cloud_id, device_item_profile_id]
       properties:
         brand_cloud_id: { type: string }
         device_item_profile_id: { type: string }
-        device_id: { type: string }
-        serial_number: { type: string }
-        csr_pem:
-          type: string
-          description: P-256 PKCS#10 CSR. A private key must never be sent.
+        quantity: { type: integer, minimum: 1, maximum: 10, default: 1 }
     RTKCertificateBundleV1:
       type: object
       additionalProperties: false

@@ -509,13 +509,36 @@ Production-mode readiness precedence:
 
 ## Developer PKI Test Bundles
 
-### [REQ-CA-BFF-PKI-TEST-001] Test certificate issuance is gated and keeps private keys in the browser
+### [REQ-CA-BFF-PKI-TEST-001] Test devices use automatic allocation and server-generated credentials
 
 <!-- rtk-requirement
 {"acceptance_layer":"integration","operation_model":"independent","gate":"pr","environments":["ci"],"evidence":["json","junit"],"required":true,"status":"active"}
 -->
 
-The Developer Console exposes `POST /api/developer/pki/test-bundles/app` and
+The accepted target design (2026-09-04; implementation pending) provides a
+**Create test device** action scoped to a Brand Cloud and active product/profile.
+The server must allocate the Device ID through the existing manufacturing
+allocator, generate the private key and CSR, reuse issuance/enrollment and
+registration services, and offer a complete test package after required cloud
+setup succeeds. Customers provide no Device ID, serial, CSR, key, or manufacturing
+configuration. Require authorization, quotas, idempotency, short-lived credentials,
+encrypted in-flight key custody, an authenticated creation-response download
+only (no customer re-download or recovery retention), and lifecycle cleanup.
+The page must explain that lost files require an explicit new Create request
+with new identities and credentials, and that certificates expire after 30 days
+to limit exposure from leaked keys or forgotten devices. Creating new devices
+does not revoke old certificates or release their quota automatically.
+Explicitly permitted production Clouds may support restricted test
+devices after compatible trust, bundle, and SDK rollout; ordinary production
+device and app key policies are unchanged.
+
+See [developer-pki-test-bundles.md](developer-pki-test-bundles.md) for the target
+workflow and acceptance criteria. Existing test mappings must be extended; current
+evidence does not prove the new design is implemented.
+
+#### Existing implementation baseline (not the target device flow)
+
+The Developer Console currently exposes `POST /api/developer/pki/test-bundles/app` and
 `POST /api/developer/pki/test-bundles/device` only when
 `DEVELOPER_PKI_TEST_TOOLS_ENABLED=true` and the runtime environment is local or
 staging. Production rejects these routes even if the flag is accidentally set.

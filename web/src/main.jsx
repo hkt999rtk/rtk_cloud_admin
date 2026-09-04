@@ -587,7 +587,7 @@ function App() {
           setFirmwareDistribution(null);
         }
 
-        if (['product-services', 'firmware-ota', 'reports', 'provisioning'].includes(active) && nextMe.kind !== 'platform_admin') {
+        if (['product-services', 'firmware-ota', 'reports', 'provisioning', 'settings'].includes(active) && nextMe.kind !== 'platform_admin') {
           const nextProducts = await fetchJSON(apiPath('/api/products')).catch((err) => {
             if (err.isAuthError) throw err;
             return { products: [], source_status: 'unavailable', source_message: translate('Product data is temporarily unavailable.') };
@@ -1319,6 +1319,8 @@ function App() {
             onRequestQuotaRaise={handleQuotaRaiseRequest}
             onNavigate={navigateBrandCloudTab}
             onRefresh={() => setRefreshTick((tick) => tick + 1)}
+            products={products?.products || []}
+            productsUnavailable={products?.source_status === 'unavailable'}
           />
         ) : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'devices' ? (
@@ -2015,6 +2017,8 @@ function BrandCloudPage({
   onRequestQuotaRaise,
   onNavigate,
   onRefresh,
+  products,
+  productsUnavailable,
 }) {
   const capabilities = me?.capabilities || [];
   const tabs = [
@@ -2072,6 +2076,9 @@ function BrandCloudPage({
       activeCloudId={cloud.id}
       canManage={canManageTeam}
       canIssuePKITest={canIssuePKITest}
+      products={products}
+      productsLoading={loading}
+      productsUnavailable={productsUnavailable}
       onRefresh={onRefresh}
     /> : null}
   </section>;
@@ -2815,8 +2822,8 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
   }
 
   return <section className="page-content team-access-page">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2>Members & Permissions</h2><p>The role determines what can be done, and the scope determines which Products, Regions, Groups, or Devices can be managed.</p></div>
-      {canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setShowInviteForm((visible) => !visible)}>＋ Invite members</button> : null}
+    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2><Icon name="users" />Members and Access</h2><p>The role determines what can be done, and the scope determines which Products, Regions, Groups, or Devices can be managed.</p></div>
+      {canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setShowInviteForm((visible) => !visible)}><Icon name="user-plus" /> Invite members</button> : null}
     </div>
     {showInviteForm ? <section className="panel invite-member-panel"><form className="inline-form" onSubmit={inviteMember}>
       <input required type="email" placeholder="Member Email" value={email} onChange={(event) => setEmail(event.target.value)} />
@@ -2827,20 +2834,20 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
     {message ? <div className="notice">{message}</div> : null}
     {loading && !data ? <section className="panel split-panel"><div><h3>Loading permissions</h3></div></section> : null}
     {!loading && data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Permission data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
-    {canManage && sourceAvailableFor('invitations_source_status') ? <section className="panel"><div className="panel-head"><div><h3>Pending invitations</h3><p>Invitation links are valid for 30 minutes. Resending immediately expires the previous link.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expires</th><th>Action</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td>{invitation.target_email}</td><td>{invitation.role}</td><td><span className="status-badge neutral">Pending acceptance</span></td><td>{formatProviderTimestamp(invitation.expires_at)}</td><td><button type="button" className="link-button" onClick={() => invitationAction(invitation, 'resend')}>Resend</button> <button type="button" className="link-button" onClick={() => invitationAction(invitation, 'cancel')}>Cancel</button></td></tr>)}</tbody></table>{!invitations.length ? <p className="empty-state">No pending invitations.</p> : null}</div></section> : null}
-    {sourceAvailableFor('members_source_status') ? <section className="panel"><div className="panel-head"><div><h3>Brand Cloud Members</h3><p>Member data and membership scope are provided by the Account Manager.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Members</th><th>Role</th><th>Status</th>{canManage ? <th>Action</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong><small>{member.email}</small></td><td>{canManage && member.role !== 'owner' ? <select value={member.role} onChange={(event) => updateMember(member, 'role', event.target.value)}><option value="admin">Admin</option><option value="member">Member</option></select> : member.role}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}>{member.disabled_at ? 'Deactivate' : 'Activate'}</span></td>{canManage ? <td>{member.role === 'owner' ? 'Owner transfer only' : <><button type="button" className="link-button" onClick={() => updateMember(member, member.disabled_at ? 'enable' : 'disable')}>{member.disabled_at ? 'Activate' : 'Deactivate'}</button> <button type="button" className="link-button" onClick={() => updateMember(member, 'remove')}>Remove</button></>}</td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">There are currently no Brand Cloud members.</p> : null}</div></section> : null}
+    {canManage && sourceAvailableFor('invitations_source_status') ? <section className="panel"><div className="panel-head"><div><h3><Icon name="envelope" />Pending invitations</h3><p>Invitation links are valid for 30 minutes. Resending immediately expires the previous link.</p></div></div>{invitations.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expires</th><th>Action</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td>{invitation.target_email}</td><td>{invitation.role}</td><td><span className="status-badge neutral">Pending acceptance</span></td><td>{formatProviderTimestamp(invitation.expires_at)}</td><td><button type="button" className="link-button" onClick={() => invitationAction(invitation, 'resend')}>Resend</button> <button type="button" className="link-button" onClick={() => invitationAction(invitation, 'cancel')}>Cancel</button></td></tr>)}</tbody></table></div> : <p className="access-empty"><Icon name="inbox" /> {loading ? "Loading invitations…" : "No pending invitations."}</p>}</section> : null}
+    {sourceAvailableFor('members_source_status') ? <section className="panel"><div className="panel-head"><div><h3><Icon name="users" />Brand Cloud Members</h3><p>Manage who can access this Brand Cloud and what each member can do.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Members</th><th>Role</th><th>Status</th>{canManage ? <th>Action</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong>{member.display_name && member.display_name !== member.email ? <small>{member.email}</small> : null}</td><td>{canManage && member.role !== 'owner' ? <select value={member.role} onChange={(event) => updateMember(member, 'role', event.target.value)}><option value="admin">Admin</option><option value="member">Member</option></select> : userRoleDetails(member.role).title}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}><Icon name={member.disabled_at ? "circle-pause" : "circle-check"} /> {member.disabled_at ? 'Inactive' : 'Active'}</span></td>{canManage ? <td>{member.role === 'owner' ? 'Owner transfer only' : <><button type="button" className="link-button" onClick={() => updateMember(member, member.disabled_at ? 'enable' : 'disable')}>{member.disabled_at ? 'Activate' : 'Deactivate'}</button> <button type="button" className="link-button" onClick={() => updateMember(member, 'remove')}>Remove</button></>}</td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">There are currently no Brand Cloud members.</p> : null}</div></section> : null}
     {sourceAvailableFor('assignments_source_status') ? <>
-      <section className="panel current-role-panel"><div className="panel-head"><div><h3>Your Roles and Permissions</h3><p>The instructions below are based on the account you are currently logged into; actual manageable data is still limited by brand, product, region, or group scope.</p></div><span className="status-badge good">Currently in use</span></div><div className="current-role-card"><div className="current-role-icon"><Icon name={currentRoleDetails.icon} /></div><div><div className="current-role-title"><h4>{currentRoleDetails.title}</h4>{currentRole ? <code>{currentRole}</code> : null}</div><p>{currentRoleDetails.description}</p><ul className="current-role-actions">{currentRoleDetails.actions.map((action) => <li key={action}><Icon name="circle-check" />{action}</li>)}</ul>{cloudName || activeMembership?.organization ? <p className="current-role-scope"><strong>Currently Applied:</strong>{cloudName || activeMembership.organization}</p> : null}</div></div>{canManage ? <p className="field-help">You can invite or adjust team members above; brand owners can only pass through the Ownership Transfer.</p> : <p className="field-help">If you need more access, contact your brand owner or administrator to adjust your role and scope.</p>}</section>
-      <section className="panel"><div className="panel-head"><div><h3>Current Permission Scope</h3><p>Only administrative scopes are shown here, not internal permission codes.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Role</th><th>Manage Scope</th><th>Status</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{assignment.role_name}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good">Activate</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">There are currently no additional range assignments.</p> : null}</div></section>
+      <section className="panel current-role-panel"><div className="panel-head"><div><h3><Icon name="shield-halved" />Your Roles and Permissions</h3><p>Your role defines your actions. Your assigned scope determines where you can use them.</p></div><span className="status-badge good"><Icon name="circle-check" /> Your access</span></div><div className="current-role-card"><div className="current-role-icon"><Icon name={currentRoleDetails.icon} /></div><div><div className="current-role-title"><h4>{currentRoleDetails.title}</h4>{currentRole ? <code>{currentRole}</code> : null}</div><p>{currentRoleDetails.description}</p><ul className="current-role-actions">{currentRoleDetails.actions.map((action) => <li key={action}><Icon name="circle-check" />{action}</li>)}</ul>{cloudName || activeMembership?.organization ? <p className="current-role-scope"><strong>Currently Applied:</strong>{cloudName || activeMembership.organization}</p> : null}</div></div>{canManage ? <p className="field-help">You can invite or adjust team members above; brand owners can only pass through the Ownership Transfer.</p> : <p className="field-help">If you need more access, contact your brand owner or administrator to adjust your role and scope.</p>}</section>
+      <section className="panel"><div className="panel-head"><div><h3><Icon name="bullseye" />Current Permission Scope</h3><p>The Brand Cloud, products, and other resources covered by your roles.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Role</th><th>Manage Scope</th><th>Status</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{userRoleDetails(assignment.role_name).title}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good"><Icon name="circle-check" /> Active</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">There are currently no additional range assignments.</p> : null}</div></section>
     </> : <section className="panel split-panel"><div><h3>Roles and scopes are temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section>}
   </section>;
 }
 
-function BrandCloudSettingsPage({ activeCloudId, canIssuePKITest }) {
+function BrandCloudSettingsPage({ activeCloudId, canIssuePKITest, products = [], productsLoading, productsUnavailable }) {
   return <section className="page-content brand-cloud-settings-page">
     <div className="page-intro"><h2>Settings</h2></div>
-    <section className="panel"><h3>Ownership and Billing handoff</h3><p>Manage ownership in My Clouds. Invitation acceptance starts settlement; it does not complete the transfer.</p><a href={activeCloudId ? `/console/clouds/${encodeURIComponent(activeCloudId)}` : '/console/clouds'}>Open cloud management</a></section>
-    {canIssuePKITest && activeCloudId ? <PKITestBundleTool activeCloudId={activeCloudId} /> : null}
+    <section className="panel"><h3 className="test-device-icon-text"><Icon name="arrows-rotate" />Ownership and Billing handoff</h3><p>Manage ownership in My Clouds. Invitation acceptance starts settlement; it does not complete the transfer.</p><a className="ghost-button settings-action" href={activeCloudId ? `/console/clouds/${encodeURIComponent(activeCloudId)}` : '/console/clouds'}><Icon name="cloud" />Open cloud management<Icon name="arrow-right" /></a></section>
+    {canIssuePKITest && activeCloudId ? <PKITestBundleTool activeCloudId={activeCloudId} products={products} productsLoading={productsLoading} productsUnavailable={productsUnavailable} /> : null}
   </section>;
 }
 
@@ -3205,31 +3212,73 @@ function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
   }
   return <section className="page-content billing-page" data-testid="billing-profile-page"><div className="page-intro"><div><h2>Billing information</h2><p>Each new invoice saves the current recipient details. Later changes do not overwrite existing invoice snapshots.</p></div></div>{tabs}<section className="panel"><form className="billing-profile-form" onSubmit={submit}><label>Company or legal name<input value={form.legal_name || ''} onChange={(event) => setForm({ ...form, legal_name: event.target.value })} required /></label><label>VAT number<input value={form.tax_identifier || ''} onChange={(event) => setForm({ ...form, tax_identifier: event.target.value })} /></label><label>Billing email<input type="email" value={form.contact_email || ''} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} /></label><label className="wide">Billing address<textarea value={form.billing_address || ''} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} /></label><label>Locale<input value={form.locale || 'en-US'} onChange={(event) => setForm({ ...form, locale: event.target.value })} /></label><label>Billing timezone<input value={form.timezone || 'Asia/Taipei'} onChange={(event) => setForm({ ...form, timezone: event.target.value })} /></label><label>Delivery method<select value={form.delivery_preference || 'portal'} onChange={(event) => setForm({ ...form, delivery_preference: event.target.value })}><option value="portal">Portal</option><option value="portal_and_email">Portal + Email</option></select></label><div className="wide"><button type="submit" className="primary" disabled={!canManage}>Save billing information</button>{message ? <p className="notice" role="status">{message}</p> : null}</div></form></section></section>;
 }
-function PKITestBundleTool({ activeCloudId }) {
-  const [kind, setKind] = useState('app');
-  const [targetType, setTargetType] = useState('user');
-  const [targetId, setTargetId] = useState('');
-  const [profileId, setProfileId] = useState('');
-  const [serial, setSerial] = useState('');
+function PKITestBundleTool({ activeCloudId, products = [], productsLoading, productsUnavailable }) {
+  const [quantity, setQuantity] = useState(1);
+  const [profileId, setProfileId] = useState(() => products[0]?.id || '');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const availableProducts = products.filter((product) => product.status === 'active');
+  const selectedProductAvailable = availableProducts.some((product) => product.id === profileId);
+  const productBlocked = productsLoading || productsUnavailable || !selectedProductAvailable;
+  useEffect(() => {
+    if (!products.some((product) => product.id === profileId && product.status === 'active')) {
+      setProfileId(products.find((product) => product.status === 'active')?.id || '');
+    }
+  }, [products, profileId]);
   async function issue(event) {
-    event.preventDefault(); setBusy(true); setMessage('Generating a P-256 private key and CSR in the browser…');
+    event.preventDefault();
+    if (busy || productBlocked) return;
+    setBusy(true); setMessage('Creating test devices and credentials on the server…');
     try {
-      const commonName = kind === 'device' ? targetId : `${targetType === 'end_user' ? 'app-end-user' : 'app-brand-cloud-user'}:${targetId}`;
-      const key = await createP256CSR(commonName);
-      const endpoint = `/api/developer/pki/test-bundles/${kind}`;
-      const requestBody = kind === 'device'
-        ? { brand_cloud_id: activeCloudId, device_item_profile_id: profileId, device_id: targetId, serial_number: serial, csr_pem: key.csrPEM }
-        : { brand_cloud_id: activeCloudId, target_type: targetType, target_id: targetId, csr_pem: key.csrPEM };
+      const endpoint = '/api/developer/test-device-batches';
+      const requestBody = { brand_cloud_id: activeCloudId, device_item_profile_id: profileId, quantity: Number(quantity) };
       const response = await fetch(endpoint, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify(requestBody) });
       if (!response.ok) throw new Error('certificate issuance failed');
-      downloadExportableBundle(await response.json(), key.privateKeyPEM);
-      setMessage('The 30-day test bundle was downloaded. The private key was not sent to the server or written to localStorage.');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = blob.type.includes('json') ? 'rtk-test-device.json' : 'rtk-test-devices.zip'; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 0);
+      setMessage('Your test-device download has started. It contains server-generated private keys; keep it secure.');
     } catch (_) { setMessage('The test bundle could not be created. Please try again.'); }
     finally { setBusy(false); }
   }
-  return <section className="panel"><div className="panel-head"><div><h3>PKI Test Bundle</h3><p>The exportable P-256 key is generated locally; only the CSR is sent to the backend. Certificates are valid for 30 days and intended for local or staging use only.</p></div></div><form className="inline-form pki-test-form" onSubmit={issue}><select className="select-control" aria-label="Certificate Type" value={kind} onChange={(event) => setKind(event.target.value)}><option value="app">App mTLS</option><option value="device">Device mTLS</option></select>{kind === 'app' ? <select className="select-control" aria-label="App Identity Type" value={targetType} onChange={(event) => setTargetType(event.target.value)}><option value="user">Global user</option><option value="end_user">End user</option></select> : null}<input required placeholder={kind === 'device' ? 'Device ID' : 'User ID'} value={targetId} onChange={(event) => setTargetId(event.target.value)} />{kind === 'device' ? <><input required placeholder="Device profile ID" value={profileId} onChange={(event) => setProfileId(event.target.value)} /><input required placeholder="Serial number" value={serial} onChange={(event) => setSerial(event.target.value)} /></> : null}<button type="submit" className="primary-button" disabled={busy}>{busy ? 'Creating…' : 'Generate and download'}</button></form>{message ? <p className="notice" role="status">{message}</p> : null}</section>;
+  return <section className="panel">
+    <div className="panel-head"><div><h3 className="test-device-icon-text"><Icon name="microchip" />Test Devices</h3><p>Select a Product and quantity. Device IDs, private keys, and certificates are generated automatically.</p></div></div>
+    <form className="inline-form pki-test-form" onSubmit={issue}>
+        <label><span className="test-device-icon-text"><Icon name="cube" />Product</span><select className="select-control" required aria-describedby="test-device-product-help" disabled={productsLoading || productsUnavailable || !availableProducts.length} value={selectedProductAvailable ? profileId : ''} onChange={(event) => setProfileId(event.target.value)}>
+          <option value="" disabled>{productsLoading ? 'Loading products…' : productsUnavailable ? 'Products unavailable' : !availableProducts.length ? 'No active products available' : 'Select a product'}</option>
+          {availableProducts.map((product) => <option key={product.id} value={product.id}>{product.display_name || product.name || product.profile_key || product.id}</option>)}
+        </select></label>
+        <label><span className="test-device-icon-text"><Icon name="hashtag" />Quantity</span><input type="number" min="1" max="10" required value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label>
+      <button type="submit" className="primary-button test-device-icon-text" disabled={busy || productBlocked}><Icon name={busy ? 'hourglass-half' : 'plus'} />{busy ? 'Creating…' : 'Create test devices'}</button>
+    </form>
+    <div className="test-device-product-help">
+      <p className="test-device-icon-text"><Icon name="download" /><strong>Your download</strong></p>
+      <p><strong>Download once, when created.</strong> Save your files immediately. To reduce private-key exposure, this page does not retain a copy for later download. If you lose the files, create new test devices: they receive new Device IDs, private keys, and certificates, not replacements for the lost credentials.</p>
+      <p><Icon name="clock" /> <strong>Certificates are valid for 30 days from issuance.</strong> This limits how long leaked credentials or forgotten test devices can be used. After expiry, the certificate cannot authenticate new connections; create a new test device to continue testing. Creating another device does not revoke the old certificate or extend its expiry.</p>
+      <p>Includes each device's identity, certificate, and server-generated private key. The Device ID identifies the device in the cloud and is also recorded in its certificate; you do not need to assign an ID yourself.</p>
+      <details><summary><Icon name="file-zipper" /> Files and next steps</summary>
+        <ul>
+          <li><strong>One device:</strong> <code>rtk-test-device.json</code>, a certificate bundle containing the device identity, certificate chain, and private key.</li>
+          <li><strong>Multiple devices:</strong> <code>rtk-test-devices.zip</code>. Each successful device has a folder with <code>certificate-bundle.json</code>, <code>device.crt</code>, and <code>device.key</code>. <code>index.json</code> lists device results and any errors.</li>
+        </ul>
+        <p>Load the matching bundle into your test client, or configure it with the device certificate and private key. Use the Device ID to find the device in the console and correlate requests or logs. Complete any required device claim and account binding separately; downloading credentials does not mean the device is online.</p>
+        <p>For this version, use the certificate chain in the JSON bundle; separate CA-chain files, connection-configuration files, and a README are not included. The CSR is not included.</p>
+      </details>
+      <p><Icon name="key" /> The download contains private keys. Keep it secure and do not share it in source control, logs, or support screenshots.</p>
+    </div>
+    <div id="test-device-product-help" className="test-device-product-help">
+      <p className="test-device-icon-text"><Icon name="circle-info" /><strong>Why a Product?</strong></p>
+      <p>A Product is a shared configuration for a device model, not an individual device. It groups the model and cloud services so you can create multiple test devices with the same settings instead of configuring each one separately.</p>
+      <p>For example, create a Product for your camera model and select its services, then request several test devices for it. They share the Product configuration, but each receives its own Device ID, private key, and certificate. No mass-production run is required.</p>
+      {productsLoading ? <p role="status">Loading products for this Brand Cloud…</p> : productsUnavailable ? <p role="status">Products could not be loaded. Refresh this page to try again.</p> : !availableProducts.length ? <div role="status">
+        <div className="test-device-empty-action"><span><Icon name="cube" /> No active products yet. Create a Product to get started.</span><a className="ghost-button settings-action" href={`/console/${encodeURIComponent(activeCloudId)}/product-services`}><Icon name="cube" />Open Products and Services<Icon name="arrow-right" /></a></div>
+        <details><summary><Icon name="list-check" /> How to create a Product</summary>
+        <ol><li>Open Products and Services and select Add Product.</li><li>Enter the product details, choose its cloud services, and save.</li><li>Return to Brand Cloud Home → Settings → Test Devices, then choose your Product and quantity.</li></ol>
+        <p>If Add Product is unavailable, ask your Brand Cloud owner or administrator to create a Product or grant the required access.</p>
+        </details>
+      </div> : null}
+    </div>
+    {message ? <p className="notice" role="status">{message}</p> : null}
+  </section>;
 }
 
 function ReportsPage({ data, products, loading, canCreate, onRefresh }) {

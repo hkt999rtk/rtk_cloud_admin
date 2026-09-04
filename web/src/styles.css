@@ -739,6 +739,90 @@ main {
   flex: 1 1 100%;
 }
 
+.team-access-page > .page-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+}
+
+.team-access-page > .page-intro > div {
+  flex: 1 1 420px;
+}
+
+.team-access-page h2,
+.team-access-page h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.team-access-page h2 > i,
+.team-access-page h3 > i {
+  color: var(--brand);
+  font-size: 0.9em;
+}
+
+.team-access-page .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.team-access-page .access-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
+.pki-test-form {
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.pki-test-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.pki-test-form label select,
+.pki-test-form label input {
+  min-width: 0;
+  width: 100%;
+}
+
+.test-device-product-help p {
+  margin: 8px 0;
+}
+
+.test-device-product-help summary {
+  cursor: pointer;
+}
+
+.test-device-icon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.test-device-product-help {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 4px;
+  font-size: 0.9rem;
+}
+
+.pki-test-form label:last-of-type {
+  width: 90px;
+}
+
 .field-help {
   color: var(--muted);
   font-size: 12px;
@@ -5023,6 +5107,59 @@ input[type='checkbox']:indeterminate:disabled {
   justify-content: center;
   min-height: 42px;
   white-space: nowrap;
+}
+
+.brand-cloud-settings-page .pki-test-form {
+  align-items: flex-end;
+}
+
+.brand-cloud-settings-page .settings-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 14px;
+  box-sizing: border-box;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.brand-cloud-settings-page .settings-action:hover {
+  background: #edf3fb;
+  border-color: #829ac0;
+}
+
+.brand-cloud-settings-page .settings-action:focus-visible {
+  outline: 2px solid #0068b7;
+  outline-offset: 3px;
+}
+
+.test-device-empty-action {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 12px 0;
+}
+
+.brand-cloud-settings-page .pki-test-form label:first-of-type {
+  width: min(100%, 320px);
+}
+
+.brand-cloud-settings-page .pki-test-form input[type="number"],
+.brand-cloud-settings-page .pki-test-form select {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.brand-cloud-settings-page .pki-test-form select,
+.brand-cloud-settings-page .pki-test-form input,
+.brand-cloud-settings-page .pki-test-form > button {
+  flex: none;
+  height: 42px;
+  min-height: 42px;
 }
 
 .table-toolbar {
