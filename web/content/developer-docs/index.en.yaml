@@ -1,0 +1,77 @@
+title: "Developer Docs"
+description: "Integrate RTK Cloud MQTT and Device Shadow."
+language: en
+placement: "Peer of ChipSet & SDK"
+sections:
+  - slug: "overview"
+    title: "Cloud Service Overview"
+    summary: "Understand MQTT messaging, Shadow state, and the roles of devices and applications."
+    category: "Start here"
+    keywords: ["MQTT", "Shadow", "architecture", "device", "backend"]
+    source: "overview.en.md"
+  - slug: "before-you-start"
+    title: "Before You Start"
+    summary: "Prepare a test device, authorized identities, endpoints, and command-line tools."
+    category: "Start here"
+    keywords: ["prerequisites", "endpoint", "TLS", "certificate", "setup"]
+    source: "before-you-start.en.md"
+  - slug: "authentication"
+    title: "Authentication and Access Control"
+    summary: "Obtain runtime tokens and map their metadata into MQTT and Shadow HTTP credentials."
+    category: "Security"
+    keywords: ["request_token", "refresh_token", "mTLS", "SigV4", "client_id", "aws_credentials"]
+    source: "authentication.en.md"
+  - slug: "mqtt-quickstart"
+    title: "Quickstart: Connect and Exchange Messages"
+    summary: "Publish a JSON message and receive it through a second authenticated MQTT connection."
+    category: "Tutorials"
+    keywords: ["publish", "subscribe", "SUBACK", "PUBACK", "mosquitto"]
+    source: "mqtt-quickstart.en.md"
+  - slug: "mqtt-connection"
+    title: "MQTT Connection Guide"
+    summary: "Configure client identity and recovery without assuming durable offline delivery."
+    category: "Guides"
+    keywords: ["Client ID", "QoS", "Keep Alive", "session", "reconnect", "retain"]
+    source: "mqtt-connection.en.md"
+  - slug: "mqtt-topics"
+    title: "MQTT Topics and Message Reference"
+    summary: "Separate application-defined messages, device transport envelopes, and reserved Shadow topics."
+    category: "Reference"
+    keywords: ["topic", "namespace", "$vc", "$aws", "ACL", "payload"]
+    source: "mqtt-topics.en.md"
+  - slug: "shadow-concepts"
+    title: "Device Shadow Concepts"
+    summary: "Understand desired and reported state, delta, names, merge rules, and versions."
+    category: "Guides"
+    keywords: ["desired", "reported", "delta", "version", "named shadow"]
+    source: "shadow-concepts.en.md"
+  - slug: "shadow-quickstart"
+    title: "Quickstart: Synchronize Device State"
+    summary: "Request power on from an app and confirm the device reports the applied state."
+    category: "Tutorials"
+    keywords: ["desired", "reported", "delta", "power", "quickstart"]
+    source: "shadow-quickstart.en.md"
+  - slug: "shadow-interfaces"
+    title: "Using Shadows over MQTT and HTTP"
+    summary: "Perform Shadow operations using exact MQTT topics or signed HTTP requests."
+    category: "Guides"
+    keywords: ["SigV4", "GET", "POST", "DELETE", "accepted", "rejected", "ListNamedShadowsForThing"]
+    source: "shadow-interfaces.en.md"
+  - slug: "shadow-reference"
+    title: "Shadow API and Message Reference"
+    summary: "Look up Shadow paths, topic suffixes, document fields, limits, and errors."
+    category: "Reference"
+    keywords: ["409", "413", "429", "clientToken", "version", "8 KiB", "name"]
+    source: "shadow-reference.en.md"
+  - slug: "integration-recipes"
+    title: "Integration Recipes"
+    summary: "Recover from offline periods, resolve conflicts, and keep reported state truthful."
+    category: "Recipes"
+    keywords: ["offline", "reconciliation", "duplicate", "conflict", "idempotency"]
+    source: "integration-recipes.en.md"
+  - slug: "troubleshooting"
+    title: "Troubleshooting and Compatibility"
+    summary: "Diagnose failures by protocol layer and understand RTK Shadow compatibility boundaries."
+    category: "Support"
+    keywords: ["401", "403", "409", "timeout", "AWS", "SigV4", "SUBACK"]
+    source: "troubleshooting.en.md"

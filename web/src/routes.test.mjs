@@ -121,7 +121,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.labelKey),
-    ['My Clouds', 'Overview', 'Products', 'ChipSet & SDK', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'],
+    ['My Clouds', 'Overview', 'Products', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'],
   );
   assert.deepEqual(customerNavGroups.map((group) => group.labelKey), ['Clouds', 'Brand Cloud', 'Features', 'Management']);
 });
@@ -133,19 +133,19 @@ test('customer nav is derived from active membership capabilities', () => {
     'customer.devices.read',
     'customer.stream.read',
   ]).flatMap((group) => group.items).map((item) => item.labelKey);
-  assert.deepEqual(labels, ['My Clouds', 'Overview', 'ChipSet & SDK', 'Fleet Management', 'Analytics', 'Settings', 'Audit']);
+  assert.deepEqual(labels, ['My Clouds', 'Overview', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'Analytics', 'Settings', 'Audit']);
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['team.read']).flatMap((group) => group.items).some((item) => item.id === 'access'), true);
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read']).flatMap((group) => group.items).some((item) => item.id === 'billing'), false);
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read'], { isOwner: true }).flatMap((group) => group.items).some((item) => item.id === 'billing'), true);
-  assert.deepEqual(cloudNavGroupsForCapabilities('', null).flatMap((group) => group.items).map((item) => item.id), ['my-clouds', 'chipset-sdk']);
+  assert.deepEqual(cloudNavGroupsForCapabilities('', null).flatMap((group) => group.items).map((item) => item.id), ['my-clouds', 'chipset-sdk', 'developer-docs']);
   const unscoped = cloudShellNavGroups('', null, { showOwnerOnly: true }).flatMap((group) => group.items);
-  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'ChipSet & SDK', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit']);
+  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit']);
   assert.equal(unscoped.find((item) => item.id === 'my-clouds').disabled, false);
   assert.equal(unscoped.find((item) => item.id === 'chipset-sdk').disabled, false);
   assert.equal(unscoped.filter((item) => !item.global).every((item) => item.disabled), true);
   assert.equal(cloudShellNavGroups('', null).flatMap((group) => group.items).some((item) => item.id === 'billing'), false);
   assert.deepEqual(navItemsForCapabilities('login', null), []);
-  assert.deepEqual(navItemsForCapabilities('overview', 'fleet.read').map((item) => item.id), ['my-clouds', 'overview', 'chipset-sdk', 'settings']);
+  assert.deepEqual(navItemsForCapabilities('overview', 'fleet.read').map((item) => item.id), ['my-clouds', 'overview', 'chipset-sdk', 'developer-docs', 'settings']);
   assert.equal(navItemsForCapabilities('overview', ['product.read']).some((item) => item.id === 'product-services'), true);
 });
 
@@ -304,4 +304,17 @@ test('provides titles for all public shell routes', () => {
     assert.equal(typeof titleFor(route), 'string', route);
     assert.notEqual(titleFor(route), '');
   }
+});
+
+test('Developer Docs is a global peer immediately below ChipSet & SDK', () => {
+  const items = customerNavGroups.find((group) => group.id === 'features').items;
+  const sdk = items.findIndex((item) => item.id === 'chipset-sdk');
+  assert.equal(items[sdk + 1].id, 'developer-docs');
+  assert.equal(items[sdk + 2].id, 'devices');
+  assert.equal(canAccessCustomerRoute('developer-docs', []), true);
+  assert.equal(isPublicRouteId('developer-docs'), false);
+  assert.equal(routeFromPath('/console/developer-docs/shadow-quickstart'), 'developer-docs');
+  assert.equal(canonicalCustomerPath('/console/developer-docs/shadow-quickstart'), '/console/developer-docs/shadow-quickstart');
+  const cloud = '11111111-1111-4111-8111-111111111111';
+  assert.equal(cloudConsolePath(cloud, 'developer-docs'), `/console/developer-docs?cloudId=${cloud}`);
 });

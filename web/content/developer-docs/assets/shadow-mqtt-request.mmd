@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant C as Client
+    participant B as MQTT broker
+    participant S as Shadow service
+    Note over C,S: R = $vc/devices/device-1/shadow/name/tutorial
+    C->>B: SUBSCRIBE R/update/accepted and R/update/rejected
+    B-->>C: SUBACK success
+    C->>B: PUBLISH R/update<br/>JSON patch, QoS 1
+    B-->>C: PUBACK
+    B->>S: Forward authorized request
+    alt Patch accepted
+        S-->>B: R/update/accepted
+        B-->>C: R/update/accepted
+    else Invalid patch or version conflict
+        S-->>B: R/update/rejected<br/>code, message, clientToken
+        B-->>C: R/update/rejected
+    end
+    Note over C,S: Other subscribers may also receive responses<br/>Correlate by clientToken where provided

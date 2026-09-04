@@ -95,5 +95,5 @@ function isAllowedDeveloperInvitationPath(pathname) {
 }
 
 function isGlobalDeveloperPath(pathname) {
-  return pathname === '/console/chipset-sdk';
+  return pathname === '/console/chipset-sdk' || pathname === '/console/developer-docs' || pathname.startsWith('/console/developer-docs/');
 }

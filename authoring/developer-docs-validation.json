@@ -1,0 +1,390 @@
+{
+  "date": "2026-09-04",
+  "service_commit": "30fbb9a26155d67948f031f199c55161e4f50ace",
+  "passed_tests": [
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestAWSShadowProtocolSerializers"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestPayloadPreservesClientTokenBytes"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestDocumentsSerializerOmitsResponseOnlyFieldsFromSnapshots"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestUpdateAcceptedEchoesNullAndEmptySectionPatches"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServiceUpdateMergesDesiredAndReportedAndComputesDelta"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServiceGetDoesNotChangeUpdatedAt"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServiceUpdateDeletesNullFieldsAndTreatsArraysAsAtomic"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServicePreservesJSONPropertyNamesExactly"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServiceUpdateCanRemoveDesiredOrReportedSection"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServiceRejectsStaleVersion"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServiceDeleteIncrementsVersionAndRecreateDoesNotReset"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServiceRecreateAfterTombstoneExpiryRestartsVersion"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServiceListNamedShadowsExcludesUnnamedAndDeleted"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServiceConcurrentVersionedUpdateAllowsExactlyOneWriter"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServiceConcurrentUnversionedPatchesDoNotLoseFields"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestValidationRejectsAWSBoundaryViolations"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestServicePreservesClientTokenAndDoesNotNormalizeIdentity"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestValidationDepthTokenBytesAndPostMergeStoredSize"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestMutationMaintenanceModeKeepsReadsAvailable"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestPerShadowRateLimitReturnsThrottled"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestDecodeUpdatePayloadUsesAWSValidationMessages"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestDecodeUpdateAndStoredDocumentPreserveJSONNumberPrecision"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestDeltaTreatsEquivalentJSONNumberFormsAsEqual"
+    },
+    {
+      "package": "video_cloud/internal/deviceshadow",
+      "test": "TestDecodeUpdatePayloadAcceptsEmptyStateAndNullSections"
+    },
+    {
+      "package": "video_cloud/internal/mqtt",
+      "test": "TestShadowMQTTMapsEncodingAndPayloadLimits"
+    },
+    {
+      "package": "video_cloud/internal/mqtt",
+      "test": "TestShadowResponseAndCompatibilityHelpers"
+    },
+    {
+      "package": "video_cloud/internal/mqtt",
+      "test": "TestDecodeRuntimeLogStableIdempotencyKeyForDuplicateSequence"
+    },
+    {
+      "package": "video_cloud/internal/mqtt",
+      "test": "TestAdapterPublishesHTTPShadowDeltaToTenantScopedTopic"
+    },
+    {
+      "package": "video_cloud/internal/mqtt",
+      "test": "TestAdapterPublishesDurableShadowMutationInOrder"
+    },
+    {
+      "package": "video_cloud/internal/mqtt",
+      "test": "TestAdapterReceiveShadowNamedGetAndDelete"
+    },
+    {
+      "package": "video_cloud/internal/mqtt",
+      "test": "TestAdapterReceiveShadowUpdatePublishesAcceptedDocumentsAndDelta"
+    },
+    {
+      "package": "video_cloud/internal/mqtt",
+      "test": "TestAdapterReceiveShadowPublishesRejectedResponses"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPDesiredUpdatePublishesTenantScopedDelta"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPAdminWritesAndReadsUnnamedShadow"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestActivationDoesNotBootstrapUnnamedShadow"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowAWSRoutesPaginationAndLegacyRemoval"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPRejectsBodiesAndUnsupportedMediaType"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPRejectsInvalidThingAndExplicitEmptyShadowName"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPNamedListDeleteAndVersionConflict"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPAuthorizedPrincipalCanWriteDesiredAndReported"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPNullDeletesFieldAndEchoesClientToken"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPIgnoresLargeTopLevelExtensionOutsideStoredState"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPAcceptsEmptyStateDocument"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPUsesSharedAWSUpdateValidationMessages"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPAcceptsAWSServiceSDKSignature"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPRejectsInvalidSigV4ScopeFreshnessAndPayload"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowSigV4CredentialIsBoundToSubjectThing"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowAWSGoServiceSDKCustomEndpoint"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestShadowAndLegacyPureBoundaries"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestServiceErrorMappingsRemainStable"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestMQTTAuthenticateAllowsBoundTenantJWT"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestMQTTSubscriberACLDoesNotAllowShadowPublish"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestMQTTShadowACLFirstMatchBehavior"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestMQTTAuthenticateAllowsBoundTenantJWTWhenEMQXLeavesListenerPlaceholder"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestMQTTAuthenticateDeniesForgedTenantAndClientID"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestMQTTAuthenticateDeniesMalformedRequestWithHTTP200"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestMQTTAuthenticateAllowsInternalServerOnlyOnTCP"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestMQTTAuthenticateAllowsInternalServerWhenEMQXLeavesListenerPlaceholder"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestMQTTAuthenticateDeniesMismatchedConcreteListener"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestMQTTClientIDAllowsOneValidatedRoleSuffix"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenCanBootstrapShortLivedSigV4Credentials"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestDeviceShadowHTTPRedisUnavailableMapsServiceUnavailable"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsMTLSDeviceMismatch"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsLegacyDeviceCertHeaderForDeviceScope"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRequiresAuthorization"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRequiresDeviceIDForCameraScope"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsAppCertForDeviceScope"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenProjectionUnavailableReturnsServiceUnavailable"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsRefreshToken"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenAllowsTrustedHeaderDeviceTokenWithoutAuthorization"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsDeviceCertForAppScope"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenAllowsMTLSBrandCloudAppTokenWithAccountAuthorization"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenAllowsMTLSAppTokenWithAccountAuthorization"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenAllowsTrustedHeaderBrandCloudAppTokenWithAccountAuthorization"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenIssuesAppAccessTokenOnlyAndRefreshReissues"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenAllowsTrustedHeaderAppTokenWithAccountAuthorization"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsMTLSAppTokenWithoutAccountAuthorization"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenForwardsIngressAppCertificateFingerprint"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsMissingScopedDevice"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenAllowsAdminBearerForScopedIssue"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsInvalidScope"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenCanonicalizesLegacyScopes"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenSuccess"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsBootstrapSecretWithoutLegacyCert"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenAllowsMTLSCameraTokenWithoutAuthorization"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenAllowsMTLSDeviceTokenWithoutAuthorization"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsAdminLegacyCert"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenMTLSDeviceUsesProjectionHotPath"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenEmbedsServiceOptionsInMTLSDeviceToken"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRejectsMTLSCertificateWithoutDeviceIdentity"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenRequiresMTLSEntitlement"
+    },
+    {
+      "package": "video_cloud/internal/httpapi",
+      "test": "TestRequestTokenMTLSProjectionErrorsFailClosed"
+    }
+  ],
+  "live_tutorials": "not run; requires target-environment qualification",
+  "website_tests": "PASS: full frontend suite after merging origin/main 302cb31",
+  "visual_smoke": "PASS: desktop 1440 and mobile 390, including Shadow Quickstart; diagram loaded, no horizontal overflow",
+  "document_check": "PASS: 12 pages, 10 SVGs, metadata, navigation, local links, JSON and Bash syntax",
+  "console_migration": {
+    "date": "2026-09-04",
+    "route": "/console/developer-docs",
+    "placement": "Features, immediately after ChipSet & SDK",
+    "checks": [
+      "35 route, authentication, and search unit tests passed",
+      "4 desktop/mobile Playwright checks passed",
+      "12 pages and 10 Mermaid/SVG pairs validated",
+      "desktop and 390px mobile screenshots inspected"
+    ],
+    "protocol_qualification": "Unchanged: live MQTT/Shadow qualification pending"
+  }
+}

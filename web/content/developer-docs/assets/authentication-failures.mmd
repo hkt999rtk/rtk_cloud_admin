@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant C as Client
+    participant B as MQTT broker
+    participant S as Shadow service
+    alt Invalid token or connection identity
+        C->>B: CONNECT
+        B-->>C: Connection refused
+    else Authenticated connection
+        C->>B: SUBSCRIBE unauthorized reserved topic
+        B-->>C: Denied subscription
+        C->>B: PUBLISH unauthorized reserved topic
+        Note over C,B: Broker rejects publication according to protocol policy<br/>No Shadow rejected response is guaranteed
+        C->>B: PUBLISH authorized Shadow update with stale version
+        B->>S: Forward request
+        S-->>C: Via broker: update/rejected, code=409
+    end

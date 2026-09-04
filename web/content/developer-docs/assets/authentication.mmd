@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant C as Device or app
+    participant T as Token endpoint
+    participant B as MQTT broker
+    C->>T: HTTPS mTLS POST /request_token<br/>scope and devid
+    alt Certificate and policy authorize the request
+        T-->>C: access_token and mqtt metadata<br/>aws_credentials when requested
+        C->>B: MQTT CONNECT over TLS<br/>username, client ID, token as password
+        alt Token, identity, and MQTT capability are valid
+            B-->>C: CONNACK success
+        else Invalid or unauthorized connection
+            B-->>C: Connection refused
+        end
+    else Certificate or policy rejected
+        T-->>C: TLS failure or HTTP error
+    end

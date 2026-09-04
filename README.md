@@ -358,3 +358,7 @@ The React console uses a local copy of the Realtek logo at:
 ```text
 web/public/assets/realtek-logo.png
 ```
+
+## Developer Docs
+
+The customer console exposes English MQTT and Device Shadow guides at `/console/developer-docs`, immediately below **ChipSet & SDK** in Features. Chapters, local full-text search, diagrams, and source-version metadata ship with the Admin release. Run `cd web && npm run build` to rebuild the documentation index and UI. Authoring and validation instructions are in [the content package](web/content/developer-docs/README.md).

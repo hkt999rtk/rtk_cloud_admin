@@ -1,0 +1,11 @@
+sequenceDiagram
+    participant S as Subscriber
+    participant B as MQTT broker
+    participant P as Publisher
+    S->>B: SUBSCRIBE tutorials/device-1/temperature<br/>QoS 1
+    B-->>S: SUBACK success
+    P->>B: PUBLISH tutorials/device-1/temperature<br/>temperature_c=23, QoS 1
+    B-->>P: PUBACK (transport acknowledgement)
+    B-->>S: PUBLISH tutorials/device-1/temperature
+    S-->>B: PUBACK
+    Note over S,P: PUBACK does not confirm application processing

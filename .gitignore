@@ -13,3 +13,5 @@ web/node_modules/
 *.db
 *.db-shm
 *.db-wal
+
+web/public/assets/developer-docs/

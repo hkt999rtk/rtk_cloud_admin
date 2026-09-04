@@ -1,0 +1,1702 @@
+{
+  "date": "2026-09-04",
+  "workspace": "rtk_cloud_workspace1",
+  "mode": "Local SQLite retrieval and extractive summaries; remote embeddings and answer generation disabled",
+  "queries": [
+    {
+      "query": "REQ-CONTRACT-AUTH-DEVICE-BOOTSTRAP-001",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_not_contract; verify against contracts when API behavior matters"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/dns-plan.json",
+          "lines": [
+            1,
+            80
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "dns-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.2159
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            161,
+            205
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9659
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            206,
+            240
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9659
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            366,
+            388
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9659
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            171,
+            176
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > APP/User Totals",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            164,
+            170
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Device Token Retry Totals",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            177,
+            183
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > APP Token Retry Totals",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            158,
+            163
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Device MQTT Totals",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5909
+        }
+      ]
+    },
+    {
+      "query": "REQ-CONTRACT-AUTH-REISSUE-001",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_canonical_contract"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            81,
+            125
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/feature_workflows.yaml",
+          "lines": [
+            2046,
+            2080
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "feature_workflows.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/auth.md",
+          "lines": [
+            103,
+            119
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Auth Contract > [FEAT-CONTRACT-AUTH-001] Runtime bearer and certificate authentication > [REQ-CONTRACT-AUTH-REISSUE-001] Signed-token reissue preserves validated claims without server-side refresh grants > Signed Token Reissue (`refresh_token` Field)",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            126,
+            160
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/auth.md",
+          "lines": [
+            97,
+            102
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Auth Contract > [FEAT-CONTRACT-AUTH-001] Runtime bearer and certificate authentication > [REQ-CONTRACT-AUTH-REISSUE-001] Signed-token reissue preserves validated claims without server-side refresh grants",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_video_cloud",
+          "path": "repos/rtk_video_cloud/docs/openapi.yaml",
+          "lines": [
+            161,
+            205
+          ],
+          "commit": "30fbb9a26155d67948f031f199c55161e4f50ace",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.8409
+        },
+        {
+          "repo": "rtk_video_cloud",
+          "path": "repos/rtk_video_cloud/docs/openapi.yaml",
+          "lines": [
+            126,
+            160
+          ],
+          "commit": "30fbb9a26155d67948f031f199c55161e4f50ace",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.8409
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "tests/catalog.yaml",
+          "lines": [
+            846,
+            880
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "catalog.yaml",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.8409
+        }
+      ]
+    },
+    {
+      "query": "aws_iot_data SigV4 request_token certificate app device credentials",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_not_contract; verify against contracts when API behavior matters"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/dns-plan.json",
+          "lines": [
+            1,
+            80
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "dns-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            206,
+            240
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9242
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            171,
+            176
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > APP/User Totals",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            36,
+            56
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Video Load Profile",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            143,
+            147
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Target Results",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            130,
+            133
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > User Scenario",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            177,
+            183
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > APP Token Retry Totals",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            68,
+            82
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > TURN Evidence",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5076
+        }
+      ]
+    },
+    {
+      "query": "iot_shadow capability MQTT HTTP independent service options",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_not_contract; verify against contracts when API behavior matters"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            286,
+            320
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0227
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            1,
+            80
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0227
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            401,
+            445
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9318
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            81,
+            160
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9318
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            366,
+            388
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9318
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            686,
+            720
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9318
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            641,
+            685
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9318
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            606,
+            640
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9318
+        }
+      ]
+    },
+    {
+      "query": "REQ-SHADOW-COMPATIBILITY-001",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_canonical_contract"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            30,
+            35
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-COMPATIBILITY-001] Public compatibility uses AWS documents with RTK namespaces",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            36,
+            66
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-COMPATIBILITY-001] Public compatibility uses AWS documents with RTK namespaces > Compatibility Boundary",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            561,
+            605
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            606,
+            640
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            641,
+            685
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "tests/catalog.yaml",
+          "lines": [
+            1486,
+            1520
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "catalog.yaml",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.8409
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/spec-test-traceability.md",
+          "lines": [
+            226,
+            270
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Spec Inventory And Test Traceability",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/spec-test-traceability.md",
+          "lines": [
+            477,
+            521
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Spec Inventory And Test Traceability > Operation Cross-Reference",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        }
+      ]
+    },
+    {
+      "query": "mqtt_client_id",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_not_contract; verify against contracts when API behavior matters"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            286,
+            320
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.1742
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            1,
+            80
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.1742
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            321,
+            365
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/plan.json",
+          "lines": [
+            81,
+            160
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            161,
+            205
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            366,
+            388
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            606,
+            640
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            561,
+            605
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        }
+      ]
+    },
+    {
+      "query": "MQTT username client_id brand_cloud_id role suffix reserved topics authorization",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_not_contract; verify against contracts when API behavior matters"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/artifact-store/shard-manifests/lg01.json",
+          "lines": [
+            1,
+            24
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "lg01.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9948
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            321,
+            365
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9948
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            206,
+            240
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9948
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            286,
+            320
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9948
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            1,
+            80
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9948
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            161,
+            205
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9948
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            81,
+            160
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9948
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/plan.json",
+          "lines": [
+            161,
+            205
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 0.9948
+        }
+      ]
+    },
+    {
+      "query": "Shadow offline reconnect notification durability ordering duplicates",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_not_contract; verify against contracts when API behavior matters"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            83,
+            101
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Scenario Mix",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.7695
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            143,
+            147
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Target Results",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.7695
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            134,
+            138
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > IoT Device Shadow Scenario",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.7695
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            125,
+            129
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Device Scenario",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.7695
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            148,
+            152
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Target Diagnostics",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.4838
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            153,
+            157
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Client Target Coverage",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.4838
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            57,
+            67
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > WebRTC Totals",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.4838
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            68,
+            82
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > TURN Evidence",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.4838
+        }
+      ]
+    },
+    {
+      "query": "REQ-SHADOW-CLIENT-001",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_canonical_contract"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            291,
+            296
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-CLIENT-001] Maintained clients reconcile conflicts without unsafe automatic retries",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            297,
+            308
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-CLIENT-001] Maintained clients reconcile conflicts without unsafe automatic retries > Client Guidance",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/feature_workflows.yaml",
+          "lines": [
+            641,
+            685
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "feature_workflows.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "tests/catalog.yaml",
+          "lines": [
+            1486,
+            1520
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "catalog.yaml",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.8409
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/spec-test-traceability.md",
+          "lines": [
+            271,
+            315
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Spec Inventory And Test Traceability",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/spec-test-traceability.md",
+          "lines": [
+            1308,
+            1352
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Spec Inventory And Test Traceability > Required Workflow Dependencies",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/test-catalog.md",
+          "lines": [
+            230,
+            274
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Test Catalog > Feature requirements",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/test-catalog.md",
+          "lines": [
+            569,
+            613
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Test Catalog > Test cases",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        }
+      ]
+    },
+    {
+      "query": "REQ-SHADOW-HTTP-API-001",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_canonical_contract"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            87,
+            92
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-HTTP-API-001] HTTP Shadow operations preserve AWS-compatible data-plane semantics",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            93,
+            119
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-HTTP-API-001] HTTP Shadow operations preserve AWS-compatible data-plane semantics > HTTP Data-Plane API",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            561,
+            605
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            606,
+            640
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            641,
+            685
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            686,
+            720
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "tests/catalog.yaml",
+          "lines": [
+            1486,
+            1520
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "catalog.yaml",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.8409
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/spec-test-traceability.md",
+          "lines": [
+            226,
+            270
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Spec Inventory And Test Traceability",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        }
+      ]
+    },
+    {
+      "query": "REQ-SHADOW-MQTT-API-001",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_not_contract; verify against contracts when API behavior matters"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            286,
+            320
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.1742
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            1,
+            80
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.1742
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            321,
+            365
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/plan.json",
+          "lines": [
+            81,
+            160
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            161,
+            205
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/prod/runtime/resolved/deployment-plan.json",
+          "lines": [
+            366,
+            388
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "deployment-plan.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            606,
+            640
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/results.json",
+          "lines": [
+            561,
+            605
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "results.json",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.0076
+        }
+      ]
+    },
+    {
+      "query": "REQ-SHADOW-MUTATION-001",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_canonical_contract"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            155,
+            160
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-MUTATION-001] Shadow mutation is atomic, versioned, and merge-compatible",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            161,
+            188
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-MUTATION-001] Shadow mutation is atomic, versioned, and merge-compatible > State Mutation Semantics",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/feature_workflows.yaml",
+          "lines": [
+            641,
+            685
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "feature_workflows.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            606,
+            640
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "tests/catalog.yaml",
+          "lines": [
+            1486,
+            1520
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "catalog.yaml",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.8409
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/spec-test-traceability.md",
+          "lines": [
+            271,
+            315
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Spec Inventory And Test Traceability",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/spec-test-traceability.md",
+          "lines": [
+            477,
+            521
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Spec Inventory And Test Traceability > Operation Cross-Reference",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/spec-test-traceability.md",
+          "lines": [
+            1308,
+            1352
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Spec Inventory And Test Traceability > Required Workflow Dependencies",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        }
+      ]
+    },
+    {
+      "query": "REQ-SHADOW-NOTIFICATION-001",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_canonical_contract"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/feature_workflows.yaml",
+          "lines": [
+            846,
+            880
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "feature_workflows.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            561,
+            605
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/feature_workflows.yaml",
+          "lines": [
+            721,
+            765
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "feature_workflows.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            606,
+            640
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            279,
+            290
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-NOTIFICATION-001] Committed mutations produce durable ordered notifications > Notification Durability",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            273,
+            278
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-NOTIFICATION-001] Committed mutations produce durable ordered notifications",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/feature_workflows.yaml",
+          "lines": [
+            766,
+            800
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "feature_workflows.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            641,
+            685
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        }
+      ]
+    },
+    {
+      "query": "REQ-SHADOW-VALIDATION-001",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_canonical_contract"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            234,
+            239
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-VALIDATION-001] HTTP and MQTT share validation limits and public error mapping",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+          "lines": [
+            240,
+            254
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-VALIDATION-001] HTTP and MQTT share validation limits and public error mapping > Validation And Errors",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            561,
+            605
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            606,
+            640
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            641,
+            685
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_contracts_doc",
+          "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+          "lines": [
+            686,
+            720
+          ],
+          "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+          "heading": "openapi.yaml",
+          "classification": "source",
+          "source_layer": "contracts",
+          "score": 2.5909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "tests/catalog.yaml",
+          "lines": [
+            1486,
+            1520
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "catalog.yaml",
+          "classification": "source",
+          "source_layer": "service",
+          "score": 1.8409
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "docs/spec-test-traceability.md",
+          "lines": [
+            271,
+            315
+          ],
+          "commit": "208271a6f95ce238635cf04535f735462f514fdc",
+          "heading": "Spec Inventory And Test Traceability",
+          "classification": "supporting-note",
+          "source_layer": "workspace",
+          "score": 1.5909
+        }
+      ]
+    },
+    {
+      "query": "Shadow desired reported delta version conflict named tombstone",
+      "confidence_notes": [
+        "answer_llm=unavailable; used extractive local summary",
+        "top_result_is_not_contract; verify against contracts when API behavior matters"
+      ],
+      "citations": [
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            134,
+            138
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > IoT Device Shadow Scenario",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 1.0909
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            125,
+            129
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Device Scenario",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.9659
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            143,
+            147
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Target Results",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.9659
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            226,
+            235
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Server Log Correlation",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.8409
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            184,
+            198
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Per-Type MQTT Totals",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.8409
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            130,
+            133
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > User Scenario",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.8409
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            158,
+            163
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > Device MQTT Totals",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.7159
+        },
+        {
+          "repo": "rtk_cloud_workspace1",
+          "path": "cloud_env/staging/runtime/artifacts/home-100k/capacity-planner-1k-20260711T135323Z/TEST_REPORT.md",
+          "lines": [
+            171,
+            176
+          ],
+          "commit": "251edcdc7ca513caa03c343a84644481b10526a2",
+          "heading": "100K Home IoT Device Shadow Load Test Report > APP/User Totals",
+          "classification": "supporting-note",
+          "source_layer": "service",
+          "score": 0.5909
+        }
+      ]
+    }
+  ]
+}
