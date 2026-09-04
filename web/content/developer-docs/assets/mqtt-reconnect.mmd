@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant C as Client
+    participant T as Token endpoint
+    participant B as MQTT broker
+    B--xC: Connection lost
+    loop Bounded retries with backoff and jitter
+        opt Token renewal required
+            C->>T: HTTPS POST /refresh_token<br/>previous valid signed token
+            alt Token still valid
+                T-->>C: Fresh access_token and MQTT metadata
+            else Reissue rejected
+                C->>T: HTTPS mTLS POST /request_token
+                T-->>C: Fresh credentials or actionable error
+            end
+        end
+        C->>B: CONNECT with current credentials
+        B-->>C: CONNACK
+    end
+    C->>B: SUBSCRIBE required topics
+    B-->>C: SUBACK
+    Note over C,B: For Shadow, GET current state after subscribing

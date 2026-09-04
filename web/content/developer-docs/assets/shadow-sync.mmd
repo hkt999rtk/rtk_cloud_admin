@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant A as App
+    participant S as Shadow service via MQTT
+    participant D as Device
+    Note over A,D: Subscribe to exact response and delta topics first<br/>R = $vc/devices/device-1/shadow/name/tutorial
+    A->>S: PUBLISH R/update<br/>state.desired.power=on
+    S-->>A: R/update/accepted (state stored)
+    S-->>D: R/update/delta<br/>state.power=on, version=N
+    D->>D: Apply power setting and verify hardware
+    alt Setting applied
+        D->>S: PUBLISH R/update<br/>state.reported.power=on
+        S-->>D: R/update/accepted
+        A->>S: PUBLISH R/get
+        S-->>A: R/get/accepted<br/>desired=reported, no delta
+    else Hardware operation failed
+        Note over D: Keep actual reported state<br/>Surface failure through application diagnostics
+    end

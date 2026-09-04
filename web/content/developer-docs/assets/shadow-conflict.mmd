@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant A as Writer A
+    participant S as Shadow service
+    participant B as Writer B
+    A->>S: GET
+    S-->>A: version=N
+    B->>S: UPDATE with version=N
+    S-->>B: Accepted, version=N+1
+    A->>S: UPDATE with version=N
+    S-->>A: 409 Version conflict
+    A->>S: GET latest state
+    S-->>A: Current state and version
+    A->>A: Reconcile intended change
+    opt Change is still valid and safe to retry
+        A->>S: UPDATE reconciled patch with current version
+        S-->>A: Accepted or new conflict
+    end

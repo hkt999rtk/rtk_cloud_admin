@@ -1,3 +1,4 @@
+import { DeveloperDocs } from './DeveloperDocs.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
@@ -19,6 +20,7 @@ import {
   billingSubpaths,
   canAccessCustomerRoute,
   canonicalCustomerPath,
+  cloudContextId,
   cloudConsolePath,
   cloudIdFromPath,
   defaultBrandCloudRoute,
@@ -376,8 +378,8 @@ function App() {
           return;
         }
 
-        const requestedCloudId = cloudIdFromPath(window.location.pathname);
-        if (nextMe.kind === 'customer' && requestedCloudId && window.location.pathname.startsWith('/console/clouds/')) {
+        const requestedCloudId = active === 'developer-docs' ? cloudContextId(window.location.pathname, window.location.search) : cloudIdFromPath(window.location.pathname);
+        if (nextMe.kind === 'customer' && requestedCloudId && (active === 'developer-docs' || window.location.pathname.startsWith('/console/clouds/'))) {
           const scopedCloud = await fetchJSON(cloudAPI(requestedCloudId));
           if (scopedCloud.brand_cloud?.id === requestedCloudId) rememberCloudPreference(requestedCloudId);
           nextMe = {
@@ -414,6 +416,13 @@ function App() {
           setDeveloperBrandClouds(developerCloudResult.brand_clouds || []);
         } else {
           setDeveloperBrandClouds([]);
+        }
+
+        if (!useAdminApi && active === 'developer-docs' && nextMe.kind === 'customer') {
+          setSummary(null);
+          setDevices([]);
+          setLoading(false);
+          return;
         }
 
         // ChipSet & SDK is a global developer resource. Do not make retired,
@@ -784,10 +793,11 @@ function App() {
   }, [mobileNavOpen]);
 
   function pathForNavigationItem(item) {
-    if (item.id === 'my-clouds' || item.global) return cloudConsolePath(urlCloudId, item.id);
+    const navigationCloudId = active === 'developer-docs' ? cloudContextId(window.location.pathname, window.location.search) : urlCloudId;
+    if (item.id === 'my-clouds' || item.global) return cloudConsolePath(navigationCloudId, item.id);
     if (me?.kind === 'platform_admin') return item.path;
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
-    return cloudConsolePath(urlCloudId, targetRoute);
+    return cloudConsolePath(navigationCloudId, targetRoute);
   }
 
   function navigate(item) {
@@ -1330,6 +1340,7 @@ function App() {
           <ProductsPage loading={loading} data={products} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
         ) : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? <DeveloperChipsetResources data={chipsets} sdkRelease={sdkCatalog} loading={loading} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'developer-docs' ? <DeveloperDocs /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'firmware-ota' ? (
           <FirmwareOTAPage
             loading={loading}

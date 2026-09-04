@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant A as App
+    participant S as Shadow service
+    participant D as Device
+    Note over D: Device offline
+    A->>S: UPDATE desired.power=on
+    S-->>A: Accepted
+    D->>S: Reconnect and subscribe to exact response and delta topics
+    S-->>D: Subscription ready
+    D->>S: GET current Shadow
+    S-->>D: Current state and version
+    D->>D: Reconcile desired with actual hardware
+    D->>S: UPDATE reported with actual state
+    S-->>D: Accepted
+    Note over D: Deduplicate notifications and ignore older versions

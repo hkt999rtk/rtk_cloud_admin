@@ -19,6 +19,7 @@ export const customerNavGroups = [
     items: [
       { id: 'product-services', labelKey: 'Products', segment: 'products', icon: 'boxes-stacked', capabilities: ['product.read', 'registry_device.read'] },
       { id: 'chipset-sdk', labelKey: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch', global: true, alwaysVisible: true },
+      { id: 'developer-docs', labelKey: 'Developer Docs', path: '/console/developer-docs', icon: 'book-open', global: true, alwaysVisible: true },
       { id: 'devices', labelKey: 'Fleet Management', segment: 'fleet', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
       { id: 'provisioning', labelKey: 'CSV Provisioning', segment: 'fleet/provisioning', icon: 'file-csv', capabilities: ['provisioning.read', 'provisioning.create'] },
       { id: 'firmware-ota', labelKey: 'Firmware & OTA', segment: 'firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
@@ -60,7 +61,7 @@ const cloudRouteSegments = Object.freeze({
 // semantic without changing the existing navigation structure.
 export const pageIcons = Object.freeze({
   'my-clouds': 'cloud', overview: 'gauge-high', devices: 'video',
-  'product-services': 'boxes-stacked', 'chipset-sdk': 'code-branch',
+  'product-services': 'boxes-stacked', 'chipset-sdk': 'code-branch', 'developer-docs': 'book-open',
   groups: 'tags', provisioning: 'file-csv', access: 'user-shield', settings: 'gear', billing: 'credit-card',
   'firmware-ota': 'microchip', 'stream-health': 'tower-broadcast', reports: 'chart-column', analytics: 'chart-column', audit: 'shield-halved',
   'platform-dashboard': 'gauge-high', 'platform-grafana': 'chart-simple', 'platform-health': 'heart-pulse',
@@ -150,7 +151,7 @@ export function navItemsForCapabilities(route, capabilities) {
   const items = navItemsForRoute(route);
   const values = new Set(Array.isArray(capabilities) ? capabilities : []);
   return items.filter((item) => {
-    if (route === 'chipset-sdk' && !item.global) return false;
+    if (['chipset-sdk', 'developer-docs'].includes(route) && !item.global) return false;
     return item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability));
   });
 }
@@ -163,7 +164,7 @@ export function navGroupsForCapabilities(route, capabilities) {
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        if (route === 'chipset-sdk' && !item.global) return false;
+        if (['chipset-sdk', 'developer-docs'].includes(route) && !item.global) return false;
         return item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability));
       }),
     }))
@@ -234,7 +235,7 @@ export function canAccessCustomerRoute(route, capabilities) {
   // ChipSet & SDK is a global developer resource rather than a Brand Cloud
   // feature. Keep its established URL available without deriving a cloud from
   // the active-org compatibility session.
-  if (route === 'chipset-sdk') return true;
+  if (['chipset-sdk', 'developer-docs'].includes(route)) return true;
   const item = customerNavItems.find((candidate) => candidate.id === route);
   return Boolean(item && (item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability))));
 }
@@ -263,6 +264,7 @@ export function titleFor(active) {
     devices: 'Fleet Management',
     'product-services': 'Products',
     'chipset-sdk': 'ChipSet & SDK',
+    'developer-docs': 'Developer Docs',
     groups: 'Groups and Tags',
     access: 'Brand Cloud',
     settings: 'Brand Cloud',
@@ -330,7 +332,9 @@ export function routeFromPath(path) {
   }
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
-  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|billing)(?:\/|$)/);
+  // Global documentation slugs (including overview) are not tenant routes.
+  if (path === '/console/developer-docs' || path.startsWith('/console/developer-docs/')) return 'developer-docs';
+  const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|developer-docs|groups|access|settings|firmware-ota|stream-health|jobs|reports|billing)(?:\/|$)/);
   if (scoped) return scoped[2] === 'jobs' ? 'firmware-ota' : scoped[2];
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
   if (path === '/console/product-services' || path.startsWith('/console/product-services/')) return 'product-services';
@@ -356,8 +360,8 @@ export function routeFromPath(path) {
 export function cloudIdFromPath(path) {
   const canonical = String(path || '').match(/^\/console\/clouds\/([^/]+)(?:\/|$)/);
   if (canonical) return decodedCloudID(canonical[1]);
-  if (/^\/console\/(?:overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/.test(String(path || ''))) return '';
-  const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|product-services|chipset-sdk|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
+  if (/^\/console\/(?:overview|devices|product-services|chipset-sdk|developer-docs|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/.test(String(path || ''))) return '';
+  const match = String(path || '').match(/^\/console\/([^/]+)\/(?:overview|devices|product-services|chipset-sdk|developer-docs|groups|access|settings|firmware-ota|stream-health|jobs|reports|provisioning|billing)(?:\/|$)/);
   return match ? decodedCloudID(match[1]) : '';
 }
 
@@ -379,11 +383,12 @@ export function canonicalCustomerPath(path) {
   if (path === '/console' || path === '/console/') return '/console/clouds';
   if (path === '/console/clouds' || String(path || '').startsWith('/console/clouds/')) return path;
   if (path === '/console/chipset-sdk' || String(path || '').startsWith('/console/chipset-sdk/')) return path;
-  const explicit = String(path || '').match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|groups|provisioning|access|settings|firmware-ota|stream-health|jobs|reports|billing|audit)(?:\/.*)?$/);
+  if (path === '/console/developer-docs' || String(path || '').startsWith('/console/developer-docs/')) return path;
+  const explicit = String(path || '').match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|developer-docs|groups|provisioning|access|settings|firmware-ota|stream-health|jobs|reports|billing|audit)(?:\/.*)?$/);
   if (explicit) {
     const cloudId = decodedCloudID(explicit[1]);
     if (!cloudId) return '/console/clouds';
-    if (explicit[2] === 'chipset-sdk') return '/console/chipset-sdk';
+    if (['chipset-sdk', 'developer-docs'].includes(explicit[2])) return `/console/${explicit[2]}`;
     const mapped = {
       overview: '',
       devices: 'fleet',

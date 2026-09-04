@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant A as App or backend
+    participant S as Shadow HTTP API
+    participant D as MQTT device
+    A->>S: SigV4 POST /things/device-1/shadow?name=tutorial<br/>JSON desired patch
+    alt Authentication and update succeed
+        S->>S: Commit state and notification event
+        par HTTP response
+            S-->>A: HTTP 200 accepted patch
+        and Asynchronous notification
+            S-->>D: MQTT shadow update/delta
+        end
+    else Request rejected
+        S-->>A: HTTP error and JSON error document
+    end
+    Note over A,D: HTTP success does not confirm device execution

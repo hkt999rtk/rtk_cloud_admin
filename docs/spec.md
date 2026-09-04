@@ -1077,6 +1077,30 @@ Acceptance: Platform provider design matches the approved visual baseline.
 
 Acceptance: Developer resource design matches the approved visual baseline.
 
+#### [REQ-UI-CA-DOCS-001] Developer Docs navigation and search
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Developer Docs is an independent Features item immediately below ChipSet & SDK. The authenticated console displays and locally searches the twelve English MQTT and Shadow guides, with readable SVG diagrams on desktop and mobile.
+
+#### [REQ-UI-CA-DOCS-002] Documentation deep-link sign-in
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Opening a chapter while signed out returns to that same chapter after normal console sign-in. Documentation remains separate from tenant dashboard routing.
+
+#### [REQ-UI-CA-DOCS-003] Every documentation link resolves
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Every published chapter, in-document guide link, SDK entry, SVG, Mermaid source download, and table-of-contents anchor opens its intended destination. The overview slug must never resolve to the Cloud dashboard.
+
 #### [REQ-UI-CA-OTA-001] OTA scope preview is server calculated and immutable
 
 <!-- rtk-requirement

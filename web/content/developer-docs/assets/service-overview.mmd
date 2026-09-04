@@ -1,0 +1,9 @@
+flowchart TB
+    D[Device firmware] <-->|MQTT over TLS| B[MQTT broker]
+    A[App or backend] <-->|MQTT over TLS| B
+    B <-->|Shadow requests and notifications| S[Device Shadow service]
+    A <-->|HTTPS with SigV4| S
+    D -->|HTTPS with client certificate| T[Token endpoint]
+    A -->|HTTPS with app certificate| T
+    T -->|Runtime credentials| D
+    T -->|Runtime credentials| A
