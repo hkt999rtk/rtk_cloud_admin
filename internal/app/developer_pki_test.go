@@ -1,7 +1,9 @@
 package app
 
 import (
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +14,35 @@ import (
 	"rtk_cloud_admin/internal/accountclient"
 	"rtk_cloud_admin/internal/config"
 )
+
+func TestGenerateDeviceCSRIsBoundToAllocatedID(t *testing.T) {
+	csrPEM, keyPEM, err := generateDeviceCSR("device-generated-001")
+	if err != nil {
+		t.Fatalf("generateDeviceCSR: %v", err)
+	}
+	csrBlock, _ := pem.Decode([]byte(csrPEM))
+	if csrBlock == nil {
+		t.Fatal("missing CSR PEM")
+	}
+	csr, err := x509.ParseCertificateRequest(csrBlock.Bytes)
+	if err != nil {
+		t.Fatalf("ParseCertificateRequest: %v", err)
+	}
+	if csr.Subject.CommonName != "device-generated-001" || len(csr.DNSNames) != 1 || csr.DNSNames[0] != "device-generated-001" {
+		t.Fatalf("CSR identity = %#v", csr)
+	}
+	keyBlock, _ := pem.Decode([]byte(keyPEM))
+	if keyBlock == nil {
+		t.Fatal("missing private key PEM")
+	}
+	key, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+	if err != nil {
+		t.Fatalf("ParsePKCS8PrivateKey: %v", err)
+	}
+	if key == nil {
+		t.Fatal("missing private key")
+	}
+}
 
 func TestDeveloperPKIAllowedFailsClosed(t *testing.T) {
 	for _, tc := range []struct {

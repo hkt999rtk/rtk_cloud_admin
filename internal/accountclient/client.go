@@ -380,6 +380,15 @@ type DeviceUpdateRequest struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
+type DeviceCreateRequest struct {
+	Name                string         `json:"name"`
+	Category            string         `json:"category"`
+	Model               string         `json:"model,omitempty"`
+	SerialNumber        string         `json:"serial_number,omitempty"`
+	Metadata            map[string]any `json:"metadata,omitempty"`
+	DeviceItemProfileID string         `json:"device_item_profile_id,omitempty"`
+}
+
 type Operation struct {
 	ID                  string `json:"id"`
 	DeviceID            string `json:"device_id,omitempty"`
@@ -803,11 +812,15 @@ func (c *Client) IssueDeveloperPKITestAppCertificate(ctx context.Context, access
 }
 
 func (c *Client) CreateDeveloperPKITestProductionRun(ctx context.Context, accessToken, brandCloudID, profileID, idempotencyKey string, validFrom, validUntil time.Time) (ProductionRunIssueResponse, error) {
+	return c.CreateDeveloperPKITestProductionRunWithQuantity(ctx, accessToken, brandCloudID, profileID, idempotencyKey, 1, validFrom, validUntil)
+}
+
+func (c *Client) CreateDeveloperPKITestProductionRunWithQuantity(ctx context.Context, accessToken, brandCloudID, profileID, idempotencyKey string, quantity int, validFrom, validUntil time.Time) (ProductionRunIssueResponse, error) {
 	var body ProductionRunIssueResponse
 	path := "/v1/orgs/" + url.PathEscape(brandCloudID) + "/device-item-profiles/" + url.PathEscape(profileID) + "/production-runs"
 	err := c.doJSONWithIdempotency(ctx, http.MethodPost, path, accessToken, idempotencyKey, map[string]any{
 		"factory_id": "developer-console", "batch_id": "pki-test-" + idempotencyKey,
-		"allowed_quantity": 1, "valid_from": validFrom.UTC(), "valid_until": validUntil.UTC(),
+		"allowed_quantity": quantity, "valid_from": validFrom.UTC(), "valid_until": validUntil.UTC(),
 	}, &body)
 	return body, err
 }
@@ -1106,6 +1119,20 @@ func (c *Client) Devices(ctx context.Context, accessToken, orgID string) ([]Devi
 		return nil, err
 	}
 	return body.Devices, nil
+}
+
+func (c *Client) CreateDevice(ctx context.Context, accessToken, orgID, idempotencyKey string, request DeviceCreateRequest) (Device, error) {
+	var body struct {
+		Device Device `json:"device"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/devices"
+	if err := c.doJSONWithIdempotency(ctx, http.MethodPost, path, accessToken, idempotencyKey, request, &body); err != nil {
+		return Device{}, err
+	}
+	if body.Device.ID == "" || body.Device.OrganizationID != orgID {
+		return Device{}, fmt.Errorf("invalid created device scope")
+	}
+	return body.Device, nil
 }
 
 func (c *Client) Device(ctx context.Context, accessToken, orgID, deviceID string) (Device, error) {

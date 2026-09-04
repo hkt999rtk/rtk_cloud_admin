@@ -350,6 +350,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/developer/product-collaborator-invitations/accept", s.apiProductCollaboratorInvitationAccept)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/app", s.apiDeveloperPKITestAppBundle)
 	s.mux.HandleFunc("POST /api/developer/pki/test-bundles/device", s.apiDeveloperPKITestDeviceBundle)
+	// New self-service test-device entry point. The legacy PKI route remains
+	// available for compatibility while clients migrate.
+	s.mux.HandleFunc("POST /api/developer/test-device-batches", s.apiDeveloperPKITestDeviceBundle)
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
 	s.mux.HandleFunc("POST /api/auth/login", s.apiLogin)
 	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
