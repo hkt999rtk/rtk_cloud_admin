@@ -60,6 +60,7 @@ test('[UI-CA-DOCS-003] every chapter and in-document link works @smoke', async (
       const target = page.locator('.docs-body a').nth(i);
       if (link.href.startsWith('/assets/')) {
         if (link.href.endsWith('.mmd')) {
+          await expect(target).toHaveAttribute('download', '');
           const downloadPromise = page.waitForEvent('download');
           await target.click();
           expect(await (await downloadPromise).failure()).toBeNull();
