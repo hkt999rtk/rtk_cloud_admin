@@ -5,6 +5,7 @@ import { CloudSharing } from './CloudSharing.jsx';
 import { StartOwnerHandoff } from './OwnerHandoff.jsx';
 import { CloudProducts } from './CloudProducts.jsx';
 import { ProductDevices } from './ProductDevices.jsx';
+import { TestLab } from './TestLab.jsx';
 import { CloudConsoleShell } from './CloudConsoleShell.jsx';
 import { rememberCloudPreference } from './cloud-preference.mjs';
 
@@ -26,6 +27,7 @@ function lifecycleWarning(status) {
 }
 
 function cloudIntroduction(section) {
+  if (section === 'test-lab') return 'Inspect and test an authorized device from your Developer Console. Live operations require device-scoped runtime authorization.';
   if (section === 'products') {
     return 'Products organize the device models you build and sell in this Brand Cloud. A Product usually represents one SKU—a sellable model or variant—or a group of SKUs that share the same technical configuration, firmware, cloud services, and update policy. This keeps devices, releases, and OTA updates separated so changes reach only the intended models. Create a separate Product whenever a SKU needs different firmware, services, or lifecycle rules.';
   }
@@ -166,7 +168,7 @@ export function MyCloudsApp() {
   }
   const canManage = cloud?.capabilities?.includes('cloud.update');
   const canCreate = page && page.owned_count + page.reserved_count < page.owned_limit;
-  const shellActive = section === 'products' ? 'product-services' : section === 'members' ? 'access' : section === 'settings' ? 'settings' : 'my-clouds';
+  const shellActive = section === 'test-lab' ? 'test-lab' : section === 'products' ? 'product-services' : section === 'members' ? 'access' : section === 'settings' ? 'settings' : 'my-clouds';
   return <CloudConsoleShell me={me} cloud={cloud} clouds={page?.brand_clouds || me?.memberships || []} active={shellActive} title={cloudId ? cloud?.name || 'Brand Cloud' : 'My Clouds'} onError={setError}>
     <div className="my-clouds-main">
       <div className="my-clouds-heading"><div><p className="my-clouds-eyebrow">DEVELOPER CONSOLE</p><p>{cloudId ? cloudIntroduction(section) : 'Create and manage the Brand Clouds you own, or open clouds shared with your account. Select a cloud to work with its Products, Fleet Management, firmware, members, settings, and owner-only Billing.'}</p></div>{!cloudId && page && <button disabled={!canCreate || busy} onClick={() => { intent.current = null; setForm({ id: '', name: '', description: '' }); }}>Create cloud</button>}</div>
@@ -181,6 +183,7 @@ export function MyCloudsApp() {
       {cloud && section === 'settings' && !productId && !operation && cloud.my_role === 'owner' && cloud.capabilities?.includes('billing_account.read') && <a href={`${cloudURL(cloudId)}/billing`}>Manage this cloud’s Billing</a>}
       {cloud && section === 'settings' && !operation && <section className="my-clouds-panel"><h2><SemanticIcon name="gear" />Cloud settings</h2><dl><dt><SemanticIcon name="cloud" />Cloud name</dt><dd>{cloud.name}</dd><dt><SemanticIcon name="file-lines" />Description</dt><dd>{cloud.description || 'No description'}</dd><dt><SemanticIcon name="fingerprint" />Cloud ID</dt><dd>{cloud.id}</dd><dt><SemanticIcon name="tag" />Tenant slug</dt><dd>{cloud.tenant_slug || 'Unavailable'}</dd><dt><SemanticIcon name="envelope" />Owner email</dt><dd>{ownerAccountEmail(cloud, me)}</dd><dt><SemanticIcon name="id-card" />Owner ID</dt><dd>{cloud.owner_user_id || 'Unavailable'}</dd><dt><SemanticIcon name="user-shield" />My role</dt><dd>{cloud.my_role}</dd></dl>{lifecycleWarning(cloud.status) && <p className="my-clouds-lifecycle-warning" role="status"><SemanticIcon name="triangle-exclamation" />{lifecycleWarning(cloud.status)}</p>}{canManage && <div className="my-clouds-actions"><button className="icon-text" disabled={busy} onClick={() => { intent.current = null; setForm({ id: cloud.id, name: cloud.name, description: cloud.description }); }}><SemanticIcon name="pen-to-square" />Edit cloud</button><button className="my-clouds-danger icon-text" disabled={busy} onClick={checkDeletion}><SemanticIcon name="trash-can" />Check deletion</button></div>}</section>}
       {cloud && section === 'products' && !operation && <CloudProducts key={`${cloudId}/${productId}`} cloudId={cloudId} productId={productId} onAccessLost={showRequestError} />}
+      {cloud && section === 'test-lab' && !operation && <TestLab key={cloudId} cloudId={cloudId} />}
       {preflight && <section className="my-clouds-panel"><h2>Delete this cloud?</h2><p>Only an empty, fully settled cloud with zero balance can be deleted. Audit and Billing history are retained. Ownership transfer has a different rule: balance must be nonnegative.</p><Blockers items={preflight.blockers} />{preflight.eligible ? <button className="my-clouds-danger" disabled={busy} onClick={deleteCloud}>{busy ? 'Submitting…' : 'Confirm cloud deletion'}</button> : <p>Deletion is blocked. Resolve the reasons above, then check again.</p>}</section>}
       {operation && <section className="my-clouds-panel" aria-live="polite"><h2>{operation.state === 'succeeded' ? 'Cloud deleted' : operation.state === 'canceled' ? 'Deletion canceled' : 'Deletion in progress'}</h2><p>{operation.phase} · {operation.id}</p><Blockers items={operation.blockers} />{operation.state !== 'succeeded' && <p>Do not treat a submitted request as completion. Recovery continues on the server.</p>}<a href={cloudRoot}>Return to My Clouds</a></section>}
       {cloud && productId && !operation && <ProductDevices key={`${cloudId}/${productId}/${deviceId}`} cloudId={cloudId} productId={productId} deviceId={deviceId} onAccessLost={showRequestError} />}

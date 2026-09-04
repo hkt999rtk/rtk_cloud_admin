@@ -3,8 +3,9 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export function isCloudID(id) { return typeof id === 'string' && uuid.test(id); }
 export function managedCloudRoute(path) {
   if (path === cloudRoot || path === `${cloudRoot}/`) return { cloudId: '' };
-  const match = path.match(/^\/console\/clouds\/([^/]+)(?:\/(products|members|settings)(?:\/([^/]+)(?:\/devices\/([^/]+))?)?)?\/?$/);
+  const match = path.match(/^\/console\/clouds\/([^/]+)(?:\/(products|members|settings|test-lab)(?:\/([^/]+)(?:\/devices\/([^/]+))?)?)?\/?$/);
   if (!match || !uuid.test(match[1]) || (match[3] && !uuid.test(match[3])) || (match[4] && !uuid.test(match[4]))) return null;
+  if (match[2] === 'test-lab' && match[3]) return null;
   return { cloudId: match[1], section: match[2] || 'overview', productId: match[3] || '', ...(match[4] ? {deviceId:match[4]} : {}) };
 }
 export function cloudURL(id) { if (!uuid.test(id)) throw new Error('Invalid cloud ID'); return `${cloudRoot}/${id}`; }

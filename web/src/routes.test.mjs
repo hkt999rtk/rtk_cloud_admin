@@ -121,7 +121,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.labelKey),
-    ['My Clouds', 'Overview', 'Products', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'],
+    ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'],
   );
   assert.deepEqual(customerNavGroups.map((group) => group.labelKey), ['Clouds', 'Brand Cloud', 'Features', 'Management']);
 });
@@ -139,7 +139,7 @@ test('customer nav is derived from active membership capabilities', () => {
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read'], { isOwner: true }).flatMap((group) => group.items).some((item) => item.id === 'billing'), true);
   assert.deepEqual(cloudNavGroupsForCapabilities('', null).flatMap((group) => group.items).map((item) => item.id), ['my-clouds', 'chipset-sdk', 'developer-docs']);
   const unscoped = cloudShellNavGroups('', null, { showOwnerOnly: true }).flatMap((group) => group.items);
-  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit']);
+  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit']);
   assert.equal(unscoped.find((item) => item.id === 'my-clouds').disabled, false);
   assert.equal(unscoped.find((item) => item.id === 'chipset-sdk').disabled, false);
   assert.equal(unscoped.filter((item) => !item.global).every((item) => item.disabled), true);
