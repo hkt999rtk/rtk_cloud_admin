@@ -13,6 +13,16 @@ test('[UI-CA-DOCS-001] Developer Docs appears below ChipSet & SDK and supports l
   expect(names.map((name) => name.trim()).indexOf('Developer Docs')).toBe(names.map((name) => name.trim()).indexOf('ChipSet & SDK') + 1);
   await expect(page.locator('.sidebar').getByRole('link', { name: 'Developer Docs', exact: true })).toHaveAttribute('aria-current', 'page');
   if (isMobile) await page.locator('.mobile-nav-close').click();
+  if (isMobile) await expect(page.locator('.docs-mobile-chapters optgroup')).toHaveCount(6);
+  await expect(page.getByRole('navigation', { name: 'Documentation categories' }).getByRole('button')).toHaveCount(7);
+  await page.getByRole('button', { name: 'Reference', exact: false }).click();
+  await expect(page.locator('.docs-results article')).toHaveCount(5);
+  await page.getByRole('button', { name: 'All documents', exact: false }).click();
+  await expect(page.locator('.docs-results article')).toHaveCount(26);
+  await page.getByRole('searchbox').fill('MQTT Connection Guide');
+  await expect(page.locator('.docs-results h3').first()).toHaveText('MQTT Connection Guide');
+  await page.getByRole('searchbox').fill('409');
+  await expect(page.locator('.docs-results mark').first()).toHaveText('409');
   await page.getByRole('searchbox').fill('version conflict');
   await expect(page.locator('.docs-results')).toContainText('Integration Recipes');
   await page.getByRole('searchbox').fill('no-such-topic-zzzz');
@@ -28,6 +38,16 @@ test('[UI-CA-DOCS-001] Developer Docs appears below ChipSet & SDK and supports l
   expect(await source.text()).toContain('sequenceDiagram');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   expect(requests).toEqual([]);
+  await page.goto('/console/developer-docs');
+  await expect(page.locator('.docs-result-group')).toHaveCount(6);
+  await page.goto('/console/developer-docs/api-examples');
+  await page.getByLabel('Jump to section').selectOption('field-presence-and-units');
+  await expect(page.getByRole('heading', { name: 'Field presence and units', exact: true })).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Back to documents', exact: true })).toBeInViewport();
+
+  await page.locator('.docs-toc summary').click();
+  await page.locator('.docs-toc').getByRole('link', { name: 'Field presence and units', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Field presence and units', exact: true })).toBeInViewport();
 });
 
 test('[UI-CA-DOCS-002] direct chapter links require the regular console sign-in @smoke', async ({ page }) => {
@@ -48,7 +68,7 @@ test('[UI-CA-DOCS-003] every chapter and in-document link works @smoke', async (
     await page.goto('/console/developer-docs');
     // Exercise actual navigation, not only HTTP 200 from the generic SPA shell.
     if (isMobile) await page.getByLabel('Choose a chapter').selectOption(chapter.slug);
-    else await page.getByRole('navigation', { name: 'Documentation chapters' }).getByRole('link', { name: chapter.title, exact: true }).click();
+    else await page.locator('.docs-results').getByRole('link', { name: chapter.title, exact: true }).click();
     await expect(page.locator('.docs-article header h2')).toHaveText(chapter.title);
     await expect(page.getByText('The requested data could not be loaded. Please try again.', { exact: true })).toHaveCount(0);
     checked.push({ source: 'chapter navigation', destination: chapter.url });
@@ -59,7 +79,7 @@ test('[UI-CA-DOCS-003] every chapter and in-document link works @smoke', async (
       await expect(page.locator('.docs-article header h2')).toHaveText(chapter.title);
       const target = page.locator('.docs-body a').nth(i);
       if (link.href.startsWith('/assets/')) {
-        if (link.href.endsWith('.mmd')) {
+        if (/\.(mmd|zip)$/.test(link.href)) {
           await expect(target).toHaveAttribute('download', '');
           const downloadPromise = page.waitForEvent('download');
           await target.click();
@@ -69,7 +89,9 @@ test('[UI-CA-DOCS-003] every chapter and in-document link works @smoke', async (
           expect(new URL(page.url()).pathname).toBe(link.href);
         }
         const content = await page.request.get(link.href);
-        expect(await content.text()).toContain(link.href.endsWith('.svg') ? '<svg' : (link.href.includes('service-overview') ? 'flowchart' : 'sequenceDiagram'));
+        if (link.href.endsWith('.zip')) expect((await content.body()).subarray(0, 4).toString('hex')).toBe('504b0304');
+        else if (link.href.endsWith('.svg')) expect(await content.text()).toContain('<svg');
+        else expect(await content.text()).toMatch(/^(flowchart|sequenceDiagram)\b/m);
       } else {
         await target.click();
         const destination = pages.find((item) => item.url === link.href);

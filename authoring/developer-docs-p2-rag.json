@@ -1,0 +1,115 @@
+{
+  "date": "2026-09-04",
+  "query": "REQ-CONTRACT-PROV-UNPROVISION-001",
+  "citations": [
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/feature_workflows.yaml",
+      "lines": [
+        561,
+        605
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "feature_workflows.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/provision.md",
+      "lines": [
+        875,
+        887
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "Device Provisioning And Activation Contract > [FEAT-PROV-ONBOARD-001] Factory enrollment and cross-service onboarding > [REQ-CONTRACT-PROV-UNPROVISION-001] Unprovision releases only the current owner binding and preserves factory identity > User Unprovision / Factory-Ready Resale State",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/provision.md",
+      "lines": [
+        830,
+        874
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "Device Provisioning And Activation Contract > [FEAT-PROV-ONBOARD-001] Factory enrollment and cross-service onboarding > [REQ-CONTRACT-PROV-UNPROVISION-001] Unprovision releases only the current owner binding and preserves factory identity > User Unprovision / Factory-Ready Resale State",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/provision.md",
+      "lines": [
+        824,
+        829
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "Device Provisioning And Activation Contract > [FEAT-PROV-ONBOARD-001] Factory enrollment and cross-service onboarding > [REQ-CONTRACT-PROV-UNPROVISION-001] Unprovision releases only the current owner binding and preserves factory identity",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+      "lines": [
+        481,
+        525
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "openapi.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+      "lines": [
+        446,
+        480
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "openapi.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+      "lines": [
+        401,
+        445
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "openapi.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/feature_workflows.yaml",
+      "lines": [
+        1886,
+        1920
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "feature_workflows.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    }
+  ],
+  "remote_embeddings": false,
+  "remote_answers": false,
+  "docs_index_active_files": 29,
+  "smoke_query": "owner transport",
+  "matched_source": "device-presence.en.md"
+}

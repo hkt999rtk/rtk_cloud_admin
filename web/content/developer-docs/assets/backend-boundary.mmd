@@ -1,0 +1,10 @@
+flowchart TB
+    Caller["Application caller"] --> Check["Backend: authorize caller and target device"]
+    Check --> Identity["Approved backend identity / delegation boundary"]
+    Identity -->|"trusted platform path only"| Admin["Operator-provisioned Video Cloud admin authority"]
+    Admin --> Issue["POST /request_token: scoped target bundle"]
+    Identity -->|"when provided by approved integration"| Delegated["Delegated short-lived target bundle"]
+    Issue --> Signed["Backend SigV4 client"]
+    Delegated --> Signed
+    Signed --> Shadow["Target device and named Shadow"]
+    Shadow --> Observe["Observe reported convergence separately"]

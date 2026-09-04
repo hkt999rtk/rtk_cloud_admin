@@ -1,12 +1,18 @@
 ---
-title: "Integration Recipes"
-description: "Recover from offline periods, resolve conflicts, and keep reported state truthful."
-category: "Recipes"
-keywords: ["offline", "reconciliation", "duplicate", "conflict", "idempotency"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: Integration Recipes
+description: Recover from offline periods, resolve conflicts, and keep reported state
+  truthful.
+category: Build integrations
+keywords:
+- offline
+- reconciliation
+- duplicate
+- conflict
+- idempotency
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # Integration Recipes

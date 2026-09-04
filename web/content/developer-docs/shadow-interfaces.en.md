@@ -1,17 +1,32 @@
 ---
-title: "Using Shadows over MQTT and HTTP"
-description: "Perform Shadow operations using exact MQTT topics or signed HTTP requests."
-category: "Guides"
-keywords: ["SigV4", "GET", "POST", "DELETE", "accepted", "rejected", "ListNamedShadowsForThing"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: Using Shadows over MQTT and HTTP
+description: Perform Shadow operations using exact MQTT topics or signed HTTP requests.
+category: Build integrations
+keywords:
+- SigV4
+- GET
+- POST
+- DELETE
+- accepted
+- rejected
+- ListNamedShadowsForThing
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # Using Shadows over MQTT and HTTP
 
 Use either interface against the same device and Shadow name. HTTP requires `iot_shadow`; MQTT requires both `mqtt` and `iot_shadow`. Authorization must also allow the principal, device, and operation.
+
+## Two interfaces to the same state
+
+MQTT and HTTP address the same device and Shadow name through distinct authentication and response paths. Their shared document semantics do not make MQTT acknowledgements equivalent to HTTP or Shadow success. Capability and principal checks still apply independently at each interface.
+
+![Two interfaces to the same state](assets/shadow-interface-map.svg)
+
+[Full-size block diagram](assets/shadow-interface-map.svg) · [Mermaid source](assets/shadow-interface-map.mmd)
 
 ## MQTT request and response
 

@@ -1,0 +1,8 @@
+flowchart TB
+    MQTT["MQTT client"] --> AuthM["Runtime JWT, returned username and Client ID"]
+    AuthM --> Broker["Broker / exact reserved topics"]
+    Broker <-->|"requests and notifications"| State["Same device-1 / tutorial Shadow"]
+    HTTP["HTTP client"] --> AuthH["Returned endpoint, region and SigV4 credentials"]
+    AuthH <-->|"signed request / response"| State
+    Rules["Same state merge and version rules, independent interface authorization"] -.-> State
+    Caps["MQTT Shadow: mqtt + iot_shadow. HTTP Shadow: iot_shadow."] -.-> Rules

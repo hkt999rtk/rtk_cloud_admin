@@ -1,12 +1,19 @@
 ---
-title: "Authentication and Access Control"
-description: "Obtain runtime tokens and map their metadata into MQTT and Shadow HTTP credentials."
-category: "Security"
-keywords: ["request_token", "refresh_token", "mTLS", "SigV4", "client_id", "aws_credentials"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: Authentication and Access Control
+description: Obtain runtime tokens and map their metadata into MQTT and Shadow HTTP
+  credentials.
+category: Build integrations
+keywords:
+- request_token
+- refresh_token
+- mTLS
+- SigV4
+- client_id
+- aws_credentials
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # Authentication and Access Control
@@ -16,6 +23,14 @@ A verified device certificate identifies the device. An app certificate identifi
 ![A client exchanges its certificate identity for a token, then authenticates an MQTT connection.](assets/authentication.svg)
 
 [Open full-size diagram](assets/authentication.svg) · [Mermaid source](assets/authentication.mmd)
+
+## Authentication boundaries
+
+Use each credential at its own boundary. An Account Manager bearer is not an MQTT password; a runtime JWT is not an AWS account credential. The shared map below complements the token exchange sequence and the detailed credential setup guide.
+
+![Authentication boundaries](assets/credential-uses.svg)
+
+[Full-size block diagram](assets/credential-uses.svg) · [Mermaid source](assets/credential-uses.mmd)
 
 ## Obtain runtime credentials
 
@@ -77,3 +92,5 @@ Validate the response before replacing the current token file. Reconnect MQTT us
 TLS failures occur before an HTTP response. Check the server trust chain, certificate validity, private key, and endpoint. HTTP token rejection can indicate a device identity mismatch, inactive device, missing permission, or unavailable device projection. MQTT rejection after successful issuance calls for checking username, Client ID, token expiry, and the `mqtt` capability.
 
 Next: [MQTT Quickstart](mqtt-quickstart.en.md) or [signed HTTP Shadow requests](shadow-interfaces.en.md).
+
+Continue: [Credential renewal and recovery](credential-recovery.en.md).

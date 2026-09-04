@@ -1,15 +1,30 @@
 ---
-title: "MQTT Topics and Message Reference"
-description: "Separate application-defined messages, device transport envelopes, and reserved Shadow topics."
-category: "Reference"
-keywords: ["topic", "namespace", "$vc", "$aws", "ACL", "payload"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: MQTT Topics and Message Reference
+description: Separate application-defined messages, device transport envelopes, and
+  reserved Shadow topics.
+category: Reference
+keywords:
+- topic
+- namespace
+- $vc
+- $aws
+- ACL
+- payload
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # MQTT Topics and Message Reference
+
+## Topic families and destinations
+
+These are logical protocol families behind the authenticated broker. General application topics, device transport envelopes, runtime logs and reserved Shadow messages have different contracts. Their placement in one broker does not make their schemas or permissions interchangeable. The diagram omits reverse device-command arrows for clarity; the direction table below remains the reference.
+
+![Topic families and destinations](assets/mqtt-topic-families.svg)
+
+[Full-size block diagram](assets/mqtt-topic-families.svg) · [Mermaid source](assets/mqtt-topic-families.mmd)
 
 ## Namespace rules
 

@@ -27,7 +27,7 @@ for (const entry of index.sections) {
     renderer: {
       link(token) {
         const html = Renderer.prototype.link.call(this, token);
-        return token.href.startsWith('/assets/developer-docs/assets/') && token.href.endsWith('.mmd')
+        return token.href.startsWith('/assets/developer-docs/assets/') && /\.(mmd|zip)$/.test(token.href)
           ? html.replace('<a ', '<a download ') : html;
       },
       html() { throw new Error(`${entry.source}: raw HTML is not supported`); },

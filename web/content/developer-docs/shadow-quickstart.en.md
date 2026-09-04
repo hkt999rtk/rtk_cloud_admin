@@ -1,12 +1,18 @@
 ---
-title: "Quickstart: Synchronize Device State"
-description: "Request power on from an app and confirm the device reports the applied state."
-category: "Tutorials"
-keywords: ["desired", "reported", "delta", "power", "quickstart"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: 'Quickstart: Synchronize Device State'
+description: Request power on from an app and confirm the device reports the applied
+  state.
+category: Tutorials
+keywords:
+- desired
+- reported
+- delta
+- power
+- quickstart
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # Quickstart: Synchronize Device State
@@ -98,3 +104,5 @@ In `get/accepted`, check `state.desired.power` and `state.reported.power` are bo
 If no delta arrives, GET current state: desired may already equal reported, a subscription may have failed, or the device may lack permission. Do not use a fixed sleep as proof of successful mutation.
 
 Next: [MQTT and HTTP operations](shadow-interfaces.en.md) and [offline recovery](integration-recipes.en.md). To remove tutorial state, use the explicit delete steps in the interface guide after stopping the observer.
+
+Architecture: [Shadow document architecture](shadow-concepts.en.md).

@@ -1,0 +1,59 @@
+{
+  "date": "2026-09-04",
+  "reviewed_pages": 26,
+  "new_block_diagrams": 8,
+  "pages_with_new_embedded_blocks": 9,
+  "total_block_diagrams": 13,
+  "sequence_diagrams": 23,
+  "metadata_links_syntax_and_hashes": "pass",
+  "build": "pass",
+  "visual_review": "pass",
+  "local_rag_query": "supervisor",
+  "local_rag_match": "credential-recovery.en.md",
+  "remote_embeddings": false,
+  "remote_answers": false,
+  "deployment": "not_deployed",
+  "local_rag_citations": [
+    {
+      "repo": "developer-docs",
+      "path": "credential-recovery.en.md",
+      "lines": [
+        21,
+        28
+      ],
+      "commit": "bbaf62f7d6b595646633b71832f37c7ecdb31eb0",
+      "heading": "Credential Renewal and Connection Recovery > Recovery example components",
+      "classification": "supporting-note",
+      "source_layer": "service",
+      "score": 1.3409
+    },
+    {
+      "repo": "developer-docs",
+      "path": "credential-recovery.en.md",
+      "lines": [
+        49,
+        69
+      ],
+      "commit": "bbaf62f7d6b595646633b71832f37c7ecdb31eb0",
+      "heading": "Credential Renewal and Connection Recovery > Run the bounded recovery supervisor",
+      "classification": "supporting-note",
+      "source_layer": "service",
+      "score": 1.3409
+    },
+    {
+      "repo": "developer-docs",
+      "path": "credential-recovery.en.md",
+      "lines": [
+        70,
+        79
+      ],
+      "commit": "bbaf62f7d6b595646633b71832f37c7ecdb31eb0",
+      "heading": "Credential Renewal and Connection Recovery > Network changes and reconnect reconciliation",
+      "classification": "supporting-note",
+      "source_layer": "service",
+      "score": 1.3409
+    }
+  ],
+  "local_rag_limitation": "Broad multiword queries ranked unrelated pages above this chapter; specific keyword query retrieved the architecture text.",
+  "desktop_mobile_full_link_tests": 6
+}

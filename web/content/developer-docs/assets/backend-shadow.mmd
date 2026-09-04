@@ -1,0 +1,25 @@
+sequenceDiagram
+    participant Caller as Authorized caller
+    participant Backend as Trusted backend
+    participant Token as Runtime token service
+    participant Shadow as Shadow HTTP service
+    Caller->>Backend: Request device operation
+    Backend->>Backend: Verify caller and target device authority
+    alt Authorized trusted orchestration
+        Backend->>Token: HTTPS POST /request_token (admin Bearer, scope=app, devid, aws_iot_data=true)
+        Token-->>Backend: 200 scoped token and SigV4 bundle, or error
+        opt Usable bundle returned
+            Backend->>Shadow: SigV4 GET /things/device-1/shadow?name=tutorial
+            Shadow-->>Backend: 200 current state and version, or 404
+            Backend->>Shadow: SigV4 POST /things/device-1/shadow?name=tutorial (desired, version)
+            alt Version matches
+                Shadow-->>Backend: 200 accepted mutation
+                Note over Backend: Device completion still requires reported-state observation
+            else Version conflict
+                Shadow-->>Backend: 409
+                Note over Backend: GET and reconcile intent before retry
+            end
+        end
+    else Caller unauthorized
+        Backend-->>Caller: Access denied, no token request
+    end

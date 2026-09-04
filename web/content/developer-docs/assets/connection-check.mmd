@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant Client as Client
+    participant Token as Token service
+    participant Broker as MQTT broker
+    Note over Client: Use published host, port, CA and role-specific token origin
+    Client->>Token: mTLS POST /request_token (scope, devid)
+    alt Identity and entitlement accepted
+        Token-->>Client: 200 access_token and mqtt metadata
+        Client->>Broker: TLS then MQTT CONNECT (returned credentials)
+        Broker-->>Client: CONNACK
+        Client->>Broker: SUBSCRIBE $vc/devices/device-1/shadow/name/tutorial/get/accepted and get/rejected
+        alt Exact subscriptions authorized
+            Broker-->>Client: SUBACK success
+            Client->>Broker: PUBLISH $vc/devices/device-1/shadow/name/tutorial/get
+            Broker-->>Client: PUBACK (transport only)
+            Broker-->>Client: get/accepted or get/rejected from Shadow service
+        else Subscription denied
+            Broker-->>Client: SUBACK rejection or connection closure per policy
+        end
+    else Identity or policy rejected
+        Token-->>Client: TLS failure or HTTP error
+        Note over Client: Resolve identity, activation and capabilities separately
+    end

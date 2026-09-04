@@ -1,12 +1,20 @@
 ---
-title: "Troubleshooting and Compatibility"
-description: "Diagnose failures by protocol layer and understand RTK Shadow compatibility boundaries."
-category: "Support"
-keywords: ["401", "403", "409", "timeout", "AWS", "SigV4", "SUBACK"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: Troubleshooting and Compatibility
+description: Diagnose failures by protocol layer and understand RTK Shadow compatibility
+  boundaries.
+category: Operate and troubleshoot
+keywords:
+- '401'
+- '403'
+- '409'
+- timeout
+- AWS
+- SigV4
+- SUBACK
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # Troubleshooting and Compatibility
@@ -49,3 +57,5 @@ RTK Shadow follows the AWS-style document, merge, delta, version, and HTTP data-
 This edition is tied to the source snapshots in page metadata. Local protocol tests and diagram checks are recorded in the maintainer validation report. Production connection limits, broker policy, and entitlement enforcement must be qualified against your target environment; this edition does not certify a deployment. API behavior, credentials, or permissions should not be changed to make an example pass.
 
 Return to [the overview](overview.en.md), [MQTT Quickstart](mqtt-quickstart.en.md), or [Shadow Quickstart](shadow-quickstart.en.md).
+
+Continue: [Step-by-step integration debugging](debugging.en.md).

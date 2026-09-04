@@ -1,12 +1,18 @@
 ---
-title: "Cloud Service Overview"
-description: "Understand MQTT messaging, Shadow state, and the roles of devices and applications."
-category: "Start here"
-keywords: ["MQTT", "Shadow", "architecture", "device", "backend"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: Cloud Service Overview
+description: Understand MQTT messaging, Shadow state, and the roles of devices and
+  applications.
+category: Start here
+keywords:
+- MQTT
+- Shadow
+- architecture
+- device
+- backend
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # Cloud Service Overview
@@ -42,4 +48,8 @@ Public device identity is `devid`; the Shadow HTTP API calls the same value `thi
 
 ## Learning path
 
-Start with [Before You Start](before-you-start.en.md), complete [MQTT message exchange](mqtt-quickstart.en.md), then follow [Shadow state synchronization](shadow-quickstart.en.md). Streaming, OTA, and telemetry service guides are planned for a later edition.
+Start with [Cloud/device setup](setup-cloud-device.en.md) and [Credential Setup](credential-setup.en.md), then [Before You Start](before-you-start.en.md), complete [MQTT message exchange](mqtt-quickstart.en.md), then follow [Shadow state synchronization](shadow-quickstart.en.md). Streaming, OTA, and telemetry service guides are planned for a later edition.
+
+For a complete two-client program, use [End-to-End App and Device Example](app-device-example.en.md). Server teams should read [Backend Integration](backend-integration.en.md); check [Connection Settings and Service Limits](connection-settings.en.md) before choosing production client settings.
+
+Continue: [Choose a developer learning path](documentation-map.en.md).

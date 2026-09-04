@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant Dev as Developer
+    participant AM as Account Manager
+    participant Cloud as Cloud activation
+    Note over Dev,AM: R = /v1/orgs/{orgId}/devices
+    Dev->>AM: HTTPS POST R/claim/resolve
+    alt Claim authorized
+        AM-->>Dev: 201 device and provision_input
+        Note over Dev,AM: Claim resolution does not activate the device
+        Dev->>AM: HTTPS POST R/{deviceId}/provision
+        AM-->>Dev: 201 new or 200 existing operation
+        AM->>Cloud: Asynchronous activation
+        loop Bounded polling while pending
+            Dev->>AM: HTTPS GET R/{deviceId}/provisioning
+            AM-->>Dev: operation, readiness, video_metadata
+        end
+        alt Activation successful
+            Note over Dev,Cloud: Verify mqtt AND iot_shadow before runtime use
+        else Activation failed or timed out
+            Note over Dev,AM: Inspect operation and readiness failure before retry
+        end
+    else Claim denied
+        AM-->>Dev: HTTP error, no activation started
+    end

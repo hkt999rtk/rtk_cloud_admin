@@ -1,0 +1,93 @@
+{
+  "date": "2026-09-04",
+  "query": "REQ-SHADOW-RESPONSE-001",
+  "remote_embeddings": false,
+  "remote_answers": false,
+  "citations": [
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+      "lines": [
+        189,
+        194
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-RESPONSE-001] Accepted and rejected responses match the public document contract",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/device_shadow.md",
+      "lines": [
+        195,
+        233
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "Device Shadow Contract > [FEAT-HOME-SHADOW-001] Device Shadow lifecycle > [REQ-SHADOW-RESPONSE-001] Accepted and rejected responses match the public document contract > Response Documents",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+      "lines": [
+        561,
+        605
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "openapi.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+      "lines": [
+        606,
+        640
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "openapi.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+      "lines": [
+        641,
+        685
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "openapi.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    },
+    {
+      "repo": "rtk_cloud_contracts_doc",
+      "path": "repos/rtk_cloud_contracts_doc/openapi.yaml",
+      "lines": [
+        686,
+        720
+      ],
+      "commit": "9b1ed887912e0ff6d5cede0e9a09136500a613eb",
+      "heading": "openapi.yaml",
+      "classification": "source",
+      "source_layer": "contracts",
+      "score": 2.5909
+    }
+  ],
+  "docs_index": {
+    "active_files": 26,
+    "smoke_query": "Firmware schema evolution",
+    "matched_source": "state-model.en.md",
+    "remote_embeddings": false,
+    "remote_answers": false
+  }
+}

@@ -1,8 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { developerDocsURL, searchDeveloperDocs } from './developer-docs.mjs';
+import { developerDocsURL, searchDeveloperDocs, documentationSnippet } from './developer-docs.mjs';
 import './developer-docs.css';
 
+const categoryIcons = { 'Start here': 'compass', Tutorials: 'play', Concepts: 'diagram-project', 'Build integrations': 'code', 'Operate and troubleshoot': 'wrench', Reference: 'book-open' };
+const topicIcons = { authentication: 'shield-halved', 'credential-setup': 'key', 'credential-recovery': 'key', 'mqtt-topics': 'route', 'mqtt-connection': 'network-wired', 'mqtt-quickstart': 'network-wired', 'shadow-concepts': 'arrows-rotate', 'shadow-quickstart': 'arrows-rotate', 'shadow-interfaces': 'arrows-rotate', 'shadow-reference': 'arrows-rotate', debugging: 'bug', 'integration-test-kit': 'flask', 'api-examples': 'code', 'device-presence': 'signal', 'ownership-sharing': 'users' };
+function DocsIcon({ name }) { return <i className={`fa-solid fa-${name}`} aria-hidden="true" />; }
+
+function SearchHighlight({ text, query }) {
+  const terms = query.trim().split(/\s+/).filter(Boolean);
+  if (!terms.length) return text;
+  const escaped = terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const pattern = new RegExp(`(${escaped.join('|')})`, 'gi');
+  return text.split(pattern).map((part, index) => index % 2 ? <mark key={index}>{part}</mark> : part);
+}
+
 export function DeveloperDocs() {
+  const [category, setCategory] = useState('');
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('q') || '');
@@ -29,28 +42,46 @@ export function DeveloperDocs() {
   }
   if (error) return <section className="panel" role="alert">{error}</section>;
   if (!catalog) return <section className="panel" role="status">Loading documentation…</section>;
-  const results = searchDeveloperDocs(catalog.pages, query);
+  const matches = searchDeveloperDocs(catalog.pages, query);
+  const results = matches.filter((item) => !category || item.category === category);
+  const browsing = !slug || Boolean(query);
+  const groups = [...new Set(catalog.pages.map((item) => item.category))];
+  const resultGroups = query.trim() ? [{ title: 'Search results · most relevant first', items: results }] : groups.map((group) => ({ title: group, items: results.filter((item) => item.category === group) }));
+  function updateQuery(value) {
+    setQuery(value);
+    const next = new URL(window.location.href);
+    if (value) next.searchParams.set('q', value); else next.searchParams.delete('q');
+    window.history.replaceState(window.history.state, '', next);
+  }
   return <section className="developer-docs" lang="en">
-    <p className="docs-intro">Build with MQTT and Device Shadow. Follow a quickstart, explore the protocol reference, or search the documentation.</p>
-    <label className="docs-mobile-chapters">Choose a chapter<select value={page?.slug || ''} onChange={(event) => window.location.assign(href(event.target.value))}><option value="">All documentation</option>{catalog.pages.map((item) => <option key={item.slug} value={item.slug}>{item.title}</option>)}</select></label>
-    <div className="docs-layout">
-      <nav className="docs-chapters panel" aria-label="Documentation chapters">
-        <a className="docs-home" href={href()}>All documentation</a>
-        {catalog.pages.map((item) => <a key={item.slug} href={href(item.slug)} aria-current={page?.slug === item.slug ? 'page' : undefined}>{item.title}</a>)}
-      </nav>
+    {browsing ? <><p className="docs-intro">Build with MQTT and Device Shadow. <a href={href('documentation-map')}><DocsIcon name="compass" /> Find your learning path</a></p>
+    <label className="docs-mobile-chapters">Choose a chapter<select value={page?.slug || ''} onChange={(event) => window.location.assign(href(event.target.value))}><option value="">All documentation</option>{groups.map((group) => <optgroup key={group} label={group}>{catalog.pages.filter((item) => item.category === group).map((item) => <option key={item.slug} value={item.slug}>{item.title}</option>)}</optgroup>)}</select></label></> : <nav className="docs-breadcrumb" aria-label="Documentation navigation"><a href={href()}><DocsIcon name="arrow-left" /> Back to documents</a>{page ? <label className="docs-jump">On this page<select aria-label="Jump to section" defaultValue="" onChange={(event) => { window.location.hash = event.target.value; }}><option value="" disabled>Jump to section…</option>{page.headings.filter((heading) => heading.depth === 2).map((heading) => <option key={heading.anchor} value={heading.anchor}>{heading.title}</option>)}</select></label> : null}</nav>}
+    <div className={`docs-layout ${browsing ? 'docs-browse' : 'docs-detail'}`}>
+      {browsing ? <nav className="docs-categories" aria-label="Documentation categories">
+        <h2>Browse documentation</h2>
+        <button type="button" aria-pressed={!category} onClick={() => setCategory('')}><DocsIcon name="layer-group" /><span>All documents</span><small>{matches.length}</small></button>
+        {groups.map((group) => <button type="button" key={group} aria-pressed={category === group} onClick={() => setCategory(group)}><DocsIcon name={categoryIcons[group]} /><span>{group}</span><small>{matches.filter((item) => item.category === group).length}</small></button>)}
+      </nav> : null}
       <div className="docs-reading">
-        <form className="docs-search panel" action="/console/developer-docs" role="search">
-          <label htmlFor="docs-query">Search documentation</label>
-          <div><input id="docs-query" name="q" type="search" maxLength={200} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics, API paths, errors…" />
+        {browsing ? <form className="docs-search panel" action="/console/developer-docs" role="search" onSubmit={(event) => event.preventDefault()}>
+          <label htmlFor="docs-query"><DocsIcon name="magnifying-glass" /> Search documentation</label>
+          <div><input id="docs-query" name="q" type="search" maxLength={200} value={query} onChange={(event) => updateQuery(event.target.value)} placeholder="Search topics, API paths, errors…" />
           {new URLSearchParams(window.location.search).get('cloudId') ? <input type="hidden" name="cloudId" value={new URLSearchParams(window.location.search).get('cloudId')} /> : null}
           <button className="primary-button" type="submit">Search</button></div>
-        </form>
+        </form> : null}
         {!slug || query ? <div className="docs-results" aria-label="Documentation results">
           <p role="status">{results.length} {results.length === 1 ? 'document' : 'documents'}{query ? ` matching “${query}”` : ''}</p>
           {!results.length ? <p className="panel">No matching documents. Try MQTT, desired, certificate, or version.</p> : null}
-          {results.map((item) => <article className="panel docs-result" key={item.slug}><small>{item.category}</small><h2><a href={href(item.slug)}>{item.title}</a></h2><p>{item.description}</p></article>)}
+          {resultGroups.filter((group) => group.items.length).map((group) => <section className="docs-result-section" key={group.title}>
+            <h2 className="docs-result-group"><DocsIcon name={query.trim() ? 'magnifying-glass' : categoryIcons[group.title]} />{group.title}<span>{group.items.length}</span></h2>
+            <div className="docs-result-list">{group.items.map((item) => <article className="docs-result" key={item.slug}>
+              <span className="docs-topic-icon"><DocsIcon name={topicIcons[item.slug] || categoryIcons[item.category]} /></span>
+              <div>{query.trim() ? <small className="docs-match-category">{item.category}</small> : null}<h3><a href={href(item.slug)}><SearchHighlight text={item.title} query={query} /></a></h3><p><SearchHighlight text={documentationSnippet(item, query)} query={query} /></p></div>
+              <DocsIcon name="chevron-right" />
+            </article>)}</div>
+          </section>)}
         </div> : page ? <article className="panel docs-article" onClick={keepCloudContext}>
-          <header><p className="docs-category">{page.category}</p><h2>{page.title}</h2><p>{page.description}</p><small>Last verified: {String(page.last_verified)} · {page.verification}</small>
+          <header><p className="docs-category"><DocsIcon name={categoryIcons[page.category]} /> {page.category}</p><h2>{page.title}</h2><p>{page.description}</p><small>Last verified: {String(page.last_verified)} · {page.verification}</small>
           <details><summary>Applicable versions</summary><pre>{typeof page.applies_to === 'string' ? page.applies_to : JSON.stringify(page.applies_to, null, 2)}</pre></details></header>
           <details className="docs-toc"><summary>On this page</summary>{page.headings.filter((heading) => heading.depth === 2).map((heading) => <a href={`#${heading.anchor}`} key={heading.anchor}>{heading.title}</a>)}</details>
           {/* HTML is generated at build time from the curated source; raw HTML is rejected by the publisher. */}

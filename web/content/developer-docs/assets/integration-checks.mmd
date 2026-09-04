@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant Kit as Test kit
+    participant Service as MQTT / Shadow service
+    participant Device as Simulator
+    Note over Kit,Service: R = $vc/devices/device-1/shadow/name/tutorial
+    loop Independent device and app credentials
+        Kit->>Service: TLS CONNECT and exact SUBSCRIBE
+        Service-->>Kit: CONNACK and SUBACK
+        Kit->>Service: PUBLISH R/get (clientToken)
+        Service-->>Kit: R/get/accepted or R/get/rejected
+        Note over Kit: Accept 404 as missing, fail other rejection or timeout
+    end
+    opt Explicit --exercise on tutorial Shadow
+        Kit->>Device: Start device simulator
+        Note over Device,Service: Simulator subscribes and reconciles via GET
+        Kit->>Service: App PUBLISH R/update (desired.power=on)
+        Service-->>Kit: R/update/accepted
+        Service-->>Device: R/update/delta or current desired from GET
+        Device->>Service: PUBLISH R/update (reported.power=on)
+        Kit->>Service: PUBLISH R/get
+        Service-->>Kit: R/get/accepted (converged state)
+        Kit->>Device: Stop simulator on completion or failure
+    end

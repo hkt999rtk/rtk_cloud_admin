@@ -1,0 +1,29 @@
+sequenceDiagram
+    participant Client
+    participant Broker as MQTT broker
+    participant Shadow as Shadow service
+    Note over Client,Shadow: R = $vc/devices/device-1/shadow/name/tutorial
+    Client->>Broker: TLS and MQTT CONNECT
+    alt Authentication accepted
+        Broker-->>Client: CONNACK success
+        Client->>Broker: SUBSCRIBE R/get/accepted and R/get/rejected
+        Broker-->>Client: SUBACK result
+        opt Subscriptions accepted
+            Client->>Broker: PUBLISH R/get (clientToken=diagnostic-read)
+            Broker-->>Client: PUBACK (not a Shadow result)
+            Broker->>Shadow: R/get
+            alt State exists
+                Shadow-->>Broker: R/get/accepted
+                Broker-->>Client: Correlated full state
+            else Missing Shadow
+                Shadow-->>Broker: R/get/rejected (404)
+                Broker-->>Client: Correlated rejected response
+            end
+            opt Deadline expires without response
+                Note over Client: Unknown outcome, inspect layer and retry a read within budget
+            end
+        end
+    else Connection rejected
+        Broker-->>Client: Connection rejection or closure
+        Note over Client: Inspect current identity and endpoint before topics
+    end

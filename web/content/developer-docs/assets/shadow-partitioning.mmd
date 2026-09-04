@@ -1,0 +1,11 @@
+flowchart TB
+    Device["One runtime device identity"] --> Config["Named Shadow: configuration"]
+    Device --> Diagnostics["Named Shadow: diagnostics"]
+    Device --> Default["Unnamed Shadow"]
+    Config --> Desired["Desired configuration intent"]
+    Config --> Reported["Reported applied configuration"]
+    Diagnostics --> Status["Bounded application-defined diagnostic state"]
+    Rules["Each Shadow has its own version, size budget and lifecycle"] -.-> Config
+    Rules -.-> Diagnostics
+    Rules -.-> Default
+    Boundary["No cross-Shadow transaction. Names alone do not grant isolation."] -.-> Rules

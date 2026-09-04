@@ -1,12 +1,19 @@
 ---
-title: "Shadow API and Message Reference"
-description: "Look up Shadow paths, topic suffixes, document fields, limits, and errors."
-category: "Reference"
-keywords: ["409", "413", "429", "clientToken", "version", "8 KiB", "name"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: Shadow API and Message Reference
+description: Look up Shadow paths, topic suffixes, document fields, limits, and errors.
+category: Reference
+keywords:
+- '409'
+- '413'
+- '429'
+- clientToken
+- version
+- 8 KiB
+- name
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # Shadow API and Message Reference
@@ -107,3 +114,5 @@ MQTT application errors arrive on rejected topics with `code`; broker failures a
 ## Delivery and concurrency
 
 Mutations have increasing versions per Shadow. The canonical notification contract is at least once, ordered by version per Shadow; duplicates are permitted. It is not an exactly-once delivery promise or a guarantee that a disconnected subscriber receives every event. Different Shadows have independent ordering. HTTP mutation success does not wait for notification delivery. For same-version events, track the event type and request correlation independently.
+
+Continue: [Complete API and message examples](api-examples.en.md).

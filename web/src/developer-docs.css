@@ -33,3 +33,79 @@
 
 .docs-mobile-chapters { display: none; }
 @media (max-width: 1050px) { .docs-chapters { display: none; } .docs-mobile-chapters { display: grid; gap: 8px; margin-bottom: 18px; font-weight: 600; } .docs-mobile-chapters select { max-width: 100%; width: 100%; } }
+
+.docs-chapter-group { display: grid; gap: 2px; }
+.docs-chapter-group h2 { font-size: 13px; color: #516477; margin: 16px 10px 6px; }
+
+.docs-result-group { font-size: 20px; margin: 18px 0 0; }
+
+/* Directory: category filters and compact, scannable document rows. */
+.developer-docs .docs-intro { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; margin-bottom: 18px; }
+.developer-docs .docs-intro a { color: #0064a9; text-decoration: none; }
+.developer-docs .docs-layout { grid-template-columns: 200px minmax(0, 1fr); gap: 24px; }
+.docs-categories { position: sticky; top: 24px; display: grid; gap: 3px; }
+.docs-categories h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: #627487; margin: 0 10px 12px; }
+.docs-categories button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; border-radius: 6px; background: transparent; color: #40566c; text-align: left; font: inherit; font-size: 13px; line-height: 1.4; cursor: pointer; }
+.docs-categories button > i { width: 16px; text-align: center; flex-shrink: 0; }
+.docs-categories button span { flex: 1; }
+.docs-categories button small { font-size: 11px; font-variant-numeric: tabular-nums; }
+.docs-categories button[aria-pressed="true"] { background: #e0edf8; color: #005d99; font-weight: 650; }
+.docs-categories button:hover { background: #eaf1f6; }
+.developer-docs :is(a, button, input, select):focus-visible { outline: 2px solid #0076bc; outline-offset: 3px; }
+.developer-docs .docs-search { padding: 0; margin: 0 0 12px; border: 0; box-shadow: none; background: transparent; overflow: visible; }
+.developer-docs .docs-search label { font-size: 12px; margin-bottom: 6px; color: #516477; }
+.developer-docs .docs-search input { padding: 9px 12px; font-size: 13px; }
+.developer-docs .docs-search button { padding: 8px 14px; font-size: 13px; }
+.developer-docs .docs-results { display: block; }
+.docs-results > p[role="status"] { font-size: 12px; color: #627487; margin: 0 0 14px; }
+.docs-result-section { margin-bottom: 20px; }
+.developer-docs .docs-result-group { display: flex; align-items: center; gap: 9px; margin: 0 0 8px; font-size: 13px; color: #314e66; line-height: 1.5; }
+.docs-result-group > i { color: #477c9e; font-size: 12px; }
+.docs-result-group > span { color: #6c7f8e; font-size: 11px; font-weight: 400; }
+.docs-result-list { border: 1px solid #dce5ec; border-radius: 8px; background: #fff; overflow: hidden; }
+.developer-docs .docs-result { display: grid; grid-template-columns: 24px minmax(0, 1fr) 10px; gap: 10px; align-items: start; padding: 11px 14px; position: relative; }
+.docs-result + .docs-result { border-top: 1px solid #e8eef2; }
+.docs-result:hover, .docs-result:focus-within { background: #f2f8fc; }
+.docs-topic-icon { display: flex; justify-content: center; align-items: center; height: 26px; color: #54819e; font-size: 13px; }
+.developer-docs .docs-result h3 { font-size: 14px; line-height: 1.4; margin: 0 0 3px; font-weight: 650; }
+.docs-result h3 a { color: #183e5d; text-decoration: none; }
+.docs-result h3 a::after { content: ''; position: absolute; inset: 0; }
+.developer-docs .docs-result p { font-size: 12px; line-height: 1.45; margin: 0; color: #627487; }
+.docs-result > i { font-size: 9px; color: #8395a4; margin-top: 6px; }
+.developer-docs .docs-chapters { padding: 10px; margin: 0; box-shadow: none; }
+.developer-docs .docs-chapters a { font-size: 12px; padding: 6px 8px; }
+.developer-docs .docs-chapter-group h2 { font-size: 11px; margin: 12px 8px 4px; }
+.developer-docs .docs-mobile-chapters { font-size: 12px; gap: 5px; margin-bottom: 14px; }
+.developer-docs .docs-mobile-chapters select { font-size: 13px; padding: 8px; }
+@media (max-width: 1050px) {
+  .developer-docs .docs-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .docs-categories { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
+  .docs-categories h2 { display: none; }
+  .docs-categories button { width: auto; padding: 6px 9px; background: #edf2f6; font-size: 12px; gap: 7px; }
+}
+@media (max-width: 600px) {
+  .developer-docs .docs-search > div { flex-wrap: nowrap; gap: 6px; }
+  .developer-docs .docs-search input { flex-basis: auto; }
+  .developer-docs .docs-result { padding: 10px; gap: 7px; grid-template-columns: 20px minmax(0, 1fr) 8px; }
+}
+.developer-docs .docs-categories button .fa-solid { color: #54819e; }
+.developer-docs .docs-categories button[aria-pressed="true"] .fa-solid { color: #005d99; }
+
+/* Articles use the available width for prose, code, and network diagrams. */
+.developer-docs .docs-detail { display: block; max-width: 1100px; margin-inline: auto; }
+.docs-breadcrumb { max-width: 1100px; margin: 0 auto 16px; font-size: 13px; }
+.docs-breadcrumb a { display: inline-flex; align-items: center; gap: 8px; color: #0064a9; text-decoration: none; }
+.docs-breadcrumb a:hover { text-decoration: underline; }
+.developer-docs .docs-detail .docs-article { padding: clamp(16px, 3vw, 36px); }
+
+.docs-match-category { display: block; font-size: 10px; color: #627487; margin-bottom: 3px; }
+.developer-docs mark { background: #fff0ad; color: #263d50; border-radius: 2px; }
+.developer-docs .docs-breadcrumb { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; background: #f5f9fc; border-bottom: 1px solid #dce5ec; }
+.docs-jump { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #516477; min-width: 0; }
+.docs-jump select { font-size: 12px; padding: 6px 8px; max-width: 280px; min-width: 0; }
+.docs-body a { color: #0064a9; text-underline-offset: 3px; }
+@media (max-width: 600px) {
+  .docs-jump { font-size: 0; flex: 1; justify-content: flex-end; }
+  .docs-jump select { width: 100%; max-width: 180px; }
+  .docs-breadcrumb > a { flex-shrink: 0; font-size: 12px; }
+}

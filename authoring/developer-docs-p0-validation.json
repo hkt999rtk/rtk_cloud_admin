@@ -1,0 +1,27 @@
+{
+  "date": "2026-09-04",
+  "doc_pages": 17,
+  "svg_diagrams": 16,
+  "new_diagrams": 6,
+  "sample_behavior_tests": 6,
+  "desktop_mobile_tests": 6,
+  "zip_source_integrity": "pass",
+  "build": "pass",
+  "new_core_diagram_visual_review": "pass",
+  "live_onboarding": "not_run",
+  "live_two_principal_demo": "not_run",
+  "deployment": "not_deployed",
+  "dev_broker_configuration": {
+    "max_packet_size": "1MB",
+    "max_qos_allowed": 2,
+    "retain_available": true,
+    "max_inflight": 32,
+    "max_mqueue_len": 1000,
+    "session_expiry_interval": "2h",
+    "keepalive_multiplier": 1.5,
+    "keepalive_check_interval": "30s",
+    "server_keepalive": "disabled",
+    "max_topic_levels": 128,
+    "wildcard_subscription": true
+  }
+}

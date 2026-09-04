@@ -1,0 +1,12 @@
+flowchart LR
+    Config["Public endpoint / CA / test device settings"] --> Kit["verify.py"]
+    Tokens["Private independent app and device token files"] --> Kit
+    Kit -->|"default: read-only"| Probe["TLS, exact subscriptions, correlated GET"]
+    Probe --> Service["Target MQTT / Shadow service"]
+    Kit -->|"explicit --exercise"| App["App demo: desired update and convergence check"]
+    Kit -->|"supervises and stops"| Device["Device simulator: apply and report"]
+    App <--> Service
+    Device <--> Service
+    Probe --> Evidence["Sanitized results / exit code"]
+    App --> Evidence
+    Matrix["Separate live qualification: ownership, revocation, HTTP, presence"] -.-> Evidence

@@ -1,0 +1,9 @@
+flowchart TB
+    Config["Endpoint, DNS, clock and CA"] --> TLS["TLS and certificate identity"]
+    TLS --> Token["Token issuance and target authorization"]
+    Token --> Connect["MQTT CONNACK"]
+    Connect --> Subscribe["Exact topic SUBACK"]
+    Subscribe --> Delivery["MQTT PUBACK: transport only"]
+    Delivery --> Shadow["Shadow accepted / rejected and current GET state"]
+    Shadow --> Hardware["Firmware execution and truthful reported state"]
+    Note["Find the first failed observable boundary. Success above does not prove success below."] -.-> Config

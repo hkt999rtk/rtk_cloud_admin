@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant App as Developer app
+    participant AM as Account Manager
+    participant Issuer as Certificate issuer
+    App->>AM: HTTPS POST /v1/auth/login (email, password)
+    AM-->>App: user.id, tokens, app_certificate.status
+    alt csr_required
+        Note over App: Generate local key and CSR for app-user:user_id
+        App->>AM: HTTPS POST /v1/auth/login (app_csr_pem)
+        alt CSR subject and authorization valid
+            AM->>Issuer: mTLS POST /v1/certificates/app/issue
+            Issuer-->>AM: Certificate and issuance metadata
+            AM-->>App: issued certificate-only bundle
+            Note over App: Match certificate to retained private key
+        else CSR invalid or issuer unavailable
+            AM-->>App: HTTP error with bootstrap failure code
+        end
+    else issued
+        Note over App: Reuse matching retained key, do not rotate on routine login
+    end

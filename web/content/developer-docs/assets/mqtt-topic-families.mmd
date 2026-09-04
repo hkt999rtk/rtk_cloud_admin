@@ -1,0 +1,8 @@
+flowchart LR
+    Client["Authenticated MQTT client"] --> Broker["Broker: identity, namespace and topic policy"]
+    Broker -->|"General application topics"| General["Application-defined topic subscribers"]
+    Broker -->|"Device transport topics"| Transport["Supported device transport protocol"]
+    Broker -->|"Runtime log topics"| Logs["Dedicated runtime-log schema"]
+    Broker -->|"Reserved $vc Shadow topics"| Shadow["Shadow request / response protocol"]
+    Shadow -->|"accepted, rejected and notifications"| Broker
+    Note["A device ID in a general topic is not per-device access control"] -.-> General

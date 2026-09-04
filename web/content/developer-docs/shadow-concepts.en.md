@@ -1,12 +1,18 @@
 ---
-title: "Device Shadow Concepts"
-description: "Understand desired and reported state, delta, names, merge rules, and versions."
-category: "Guides"
-keywords: ["desired", "reported", "delta", "version", "named shadow"]
-language: "en"
-applies_to: "RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155"
-last_verified: "2026-09-04"
-verification: "Source review and local tests; live environment qualification pending"
+title: Device Shadow Concepts
+description: Understand desired and reported state, delta, names, merge rules, and
+  versions.
+category: Concepts
+keywords:
+- desired
+- reported
+- delta
+- version
+- named shadow
+language: en
+applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
+last_verified: '2026-09-04'
+verification: Source review and local tests; live environment qualification pending
 ---
 
 # Device Shadow Concepts
@@ -16,6 +22,14 @@ A Shadow is a stored JSON state document, not a connection or a queue of command
 ![The application requests a state change; the device reports the state only after applying it.](assets/shadow-sync.svg)
 
 [Open full-size diagram](assets/shadow-sync.svg) · [Mermaid source](assets/shadow-sync.mmd)
+
+## Inside a Shadow document
+
+Desired is intent, reported is observation, and delta is a service-computed difference. Metadata and versions belong to the service. The client roles shown are typical application responsibilities, not an automatic desired-only/reported-only permission rule. Delta is derived rather than an independently writable field.
+
+![Inside a Shadow document](assets/shadow-document-model.svg)
+
+[Full-size block diagram](assets/shadow-document-model.svg) · [Mermaid source](assets/shadow-document-model.mmd)
 
 ## State fields
 
@@ -43,3 +57,5 @@ UPDATE accepted contains the accepted patch, not a complete replacement snapshot
 Notifications may repeat. Track version and event type, and correlate request responses separately: an accepted message must not cause you to discard a same-version delta before processing it. See [integration recipes](integration-recipes.en.md).
 
 Next: [synchronize your first state](shadow-quickstart.en.md).
+
+Continue: [Design your device state model](state-model.en.md).

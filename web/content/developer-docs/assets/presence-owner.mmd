@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant MQTT as MQTT owner client
+    participant Runtime as Device runtime
+    participant WS as WebSocket device client
+    Note over MQTT,Runtime: Supported SDK establishes MQTT owner session
+    WS->>Runtime: WSS GET /ws/device?devid=device-1 (Bearer upgrade)
+    alt Authorized WebSocket session
+        Runtime-->>WS: WebSocket upgrade accepted
+        Note over Runtime: WebSocket replaces MQTT ownership
+        MQTT->>Runtime: MQTT owner reconnect attempt
+        Runtime-->>MQTT: Lower-priority ownership not granted
+        Runtime->>WS: Supported outbound command to current owner only
+    else Authentication denied
+        Runtime-->>WS: Upgrade rejected
+    end
+    Note over Runtime: No owner means explicit command failure, not fallback
