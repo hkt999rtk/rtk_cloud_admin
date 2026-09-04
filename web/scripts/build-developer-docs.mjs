@@ -2,7 +2,7 @@
 import { readFile, readdir, mkdir, writeFile, cp } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
-import { Marked } from 'marked';
+import { Marked, Renderer } from 'marked';
 import { parse } from 'yaml';
 
 const root = resolve(import.meta.dirname, '../content/developer-docs');
@@ -25,6 +25,11 @@ for (const entry of index.sections) {
   const renderer = new Marked({
     gfm: true,
     renderer: {
+      link(token) {
+        const html = Renderer.prototype.link.call(this, token);
+        return token.href.startsWith('/assets/developer-docs/assets/') && token.href.endsWith('.mmd')
+          ? html.replace('<a ', '<a download ') : html;
+      },
       html() { throw new Error(`${entry.source}: raw HTML is not supported`); },
       heading({ tokens, depth, text }) {
         const base = text.toLowerCase().replace(/[^\w -]/g, '').replace(/ /g, '-');
