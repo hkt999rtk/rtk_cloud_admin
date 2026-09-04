@@ -15,3 +15,18 @@ test('chapter navigation retains Cloud context, and sign-in returns to the reque
   assert.equal(url, '/console/developer-docs/shadow-quickstart?cloudId=11111111-1111-4111-8111-111111111111');
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer', memberships: [] }, url), url);
 });
+
+// Use the authored inventory so newly added chapters cannot silently become tenant routes.
+import { readFileSync } from 'node:fs';
+import { parse } from 'yaml';
+import { routeFromPath, canonicalCustomerPath, cloudIdFromPath } from './routes.mjs';
+const inventory = parse(readFileSync(new URL('../content/developer-docs/index.en.yaml', import.meta.url), 'utf8'));
+test('every published chapter, including overview, remains a global documentation route', () => {
+  for (const { slug } of inventory.sections) {
+    const path = `/console/developer-docs/${slug}`;
+    assert.equal(routeFromPath(path), 'developer-docs', slug);
+    assert.equal(routeFromPath(`${path}/`), 'developer-docs', slug);
+    assert.equal(canonicalCustomerPath(path), path, slug);
+    assert.equal(cloudIdFromPath(path), '', slug);
+  }
+});

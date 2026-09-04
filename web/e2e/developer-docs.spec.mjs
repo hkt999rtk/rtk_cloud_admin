@@ -35,3 +35,68 @@ test('[UI-CA-DOCS-002] direct chapter links require the regular console sign-in 
   await expect(page).toHaveURL(/\/login\?next=/);
   expect(new URL(page.url()).searchParams.get('next')).toBe('/console/developer-docs/shadow-quickstart');
 });
+
+test('[UI-CA-DOCS-003] every chapter and in-document link works @smoke', async ({ page, isMobile }, testInfo) => {
+  test.setTimeout(180_000);
+  await login(page, 'developer');
+  const catalogResponse = await page.request.get('/assets/developer-docs/index.en.json');
+  const { pages } = await catalogResponse.json();
+  const checked = [];
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  for (const chapter of pages) {
+    await page.goto('/console/developer-docs');
+    // Exercise actual navigation, not only HTTP 200 from the generic SPA shell.
+    if (isMobile) await page.getByLabel('Choose a chapter').selectOption(chapter.slug);
+    else await page.getByRole('navigation', { name: 'Documentation chapters' }).getByRole('link', { name: chapter.title, exact: true }).click();
+    await expect(page.locator('.docs-article header h2')).toHaveText(chapter.title);
+    await expect(page.getByText('The requested data could not be loaded. Please try again.', { exact: true })).toHaveCount(0);
+    checked.push({ source: 'chapter navigation', destination: chapter.url });
+    const links = await page.locator('.docs-body a').evaluateAll((items) => items.map((item) => ({ href: item.getAttribute('href'), text: item.textContent })));
+    for (let i = 0; i < links.length; i += 1) {
+      const link = links[i];
+      await page.goto(chapter.url);
+      await expect(page.locator('.docs-article header h2')).toHaveText(chapter.title);
+      const target = page.locator('.docs-body a').nth(i);
+      if (link.href.startsWith('/assets/')) {
+        if (link.href.endsWith('.mmd')) {
+          const downloadPromise = page.waitForEvent('download');
+          await target.click();
+          expect(await (await downloadPromise).failure()).toBeNull();
+        } else {
+          await target.click();
+          expect(new URL(page.url()).pathname).toBe(link.href);
+        }
+        const content = await page.request.get(link.href);
+        expect(await content.text()).toContain(link.href.endsWith('.svg') ? '<svg' : (link.href.includes('service-overview') ? 'flowchart' : 'sequenceDiagram'));
+      } else {
+        await target.click();
+        const destination = pages.find((item) => item.url === link.href);
+        if (destination) await expect(page.locator('.docs-article header h2')).toHaveText(destination.title);
+        else {
+          expect(link.href).toBe('/console/chipset-sdk');
+          await expect(page.getByRole('heading', { name: 'ChipSet & SDK', exact: true }).first()).toBeVisible();
+          await expect(page.getByRole('heading', { name: 'Cloud Client SDKs', exact: true })).toBeVisible();
+        }
+        await expect(page.getByText('The requested data could not be loaded. Please try again.', { exact: true })).toHaveCount(0);
+      }
+      checked.push({ source: chapter.slug, destination: link.href });
+    }
+    await page.goto(chapter.url);
+    await page.locator('.docs-toc summary').click();
+    const toc = page.locator('.docs-toc a');
+    const count = await toc.count();
+    for (let i = 0; i < count; i += 1) {
+      const href = await toc.nth(i).getAttribute('href');
+      await toc.nth(i).click();
+      await expect(page.locator(`[id="${href.slice(1)}"]`)).toBeVisible();
+      checked.push({ source: chapter.slug, destination: href });
+    }
+    await page.goto('/console/developer-docs');
+    await page.locator('.docs-results').getByRole('link', { name: chapter.title, exact: true }).click();
+    await expect(page.locator('.docs-article header h2')).toHaveText(chapter.title);
+    checked.push({ source: 'search results', destination: chapter.url });
+  }
+  expect(errors).toEqual([]);
+  await testInfo.attach('all-documentation-links', { body: JSON.stringify(checked, null, 2), contentType: 'application/json' });
+});

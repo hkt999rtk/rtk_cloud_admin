@@ -332,12 +332,13 @@ export function routeFromPath(path) {
   }
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
+  // Global documentation slugs (including overview) are not tenant routes.
+  if (path === '/console/developer-docs' || path.startsWith('/console/developer-docs/')) return 'developer-docs';
   const scoped = path.match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|developer-docs|groups|access|settings|firmware-ota|stream-health|jobs|reports|billing)(?:\/|$)/);
   if (scoped) return scoped[2] === 'jobs' ? 'firmware-ota' : scoped[2];
   if (path === '/console/devices' || path.startsWith('/console/devices/')) return 'devices';
   if (path === '/console/product-services' || path.startsWith('/console/product-services/')) return 'product-services';
   if (path === '/console/chipset-sdk' || path.startsWith('/console/chipset-sdk/')) return 'chipset-sdk';
-  if (path === '/console/developer-docs' || path.startsWith('/console/developer-docs/')) return 'developer-docs';
   if (path === '/console/groups' || path.startsWith('/console/groups/')) return 'groups';
   if (path === '/console/access' || path.startsWith('/console/access/')) return 'access';
   if (path === '/console/settings' || path.startsWith('/console/settings/')) return 'settings';
