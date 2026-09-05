@@ -628,6 +628,83 @@ paths:
         "503":
           $ref: "#/components/responses/PlainTextError"
 
+  /api/auth/social/providers:
+    get:
+      operationId: getApiAuthSocialProviders
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-ACCESS-003]
+      tags: [SSO, Auth]
+      summary: Discover configured Google and GitHub login providers
+      description: Proxies Account Manager provider discovery. Returns an empty list when social login is unavailable so password login remains usable.
+      security: []
+      responses:
+        "200":
+          description: Public configured provider list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocialLoginProvidersResult"
+
+  /api/auth/social/start:
+    post:
+      operationId: postApiAuthSocialStart
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-ACCESS-003]
+      tags: [SSO, Auth]
+      summary: Start Google or GitHub login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SocialLoginStartRequest"
+      responses:
+        "200":
+          description: Provider authorization URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocialLoginStartResult"
+        "400":
+          $ref: "#/components/responses/PlainTextError"
+        "404":
+          $ref: "#/components/responses/PlainTextError"
+        "502":
+          $ref: "#/components/responses/PlainTextError"
+        "503":
+          $ref: "#/components/responses/PlainTextError"
+
+  /api/auth/social/callback:
+    get:
+      operationId: getApiAuthSocialCallback
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-ACCESS-003]
+      tags: [SSO, Auth]
+      summary: Complete Google or GitHub login and create a console session
+      description: Proxies the callback to Account Manager, resolves current memberships and platform capabilities, creates the local session, and redirects to the authorized Customer or Platform view.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Code"
+        - $ref: "#/components/parameters/State"
+        - name: error
+          in: query
+          required: false
+          schema: { type: string }
+        - name: error_description
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "302":
+          description: Session created or a stable login error redirect returned.
+          headers:
+            Location:
+              schema: { type: string }
+            Set-Cookie:
+              schema: { type: string }
+              description: HTTP-only `rtk_admin_session` cookie after success.
+
   /api/auth/logout:
     post:
       operationId: postApiAuthLogout
@@ -4996,6 +5073,43 @@ components:
           type: string
         organization:
           type: string
+    SocialLoginProvidersResult:
+      type: object
+      required: [providers]
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/SocialLoginProvider"
+    SocialLoginProvider:
+      type: object
+      required: [id, name, protocol]
+      properties:
+        id:
+          type: string
+          enum: [google, github]
+        name:
+          type: string
+        protocol:
+          type: string
+          enum: [oidc, oauth2]
+    SocialLoginStartRequest:
+      type: object
+      required: [provider_id]
+      properties:
+        provider_id:
+          type: string
+          enum: [google, github]
+        next:
+          type: string
+          format: uri-reference
+    SocialLoginStartResult:
+      type: object
+      required: [redirect_url]
+      properties:
+        redirect_url:
+          type: string
+          format: uri
     ActiveOrgRequest:
       type: object
       required: [organization_id]

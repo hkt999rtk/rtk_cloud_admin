@@ -42,7 +42,7 @@ Implemented in this first version:
 - service health summary
 - customer login/session endpoint backed by Account Manager when configured
 - platform admin login/session endpoint backed by Account Manager when configured
-- SSO/OIDC architecture documented for the next authentication milestone
+- Google and GitHub login through Account Manager, with provider buttons shown only when configured
 - Account Manager proxy mode for organizations, devices, provision, and deactivate
 - Platform Dashboard BFF and React landing page with curated Prometheus-backed
   operational panels, source states, and no browser-side Prometheus or Grafana
@@ -71,9 +71,10 @@ When `ACCOUNT_MANAGER_BASE_URL` is unset, the app runs from SQLite demo/cache
 data. When it is set and a customer signs in, customer, device, and lifecycle
 actions proxy through Account Manager while preserving the current frontend DTOs.
 
-The planned production authentication direction is Account Manager-backed
-login/SSO for both Customer users and Platform Admins, with Account Manager
-acting as the OIDC identity broker and authorization source. See
+Authentication is Account Manager-backed for both Customer users and Platform
+Admins. Password login remains available, while optional Google OIDC and GitHub
+OAuth login use Cloud Admin's callback BFF and Account Manager as the identity
+broker and authorization source. See
 [`docs/sso-oidc-design.md`](docs/sso-oidc-design.md). Existing password login
 paths are migration compatibility surfaces. Cloud Admin does not provide a
 local break-glass administrator account; operator recovery is handled through
@@ -268,6 +269,11 @@ Environment variables:
   SDK catalog and evaluation-terms download flow; no Object Storage credential
   is stored in Cloud Admin
 - `CUSTOMER_PASSWORD_LOGIN_ENABLED`: set to `false` to disable customer password login; default `true`
+
+Google and GitHub provider credentials are configured in Account Manager, not
+Cloud Admin. Register `/api/auth/social/callback` on this service as the shared
+OAuth callback URL. See Account Manager's `docs/social_login.md` for the exact
+environment variables and provider-console setup.
 
 Platform Admin password login posts credentials to Account Manager and creates a
 local session only after Account Manager authorizes the upstream platform-admin

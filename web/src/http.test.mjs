@@ -5,6 +5,8 @@ import {
   postJSON,
   putJSON,
   startSSOLogin,
+	startSocialLogin,
+	socialLoginCallbackError,
   userFacingSignupError,
   userFacingSSOError,
   userFacingVerificationError,
@@ -119,6 +121,22 @@ test('startSSOLogin posts email and return URL to SSO start endpoint', async () 
   });
 
   globalThis.fetch = originalFetch;
+});
+
+test('startSocialLogin posts provider and safe destination to the BFF', async () => {
+	global.fetch = async (url, options) => {
+		assert.equal(url, '/api/auth/social/start');
+		assert.equal(options.method, 'POST');
+		assert.deepEqual(JSON.parse(options.body), { provider_id: 'google', next: '/console/clouds' });
+		return { ok: true, text: async () => '{"redirect_url":"https://accounts.example/authorize"}' };
+	};
+	assert.equal((await startSocialLogin('google', '/console/clouds')).redirect_url, 'https://accounts.example/authorize');
+});
+
+test('social callback errors use stable customer-safe copy', () => {
+	assert.equal(socialLoginCallbackError('cancelled'), 'Social sign-in was cancelled.');
+	assert.equal(socialLoginCallbackError('invalid_state'), 'This sign-in request expired. Please try again.');
+	assert.equal(socialLoginCallbackError('unknown'), '');
 });
 
 test('putJSON sends JSON using PUT', async () => {

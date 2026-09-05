@@ -490,6 +490,34 @@ type SSOProviderConfigRequest struct {
 	Enabled         bool     `json:"enabled"`
 }
 
+type SocialProvider struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Protocol string `json:"protocol"`
+}
+
+type SocialLoginStartRequest struct {
+	ProviderID string `json:"provider_id"`
+	Next       string `json:"next,omitempty"`
+}
+
+type SocialLoginStartResult struct {
+	RedirectURL string `json:"redirect_url"`
+}
+
+type SocialLoginCallbackRequest struct {
+	Code             string `json:"code"`
+	State            string `json:"state"`
+	Error            string `json:"error,omitempty"`
+	ErrorDescription string `json:"error_description,omitempty"`
+}
+
+type SocialLoginCallbackResult struct {
+	User       User   `json:"user"`
+	Tokens     Tokens `json:"tokens"`
+	ReturnPath string `json:"return_path,omitempty"`
+}
+
 type SignupRequest struct {
 	Email string `json:"email"`
 }
@@ -723,6 +751,26 @@ func (c *Client) DeveloperChipset(ctx context.Context, accessToken, chipsetID st
 func (c *Client) StartSSO(ctx context.Context, req SSOStartRequest) (SSOStartResult, error) {
 	var out SSOStartResult
 	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/sso/start", "", req, &out)
+	return out, err
+}
+
+func (c *Client) SocialProviders(ctx context.Context) ([]SocialProvider, error) {
+	var body struct {
+		Providers []SocialProvider `json:"providers"`
+	}
+	err := c.doJSON(ctx, http.MethodGet, "/v1/auth/social/providers", "", nil, &body)
+	return body.Providers, err
+}
+
+func (c *Client) StartSocialLogin(ctx context.Context, req SocialLoginStartRequest) (SocialLoginStartResult, error) {
+	var out SocialLoginStartResult
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/social/start", "", req, &out)
+	return out, err
+}
+
+func (c *Client) CompleteSocialLogin(ctx context.Context, req SocialLoginCallbackRequest) (SocialLoginCallbackResult, error) {
+	var out SocialLoginCallbackResult
+	err := c.doJSON(ctx, http.MethodPost, "/v1/auth/social/callback", "", req, &out)
 	return out, err
 }
 

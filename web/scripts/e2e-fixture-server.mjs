@@ -56,6 +56,11 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/sdk/catalog' && req.method === 'GET') return mode === 'unavailable' ? send(res, 503, { error: 'SDK catalog unavailable' }) : send(res, 200, sdkCatalogFixture());
     if (url.pathname === '/v1/logs') return send(res, 200, { events: state.logs.map((event) => ({ event_id: `${event.operation_id}-${event.request_id}`, service: event.service, level: event.level, ts: event.timestamp, msg: event.message, trace_id: event.trace_id, request_id: event.request_id, operation_id: event.operation_id })) });
     if (url.pathname === '/v1/auth/login' && req.method === 'POST') return login(req, res);
+	if (url.pathname === '/v1/auth/social/providers' && req.method === 'GET') return send(res, 200, { providers: [
+	  { id: 'google', name: 'Google', protocol: 'oidc' },
+	  { id: 'github', name: 'GitHub', protocol: 'oauth2' },
+	] });
+	if (url.pathname === '/v1/auth/social/start' && req.method === 'POST') return readBody(req).then((body) => send(res, 200, { redirect_url: `https://auth.example.test/${body.provider_id}?state=e2e-state` }));
     if (url.pathname === '/v1/me') return send(res, 200, customerProfile(req));
     if (url.pathname === '/v1/orgs' && req.method === 'GET') {
       const profile = customerProfile(req);
