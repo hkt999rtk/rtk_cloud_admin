@@ -147,6 +147,12 @@ func TestClientFleetAndDeveloperWrappers(t *testing.T) {
 	check("ForgotPassword", client.ForgotPassword(ctx, "user@example.com"))
 	_, err = client.ResetPassword(ctx, "token", "new-password")
 	check("ResetPassword", err)
+	_, err = client.SocialProviders(ctx)
+	check("SocialProviders", err)
+	_, err = client.StartSocialLogin(ctx, SocialLoginStartRequest{ProviderID: "google", Next: "/console/clouds"})
+	check("StartSocialLogin", err)
+	_, err = client.CompleteSocialLogin(ctx, SocialLoginCallbackRequest{Code: "code", State: "state"})
+	check("CompleteSocialLogin", err)
 
 	_, _, err = client.ChipsetProvider(ctx, "access", "provider/1")
 	check("ChipsetProvider", err)
