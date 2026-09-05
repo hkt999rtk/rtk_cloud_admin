@@ -5,6 +5,7 @@ const target = process.env.E2E_TEST_TARGET || process.env.E2E_UI_TARGET || 'desk
 const runDir = path.resolve(process.env.E2E_TEST_RUN_DIR || `../../../.artifacts/test-runs/manual/ui/${target}`);
 const phase = process.env.E2E_TEST_PHASE || 'main';
 const consoleReporter = process.env.CI ? 'line' : 'list';
+const appURL = process.env.E2E_BASE_URL || `http://127.0.0.1:${process.env.E2E_APP_PORT || '18082'}`;
 
 export default defineConfig({
   testDir: './e2e',
@@ -19,8 +20,8 @@ export default defineConfig({
     [consoleReporter],
   ],
   outputDir: path.join(runDir, 'raw', phase),
-  use: { baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:18082', trace: 'retain-on-failure', screenshot: 'on', video: 'retain-on-failure', viewport: { width: 1440, height: 1000 } },
-  webServer: process.env.E2E_BASE_URL ? undefined : { command: 'node scripts/e2e-server.mjs', cwd: '.', url: 'http://127.0.0.1:18082/healthz', reuseExistingServer: false, timeout: 120_000 },
+  use: { baseURL: appURL, trace: 'retain-on-failure', screenshot: 'on', video: 'retain-on-failure', viewport: { width: 1440, height: 1000 } },
+  webServer: process.env.E2E_BASE_URL ? undefined : { command: 'node scripts/e2e-server.mjs', cwd: '.', url: `${appURL}/healthz`, reuseExistingServer: false, timeout: 120_000 },
   projects: [
     { name: 'chromium', grepInvert: /@staging/, use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1000 } } },
     { name: 'mobile', grep: /@smoke/, grepInvert: /@staging/, use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } } },
