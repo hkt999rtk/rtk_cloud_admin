@@ -7,3 +7,16 @@
 .my-clouds-panel dl { grid-template-columns: 145px 1fr; column-gap: 18px; }
 .owner-handoff label > .fa-triangle-exclamation { color: #b42318; }
 .owner-handoff label i.fa-triangle-exclamation { color: #b42318 !important; }
+.my-clouds-heading .icon-text,
+.my-clouds-actions .icon-text { align-items: center; display: inline-flex; gap: 7px; justify-content: center; }
+.cloud-console-shell .my-clouds-main a.my-clouds-open-action {
+  background: #eaf4ff;
+  border: 1px solid #8cbbe6;
+  border-radius: 8px;
+  color: #0d5796;
+  font-weight: 750;
+  min-height: 38px;
+  padding: 8px 12px;
+  text-decoration: none;
+}
+.cloud-console-shell .my-clouds-main a.my-clouds-open-action:hover { background: #dbeeff; border-color: #5899d1; }
