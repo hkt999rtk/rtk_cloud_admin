@@ -5,7 +5,7 @@ const cloudB = '44444444-4444-4444-8444-444444444444';
 
 async function signInDualAccount(page) {
   await page.getByLabel('Email').fill('identity.dual@example.com');
-  await page.getByLabel('Password').fill('e2e-identity-dual-password');
+  await page.getByLabel('Password', { exact: true }).fill('e2e-identity-dual-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 }
 
@@ -26,12 +26,15 @@ test('[UI-CA-AUTH-VIEW-001] dual-role account changes views and Brand Cloud with
   const originalCookie = (await page.context().cookies()).find((cookie) => cookie.name === 'rtk_admin_session');
   expect(originalCookie).toBeTruthy();
 
+  await page.getByLabel('Account menu').click();
   await Promise.all([
     page.waitForURL(/\/console\/clouds$/),
     page.getByRole('button', { name: 'Brand Cloud view', exact: true }).click(),
   ]);
   await page.waitForLoadState('domcontentloaded');
+  await page.getByLabel('Account menu').click();
   await expect(page.getByRole('button', { name: 'Platform view', exact: true })).toBeVisible();
+  await page.getByLabel('Account menu').click();
   await Promise.all([
     page.waitForURL(/\/console\/clouds\/33333333-3333-4333-8333-333333333333$/),
     page.getByRole('heading', { name: 'E2E Alpha Cloud' }).getByRole('link').click(),
@@ -42,11 +45,13 @@ test('[UI-CA-AUTH-VIEW-001] dual-role account changes views and Brand Cloud with
     selector.selectOption('44444444-4444-4444-8444-444444444444'),
   ]);
 
+  await page.getByLabel('Account menu').click();
   await Promise.all([
     page.waitForURL(/\/admin$/),
     page.getByRole('button', { name: 'Platform view', exact: true }).click(),
   ]);
   await expect(page.getByRole('heading', { name: 'Platform Home', exact: true })).toBeVisible();
+  await page.getByLabel('Account menu').click();
   await Promise.all([
     page.waitForURL(/\/console\/clouds$/),
     page.getByRole('button', { name: 'Brand Cloud view', exact: true }).click(),
@@ -72,6 +77,7 @@ test('[UI-CA-AUTH-CLOUD-001] login selects the first cloud then reuses the last 
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudB}$`));
   await expect.poll(async () => (await page.context().cookies()).find((cookie) => cookie.name === 'rtk_last_cloud_id')?.value).toBe(cloudB);
 
+  await page.getByLabel('Account menu').click();
   await page.getByRole('button', { name: 'Logout', exact: true }).click();
   await expect(page).toHaveURL(/\/login(?:\?|$)/);
   await page.goto('/login');

@@ -1,0 +1,137 @@
+/* Service entry: Realtek brand, enterprise typography, no third-party assets. */
+.service-login-shell {
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: 0 48px;
+  background: #f6f8fb;
+  display: flex;
+  flex-direction: column;
+}
+.service-login-header, .service-login-footer {
+  width: 100%;
+  max-width: 1160px;
+  margin-inline: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+.service-login-header { min-height: 100px; flex-shrink: 0; }
+.service-login-header .login-brand { gap: 20px; text-decoration: none; }
+.service-login-header .login-brand img { width: 92px; height: auto; }
+.service-login-header .login-brand strong { font-size: 22px; color: #24292f; font-weight: 600; letter-spacing: -.5px; }
+.service-brand-divider { width: 1px; height: 24px; background: #cdd6df; }
+.service-console-label { font-size: 13px; color: #57606a; }
+.service-login-shell .login-layout {
+  width: 100%;
+  max-width: 1160px;
+  margin: auto;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+  align-items: stretch;
+  border: 1px solid #d6e0e9;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 48px #17324d0a, 0 2px 8px #17324d04;
+}
+.service-login-story {
+  position: relative;
+  overflow: hidden;
+  border-radius: 7px 0 0 7px;
+  background: linear-gradient(145deg, #035390 0%, #004276 100%);
+  color: #fff;
+  padding: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 48px;
+  isolation: isolate;
+}
+.service-login-story::after {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  right: -290px;
+  top: 100px;
+  border: 1px solid #ffffff14;
+  border-radius: 50%;
+  box-shadow: 0 0 0 60px #ffffff06, 0 0 0 120px #ffffff04;
+  z-index: -1;
+  pointer-events: none;
+}
+.service-story-eyebrow { color: #bce6f0; font-size: 11px; letter-spacing: .16em; font-weight: 600; margin: 0 0 28px; }
+.service-login-story h2 { color: #fff; font-size: clamp(34px, 3.3vw, 46px); font-weight: 600; line-height: 1.15; letter-spacing: -.035em; margin: 0 0 24px; }
+.service-login-story h2 span { color: #6dcedd; }
+.service-story-copy { color: #dbeaf5; font-size: 15px; line-height: 1.7; max-width: 35ch; margin: 0; }
+.service-story-features { list-style: none; margin: 36px 0 0; padding: 0; display: grid; gap: 22px; }
+.service-story-features li { display: flex; align-items: flex-start; gap: 14px; }
+.service-story-features i { color: #9edeea; width: 20px; flex: 0 0 20px; font-size: 16px; margin-top: 4px; }
+.service-story-features strong { color: #fff; display: block; font-size: 14px; font-weight: 600; }
+.service-story-features span { display: block; color: #c6deef; font-size: 12px; line-height: 1.6; margin-top: 3px; }
+.service-story-footer { color: #c6deef; font-size: 12px; display: flex; align-items: center; gap: 12px; }
+.service-story-rule { height: 1px; width: 32px; background: #6dcedd; }
+.service-login-shell .login-primary {
+  padding: 56px;
+  border: 0;
+  border-radius: 0 8px 8px 0;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  min-width: 0;
+}
+.service-form-eyebrow { font-size: 11px; letter-spacing: .11em; font-weight: 600; color: #57606a; margin: 0 0 14px; }
+.service-login-shell .login-primary h1 { font-size: 28px; line-height: 1.25; letter-spacing: -.025em; font-weight: 600; color: #24292f; white-space: normal; overflow-wrap: anywhere; }
+.service-login-shell .login-copy { font-size: 14px; line-height: 1.6; color: #57606a; margin: 12px 0 28px; }
+.service-login-shell .auth-stack { gap: 20px; min-width: 0; }
+.service-login-shell .auth-mode-tabs { border: 0; border-bottom: 1px solid #d0d7de; border-radius: 0; background: none; padding: 0; gap: 24px; margin-bottom: 4px; }
+.service-login-shell .auth-mode-tabs button { min-height: 44px; padding: 0 0 12px; border-radius: 0; font-size: 14px; font-weight: 500; background: none; box-shadow: none; color: #57606a; }
+.service-login-shell .auth-mode-tabs button.active { color: #0068b7; box-shadow: 0 2px #0068b7; font-weight: 600; }
+.service-login-shell .login-form { gap: 20px; }
+.service-login-shell .login-form label { font-size: 13px; font-weight: 600; color: #24292f; gap: 8px; }
+.service-login-shell .login-form input { width: 100%; box-sizing: border-box; height: 46px; border: 1px solid #aab7c4; border-radius: 6px; font-size: 14px; font-weight: 400; padding-inline: 12px; }
+.service-login-shell .login-form input::placeholder { color: #687684; opacity: 1; }
+.service-login-shell .login-form button[type=submit] { background: #0068b7; border: 1px solid #0068b7; border-radius: 6px; font-size: 14px; font-weight: 600; min-height: 46px; }
+.service-login-shell .login-form button[type=submit]:hover:not(:disabled) { background: #035390; border-color: #035390; }
+.service-login-shell .login-form button:disabled { opacity: .6; cursor: not-allowed; }
+.service-login-shell .auth-link { font-size: 13px; color: #0068b7; font-weight: 500; justify-self: start; }
+.service-login-shell :focus-visible { outline: 2px solid #0068b7; outline-offset: 4px; }
+.service-login-shell .error { font-size: 13px; border-radius: 6px; margin: 16px 0 0; overflow-wrap: anywhere; }
+.service-password-field { display: grid; gap: 8px; }
+.service-password-control { display: flex; position: relative; }
+.service-login-shell .service-password-control input { padding-right: 48px; }
+.service-login-shell .login-form .service-password-toggle { position: absolute; right: 1px; top: 1px; min-height: 44px; width: 44px; padding: 0; border: 0; border-radius: 5px; color: #57606a; background: transparent; }
+.service-login-shell .service-password-toggle:hover { color: #0068b7; }
+.service-login-footer { min-height: 88px; color: #687684; font-size: 12px; flex-shrink: 0; }
+.service-login-footer a { color: #57606a; text-decoration: none; }
+.service-login-footer a:hover { color: #0068b7; text-decoration: underline; }
+@media (max-width: 1050px) {
+  .service-login-shell { padding-inline: 32px; }
+  .service-login-story { padding: 36px; }
+  .service-login-shell .login-primary { padding: 36px; }
+  .service-story-features { gap: 18px; }
+}
+@media (max-width: 767px) {
+  .service-login-shell { padding-inline: 20px; }
+  .service-login-header { min-height: 84px; gap: 12px; }
+  .service-login-header .login-brand { gap: 12px; }
+  .service-login-header .login-brand img { width: 76px; }
+  .service-login-header .login-brand strong { font-size: 20px; }
+  .service-console-label { display: none; }
+  .service-login-shell .login-layout { grid-template-columns: minmax(0, 1fr); max-width: 480px; margin-block: 12px 24px; }
+  .service-login-story { border-radius: 7px 7px 0 0; padding: 24px; gap: 0; }
+  .service-story-eyebrow { font-size: 10px; margin-bottom: 12px; }
+  .service-login-story h2 { font-size: 26px; margin: 0; max-width: 20ch; }
+  .service-login-story h2 br { display: none; }
+  .service-login-story h2 br::after { content: ' '; }
+  .service-story-copy, .service-story-features, .service-story-footer { display: none; }
+  .service-login-shell .login-primary { padding: 28px 24px; border-radius: 0 0 8px 8px; }
+  .service-login-shell .login-primary h1 { font-size: 25px; }
+  .service-form-eyebrow { display: none; }
+  .service-login-shell .login-form input { font-size: 16px; }
+  .service-login-footer { min-height: 64px; align-items: flex-start; flex-wrap: wrap; gap: 8px; padding-bottom: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .service-login-shell *, .service-login-shell *::after { transition: none; animation: none; } }

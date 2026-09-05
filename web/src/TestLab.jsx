@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { managedCloudRequest, isCloudID } from './managed-clouds.mjs';
 import { fetchCloudProducts } from './cloud-products.mjs';
 import { TestLabDevices } from './TestLabDevices.jsx';
+import { Dialog } from './ConsoleUI.jsx';
 import { testLabContextURL, parseTestPayload, diagnosticReport, labBlockedMessage, validatePublishTopic, shadowTopic, loadLabOptions, labOperationError } from './test-lab.mjs';
 import './test-lab.css';
 import { LabRuntime } from './test-lab-runtime.mjs';
@@ -100,6 +101,26 @@ export function TestLab({ cloudId }) {
     return () => controller.abort();
   }, [cloudId, product, device, account,provisionState,reload]);
 
+  function selectProtocol(id) {
+    if (busy) return;
+    if (tab === 'webrtc' && id !== tab) {
+      runtime.current?.stopVideo().catch(() => {});
+      setPlaying(false); setStats(null);
+    }
+    setTab(id);
+  }
+  function protocolKey(event) {
+    const protocols = ['mqtt', 'shadow', 'webrtc'];
+    const current = protocols.indexOf(tab);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2
+      : event.key === 'ArrowRight' ? (current + 1) % 3
+      : event.key === 'ArrowLeft' ? (current + 2) % 3 : -1;
+    if (next < 0 || busy) return;
+    event.preventDefault();
+    selectProtocol(protocols[next]);
+    event.currentTarget.parentElement.querySelector('#tab-' + protocols[next])?.focus();
+  }
+
   function validate() {
     try {
       parseTestPayload(payload);
@@ -114,7 +135,7 @@ export function TestLab({ cloudId }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <section className="my-clouds-panel test-lab" data-testid="test-lab">
-    <h2><LabIcon name="flask" />Cloud Test Lab</h2><p>Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and view live video over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.</p>
+    <h2><LabIcon name="flask" />Device test workspace</h2><details className="test-lab-intro"><summary>About the test workflows</summary><p>Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and view live video over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.</p></details>
     <div className="test-lab-selectors">
       <div><label><span><LabIcon name="boxes-stacked" />Product</span><select value={product} aria-describedby={product ? 'test-lab-product-id' : undefined} onChange={e => { setProduct(e.target.value); setDevice(''); setContext(null); setEvents([]); }}><option value="">Select Product</option>{product && !products.some(p => p.id === product) && <option value={product}>{selectedProduct?.id === product ? selectedProduct.name || 'Unnamed Product' : 'Loading selected Product…'}</option>}{products.map(p => <option key={p.id} value={p.id}>{p.name || 'Unnamed Product'}</option>)}</select></label>{product && <p id="test-lab-product-id" className="test-lab-product-id"><LabIcon name="fingerprint" />Product ID: <code>{product}</code></p>}</div>
     </div>
@@ -124,7 +145,7 @@ export function TestLab({ cloudId }) {
     {loading && <p role="status"><LabIcon name="hourglass-half" />Checking device scope…</p>}
     {error && <p role="alert" className="test-lab-warning"><LabIcon name="triangle-exclamation" />{error}</p>}
     {context && <><p className="test-lab-context"><LabIcon name="cloud" />Environment: <strong>{context.environment}</strong> · Device: {context.device_status || 'unknown'} · <LabIcon name={connected ? 'plug' : 'plug-circle-xmark'} />MQTT: {connected ? 'Connected' : 'Disconnected'}</p>{!context.runtime_ready ? <p role="status" className="test-lab-warning"><LabIcon name="triangle-exclamation" />{labBlockedMessage(context.blocked_reason)}</p> : <p><LabIcon name="circle-info" />Test authorization expires after 5 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. Playback stops after 85 seconds. Operations affect your real device.</p>}</>}
-    <div role="tablist" aria-label="Test protocol">{['mqtt', 'shadow', 'webrtc'].map(id => <button key={id} id={`tab-${id}`} role="tab" disabled={busy} aria-selected={tab === id} aria-controls={`panel-${id}`} onClick={() => { if (tab === 'webrtc' && id !== tab) { runtime.current?.stopVideo().catch(() => {}); setPlaying(false); setStats(null); } setTab(id); }}><LabIcon name={protocolIcons[id]} />{id === 'webrtc' ? 'WebRTC' : id === 'mqtt' ? 'MQTT' : 'Shadow'}</button>)}</div>
+    <div role="tablist" aria-label="Test protocol">{['mqtt', 'shadow', 'webrtc'].map(id => <button key={id} id={`tab-${id}`} role="tab" tabIndex={tab === id ? 0 : -1} disabled={busy} aria-selected={tab === id} aria-controls={`panel-${id}`} onKeyDown={protocolKey} onClick={() => selectProtocol(id)}><LabIcon name={protocolIcons[id]} />{id === 'webrtc' ? 'WebRTC' : id === 'mqtt' ? 'MQTT' : 'Shadow'}</button>)}</div>
     <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
       {tab === 'mqtt' && <><h3><LabIcon name="comments" />MQTT messages</h3><p>Broker acceptance and device response are reported separately. Test ACLs allow this device’s commands and reports only.</p><label><span><LabIcon name="arrow-up-from-bracket" />Publish topic</span><input value={topic} maxLength={256} onChange={e => setTopic(e.target.value)} /></label><label><span><LabIcon name="inbox" />Subscription topic</span><input value={subscription} maxLength={256} onChange={e => setSubscription(e.target.value)} /></label><button disabled={busy || connected || !context?.runtime_ready || !context?.capabilities?.mqtt} onClick={() => run('mqtt_connect', lab => lab.connect())}><LabIcon name="plug" />Connect</button><button disabled={!connected || busy} onClick={() => { runtime.current?.disconnect(); setConnected(false); }}><LabIcon name="plug-circle-xmark" />Disconnect</button><button disabled={!connected || busy} onClick={() => run('mqtt_subscribe', lab => lab.subscribe(subscription))}><LabIcon name="bell" />Subscribe</button><button disabled={!connected || busy} onClick={() => run('mqtt_unsubscribe', lab => lab.unsubscribe(subscription))}><LabIcon name="bell-slash" />Unsubscribe</button><button disabled={!connected || busy} onClick={() => run('mqtt_publish', lab => lab.publish(validatePublishTopic(topic), parseTestPayload(payload)), `Publish a command to this real device in ${context.environment}?`)}><LabIcon name="paper-plane" />Publish</button><p><LabIcon name="inbox" />Recent messages (memory only, not exported)</p><pre>{messages.map(m => `${m.topic}\n${m.text}`).join('\n\n')}</pre></>}
       {tab === 'shadow' && <><h3><LabIcon name="layer-group" />Device Shadow</h3><label><span><LabIcon name="tag" />Shadow name (empty = unnamed)</span><input value={shadowName} maxLength={64} onChange={e => { setShadowName(e.target.value); setShadow(null); setShadowNotFound(false); }} /></label><label><span><LabIcon name="route" />Transport</span><select value={transport} onChange={e => { setTransport(e.target.value); setShadow(null); setShadowNotFound(false); }}><option value="http">HTTP / SigV4</option><option value="mqtt">MQTT</option></select></label><p>Shadow is included with MQTT-enabled device integration; no separate Shadow service is needed. Reported state comes from your real device. Connect in the MQTT tab before using MQTT Shadow.</p>{['get', 'update', 'delete'].map(operation => <button key={operation} disabled={busy || !context?.runtime_ready || !context?.capabilities?.[transport === 'mqtt' ? 'shadow_mqtt' : 'shadow_http'] || (transport === 'mqtt' && !connected)} onClick={() => shadowAction(operation)}><LabIcon name={{ get: 'magnifying-glass', update: 'pen-to-square', delete: 'trash-can' }[operation]} />{operation === 'get' ? 'Read' : operation === 'update' ? 'Update desired' : 'Delete shadow'}</button>)}{shadowNotFound && <p role="status" className="test-lab-info"><LabIcon name="circle-info" />This Shadow does not exist yet. Use Update desired to create it.</p>}<p>Version: {shadow?.version ?? 'Not read'}</p><button disabled={!shadow} onClick={() => setPayload(JSON.stringify({ state: { desired: shadow.state?.desired || {} }, version: shadow.version }, null, 2))}><LabIcon name="file-import" />Load desired and version into editor</button><div className="test-lab-shadow">{['desired', 'reported', 'delta'].map(name => <section key={name}><h4><LabIcon name={{ desired: 'sliders', reported: 'microchip', delta: 'code-compare' }[name]} />{name}</h4><pre>{shadow ? JSON.stringify(shadow.state?.[name] ?? null, null, 2) : 'No live state received'}</pre></section>)}</div></>}
@@ -162,6 +183,6 @@ export function TestLab({ cloudId }) {
     <h3><LabIcon name="clock-rotate-left" />Evidence timeline</h3><p><LabIcon name="shield-halved" />Reports exclude payloads, credentials, endpoints and SDP.</p><div className="test-lab-actions"><button onClick={download}><LabIcon name="download" />Download diagnostic report</button><button onClick={() => setEvents([])}><LabIcon name="eraser" />Clear timeline</button>
     </div>
     <ol className="test-lab-events">{events.map((event, index) => <li key={index}><time>{event.time}</time> {event.operation}: {event.outcome}</li>)}</ol>
-    {pendingAction && <div role="alertdialog" aria-label="Confirm live test action" className="test-lab-binding-form"><p>{pendingAction.confirmation}</p><p>Device: <code>{context?.devid}</code></p><button onClick={() => { const action = pendingAction; setPendingAction(null); if (runtime.current === action.lab) run(action.operation, action.work); }}>Continue</button><button onClick={() => setPendingAction(null)}>Cancel action</button></div>}
+    {pendingAction && <Dialog role="alertdialog" title="Confirm live test action" onClose={() => setPendingAction(null)}><p>{pendingAction.confirmation}</p><p>Device: <code>{context?.devid}</code></p><button onClick={() => { const action = pendingAction; setPendingAction(null); if (runtime.current === action.lab) run(action.operation, action.work); }}>Continue</button><button onClick={() => setPendingAction(null)}>Cancel action</button></Dialog>}
   </section>;
 }

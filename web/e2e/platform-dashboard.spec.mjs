@@ -27,6 +27,7 @@ test('[UI-CA-DASH-001] platform admin can triage platform dashboard @smoke', asy
 
   await page.goto('/console/clouds');
   await expect(page.getByRole('heading', { name: 'Platform admin cannot use the Brand Cloud console', exact: true })).toBeVisible();
+  await page.getByLabel('Account menu', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Brand Cloud view', exact: true })).toBeVisible();
   await expect(page.getByText('E2E Alpha Cloud', { exact: true })).toHaveCount(0);
 });

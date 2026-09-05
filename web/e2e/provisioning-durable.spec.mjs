@@ -73,7 +73,7 @@ test('[UI-CA-PROV-P0-001] durable provisioning actions and row results follow se
   await installProvisioningRoutes(page, ['product.read', 'provisioning.read', 'provisioning.create']);
   await page.goto(`/console/clouds/${cloud}/fleet/provisioning`);
   await expect(page.getByRole('heading', { name: 'CSV Provisioning', level: 2 })).toBeVisible();
-  await page.getByRole('combobox').selectOption(product);
+  await page.getByRole('combobox', { name: 'Product', exact: true }).selectOption(product);
   await page.locator('input[type=file]').setInputFiles({ name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from('device_id\ndevice-1\ndevice-2\n') });
   await page.getByRole('button', { name: 'Upload source' }).click();
   await page.getByRole('button', { name: 'Validate rows' }).click();

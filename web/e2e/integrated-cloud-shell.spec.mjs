@@ -47,7 +47,7 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   await expect(page.getByRole('heading', { name: 'My Clouds', exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'My Clouds', exact: true })).toBeVisible();
   await expect(page.locator('.my-clouds-heading').getByRole('heading', { name: 'My Clouds', exact: true })).toHaveCount(0);
-  await expect(page.getByText('Create and manage the Brand Clouds you own, or open clouds shared with your account.', { exact: false })).toBeVisible();
+  await expect(page.locator('.my-clouds-heading').getByText('Select a cloud to manage products, devices and team access.', { exact: false })).toBeVisible();
   await expect(page.getByText('billing.owner@example.com', { exact: true }).first()).toBeVisible();
   await expect(page.locator('.my-clouds-grid').getByText('Status', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Create cloud', exact: true }).locator('.fa-plus')).toHaveCount(1);
@@ -55,10 +55,10 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   await expect(page.getByRole('link', { name: 'Open cloud', exact: true }).first()).toHaveClass(/my-clouds-open-action/);
   await expect(page.getByRole('link', { name: 'Open cloud', exact: true }).first().locator('.fa-arrow-right')).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Cloud pages' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'My Clouds', exact: true })).toBeVisible();
+  await expect(page.locator('.sidebar').getByRole('link', { name: 'My Clouds', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'ChipSet & SDK', exact: true })).toHaveAttribute('href', '/console/chipset-sdk');
   for (const label of featureLabels) {
-    await expect(page.locator('.sidebar-disabled', { hasText: label })).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.locator('.sidebar').getByRole('link', { name: label, exact: true })).toHaveCount(0);
   }
   await page.getByLabel('Brand Cloud').selectOption(cloudA);
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudA}$`));
@@ -66,11 +66,11 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   const mobileMenu = page.getByRole('button', { name: 'Open navigation' });
   if (await mobileMenu.isVisible()) await mobileMenu.click();
   for (const label of ['My Clouds', 'ChipSet & SDK', ...featureLabels]) {
-    await expect(page.getByRole('link', { name: label, exact: true })).toBeVisible();
+    await expect(page.locator('.sidebar').getByRole('link', { name: label, exact: true })).toBeVisible();
   }
   await expect(page.getByRole('link', { name: 'ChipSet & SDK', exact: true })).toHaveAttribute('href', `/console/chipset-sdk?cloudId=${cloudA}`);
   await expect(page.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page');
-  await page.getByRole('link', { name: 'My Clouds', exact: true }).click();
+  await page.locator('.sidebar').getByRole('link', { name: 'My Clouds', exact: true }).click();
   await expect(page).toHaveURL(`/console/clouds?cloudId=${cloudA}`);
   await expect(page.getByRole('link', { name: 'Fleet Management', exact: true })).toHaveAttribute('href', `/console/clouds/${cloudA}/fleet`);
   if (await mobileMenu.isVisible()) await mobileMenu.click();
@@ -141,7 +141,7 @@ test('[UI-CA-MULTICLOUD-REGIONS-001] zero-count regions use an empty state inste
   await expect(page.getByText('na', { exact: true })).toHaveCount(0);
 });
 
-test('[UI-CA-MULTICLOUD-PRODUCTS-001] Products explains its SKU boundary without repeating the cloud heading', async ({ page }) => {
+test('[UI-CA-MULTICLOUD-PRODUCTS-001] Products uses concise guidance and contextual breadcrumbs', async ({ page }) => {
   await login(page, 'billing_owner');
   await page.route(new RegExp(`/api/developer/brand-clouds/${cloudA}/products\\?`), (route) => route.fulfill({
     status: 200,
@@ -150,9 +150,8 @@ test('[UI-CA-MULTICLOUD-PRODUCTS-001] Products explains its SKU boundary without
   }));
   await page.goto(`/console/clouds/${cloudA}/products`);
 
-  await expect(page.locator('.topbar-title').getByRole('heading', { name: 'Billing Cloud 1', exact: true })).toBeVisible();
+  await expect(page.locator('.topbar-title').getByRole('heading', { name: 'Products', exact: true })).toBeVisible();
   await expect(page.locator('.my-clouds-heading').getByRole('heading', { name: 'Billing Cloud 1', exact: true })).toHaveCount(0);
-  await expect(page.getByText('A Product usually represents one SKU', { exact: false })).toBeVisible();
-  await expect(page.getByText('changes reach only the intended models', { exact: false })).toBeVisible();
-  await expect(page.getByText('Each Product has a permanent Product key', { exact: false })).toBeVisible();
+  await expect(page.getByText('Organize device models, cloud services and firmware by product.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Manage product models, enabled services and device access.', { exact: false })).toBeVisible();
 });

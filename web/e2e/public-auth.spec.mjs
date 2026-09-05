@@ -91,13 +91,8 @@ test('[UI-CA-AUTH-002] checkbox follows the shared console control style @smoke'
 test('[UI-CA-AUTH-LOGOUT-001] logout remains reachable on desktop and mobile @smoke', async ({ page }, testInfo) => {
   await login(page, 'customer');
   await page.goto('/console/clouds');
-  const navigationButton = page.getByRole('button', { name: 'Open navigation', exact: true });
-  if (await navigationButton.isVisible()) {
-    await navigationButton.click();
-    await page.getByRole('complementary', { name: 'Primary navigation' }).getByRole('button', { name: 'Logout', exact: true }).click();
-  } else {
-    await page.getByRole('button', { name: 'Logout', exact: true }).click();
-  }
+  await page.getByLabel('Account menu').click();
+  await page.getByRole('button', { name: 'Logout', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in to Connect+', exact: true })).toBeVisible();
   const response = await page.request.get('/api/me');
   expect((await response.json()).authenticated).toBe(false);
@@ -122,7 +117,8 @@ for (const [kind, destination, heading] of [
     await page.getByLabel('New password', { exact: true }).fill('activation-password-123');
     await page.getByRole('button', { name: 'Verify and continue', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${destination}$`));
-    await expect(page.getByRole('heading', { name: heading, exact: true }).first()).toBeVisible();
+    if (kind === 'customer') await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText(heading);
+    else await expect(page.getByRole('heading', { name: heading, exact: true }).first()).toBeVisible();
     expect(verificationCount).toBe(1);
     await testInfo.attach('activated-account-view', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
   });

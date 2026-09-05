@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { Dialog } from './ConsoleUI.jsx';
 import { cloudAPI, managedCloudRequest } from './managed-clouds.mjs';
 import { TestLabDownload } from './TestLabDownload.jsx';
 
@@ -19,7 +20,8 @@ export function TestLabDevices({ cloudId, product, onScope }) {
   const [devices, setDevices] = useState([]), [selected, setSelected] = useState(''), [candidate, setCandidate] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const pendingConfirmation = useRef(null);
-  const ask = message => new Promise(resolve => { pendingConfirmation.current?.(false); pendingConfirmation.current = resolve; setConfirmation(message); });
+  const confirmationTrigger = useRef(null);
+  const ask = message => new Promise(resolve => { confirmationTrigger.current = document.activeElement; pendingConfirmation.current?.(false); pendingConfirmation.current = resolve; setConfirmation(message); });
   const answer = accepted => { const resolve = pendingConfirmation.current; pendingConfirmation.current = null; setConfirmation(null); resolve?.(accepted); };
   useEffect(() => () => { pendingConfirmation.current?.(false); }, []);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [version, setVersion] = useState(0);
@@ -109,7 +111,7 @@ export function TestLabDevices({ cloudId, product, onScope }) {
     });
   }
   return <section className="test-lab-device-manager" aria-label="Test account and device bindings">
-    {confirmation && <div className="test-lab-binding-form" role="alertdialog" aria-label="Confirm test action" aria-describedby="test-lab-confirmation-message"><p id="test-lab-confirmation-message">{confirmation}</p><button autoFocus onClick={() => answer(false)}>Cancel action</button><button onClick={() => answer(true)}>Continue</button></div>}
+    {confirmation && <Dialog role="alertdialog" title="Confirm test action" returnFocus={confirmationTrigger.current} onClose={() => answer(false)}><p id="test-lab-confirmation-message">{confirmation}</p><button autoFocus onClick={() => answer(false)}>Cancel action</button><button onClick={() => answer(true)}>Continue</button></Dialog>}
     <fieldset disabled={busy || !!confirmation} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
     <p>{icon('user-check')}{account ? `Testing as ${account.email} — using your Console login.` : product ? 'Loading your Console test access…' : 'Select a Product to begin.'}</p>
     {error && <p role="alert" className="test-lab-warning">{error}</p>}

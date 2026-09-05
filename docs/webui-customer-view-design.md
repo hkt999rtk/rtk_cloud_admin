@@ -1,5 +1,13 @@
 # Brand Fleet Management WebUI Design
 
+Presentation update (2026-09-05): the
+[Web UI Style Guideline](web-ui-style-guideline.md) supersedes earlier visual
+mockups, density, decorative treatments, account-page composition, and
+unselected-cloud navigation presentation in this document. The global account,
+explicit cloud-scope, server authorization, ownership and Billing contracts below
+remain authoritative for behavior. Do not interpret old visual examples as
+requiring a second UI system or a wall of disabled navigation controls.
+
 Status: Brand Fleet layout reference. The design-first
 [multi-cloud WebUI contract](multicloud_webui.md) supersedes cloud navigation,
 scope, sharing, ownership and Billing behavior below; runtime changes wait for

@@ -142,8 +142,10 @@ test('[UI-CA-BILLING-008] concurrent tabs bind their own cloud and stale writes 
   const other=await context.newPage();
   await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');
   await other.goto('/console/clouds/22222222-2222-4222-8222-222222222222/billing');
-  await expect(page.getByRole('heading',{name:'Billing Cloud 1 / Billing',exact:true})).toBeVisible();
-  await expect(other.getByRole('heading',{name:'Billing Cloud 2 / Billing',exact:true})).toBeVisible();
+  await expect(page.locator('.topbar h1')).toHaveText('Billing');
+  await expect(page.getByRole('navigation',{name:'Breadcrumb'})).toContainText('Billing Cloud 1');
+  await expect(other.locator('.topbar h1')).toHaveText('Billing');
+  await expect(other.getByRole('navigation',{name:'Breadcrumb'})).toContainText('Billing Cloud 2');
   for (const [tab,id] of [[page,'11111111-1111-4111-8111-111111111111'],[other,'22222222-2222-4222-8222-222222222222']]) {
     const response=await tab.request.get(`/api/developer/brand-clouds/${id}/billing/account`);
     expect((await response.json()).account.organization_id).toBe(id);
