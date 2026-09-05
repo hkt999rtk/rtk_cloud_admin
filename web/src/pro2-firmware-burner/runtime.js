@@ -7,11 +7,11 @@ import { TerminalConsole } from './terminal.js';
 export function mountPro2FirmwareBurner(root) {
 const $ = id => root.querySelector(`#${id}`);
 const ids = [
-  'compatibility', 'compatibility-message', 'firmware', 'file-info', 'firmware-card', 'firmware-kind', 'firmware-target', 'firmware-note', 'firmware-checksum', 'copy-checksum',
+  'compatibility', 'compatibility-icon', 'compatibility-message', 'firmware', 'file-info', 'firmware-card', 'firmware-kind', 'firmware-target', 'firmware-note', 'firmware-checksum', 'copy-checksum',
   'download-baud', 'console-baud', 'offset', 'erase', 'enter-download', 'verify', 'reset', 'open-terminal',
   'connect', 'open-burn', 'close-burn', 'disconnect', 'burn', 'cancel', 'task-card', 'state-icon', 'task-title',
   'message', 'progress', 'progress-text', 'protocol-log', 'clear-log', 'copy-log', 'clear-terminal', 'reset-device',
-  'scroll-lock', 'copy-terminal', 'save-terminal', 'line-ending', 'terminal', 'connection-label', 'erase-warning',
+  'scroll-lock', 'copy-terminal', 'save-terminal', 'line-ending', 'terminal', 'terminal-connection', 'connection-label', 'erase-warning',
   'burn-panel', 'manual-guide', 'recovery-card', 'recovery-title', 'recovery-message', 'retry-burn', 'retry-low-baud',
   'return-console', 'reconnect', 'step-connect', 'step-download', 'step-transfer', 'step-verify', 'step-console'
 ];
@@ -49,7 +49,7 @@ const terminal = new TerminalConsole(transport, ui.terminal, { onLog: log, onSta
 function setStatus(state, message) {
   const presentation = statePresentation(state);
   ui['task-card'].dataset.state = state;
-  ui['state-icon'].textContent = presentation.icon;
+  ui['state-icon'].className = `pro2-state-icon fa-solid fa-${presentation.icon}${presentation.spin ? ' fa-spin' : ''}`;
   ui['task-title'].textContent = presentation.title;
   ui.message.textContent = message;
   updateSteps(state);
@@ -58,24 +58,24 @@ function setStatus(state, message) {
 
 function statePresentation(state) {
   const states = {
-    idle: { icon: '○', title: 'Ready' },
-    selecting: { icon: '◌', title: 'Select UART' },
-    connecting: { icon: '◌', title: 'Checking download mode' },
-    erasing: { icon: '◌', title: 'Erasing flash' },
-    transferring: { icon: '◌', title: 'Transferring firmware' },
-    verifying: { icon: '◌', title: 'Verifying firmware' },
-    completed: { icon: '✓', title: 'Burn complete' },
-    terminal: { icon: '✓', title: 'Console ready' },
-    cancelled: { icon: '!', title: 'Burn canceled' },
-    failed: { icon: '!', title: 'Action required' },
-    ready: { icon: '●', title: 'UART connected' }
+    idle: { icon: 'plug', title: 'Connect your PRO2 board' },
+    selecting: { icon: 'spinner', title: 'Choose a USB UART', spin: true },
+    connecting: { icon: 'spinner', title: 'Checking download mode', spin: true },
+    erasing: { icon: 'eraser', title: 'Erasing flash' },
+    transferring: { icon: 'arrow-right-arrow-left', title: 'Transferring firmware' },
+    verifying: { icon: 'shield-halved', title: 'Verifying firmware' },
+    completed: { icon: 'circle-check', title: 'Burn complete' },
+    terminal: { icon: 'terminal', title: 'Firmware ready' },
+    cancelled: { icon: 'ban', title: 'Burn canceled' },
+    failed: { icon: 'triangle-exclamation', title: 'Action required' },
+    ready: { icon: 'circle-check', title: 'UART connected' }
   };
   return states[state] ?? states.idle;
 }
 
 function updateSteps(state) {
   const active = {
-    idle: -1, selecting: 0, ready: 0, terminal: 4, connecting: 1, erasing: 2, transferring: 2, verifying: 3, completed: 4, cancelled: -1, failed: -1
+    idle: 0, selecting: 0, ready: 1, terminal: 4, connecting: 1, erasing: 2, transferring: 2, verifying: 3, completed: 4, cancelled: -1, failed: -1
   }[state] ?? -1;
   steps.forEach((id, index) => {
     ui[id].classList.toggle('active', index === active);
@@ -94,6 +94,10 @@ function updateButtons() {
   ui.disconnect.disabled = !connected || busy;
   ui.burn.disabled = !connected || !hasFirmware || busy;
   ui.cancel.disabled = !controller.abortController;
+  ui.connect.hidden = connected || Boolean(controller.abortController);
+  ui['open-burn'].hidden = !connected || busy;
+  ui.disconnect.hidden = !connected || busy;
+  ui.cancel.hidden = !controller.abortController;
   ui['close-burn'].disabled = busy;
   ui['clear-terminal'].disabled = !connected;
   ui['copy-terminal'].disabled = !connected;
@@ -104,9 +108,13 @@ function updateButtons() {
   ui['reset-device'].title = ui['enter-download'].checked ? 'Reset the device through DTR/RTS.' : 'Enable DTR/RTS reset/boot control in Advanced settings first.';
   for (const input of [ui.firmware, ui['download-baud'], ui.offset, ui.erase, ui['enter-download'], ui.verify, ui['open-terminal']]) input.disabled = busy;
   ui.reset.disabled = busy || !ui['enter-download'].checked;
-  ui['connection-label'].textContent = connected ? `● ${transport.baudRate} baud · ${ownerLabel(transport.owner)}` : '● Not connected';
+  root.dataset.uartConnected = String(connected);
+  root.dataset.uartBusy = String(busy);
+  ui['connection-label'].textContent = connected ? `${transport.baudRate} baud · ${ownerLabel(transport.owner)}` : 'Not connected';
   ui['connection-label'].classList.toggle('connected', connected && !busy);
   ui['connection-label'].classList.toggle('busy', connected && busy);
+  ui['terminal-connection'].textContent = connected ? 'Online' : 'Offline';
+  ui['terminal-connection'].classList.toggle('connected', connected);
 }
 
 function ownerLabel(owner) {
@@ -217,7 +225,7 @@ async function connect() {
     updateButtons();
     await transport.requestAndOpen(Number(ui['console-baud'].value));
     await terminal.enter({ baudRate: Number(ui['console-baud'].value) });
-    setStatus('terminal', 'Connected and waiting for device output.');
+    setStatus('ready', 'Connected and waiting for device output.');
   } catch (error) {
     setStatus('failed', actionError(error));
     showRecovery(error);
@@ -303,10 +311,11 @@ function saveTerminalLog() {
 }
 
 if ('serial' in navigator && window.isSecureContext) {
-  ui['compatibility-message'].textContent = 'Web Serial is available. Firmware and console data stay on this computer.';
+  ui['compatibility-message'].textContent = 'Web Serial ready · Firmware and UART data stay on this computer.';
 } else {
   ui['compatibility-message'].textContent = !window.isSecureContext ? 'Web Serial requires HTTPS (localhost may use HTTP).' : 'Use desktop Chrome or Edge.';
   ui.compatibility.classList.add('unsupported');
+  ui['compatibility-icon'].className = 'fa-solid fa-triangle-exclamation';
 }
 
 ui.firmware.addEventListener('change', calculateFirmwareChecksum);

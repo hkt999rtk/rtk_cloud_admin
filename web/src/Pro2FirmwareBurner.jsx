@@ -3,8 +3,8 @@ import './pro2-firmware-burner.css';
 
 export const PRO2_FIRMWARE_BURNER_PATH = '/console/chipset-sdk/pro2/firmware-burner';
 
-function Icon({ name }) {
-  return <i className={`fa-solid fa-${name}`} aria-hidden="true" />;
+function Icon({ name, ...props }) {
+  return <i className={`fa-solid fa-${name}`} aria-hidden="true" {...props} />;
 }
 
 export function Pro2FirmwareBurner() {
@@ -32,35 +32,27 @@ export function Pro2FirmwareBurner() {
     <a className="pro2-back-link" href="/console/chipset-sdk"><Icon name="arrow-left" />Back to ChipSet &amp; SDK</a>
     <div className="page-intro pro2-page-intro">
       <div>
-        <p className="eyebrow">LOCAL DEVICE TOOL</p>
+        <p className="eyebrow"><Icon name="laptop" />LOCAL DEVICE TOOL · RUNS LOCALLY</p>
         <h2 className="heading-with-icon"><Icon name="microchip" />Ameba PRO2 Firmware Burner</h2>
         <p>Connect a PRO2 board over USB UART, burn a local firmware image, verify it, and continue in the live serial console—all without installing a desktop application.</p>
       </div>
-      <span className="pro2-local-badge"><Icon name="laptop" />Runs locally</span>
     </div>
 
-    <div id="compatibility" className="pro2-notice" role="status"><Icon name="circle-info" /><span id="compatibility-message">Checking Web Serial compatibility…</span></div>
+    <div id="compatibility" className="pro2-notice" role="status"><Icon id="compatibility-icon" name="circle-check" /><span id="compatibility-message">Checking Web Serial compatibility…</span></div>
     {loadError ? <div className="error" role="alert">{loadError}</div> : null}
 
-    <section className="panel pro2-connection-panel" aria-label="UART connection">
-      <div>
-        <p className="eyebrow">USB UART</p>
-        <span id="connection-label" className="pro2-connection-pill" role="status">● Not connected</span>
-      </div>
-      <div className="pro2-button-row">
-        <button id="connect" type="button" className="primary-button icon-text"><Icon name="plug" />Connect UART</button>
-        <button id="open-burn" type="button" className="ghost-button icon-text" disabled><Icon name="bolt" />Burn firmware</button>
-        <button id="disconnect" type="button" className="ghost-button icon-text" disabled><Icon name="link-slash" />Disconnect</button>
-      </div>
-    </section>
-
-    <section id="task-card" className="panel pro2-task-card" data-state="idle" aria-labelledby="task-title">
-      <div className="pro2-task-heading">
-        <div className="pro2-task-message"><span id="state-icon" className="pro2-state-icon" aria-hidden="true">○</span><div><strong id="task-title">Ready</strong><p id="message">Connect UART to use the console and burn firmware.</p></div></div>
-        <button id="cancel" type="button" className="ghost-button pro2-danger-button icon-text" disabled><Icon name="xmark" />Cancel burn</button>
+    <section id="task-card" className="panel pro2-workflow-card" data-state="idle" aria-labelledby="task-title">
+      <div className="pro2-workflow-top">
+        <div className="pro2-task-message"><Icon id="state-icon" name="plug" className="pro2-state-icon fa-solid fa-plug" /><div><p className="eyebrow">DEVICE WORKFLOW</p><strong id="task-title">Connect your PRO2 board</strong><p id="message">Select its USB UART to start the console or burn firmware.</p><span id="connection-label" className="pro2-connection-pill" role="status">Not connected</span></div></div>
+        <div className="pro2-button-row pro2-workflow-actions">
+          <button id="connect" type="button" className="primary-button icon-text"><Icon name="plug" />Connect UART</button>
+          <button id="open-burn" type="button" className="primary-button icon-text" hidden><Icon name="bolt" />Burn firmware</button>
+          <button id="disconnect" type="button" className="ghost-button icon-text" hidden><Icon name="link-slash" />Disconnect</button>
+          <button id="cancel" type="button" className="ghost-button pro2-danger-button icon-text" hidden><Icon name="xmark" />Cancel burn</button>
+        </div>
       </div>
       <ol className="pro2-task-steps" aria-label="Firmware burn progress">
-        <li id="step-connect">Connect UART</li><li id="step-download">Download mode</li><li id="step-transfer">Transfer</li><li id="step-verify">Verify</li><li id="step-console">Console</li>
+        <li id="step-connect"><span>Connect UART</span></li><li id="step-download"><span>Download mode</span></li><li id="step-transfer"><span>Transfer</span></li><li id="step-verify"><span>Verify</span></li><li id="step-console"><span>Console</span></li>
       </ol>
       <div className="pro2-progress-wrap"><progress id="progress" max="100" value="0" /><span id="progress-text">0%</span></div>
     </section>
@@ -101,17 +93,18 @@ export function Pro2FirmwareBurner() {
 
     <section className="panel pro2-terminal-panel" aria-labelledby="terminal-title">
       <div className="pro2-terminal-toolbar">
-        <div><p className="eyebrow">LIVE SERIAL CONSOLE</p><h2 id="terminal-title"><Icon name="terminal" />UART terminal</h2></div>
-        <label>Baud rate<select id="console-baud" defaultValue="115200"><option>115200</option><option>230400</option><option>460800</option><option>921600</option></select></label>
-        <label>Line ending<select id="line-ending" defaultValue="crlf"><option value="crlf">CRLF</option><option value="cr">CR</option><option value="lf">LF</option></select></label>
-        <div className="pro2-button-row pro2-terminal-actions">
-          <button id="reset-device" type="button" className="ghost-button" disabled>DTR/RTS reset</button><button id="scroll-lock" type="button" className="ghost-button" aria-pressed="false" disabled>Scroll lock</button><button id="copy-terminal" type="button" className="ghost-button" disabled>Copy</button><button id="save-terminal" type="button" className="ghost-button" disabled>Save log</button><button id="clear-terminal" type="button" className="ghost-button" disabled>Clear</button>
+        <div className="pro2-terminal-title-row">
+          <div><h2 id="terminal-title"><Icon name="terminal" />UART terminal</h2><span id="terminal-connection" className="pro2-terminal-connection">Offline</span></div>
+          <div className="pro2-button-row pro2-terminal-log-actions"><button id="copy-terminal" type="button" className="ghost-button" disabled><Icon name="copy" />Copy</button><button id="save-terminal" type="button" className="ghost-button" disabled><Icon name="download" />Save log</button><button id="clear-terminal" type="button" className="ghost-button" disabled><Icon name="trash-can" />Clear</button></div>
+        </div>
+        <div className="pro2-terminal-controls">
+          <div className="pro2-terminal-fields"><label>Baud rate<select id="console-baud" defaultValue="115200"><option>115200</option><option>230400</option><option>460800</option><option>921600</option></select></label><label>Line ending<select id="line-ending" defaultValue="crlf"><option value="crlf">CRLF</option><option value="cr">CR</option><option value="lf">LF</option></select></label></div>
+          <div className="pro2-button-row pro2-terminal-device-actions"><button id="reset-device" type="button" className="ghost-button" disabled>DTR/RTS reset</button><button id="scroll-lock" type="button" className="ghost-button" aria-pressed="false" disabled>Scroll lock</button></div>
         </div>
       </div>
-      <div id="terminal" className="pro2-terminal" aria-label="UART terminal output" />
+      <div className="pro2-terminal-shell"><div id="terminal" className="pro2-terminal" aria-label="UART terminal output" /><div className="pro2-terminal-empty"><Icon name="terminal" /><strong>Connect UART to start the console</strong><span>Device output will appear here.</span></div></div>
       <p className="pro2-terminal-hint"><Icon name="shield-halved" />Local echo is off. UART data and firmware never leave this browser.</p>
+      <details className="pro2-protocol-details"><summary><Icon name="stethoscope" />Transfer diagnostics</summary><div className="pro2-log-heading"><span>Firmware protocol events only; firmware and terminal data are excluded.</span><div className="pro2-button-row"><button id="copy-log" type="button" className="link-button">Copy diagnostics</button><button id="clear-log" type="button" className="link-button">Clear</button></div></div><pre id="protocol-log" aria-live="polite" /></details>
     </section>
-
-    <details className="panel pro2-protocol-details"><summary><Icon name="stethoscope" />Transfer diagnostics</summary><div className="pro2-log-heading"><span>Firmware protocol events only; firmware and terminal data are excluded.</span><div className="pro2-button-row"><button id="copy-log" type="button" className="link-button">Copy diagnostics</button><button id="clear-log" type="button" className="link-button">Clear</button></div></div><pre id="protocol-log" aria-live="polite" /></details>
   </section>;
 }

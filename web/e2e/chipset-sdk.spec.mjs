@@ -35,12 +35,13 @@ test('[UI-CA-CHIPSET-009] PRO2 firmware burner is a global local-device tool @ch
   await expect(page).toHaveURL('/console/chipset-sdk/pro2/firmware-burner');
   await expect(page.getByTestId('pro2-firmware-burner')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Ameba PRO2 Firmware Burner', exact: true })).toBeVisible();
-  await expect(page.getByText('Firmware and console data stay on this computer.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Firmware and UART data stay on this computer.', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Connect UART', exact: true })).toBeEnabled();
   await expect(page.getByRole('heading', { name: 'UART terminal', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Back to ChipSet & SDK', exact: true })).toHaveAttribute('href', '/console/chipset-sdk');
   await page.getByRole('button', { name: 'Connect UART', exact: true }).click();
   await expect(page.getByText('Connected and waiting for device output.', { exact: true })).toBeVisible();
+  await expect(page.locator('#task-title')).toHaveText('UART connected');
   await page.getByRole('button', { name: 'Burn firmware', exact: true }).click();
   await page.locator('#firmware').setInputFiles({ name: 'flash_is.bin', mimeType: 'application/octet-stream', buffer: Buffer.from('PRO2 firmware fixture') });
   await expect(page.locator('#firmware-checksum')).toHaveText(/^[0-9a-f]{64}$/);
