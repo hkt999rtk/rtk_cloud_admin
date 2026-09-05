@@ -130,3 +130,29 @@ or database migration. Never publish the content first against an older backend
 that discards unknown Board fields. Verify the full flow in staging before
 production promotion. Rollback can unpublish the Provider or restore its previous
 manifest without changing the data schema.
+
+### Local evidence (2026-09-06)
+
+The focused board suite passed all 11 desktop/mobile Chromium cases, including
+mobile touch pinch, mouse wheel, keyboard controls and failure recovery. Six
+additional cases passed in installed Google Chrome and six in Playwright
+WebKit 26.5. The in-app browser was also used to inspect the live page and
+reverse view. WebKit is engine coverage, not an actual Safari application
+sign-off; Edge and actual Safari device testing remain release checks.
+
+Generated v1 assets: GLB 1,894,580 bytes; poster 34,420 bytes; 47,638 triangles
+and 72 draw calls in the builder's reference rendering. The Node asset test
+checks budgets and every manifest component name on each run.
+
+Run browser checks from `web/` (use an available `E2E_APP_PORT` if another
+preview is already running):
+
+```sh
+npx playwright test e2e/boards.spec.mjs --project=chromium --project=mobile
+npx playwright install webkit
+npx playwright test e2e/boards.spec.mjs --project=board-chrome --project=board-webkit
+```
+
+The additional engine projects are explicit opt-in checks; normal CI retains
+its existing desktop/mobile projects. Browser screenshots and traces are
+written under the workspace `.artifacts/test-runs/` evidence directory.
