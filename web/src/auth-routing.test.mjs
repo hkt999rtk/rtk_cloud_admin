@@ -79,8 +79,11 @@ test('explicit My Clouds is preserved; scoped next requires membership', () => {
 
 test('global developer resources preserve a safe login next without cloud context', () => {
   const sdkPath = '/console/chipset-sdk';
+  const burnerPath = '/console/chipset-sdk/pro2/firmware-burner';
   assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin', memberships: [] }, sdkPath), sdkPath);
   assert.equal(destinationForSession({ authenticated: true, kind: 'customer', memberships: [] }, sdkPath), sdkPath);
+  assert.equal(destinationForSession({ authenticated: true, kind: 'platform_admin', memberships: [] }, burnerPath), burnerPath);
+  assert.equal(destinationForSession({ authenticated: true, kind: 'customer', memberships: [] }, burnerPath), burnerPath);
 });
 
 test('login opens a valid remembered cloud or the first ordered membership', () => {
