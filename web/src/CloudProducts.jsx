@@ -2,6 +2,7 @@ import React, {useEffect,useRef,useState} from 'react';
 import {cloudURL,cloudWriteIntent,managedCloudRequest} from './managed-clouds.mjs';
 import {fetchCloudProducts,productAPI,productURL,productServices,productError} from './cloud-products.mjs';
 import './cloud-products.css';
+import { Dialog, StatusBadge, CopyValue, displayLabel } from './ConsoleUI.jsx';
 
 function Icon({name}) { return <i className={`fa-solid fa-${name}`} aria-hidden="true" />; }
 
@@ -55,24 +56,24 @@ export function CloudProducts({cloudId,productId='',onAccessLost}) {
     } finally {writing.current=false;if(alive.current)setBusy(false);}
   }
   return <section className="my-clouds-panel cloud-products" data-testid="cloud-products">
-    <div className="my-clouds-card-head"><h2 className="heading-with-icon"><Icon name="boxes-stacked" />{productId?'Product overview':'Products'}</h2>{!productId && data?.can_create && <button className="icon-text" disabled={busy} onClick={()=>edit(null)}><Icon name="plus" />Create Product</button>}</div>
-    <p>Each Product has a permanent Product key and stays in this Brand Cloud after it is created.</p>
+    <div className="my-clouds-card-head"><h2 className="heading-with-icon"><Icon name="boxes-stacked" />{productId?'Product overview':'Products'}</h2>{!productId && data?.can_create && <button className="primary-button icon-text" disabled={busy} onClick={()=>edit(null)}><Icon name="plus" />Create Product</button>}</div>
+    <p>Manage product models, enabled services and device access.</p>
     {productId && <nav aria-label="Product location"><a href={cloudURL(cloudId)}>Back to this cloud</a></nav>}
     {!productId && <label className="product-status-filter"><span className="icon-text"><Icon name="filter" />Product status</span><select aria-label="Product status" disabled={busy} value={status} onChange={e=>{setStatus(e.target.value);setOffset(0);setForm(null);setDisable(null);}}><option value="">All statuses</option><option value="active">Active</option><option value="disabled">Disabled</option></select></label>}
     {error && <div role="alert">{error} <button onClick={()=>setReload(v=>v+1)}>Refresh Products</button></div>}
     {loading && <p role="status">Loading Products…</p>}
-    {form && <form onSubmit={write} data-testid="product-form">
-      <h3>{form.id?'Edit Product':'Create Product in this cloud'}</h3>
+    {form && <Dialog title={form.id ? "Edit product" : "Create product"} busy={busy} onClose={()=>setForm(null)}>{error && <p role="alert">{error}</p>}<form onSubmit={write} data-testid="product-form">
+      <p>Product keys are permanent. Names and models can be updated later.</p>
       <label>Product name<input aria-label="Product name" required maxLength={255} disabled={busy} value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
       <label>Product key<input aria-label="Product key" required maxLength={120} disabled={busy||!!form.id} value={form.profile_key} onChange={e=>setForm({...form,profile_key:e.target.value})}/></label>
       <label>Product model<input aria-label="Product model" maxLength={255} disabled={busy} value={form.product_model} onChange={e=>setForm({...form,product_model:e.target.value})}/></label>
       <label>Category<select aria-label="Product category" disabled={busy} value={form.category} onChange={e=>setForm({...form,category:e.target.value})}><option value="ip_camera">IP camera</option><option value="mqtt_device">MQTT device</option><option value="generic">Generic device</option></select></label>
       <fieldset disabled={busy}><legend>Service options — choose at least one</legend>{productServices.map(([id,label])=><label key={id}><input type="checkbox" checked={form.service_options.includes(id)} onChange={e=>setForm({...form,service_options:e.target.checked?[...form.service_options,id]:form.service_options.filter(v=>v!==id)})}/>{label}</label>)}</fieldset>
       <div className="my-clouds-actions"><button type="submit" disabled={busy||!form.service_options.length}>{busy?'Saving…':'Save Product'}</button><button type="button" disabled={busy} onClick={()=>setForm(null)}>Cancel</button></div>
-    </form>}
+    </form></Dialog>}
     {disable && <form onSubmit={write} role="group" aria-label="Confirm Product disable"><h3>Disable {disable.name}?</h3><p>This disables the Product; it does not delete its devices, firmware or history, and does not make the cloud empty.</p><button disabled={busy} type="submit">Confirm Product disable</button><button disabled={busy} type="button" onClick={()=>setDisable(null)}>Cancel</button></form>}
     {data?.products.length===0 && <p>No Products in your authorized scope.</p>}
-    <div className="cloud-product-items">{data?.products.map(p=><article key={p.id} className="my-clouds-panel"><h3>{productId?p.name:<a className="icon-text" href={productURL(cloudId,p.id)}>{p.name}<Icon name="arrow-up-right" /></a>}</h3><p className="product-status-line"><Icon name={p.status==='active'?'circle-check':'circle-minus'} />{p.profile_key} · {p.status}</p><dl><dt><Icon name="cube" />Model</dt><dd>{p.product_model||'—'}</dd><dt><Icon name="tag" />Category</dt><dd>{p.category}</dd><dt><Icon name="user-shield" />My Product role</dt><dd>{p.my_role||'Cloud-scoped access'}</dd><dt><Icon name="plug" />Services</dt><dd>{p.service_options.join(', ')||'None'}</dd></dl><div className="my-clouds-actions">{p.allowed_actions?.includes('edit') && <button className="icon-text" disabled={busy} onClick={()=>edit(p)}><Icon name="pen-to-square" />Edit Product</button>}{p.status==='active' && p.allowed_actions?.includes('disable') && <button className="icon-text" disabled={busy} onClick={()=>{intent.current=null;setForm(null);setDisable(p);}}><Icon name="ban" />Disable Product</button>}</div></article>)}</div>
+    {data?.products.length > 0 && <div className="ui-table-scroll"><table><caption>{productId ? 'Product configuration' : 'Products in your authorized scope'}</caption><thead><tr><th>Product</th><th>Status</th><th>Model / category</th><th>Services</th><th>Access</th><th>Actions</th></tr></thead><tbody>{data.products.map(p=><tr key={p.id}><td><a href={productURL(cloudId,p.id)}>{p.name}</a><small>{productId ? <CopyValue value={p.profile_key} label="product key"/> : p.profile_key}</small></td><td><StatusBadge value={p.status}/></td><td>{p.product_model||'Not specified'}<small>{displayLabel(p.category)}</small></td><td>{p.service_options.map(displayLabel).join(', ')||'None'}</td><td>{displayLabel(p.my_role||'Cloud-scoped access')}</td><td><div className="my-clouds-actions">{p.allowed_actions?.includes('edit') && <button disabled={busy} onClick={()=>edit(p)}>Edit Product</button>}{p.status==='active' && p.allowed_actions?.includes('disable') && <button disabled={busy} onClick={()=>{intent.current=null;setForm(null);setDisable(p);}}>Disable Product</button>}</div></td></tr>)}</tbody></table></div>}
     {!productId && data?.pagination && <nav className="my-clouds-pagination" aria-label="Product pages"><button disabled={busy||offset===0} onClick={()=>{setOffset(Math.max(0,offset-25));setForm(null);setDisable(null);}}>Previous Products</button><span>{data.pagination.total} authorized Products · Page {Math.floor(offset/25)+1}</span><button disabled={busy||offset+25>=data.pagination.total} onClick={()=>{setOffset(offset+25);setForm(null);setDisable(null);}}>Next Products</button></nav>}
   </section>;
 }

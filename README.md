@@ -118,6 +118,9 @@ The design and implementation context is split across these documents:
   local/staging SDK smoke-test certificate flow and production distinction.
 - [`docs/roles.md`](docs/roles.md): Tier 1/Tier 2 responsibilities,
   capabilities, and field visibility rules.
+- [`docs/web-ui-style-guideline.md`](docs/web-ui-style-guideline.md): current
+  developer/enterprise console and sign-in presentation, Realtek brand token
+  application, component patterns, accessibility, and page/state acceptance.
 - [`docs/webui-customer-view-design.md`](docs/webui-customer-view-design.md):
   approved Customer View design direction and visual concepts.
 - [`docs/admin-dashboard-redesign.md`](docs/admin-dashboard-redesign.md):

@@ -1,10 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { developerDocsURL, searchDeveloperDocs, documentationSnippet } from './developer-docs.mjs';
 import './developer-docs.css';
+import './developer-docs-ui.css';
 
 const categoryIcons = { 'Start here': 'compass', Tutorials: 'play', Concepts: 'diagram-project', 'Build integrations': 'code', 'Operate and troubleshoot': 'wrench', Reference: 'book-open' };
 const topicIcons = { authentication: 'shield-halved', 'credential-setup': 'key', 'credential-recovery': 'key', 'mqtt-topics': 'route', 'mqtt-connection': 'network-wired', 'mqtt-quickstart': 'network-wired', 'shadow-concepts': 'arrows-rotate', 'shadow-quickstart': 'arrows-rotate', 'shadow-interfaces': 'arrows-rotate', 'shadow-reference': 'arrows-rotate', debugging: 'bug', 'integration-test-kit': 'flask', 'api-examples': 'code', 'device-presence': 'signal', 'ownership-sharing': 'users' };
 function DocsIcon({ name }) { return <i className={`fa-solid fa-${name}`} aria-hidden="true" />; }
+
+// Keep copy-status updates from replacing the generated HTML and its copy controls.
+const DocumentationBody = React.memo(function DocumentationBody({ html, bodyRef }) {
+  return <div ref={bodyRef} className="docs-body" dangerouslySetInnerHTML={{ __html: html }} />;
+});
 
 function SearchHighlight({ text, query }) {
   const terms = query.trim().split(/\s+/).filter(Boolean);
@@ -18,9 +24,12 @@ export function DeveloperDocs() {
   const [category, setCategory] = useState('');
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState('');
+  const [copyStatus, setCopyStatus] = useState('');
+  const contentRef = useRef(null);
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('q') || '');
   const slug = window.location.pathname.replace(/^\/console\/developer-docs\/?/, '').replace(/\/$/, '');
   const page = catalog?.pages.find((item) => item.slug === slug);
+  const browsing = !slug || Boolean(query);
   const href = (value = '') => developerDocsURL(value, window.location.search);
   useEffect(() => {
     const controller = new AbortController();
@@ -34,6 +43,50 @@ export function DeveloperDocs() {
     document.title = `${page.title} · Developer Docs`;
     if (window.location.hash) document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView();
   }, [page]);
+  useEffect(() => {
+    setCopyStatus('');
+    if (!page || browsing || !contentRef.current) return undefined;
+    let active = true;
+    const removers = [...contentRef.current.querySelectorAll('pre')].map((block, index) => {
+      const code = block.querySelector('code') || block;
+      const text = code.textContent;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'docs-copy-code';
+      button.textContent = 'Copy';
+      button.setAttribute('aria-label', `Copy code example ${index + 1}`);
+      const copy = async () => {
+        button.disabled = true;
+        button.textContent = 'Copying…';
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+          await navigator.clipboard.writeText(text);
+          if (active) {
+            button.textContent = 'Copied';
+            button.removeAttribute('title');
+            setCopyStatus(`Code example ${index + 1} copied.`);
+          }
+        } catch {
+          if (active) {
+            button.textContent = 'Copy unavailable';
+            button.title = 'Select the code and copy it manually.';
+            setCopyStatus(`Could not copy code example ${index + 1}. Select the code and copy it manually.`);
+          }
+        } finally {
+          if (active) button.disabled = false;
+        }
+      };
+      button.addEventListener('click', copy);
+      block.classList.add('docs-copyable');
+      block.append(button);
+      return () => {
+        button.removeEventListener('click', copy);
+        button.remove();
+        block.classList.remove('docs-copyable');
+      };
+    });
+    return () => { active = false; removers.forEach((remove) => remove()); };
+  }, [page, browsing]);
   function keepCloudContext(event) {
     const link = event.target.closest('a');
     if (!link || !link.pathname.startsWith('/console/')) return;
@@ -44,7 +97,6 @@ export function DeveloperDocs() {
   if (!catalog) return <section className="panel" role="status">Loading documentation…</section>;
   const matches = searchDeveloperDocs(catalog.pages, query);
   const results = matches.filter((item) => !category || item.category === category);
-  const browsing = !slug || Boolean(query);
   const groups = [...new Set(catalog.pages.map((item) => item.category))];
   const resultGroups = query.trim() ? [{ title: 'Search results · most relevant first', items: results }] : groups.map((group) => ({ title: group, items: results.filter((item) => item.category === group) }));
   function updateQuery(value) {
@@ -85,9 +137,11 @@ export function DeveloperDocs() {
           <details><summary>Applicable versions</summary><pre>{typeof page.applies_to === 'string' ? page.applies_to : JSON.stringify(page.applies_to, null, 2)}</pre></details></header>
           <details className="docs-toc"><summary>On this page</summary>{page.headings.filter((heading) => heading.depth === 2).map((heading) => <a href={`#${heading.anchor}`} key={heading.anchor}>{heading.title}</a>)}</details>
           {/* HTML is generated at build time from the curated source; raw HTML is rejected by the publisher. */}
-          <div className="docs-body" dangerouslySetInnerHTML={{ __html: page.html }} />
+          <p className="docs-copy-status" role="status" aria-live="polite" aria-atomic="true">{copyStatus}</p>
+          <DocumentationBody bodyRef={contentRef} html={page.html} />
         </article> : <div className="panel"><h2>Document not found</h2><a href={href()}>Browse all documentation</a></div>}
       </div>
+      {!browsing && page?.headings.some((heading) => heading.depth === 2) ? <nav className="docs-section-nav" aria-label="Article sections"><h2>On this page</h2>{page.headings.filter((heading) => heading.depth === 2).map((heading) => <a href={`#${heading.anchor}`} key={heading.anchor}>{heading.title}</a>)}</nav> : null}
     </div>
   </section>;
 }

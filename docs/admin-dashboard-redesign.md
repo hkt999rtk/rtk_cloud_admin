@@ -2,6 +2,13 @@
 
 Status: approved direction for the Brand Fleet Management refresh.
 
+Presentation update (2026-09-05): use the
+[Web UI Style Guideline](web-ui-style-guideline.md) for current customer-console
+and sign-in visual/copy guidance. It supersedes conflicting historical mockup
+styling and small-fleet composition here, while preserving route, tenant,
+permission and backend requirements. Internal Platform redesign is outside
+the current console refresh.
+
 > Current direction: this document's earlier small-fleet Customer View sections
 > are historical context. The brand sub-tenant console is now designed for
 > Developer / Release Manager and Operations users managing 100K+ devices.

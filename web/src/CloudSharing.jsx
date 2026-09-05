@@ -3,6 +3,7 @@ import { managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { sharingPath, sharingBody, sharingScopeLabel, sharingError } from './cloud-sharing.mjs';
 import { SharingProducts } from './SharingProducts.jsx';
 import './cloud-sharing.css';
+import { Dialog } from './ConsoleUI.jsx';
 
 export function CloudSharing({ cloudId, onAccessLost }) {
   const [data, setData] = useState(null);
@@ -59,7 +60,7 @@ export function CloudSharing({ cloudId, onAccessLost }) {
     {loading && <p role="status">Loading current grants…</p>}
     {data && <>
       <button disabled={busy} onClick={() => edit(null)}>Share cloud</button>
-      {form && <form onSubmit={submit}><h3>{form.userId ? 'Change access' : 'Invite verified developer'}</h3>
+      {form && <Dialog title={form.userId ? 'Change access' : 'Invite verified developer'} busy={busy} onClose={()=>setForm(null)}>{error && <p role="alert">{error}</p>}<form onSubmit={submit}>
         {!form.userId && <label>Developer email<input type="email" required value={form.email} disabled={busy} onChange={e => setForm({ ...form, email: e.target.value })} /></label>}
         <label>Role<select value={form.role} disabled={busy} onChange={e => setForm({ ...form, role: e.target.value })}><option value="viewer">Viewer — read-only</option><option value="admin">Admin — existing management permissions</option><option value="member">Member — existing member permissions</option></select></label>
         {form.role === 'viewer' ? <>
@@ -68,7 +69,7 @@ export function CloudSharing({ cloudId, onAccessLost }) {
         </> : <p>This is not a read-only role. Its existing cloud permissions apply; it still does not grant ownership or Billing access.</p>}
         <p>New invitations require acceptance by the matching global account and expire after 30 minutes. Changing a pending invitation requires canceling it and creating another.</p>
         <div className="my-clouds-actions"><button type="submit" disabled={busy}>{busy ? 'Submitting…' : form.userId ? 'Save access' : 'Send invitation'}</button><button type="button" disabled={busy} onClick={() => setForm(null)}>Cancel form</button></div>
-      </form>}
+      </form></Dialog>}
       <h3>Current members</h3>
       {(data.members || []).map(m => <article key={m.user_id}><h4>{m.display_name || m.email || m.user_id} · {m.role}</h4><p>{sharingScopeLabel(m)}{m.disabled_at ? ' · Disabled' : ''}</p>{m.role !== 'owner' && <div className="my-clouds-actions"><button disabled={busy} onClick={() => edit(m)}>Change access</button><button disabled={busy} onClick={() => { setForm(null); setConfirm({ method: 'DELETE', path: sharingPath(cloudId, 'members', m.user_id), label: `Remove ${m.email || m.user_id}? All Product grants become invalid; rejoining will not restore them.` }); }}>Remove access</button><button disabled={busy} onClick={() => { setForm(null); setConfirm({ method: 'PATCH', path: sharingPath(cloudId, 'members', m.user_id, m.disabled_at ? 'enable' : 'disable'), body: {}, label: `${m.disabled_at ? 'Enable' : 'Disable'} ${m.email || m.user_id}? Current authority is rechecked by the server.` }); }}>{m.disabled_at ? 'Enable' : 'Disable'}</button></div>}</article>)}
       <nav aria-label="Member pages"><button disabled={busy || offset === 0} onClick={() => setOffset(Math.max(0, offset - 25))}>Previous members</button><span>Members: {data.pagination?.total || 0}</span><button disabled={busy || offset + 25 >= (data.pagination?.total || 0)} onClick={() => setOffset(offset + 25)}>Next members</button></nav>

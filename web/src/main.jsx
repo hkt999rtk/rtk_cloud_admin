@@ -2,6 +2,8 @@ import { DeveloperDocs } from './DeveloperDocs.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
+import { CloudConsoleShell } from './CloudConsoleShell.jsx';
+import { CustomerAudit } from './ConsoleUI.jsx';
 import { productInvitationDestination } from './cloud-products.mjs';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
 import { handoffRoute } from './owner-handoff.mjs';
@@ -22,6 +24,7 @@ import {
   canAccessCustomerRoute,
   canonicalCustomerPath,
   cloudContextId,
+  cloudRouteForSwitch,
   cloudConsolePath,
   cloudIdFromPath,
   defaultBrandCloudRoute,
@@ -134,6 +137,9 @@ import { formatSDKBytes, sdkArtifactFormat, sdkArtifacts, sdkDocumentationURL } 
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import '@fontsource-variable/noto-sans-tc';
 import './styles.css';
+import './console-ui.css';
+import './service-login.css';
+import './developer-tools-ui.css';
 import i18n, { FORMAT_LOCALE, formatDateTime, formatNumber, translate } from './i18n/index.mjs';
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -279,9 +285,7 @@ function App() {
   const [error, setError] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const mobileNavRef = useRef(null);
-  const mobileMenuButtonRef = useRef(null);
+
   const isPublicRoute = isPublicRouteId(active);
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'forgot-password' || active === 'reset-password';
@@ -423,7 +427,7 @@ function App() {
           setDeveloperBrandClouds([]);
         }
 
-        if (!useAdminApi && active === 'developer-docs' && nextMe.kind === 'customer') {
+        if (!useAdminApi && ['developer-docs', 'audit'].includes(active) && nextMe.kind === 'customer') {
           setSummary(null);
           setDevices([]);
           setLoading(false);
@@ -772,40 +776,6 @@ function App() {
     setDeviceDrawerOpen(Boolean(deviceId));
   }, [active]);
 
-  useEffect(() => {
-    if (!mobileNavOpen) return undefined;
-    const drawer = mobileNavRef.current;
-    const focusable = () => [...(drawer?.querySelectorAll('button, select, a[href], [tabindex]:not([tabindex="-1"])') || [])]
-      .filter((element) => !element.disabled && element.getAttribute('aria-hidden') !== 'true');
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    focusable()[0]?.focus();
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setMobileNavOpen(false);
-        return;
-      }
-      if (event.key !== 'Tab') return;
-      const items = focusable();
-      if (!items.length) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', onKeyDown);
-      mobileMenuButtonRef.current?.focus();
-    };
-  }, [mobileNavOpen]);
-
   function pathForNavigationItem(item) {
     const navigationCloudId = isGlobalDeveloperRoute
       ? cloudContextId(window.location.pathname, window.location.search) || me?.active_org_id || ''
@@ -833,7 +803,6 @@ function App() {
       setFirmwareProductId('');
     }
     setActive(targetRoute);
-    setMobileNavOpen(false);
   }
 
   function selectFirmwareProduct(productID) {
@@ -1142,8 +1111,9 @@ function App() {
 
   async function handleSwitchOrg(orgId) {
     setError('');
-    if (window.location.pathname.startsWith('/console/clouds/')) {
-      window.location.assign(cloudConsolePath(orgId, active));
+    if (window.location.pathname.startsWith('/console/')) {
+      const cloud = developerBrandClouds.find(item => item.id === orgId) || { id: orgId };
+      window.location.assign(cloudRouteForSwitch(cloud, active, me?.user_id));
       return;
     }
     const response = await fetch('/api/me/active-org', {
@@ -1180,7 +1150,6 @@ function App() {
   }
 
   async function handleLogout() {
-    setMobileNavOpen(false);
     setError('');
     const response = await fetch('/api/auth/logout', { method: 'POST' });
     if (!response.ok) {
@@ -1204,7 +1173,8 @@ function App() {
     const membership = (me?.memberships || []).find((candidate) => candidate.organization_id === cloudId || candidate.id === cloudId);
     return {
       id: cloudId || cloud?.id || membership?.organization_id || '',
-      name: cloud?.name || cloud?.organization || membership?.organization || membership?.name || 'Brand Cloud',
+      ...me?.active_organization,
+      name: me?.active_organization?.name || cloud?.name || cloud?.organization || membership?.organization || membership?.name || 'Brand Cloud',
     };
   }, [developerBrandClouds, me]);
 
@@ -1241,86 +1211,7 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="mobile-appbar">
-        <button
-          ref={mobileMenuButtonRef}
-          type="button"
-          className="mobile-menu-button"
-          aria-label="Open navigation"
-          aria-controls="primary-navigation"
-          aria-expanded={mobileNavOpen}
-          onClick={() => setMobileNavOpen(true)}
-        >
-          <Icon name="bars" />
-        </button>
-        <h1>{titleFor(active)}</h1>
-        <span className="mobile-appbar-mark" aria-hidden="true">C+</span>
-      </header>
-      <button
-        type="button"
-        className={`mobile-nav-overlay ${mobileNavOpen ? 'open' : ''}`}
-        aria-label="Close navigation"
-        tabIndex={mobileNavOpen ? 0 : -1}
-        onClick={() => setMobileNavOpen(false)}
-      />
-      <aside
-        id="primary-navigation"
-        ref={mobileNavRef}
-        className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}
-        aria-label="Primary navigation"
-      >
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">C+</span>
-          <strong>Connect+</strong>
-          <button type="button" className="mobile-nav-close" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}>
-            <Icon name="xmark" />
-          </button>
-        </div>
-        <nav className="sidebar-nav-groups">
-          {visibleNavGroups.map((group) => <section className="sidebar-nav-group" key={group.id}>
-            <p className="sidebar-section-label">{translate(group.labelKey)}</p>
-            {group.items.map((item) => <a key={item.id} className={isCustomerNavItemActive(item, active) ? 'active' : ''} aria-current={isCustomerNavItemActive(item, active) ? 'page' : undefined} href={pathForNavigationItem(item)} onClick={(event) => { event.preventDefault(); navigate(item); }}>
-              {item.icon ? <Icon name={item.icon} /> : null}
-              {translate(item.labelKey)}
-            </a>)}
-          </section>)}
-        </nav>
-        <div className="sidebar-account">
-          <span className="avatar">{me?.email ? initialsForEmail(me.email) : 'DM'}</span>
-          <div>
-            <strong>{sessionLabel(me)}</strong>
-            <small>{me?.authenticated ? me.email : 'Sign in required'}</small>
-          </div>
-          {me?.authenticated ? <button type="button" className="sidebar-logout" onClick={handleLogout}><Icon name="right-from-bracket" />Logout</button> : null}
-        </div>
-      </aside>
-
-      <main>
-        <header className="topbar">
-          <div className="topbar-title">
-            <h1>{titleFor(active)}</h1>
-          </div>
-          <div className="topbar-controls">
-			{me?.authenticated && me?.kind === 'customer' && (me?.platform_capabilities?.length ?? 0) > 0 ? <button type="button" className="ghost-button" onClick={() => handleSwitchView('platform')}>Platform view</button> : null}
-			{me?.authenticated && me?.kind === 'platform_admin' && (me?.memberships?.length ?? 0) > 0 ? <button type="button" className="ghost-button" onClick={() => handleSwitchView('customer')}>Brand Cloud view</button> : null}
-			{me?.authenticated && me?.kind === 'platform_admin' ? <span className="topbar-context-badge"><Icon name="shield-halved" />Platform Admin</span> : null}
-            {me?.kind === 'customer' && (developerBrandClouds.length > 1 || (me?.memberships?.length ?? 0) > 1) ? (
-              <select
-                className="org-switcher"
-                value={me.active_org_id || ''}
-                onChange={(e) => handleSwitchOrg(e.target.value)}
-                aria-label="Brand Cloud"
-              >
-                {(developerBrandClouds.length ? developerBrandClouds : (me.memberships || [])).map((m) => (
-                  <option key={m.id || m.organization_id} value={m.id || m.organization_id}>{m.name || m.organization}</option>
-                ))}
-              </select>
-            ) : null}
-            {me?.authenticated ? <button type="button" className="ghost-button icon-text-button" onClick={handleLogout}><Icon name="right-from-bracket" />Logout</button> : null}
-          </div>
-        </header>
-
+    <CloudConsoleShell me={me} cloud={activeBrandCloud.id ? { ...activeBrandCloud, capabilities: me?.capabilities || [], my_role: activeBrandCloud.my_role || getActiveMembership(me)?.role } : null} clouds={developerBrandClouds} active={active} title={active === 'overview' ? 'Overview' : titleFor(active)} navGroups={visibleNavGroups} onNavigate={navigate} navigationPath={pathForNavigationItem} onSwitchCloud={handleSwitchOrg} onLogout={handleLogout} onSwitchView={handleSwitchView} onError={setError}>
         {error ? <div className="error">{error}</div> : null}
 
         {needsPlatformAccess ? (
@@ -1462,8 +1353,8 @@ function App() {
         ) : null}
         {!needsPlatformAccess && active === 'platform-operations' ? <Operations operations={operations} /> : null}
         {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} loading={loading} /> : null}
-      </main>
-    </div>
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'audit' ? <CustomerAudit cloudId={urlCloudId} /> : null}
+    </CloudConsoleShell>
   );
 }
 
@@ -1480,12 +1371,12 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
     : authMode === 'signup'
       ? 'Create an account to get started with Connect+.'
       : 'Use your Connect+ account to continue.';
-  const pageHeading = active === 'login' ? loginHeading : active === 'reset-password' ? 'Reset your password' : 'Admin Console';
+  const pageHeading = active === 'login' ? loginHeading : active === 'reset-password' ? 'Reset your password' : active === 'forgot-password' ? 'Recover your account' : active === 'login-check-email' ? 'Check your email' : 'Complete your sign in';
   const pageCopy = active === 'login'
     ? loginCopy
     : active === 'reset-password'
-      ? 'Choose a new password for your Connect+ Ops account.'
-      : 'Login to an existing account or create a new evaluation account.';
+      ? 'Choose a new password for your Connect+ account.'
+      : active === 'forgot-password' ? 'We’ll help you regain access to your Connect+ account.' : 'Continue to your Realtek cloud workspace.';
 
   useEffect(() => {
     if (active !== 'login') return;
@@ -1527,19 +1418,38 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
     />
   );
   return (
-    <div className="login-shell">
+    <div className="login-shell service-login-shell">
+      <header className="service-login-header">
+        <a className="login-brand" href="/login" aria-label="Realtek Connect+ sign in">
+          <img src="/assets/realtek-logo.png" alt="Realtek" />
+          <span className="service-brand-divider" aria-hidden="true" />
+          <strong>Connect+</strong>
+        </a>
+        <span className="service-console-label">{platformLogin ? 'Platform administration' : 'Developer console'}</span>
+      </header>
       <main className="login-layout">
-        <section className="login-primary" aria-labelledby="login-title">
-          <div className="login-brand">
-            <img src="/assets/realtek-logo.png" alt="Realtek" />
-            <strong>Connect+</strong>
+        <aside className="service-login-story" aria-label="About Connect+">
+          <div className="service-story-content">
+            <p className="service-story-eyebrow">REALTEK CLOUD SERVICES</p>
+            <h2>Your products. <br />Your cloud. <br /><span>Connected.</span></h2>
+            <p className="service-story-copy">A dedicated workspace for the people building and operating connected products.</p>
+            <ul className="service-story-features">
+              <li><i className="fa-solid fa-cubes" aria-hidden="true" /><div><strong>Build your product ecosystem</strong><span>Organize products and connect your devices.</span></div></li>
+              <li><i className="fa-solid fa-sliders" aria-hidden="true" /><div><strong>Bring operations together</strong><span>Manage your fleet, firmware and cloud services.</span></div></li>
+              <li><i className="fa-solid fa-code" aria-hidden="true" /><div><strong>Keep development moving</strong><span>Find SDKs, integration guides and technical resources.</span></div></li>
+            </ul>
           </div>
+          <div className="service-story-footer"><span className="service-story-rule" aria-hidden="true" />From device to cloud.</div>
+        </aside>
+        <section className="login-primary" aria-labelledby="login-title">
+          <p className="service-form-eyebrow">{platformLogin ? 'PLATFORM ACCESS' : 'WELCOME TO CONNECT+'}</p>
           <h1 id="login-title">{pageHeading}</h1>
           <p className="login-copy">{pageCopy}</p>
           {content}
-          {error || socialLoginCallbackError(params.get('social_error')) ? <div className="error">{error || socialLoginCallbackError(params.get('social_error'))}</div> : null}
+          {error || socialLoginCallbackError(params.get('social_error')) ? <div className="error" role="alert">{error || socialLoginCallbackError(params.get('social_error'))}</div> : null}
         </section>
       </main>
+      <footer className="service-login-footer"><span>Realtek Connect+ · Cloud services</span><a href="https://www.realtek.com" target="_blank" rel="noreferrer noopener">Realtek corporate website <span aria-hidden="true">↗</span></a></footer>
     </div>
   );
 }
@@ -1614,6 +1524,7 @@ function SocialLoginButtons({ providers = [], onSocialLogin, disabled }) {
 function LoginPasswordForm({ initialEmail = '', onPasswordLogin, disabled }) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState('');
   async function submit(event) {
@@ -1629,18 +1540,21 @@ function LoginPasswordForm({ initialEmail = '', onPasswordLogin, disabled }) {
     }
   }
   return (
-    <form className="login-form" onSubmit={submit}>
+    <form className="login-form" onSubmit={submit} aria-busy={busy}>
       <label>
         Email
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
+        <input type="email" name="email" autoComplete="username" autoCapitalize="none" spellCheck={false} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
       </label>
-      <label>
-        Password
-        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required />
-      </label>
+      <div className="service-password-field">
+        <label htmlFor="service-login-password">Password</label>
+        <div className="service-password-control">
+          <input id="service-login-password" name="password" autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required />
+          <button type="button" className="service-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-controls="service-login-password" onClick={() => setShowPassword(value => !value)}><i className={`fa-regular ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true" /></button>
+        </div>
+      </div>
       <button type="submit" disabled={busy || disabled}>{busy ? 'Signing in' : 'Sign in'}</button>
       <a className="auth-link" href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}>Forgot password?</a>
-      {localError ? <p className="error">{localError}</p> : null}
+      {localError ? <p className="error" role="alert">{localError}</p> : null}
     </form>
   );
 }
@@ -1837,7 +1751,7 @@ function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify
 
   return (
     <div className="public-auth-shell">
-      <section className="auth-hero">
+      <section className="auth-hero"><a href="/login" aria-label="Realtek Connect+ sign in"><img src="/assets/realtek-logo.png" alt="Realtek" /></a>
         <p className="eyebrow">Evaluation tier access</p>
         <h1>{titleFor(active)}</h1>
         <p>Self-service signup and verification for the public evaluation tier.</p>
@@ -2212,7 +2126,7 @@ function Overview({
   const isEvaluation = (activeMembership?.tier || '').toLowerCase() === 'evaluation';
   const nearQuota = isEvaluation && activeDevices >= Math.max(quotaLimit - 1, 1);
   const current = fleetHealth?.current || {};
-  const onlineCount = summary?.online_devices ?? '-';
+  const onlineCount = summary?.online_devices;
   const telemetryAvailable = sourceAvailable(fleetHealth);
   const streamAvailable = sourceAvailable(streamStats);
   const telemetryState = sourceStateForPanel({
@@ -2242,17 +2156,16 @@ function Overview({
     <div className="overview-layout">
       <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
       <section className="metrics overview-metrics">
-        <MetricCard icon="video" label="Online" value={summary ? `${onlineCount} / ${summary.total_devices ?? 0}` : onlineCount} hint="Devices online" tone="info" />
-        <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'N/A'} hint={telemetryAvailable ? 'vs 7d trend' : telemetryReason} tone="info" />
-        <MetricCard icon="triangle-exclamation" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : telemetryReason} tone={needsAttention === 0 ? 'good' : 'warn'} />
-        <MetricCard icon="tower-broadcast" label="Active Streams" value={activeStreams} hint={streamAvailable ? `of ${summary?.total_devices ?? 0} devices` : streamReason} tone="info" />
+        <MetricCard icon="video" label="Online" value={Number.isFinite(onlineCount) ? `${onlineCount} / ${summary.total_devices ?? onlineCount}` : 'Unknown'} hint="Devices online" tone="info" />
+        <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'N/A'} hint={telemetryAvailable ? '7-day trend' : 'Telemetry unavailable'} tone="info" />
+        <MetricCard icon="triangle-exclamation" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : 'Telemetry unavailable'} tone={needsAttention === 0 ? 'good' : 'warn'} />
+        <MetricCard icon="tower-broadcast" label="Active Streams" value={activeStreams} hint={streamAvailable ? 'Current streaming sessions' : 'Stream data unavailable'} tone="info" />
       </section>
 
-      {canReadTeam ? <TeamSummaryCard data={access} loading={loading} me={me} onOpen={onOpenAccess} /> : null}
 
       {!telemetryAvailable ? <SourceBlockedState title={telemetryState.title} message={telemetryReason} /> : null}
 
-      <section className="overview-grid">
+      {telemetryAvailable && <section className="overview-grid">
         <HealthDistributionPanel
           loading={loading}
           current={fleetHealth?.current}
@@ -2266,7 +2179,8 @@ function Overview({
           onWindowChange={setOverviewWindow}
           source={fleetHealth}
         />
-      </section>
+      </section>}
+      {!streamAvailable && <SourceBlockedState title={streamState.title} message={streamReason} />}
 
       <section className="overview-attention">
         <AttentionQueuePanel loading={loading} items={attentionDevices} onOpenDevice={(deviceId) => updateDevicesLocation({ deviceId })} />
@@ -2951,7 +2865,7 @@ function CloudBillingApp() {
       if (cloud.my_role !== 'owner' || cloud.owner_user_id !== me.user_id || !cloud.capabilities?.includes('billing_account.read')) throw {status:403};
       const data = await fetchCloudBillingData(cloudId,{signal:controller.signal});
       if (String(cloud.ownership_version) !== data.ownershipVersion) throw {status:409};
-      if (!controller.signal.aborted) setState({cloud,data});
+      if (!controller.signal.aborted) setState({cloud,data,me});
     } catch (err) { if (!controller.signal.aborted) { setState(null); setError(billingScopeError(err.status)); } } })();
     return () => controller.abort();
   },[cloudId,reload]);
@@ -2971,7 +2885,7 @@ function CloudBillingApp() {
     const timer=setInterval(verify,10000);window.addEventListener('focus',verify);
     return ()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',verify);};
   },[cloudId,state?.cloud.id,state?.data.ownershipVersion]);
-  return <div className="my-clouds-shell"><header className="my-clouds-header"><a href={cloudURL(cloudId)}>Back to cloud</a><a href="/console/clouds">My Clouds</a></header><main className="my-clouds-main"><h1>{state?.cloud.name || 'Cloud'} / Billing</h1><p>Only your responsibility periods and the confirmed opening balance are visible. Previous owners’ payer details and payment methods are not transferred.</p>{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<button onClick={()=>setReload(v=>v+1)}>Refresh Billing and authority</button>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</main></div>;
+  return <CloudConsoleShell me={state?.me} cloud={state?.cloud} active="billing" title="Billing" onError={setError}><div className="billing-workspace">{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<button onClick={()=>setReload(v=>v+1)}>Refresh Billing</button>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</div></CloudConsoleShell>;
 }
 
 function BillingPage({ data, loading, capabilities, onRefresh }) {
@@ -3169,7 +3083,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   if (billingView === 'overview') return <section className="page-content billing-page" data-testid="billing-page">
     <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>Billing overview</h2><p>Keep track of available balances, estimated charges for the month, invoices, and recent billing changes.</p></div><small>Updated {formatProviderTimestamp(summary.calculated_at || account?.updated_at)}</small></div>
     {billingTabs}
-    <section className="panel managed-cloud-plan" data-testid="managed-cloud-plan">
+    <details className="ui-settings-advanced" data-testid="managed-cloud-plan"><summary>Service plan and deployment options</summary><section className="managed-cloud-plan">
       <div className="managed-cloud-plan-main">
         <span className="managed-cloud-plan-badge">Recommended plan</span>
         <div>
@@ -3187,7 +3101,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
         <span><Icon name="cloud" /></span>
         <div><strong>Need Private Cloud?</strong><p>If you need a customer’s own infrastructure, data location, or governance boundaries, contact Realtek for a dedicated deployment plan.</p></div>
       </aside>
-    </section>
+    </section></details>
     <div className="metric-grid billing-overview-metrics">
       <MetricCard icon="wallet" label="Available Balance" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={summary.runway?.state === 'available' ? `Estimated availability ${summary.runway.projected_days} days` : 'Insufficient usage to estimate available days'} tone="info" />
       <MetricCard icon="chart-column" label="Estimated Cost This Month" value={formatMinorAmount(usage.total_minor, usage.currency || account?.currency)} hint={`From ${formatProviderTimestamp(usage.period_start)} · Estimate`} tone="neutral" />
@@ -5687,8 +5601,6 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
         </>
       ),
     },
-    { key: 'product', label: 'Product', value: (device) => device.product_id || 'Not set', render: (device) => <span title={device.product_id || 'Not set'}>{device.product_id || 'Not set'}</span> },
-    { key: 'organization', label: 'Region/Organization', value: (device) => device.organization, render: (device) => <span title={device.organization}>{device.organization}</span> },
     { key: 'model', label: 'Product Model', value: (device) => device.model, render: (device) => <span title={device.model}>{device.model}</span> },
     {
       key: 'firmware',
@@ -5703,12 +5615,6 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
       render: (device) => <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />,
     },
     {
-      key: 'signal',
-      label: 'Signal',
-      value: (device) => device.signal_display,
-      render: (device) => <StatusBadge value={normalizeStatusKey(device.signal_display)} label={device.signal_display} />,
-    },
-    {
       key: 'readiness',
       label: 'Device Status',
       value: (device) => device.readiness_display,
@@ -5716,7 +5622,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
     },
     {
       key: 'last_seen_at',
-      label: 'Final report',
+      label: 'Last seen',
       value: (device) => device.last_seen_at,
       render: (device) => device.last_seen_at ? <time title={device.last_seen_at}>{formatRelativeTime(device.last_seen_at)}</time> : 'No transport evidence',
     },
@@ -6411,7 +6317,7 @@ function DataTable({
   return (
     <>
       <div className="table-toolbar">
-        <input value={serverMode ? serverFilter : filter} onChange={(event) => {
+        <input aria-label={searchPlaceholder || "Search table"} value={serverMode ? serverFilter : filter} onChange={(event) => {
           if (serverMode) {
             setServerFilter(event.target.value);
             onServerSearch?.(event.target.value);
@@ -6435,13 +6341,14 @@ function DataTable({
           <thead>
             <tr>
               {columns.map((column) => (
-                <th key={column.key}>
+                <th key={column.key} aria-sort={column.sortable === false ? undefined : sort.key === column.key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}>
                   {column.sortable === false ? (
                     <span className="data-table-heading">{column.icon ? <Icon name={column.icon} /> : null}{column.label}</span>
                   ) : (
                     <button className="sort-button" onClick={() => {
                         if (serverMode) {
                           const nextDirection = sort.key === column.key && sort.direction === 'asc' ? 'desc' : 'asc';
+                          requestSort(column.key);
                           onServerSort?.(column.key, nextDirection);
                         } else {
                           requestSort(column.key);
@@ -6460,6 +6367,8 @@ function DataTable({
               <tr
                 key={rowKey(row)}
                 className={[onRowClick ? 'clickable-row' : '', rowClassName ? rowClassName(row) : ''].filter(Boolean).join(' ')}
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={onRowClick ? (event) => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); onRowClick(row); } } : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {columns.map((column) => (

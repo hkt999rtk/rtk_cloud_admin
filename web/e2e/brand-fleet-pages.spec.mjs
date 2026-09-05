@@ -35,8 +35,7 @@ test('[UI-CA-FLEETPAGE-005] Brand Cloud overview access and settings share one n
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloud}/members$`));
   await expect(page.getByRole('heading', { name: 'Members and sharing' })).toBeVisible();
   await expect(page.locator('.my-clouds-heading').getByRole('heading')).toHaveCount(0);
-  await expect(page.getByText('Members & Access controls who can work in this Brand Cloud', { exact: false })).toBeVisible();
-  await expect(page.getByText('Entire-cloud Viewer access also includes Products created later', { exact: false })).toBeVisible();
+  await expect(page.getByText('Manage who can access this cloud and its products.', { exact: false })).toBeVisible();
   await expect(page.getByText('Start with read-only access to selected Products', { exact: false })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Members & Access', exact: true })).toHaveAttribute('aria-current', 'page');
   if (testInfo.project.name === 'mobile') await page.getByRole('button', { name: 'Open navigation' }).click();
@@ -44,7 +43,7 @@ test('[UI-CA-FLEETPAGE-005] Brand Cloud overview access and settings share one n
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloud}/settings$`));
   await expect(page.getByRole('heading', { name: 'Cloud settings', exact: true })).toBeVisible();
   await expect(page.locator('.my-clouds-heading').getByRole('heading')).toHaveCount(0);
-  await expect(page.getByText('Settings is where you review and update this Brand Cloud’s basic information', { exact: false })).toBeVisible();
+  await expect(page.getByText('Manage cloud details, ownership and lifecycle.', { exact: false })).toBeVisible();
   const settingsPanel = page.locator('section.my-clouds-panel').filter({ has: page.getByRole('heading', { name: 'Cloud settings', exact: true }) });
   for (const label of ['Cloud name', 'Description', 'Cloud ID', 'Tenant slug', 'Owner email', 'Owner ID', 'My role']) {
     await expect(settingsPanel.getByText(label, { exact: true })).toBeVisible();
@@ -53,11 +52,13 @@ test('[UI-CA-FLEETPAGE-005] Brand Cloud overview access and settings share one n
   await expect(settingsPanel.getByText('developer@example.com', { exact: true })).toBeVisible();
   await expect(settingsPanel.getByText('developer-user', { exact: true })).toBeVisible();
   await expect(settingsPanel.getByText(cloud, { exact: true })).toBeVisible();
+  await page.getByText('Transfer cloud ownership', { exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Transfer ownership', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloud}/members$`));
   await page.goto('/console/clouds/99999999-9999-4999-8999-999999999999/settings');
+  await page.getByText('Transfer cloud ownership', { exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Transfer ownership', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send ownership invitation', exact: true })).toBeDisabled();
   await expect(page.getByRole('heading', { name: 'Cloud settings', exact: true })).toBeVisible();
@@ -115,7 +116,7 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
     expect(mobileRow.height).toBeLessThan(75);
   } else {
     const desktopRow = await page.locator('.device-table tbody tr').first().boundingBox();
-    expect(desktopRow.height).toBeLessThan(55);
+    expect(desktopRow.height).toBeLessThanOrEqual(64);
   }
 
   await topPagination.getByRole('button', { name: 'Page 5' }).click();
@@ -212,5 +213,5 @@ test('[UI-CA-FLEETPAGE-008] Product form uses styled buttons, checkboxes, and se
   const mqtt = page.getByRole('checkbox', { name: 'MQTT', exact: true });
   await expect(category).toBeVisible();
   await expect(mqtt).toBeChecked();
-  await expect(page.getByRole('button', { name: 'Save Product' })).toHaveCSS('background-color', 'rgb(23, 96, 165)');
+  await expect(page.getByRole('button', { name: 'Save Product' })).toHaveCSS('background-color', 'rgb(0, 104, 183)');
 });

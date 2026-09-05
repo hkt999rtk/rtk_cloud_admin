@@ -45,6 +45,18 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await expect(panel.getByRole('textbox',{name:'Test account password'})).toHaveCount(0);
   await expect(panel).toContainText('using your Console login');
   await expect(panel).toContainText('No bound test devices');
+  const createTrigger = panel.getByRole('button',{name:'Create test device',exact:true});
+  await createTrigger.click();
+  const confirmation = panel.getByRole('alertdialog',{name:'Confirm test action'});
+  await expect(confirmation).toBeVisible();
+  for (let index = 0; index < 5; index++) {
+    await page.keyboard.press('Tab');
+    expect(await confirmation.evaluate(element => element.contains(document.activeElement))).toBeTruthy();
+  }
+  await page.keyboard.press('Escape');
+  await expect(confirmation).toHaveCount(0);
+  await expect(createTrigger).toBeFocused();
+  expect(creations).toBe(0);
   await panel.getByRole('button',{name:'Create test device',exact:true}).click();
   await panel.getByRole('button',{name:'Continue',exact:true}).click();
   const credentials=panel.getByRole('region',{name:'Device credentials ready'});
@@ -90,7 +102,7 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await expect(panel.getByRole('button',{name:'Disconnect',exact:true})).toBeVisible();
   await expect(panel.locator('#test-lab-product-id')).toContainText(product);
   await expect(panel.locator('[role="tab"] i[aria-hidden="true"]')).toHaveCount(3);
-  await expect(panel.getByRole('heading',{name:'Cloud Test Lab',exact:true})).toBeVisible();
+  await expect(panel.getByRole('heading',{name:'Device test workspace',exact:true})).toBeVisible();
   await expect(panel.getByRole('status').filter({hasText:'No live connection has been made'})).toHaveCount(1);
   await expect(panel.getByRole('button',{name:'Connect',exact:true})).toBeDisabled();
   await panel.getByRole('textbox',{name:'JSON payload'}).fill('{"command":"example"}');
