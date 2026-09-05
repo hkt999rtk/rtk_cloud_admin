@@ -284,10 +284,11 @@ function App() {
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
+  const isGlobalDeveloperRoute = active === 'chipset-sdk' || active === 'developer-docs';
   const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept' || active === 'product-collaborator-invitation-accept';
   const navigationRoute = me?.kind === 'platform_admin'
     ? 'platform-dashboard'
-    : me?.kind === 'customer' && active !== 'chipset-sdk' ? 'overview' : active;
+    : me?.kind === 'customer' ? 'overview' : active;
   const visibleNavGroups = navGroupsForCapabilities(navigationRoute, me?.capabilities);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
   const brandCloudsBlocked = active === 'platform-brand-clouds' && me?.kind === 'platform_admin' && !me?.upstream_account_manager;
@@ -380,8 +381,8 @@ function App() {
           return;
         }
 
-        const requestedCloudId = active === 'developer-docs' ? cloudContextId(window.location.pathname, window.location.search) : cloudIdFromPath(window.location.pathname);
-        if (nextMe.kind === 'customer' && requestedCloudId && (active === 'developer-docs' || window.location.pathname.startsWith('/console/clouds/'))) {
+        const requestedCloudId = isGlobalDeveloperRoute ? cloudContextId(window.location.pathname, window.location.search) : cloudIdFromPath(window.location.pathname);
+        if (nextMe.kind === 'customer' && requestedCloudId && (isGlobalDeveloperRoute || window.location.pathname.startsWith('/console/clouds/'))) {
           const scopedCloud = await fetchJSON(cloudAPI(requestedCloudId));
           if (scopedCloud.brand_cloud?.id === requestedCloudId) rememberCloudPreference(requestedCloudId);
           nextMe = {
@@ -804,7 +805,9 @@ function App() {
   }, [mobileNavOpen]);
 
   function pathForNavigationItem(item) {
-    const navigationCloudId = active === 'developer-docs' ? cloudContextId(window.location.pathname, window.location.search) : urlCloudId;
+    const navigationCloudId = isGlobalDeveloperRoute
+      ? cloudContextId(window.location.pathname, window.location.search) || me?.active_org_id || ''
+      : urlCloudId;
     if (item.id === 'my-clouds' || item.global) return cloudConsolePath(navigationCloudId, item.id);
     if (me?.kind === 'platform_admin') return item.path;
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
@@ -1140,6 +1143,12 @@ function App() {
     });
     if (!response.ok) {
       setError(`Brand Cloud switch failed with ${response.status}; current Cloud is unchanged.`);
+      return;
+    }
+    if (isGlobalDeveloperRoute) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('cloudId', orgId);
+      window.location.assign(`${window.location.pathname}?${params.toString()}${window.location.hash}`);
       return;
     }
     clearDashboardState();

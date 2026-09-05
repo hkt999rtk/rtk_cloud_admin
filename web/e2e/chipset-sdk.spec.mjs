@@ -24,6 +24,7 @@ test('[UI-CA-CHIPSET-009] PRO2 firmware burner is a global local-device tool @ch
     });
   });
   await login(page, 'developer');
+  const session = await (await page.request.get('/api/me')).json();
   await page.goto('/console/chipset-sdk');
   const tool = page.locator('.pro2-tool-card');
   await expect(page.getByRole('heading', { name: 'Device Tools', exact: true })).toBeVisible();
@@ -36,6 +37,15 @@ test('[UI-CA-CHIPSET-009] PRO2 firmware burner is a global local-device tool @ch
   await expect(page.getByTestId('pro2-firmware-burner')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Ameba PRO2 Firmware Burner', exact: true })).toBeVisible();
   await expect(page.getByText('Firmware and UART data stay on this computer.', { exact: false })).toBeVisible();
+  const mobileMenu = page.getByRole('button', { name: 'Open navigation', exact: true });
+  const mobileNavigation = await mobileMenu.isVisible();
+  if (mobileNavigation) await mobileMenu.click();
+  for (const label of ['Overview', 'Products', 'Cloud Test Lab', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Settings', 'Audit']) {
+    await expect(page.getByRole('link', { name: label, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('href', `/console/clouds/${session.active_org_id}`);
+  await expect(page.getByRole('link', { name: 'Products', exact: true })).toHaveAttribute('href', `/console/clouds/${session.active_org_id}/products`);
+  if (mobileNavigation) await page.locator('.sidebar').getByRole('button', { name: 'Close navigation', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Connect UART', exact: true })).toBeEnabled();
   await expect(page.getByRole('heading', { name: 'UART terminal', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Back to ChipSet & SDK', exact: true })).toHaveAttribute('href', '/console/chipset-sdk');

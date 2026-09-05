@@ -150,6 +150,10 @@ test('customer nav is derived from active membership capabilities', () => {
   assert.deepEqual(navItemsForCapabilities('login', null), []);
   assert.deepEqual(navItemsForCapabilities('overview', 'fleet.read').map((item) => item.id), ['my-clouds', 'overview', 'chipset-sdk', 'developer-docs', 'settings']);
   assert.equal(navItemsForCapabilities('overview', ['product.read']).some((item) => item.id === 'product-services'), true);
+  assert.deepEqual(
+    navItemsForCapabilities('chipset-sdk', ['product.read', 'fleet.read']).map((item) => item.id),
+    ['my-clouds', 'overview', 'product-services', 'test-lab', 'chipset-sdk', 'developer-docs', 'devices', 'analytics', 'settings', 'audit'],
+  );
 });
 
 test('Brand Cloud navigation and route access are evaluated independently', () => {
