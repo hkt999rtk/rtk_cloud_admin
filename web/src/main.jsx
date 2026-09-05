@@ -1115,7 +1115,9 @@ function App() {
   async function handleSwitchOrg(orgId) {
     setError('');
     if (window.location.pathname.startsWith('/console/')) {
-      const cloud = developerBrandClouds.find(item => item.id === orgId) || { id: orgId };
+      const cloud = developerBrandClouds.find(item => item.id === orgId)
+        || (me?.memberships || []).find(item => (item.id || item.organization_id) === orgId)
+        || { id: orgId };
       // Navigation can update the URL before React commits the matching state.
       // Preserve the route that is actually visible when the cloud is switched.
       window.location.assign(cloudRouteForSwitch(cloud, routeFromLocation(), me?.user_id));
