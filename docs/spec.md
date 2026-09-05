@@ -814,6 +814,17 @@ Acceptance: Non-member cloud links are forbidden without changing active cloud.
 
 Acceptance: Developer team management uses its namespace and is replay-safe.
 
+#### [REQ-UI-CA-TESTLAB-001] Console lab keeps device scope and distinguishes local validation from live tests
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: The Cloud Test Lab retains the selected cloud/product/device, exposes
+MQTT, Shadow and WebRTC tabs, and disables live actions when runtime authorization
+is unavailable. Local validation sends no runtime request and must not report a
+successful live connection or decoded video. See [Test Lab](test-lab.md).
+
 ### Brand Cloud requirement source
 
 Brand Cloud lifecycle, administration, audit, and the UI acceptance requirements

@@ -50,6 +50,11 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   await expect(page.getByText('Create and manage the Brand Clouds you own, or open clouds shared with your account.', { exact: false })).toBeVisible();
   await expect(page.getByText('billing.owner@example.com', { exact: true }).first()).toBeVisible();
   await expect(page.locator('.my-clouds-grid').getByText('Status', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Create cloud', exact: true }).locator('.fa-plus')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Open cloud', exact: true })).toHaveCount(2);
+  await expect(page.getByRole('link', { name: 'Open cloud', exact: true }).first()).toHaveClass(/my-clouds-open-action/);
+  await expect(page.getByRole('link', { name: 'Open cloud', exact: true }).first().locator('.fa-arrow-right')).toHaveCount(1);
+  await expect(page.getByRole('navigation', { name: 'Cloud pages' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'My Clouds', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'ChipSet & SDK', exact: true })).toHaveAttribute('href', '/console/chipset-sdk');
   for (const label of featureLabels) {

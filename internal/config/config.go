@@ -9,6 +9,9 @@ import (
 )
 
 type Config struct {
+	TestLabEnabled                      bool
+	TestLabMQTTURL                      string
+	TestLabMQTTBackend                  string
 	Port                                string
 	DatabasePath                        string
 	AccountManagerBaseURL               string
@@ -40,6 +43,9 @@ type Config struct {
 
 func FromEnv() Config {
 	return Config{
+		TestLabEnabled:                      truthy(os.Getenv("CLOUD_ADMIN_TEST_LAB_ENABLED")),
+		TestLabMQTTURL:                      os.Getenv("CLOUD_ADMIN_TEST_LAB_MQTT_URL"),
+		TestLabMQTTBackend:                  os.Getenv("CLOUD_ADMIN_TEST_LAB_MQTT_BACKEND"),
 		Port:                                getenv("PORT", "8080"),
 		DatabasePath:                        getenv("DATABASE_PATH", filepath.Join("data", "rtk-cloud-admin.db")),
 		AccountManagerBaseURL:               os.Getenv("ACCOUNT_MANAGER_BASE_URL"),

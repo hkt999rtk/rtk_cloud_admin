@@ -41,6 +41,7 @@ import (
 )
 
 type Server struct {
+	testLabSessions     sync.Map
 	sessions            sessionStore
 	audit               auditStore
 	projections         projectionStore
@@ -353,7 +354,14 @@ func (s *Server) routes() {
 	// New self-service test-device entry point. The legacy PKI route remains
 	// available for compatibility while clients migrate.
 	s.mux.HandleFunc("POST /api/developer/test-device-batches", s.apiDeveloperPKITestDeviceBundle)
+	for _, method := range []string{"GET", "POST", "DELETE"} {
+		s.mux.HandleFunc(method+" /api/developer/brand-clouds/{brandCloudID}/test-lab/manage/{rest...}", s.apiTestLabManage)
+	}
 	s.mux.HandleFunc("POST /api/auth/customer/signup", s.apiCustomerSignup)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/test-lab/context", s.apiTestLabContext)
+	s.mux.HandleFunc("GET /api/developer/test-lab/mqtt", s.apiTestLabMQTT)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/test-lab/sessions", s.apiTestLabSession)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/test-lab/sessions/{labID}/{action}", s.apiTestLabSession)
 	s.mux.HandleFunc("POST /api/auth/login", s.apiLogin)
 	s.mux.HandleFunc("POST /api/auth/customer/verify-email", s.apiCustomerVerifyEmail)
 	s.mux.HandleFunc("POST /api/auth/customer/verification-status", s.apiCustomerVerificationStatus)

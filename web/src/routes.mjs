@@ -18,6 +18,7 @@ export const customerNavGroups = [
     labelKey: 'Features',
     items: [
       { id: 'product-services', labelKey: 'Products', segment: 'products', icon: 'boxes-stacked', capabilities: ['product.read', 'registry_device.read'] },
+      { id: 'test-lab', labelKey: 'Cloud Test Lab', segment: 'test-lab', icon: 'flask', capabilities: ['product.read'] },
       { id: 'chipset-sdk', labelKey: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch', global: true, alwaysVisible: true },
       { id: 'developer-docs', labelKey: 'Developer Docs', path: '/console/developer-docs', icon: 'book-open', global: true, alwaysVisible: true },
       { id: 'devices', labelKey: 'Fleet Management', segment: 'fleet', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
@@ -42,6 +43,7 @@ export const customerNavItems = customerNavGroups.flatMap((group) => group.items
 
 const cloudRouteSegments = Object.freeze({
   overview: '',
+  'test-lab': 'test-lab',
   'product-services': 'products',
   devices: 'fleet',
   groups: 'fleet/groups',
@@ -60,6 +62,7 @@ const cloudRouteSegments = Object.freeze({
 // Page-level meaning is separate from sidebar navigation so headings can stay
 // semantic without changing the existing navigation structure.
 export const pageIcons = Object.freeze({
+  'test-lab': 'flask',
   'my-clouds': 'cloud', overview: 'gauge-high', devices: 'video',
   'product-services': 'boxes-stacked', 'chipset-sdk': 'code-branch', 'developer-docs': 'book-open',
   groups: 'tags', provisioning: 'file-csv', access: 'user-shield', settings: 'gear', billing: 'credit-card',
@@ -151,7 +154,6 @@ export function navItemsForCapabilities(route, capabilities) {
   const items = navItemsForRoute(route);
   const values = new Set(Array.isArray(capabilities) ? capabilities : []);
   return items.filter((item) => {
-    if (['chipset-sdk', 'developer-docs'].includes(route) && !item.global) return false;
     return item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability));
   });
 }
@@ -164,7 +166,6 @@ export function navGroupsForCapabilities(route, capabilities) {
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        if (['chipset-sdk', 'developer-docs'].includes(route) && !item.global) return false;
         return item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability));
       }),
     }))
@@ -263,6 +264,7 @@ export function titleFor(active) {
     overview: 'Brand Cloud',
     devices: 'Fleet Management',
     'product-services': 'Products',
+    'test-lab': 'Cloud Test Lab',
     'chipset-sdk': 'ChipSet & SDK',
     'developer-docs': 'Developer Docs',
     groups: 'Groups and Tags',
@@ -316,6 +318,7 @@ export function routeFromPath(path) {
   if (canonicalCloud) {
     const suffix = String(canonicalCloud[2] || '').replace(/\/$/, '');
     if (!suffix) return 'overview';
+    if (suffix === 'test-lab') return 'test-lab';
     if (suffix === 'fleet/groups') return 'groups';
     if (suffix === 'fleet/provisioning') return 'provisioning';
     if (suffix === 'fleet/jobs') return 'firmware-ota';
