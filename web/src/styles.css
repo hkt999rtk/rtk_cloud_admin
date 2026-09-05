@@ -4546,6 +4546,33 @@ dd {
   opacity: 1;
 }
 
+@media (max-width: 600px) {
+  .cloud-console-shell .my-clouds-pagination {
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cloud-console-shell .my-clouds-pagination span {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .cloud-console-shell .my-clouds-pagination button {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .cloud-console-shell .my-clouds-pagination button:first-child {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .cloud-console-shell .my-clouds-pagination button:last-child {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
 .pagination-controls {
   display: flex;
   gap: 8px;

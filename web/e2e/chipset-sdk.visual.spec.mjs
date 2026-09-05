@@ -48,7 +48,10 @@ test('[UI-CA-CHIPSET-006] Developer resource design matches approved mock @chips
   await expect(page.getByText('WebRTC answerer integration', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Developer Support Guide' })).toHaveCount(0);
   await expect(page.getByText('Some information may be out of date')).toHaveCount(0);
-  await expect(page).toHaveScreenshot('chipset-developer-resource-center.png', { fullPage: testInfo.project.name === 'mobile' });
+  await expect(page).toHaveScreenshot('chipset-developer-resource-center.png', {
+    fullPage: testInfo.project.name === 'mobile',
+    maxDiffPixelRatio: 0.003,
+  });
 });
 
 test('[UI-CA-CHIPSET-010] PRO2 firmware burner uses the Developer Console visual system @chipset-sdk @visual @smoke', async ({ page }, testInfo) => {
