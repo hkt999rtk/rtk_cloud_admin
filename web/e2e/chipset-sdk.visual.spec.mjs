@@ -50,3 +50,18 @@ test('[UI-CA-CHIPSET-006] Developer resource design matches approved mock @chips
   await expect(page.getByText('Some information may be out of date')).toHaveCount(0);
   await expect(page).toHaveScreenshot('chipset-developer-resource-center.png', { fullPage: testInfo.project.name === 'mobile' });
 });
+
+test('[UI-CA-CHIPSET-010] PRO2 firmware burner uses the Developer Console visual system @chipset-sdk @visual @smoke', async ({ page }, testInfo) => {
+  testInfo.snapshotSuffix = '';
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'serial', {
+      configurable: true,
+      value: { addEventListener() {}, removeEventListener() {} },
+    });
+  });
+  await installShellRoutes(page, 'developer');
+  await page.goto('/console/chipset-sdk/pro2/firmware-burner');
+  await expect(page.getByTestId('pro2-firmware-burner')).toBeVisible();
+  await expect(page.getByText('Web Serial is available.', { exact: false })).toBeVisible();
+  await expect(page).toHaveScreenshot('pro2-firmware-burner.png', { fullPage: testInfo.project.name === 'mobile' });
+});

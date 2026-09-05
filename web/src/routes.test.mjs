@@ -95,6 +95,9 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(canonicalCustomerPath('/console/clouds'), '/console/clouds');
   assert.equal(canonicalCustomerPath(`/console/clouds/${cloud}/fleet`), `/console/clouds/${cloud}/fleet`);
   assert.equal(canonicalCustomerPath('/console/chipset-sdk'), '/console/chipset-sdk');
+  assert.equal(canonicalCustomerPath('/console/chipset-sdk/pro2/firmware-burner'), '/console/chipset-sdk/pro2/firmware-burner');
+  assert.equal(routeFromPath('/console/chipset-sdk/pro2/firmware-burner'), 'chipset-sdk');
+  assert.equal(cloudIdFromPath('/console/chipset-sdk/pro2/firmware-burner'), '');
   assert.equal(canonicalCustomerPath('/console/jobs'), '/console/clouds');
   assert.equal(canonicalCustomerPath(`/console/${cloud}/overview`), `/console/clouds/${cloud}`);
   assert.equal(canonicalCustomerPath(`/console/${cloud}/jobs`), `/console/clouds/${cloud}/firmware-ota`);
