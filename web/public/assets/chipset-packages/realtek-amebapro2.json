@@ -3,13 +3,13 @@
   "manifest_version": "1",
   "provider": {
     "name": "Realtek Ameba IoT",
-    "updated_at": "2026-08-28T00:00:00Z"
+    "updated_at": "2026-09-05T00:00:00Z"
   },
   "chipsets": [
     {
       "chipset_key": "realtek-amebapro2",
       "vendor": "Realtek",
-      "name": "AmebaPro2",
+      "name": "AmebaPRO2",
       "family": "Ameba",
       "description": "RTL8735B-based AI video SoC development resources for AmebaPro2 and AMB82 MINI.",
       "resources": [
@@ -18,7 +18,9 @@
           "title": "AmebaPro2 product and boards",
           "url": "https://www.amebaiot.com/en/amebapro2/",
           "source": "official",
-          "languages": ["en"],
+          "languages": [
+            "en"
+          ],
           "verified_at": "2026-08-28T00:00:00Z",
           "summary": "Product overview, boards, modules, and hardware capabilities."
         },
@@ -27,7 +29,9 @@
           "title": "AMB82 MINI datasheets",
           "url": "https://www.amebaiot.com/en/datasheet-download-amb82-mini/",
           "source": "official",
-          "languages": ["en"],
+          "languages": [
+            "en"
+          ],
           "verified_at": "2026-08-28T00:00:00Z"
         },
         {
@@ -35,7 +39,11 @@
           "title": "Ameba developer forum",
           "url": "https://forum.amebaiot.com/",
           "source": "official",
-          "languages": ["en", "zh-TW", "zh-CN"],
+          "languages": [
+            "en",
+            "zh-TW",
+            "zh-CN"
+          ],
           "verified_at": "2026-08-28T00:00:00Z"
         },
         {
@@ -43,7 +51,9 @@
           "title": "AMB82 Mini Maker Projects",
           "url": "https://www.youtube.com/playlist?list=PLEQfNjOZQRyPWhySw16ZgBOPWnzLWDAjz",
           "source": "official",
-          "languages": ["en"],
+          "languages": [
+            "en"
+          ],
           "verified_at": "2026-08-28T00:00:00Z",
           "summary": "Community projects curated by the official Ameba documentation."
         }
@@ -54,14 +64,18 @@
           "version": "4.1.0",
           "summary": "Arduino SDK, board package, examples, and developer support for AMB82 MINI.",
           "recommended": true,
-          "supported_models": ["AMB82 MINI"],
+          "supported_models": [
+            "AMB82 MINI"
+          ],
           "endpoints": [
             {
               "type": "github",
               "title": "Ameba Arduino Pro2 GitHub",
               "url": "https://github.com/Ameba-AIoT/ameba-arduino-pro2",
               "source": "official",
-              "languages": ["en"],
+              "languages": [
+                "en"
+              ],
               "verified_at": "2026-08-28T00:00:00Z"
             },
             {
@@ -69,7 +83,9 @@
               "title": "Arduino Boards Manager stable index",
               "url": "https://github.com/Ameba-AIoT/ameba-arduino-pro2/raw/main/Arduino_package/package_realtek_amebapro2_index.json",
               "source": "official",
-              "languages": ["en"],
+              "languages": [
+                "en"
+              ],
               "verified_at": "2026-08-28T00:00:00Z"
             },
             {
@@ -77,7 +93,9 @@
               "title": "AMB82 MINI Arduino getting started",
               "url": "https://ameba-doc-arduino-sdk.readthedocs-hosted.com/en/latest/ameba_pro2/amb82-mini/index.html",
               "source": "official",
-              "languages": ["en"],
+              "languages": [
+                "en"
+              ],
               "verified_at": "2026-08-28T00:00:00Z"
             },
             {
@@ -85,7 +103,9 @@
               "title": "Arduino release notes",
               "url": "https://github.com/Ameba-AIoT/ameba-arduino-pro2/releases",
               "source": "official",
-              "languages": ["en"],
+              "languages": [
+                "en"
+              ],
               "verified_at": "2026-08-28T00:00:00Z"
             },
             {
@@ -93,9 +113,14 @@
               "title": "Arduino SDK issues",
               "url": "https://github.com/Ameba-AIoT/ameba-arduino-pro2/issues",
               "source": "official",
-              "languages": ["en"],
+              "languages": [
+                "en"
+              ],
               "verified_at": "2026-08-28T00:00:00Z"
             }
+          ],
+          "supported_board_keys": [
+            "amb82-mini"
           ]
         },
         {
@@ -103,14 +128,18 @@
           "version": "main",
           "summary": "Official FreeRTOS-based SDK, application notes, toolchain, and image programming tools.",
           "recommended": false,
-          "supported_models": ["AMB82 MINI"],
+          "supported_models": [
+            "AMB82 MINI"
+          ],
           "endpoints": [
             {
               "type": "github",
               "title": "Ameba FreeRTOS Pro2 GitHub",
               "url": "https://github.com/Ameba-AIoT/ameba-rtos-pro2",
               "source": "official",
-              "languages": ["en"],
+              "languages": [
+                "en"
+              ],
               "verified_at": "2026-08-28T00:00:00Z"
             },
             {
@@ -118,7 +147,9 @@
               "title": "FreeRTOS Pro2 Application Notes",
               "url": "https://ameba-doc-rtos-pro2-sdk.readthedocs-hosted.com/en/latest/",
               "source": "official",
-              "languages": ["en"],
+              "languages": [
+                "en"
+              ],
               "verified_at": "2026-08-28T00:00:00Z"
             },
             {
@@ -126,7 +157,9 @@
               "title": "Standard SDK getting started for AMB82 MINI",
               "url": "https://www.amebaiot.com/en/ameba-sdk-getting-started-amb82-mini/",
               "source": "official",
-              "languages": ["en"],
+              "languages": [
+                "en"
+              ],
               "verified_at": "2026-08-28T00:00:00Z"
             },
             {
@@ -134,7 +167,9 @@
               "title": "Ameba Pro2 toolchain 10.3.0",
               "url": "https://github.com/Ameba-AIoT/ameba-toolchain/releases/tag/V10.3.0-amebe-rtos-pro2",
               "source": "official",
-              "languages": ["en"],
+              "languages": [
+                "en"
+              ],
               "verified_at": "2026-08-28T00:00:00Z"
             },
             {
@@ -142,8 +177,178 @@
               "title": "Pro2 image programming tool",
               "url": "https://github.com/Ameba-AIoT/ameba-rtos-pro2/tree/main/tools/Pro2_PG_tool_v1.4.3",
               "source": "official",
-              "languages": ["en"],
+              "languages": [
+                "en"
+              ],
               "verified_at": "2026-08-28T00:00:00Z"
+            }
+          ],
+          "supported_board_keys": [
+            "amb82-mini"
+          ]
+        }
+      ],
+      "ic_model": "RTL8735B",
+      "boards": [
+        {
+          "board_key": "amb82-mini",
+          "name": "AMB82 MINI",
+          "vendor": "Realtek",
+          "summary": "A compact camera development board for AI vision, audio and connected video, built on AmebaPRO2 with the RTL8735B IC. Explore the board with its F37 camera and external antenna.",
+          "dimensions": {
+            "length_mm": 60,
+            "width_mm": 37.4
+          },
+          "specs": [
+            {
+              "label": "Platform",
+              "value": "AmebaPRO2"
+            },
+            {
+              "label": "IC model",
+              "value": "RTL8735B"
+            },
+            {
+              "label": "PCB size",
+              "value": "60 × 37.4 mm"
+            },
+            {
+              "label": "Header pitch",
+              "value": "2.54 mm"
+            },
+            {
+              "label": "Camera shown",
+              "value": "F37 camera module with lens and flex cable"
+            },
+            {
+              "label": "Connectivity",
+              "value": "Two Micro USB ports, microSD, expansion headers"
+            },
+            {
+              "label": "Controls",
+              "value": "Download and Reset buttons; three LEDs"
+            },
+            {
+              "label": "Audio",
+              "value": "Onboard microphone"
+            },
+            {
+              "label": "Antenna shown",
+              "value": "External Wi-Fi antenna with coaxial lead"
+            }
+          ],
+          "model": {
+            "asset_path": "/assets/boards/amb82-mini/v1/model.glb",
+            "poster_path": "/assets/boards/amb82-mini/v1/poster.webp",
+            "note": "Appearance model; component dimensions and placement are approximate. PCB dimensions and header pitch follow the hardware guide v0.3. Camera, shield and antenna appearance may vary by hardware revision."
+          },
+          "components": [
+            {
+              "key": "pcb",
+              "name": "AMB82 MINI PCB",
+              "description": "The 60 × 37.4 mm development board brings the AmebaPRO2 platform to a compact camera and connected-device prototype."
+            },
+            {
+              "key": "camera",
+              "name": "F37 camera & lens",
+              "description": "The camera module and lens capture images for vision applications. The short flexible cable connects it to the board’s camera connector."
+            },
+            {
+              "key": "camera-ribbon",
+              "name": "Camera ribbon & connector",
+              "description": "The flexible cable carries the camera connection to the FPC socket. Disconnect power before handling the cable or its latch."
+            },
+            {
+              "key": "usb-soc",
+              "name": "RTL8735B USB",
+              "description": "The Micro USB connector marked 8735 connects to the SoC USB interface. Its behavior depends on the loaded firmware."
+            },
+            {
+              "key": "usb-uart",
+              "name": "USB UART (CH340)",
+              "description": "Use the Micro USB connector marked CH340 for serial communication and firmware downloading through the onboard USB-to-UART bridge."
+            },
+            {
+              "key": "download-button",
+              "name": "Download button",
+              "description": "Used with Reset to enter the bootloader for programming. Follow the SDK getting-started instructions for the button sequence."
+            },
+            {
+              "key": "reset-button",
+              "name": "Reset button",
+              "description": "Restarts the board. The firmware burner includes the programming workflow and a live serial console."
+            },
+            {
+              "key": "leds",
+              "name": "Status LEDs",
+              "description": "Onboard indicator LEDs provide power and application status. Programmable LED behavior depends on your firmware."
+            },
+            {
+              "key": "headers",
+              "name": "Expansion headers",
+              "description": "Two rows of headers expose power and peripheral signals at a 2.54 mm pitch. Consult the pinout before connecting external hardware."
+            },
+            {
+              "key": "microsd",
+              "name": "microSD slot",
+              "description": "The metal card socket accepts removable storage for supported firmware applications, such as recording images or video."
+            },
+            {
+              "key": "microphone",
+              "name": "Microphone",
+              "description": "The onboard microphone provides audio input for supported capture and streaming examples."
+            },
+            {
+              "key": "module",
+              "name": "AmebaPRO2 / RTL8735B module",
+              "description": "The module on the reverse houses the RTL8735B-based processing and wireless circuitry. Shield and component appearance vary by hardware revision."
+            },
+            {
+              "key": "antenna",
+              "name": "External Wi-Fi antenna",
+              "description": "The external antenna connects by a thin coaxial lead. This model includes its placement for a typical camera development setup."
+            }
+          ],
+          "resources": [
+            {
+              "type": "getting_started",
+              "title": "AMB82 MINI getting started",
+              "url": "https://ameba-doc-arduino-sdk.readthedocs-hosted.com/en/latest/ameba_pro2/amb82-mini/Getting_Started/Getting%20Started%20with%20Ameba.html",
+              "source": "official",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-05T00:00:00Z"
+            },
+            {
+              "type": "datasheet",
+              "title": "Hardware documents & pinout",
+              "url": "https://www.amebaiot.com/en/datasheet-download-amb82-mini/",
+              "source": "official",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-05T00:00:00Z"
+            },
+            {
+              "type": "documentation",
+              "title": "Hardware guide v0.3 (mirror)",
+              "url": "https://www.electropi.in/image/catalog/Realtek-AMB82-Mini-USER-MANUAL.pdf",
+              "source": "community",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-05T00:00:00Z"
+            },
+            {
+              "type": "purchase",
+              "title": "Buy at ICShop",
+              "url": "https://www.icshop.com.tw/products/368030501864",
+              "source": "community",
+              "languages": [
+                "zh-TW"
+              ],
+              "verified_at": "2026-09-05T00:00:00Z"
             }
           ]
         }

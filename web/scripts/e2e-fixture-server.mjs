@@ -7,6 +7,8 @@ import process from 'node:process';
 const fixtureDir = process.env.E2E_FIXTURE_DIR;
 const port = Number(process.env.E2E_FIXTURE_PORT || 0);
 const mode = process.env.E2E_SCENARIO_MODE || 'normal';
+// Opt-in local board preview uses the published bundle, never production state.
+const boardPreview = process.env.E2E_BOARD_PREVIEW === 'true' ? JSON.parse(await readFile(new URL('../public/assets/chipset-packages/realtek-amebapro2.json', import.meta.url), 'utf8')) : null;
 const prometheusMode = process.env.E2E_PROMETHEUS_MODE || mode;
 const developerCloudIDs = ['33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444'];
 const developerProductIDs = ['55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666'];
@@ -280,7 +282,8 @@ async function handleChipsetProvider(req, res, url) {
 
 function handleDeveloperChipsets(req, res, url) {
   if (req.method !== 'GET') return send(res, 405, { error: { code: 'method_not_allowed' } });
-  const chipsets = state.chipsetProviders.filter((provider) => provider.status === 'published' && !provider.unavailable).flatMap(providerChipsets);
+  const preview = boardPreview ? boardPreview.chipsets.map(chipset => ({ ...chipset, id: 'preview-amebapro2', provider_name: boardPreview.provider.name, stale: false })) : [];
+  const chipsets = preview.concat(state.chipsetProviders.filter((provider) => provider.status === 'published' && !provider.unavailable).flatMap(providerChipsets));
   const match = url.pathname.match(/^\/v1\/developer\/chipsets\/([^/]+)$/);
   if (!match) return send(res, 200, { chipsets });
   const chipset = chipsets.find((item) => item.id === decodeURIComponent(match[1]));
