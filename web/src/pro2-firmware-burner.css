@@ -1,0 +1,102 @@
+.pro2-firmware-page { display: grid; gap: 16px; }
+.pro2-tool-card { align-items: center; display: grid; gap: 16px; grid-template-columns: auto minmax(0,1fr) auto; padding: 18px; }
+.pro2-tool-icon { align-items: center; background: var(--brand-soft); border-radius: 12px; color: var(--brand); display: inline-flex; font-size: 24px; height: 52px; justify-content: center; width: 52px; }
+.pro2-tool-copy h3 { margin: 2px 0 6px; }
+.pro2-tool-copy > p { color: var(--muted); margin: 0; max-width: 800px; }
+.pro2-tool-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.pro2-tool-meta span { align-items: center; color: var(--muted); display: inline-flex; font-size: 12px; gap: 6px; }
+.pro2-tool-action { align-items: center; display: inline-flex; gap: 7px; justify-content: center; text-decoration: none; white-space: nowrap; }
+.pro2-firmware-page [hidden] { display: none !important; }
+.pro2-back-link { align-items: center; color: var(--brand); display: inline-flex; gap: 7px; justify-self: start; text-decoration: none; }
+.pro2-page-intro { align-items: flex-start; display: flex; gap: 20px; justify-content: space-between; }
+.pro2-page-intro h2 { margin: 2px 0 8px; }
+.pro2-page-intro p:last-child { color: var(--muted); margin: 0; max-width: 900px; }
+.pro2-local-badge { align-items: center; background: var(--brand-soft); border: 1px solid rgba(0,104,183,.2); border-radius: 999px; color: var(--brand-dark); display: inline-flex; flex: 0 0 auto; font-size: 12px; font-weight: 750; gap: 7px; padding: 7px 11px; }
+.pro2-notice { align-items: center; background: var(--brand-soft); border: 1px solid rgba(0,104,183,.24); border-radius: 9px; color: var(--brand-dark); display: flex; gap: 9px; padding: 11px 14px; }
+.pro2-notice.unsupported { background: #fff8e8; border-color: #f0d398; color: #795500; }
+.pro2-connection-panel,
+.pro2-task-heading,
+.pro2-panel-heading,
+.pro2-terminal-toolbar,
+.pro2-log-heading { align-items: center; display: flex; gap: 16px; justify-content: space-between; }
+.pro2-connection-panel { padding: 16px 18px; }
+.pro2-connection-panel .eyebrow { margin-bottom: 3px; }
+.pro2-connection-pill { color: var(--muted); font-size: 13px; font-weight: 750; }
+.pro2-connection-pill.connected { color: #18763b; }
+.pro2-connection-pill.busy { color: #8a5a00; }
+.pro2-button-row { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.pro2-button-row .icon-text { align-items: center; display: inline-flex; gap: 7px; }
+.pro2-task-card { padding: 18px; }
+.pro2-task-message { align-items: center; display: flex; gap: 12px; }
+.pro2-task-message p { color: var(--muted); margin: 2px 0 0; }
+.pro2-state-icon { align-items: center; background: var(--brand-soft); border-radius: 50%; color: var(--brand); display: inline-flex; flex: 0 0 auto; font-size: 20px; font-weight: 800; height: 42px; justify-content: center; width: 42px; }
+.pro2-task-card[data-state='completed'] .pro2-state-icon,
+.pro2-task-card[data-state='terminal'] .pro2-state-icon { background: #e9f7ee; color: #18763b; }
+.pro2-task-card[data-state='failed'] .pro2-state-icon,
+.pro2-task-card[data-state='cancelled'] .pro2-state-icon { background: #feebe9; color: var(--danger); }
+.pro2-danger-button { color: var(--danger); }
+.pro2-danger-button:not(:disabled) { border-color: #efb4ae; color: var(--danger); }
+.pro2-task-steps { counter-reset: pro2-step; display: grid; gap: 8px; grid-template-columns: repeat(5,minmax(0,1fr)); list-style: none; margin: 18px 0 12px; padding: 0; }
+.pro2-task-steps li { align-items: center; color: var(--muted); display: flex; font-size: 12px; font-weight: 700; gap: 7px; min-width: 0; }
+.pro2-task-steps li::before { align-items: center; background: #eef2f5; border-radius: 50%; content: counter(pro2-step); counter-increment: pro2-step; display: inline-flex; flex: 0 0 auto; height: 24px; justify-content: center; width: 24px; }
+.pro2-task-steps li.active { color: var(--brand); }
+.pro2-task-steps li.active::before { background: var(--brand); color: #fff; }
+.pro2-task-steps li.done { color: #18763b; }
+.pro2-task-steps li.done::before { background: #e9f7ee; color: #18763b; content: '✓'; }
+.pro2-progress-wrap { align-items: center; display: grid; gap: 12px; grid-template-columns: 1fr auto; }
+.pro2-progress-wrap progress { accent-color: var(--brand); height: 9px; width: 100%; }
+.pro2-progress-wrap span { color: var(--muted); font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size: 12px; }
+.pro2-burn-panel { padding: 20px; }
+.pro2-panel-heading h2 { margin: 2px 0 0; }
+.pro2-burn-primary,
+.pro2-advanced-grid { display: grid; gap: 14px; grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 18px; }
+.pro2-burn-primary label,
+.pro2-advanced-grid label,
+.pro2-terminal-toolbar > label { color: var(--muted); display: grid; font-size: 12px; font-weight: 750; gap: 6px; }
+.pro2-burn-primary input[type='file'],
+.pro2-burn-primary select,
+.pro2-advanced-grid input,
+.pro2-advanced-grid select,
+.pro2-terminal-toolbar select { background: #fff; border: 1px solid var(--line); border-radius: 8px; color: var(--text); font: inherit; min-height: 38px; padding: 8px 10px; }
+.pro2-burn-primary .pro2-checkbox { align-items: center; display: flex; grid-column: 1 / -1; }
+.pro2-checkbox input,
+.pro2-checks input { accent-color: var(--brand); }
+.pro2-file-field small { color: var(--muted); font-weight: 500; }
+.pro2-firmware-card { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 9px; display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; padding: 14px; }
+.pro2-firmware-card > span { color: var(--muted); font-size: 12px; }
+.pro2-checksum { align-items: center; display: grid; gap: 8px; grid-template-columns: auto 1fr auto; width: 100%; }
+.pro2-checksum code { font-size: 11px; overflow-wrap: anywhere; }
+.pro2-download-guide { background: var(--brand-soft); border-left: 4px solid var(--brand); border-radius: 8px; margin-top: 16px; padding: 14px 16px; }
+.pro2-download-guide h3 { margin: 2px 0 8px; }
+.pro2-download-guide ol { display: flex; flex-wrap: wrap; gap: 24px; margin: 8px 0; padding-left: 22px; }
+.pro2-download-guide p:last-child { color: var(--muted); margin-bottom: 0; }
+.pro2-download-guide kbd { background: #fff; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px; }
+.pro2-burn-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+.pro2-advanced { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
+.pro2-advanced summary,
+.pro2-protocol-details summary { align-items: center; color: var(--brand-dark); cursor: pointer; display: flex; font-weight: 750; gap: 8px; }
+.pro2-checks { display: grid; gap: 9px; margin-top: 14px; }
+.pro2-checks label { align-items: flex-start; display: flex; gap: 8px; }
+.pro2-warning { background: #fff2d6; border: 1px solid #f0d398; border-radius: 8px; color: #795500; padding: 10px 12px; }
+.pro2-recovery-card { border-color: #efb4ae; padding: 18px; }
+.pro2-recovery-card > div:first-child { margin-bottom: 12px; }
+.pro2-recovery-card p { color: var(--muted); margin: 4px 0 0; }
+.pro2-terminal-panel { overflow: hidden; padding: 0; }
+.pro2-terminal-toolbar { align-items: flex-end; padding: 16px 18px; }
+.pro2-terminal-toolbar h2 { align-items: center; display: flex; gap: 8px; margin: 2px 0 0; }
+.pro2-terminal-actions { justify-content: flex-end; }
+.pro2-terminal { background: #101b2d; height: 420px; padding: 10px; }
+.pro2-terminal-hint { align-items: center; background: var(--bg-soft); color: var(--muted); display: flex; font-size: 12px; gap: 8px; margin: 0; padding: 10px 16px; }
+.pro2-protocol-details { padding: 16px 18px; }
+.pro2-log-heading { color: var(--muted); font-size: 12px; margin-top: 14px; }
+.pro2-protocol-details pre { background: #101b2d; border-radius: 8px; color: #d9e2e9; font: 12px/1.55 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; margin: 12px 0 0; max-height: 260px; min-height: 100px; overflow: auto; padding: 12px; white-space: pre-wrap; }
+@media (max-width: 900px) {
+  .pro2-tool-card { align-items: flex-start; grid-template-columns: auto minmax(0,1fr); }
+  .pro2-tool-action { grid-column: 1 / -1; width: 100%; }
+  .pro2-connection-panel,.pro2-task-heading,.pro2-page-intro,.pro2-terminal-toolbar,.pro2-log-heading { align-items: flex-start; flex-direction: column; }
+  .pro2-task-steps { grid-template-columns: 1fr; }
+  .pro2-burn-primary,.pro2-advanced-grid { grid-template-columns: 1fr; }
+  .pro2-terminal-toolbar > label { width: 100%; }
+  .pro2-terminal-actions { justify-content: flex-start; }
+  .pro2-terminal { height: 340px; }
+}
