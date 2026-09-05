@@ -95,6 +95,9 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(canonicalCustomerPath('/console/clouds'), '/console/clouds');
   assert.equal(canonicalCustomerPath(`/console/clouds/${cloud}/fleet`), `/console/clouds/${cloud}/fleet`);
   assert.equal(canonicalCustomerPath('/console/chipset-sdk'), '/console/chipset-sdk');
+  assert.equal(canonicalCustomerPath('/console/chipset-sdk/pro2/firmware-burner'), '/console/chipset-sdk/pro2/firmware-burner');
+  assert.equal(routeFromPath('/console/chipset-sdk/pro2/firmware-burner'), 'chipset-sdk');
+  assert.equal(cloudIdFromPath('/console/chipset-sdk/pro2/firmware-burner'), '');
   assert.equal(canonicalCustomerPath('/console/jobs'), '/console/clouds');
   assert.equal(canonicalCustomerPath(`/console/${cloud}/overview`), `/console/clouds/${cloud}`);
   assert.equal(canonicalCustomerPath(`/console/${cloud}/jobs`), `/console/clouds/${cloud}/firmware-ota`);
@@ -147,6 +150,10 @@ test('customer nav is derived from active membership capabilities', () => {
   assert.deepEqual(navItemsForCapabilities('login', null), []);
   assert.deepEqual(navItemsForCapabilities('overview', 'fleet.read').map((item) => item.id), ['my-clouds', 'overview', 'chipset-sdk', 'developer-docs', 'settings']);
   assert.equal(navItemsForCapabilities('overview', ['product.read']).some((item) => item.id === 'product-services'), true);
+  assert.deepEqual(
+    navItemsForCapabilities('chipset-sdk', ['product.read', 'fleet.read']).map((item) => item.id),
+    ['my-clouds', 'overview', 'product-services', 'test-lab', 'chipset-sdk', 'developer-docs', 'devices', 'analytics', 'settings', 'audit'],
+  );
 });
 
 test('Brand Cloud navigation and route access are evaluated independently', () => {

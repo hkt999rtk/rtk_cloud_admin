@@ -10,6 +10,7 @@ import './cloud-billing.css';
 import { cloudAPI, cloudURL, managedCloudRoute, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { scopedCustomerAPI } from './cloud-scope.mjs';
 import { ProvisioningPage } from './ProvisioningPage.jsx';
+import { Pro2FirmwareBurner, PRO2_FIRMWARE_BURNER_PATH } from './Pro2FirmwareBurner.jsx';
 import { BrandCloudCreateDrawer } from './BrandCloudCreateDrawer.jsx';
 import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
@@ -230,6 +231,7 @@ async function fetchBrandCloudAccessData(cloudId, { includeAssignments = false }
 
 function App() {
   const urlCloudId = cloudIdFromPath(window.location.pathname);
+  const isPro2FirmwareBurner = window.location.pathname === PRO2_FIRMWARE_BURNER_PATH;
   const apiPath = useCallback((path) => scopedCustomerAPI(path, urlCloudId), [urlCloudId]);
   const [active, setActive] = useState(routeFromLocation());
   const [me, setMe] = useState(null);
@@ -282,10 +284,11 @@ function App() {
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
+  const isGlobalDeveloperRoute = active === 'chipset-sdk' || active === 'developer-docs';
   const isMemberInvitationAccept = active === 'brand-cloud-member-invitation-accept' || active === 'product-collaborator-invitation-accept';
   const navigationRoute = me?.kind === 'platform_admin'
     ? 'platform-dashboard'
-    : me?.kind === 'customer' && active !== 'chipset-sdk' ? 'overview' : active;
+    : me?.kind === 'customer' ? 'overview' : active;
   const visibleNavGroups = navGroupsForCapabilities(navigationRoute, me?.capabilities);
   const needsPlatformAccess = isPlatformView && me?.kind !== 'platform_admin';
   const brandCloudsBlocked = active === 'platform-brand-clouds' && me?.kind === 'platform_admin' && !me?.upstream_account_manager;
@@ -378,8 +381,8 @@ function App() {
           return;
         }
 
-        const requestedCloudId = active === 'developer-docs' ? cloudContextId(window.location.pathname, window.location.search) : cloudIdFromPath(window.location.pathname);
-        if (nextMe.kind === 'customer' && requestedCloudId && (active === 'developer-docs' || window.location.pathname.startsWith('/console/clouds/'))) {
+        const requestedCloudId = isGlobalDeveloperRoute ? cloudContextId(window.location.pathname, window.location.search) : cloudIdFromPath(window.location.pathname);
+        if (nextMe.kind === 'customer' && requestedCloudId && (isGlobalDeveloperRoute || window.location.pathname.startsWith('/console/clouds/'))) {
           const scopedCloud = await fetchJSON(cloudAPI(requestedCloudId));
           if (scopedCloud.brand_cloud?.id === requestedCloudId) rememberCloudPreference(requestedCloudId);
           nextMe = {
@@ -427,6 +430,15 @@ function App() {
 
         // ChipSet & SDK is a global developer resource. Do not make retired,
         // cloud-owned fleet requests just to render this page.
+        if (!useAdminApi && active === 'chipset-sdk' && nextMe.kind === 'customer' && isPro2FirmwareBurner) {
+          setChipsets(null);
+          setSDKCatalog(null);
+          setSummary(null);
+          setDevices([]);
+          setLoading(false);
+          return;
+        }
+
         if (!useAdminApi && active === 'chipset-sdk' && nextMe.kind === 'customer') {
           const [result, releaseResult] = await Promise.all([
             fetchJSON('/api/developer/chipsets').catch((err) => {
@@ -793,7 +805,9 @@ function App() {
   }, [mobileNavOpen]);
 
   function pathForNavigationItem(item) {
-    const navigationCloudId = active === 'developer-docs' ? cloudContextId(window.location.pathname, window.location.search) : urlCloudId;
+    const navigationCloudId = isGlobalDeveloperRoute
+      ? cloudContextId(window.location.pathname, window.location.search) || me?.active_org_id || ''
+      : urlCloudId;
     if (item.id === 'my-clouds' || item.global) return cloudConsolePath(navigationCloudId, item.id);
     if (me?.kind === 'platform_admin') return item.path;
     const targetRoute = item.id === 'overview' && me?.kind === 'customer' ? defaultBrandCloudRoute(me.capabilities) : item.id;
@@ -1131,6 +1145,12 @@ function App() {
       setError(`Brand Cloud switch failed with ${response.status}; current Cloud is unchanged.`);
       return;
     }
+    if (isGlobalDeveloperRoute) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('cloudId', orgId);
+      window.location.assign(`${window.location.pathname}?${params.toString()}${window.location.hash}`);
+      return;
+    }
     clearDashboardState();
     setSelectedDeviceId('');
     setDeviceDrawerOpen(false);
@@ -1341,7 +1361,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'product-services' ? (
           <ProductsPage loading={loading} data={products} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
         ) : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? <DeveloperChipsetResources data={chipsets} sdkRelease={sdkCatalog} loading={loading} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? isPro2FirmwareBurner ? <Pro2FirmwareBurner /> : <DeveloperChipsetResources data={chipsets} sdkRelease={sdkCatalog} loading={loading} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'developer-docs' ? <DeveloperDocs /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'firmware-ota' ? (
           <FirmwareOTAPage
@@ -2448,6 +2468,14 @@ function DeveloperChipsetResources({ data, sdkRelease, loading }) {
   const visibleChipsets = useMemo(() => filterChipsets(chipsets, query, vendor, recommendedOnly), [chipsets, query, vendor, recommendedOnly]);
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
     <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a Cloud Client SDK for your mobile, web, native, or device application. Hardware-specific SDKs and board resources remain available separately below.</p></div></div>
+    <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
+      <div className="sdk-section-heading"><div><h2 id="device-tools-heading">Device Tools</h2><p>Browser-based tools for bringing up and diagnosing hardware locally, before or alongside cloud provisioning.</p></div></div>
+      <article className="panel pro2-tool-card">
+        <span className="pro2-tool-icon" aria-hidden="true"><Icon name="microchip" /></span>
+        <div className="pro2-tool-copy"><div><p className="sdk-format">AMEBA PRO2 · WEB SERIAL</p><h3>Ameba PRO2 Firmware Burner</h3></div><p>Connect a board over USB UART, burn and verify a local firmware image, then continue in the live serial console. Firmware and UART data stay in your browser.</p><div className="pro2-tool-meta"><span><Icon name="laptop" />Desktop Chrome or Edge</span><span><Icon name="shield-halved" />No firmware upload</span><span><Icon name="bolt" />NOR / UART flow</span></div></div>
+        <a className="primary-button icon-text pro2-tool-action" href={PRO2_FIRMWARE_BURNER_PATH}><Icon name="arrow-right" />Open firmware burner</a>
+      </article>
+    </section>
     <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
       <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading">Cloud Client SDKs</h2><p>Use these packages to connect an app or a PRO2 device to Realtek Connect+. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
       {loading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}

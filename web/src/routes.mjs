@@ -154,7 +154,6 @@ export function navItemsForCapabilities(route, capabilities) {
   const items = navItemsForRoute(route);
   const values = new Set(Array.isArray(capabilities) ? capabilities : []);
   return items.filter((item) => {
-    if (['chipset-sdk', 'developer-docs'].includes(route) && !item.global) return false;
     return item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability));
   });
 }
@@ -167,7 +166,6 @@ export function navGroupsForCapabilities(route, capabilities) {
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        if (['chipset-sdk', 'developer-docs'].includes(route) && !item.global) return false;
         return item.alwaysVisible || !item.capabilities?.length || item.capabilities.some((capability) => values.has(capability));
       }),
     }))
