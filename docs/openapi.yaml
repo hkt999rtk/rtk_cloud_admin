@@ -61,6 +61,8 @@ paths:
       - {name: brandCloudID, in: path, required: true, schema: {type: string, format: uuid}}
     post:
       operationId: consoleTestLabpostaccounts
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-TESTLAB-001]
       summary: POST test-only /accounts
       description: Requires developer authentication, the non-production Test Lab gate and scoped account authorization. See docs/test-lab.md for exact request, response and revocation contracts. Unbind preserves the device and certificates.
       requestBody:
@@ -84,6 +86,8 @@ paths:
       - {name: accountId, in: path, required: true, schema: {type: string, format: uuid}}
     delete:
       operationId: consoleTestLabdeleteaccountsaccountId
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-TESTLAB-001]
       summary: DELETE test-only /accounts/{accountId}
       description: Requires developer authentication, the non-production Test Lab gate and scoped account authorization. See docs/test-lab.md for exact request, response and revocation contracts. Unbind preserves the device and certificates.
       responses:
@@ -101,6 +105,8 @@ paths:
       - {name: brandCloudID, in: path, required: true, schema: {type: string, format: uuid}}
     get:
       operationId: consoleTestLabgetdevices
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-TESTLAB-001]
       summary: GET test-only /devices
       description: Requires developer authentication, the non-production Test Lab gate and scoped account authorization. See docs/test-lab.md for exact request, response and revocation contracts. Unbind preserves the device and certificates.
       responses:
@@ -119,6 +125,8 @@ paths:
       - {name: deviceId, in: path, required: true, schema: {type: string, format: uuid}}
     get:
       operationId: consoleTestLabgetdevicesdeviceId
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-TESTLAB-001]
       summary: GET test-only /devices/{deviceId}
       description: Requires developer authentication, the non-production Test Lab gate and scoped account authorization. See docs/test-lab.md for exact request, response and revocation contracts. Unbind preserves the device and certificates.
       responses:
@@ -138,6 +146,8 @@ paths:
       - {name: action, in: path, required: true, schema: {type: string, enum: [grant, bind, unbind, provision]}}
     post:
       operationId: consoleTestLabpostdevicesdeviceIdaction
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-TESTLAB-001]
       summary: POST test-only /devices/{deviceId}/{action}
       description: Requires developer authentication, the non-production Test Lab gate and scoped account authorization. See docs/test-lab.md for exact request, response and revocation contracts. Unbind preserves the device and certificates.
       requestBody:
@@ -165,6 +175,8 @@ paths:
       - {name: device_id, in: query, required: true, schema: {type: string, format: uuid}}
     get:
       operationId: getTestLabContext
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-TESTLAB-001]
       summary: Read authorized test capabilities; does not create runtime credentials
       description: Opt-in non-production feature. See docs/test-lab.md for payloads, lifetime, limits and revocation boundaries.
       responses:
@@ -188,6 +200,8 @@ paths:
         schema: {type: string, format: uuid}
     post:
       operationId: createTestLabSession
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-TESTLAB-001]
       summary: Create a five-minute device-scoped test session
       description: Opt-in non-production feature. See docs/test-lab.md for payloads, lifetime, limits and revocation boundaries.
       requestBody:
@@ -224,6 +238,8 @@ paths:
         schema: {type: string, enum: [credentials, shadow, ice, offer, answer, stop, close]}
     post:
       operationId: executeTestLabAction
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-TESTLAB-001]
       summary: Execute credentials, shadow, ice, offer, answer, stop or close for the same Console login
       description: Opt-in non-production feature. See docs/test-lab.md for payloads, lifetime, limits and revocation boundaries.
       requestBody:
@@ -247,6 +263,8 @@ paths:
   /api/developer/test-lab/mqtt:
     get:
       operationId: connectTestLabMQTT
+      x-rtk-feature-id: FEAT-CA-AUTHZ-001
+      x-rtk-requirement-ids: [REQ-UI-CA-TESTLAB-001]
       summary: Same-origin authenticated WebSocket upgrade; Broker still authenticates MQTT CONNECT
       description: Opt-in non-production feature. See docs/test-lab.md for payloads, lifetime, limits and revocation boundaries.
       responses:
