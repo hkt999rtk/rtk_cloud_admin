@@ -1113,7 +1113,9 @@ function App() {
     setError('');
     if (window.location.pathname.startsWith('/console/')) {
       const cloud = developerBrandClouds.find(item => item.id === orgId) || { id: orgId };
-      window.location.assign(cloudRouteForSwitch(cloud, active, me?.user_id));
+      // Navigation can update the URL before React commits the matching state.
+      // Preserve the route that is actually visible when the cloud is switched.
+      window.location.assign(cloudRouteForSwitch(cloud, routeFromLocation(), me?.user_id));
       return;
     }
     const response = await fetch('/api/me/active-org', {
