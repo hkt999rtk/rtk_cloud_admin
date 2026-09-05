@@ -1004,3 +1004,47 @@ func TestChipsetProviderClientForwardsIdempotencyAndParsesAudit(t *testing.T) {
 		t.Fatalf("requests = %#v", requests)
 	}
 }
+
+func TestDeveloperChipsetClientPreservesBoardPayloads(t *testing.T) {
+	// Decode raw upstream JSON to catch a forgotten field in the BFF's mirror types.
+	payload := `{"id":"chipset-1","name":"AmebaPRO2","ic_model":"RTL8735B","boards":[{"board_key":"amb82-mini","name":"AMB82 MINI","vendor":"Realtek","summary":"Camera board","dimensions":{"length_mm":60,"width_mm":37.4},"specs":[{"label":"Pitch","value":"2.54 mm"}],"resources":[{"type":"documentation","title":"Guide","url":"https://example.com/guide","source":"official","languages":["en"],"verified_at":"2026-09-05T00:00:00Z"}],"model":{"asset_path":"/assets/boards/amb82-mini/v1/model.glb","poster_path":"/assets/boards/amb82-mini/v1/poster.webp","note":"Approximate"},"components":[{"key":"camera","name":"Camera","description":"F37"}]}],"sdk_releases":[{"name":"SDK","version":"1","supported_board_keys":["amb82-mini","another-board"],"supported_models":["legacy"],"endpoints":[],"recommended":true}]}`
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasSuffix(r.URL.Path, "/chipsets") {
+			_, _ = w.Write([]byte(`{"chipsets":[` + payload + `]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"chipset":` + payload + `}`))
+	}))
+	defer upstream.Close()
+	client := New(upstream.URL)
+	list, err := client.DeveloperChipsets(t.Context(), "access")
+	if err != nil || len(list) != 1 {
+		t.Fatalf("list = %#v, %v", list, err)
+	}
+	detail, err := client.DeveloperChipset(t.Context(), "access", "chipset-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, chipset := range []DeveloperChipset{list[0], detail} {
+		if chipset.ICModel != "RTL8735B" || len(chipset.Boards) != 1 || len(chipset.SDKReleases[0].SupportedBoardKeys) != 2 {
+			t.Fatalf("lost relation: %#v", chipset)
+		}
+		raw, err := json.Marshal(chipset)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var actual, original map[string]any
+		if err := json.Unmarshal(raw, &actual); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal([]byte(payload), &original); err != nil {
+			t.Fatal(err)
+		}
+		actualBoards, _ := json.Marshal(actual["boards"])
+		originalBoards, _ := json.Marshal(original["boards"])
+		if string(actualBoards) != string(originalBoards) {
+			t.Fatalf("lost board fields: %s", actualBoards)
+		}
+	}
+}

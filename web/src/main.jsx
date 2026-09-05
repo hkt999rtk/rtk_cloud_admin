@@ -1,4 +1,6 @@
 import { DeveloperDocs } from './DeveloperDocs.jsx';
+import { BoardCards, BoardPage } from './BoardExplorer.jsx';
+import { boardRoute } from './boards.mjs';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
@@ -240,6 +242,7 @@ async function fetchBrandCloudAccessData(cloudId, { includeAssignments = false }
 function App() {
   const urlCloudId = cloudIdFromPath(window.location.pathname);
   const isPro2FirmwareBurner = window.location.pathname === PRO2_FIRMWARE_BURNER_PATH;
+  const currentBoardRoute = boardRoute(window.location.pathname);
   const apiPath = useCallback((path) => scopedCustomerAPI(path, urlCloudId), [urlCloudId]);
   const [active, setActive] = useState(routeFromLocation());
   const [me, setMe] = useState(null);
@@ -1267,7 +1270,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'product-services' ? (
           <ProductsPage loading={loading} data={products} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
         ) : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? isPro2FirmwareBurner ? <Pro2FirmwareBurner /> : <DeveloperChipsetResources data={chipsets} sdkRelease={sdkCatalog} loading={loading} /> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? isPro2FirmwareBurner ? <Pro2FirmwareBurner /> : currentBoardRoute ? <BoardPage route={currentBoardRoute} data={chipsets} loading={loading} ResourceLinks={ResourceLinks} /> : <DeveloperChipsetResources data={chipsets} sdkRelease={sdkCatalog} loading={loading} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'developer-docs' ? <DeveloperDocs /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'firmware-ota' ? (
           <FirmwareOTAPage
@@ -2487,7 +2490,7 @@ function CloudSDKCardSkeletons() {
 }
 
 function ChipsetCards({ chipsets, showFreshness }) {
-	return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id || chipset.chipset_key}><div className="chipset-card-heading"><div className="chipset-vendor-mark" aria-hidden="true">{vendorInitials(chipset)}</div><div><h3>{chipset.name}</h3><p className="chipset-vendor-line">{chipset.vendor}{chipset.family ? ` · ${chipset.family} family` : ''}</p></div><span className={`status-badge ${chipset.stale ? 'warning' : 'good'}`}>{chipset.stale ? 'Stale' : 'Current'}</span></div><p>{chipset.description || 'ChipSet developer information'}</p><div className="chipset-card-meta"><span>{chipset.resources?.length || 0} product resources</span><span>{chipset.sdk_releases?.length || 0} SDK releases</span>{showFreshness ? <span>{translate('Last synchronized: {{time}}', { time: chipset.last_successful_refresh_at ? formatRelativeTime(chipset.last_successful_refresh_at) : 'unknown' })}</span> : null}</div>{chipset.resources?.length ? <section className="chipset-product-resources"><h4>{translate('Products and Support')}</h4><ResourceLinks resources={chipset.resources} /></section> : null}{chipset.sdk_releases?.length ? <h4 className="chipset-sdk-heading">SDK</h4> : null}{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{release.summary}</small> : null}</div>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div>{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="chipset-model-chip" key={model}>{model}</span>)}</div> : null}<ResourceLinks resources={release.endpoints} compact /></section>)}{showFreshness ? <small className="chipset-provider-attribution">Information provided by {chipset.provider_name}</small> : null}</article>)}</div>;
+	return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id || chipset.chipset_key}><div className="chipset-card-heading"><div className="chipset-vendor-mark" aria-hidden="true">{vendorInitials(chipset)}</div><div><h3>{chipset.name}</h3><p className="chipset-vendor-line">{chipset.vendor}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}{chipset.family ? ` · ${chipset.family} family` : ''}</p></div><span className={`status-badge ${chipset.stale ? 'warning' : 'good'}`}>{chipset.stale ? 'Stale' : 'Current'}</span></div><p>{chipset.description || 'ChipSet developer information'}</p><div className="chipset-card-meta"><span>{chipset.resources?.length || 0} product resources</span><span>{chipset.sdk_releases?.length || 0} SDK releases</span>{showFreshness ? <span>{translate('Last synchronized: {{time}}', { time: chipset.last_successful_refresh_at ? formatRelativeTime(chipset.last_successful_refresh_at) : 'unknown' })}</span> : null}</div>{chipset.resources?.length ? <section className="chipset-product-resources"><h4>{translate('Products and Support')}</h4><ResourceLinks resources={chipset.resources} /></section> : null}<BoardCards chipset={chipset} />{chipset.sdk_releases?.length ? <h4 className="chipset-sdk-heading">SDK</h4> : null}{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{release.summary}</small> : null}</div>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div>{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="chipset-model-chip" key={model}>{model}</span>)}</div> : null}<ResourceLinks resources={release.endpoints} compact /></section>)}{showFreshness ? <small className="chipset-provider-attribution">Information provided by {chipset.provider_name}</small> : null}</article>)}</div>;
 }
 
 function ResourceLinks({ resources = [], compact = false }) {

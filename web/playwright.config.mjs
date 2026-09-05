@@ -25,6 +25,8 @@ export default defineConfig({
   projects: [
     { name: 'chromium', grepInvert: /@staging/, use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1000 } } },
     { name: 'mobile', grep: /@smoke/, grepInvert: /@staging/, use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } } },
+    { name: 'board-webkit', testMatch: 'boards.spec.mjs', use: { browserName: 'webkit', viewport: { width: 1440, height: 1000 } } },
+    { name: 'board-chrome', testMatch: 'boards.spec.mjs', use: { browserName: 'chromium', channel: 'chrome', viewport: { width: 1440, height: 1000 } } },
     { name: 'staging', grep: /@staging/, use: { ...devices['Desktop Chrome'] } },
     { name: 'staging-mobile', grep: /@staging/, use: { ...devices['Pixel 7'] } },
   ],

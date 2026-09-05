@@ -1111,6 +1111,30 @@ Acceptance: Platform provider design matches the approved visual baseline.
 
 Acceptance: Developer resource design matches the approved visual baseline.
 
+#### [REQ-UI-CA-BOARDS-001] Boards belong to their published chipset and share SDK releases
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: ChipSet cards show optional Boards with thumbnails and standalone links scoped by the server-assigned chipset ID. Searching a platform, IC model or board name finds the board. Detail pages retain global developer authentication, published-provider visibility, SDK download links and the PRO2 Firmware Burner. Legacy manifests retain the existing catalog.
+
+#### [REQ-UI-CA-BOARDS-002] Camera-equipped board model supports accessible exploration
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: The AMB82 MINI page shows a self-built, source-documented GLB with camera, ribbon, antenna and front/back components. Users can rotate, zoom, reset, select front/back views and choose parts by pointer or keyboard. Mobile stacks the model and guide without overlap. The model discloses estimated dimensions. GLB and poster budgets are 5 MiB and 200 KiB.
+
+#### [REQ-UI-CA-BOARDS-003] Board content survives renderer and provider failures
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: Missing WebGL or a failed model request preserves the poster, specifications, components and resources with a retry action. Stale snapshots are labeled and unpublished boards are unavailable. Three.js and GLB load only on board detail pages, idle rendering stops, and retries/navigation release rendering resources.
+
 #### [REQ-UI-CA-DOCS-001] Developer Docs navigation and search
 
 <!-- rtk-requirement
