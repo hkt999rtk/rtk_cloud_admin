@@ -29,6 +29,30 @@ export async function startSSOLogin(email, returnUrl) {
   });
 }
 
+export async function startSocialLogin(providerID, next = '') {
+  return postJSON('/api/auth/social/start', {
+    provider_id: providerID,
+    next,
+  });
+}
+
+export function socialLoginCallbackError(code) {
+  switch (String(code || '').toLowerCase()) {
+    case 'cancelled':
+      return 'Social sign-in was cancelled.';
+    case 'email_unverified':
+      return 'A verified primary email is required to sign in.';
+    case 'account_unavailable':
+      return 'This account cannot use social sign-in.';
+    case 'invalid_state':
+      return 'This sign-in request expired. Please try again.';
+    case 'unavailable':
+      return 'Social sign-in is temporarily unavailable. Please try again later.';
+    default:
+      return '';
+  }
+}
+
 export function userFacingSSOError(error) {
   if (error?.status === 401) {
     return 'Session expired. Sign in again to continue.';

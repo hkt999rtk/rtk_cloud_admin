@@ -36,7 +36,9 @@ import {
   isExpiredVerificationError,
   postJSON,
   putJSON,
+  startSocialLogin,
   startSSOLogin,
+  socialLoginCallbackError,
   userFacingLoginActivationError,
   userFacingPasswordResetError,
   userFacingSignupError,
@@ -1000,6 +1002,14 @@ function App() {
     }
   }
 
+  async function handleSocialLogin(providerID) {
+    const result = await startSocialLogin(providerID, loginNextFromLocation(window.location));
+    if (!result?.redirect_url) {
+      throw new Error('Social sign-in could not be started. Please try again.');
+    }
+    window.location.assign(result.redirect_url);
+  }
+
   async function handlePasswordLogin(credentials) {
     setError('');
     const nextPath = loginNextFromLocation(window.location);
@@ -1188,6 +1198,7 @@ function App() {
           onSignup={handleSignup}
           onLoginActivate={handleLoginActivate}
           onPasswordLogin={handlePasswordLogin}
+          onSocialLogin={handleSocialLogin}
           onForgotPassword={handleForgotPassword}
           onResetPassword={handleResetPassword}
         />
@@ -1436,11 +1447,12 @@ function App() {
   );
 }
 
-function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswordLogin, onForgotPassword, onResetPassword }) {
+function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswordLogin, onSocialLogin, onForgotPassword, onResetPassword }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
   const [authMode, setAuthMode] = useState('login');
+  const [socialProviders, setSocialProviders] = useState([]);
   const platformLogin = active === 'login' && isPlatformLoginNext(params.get('next') || '');
   const loginHeading = platformLogin ? 'Platform Admin sign in' : authMode === 'signup' ? 'Create your Connect+ account' : 'Sign in to Connect+';
   const loginCopy = platformLogin
@@ -1464,6 +1476,15 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
         : 'Sign in Connect+';
   }, [active, authMode, platformLogin]);
 
+  useEffect(() => {
+    if (active !== 'login') return undefined;
+    let alive = true;
+    fetchJSON('/api/auth/social/providers')
+      .then((result) => { if (alive) setSocialProviders(result?.providers || []); })
+      .catch(() => { if (alive) setSocialProviders([]); });
+    return () => { alive = false; };
+  }, [active]);
+
   const content = active === 'login-check-email' ? (
     <LoginCheckEmail email={email} />
   ) : active === 'login-activate' ? (
@@ -1480,6 +1501,8 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
       platformLogin={platformLogin}
       onSignup={onSignup}
       onPasswordLogin={onPasswordLogin}
+      onSocialLogin={onSocialLogin}
+      socialProviders={socialProviders}
       disabled={loading}
     />
   );
@@ -1494,14 +1517,14 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
           <h1 id="login-title">{pageHeading}</h1>
           <p className="login-copy">{pageCopy}</p>
           {content}
-          {error ? <div className="error">{error}</div> : null}
+          {error || socialLoginCallbackError(params.get('social_error')) ? <div className="error">{error || socialLoginCallbackError(params.get('social_error'))}</div> : null}
         </section>
       </main>
     </div>
   );
 }
 
-function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSignup, onPasswordLogin, disabled }) {
+function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSignup, onPasswordLogin, onSocialLogin, socialProviders, disabled }) {
   return (
     <div className="auth-stack">
       {!platformLogin ? <div className="auth-mode-tabs" role="tablist" aria-label="Auth mode">
@@ -1527,8 +1550,43 @@ function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSig
       {!platformLogin && mode === 'signup' ? (
         <SignupForm onSignup={onSignup} disabled={disabled} />
       ) : (
-        <LoginPasswordForm initialEmail={initialEmail} onPasswordLogin={onPasswordLogin} disabled={disabled} />
+        <>
+          <SocialLoginButtons providers={socialProviders} onSocialLogin={onSocialLogin} disabled={disabled} />
+          {socialProviders.length ? <div className="social-login-divider"><span>or continue with email</span></div> : null}
+          <LoginPasswordForm initialEmail={initialEmail} onPasswordLogin={onPasswordLogin} disabled={disabled} />
+        </>
       )}
+    </div>
+  );
+}
+
+function SocialLoginButtons({ providers = [], onSocialLogin, disabled }) {
+  const [busyProvider, setBusyProvider] = useState('');
+  const [localError, setLocalError] = useState('');
+  if (!providers.length) return null;
+  async function begin(provider) {
+    setBusyProvider(provider.id);
+    setLocalError('');
+    try {
+      await onSocialLogin(provider.id);
+    } catch (_) {
+      setLocalError(`${provider.name} sign-in is temporarily unavailable. Please try again.`);
+      setBusyProvider('');
+    }
+  }
+  return (
+    <div className="social-login-stack" aria-label="Social sign-in options">
+      {providers.map((provider) => <button
+        key={provider.id}
+        type="button"
+        className={`social-login-button social-login-${provider.id}`}
+        disabled={disabled || Boolean(busyProvider)}
+        onClick={() => begin(provider)}
+      >
+        <i className={`fa-brands fa-${provider.id}`} aria-hidden="true" />
+        <span>{busyProvider === provider.id ? `Connecting to ${provider.name}` : `Continue with ${provider.name}`}</span>
+      </button>)}
+      {localError ? <p className="error" role="alert">{localError}</p> : null}
     </div>
   );
 }

@@ -3540,6 +3540,73 @@ p {
   gap: 12px;
 }
 
+.social-login-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.social-login-button {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #b9c7d2;
+  border-radius: 8px;
+  color: var(--navy);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  font-weight: 800;
+  grid-template-columns: 24px 1fr 24px;
+  min-height: 46px;
+  padding: 0 14px;
+  text-align: center;
+}
+
+.social-login-button::after {
+  content: '';
+}
+
+.social-login-button:hover:not(:disabled) {
+  background: #f7fafc;
+  border-color: var(--brand);
+}
+
+.social-login-button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(0, 104, 183, 0.12);
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.social-login-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.social-login-button .fa-google {
+  color: #4285f4;
+  font-size: 18px;
+}
+
+.social-login-button .fa-github {
+  color: #24292f;
+  font-size: 19px;
+}
+
+.social-login-divider {
+  align-items: center;
+  color: var(--muted);
+  display: grid;
+  font-size: 12px;
+  gap: 12px;
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.social-login-divider::before,
+.social-login-divider::after {
+  background: var(--line);
+  content: '';
+  height: 1px;
+}
+
 .auth-mode-tabs {
   background: #eef4f8;
   border: 1px solid var(--line);
