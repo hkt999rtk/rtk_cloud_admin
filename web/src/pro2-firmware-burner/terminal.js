@@ -68,14 +68,14 @@ export class TerminalConsole {
     this.terminal.options.disableStdin = false;
     this.fit();
     this.focus();
-    this.onStatus('terminal', `Console connected at baud rate ${baudRate}`);
+    this.onStatus('ready', `Console connected at baud rate ${baudRate}`);
     this.onLog(`terminal active at ${baudRate}, line ending ${this.lineEnding.toUpperCase()}`);
     if (hardwareReset) await this.hardwareReset();
   }
 
   async hardwareReset() {
     if (!this.transport.port?.setSignals) {
-      this.onStatus('terminal', 'Console ready. This adapter cannot reset the device automatically; reset it manually.');
+      this.onStatus('ready', 'Console ready. This adapter cannot reset the device automatically; reset it manually.');
       return false;
     }
     try {
@@ -87,7 +87,7 @@ export class TerminalConsole {
       this.onLog('hardware reset complete');
       return true;
     } catch (error) {
-      this.onStatus('terminal', `Console ready. Automatic reset failed; reset the device manually: ${error.message}`);
+      this.onStatus('ready', `Console ready. Automatic reset failed; reset the device manually: ${error.message}`);
       return false;
     }
   }
