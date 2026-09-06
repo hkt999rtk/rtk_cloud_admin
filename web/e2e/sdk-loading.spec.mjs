@@ -66,6 +66,7 @@ test('[UI-CA-SDK-LOAD-004] navigation and back preserve the document and fresh r
   await page.goForward();
   await expect(page.locator('.sdk-release-summary')).toBeVisible();
   expect(await page.evaluate(()=>window.__navigationMarker)).toBe(marker);
+  await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toBeVisible();
   await page.getByRole('link',{name:'Open firmware burner',exact:true}).click();
   await expect(page.getByTestId('pro2-firmware-burner')).toBeVisible();
   expect(await page.evaluate(()=>window.__navigationMarker)).toBeUndefined();
