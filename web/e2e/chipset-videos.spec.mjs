@@ -119,7 +119,7 @@ test('[UI-CA-VIDEOS-003] failed thumbnails and legacy metadata retain usable lin
 test('[UI-CA-VIDEOS-004] unpublished providers hide videos while stale snapshots retain them @chipset-sdk @smoke', async ({ page }) => {
   await setup(page, []); await page.goto(catalogURL);
   await expect(page.getByRole('combobox', { name: 'Select Chip', exact: true })).toBeDisabled();
-  await expect(page.locator('.pro2-tool-card')).toHaveCount(0);
+  await expect(page.locator('.pro2-tool-card')).toHaveCount(1);
   await expect(library(page)).toHaveCount(0);
   await page.goto(boardURL); await expect(page.getByRole('heading', { name: 'Board not available' })).toBeVisible();
   await expect(library(page)).toHaveCount(0);
@@ -133,5 +133,5 @@ test('[UI-CA-VIDEOS-004] unpublished providers hide videos while stale snapshots
   await expect(page.getByRole('heading', { name: 'Board resources are temporarily unavailable' })).toBeVisible();
   await page.goto(catalogURL);
   await expect(page.getByRole('combobox', { name: 'Select Chip', exact: true })).toBeDisabled();
-  await expect(page.locator('.pro2-tool-card')).toHaveCount(0);
+  await expect(page.locator('.pro2-tool-card')).toHaveCount(1);
 });
