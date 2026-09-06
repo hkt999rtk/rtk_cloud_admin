@@ -68,21 +68,6 @@ func TestCustomerScopedFallbackEndpointsAndLogout(t *testing.T) {
 		}
 	}
 
-	auditRec := requestWithCookie(t, srv, http.MethodGet, "/api/audit", nil, cookie)
-	if auditRec.Code != http.StatusOK {
-		t.Fatalf("audit status = %d, body=%s", auditRec.Code, auditRec.Body.String())
-	}
-	var audit []contracts.AuditEvent
-	decodeJSON(t, auditRec, &audit)
-	if len(audit) == 0 {
-		t.Fatalf("audit events = %#v, want at least one org-scoped event", audit)
-	}
-	for _, event := range audit {
-		if event.Target != "dev-001" && event.Target != "dev-002" {
-			t.Fatalf("audit leaked out-of-org event: %#v", event)
-		}
-	}
-
 	logoutRec := requestWithCookie(t, srv, http.MethodPost, "/api/auth/logout", nil, cookie)
 	if logoutRec.Code != http.StatusOK {
 		t.Fatalf("logout status = %d, body=%s", logoutRec.Code, logoutRec.Body.String())

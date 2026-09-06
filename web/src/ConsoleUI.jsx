@@ -46,24 +46,3 @@ export function Dialog({ title, onClose, busy = false, role = 'dialog', returnFo
     {children}
   </dialog>;
 }
-
-export function CustomerAudit({ cloudId }) {
-  const [state, setState] = useState({ loading: true, events: [], error: '' });
-  const [reload, setReload] = useState(0);
-  useEffect(() => {
-    const controller = new AbortController();
-    setState({ loading: true, events: [], error: '' });
-    if (!cloudId) { setState({ loading: false, events: [], error: 'Select a cloud to view its device activity.' }); return () => controller.abort(); }
-    fetch(`/api/developer/brand-clouds/${encodeURIComponent(cloudId)}/audit`, { signal: controller.signal, credentials: 'same-origin', cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(response.status === 403 ? 'Your role cannot view device activity for this cloud.' : 'Device activity could not be loaded. Try again.');
-        const body = await response.json();
-        if (!Array.isArray(body)) throw new Error('Device activity returned an unexpected response. Try again.');
-        if (!controller.signal.aborted) setState({ loading: false, events: body, error: '' });
-      }).catch((error) => { if (!controller.signal.aborted) setState({ loading: false, events: [], error: error.message }); });
-    return () => controller.abort();
-  }, [cloudId, reload]);
-  return <section className="panel"><div className="ui-section-heading"><div><h2>Device activity</h2><p>Activity for devices you can access in this cloud. This history does not include all cloud, membership or billing changes.</p></div><button onClick={() => setReload((value) => value + 1)}>Refresh</button></div>
-    {state.loading ? <p role="status">Loading device activity…</p> : state.error ? <p role="alert">{state.error}</p> : !state.events.length ? <div className="ui-empty"><h3>No device activity yet</h3><p>Recorded activity for your authorized devices will appear here.</p></div> : <div className="table-scroll-region"><table><thead><tr><th>Time</th><th>Action</th><th>Device</th><th>Result</th></tr></thead><tbody>{state.events.map((event, index) => <tr key={event.id || index}><td>{event.created_at || event.time || 'Not reported'}</td><td>{displayLabel(event.action)}</td><td>{event.target || event.target_id || '—'}</td><td>{displayLabel(event.result || event.status)}</td></tr>)}</tbody></table></div>}
-  </section>;
-}

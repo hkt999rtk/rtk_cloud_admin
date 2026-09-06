@@ -42,7 +42,7 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
     }),
   }));
 
-  const featureLabels = ['Overview', 'Products', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'];
+  const featureLabels = ['Overview', 'Products', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings'];
   await page.goto('/console/clouds');
   await expect(page.getByRole('heading', { name: 'My Clouds', exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'My Clouds', exact: true })).toBeVisible();

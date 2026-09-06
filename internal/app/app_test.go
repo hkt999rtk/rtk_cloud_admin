@@ -55,7 +55,6 @@ func TestServerHealthAndHomeRedirect(t *testing.T) {
 		"/console/groups",
 		"/console/customers",
 		"/console/operations",
-		"/console/audit",
 		"/admin",
 		"/admin/health",
 		"/admin/ops",
@@ -1088,14 +1087,6 @@ func TestProvisionActionPublishesOperation(t *testing.T) {
 		t.Fatalf("operation state = %q, want published", op.State)
 	}
 
-	audit := httptest.NewRecorder()
-	srv.ServeHTTP(audit, httptest.NewRequest(http.MethodGet, "/api/audit", nil))
-	if audit.Code != http.StatusOK {
-		t.Fatalf("audit status = %d, want %d; body=%s", audit.Code, http.StatusOK, audit.Body.String())
-	}
-	if !strings.Contains(audit.Body.String(), "DeviceProvisionRequested") {
-		t.Fatalf("audit body does not contain DeviceProvisionRequested: %s", audit.Body.String())
-	}
 }
 
 func TestCustomersAPI(t *testing.T) {
@@ -5064,22 +5055,6 @@ func TestCustomerUpstreamLifecycleFailurePersistsFailedOperation(t *testing.T) {
 	}
 	if !hasFailed {
 		t.Fatalf("expected failed operation projection after upstream failure")
-	}
-
-	audit := httptest.NewRecorder()
-	srv.ServeHTTP(audit, httptest.NewRequest(http.MethodGet, "/api/audit", nil))
-	var events []contracts.AuditEvent
-	if err := json.NewDecoder(audit.Body).Decode(&events); err != nil {
-		t.Fatalf("decode audit events: %v", err)
-	}
-	hasFailedAudit := false
-	for _, event := range events {
-		if event.Action == "DeviceProvisionRequested.failed" {
-			hasFailedAudit = true
-		}
-	}
-	if !hasFailedAudit {
-		t.Fatalf("expected DeviceProvisionRequested.failed audit event")
 	}
 
 }

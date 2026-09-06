@@ -83,7 +83,6 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath(`/console/clouds/${cloud}/members`), 'access');
   assert.equal(routeFromPath(`/console/clouds/${cloud}/billing/invoices`), 'billing');
   assert.equal(routeFromPath(`/console/clouds/${cloud}/settings`), 'settings');
-  assert.equal(routeFromPath(`/console/clouds/${cloud}/audit`), 'audit');
   assert.equal(cloudIdFromPath(`/console/clouds/${cloud}/fleet`), cloud);
   assert.equal(cloudIdFromPath('/console/clouds/not-a-uuid/fleet'), '');
   assert.equal(cloudIdFromPath('/console/clouds/%/fleet'), '');
@@ -124,7 +123,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.labelKey),
-    ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'],
+    ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings'],
   );
   assert.deepEqual(customerNavGroups.map((group) => group.labelKey), ['Clouds', 'Brand Cloud', 'Features', 'Management']);
 });
@@ -136,13 +135,13 @@ test('customer nav is derived from active membership capabilities', () => {
     'customer.devices.read',
     'customer.stream.read',
   ]).flatMap((group) => group.items).map((item) => item.labelKey);
-  assert.deepEqual(labels, ['My Clouds', 'Overview', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'Analytics', 'Settings', 'Audit']);
+  assert.deepEqual(labels, ['My Clouds', 'Overview', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'Analytics', 'Settings']);
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['team.read']).flatMap((group) => group.items).some((item) => item.id === 'access'), true);
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read']).flatMap((group) => group.items).some((item) => item.id === 'billing'), false);
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read'], { isOwner: true }).flatMap((group) => group.items).some((item) => item.id === 'billing'), true);
   assert.deepEqual(cloudNavGroupsForCapabilities('', null).flatMap((group) => group.items).map((item) => item.id), ['my-clouds', 'chipset-sdk', 'developer-docs']);
   const unscoped = cloudShellNavGroups('', null, { showOwnerOnly: true }).flatMap((group) => group.items);
-  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit']);
+  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings']);
   assert.equal(unscoped.find((item) => item.id === 'my-clouds').disabled, false);
   assert.equal(unscoped.find((item) => item.id === 'chipset-sdk').disabled, false);
   assert.equal(unscoped.filter((item) => !item.global).every((item) => item.disabled), true);
@@ -152,7 +151,7 @@ test('customer nav is derived from active membership capabilities', () => {
   assert.equal(navItemsForCapabilities('overview', ['product.read']).some((item) => item.id === 'product-services'), true);
   assert.deepEqual(
     navItemsForCapabilities('chipset-sdk', ['product.read', 'fleet.read']).map((item) => item.id),
-    ['my-clouds', 'overview', 'product-services', 'test-lab', 'chipset-sdk', 'developer-docs', 'devices', 'analytics', 'settings', 'audit'],
+    ['my-clouds', 'overview', 'product-services', 'test-lab', 'chipset-sdk', 'developer-docs', 'devices', 'analytics', 'settings'],
   );
 });
 

@@ -165,7 +165,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func isRetiredLegacyCustomerPath(path string) bool {
 	for _, prefix := range []string{
 		"/api/fleet", "/api/groups", "/api/tags", "/api/jobs", "/api/provisioning",
-		"/api/reports", "/api/update-plans", "/api/ota", "/api/audit", "/api/billing",
+		"/api/reports", "/api/update-plans", "/api/ota", "/api/billing",
 		"/console/fleet", "/console/groups", "/console/tags", "/console/jobs",
 		"/console/reports", "/console/update-plans", "/console/ota", "/console/billing",
 	} {
@@ -477,7 +477,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/service-health", s.apiServiceHealth)
 	s.mux.HandleFunc("GET /api/admin/service-health", s.apiAdminServiceHealth)
 	s.mux.HandleFunc("GET /api/admin/service-logs", s.apiAdminServiceLogs)
-	s.mux.HandleFunc("GET /api/audit", s.apiAudit)
 	s.mux.HandleFunc("GET /api/admin/audit", s.apiAdminAudit)
 	s.mux.HandleFunc("POST /api/devices/{id}/provision", s.apiProvisionDevice)
 	s.mux.HandleFunc("POST /api/devices/{id}/deactivate", s.apiDeactivateDevice)
@@ -511,7 +510,6 @@ func (s *Server) routes() {
 		"/console/groups",
 		"/console/customers",
 		"/console/operations",
-		"/console/audit",
 		"/admin",
 		"/admin/resources",
 		"/admin/health",
@@ -575,7 +573,6 @@ func (s *Server) scopedCustomerRoutes() {
 	register("GET "+root+"/update-plans/{id}", s.apiUpdatePlans)
 	register("POST "+root+"/update-plans/{id}/{action}", s.apiUpdatePlans)
 	register("GET "+root+"/operations", s.apiOperations)
-	register("GET "+root+"/audit", s.apiAudit)
 }
 
 const (
@@ -5818,24 +5815,6 @@ func adminSensitiveLogKey(key string) bool {
 	return false
 }
 
-func (s *Server) apiAudit(w http.ResponseWriter, r *http.Request) {
-	if session, ok := s.customerSession(r); ok {
-		events, err := s.customerAudit(r.Context(), session)
-		if err != nil {
-			s.writeCustomerErrorForSession(w, session.ID, err)
-			return
-		}
-		writeJSON(w, events)
-		return
-	}
-	events, err := s.audit.ListAuditEvents()
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	writeJSON(w, events)
-}
-
 func (s *Server) apiAdminAudit(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.requirePlatformAdmin(w, r); !ok {
 		return
@@ -6207,31 +6186,6 @@ func customerSummariesFromDevices(devices []contracts.Device) []contracts.Custom
 		customers = append(customers, *byOrg[orgID])
 	}
 	return customers
-}
-
-func (s *Server) customerAudit(ctx context.Context, session store.Session) ([]contracts.AuditEvent, error) {
-	devices, err := s.customerDevices(ctx, session)
-	if err != nil {
-		return nil, err
-	}
-	allowed := make(map[string]struct{}, len(devices))
-	for _, device := range devices {
-		allowed[device.ID] = struct{}{}
-	}
-	events, err := s.audit.ListAuditEvents()
-	if err != nil {
-		return nil, err
-	}
-	if len(allowed) == 0 {
-		return []contracts.AuditEvent{}, nil
-	}
-	filtered := make([]contracts.AuditEvent, 0, len(events))
-	for _, event := range events {
-		if _, ok := allowed[event.Target]; ok {
-			filtered = append(filtered, event)
-		}
-	}
-	return filtered, nil
 }
 
 func (s *Server) activeCustomerOrg(ctx context.Context, session store.Session) (accountclient.Organization, accountclient.Tokens, error) {

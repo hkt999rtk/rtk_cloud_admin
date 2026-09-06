@@ -40,7 +40,7 @@ test('[UI-CA-CHIPSET-009] PRO2 firmware burner is a global local-device tool @ch
   const mobileMenu = page.getByRole('button', { name: 'Open navigation', exact: true });
   const mobileNavigation = await mobileMenu.isVisible();
   if (mobileNavigation) await mobileMenu.click();
-  for (const label of ['Overview', 'Products', 'Cloud Test Lab', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Settings', 'Audit']) {
+  for (const label of ['Overview', 'Products', 'Cloud Test Lab', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Settings']) {
     await expect(page.getByRole('link', { name: label, exact: true })).toBeVisible();
   }
   await expect(page.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('href', `/console/clouds/${session.active_org_id}`);
