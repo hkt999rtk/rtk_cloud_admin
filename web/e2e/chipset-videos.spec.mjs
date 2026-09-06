@@ -37,7 +37,7 @@ test('[UI-CA-CHIPSET-012] chip selector scopes SDKs boards videos and tools and 
   await expect(page.locator('.chipset-card')).toHaveCount(1);
   await expect(page.getByRole('link', { name: 'Watch Second chip tutorial' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Explore board', exact: true })).toHaveCount(0);
-  await expect(page.locator('.pro2-tool-card')).toHaveCount(0);
+  await expect(page.locator('.pro2-tool-card')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'FreeRTOS / Pro2', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Android Kotlin', exact: true })).toBeVisible();
   await expect(page.locator('.sdk-format .fa-android')).toHaveCSS('font-family', '"Font Awesome 7 Brands"');
