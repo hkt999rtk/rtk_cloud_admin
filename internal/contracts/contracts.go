@@ -516,6 +516,98 @@ type FleetHealthSummary struct {
 	Trend           []FleetHealthTrendPoint `json:"trend"`
 }
 
+type FleetMetricSource struct {
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+}
+
+type FleetPresenceCurrent struct {
+	Online  int `json:"online"`
+	Offline int `json:"offline"`
+	Unknown int `json:"unknown"`
+	Total   int `json:"total"`
+}
+
+type FleetPresenceTrendPoint struct {
+	Date            string   `json:"date"`
+	OnlineSeconds   int64    `json:"online_seconds"`
+	OfflineSeconds  int64    `json:"offline_seconds"`
+	KnownSeconds    int64    `json:"known_seconds"`
+	ExpectedSeconds int64    `json:"expected_seconds"`
+	OnlineRatePct   *float64 `json:"online_rate_pct"`
+	CoveragePct     *float64 `json:"coverage_pct"`
+}
+
+type FleetOverviewPresence struct {
+	Source          FleetMetricSource         `json:"source"`
+	Current         FleetPresenceCurrent      `json:"current"`
+	OnlineSeconds   int64                     `json:"online_seconds"`
+	OfflineSeconds  int64                     `json:"offline_seconds"`
+	KnownSeconds    int64                     `json:"known_seconds"`
+	ExpectedSeconds int64                     `json:"expected_seconds"`
+	OnlineRate7dPct *float64                  `json:"online_rate_7d_pct"`
+	Coverage7dPct   *float64                  `json:"coverage_7d_pct"`
+	Trend           []FleetPresenceTrendPoint `json:"trend"`
+}
+
+type FleetOverviewHealth struct {
+	Source         FleetMetricSource  `json:"source"`
+	Healthy        int                `json:"healthy"`
+	Warning        int                `json:"warning"`
+	Critical       int                `json:"critical"`
+	Unknown        int                `json:"unknown"`
+	Stale          int                `json:"stale"`
+	NeedsAttention int                `json:"needs_attention"`
+	Trend          []FleetHealthDaily `json:"trend"`
+}
+
+type FleetHealthDaily struct {
+	Date     string `json:"date"`
+	Healthy  int    `json:"healthy"`
+	Warning  int    `json:"warning"`
+	Critical int    `json:"critical"`
+	Unknown  int    `json:"unknown"`
+}
+
+type FleetOverviewSessions struct {
+	Source         FleetMetricSource `json:"source"`
+	ActiveSessions *int              `json:"active_sessions"`
+}
+
+type FleetOverview struct {
+	CloudID string `json:"cloud_id"`
+	AsOf    string `json:"as_of"`
+	Scope   struct {
+		DeviceCount int `json:"device_count"`
+	} `json:"scope"`
+	Presence FleetOverviewPresence `json:"presence"`
+	Health   FleetOverviewHealth   `json:"health"`
+	Sessions FleetOverviewSessions `json:"sessions"`
+}
+
+type FleetAttentionItem struct {
+	DeviceID        string `json:"device_id"`
+	AccountDeviceID string `json:"account_device_id,omitempty"`
+	DeviceName      string `json:"device_name,omitempty"`
+	State           string `json:"state"`
+	Reason          string `json:"reason"`
+	ObservedAt      string `json:"observed_at"`
+}
+
+type FleetAttentionPage struct {
+	CloudID    string               `json:"cloud_id"`
+	AsOf       string               `json:"as_of"`
+	Items      []FleetAttentionItem `json:"items"`
+	Pagination FleetPagination      `json:"pagination"`
+	Source     FleetMetricSource    `json:"source"`
+}
+
+type FleetPagination struct {
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
+	Total  int `json:"total"`
+}
+
 type FleetStreamStatsMode struct {
 	Requests       int     `json:"requests"`
 	SuccessRatePct float64 `json:"success_rate_pct"`
