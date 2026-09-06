@@ -28,6 +28,12 @@
 
 .sdk-catalog-section + .sdk-catalog-section { margin-top: 32px; }
 
+.chipset-selection { padding: 20px; margin-bottom: 28px; }
+.chipset-selection label { display: flex; align-items: center; gap: 8px; font-weight: 750; margin-bottom: 8px; }
+.chipset-selection label > i { color: var(--brand); }
+.enterprise-console .chipset-selection select { appearance: auto; background-image: none; box-sizing: border-box; display: block; width: 100%; max-width: 480px; min-width: 0; min-height: 44px; }
+.chipset-selection p { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+
 .sdk-section-heading {
   align-items: flex-start;
   display: flex;

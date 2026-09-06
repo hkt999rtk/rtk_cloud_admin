@@ -2439,25 +2439,35 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
 }
 
 function DeveloperChipsetResources({ data, sdkRelease, loading }) {
-  const chipsets = data?.chipsets || [];
-  const artifacts = sdkArtifacts(sdkRelease?.catalog);
+  const chipsets = data?.source_status === 'unavailable' ? [] : data?.chipsets || [];
+  const [selectedChip, setSelectedChip] = useState('');
+  const selected = chipsets.find((chipset) => (chipset.id || chipset.chipset_key) === selectedChip) || chipsets[0];
+  const isPRO2 = selected?.chipset_key === 'realtek-amebapro2';
+  const artifacts = sdkArtifacts(sdkRelease?.catalog).filter((artifact) => artifact.slug !== 'freertos-pro2' || isPRO2);
   const [query, setQuery] = useState('');
   const [vendor, setVendor] = useState('all');
   const [recommendedOnly, setRecommendedOnly] = useState(false);
-  const vendors = useMemo(() => chipsetVendors(chipsets), [chipsets]);
-  const visibleChipsets = useMemo(() => filterChipsets(chipsets, query, vendor, recommendedOnly), [chipsets, query, vendor, recommendedOnly]);
+  const vendors = useMemo(() => chipsetVendors(selected ? [selected] : []), [selected]);
+  const visibleChipsets = useMemo(() => filterChipsets(selected ? [selected] : [], query, vendor, recommendedOnly), [selected, query, vendor, recommendedOnly]);
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
-    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a Cloud Client SDK for your mobile, web, native, or device application. Hardware-specific SDKs and board resources remain available separately below.</p></div></div>
-    <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
-      <div className="sdk-section-heading"><div><h2 id="device-tools-heading">Device Tools</h2><p>Browser-based tools for bringing up and diagnosing hardware locally, before or alongside cloud provisioning.</p></div></div>
+    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a chip to explore its SDKs, development boards, tools, and videos.</p></div></div>
+    <section className="panel chipset-selection" aria-label="Chip selection">
+      <label htmlFor="developer-chip"><Icon name="microchip" />Select Chip</label>
+      <select id="developer-chip" className="input" value={selected?.id || selected?.chipset_key || ''} disabled={!chipsets.length} aria-describedby="chip-selection-help" onChange={(event) => { setSelectedChip(event.target.value); setQuery(''); setVendor('all'); setRecommendedOnly(false); }}>
+        {!chipsets.length ? <option value="">{loading ? 'Loading chips…' : 'No chips available'}</option> : chipsets.map((chipset) => <option key={chipset.id || chipset.chipset_key} value={chipset.id || chipset.chipset_key}>{chipset.name}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}</option>)}
+      </select>
+      <p id="chip-selection-help">SDKs, boards, videos, and device tools below follow your selection.</p>
+    </section>
+    {isPRO2 ? <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
+      <div className="sdk-section-heading"><div><h2 id="device-tools-heading"><Icon name="screwdriver-wrench" />Device Tools</h2><p>Browser-based tools for bringing up and diagnosing hardware locally, before or alongside cloud provisioning.</p></div></div>
       <article className="panel pro2-tool-card">
         <span className="pro2-tool-icon" aria-hidden="true"><Icon name="microchip" /></span>
         <div className="pro2-tool-copy"><div><p className="sdk-format">AMEBA PRO2 · WEB SERIAL</p><h3>Ameba PRO2 Firmware Burner</h3></div><p>Connect a board over USB UART, burn and verify a local firmware image, then continue in the live serial console. Firmware and UART data stay in your browser.</p><div className="pro2-tool-meta"><span><Icon name="laptop" />Desktop Chrome or Edge</span><span><Icon name="shield-halved" />No firmware upload</span><span><Icon name="bolt" />NOR / UART flow</span></div></div>
         <a className="primary-button icon-text pro2-tool-action" href={PRO2_FIRMWARE_BURNER_PATH}><Icon name="arrow-right" />Open firmware burner</a>
       </article>
-    </section>
+    </section> : null}
     <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
-      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading"><Icon name="cloud" />Cloud Client SDKs</h2><p>Use these packages to connect an app or a PRO2 device to Realtek Connect+. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
+      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading"><Icon name="cloud" />Cloud Client SDKs</h2><p>App SDKs are shared across chips. Device packages are shown for the selected chip; the complete bundle contains the entire release. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
       {loading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
       {!loading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>No Cloud Client SDK release yet</h3><p>{sdkRelease.source_message}</p></div></section> : null}
       {!loading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Cloud Client SDKs are temporarily unavailable</h3><p>{sdkRelease.source_message}</p></div></section> : null}
@@ -2477,7 +2487,7 @@ function CloudSDKCard({ artifact, release }) {
   const docsURL = sdkDocumentationURL(release?.portal_url, artifact.slug);
   const isPreview = Boolean(release?.local_preview);
   return <article className={`panel cloud-sdk-card${artifact.slug === 'all' ? ' complete-bundle' : ''}`}>
-    <div className="cloud-sdk-card-heading"><div><p className="sdk-format"><Icon name={sdkFormatIcon(artifact.slug)} />{sdkArtifactFormat(artifact.slug)}</p><h3>{artifact.title}</h3></div><span className="status-badge good"><Icon name="circle-check" />{artifact.validation_status}</span></div>
+    <div className="cloud-sdk-card-heading"><div><p className="sdk-format"><i className={`${['android', 'javascript', 'ios'].includes(artifact.slug) ? 'fa-brands' : 'fa-solid'} fa-${sdkFormatIcon(artifact.slug)}`} aria-hidden="true" />{sdkArtifactFormat(artifact.slug)}</p><h3>{artifact.title}</h3></div><span className="status-badge good"><Icon name="circle-check" />{artifact.validation_status}</span></div>
     <p>{artifact.description}</p>
     <dl className="cloud-sdk-metadata"><div><dt>Version</dt><dd>{release.catalog.version}</dd></div><div><dt>Size</dt><dd>{formatSDKBytes(artifact.size_bytes)}</dd></div><div className="checksum-row"><dt>SHA-256</dt><dd><code>{artifact.sha256}</code></dd></div></dl>
     <div className="sdk-capability-list" aria-label={`${artifact.title} capabilities`}>{artifact.capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div>

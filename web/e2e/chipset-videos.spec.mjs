@@ -14,6 +14,41 @@ async function setup(page, records = [chipset]) {
 }
 const library = page => page.getByRole('region', { name: 'Development videos' });
 
+test('[UI-CA-CHIPSET-012] chip selector scopes SDKs boards videos and tools and resets filters @chipset-sdk @smoke', async ({ page }) => {
+  const secondChip = {
+    id: 'second-chip', chipset_key: 'test-second-chip', name: 'Second chip', vendor: 'Realtek',
+    resources: [{ type: 'video', title: 'Second chip tutorial', url: 'https://example.com/second-chip-video' }],
+    sdk_releases: [{ name: 'Second chip SDK', version: '1.0', endpoints: [] }],
+  };
+  await setup(page, [chipset, secondChip]); await page.goto(catalogURL);
+  const select = page.getByRole('combobox', { name: 'Select Chip', exact: true });
+  await expect(select).toHaveValue(chipset.id);
+  await expect(select.locator('option')).toHaveCount(2);
+  await expect(page.locator('.chipset-card')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Explore board', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'View all 12 videos' }).click();
+  await library(page).getByRole('searchbox', { name: 'Search videos' }).fill('Docker');
+  await page.getByRole('textbox', { name: 'Search ChipSets and SDKs' }).fill('YOLOv7');
+  await page.getByRole('button', { name: 'Recommended SDK', exact: true }).click();
+  await select.selectOption(secondChip.id);
+  await expect(page.getByRole('textbox', { name: 'Search ChipSets and SDKs' })).toHaveValue('');
+  await expect(page.getByRole('heading', { name: secondChip.name, exact: true })).toBeVisible();
+  await expect(page.getByText('Second chip SDK · 1.0', { exact: true })).toBeVisible();
+  await expect(page.locator('.chipset-card')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Watch Second chip tutorial' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Explore board', exact: true })).toHaveCount(0);
+  await expect(page.locator('.pro2-tool-card')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'FreeRTOS / Pro2', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Android Kotlin', exact: true })).toBeVisible();
+  await expect(page.locator('.sdk-format .fa-android')).toHaveCSS('font-family', '"Font Awesome 7 Brands"');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await select.selectOption(chipset.id);
+  await expect(page.locator('.pro2-tool-card')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'FreeRTOS / Pro2', exact: true })).toBeVisible();
+  await expect(library(page).locator('.chipset-video-card')).toHaveCount(3);
+  await expect(page.getByRole('link', { name: 'Watch Second chip tutorial' })).toHaveCount(0);
+});
+
 test('[UI-CA-VIDEOS-001] SDK overview discovers board videos and expands a keyboard-accessible preview @chipset-sdk @smoke', async ({ page }, testInfo) => {
   await setup(page);
   await page.goto(catalogURL);
@@ -83,6 +118,8 @@ test('[UI-CA-VIDEOS-003] failed thumbnails and legacy metadata retain usable lin
 
 test('[UI-CA-VIDEOS-004] unpublished providers hide videos while stale snapshots retain them @chipset-sdk @smoke', async ({ page }) => {
   await setup(page, []); await page.goto(catalogURL);
+  await expect(page.getByRole('combobox', { name: 'Select Chip', exact: true })).toBeDisabled();
+  await expect(page.locator('.pro2-tool-card')).toHaveCount(0);
   await expect(library(page)).toHaveCount(0);
   await page.goto(boardURL); await expect(page.getByRole('heading', { name: 'Board not available' })).toBeVisible();
   await expect(library(page)).toHaveCount(0);
@@ -94,4 +131,7 @@ test('[UI-CA-VIDEOS-004] unpublished providers hide videos while stale snapshots
   await page.route('**/api/developer/chipsets', route => route.fulfill({ json: { chipsets: [chipset], source_status: 'unavailable' } }));
   await page.reload(); await expect(library(page)).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Board resources are temporarily unavailable' })).toBeVisible();
+  await page.goto(catalogURL);
+  await expect(page.getByRole('combobox', { name: 'Select Chip', exact: true })).toBeDisabled();
+  await expect(page.locator('.pro2-tool-card')).toHaveCount(0);
 });

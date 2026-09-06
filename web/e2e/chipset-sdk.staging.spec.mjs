@@ -7,6 +7,9 @@ test('[UI-CA-CHIPSET-STG-001] AmebaPro2 resources are published in staging @stag
   await page.goto('/console/chipset-sdk');
 
   await expect(page.getByTestId('chipset-resource-page')).toBeVisible();
+  const chipSelector = page.getByRole('combobox', { name: 'Select Chip', exact: true });
+  await expect(chipSelector).toBeEnabled();
+  await chipSelector.selectOption({ label: 'AmebaPRO2 · RTL8735B' });
   const card = page.locator('.chipset-card').filter({ hasText: 'AmebaPRO2' });
   await expect(card.getByRole('heading', { name: 'AmebaPRO2' })).toBeVisible();
   await expect(card.getByRole('heading', { name: 'Products and Support' })).toBeVisible();
