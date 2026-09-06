@@ -98,18 +98,40 @@ func TestDisabledClient(t *testing.T) {
 func TestFleetScopeAlwaysSendsExplicitDevicesIncludingEmpty(t *testing.T) {
 	t.Parallel()
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/fleet/presence-summary" {
-			t.Fatalf("path = %q", r.URL.Path)
-		}
 		values, present := r.URL.Query()["devices"]
 		if !present || len(values) != 1 || values[0] != "" {
 			t.Fatalf("devices scope = %#v, present=%v; empty scope must be explicit", values, present)
 		}
-		_ = json.NewEncoder(w).Encode(FleetPresenceSummary{SourceStatus: "available"})
+		switch r.URL.Path {
+		case "/api/fleet/presence-summary":
+			_ = json.NewEncoder(w).Encode(FleetPresenceSummary{SourceStatus: "available"})
+		case "/api/fleet/health-summary":
+			_ = json.NewEncoder(w).Encode(FleetHealthSummary{SourceStatus: "available"})
+		case "/api/fleet/health-attention":
+			_ = json.NewEncoder(w).Encode(FleetAttentionPage{})
+		default:
+			t.Fatalf("path = %q", r.URL.Path)
+		}
 	}))
 	defer upstream.Close()
-	_, err := New(upstream.URL).FleetPresenceSummaryAt(t.Context(), "fleet-token", "org-1", []string{}, time.Now().UTC())
+	client := New(upstream.URL)
+	_, err := client.FleetPresenceSummaryAt(t.Context(), "fleet-token", "org-1", []string{}, time.Now().UTC())
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.FleetPresenceSummary(t.Context(), "fleet-token", "org-1", []string{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.FleetHealthSummaryScoped(t.Context(), "fleet-token", "org-1", []string{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.FleetHealthSummaryScopedAt(t.Context(), "fleet-token", "org-1", []string{}, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.FleetHealthAttention(t.Context(), "fleet-token", "org-1", []string{}, 0, 50); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.FleetHealthAttentionAt(t.Context(), "fleet-token", "org-1", []string{}, 0, 50, time.Now().UTC()); err != nil {
 		t.Fatal(err)
 	}
 }
