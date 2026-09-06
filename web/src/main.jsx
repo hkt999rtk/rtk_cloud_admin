@@ -2451,7 +2451,7 @@ function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading =
       </select>
       <p id="chip-selection-help">SDKs, boards, videos, and device tools below follow your selection.</p>
     </section>
-    {toolsVisible ? <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
+    {toolsVisible && isPRO2 ? <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
       <div className="sdk-section-heading"><div><h2 id="device-tools-heading"><Icon name="screwdriver-wrench" />Device Tools</h2><p>Browser-based tools for bringing up and diagnosing hardware locally, before or alongside cloud provisioning.</p></div></div>
       <article className="panel pro2-tool-card">
         <span className="pro2-tool-icon" aria-hidden="true"><Icon name="microchip" /></span>
