@@ -9,6 +9,27 @@ async function setup(page, records = [chipset]) {
   await login(page, 'developer');
 }
 const ready = page => expect(page.locator('.board-stage')).toHaveAttribute('data-viewer-status', 'ready', { timeout: 20000 });
+const settled = page => expect(page.locator('.board-stage canvas')).toHaveAttribute('data-view-transition', 'idle');
+async function trackTransitions(page) {
+  await page.locator('.board-stage canvas').evaluate(canvas => {
+    window.boardTransitionStarts = 0;
+    new MutationObserver(records => {
+      if (canvas.dataset.viewTransition === 'running') {
+        window.boardTransitionStarts += records.filter(record => record.oldValue === 'idle').length;
+      }
+    }).observe(canvas, { attributes: true, attributeFilter: ['data-view-transition'], attributeOldValue: true });
+  });
+}
+async function animatedClick(page, button) {
+  const before = await page.evaluate(() => window.boardTransitionStarts);
+  await button.click();
+  // Record the start so a slow screenshot/CI worker cannot miss a short animation.
+  await expect.poll(() => page.evaluate(() => window.boardTransitionStarts)).toBeGreaterThan(before);
+  await settled(page);
+}
+async function chooseView(page, name) {
+  await animatedClick(page, page.getByRole('button', { name, exact: true }));
+}
 
 test('[UI-CA-BOARDS-001] board discovery, direct navigation and SDK relationships @boards @smoke', async ({ page }) => {
   const requests = [];page.on('request', req => { if (/\.glb|board-viewer-/.test(req.url())) requests.push(req.url()); });
@@ -28,11 +49,12 @@ test('[UI-CA-BOARDS-001] board discovery, direct navigation and SDK relationship
 // Compare views within a run, avoiding GPU-dependent golden images.
 test('[UI-CA-BOARDS-002] 3D views, pointer rotation, zoom and keyboard selection @boards @smoke', async ({page},testInfo)=>{
   await setup(page);await page.goto(boardURL);await ready(page);
+  await trackTransitions(page);
   if(testInfo.project.name === 'mobile'){const top=await page.locator('.board-stage-column').boundingBox();const parts=await page.locator('.board-parts').boundingBox();expect(parts.y).toBeGreaterThanOrEqual(top.y+top.height-1);}
   await page.screenshot({path:testInfo.outputPath('board-page.png'),fullPage:true});const canvas=page.locator('.board-stage canvas');
-  await page.getByRole('button',{name:'Front',exact:true}).click();const front=await canvas.screenshot();
-  await page.getByRole('button',{name:'Back',exact:true}).click();expect((await canvas.screenshot()).equals(front)).toBeFalsy();
-  await page.getByRole('button',{name:'Reset view',exact:true}).click();const reset=await canvas.screenshot();
+  await chooseView(page, 'Front');const front=await canvas.screenshot();
+  await chooseView(page, 'Back');expect((await canvas.screenshot()).equals(front)).toBeFalsy();
+  await chooseView(page, 'Reset view');const reset=await canvas.screenshot();
   await page.getByRole('button',{name:'Zoom in',exact:true}).click();expect((await canvas.screenshot()).equals(reset)).toBeFalsy();
   await page.getByRole('button',{name:'Zoom out',exact:true}).click();
   await canvas.scrollIntoViewIfNeeded();const touchRect=await canvas.boundingBox();
@@ -46,11 +68,16 @@ test('[UI-CA-BOARDS-002] 3D views, pointer rotation, zoom and keyboard selection
   }
 
   const lens=page.getByRole('button',{name:'F37 camera & lens'});await lens.focus();await page.keyboard.press('Enter');await expect(lens).toHaveAttribute('aria-pressed','true');await expect(page.locator('.board-part-description')).toContainText('capture images');
-  await page.getByRole('button',{name:'Front',exact:true}).click();await canvas.scrollIntoViewIfNeeded();
+  await settled(page);
+  for (const part of await page.locator('.board-part').all()) {
+    await animatedClick(page, part);
+    await expect(part).toHaveAttribute('aria-pressed', 'true');
+  }
+  await chooseView(page, 'Front');await canvas.scrollIntoViewIfNeeded();
   const rect=await canvas.boundingBox();await page.mouse.move(rect.x+rect.width*.5,rect.y+rect.height*.5);await page.mouse.down();await page.mouse.move(rect.x+rect.width*.7,rect.y+rect.height*.65,{steps:8});await page.mouse.up();expect((await canvas.screenshot()).equals(front)).toBeFalsy();
-  await page.getByRole('button',{name:'Front',exact:true}).click();await canvas.scrollIntoViewIfNeeded();
+  await chooseView(page, 'Front');await canvas.scrollIntoViewIfNeeded();
   const bounds=await canvas.boundingBox();await page.mouse.click(bounds.x+bounds.width*.40,bounds.y+bounds.height*.69);await expect(page.locator('.board-part[aria-pressed="true"]')).toHaveCount(1);
-  await page.getByRole('button',{name:'Reset view',exact:true}).click();await testInfo.attach('board-explorer',{body:await page.locator('.board-explorer').screenshot(),contentType:'image/png'});
+  await chooseView(page, 'Reset view');await testInfo.attach('board-explorer',{body:await page.locator('.board-explorer').screenshot(),contentType:'image/png'});
 });
 
 test('[UI-CA-BOARDS-003] missing GLB retains content and supports retry @boards @smoke', async ({page})=>{
@@ -77,6 +104,24 @@ test('[UI-CA-BOARDS-006] idle rendering stops and retries release GPU resources 
   await setup(page);await page.goto(boardURL);await ready(page);await page.locator('.board-stage canvas').screenshot();
   // Observe several display frames: an idle viewer must not draw each frame.
   const counts=await page.evaluate(async()=>{const before=window.boardDraws;for(let i=0;i<12;i++)await new Promise(requestAnimationFrame);return [before,window.boardDraws];});expect(counts[1]).toBe(counts[0]);
+  await page.clock.install();await page.clock.pauseAt(new Date());
+  await page.getByRole('button',{name:'Back',exact:true}).click();
+  const before=await page.evaluate(()=>window.boardDraws);await page.clock.runFor(100);
+  const during=await page.evaluate(()=>window.boardDraws);expect(during).toBeGreaterThan(before);
+  await page.clock.runFor(100);expect(await page.evaluate(()=>window.boardDraws)).toBeGreaterThan(during);
+  await page.getByRole('button',{name:'F37 camera & lens'}).click();
+  await expect(page.locator('.board-stage canvas')).toHaveAttribute('data-view-transition','running');
+  await page.getByRole('button',{name:'Front',exact:true}).click();await page.clock.runFor(650);await settled(page);
+  const front=await page.locator('.board-stage canvas').screenshot();
+  await page.getByRole('button',{name:'Back',exact:true}).click();
+  await page.getByRole('button',{name:'Zoom in',exact:true}).click();await page.clock.runFor(20);await settled(page);
+  const stopped=await page.evaluate(()=>window.boardDraws);await page.clock.runFor(200);expect(await page.evaluate(()=>window.boardDraws)).toBe(stopped);
+  await page.clock.resume();
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.getByRole('button',{name:'Front',exact:true}).click();await settled(page);
+  expect((await page.locator('.board-stage canvas').screenshot()).equals(front)).toBeTruthy();
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.getByRole('button',{name:'Back',exact:true}).click();
   await page.locator('.board-stage canvas').evaluate(canvas=>canvas.dispatchEvent(new Event('webglcontextlost',{cancelable:true})));await expect(page.locator('.board-stage')).toHaveAttribute('data-viewer-status','error');expect(await page.evaluate(()=>window.boardContextLosses)).toBeGreaterThan(0);
   for(let i=0;i<3;i++){await page.getByRole('button',{name:'Retry 3D preview'}).click();await ready(page);await expect(page.locator('.board-stage canvas')).toHaveCount(1);if(i<2)await page.locator('.board-stage canvas').evaluate(canvas=>canvas.dispatchEvent(new Event('webglcontextlost',{cancelable:true})));}
 });
