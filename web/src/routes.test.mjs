@@ -76,7 +76,7 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath(`/console/clouds/${cloud}`), 'overview');
   assert.equal(routeFromPath(`/console/clouds/${cloud}/products`), 'product-services');
   assert.equal(routeFromPath(`/console/clouds/${cloud}/fleet`), 'devices');
-  assert.equal(routeFromPath(`/console/clouds/${cloud}/fleet/provisioning`), 'provisioning');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/fleet/provisioning`), 'devices');
   assert.equal(routeFromPath(`/console/clouds/${cloud}/analytics/reports`), 'reports');
   assert.equal(routeFromPath(`/console/clouds/${cloud}/firmware-ota`), 'firmware-ota');
   assert.equal(routeFromPath(`/console/clouds/${cloud}/analytics`), 'analytics');
@@ -94,6 +94,12 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(canonicalCustomerPath('/console'), '/console/clouds');
   assert.equal(canonicalCustomerPath('/console/clouds'), '/console/clouds');
   assert.equal(canonicalCustomerPath(`/console/clouds/${cloud}/fleet`), `/console/clouds/${cloud}/fleet`);
+  assert.equal(canonicalCustomerPath(`/console/clouds/${cloud}/fleet/provisioning`), `/console/clouds/${cloud}/fleet`);
+  assert.equal(canonicalCustomerPath(`/console/clouds/${cloud}/fleet/provisioning/`), `/console/clouds/${cloud}/fleet`);
+  assert.equal(canonicalCustomerPath(`/console/clouds/${cloud}/fleet/provisioning/old-job`), `/console/clouds/${cloud}/fleet`);
+  assert.equal(canonicalCustomerPath('/console/clouds/not-a-cloud/fleet/provisioning'), '/console/clouds');
+  assert.equal(canonicalCustomerPath(`/console/${cloud}/provisioning`), `/console/clouds/${cloud}/fleet`);
+  assert.equal(canonicalCustomerPath('/console/provisioning'), '/console/clouds');
   assert.equal(canonicalCustomerPath('/console/chipset-sdk'), '/console/chipset-sdk');
   assert.equal(canonicalCustomerPath('/console/chipset-sdk/pro2/firmware-burner'), '/console/chipset-sdk/pro2/firmware-burner');
   assert.equal(routeFromPath('/console/chipset-sdk/pro2/firmware-burner'), 'chipset-sdk');
@@ -124,7 +130,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.labelKey),
-    ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'],
+    ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit'],
   );
   assert.deepEqual(customerNavGroups.map((group) => group.labelKey), ['Clouds', 'Brand Cloud', 'Features', 'Management']);
 });
@@ -142,7 +148,7 @@ test('customer nav is derived from active membership capabilities', () => {
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read'], { isOwner: true }).flatMap((group) => group.items).some((item) => item.id === 'billing'), true);
   assert.deepEqual(cloudNavGroupsForCapabilities('', null).flatMap((group) => group.items).map((item) => item.id), ['my-clouds', 'chipset-sdk', 'developer-docs']);
   const unscoped = cloudShellNavGroups('', null, { showOwnerOnly: true }).flatMap((group) => group.items);
-  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'CSV Provisioning', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit']);
+  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings', 'Audit']);
   assert.equal(unscoped.find((item) => item.id === 'my-clouds').disabled, false);
   assert.equal(unscoped.find((item) => item.id === 'chipset-sdk').disabled, false);
   assert.equal(unscoped.filter((item) => !item.global).every((item) => item.disabled), true);
