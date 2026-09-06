@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {login} from './fixtures/session.mjs';
-const chipset = {source_status:'available',chipsets:[{id:'independent',name:'Independent Chipset',vendor:'Realtek',resources:[],sdk_releases:[]}]};
+const chipset = {source_status:'available',chipsets:[{id:'realtek-amebapro2',chipset_key:'realtek-amebapro2',name:'Ameba PRO2',vendor:'Realtek',resources:[],sdk_releases:[]}]};
 
 test('[UI-CA-SDK-LOAD-001] context replaces legacy calls and sections finish independently @chipset-sdk',async({page})=>{
   await login(page,'developer');
@@ -11,7 +11,7 @@ test('[UI-CA-SDK-LOAD-001] context replaces legacy calls and sections finish ind
   await page.route('**/api/developer/chipsets',r=>r.fulfill({json:chipset}));
   await page.route('**/api/developer/sdk-releases/latest',async r=>{await gate;await r.continue()});
   await page.goto('/console/chipset-sdk');
-  await expect(page.getByRole('heading',{name:'Independent Chipset'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Ameba PRO2',exact:true})).toBeVisible();
   await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toBeVisible();
   await expect(page.locator('.sdk-release-summary')).toHaveCount(0);
   expect(requests.filter(p=>p==='/api/developer/chipset-sdk/context')).toHaveLength(1);
@@ -32,10 +32,10 @@ test('[UI-CA-SDK-LOAD-002] slow chipset does not block SDK and retry stays local
   });
   await page.goto('/console/chipset-sdk');
   await expect(page.locator('.sdk-release-summary')).toBeVisible();
-  await expect(page.getByRole('heading',{name:'Independent Chipset'})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'Ameba PRO2',exact:true})).toHaveCount(0);
   releaseChipset();
   await page.getByRole('button',{name:'Retry ChipSet catalog'}).click();
-  await expect(page.getByRole('heading',{name:'Independent Chipset'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Ameba PRO2',exact:true})).toBeVisible();
   expect(contexts).toBe(1);
   expect(attempts).toBe(2);
 });
@@ -76,6 +76,7 @@ test('[UI-CA-SDK-LOAD-005] context skeleton exposes no protected tool @chipset-s
   await login(page,'developer');
   let release;
   const gate=new Promise(resolve=>release=resolve);
+  await page.route('**/api/developer/chipsets',r=>r.fulfill({json:chipset}));
   await page.route('**/api/developer/chipset-sdk/context*',async r=>{await gate;await r.continue()});
   await page.goto('/console/chipset-sdk');
   await expect(page.getByText('Checking developer access…')).toBeVisible();
@@ -124,12 +125,12 @@ test('[UI-CA-SDK-LOAD-008] modified click opens a new tab @chipset-sdk',async({p
   await popup.close();
 });
 
-test('[UI-CA-SDK-LOAD-009] catalog outage preserves validated context and tools @chipset-sdk',async({page})=>{
+test('[UI-CA-SDK-LOAD-009] catalog outage preserves validated context and hides chip-specific tools @chipset-sdk',async({page})=>{
   await login(page,'developer');
   await page.route('**/api/developer/chipsets',r=>r.fulfill({status:503}));
   await page.route('**/api/developer/sdk-releases/latest',r=>r.fulfill({status:502}));
   await page.goto('/console/chipset-sdk');
   await expect(page.getByRole('heading',{name:'Resources are temporarily unavailable'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Cloud Client SDKs are temporarily unavailable'})).toBeVisible();
-  await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toHaveCount(0);
 });
