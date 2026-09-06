@@ -51,12 +51,25 @@ test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and 
   await login(page, 'billing_owner');
   await page.goto(`/console/clouds/${billingCloud}/billing`);
   const tabs = page.getByRole('navigation', { name: 'Billing Pages' });
-  for (const label of ['Billing Overview', 'Usage and Forecast', 'Invoices', 'Billing Activity', 'Payments and Automatic Top-Up', 'Billing Profile']) {
+  for (const label of ['Billing Overview', 'Service Pricing', 'Usage and Forecast', 'Invoices', 'Billing Activity', 'Payments and Automatic Top-Up', 'Billing Profile']) {
     await tabs.getByRole('button', { name: label, exact: true }).click();
     await expect(tabs.getByRole('button', { name: label, exact: true })).toHaveClass('active');
     await expect(page.locator('.topbar h1')).toHaveText('Billing');
     await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText('Billing Cloud 1');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    if (label === 'Service Pricing') {
+      await expect(page.locator('.pricing-cost-value')).toHaveText('US$7.25');
+      await expect(page.locator('.pricing-cost-value')).toBeInViewport();
+      await expect(page.locator('.pricing-table tbody tr')).toHaveCount(12);
+      await expect(page.getByTestId('billing-pricing-page')).toContainText('not your Cloud’s actual spend');
+      const summary = await page.locator('.pricing-cost-summary').boundingBox();
+      const rates = await page.locator('.pricing-intro').boundingBox();
+      expect(summary.y + summary.height).toBeLessThanOrEqual(rates.y);
+      await page.getByRole('button', { name: 'IoT and messaging 3', exact: true }).click();
+      await expect(page.locator('.pricing-table tbody tr')).toHaveCount(3);
+      await page.reload();
+      await expect(page.locator('.pricing-table tbody tr')).toHaveCount(12);
+    }
     await testInfo.attach(label, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
   }
 });

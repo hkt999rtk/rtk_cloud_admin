@@ -23,6 +23,17 @@ test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and act
     body: await page.screenshot({ fullPage: true }),
     contentType: 'image/png',
   });
+
+  // The proposal remains readable during an accounting outage; returning to
+  // actual account views must fetch live data and expose the failure.
+  await page.route('**/api/developer/brand-clouds/*/billing/**', route => route.fulfill({ status: 503, json: { error: 'Accounting unavailable' } }));
+  await page.getByRole('button', { name: 'Service Pricing', exact: true }).click();
+  await expect(page.getByTestId('billing-pricing-page')).toBeVisible();
+  await page.getByRole('button', { name: 'Billing Overview', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('temporarily unavailable');
+  await expect(page.getByTestId('billing-page')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Service Pricing', exact: true }).click();
+  await expect(page.getByTestId('billing-pricing-page')).toBeVisible();
 });
 
 test('[UI-CA-BILLING-002] simulator hosted setup and approved automatic top-up defaults are actionable @billing @smoke', async ({ page }, testInfo) => {
@@ -132,6 +143,9 @@ test('[UI-CA-BILLING-007] viewer has no Billing content and unscoped API is reti
   await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');
   await expect(page.getByRole('alert')).toContainText('Only the current owner');
   await expect(page.getByTestId('billing-page')).toHaveCount(0);
+  await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing/pricing');
+  await expect(page.getByRole('alert')).toContainText('Only the current owner');
+  await expect(page.getByTestId('billing-pricing-page')).toHaveCount(0);
   expect((await page.request.get('/api/billing/account')).status()).toBe(404);
   expect((await page.request.get('/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/account')).status()).toBe(403);
   expect((await page.request.get('/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/invoices/invoice-2026-000128/pdf')).status()).toBe(403);

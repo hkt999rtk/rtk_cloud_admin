@@ -2449,7 +2449,7 @@ function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading =
     <section className="panel chipset-selection" aria-label="Chip selection">
       <label htmlFor="developer-chip"><Icon name="microchip" />Select Chip</label>
       <select id="developer-chip" className="input" value={selected?.id || selected?.chipset_key || ''} disabled={!chipsets.length} aria-describedby="chip-selection-help" onChange={(event) => { setSelectedChip(event.target.value); setQuery(''); setVendor('all'); setRecommendedOnly(false); }}>
-        {!chipsets.length ? <option value="">{chipsetLoading ? 'Loading chips…' : 'No chips available'}</option> : chipsets.map((chipset) => <option key={chipset.id || chipset.chipset_key} value={chipset.id || chipset.chipset_key}>{chipset.name}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}</option>)}
+        {!chipsets.length ? <option value="">{loading ? 'Loading chips…' : 'No chips available'}</option> : chipsets.map((chipset) => <option key={chipset.id || chipset.chipset_key} value={chipset.id || chipset.chipset_key}>{chipset.name}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}</option>)}
       </select>
       <p id="chip-selection-help">SDKs, boards, videos, and device tools below follow your selection.</p>
     </section>
