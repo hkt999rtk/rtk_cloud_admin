@@ -12,7 +12,7 @@ test('[UI-CA-SDK-LOAD-001] context replaces legacy calls and sections finish ind
   await page.route('**/api/developer/sdk-releases/latest',async r=>{await gate;await r.continue()});
   await page.goto('/console/chipset-sdk');
   await expect(page.getByRole('heading',{name:'Independent Chipset'})).toBeVisible();
-  await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toHaveCount(0);
   await expect(page.locator('.sdk-release-summary')).toHaveCount(0);
   expect(requests.filter(p=>p==='/api/developer/chipset-sdk/context')).toHaveLength(1);
   for(const old of ['/api/me','/api/developer/brand-clouds']) expect(requests).not.toContain(old);
@@ -66,8 +66,7 @@ test('[UI-CA-SDK-LOAD-004] navigation and back preserve the document and fresh r
   await page.goForward();
   await expect(page.locator('.sdk-release-summary')).toBeVisible();
   expect(await page.evaluate(()=>window.__navigationMarker)).toBe(marker);
-  await page.getByRole('link',{name:'Open firmware burner',exact:true}).click();
-  await expect(page.getByTestId('pro2-firmware-burner')).toBeVisible();
+  await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>window.__navigationMarker)).toBeUndefined();
 });
 
@@ -80,7 +79,7 @@ test('[UI-CA-SDK-LOAD-005] context skeleton exposes no protected tool @chipset-s
   await expect(page.getByText('Checking developer access…')).toBeVisible();
   await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toHaveCount(0);
   release();
-  await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toHaveCount(0);
 });
 
 test('[UI-CA-SDK-LOAD-006] late context cannot overwrite a new cloud @chipset-sdk',async({page})=>{
@@ -130,5 +129,5 @@ test('[UI-CA-SDK-LOAD-009] catalog outage preserves validated context and tools 
   await page.goto('/console/chipset-sdk');
   await expect(page.getByRole('heading',{name:'Resources are temporarily unavailable'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Cloud Client SDKs are temporarily unavailable'})).toBeVisible();
-  await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toHaveCount(0);
 });
