@@ -17,8 +17,12 @@ export function ServicePricing({ tabs }) {
   return <section className="page-content billing-page service-pricing-page" data-testid="billing-pricing-page">
     <div className="page-intro"><div><p className="eyebrow">Realtek Managed Cloud</p><h2>Service pricing</h2><p>Explore proposed rates for messaging, device state, video and cloud operations.</p></div><span className="pricing-draft">Pricing proposal · v1</span></div>
     {tabs}
-    <section className="pricing-intro" aria-label="Pricing proposal terms">
-      <div><h3>Pay for the services you use.</h3><p>Proposed prices in US dollars, before tax. This rate card is for review and is not an active billing plan.</p></div>
+    <section className="pricing-cost-summary" aria-labelledby="pricing-cost-heading">
+      <div className="pricing-cost-total"><p className="eyebrow">Example monthly total</p><h3 id="pricing-cost-heading">Your cost at a glance</h3><strong className="pricing-cost-value">US${(examplePublish + exampleDelivery + exampleShadow).toFixed(2)}</strong><span>USD / month · before tax</span><p>Illustrative estimate for the usage shown. This is not your Cloud’s actual spend or an invoice.</p></div>
+      <div className="pricing-cost-breakdown"><h4>Usage behind this estimate</h4><dl><div><dt>1 million MQTT publishes</dt><dd>US${examplePublish.toFixed(2)}</dd></div><div><dt>5 million MQTT deliveries</dt><dd>US${exampleDelivery.toFixed(2)}</dd></div><div><dt>1 million Shadow units over HTTP</dt><dd>US${exampleShadow.toFixed(2)}</dd></div></dl><p>Includes these three usage items. Video, storage and other services are additional when used.</p></div>
+    </section>
+    <section className="pricing-intro" aria-label="Service rates and billing basis">
+      <div><h3>Service rates &amp; billing basis</h3><p>Explore the unit prices and counting rules below. These USD rates are proposals for review, before tax.</p></div>
       <dl><div><dt>Currency</dt><dd>USD · US$</dd></div><div><dt>Basis</dt><dd>Monthly usage</dd></div><div><dt>Research date</dt><dd><time dateTime={pricingResearchDate}>6 Sep 2026</time></dd></div></dl>
     </section>
     <div className="pricing-filter" role="group" aria-label="Filter service prices">{pricingGroups.map(item => <button type="button" key={item} aria-pressed={group === item} onClick={() => setGroup(item)}>{item}<span>{item === 'All services' ? servicePricing.length : servicePricing.filter(row => row.group === item).length}</span></button>)}</div>
@@ -32,10 +36,7 @@ export function ServicePricing({ tabs }) {
         <td data-label="Public price reference"><a href={pricingSources[row.source].url} target="_blank" rel="noopener noreferrer">{pricingSources[row.source].name} ↗</a><strong>{row.benchmark}</strong><p>{row.comparison}</p></td>
       </tr>)}</tbody>
     </table></div>
-    <div className="pricing-notes-grid">
-      <section className="panel"><p className="eyebrow">Included in the proposal</p><h3>Start without a platform fee</h3><p>Cloud and product setup, team access, device enrollment, MQTT connections and keep-alives, SDK documentation and console administration carry no separate fee.</p><p>WebRTC signaling has no extra channel or signaling surcharge. Its MQTT messages follow the MQTT rates; direct P2P media has no cloud transfer fee.</p></section>
-      <section className="panel pricing-example"><p className="eyebrow">Illustrative monthly usage</p><h3>One publish, five subscribers</h3><dl><div><dt>1 million publishes</dt><dd>US${examplePublish.toFixed(2)}</dd></div><div><dt>5 million deliveries</dt><dd>US${exampleDelivery.toFixed(2)}</dd></div><div><dt>1 million Shadow units over HTTP</dt><dd>US${exampleShadow.toFixed(2)}</dd></div></dl><div className="pricing-example-total"><span>Proposed subtotal, before tax</span><strong>US${(examplePublish + exampleDelivery + exampleShadow).toFixed(2)}</strong></div><p>Example inputs, not usage from this Cloud. Example amounts are rounded to cents after calculation. Video, storage and other operations are additional when used.</p></section>
-    </div>
+    <section className="panel pricing-included"><p className="eyebrow">Included in the proposal</p><h3>Start without a platform fee</h3><p>Cloud and product setup, team access, device enrollment, MQTT connections and keep-alives, SDK documentation and console administration carry no separate fee.</p><p>WebRTC signaling has no extra channel or signaling surcharge. Its MQTT messages follow the MQTT rates; direct P2P media has no cloud transfer fee.</p></section>
     <section className="panel pricing-methodology"><h3>How to read this rate card</h3><ul>
       <li>All rows are proposals. An existing usage meter does not mean charging is enabled. Items marked “Metering pending” need validated measurement before billing.</li>
       <li>Per-million and per-thousand prices are display units. Proposed charges are proportional to actual usage, not rounded up to whole million-request blocks. Monetary rounding is applied after monthly aggregation.</li>

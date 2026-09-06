@@ -107,6 +107,10 @@ proposal must not imply otherwise or pretend to reflect that Cloud's usage.
 
 ## UI verification
 
+The page leads with a prominent USD monthly example total and its three usage
+inputs, followed by service rates and counting rules. The estimate is explicitly
+illustrative and must never be presented as actual Cloud spend.
+
 Check tab navigation, direct `/billing/pricing` loading, browser history, group
 filters, reference links and mobile overflow. The pricing proposal uses the same
 Cloud owner authorization as Billing but does not require accounting endpoints
