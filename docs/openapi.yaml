@@ -1098,6 +1098,11 @@ paths:
       - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getCloudFleetOverview
+      x-rtk-feature-id: FEAT-CONTRACT-FLEET-ANALYTICS-001
+      x-rtk-requirement-ids:
+        - REQ-FLEET-ANALYTICS-DEFINITIONS-001
+        - REQ-FLEET-ANALYTICS-SCOPE-001
+        - REQ-FLEET-ANALYTICS-QUALITY-001
       tags: [Developer, Fleet, Analytics]
       summary: Read a permission-scoped fleet overview at one common observation time
       security: [{ SessionCookie: [] }]
@@ -1110,6 +1115,11 @@ paths:
       - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getCloudFleetAttention
+      x-rtk-feature-id: FEAT-CONTRACT-FLEET-ANALYTICS-001
+      x-rtk-requirement-ids:
+        - REQ-FLEET-ANALYTICS-DEFINITIONS-001
+        - REQ-FLEET-ANALYTICS-SCOPE-001
+        - REQ-FLEET-ANALYTICS-QUALITY-001
       tags: [Developer, Fleet, Analytics]
       summary: List current non-stale warning and critical devices
       security: [{ SessionCookie: [] }]
@@ -4056,6 +4066,11 @@ paths:
   /api/fleet/overview:
     get:
       operationId: getApiFleetOverview
+      x-rtk-feature-id: FEAT-CONTRACT-FLEET-ANALYTICS-001
+      x-rtk-requirement-ids:
+        - REQ-FLEET-ANALYTICS-DEFINITIONS-001
+        - REQ-FLEET-ANALYTICS-SCOPE-001
+        - REQ-FLEET-ANALYTICS-QUALITY-001
       tags: [Fleet]
       summary: Customer fleet overview for the active cloud
       responses:
@@ -4069,6 +4084,11 @@ paths:
   /api/fleet/attention:
     get:
       operationId: getApiFleetAttention
+      x-rtk-feature-id: FEAT-CONTRACT-FLEET-ANALYTICS-001
+      x-rtk-requirement-ids:
+        - REQ-FLEET-ANALYTICS-DEFINITIONS-001
+        - REQ-FLEET-ANALYTICS-SCOPE-001
+        - REQ-FLEET-ANALYTICS-QUALITY-001
       tags: [Fleet]
       summary: Customer fleet devices currently needing attention
       parameters:
