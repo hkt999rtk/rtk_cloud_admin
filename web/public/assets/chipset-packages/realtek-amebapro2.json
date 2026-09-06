@@ -3,7 +3,7 @@
   "manifest_version": "1",
   "provider": {
     "name": "Realtek Ameba IoT",
-    "updated_at": "2026-09-05T00:00:00Z"
+    "updated_at": "2026-09-06T02:47:05Z"
   },
   "chipsets": [
     {
@@ -48,14 +48,23 @@
         },
         {
           "type": "video",
-          "title": "AMB82 Mini Maker Projects",
+          "title": "Ameba Maker Projects",
           "url": "https://www.youtube.com/playlist?list=PLEQfNjOZQRyPWhySw16ZgBOPWnzLWDAjz",
           "source": "official",
           "languages": [
-            "en"
+            "en",
+            "zh-TW"
           ],
-          "verified_at": "2026-08-28T00:00:00Z",
-          "summary": "Community projects curated by the official Ameba documentation."
+          "verified_at": "2026-09-06T02:47:05Z",
+          "summary": "An official Ameba playlist collecting community projects. Includes broader Ameba content; individual videos identify their board and uploader.",
+          "metadata": {
+            "video": {
+              "topic": "projects",
+              "sdk": "general",
+              "kind": "playlist",
+              "channel": "Ameba AIoT"
+            }
+          }
         }
       ],
       "sdk_releases": [
@@ -349,6 +358,234 @@
                 "zh-TW"
               ],
               "verified_at": "2026-09-05T00:00:00Z"
+            },
+            {
+              "type": "video",
+              "title": "AMB82 Mini - Getting Started",
+              "url": "https://www.youtube.com/watch?v=_rLiih5RkXY",
+              "source": "official",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "Set up the board and Arduino IDE, then upload Blink. Use the current SDK guide for board-package URLs.",
+              "metadata": {
+                "video": {
+                  "topic": "getting_started",
+                  "sdk": "arduino",
+                  "kind": "tutorial",
+                  "channel": "Ameba AIoT"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "Powerful Alternative to ESP32 CAM | Realtek AMB82-Mini IoT AI Camera Board - Getting Started",
+              "url": "https://www.youtube.com/watch?v=vI6GZMLfGQk",
+              "source": "community",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "A hands-on introduction covering board connections, Arduino setup, HTTP streaming, object detection and MP4 recording.",
+              "metadata": {
+                "video": {
+                  "topic": "getting_started",
+                  "sdk": "arduino",
+                  "kind": "tutorial",
+                  "channel": "How To Electronics"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "AMB82 Mini - Stream RTSP Examples",
+              "url": "https://www.youtube.com/watch?v=sFYnj4_Xq7A",
+              "source": "official",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "Upload the RTSP examples and explore single or dual video streams, with and without audio.",
+              "metadata": {
+                "video": {
+                  "topic": "streaming",
+                  "sdk": "arduino",
+                  "kind": "tutorial",
+                  "channel": "Ameba AIoT"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "AMB82 Mini - HTTP Streaming Example",
+              "url": "https://www.youtube.com/watch?v=bHW_jRpGmwk",
+              "source": "official",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "Build the HTTP streaming example and view the camera in a browser or V7RC.",
+              "metadata": {
+                "video": {
+                  "topic": "streaming",
+                  "sdk": "arduino",
+                  "kind": "tutorial",
+                  "channel": "Ameba AIoT"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "AMB82 Mini - Record MP4 Examples",
+              "url": "https://www.youtube.com/watch?v=npLSz1yfByw",
+              "source": "official",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "Record camera video to an SD card using the MP4 examples, including audio and dual-video variants.",
+              "metadata": {
+                "video": {
+                  "topic": "recording_imaging",
+                  "sdk": "arduino",
+                  "kind": "tutorial",
+                  "channel": "Ameba AIoT"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "AMB82 Mini - ISP Control Image Tuning Example",
+              "url": "https://www.youtube.com/watch?v=FxFV8E9Jyo4",
+              "source": "official",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "Explore image tuning, exposure, white balance, WDR and day/night controls. Check current SDK and sensor support.",
+              "metadata": {
+                "video": {
+                  "topic": "recording_imaging",
+                  "sdk": "arduino",
+                  "kind": "tutorial",
+                  "channel": "Ameba AIoT"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "AMB82 Mini - Object Detection Example",
+              "url": "https://www.youtube.com/watch?v=e9myAKa7MV0",
+              "source": "official",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "Upload the neural-network object detection example and inspect the camera detection demonstration.",
+              "metadata": {
+                "video": {
+                  "topic": "ai",
+                  "sdk": "arduino",
+                  "kind": "tutorial",
+                  "channel": "Ameba AIoT"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "AMB82 MINI - Deploying a customized YOLOv7 Model: From Conversion to Deployment",
+              "url": "https://www.youtube.com/watch?v=psaJYgdA25o",
+              "source": "official",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "Convert a custom YOLOv7 Tiny model and deploy it to the board; includes reparameterization and model-loading references.",
+              "metadata": {
+                "video": {
+                  "topic": "ai",
+                  "sdk": "arduino",
+                  "kind": "tutorial",
+                  "channel": "Ameba AIoT"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "AMB82 Mini - Offline AI Model Conversion using Docker",
+              "url": "https://www.youtube.com/watch?v=YyorZoIlb_E",
+              "source": "official",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "Request toolkit access, install the Docker conversion tools, convert a model and deploy it in the demonstrated Arduino workflow.",
+              "metadata": {
+                "video": {
+                  "topic": "model_conversion",
+                  "sdk": "arduino",
+                  "kind": "tutorial",
+                  "channel": "Ameba AIoT"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "AMB82 Mini - Docker 離線AI模型轉換工具包",
+              "url": "https://www.youtube.com/watch?v=0XJleMGfyEw",
+              "source": "official",
+              "languages": [
+                "zh-TW"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "Chinese walkthrough of toolkit access, Docker installation, offline model conversion and deployment to AMB82 MINI.",
+              "metadata": {
+                "video": {
+                  "topic": "model_conversion",
+                  "sdk": "arduino",
+                  "kind": "tutorial",
+                  "channel": "Ameba AIoT"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "AMB82 MINI 測試 GC5035 Camera",
+              "url": "https://www.youtube.com/watch?v=s3kAyemgMxQ",
+              "source": "community",
+              "languages": [
+                "zh-TW"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "Community demonstration of a GC5035 camera with AMB82 MINI. The SDK and version are not confirmed.",
+              "metadata": {
+                "video": {
+                  "topic": "projects",
+                  "sdk": "unknown",
+                  "kind": "demo",
+                  "channel": "宅老大數位"
+                }
+              }
+            },
+            {
+              "type": "video",
+              "title": "AMB82-mini Portable ChatGPT",
+              "url": "https://www.youtube.com/watch?v=7rfmXPqyLF0",
+              "source": "community",
+              "languages": [
+                "en"
+              ],
+              "verified_at": "2026-09-06T02:47:05Z",
+              "summary": "A portable AMB82-mini project with a LLaVA server. A working-project demonstration; the SDK and version are not confirmed.",
+              "metadata": {
+                "video": {
+                  "topic": "projects",
+                  "sdk": "unknown",
+                  "kind": "demo",
+                  "channel": "rkuo2000"
+                }
+              }
             }
           ]
         }

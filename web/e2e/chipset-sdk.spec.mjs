@@ -25,6 +25,9 @@ test('[UI-CA-CHIPSET-009] PRO2 firmware burner is a global local-device tool @ch
   });
   await login(page, 'developer');
   const session = await (await page.request.get('/api/me')).json();
+  await page.route('**/api/developer/chipsets', route => route.fulfill({ json: {
+    chipsets: [{ id: 'chipset-pro2', chipset_key: 'realtek-amebapro2', vendor: 'Realtek', name: 'AmebaPRO2', resources: [], sdk_releases: [] }], source_status: 'available',
+  } }));
   await page.goto('/console/chipset-sdk');
   const tool = page.locator('.pro2-tool-card');
   await expect(page.getByRole('heading', { name: 'Device Tools', exact: true })).toBeVisible();

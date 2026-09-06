@@ -1,5 +1,6 @@
 import { DeveloperDocs } from './DeveloperDocs.jsx';
 import { BoardCards, BoardPage } from './BoardExplorer.jsx';
+import { ChipsetVideos } from './ChipsetVideos.jsx';
 import { boardRoute } from './boards.mjs';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -2435,32 +2436,42 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
 }
 
 function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading = loading, sdkLoading = loading, retrySDK, retryChipsets, toolsVisible = true }) {
-  const chipsets = data?.chipsets || [];
-  const artifacts = sdkArtifacts(sdkRelease?.catalog);
+  const chipsets = data?.source_status === 'unavailable' ? [] : data?.chipsets || [];
+  const [selectedChip, setSelectedChip] = useState('');
+  const selected = chipsets.find((chipset) => (chipset.id || chipset.chipset_key) === selectedChip) || chipsets[0];
+  const isPRO2 = selected?.chipset_key === 'realtek-amebapro2';
+  const artifacts = sdkArtifacts(sdkRelease?.catalog).filter((artifact) => artifact.slug !== 'freertos-pro2' || isPRO2);
   const [query, setQuery] = useState('');
   const [vendor, setVendor] = useState('all');
   const [recommendedOnly, setRecommendedOnly] = useState(false);
-  const vendors = useMemo(() => chipsetVendors(chipsets), [chipsets]);
-  const visibleChipsets = useMemo(() => filterChipsets(chipsets, query, vendor, recommendedOnly), [chipsets, query, vendor, recommendedOnly]);
+  const vendors = useMemo(() => chipsetVendors(selected ? [selected] : []), [selected]);
+  const visibleChipsets = useMemo(() => filterChipsets(selected ? [selected] : [], query, vendor, recommendedOnly), [selected, query, vendor, recommendedOnly]);
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
-    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a Cloud Client SDK for your mobile, web, native, or device application. Hardware-specific SDKs and board resources remain available separately below.</p></div></div>
-    {toolsVisible && <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
-      <div className="sdk-section-heading"><div><h2 id="device-tools-heading">Device Tools</h2><p>Browser-based tools for bringing up and diagnosing hardware locally, before or alongside cloud provisioning.</p></div></div>
+    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a chip to explore its SDKs, development boards, tools, and videos.</p></div></div>
+    <section className="panel chipset-selection" aria-label="Chip selection">
+      <label htmlFor="developer-chip"><Icon name="microchip" />Select Chip</label>
+      <select id="developer-chip" className="input" value={selected?.id || selected?.chipset_key || ''} disabled={!chipsets.length} aria-describedby="chip-selection-help" onChange={(event) => { setSelectedChip(event.target.value); setQuery(''); setVendor('all'); setRecommendedOnly(false); }}>
+        {!chipsets.length ? <option value="">{chipsetLoading ? 'Loading chips…' : 'No chips available'}</option> : chipsets.map((chipset) => <option key={chipset.id || chipset.chipset_key} value={chipset.id || chipset.chipset_key}>{chipset.name}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}</option>)}
+      </select>
+      <p id="chip-selection-help">SDKs, boards, videos, and device tools below follow your selection.</p>
+    </section>
+    {toolsVisible && isPRO2 ? <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
+      <div className="sdk-section-heading"><div><h2 id="device-tools-heading"><Icon name="screwdriver-wrench" />Device Tools</h2><p>Browser-based tools for bringing up and diagnosing hardware locally, before or alongside cloud provisioning.</p></div></div>
       <article className="panel pro2-tool-card">
         <span className="pro2-tool-icon" aria-hidden="true"><Icon name="microchip" /></span>
         <div className="pro2-tool-copy"><div><p className="sdk-format">AMEBA PRO2 · WEB SERIAL</p><h3>Ameba PRO2 Firmware Burner</h3></div><p>Connect a board over USB UART, burn and verify a local firmware image, then continue in the live serial console. Firmware and UART data stay in your browser.</p><div className="pro2-tool-meta"><span><Icon name="laptop" />Desktop Chrome or Edge</span><span><Icon name="shield-halved" />No firmware upload</span><span><Icon name="bolt" />NOR / UART flow</span></div></div>
         <a className="primary-button icon-text pro2-tool-action" href={PRO2_FIRMWARE_BURNER_PATH}><Icon name="arrow-right" />Open firmware burner</a>
       </article>
-    </section>}
+    </section> : null}
     <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
-      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading">Cloud Client SDKs</h2><p>Use these packages to connect an app or a PRO2 device to Realtek Connect+. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
+      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading"><Icon name="cloud" />Cloud Client SDKs</h2><p>App SDKs are shared across chips. Device packages are shown for the selected chip; the complete bundle contains the entire release. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
       {sdkLoading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
       {!sdkLoading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>No Cloud Client SDK release yet</h3><p>{sdkRelease.source_message}</p></div></section> : null}
       {!sdkLoading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Cloud Client SDKs are temporarily unavailable</h3><p>{sdkRelease.source_message}</p>{retrySDK && <button type="button" onClick={retrySDK}>Retry SDK catalog</button>}</div></section> : null}
       {artifacts.length ? <div className="cloud-sdk-grid">{artifacts.map((artifact) => <CloudSDKCard artifact={artifact} release={sdkRelease} key={artifact.slug} />)}</div> : null}
     </section>
     <section className="sdk-catalog-section device-sdk-section" aria-labelledby="device-chipset-sdks-heading">
-      <div className="sdk-section-heading"><div><h2 id="device-chipset-sdks-heading">Device &amp; ChipSet SDKs</h2><p>Find the official board SDKs, datasheets, examples, and support resources for the chipset used by your product.</p></div></div>
+      <div className="sdk-section-heading"><div><h2 id="device-chipset-sdks-heading"><Icon name="microchip" />Device &amp; ChipSet SDKs</h2><p>Find the official board SDKs, datasheets, examples, and support resources for the chipset used by your product.</p></div></div>
       {chipsetLoading && !data ? <ChipsetCardSkeletons /> : null}
       {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p>{retryChipsets && <button type="button" onClick={retryChipsets}>Retry ChipSet catalog</button>}</div></section> : null}
       {!chipsetLoading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
@@ -2473,7 +2484,7 @@ function CloudSDKCard({ artifact, release }) {
   const docsURL = sdkDocumentationURL(release?.portal_url, artifact.slug);
   const isPreview = Boolean(release?.local_preview);
   return <article className={`panel cloud-sdk-card${artifact.slug === 'all' ? ' complete-bundle' : ''}`}>
-    <div className="cloud-sdk-card-heading"><div><p className="sdk-format">{sdkArtifactFormat(artifact.slug)}</p><h3>{artifact.title}</h3></div><span className="status-badge good">{artifact.validation_status}</span></div>
+    <div className="cloud-sdk-card-heading"><div><p className="sdk-format"><i className={`${['android', 'javascript', 'ios'].includes(artifact.slug) ? 'fa-brands' : 'fa-solid'} fa-${sdkFormatIcon(artifact.slug)}`} aria-hidden="true" />{sdkArtifactFormat(artifact.slug)}</p><h3>{artifact.title}</h3></div><span className="status-badge good"><Icon name="circle-check" />{artifact.validation_status}</span></div>
     <p>{artifact.description}</p>
     <dl className="cloud-sdk-metadata"><div><dt>Version</dt><dd>{release.catalog.version}</dd></div><div><dt>Size</dt><dd>{formatSDKBytes(artifact.size_bytes)}</dd></div><div className="checksum-row"><dt>SHA-256</dt><dd><code>{artifact.sha256}</code></dd></div></dl>
     <div className="sdk-capability-list" aria-label={`${artifact.title} capabilities`}>{artifact.capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div>
@@ -2482,12 +2493,16 @@ function CloudSDKCard({ artifact, release }) {
   </article>;
 }
 
+function sdkFormatIcon(slug) {
+  return { native: 'file-code', android: 'android', javascript: 'js', ios: 'apple', 'freertos-pro2': 'microchip', all: 'box-open' }[slug] || 'cube';
+}
+
 function CloudSDKCardSkeletons() {
   return <div className="cloud-sdk-grid" aria-label="Loading Cloud Client SDKs">{[0, 1, 2].map((index) => <article className="panel cloud-sdk-card chipset-card-skeleton" key={index}><span /><span /><span /><span /></article>)}</div>;
 }
 
 function ChipsetCards({ chipsets, showFreshness }) {
-	return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id || chipset.chipset_key}><div className="chipset-card-heading"><div className="chipset-vendor-mark" aria-hidden="true">{vendorInitials(chipset)}</div><div><h3>{chipset.name}</h3><p className="chipset-vendor-line">{chipset.vendor}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}{chipset.family ? ` · ${chipset.family} family` : ''}</p></div><span className={`status-badge ${chipset.stale ? 'warning' : 'good'}`}>{chipset.stale ? 'Stale' : 'Current'}</span></div><p>{chipset.description || 'ChipSet developer information'}</p><div className="chipset-card-meta"><span>{chipset.resources?.length || 0} product resources</span><span>{chipset.sdk_releases?.length || 0} SDK releases</span>{showFreshness ? <span>{translate('Last synchronized: {{time}}', { time: chipset.last_successful_refresh_at ? formatRelativeTime(chipset.last_successful_refresh_at) : 'unknown' })}</span> : null}</div>{chipset.resources?.length ? <section className="chipset-product-resources"><h4>{translate('Products and Support')}</h4><ResourceLinks resources={chipset.resources} /></section> : null}<BoardCards chipset={chipset} />{chipset.sdk_releases?.length ? <h4 className="chipset-sdk-heading">SDK</h4> : null}{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{release.summary}</small> : null}</div>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div>{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="chipset-model-chip" key={model}>{model}</span>)}</div> : null}<ResourceLinks resources={release.endpoints} compact /></section>)}{showFreshness ? <small className="chipset-provider-attribution">Information provided by {chipset.provider_name}</small> : null}</article>)}</div>;
+	return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id || chipset.chipset_key}><div className="chipset-card-heading"><div className="chipset-vendor-mark" aria-hidden="true">{vendorInitials(chipset)}</div><div><h3>{chipset.name}</h3><p className="chipset-vendor-line">{chipset.vendor}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}{chipset.family ? ` · ${chipset.family} family` : ''}</p></div><span className={`status-badge ${chipset.stale ? 'warning' : 'good'}`}>{chipset.stale ? 'Stale' : 'Current'}</span></div><p>{chipset.description || 'ChipSet developer information'}</p><div className="chipset-card-meta"><span>{chipset.resources?.length || 0} product resources</span><span>{chipset.sdk_releases?.length || 0} SDK releases</span>{showFreshness ? <span>{translate('Last synchronized: {{time}}', { time: chipset.last_successful_refresh_at ? formatRelativeTime(chipset.last_successful_refresh_at) : 'unknown' })}</span> : null}</div>{chipset.resources?.some(resource => resource.type !== 'video') ? <section className="chipset-product-resources"><h4>{translate('Products and Support')}</h4><ResourceLinks resources={chipset.resources.filter(resource => resource.type !== 'video')} /></section> : null}<BoardCards chipset={chipset} />{chipset.sdk_releases?.length ? <h4 className="chipset-sdk-heading">SDK</h4> : null}{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{release.summary}</small> : null}</div>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div>{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="chipset-model-chip" key={model}>{model}</span>)}</div> : null}<ResourceLinks resources={release.endpoints.filter(resource => resource.type !== 'video')} compact /></section>)}<ChipsetVideos chipset={chipset} preview />{showFreshness ? <small className="chipset-provider-attribution">Information provided by {chipset.provider_name}</small> : null}</article>)}</div>;
 }
 
 function ResourceLinks({ resources = [], compact = false }) {
