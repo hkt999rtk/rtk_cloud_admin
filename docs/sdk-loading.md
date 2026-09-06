@@ -37,7 +37,8 @@ SDK_BENCHMARK=after npx playwright test e2e/sdk-performance.spec.mjs --project=c
 ```
 
 The benchmark uses browser `performance` timestamps and waits for actual catalog
-cards, not skeletons. Local runs inject 200 ms per browser API request. Live mode
+cards, not skeletons. The normal local CI suite runs this benchmark with 200 ms
+injected per browser API request. `SDK_BENCHMARK` optionally labels the report. Live mode
 requires an explicitly authorized test identity, targets dev only, disables
 injected delays, and must be run with tracing off to avoid retaining login request
 payloads. Benchmark output contains timings, not credentials. Compare 10 refresh

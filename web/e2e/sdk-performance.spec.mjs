@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 import { login } from './fixtures/session.mjs';
 
 test('[UI-CA-SDK-PERF-001] SDK browser timing benchmark @sdk-performance', async ({ page }, testInfo) => {
-  test.skip(!process.env.SDK_BENCHMARK, 'explicit benchmark only');
+  // Normal local CI runs the controlled-latency fixture benchmark. Only the
+  // explicitly enabled live mode can use dev credentials or the dev origin.
   test.setTimeout(120000);
   const live = process.env.SDK_BENCHMARK_LIVE === 'true';
   const delay = live ? 0 : Number(process.env.SDK_BENCHMARK_DELAY_MS || 200);
@@ -55,5 +56,5 @@ test('[UI-CA-SDK-PERF-001] SDK browser timing benchmark @sdk-performance', async
   const median = values => values.length ? [...values].sort((a,b)=>a-b).slice(4,6).reduce((a,b)=>a+b)/2 : null;
   samples.medians = { refresh:median(samples.refresh), navigation:median(samples.navigation) };
   console.log('SDK_BENCHMARK', JSON.stringify(samples));
-  await testInfo.attach(`sdk-${process.env.SDK_BENCHMARK}.json`,{body:JSON.stringify(samples,null,2),contentType:'application/json'});
+  await testInfo.attach(`sdk-${process.env.SDK_BENCHMARK || 'local'}.json`,{body:JSON.stringify(samples,null,2),contentType:'application/json'});
 });
