@@ -67,7 +67,6 @@ test('[UI-CA-SDK-LOAD-004] navigation and back preserve the document and fresh r
   await expect(page.locator('.sdk-release-summary')).toBeVisible();
   expect(await page.evaluate(()=>window.__navigationMarker)).toBe(marker);
   await expect(page.getByRole('link',{name:'Open firmware burner',exact:true})).toHaveCount(0);
-  expect(await page.evaluate(()=>window.__navigationMarker)).toBeUndefined();
 });
 
 test('[UI-CA-SDK-LOAD-005] context skeleton exposes no protected tool @chipset-sdk',async({page})=>{
