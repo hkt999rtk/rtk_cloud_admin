@@ -22,7 +22,6 @@ export const customerNavGroups = [
       { id: 'chipset-sdk', labelKey: 'ChipSet & SDK', path: '/console/chipset-sdk', icon: 'code-branch', global: true, alwaysVisible: true },
       { id: 'developer-docs', labelKey: 'Developer Docs', path: '/console/developer-docs', icon: 'book-open', global: true, alwaysVisible: true },
       { id: 'devices', labelKey: 'Fleet Management', segment: 'fleet', icon: 'video', capabilities: ['fleet.read', 'customer.devices.read'] },
-      { id: 'provisioning', labelKey: 'CSV Provisioning', segment: 'fleet/provisioning', icon: 'file-csv', capabilities: ['provisioning.read', 'provisioning.create'] },
       { id: 'firmware-ota', labelKey: 'Firmware & OTA', segment: 'firmware-ota', icon: 'microchip', capabilities: ['firmware.release.read', 'ota.plan.read', 'customer.firmware.read'] },
       { id: 'analytics', labelKey: 'Analytics', segment: 'analytics', icon: 'chart-column', capabilities: ['reports.read', 'report.read', 'customer.reports.read', 'customer.stream.read', 'fleet.read'] },
     ],
@@ -47,7 +46,6 @@ const cloudRouteSegments = Object.freeze({
   'product-services': 'products',
   devices: 'fleet',
   groups: 'fleet/groups',
-  provisioning: 'fleet/provisioning',
   jobs: 'fleet/jobs',
   'firmware-ota': 'firmware-ota',
   analytics: 'analytics',
@@ -65,7 +63,7 @@ export const pageIcons = Object.freeze({
   'test-lab': 'flask',
   'my-clouds': 'cloud', overview: 'gauge-high', devices: 'video',
   'product-services': 'boxes-stacked', 'chipset-sdk': 'code-branch', 'developer-docs': 'book-open',
-  groups: 'tags', provisioning: 'file-csv', access: 'user-shield', settings: 'gear', billing: 'credit-card',
+  groups: 'tags', access: 'user-shield', settings: 'gear', billing: 'credit-card',
   'firmware-ota': 'microchip', 'stream-health': 'tower-broadcast', reports: 'chart-column', analytics: 'chart-column', audit: 'shield-halved',
   'platform-dashboard': 'gauge-high', 'platform-grafana': 'chart-simple', 'platform-health': 'heart-pulse',
   'platform-logs': 'file-lines', 'platform-brand-clouds': 'cloud',
@@ -274,7 +272,6 @@ export function titleFor(active) {
     'firmware-ota': 'Firmware OTA',
     'stream-health': 'Video Streaming Health',
     reports: 'Reports',
-    provisioning: 'CSV Provisioning',
     analytics: 'Analytics',
     audit: 'Audit',
     billing: 'Billing',
@@ -321,7 +318,6 @@ export function routeFromPath(path) {
     if (!suffix) return 'overview';
     if (suffix === 'test-lab') return 'test-lab';
     if (suffix === 'fleet/groups') return 'groups';
-    if (suffix === 'fleet/provisioning') return 'provisioning';
     if (suffix === 'fleet/jobs') return 'firmware-ota';
     if (suffix === 'analytics/reports') return 'reports';
     if (suffix === 'products' || suffix.startsWith('products/')) return 'product-services';
@@ -385,6 +381,8 @@ export function routeFromLocation() {
 
 export function canonicalCustomerPath(path) {
   if (path === '/console' || path === '/console/') return '/console/clouds';
+  const retiredProvisioning = String(path || '').match(/^\/console\/clouds\/([^/]+)\/fleet\/provisioning(?:\/.*)?$/);
+  if (retiredProvisioning) return cloudConsolePath(decodedCloudID(retiredProvisioning[1]), 'devices');
   if (path === '/console/clouds' || String(path || '').startsWith('/console/clouds/')) return path;
   if (path === '/console/chipset-sdk' || String(path || '').startsWith('/console/chipset-sdk/')) return path;
   if (path === '/console/developer-docs' || String(path || '').startsWith('/console/developer-docs/')) return path;
@@ -398,7 +396,7 @@ export function canonicalCustomerPath(path) {
       devices: 'fleet',
       'product-services': 'products',
       groups: 'fleet',
-      provisioning: 'fleet/provisioning',
+      provisioning: 'fleet',
       access: 'members',
       settings: 'settings',
       'firmware-ota': 'firmware-ota',

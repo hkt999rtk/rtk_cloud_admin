@@ -16,7 +16,6 @@ import './cloud-billing.css';
 import { BillingTabs, ServicePricing } from './ServicePricing.jsx';
 import { cloudAPI, cloudURL, managedCloudRoute, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { scopedCustomerAPI } from './cloud-scope.mjs';
-import { ProvisioningPage } from './ProvisioningPage.jsx';
 import { Pro2FirmwareBurner, PRO2_FIRMWARE_BURNER_PATH } from './Pro2FirmwareBurner.jsx';
 import { BrandCloudCreateDrawer } from './BrandCloudCreateDrawer.jsx';
 import { I18nextProvider } from 'react-i18next';
@@ -607,7 +606,7 @@ function App() {
           setFirmwareDistribution(null);
         }
 
-        if (['product-services', 'firmware-ota', 'reports', 'provisioning', 'settings'].includes(active) && nextMe.kind !== 'platform_admin') {
+        if (['product-services', 'firmware-ota', 'reports', 'settings'].includes(active) && nextMe.kind !== 'platform_admin') {
           const nextProducts = await fetchJSON(apiPath('/api/products')).catch((err) => {
             if (err.isAuthError) throw err;
             return { products: [], source_status: 'unavailable', source_message: translate('Product data is temporarily unavailable.') };
@@ -1265,7 +1264,6 @@ function App() {
             onAction={runDeviceAction}
           />
         ) : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'provisioning' ? <ProvisioningPage products={products?.products || []} canCreate={canUseCapability(me, 'provisioning.create')} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'product-services' ? (
           <ProductsPage loading={loading} data={products} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
         ) : null}
