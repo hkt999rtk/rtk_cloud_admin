@@ -1102,7 +1102,7 @@ paths:
       summary: Read a permission-scoped fleet overview at one common observation time
       security: [{ SessionCookie: [] }]
       responses:
-        "200": { description: Presence, current health, and active WebRTC session metrics., content: { application/json: { schema: { $ref: "#/components/schemas/FleetOverview" } } } }
+        "200": { description: "Presence, current health, and active WebRTC session metrics.", content: { application/json: { schema: { $ref: "#/components/schemas/FleetOverview" } } } }
         default: { $ref: '#/components/responses/ManagedCloudError' }
 
   /api/developer/clouds/{brandCloudID}/fleet/attention:
@@ -6492,8 +6492,8 @@ components:
         offline_seconds: { type: integer, format: int64, minimum: 0 }
         known_seconds: { type: integer, format: int64, minimum: 0 }
         expected_seconds: { type: integer, format: int64, minimum: 0 }
-        online_rate_pct: { type: [number, "null"], minimum: 0, maximum: 100 }
-        coverage_pct: { type: [number, "null"], minimum: 0, maximum: 100 }
+        online_rate_pct: { type: number, nullable: true, minimum: 0, maximum: 100 }
+        coverage_pct: { type: number, nullable: true, minimum: 0, maximum: 100 }
     FleetOverview:
       type: object
       required: [cloud_id, as_of, scope, presence, health, sessions]
@@ -6514,8 +6514,8 @@ components:
             offline_seconds: { type: integer, format: int64, minimum: 0 }
             known_seconds: { type: integer, format: int64, minimum: 0 }
             expected_seconds: { type: integer, format: int64, minimum: 0 }
-            online_rate_7d_pct: { type: [number, "null"], minimum: 0, maximum: 100 }
-            coverage_7d_pct: { type: [number, "null"], minimum: 0, maximum: 100 }
+            online_rate_7d_pct: { type: number, nullable: true, minimum: 0, maximum: 100 }
+            coverage_7d_pct: { type: number, nullable: true, minimum: 0, maximum: 100 }
             trend: { type: array, items: { $ref: "#/components/schemas/FleetPresenceTrendPoint" } }
         health:
           type: object
@@ -6534,7 +6534,7 @@ components:
           required: [source]
           properties:
             source: { $ref: "#/components/schemas/FleetMetricSource" }
-            active_sessions: { type: [integer, "null"], minimum: 0 }
+            active_sessions: { type: integer, nullable: true, minimum: 0 }
     FleetHealthDaily:
       type: object
       required: [date, healthy, warning, critical, unknown]
