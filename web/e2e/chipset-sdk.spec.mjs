@@ -63,7 +63,7 @@ test('[UI-CA-CHIPSET-009] PRO2 firmware burner is a global local-device tool @ch
   await expect(page.getByText('UART disconnected. Reconnect when needed.', { exact: true })).toBeVisible();
 });
 
-test('[UI-CA-CHIPSET-003] developer resources expose safe upstream unavailable states @chipset-sdk @errors', async ({ page }) => {
+test('[UI-CA-CHIPSET-003] account outage blocks resource initialization safely @chipset-sdk @errors', async ({ page }) => {
   test.skip(process.env.E2E_SCENARIO_MODE !== 'unavailable', 'requires unavailable fixture mode');
   const baseResponses = new Map([
     ['/api/admin/summary', {}], ['/api/admin/customers', []], ['/api/admin/devices', []], ['/api/admin/operations', []],
@@ -78,13 +78,17 @@ test('[UI-CA-CHIPSET-003] developer resources expose safe upstream unavailable s
   });
   await login(page, 'developer');
   await page.goto('/console/chipset-sdk');
-  await expect(page.getByRole('heading', { name: 'Resources are temporarily unavailable' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Cloud Client SDKs are temporarily unavailable' })).toBeVisible();
+  // This fixture disables Account Manager as well as catalogs. The new
+  // context endpoint must fail closed before any protected resource appears.
+  await expect(page.getByRole('heading', { name: 'Unable to load developer resources' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry page' })).toBeVisible();
+  await expect(page.locator('.cloud-sdk-card')).toHaveCount(0);
 });
 
-test('[UI-CA-CHIPSET-008] Portal failure does not hide Device and ChipSet resources @chipset-sdk', async ({ page }) => {
+for (const status of [502, 503]) {
+test(`[UI-CA-CHIPSET-008] Portal ${status} does not hide Device and ChipSet resources @chipset-sdk`, async ({ page }) => {
   await login(page, 'developer');
-  await page.route('**/api/developer/sdk-releases/latest', (route) => route.fulfill({ status: 502, body: 'SDK catalog unavailable' }));
+  await page.route('**/api/developer/sdk-releases/latest', (route) => route.fulfill({ status, body: 'SDK catalog unavailable' }));
   await page.route('**/api/developer/chipsets', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
@@ -93,7 +97,10 @@ test('[UI-CA-CHIPSET-008] Portal failure does not hide Device and ChipSet resour
   await page.goto('/console/chipset-sdk');
   await expect(page.getByRole('heading', { name: 'Cloud Client SDKs are temporarily unavailable' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'AmebaPro2' })).toBeVisible();
+  await expect(page.getByText('No Cloud Client SDK release yet')).toHaveCount(0);
+  if (status === 503) await expect(page.getByText('SDK downloads are not configured for this environment.', { exact: false })).toBeVisible();
 });
+}
 
 test('[UI-CA-CHIPSET-007] developer resources do not install a global refresh timer @chipset-sdk', async ({ page }) => {
   await page.addInitScript(() => {
