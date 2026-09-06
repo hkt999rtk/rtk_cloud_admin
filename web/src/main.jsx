@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
 import { CloudConsoleShell } from './CloudConsoleShell.jsx';
+import { sdkJSON, useSDKSection, sdkNavigationTarget } from './sdk-page.mjs';
 import { CustomerAudit } from './ConsoleUI.jsx';
 import { productInvitationDestination } from './cloud-products.mjs';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
@@ -239,10 +240,43 @@ async function fetchBrandCloudAccessData(cloudId, { includeAssignments = false }
   };
 }
 
+function SDKPage({ docs = false }) {
+  const [context, setContext] = useState(null);
+  const [failure, setFailure] = useState(null);
+  const [attempt, setAttempt] = useState(0);
+  const cloudID = new URLSearchParams(window.location.search).get('cloudId') || cloudContextId(window.location.pathname, window.location.search);
+  const burner = window.location.pathname === PRO2_FIRMWARE_BURNER_PATH;
+  const board = boardRoute(window.location.pathname);
+  const authError = useCallback(status => {
+    setFailure(status);
+    setContext(null);
+    if (status === 401) window.location.replace(loginPathFor(protectedPathFromLocation(window.location)));
+  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    setContext(null);
+    setFailure(null);
+    document.title = `${docs ? 'Developer Docs' : 'ChipSet & SDK'} · RTK Cloud`;
+    sdkJSON(`/api/developer/${docs ? 'console' : 'chipset-sdk'}/context${cloudID ? `?cloudId=${encodeURIComponent(cloudID)}` : ''}`, controller.signal)
+      .then(value => { if (!controller.signal.aborted) { setContext(value); if (value.brand_cloud?.id) rememberCloudPreference(value.brand_cloud.id); } })
+      .catch(error => { if (!controller.signal.aborted) authError(error.status || 503); });
+    return () => controller.abort();
+  }, [cloudID, attempt, authError, docs]);
+  const ready = !!context && !failure;
+  const sdk = useSDKSection('/api/developer/sdk-releases/latest', ready && !docs && !burner && !board, authError);
+  const chipsets = useSDKSection('/api/developer/chipsets', ready && !docs && !burner, authError);
+  return <CloudConsoleShell me={context?.me} cloud={context?.brand_cloud} clouds={context?.brand_clouds || []} navigationPath={item => cloudConsolePath(context?.brand_cloud?.id || cloudID, item.id)} active={docs ? 'developer-docs' : 'chipset-sdk'} title={docs ? 'Developer Docs' : 'ChipSet & SDK'}>
+    {failure ? <section className="panel" role="alert"><h2>{[403,404].includes(failure) ? 'Access unavailable' : 'Unable to load developer resources'}</h2><p>{[403,404].includes(failure) ? 'This account or Brand Cloud is not available to the signed-in developer.' : 'Please sign in again or retry loading this page.'}</p><button type="button" onClick={() => setAttempt(n=>n+1)}>Retry page</button></section> : <>
+      {!context && <p role="status">Checking developer access…</p>}
+      {context?.cloud_list_status === 'unavailable' && <p role="status">Cloud list is temporarily unavailable. <button type="button" onClick={() => setAttempt(n=>n+1)}>Retry cloud list</button></p>}
+      {docs ? ready && <DeveloperDocs /> : burner ? ready && <Pro2FirmwareBurner /> : board ? <><BoardPage route={board} data={ready ? chipsets.data : null} loading={!ready || chipsets.loading || !chipsets.data} ResourceLinks={ResourceLinks} />{chipsets.data?.source_status==='unavailable' && <button onClick={chipsets.retry}>Retry ChipSet catalog</button>}</> :
+        <DeveloperChipsetResources data={ready ? chipsets.data : null} sdkRelease={ready ? sdk.data : null} chipsetLoading={!ready || chipsets.loading || !chipsets.data} sdkLoading={!ready || sdk.loading || !sdk.data} toolsVisible={ready} retrySDK={sdk.retry} retryChipsets={chipsets.retry} />}
+    </>}
+  </CloudConsoleShell>;
+}
+
 function App() {
   const urlCloudId = cloudIdFromPath(window.location.pathname);
-  const isPro2FirmwareBurner = window.location.pathname === PRO2_FIRMWARE_BURNER_PATH;
-  const currentBoardRoute = boardRoute(window.location.pathname);
   const apiPath = useCallback((path) => scopedCustomerAPI(path, urlCloudId), [urlCloudId]);
   const [active, setActive] = useState(routeFromLocation());
   const [me, setMe] = useState(null);
@@ -270,8 +304,6 @@ function App() {
   const [selectedBrandCloudId, setSelectedBrandCloudId] = useState('');
   const [brandCloudDrawerMode, setBrandCloudDrawerMode] = useState('');
   const [ssoProviders, setSSOProviders] = useState([]);
-  const [chipsets, setChipsets] = useState(null);
-  const [sdkCatalog, setSDKCatalog] = useState(null);
   const [chipsetProviders, setChipsetProviders] = useState(null);
   const [firmwareDistribution, setFirmwareDistribution] = useState(null);
   const [firmwareProductId, setFirmwareProductId] = useState(() => new URLSearchParams(window.location.search).get('product_id') || '');
@@ -339,8 +371,6 @@ function App() {
     setSelectedBrandCloudId('');
     setBrandCloudDrawerMode('');
     setSSOProviders([]);
-    setChipsets(null);
-    setSDKCatalog(null);
     setChipsetProviders(null);
     setFirmwareDistribution(null);
     setFirmwareProductId('');
@@ -431,37 +461,6 @@ function App() {
         }
 
         if (!useAdminApi && ['developer-docs', 'audit'].includes(active) && nextMe.kind === 'customer') {
-          setSummary(null);
-          setDevices([]);
-          setLoading(false);
-          return;
-        }
-
-        // ChipSet & SDK is a global developer resource. Do not make retired,
-        // cloud-owned fleet requests just to render this page.
-        if (!useAdminApi && active === 'chipset-sdk' && nextMe.kind === 'customer' && isPro2FirmwareBurner) {
-          setChipsets(null);
-          setSDKCatalog(null);
-          setSummary(null);
-          setDevices([]);
-          setLoading(false);
-          return;
-        }
-
-        if (!useAdminApi && active === 'chipset-sdk' && nextMe.kind === 'customer') {
-          const [result, releaseResult] = await Promise.all([
-            fetchJSON('/api/developer/chipsets').catch((err) => {
-              if (err.isAuthError) throw err;
-              return { chipsets: [], source_status: 'unavailable', source_message: 'ChipSet resources are unavailable.' };
-            }),
-            fetchJSON('/api/developer/sdk-releases/latest').catch((err) => {
-              if (err.isAuthError) throw err;
-              return { catalog: null, source_status: err.status === 503 ? 'unpublished' : 'unavailable', source_message: err.status === 503 ? 'No Cloud Client SDK release has been published yet.' : 'Cloud Client SDKs are temporarily unavailable.' };
-            }),
-          ]);
-          if (!alive) return;
-          setChipsets(result);
-          setSDKCatalog(releaseResult);
           setSummary(null);
           setDevices([]);
           setLoading(false);
@@ -594,8 +593,6 @@ function App() {
         } else {
           setChipsetProviders(null);
         }
-        setChipsets(null);
-        setSDKCatalog(null);
         if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin' && firmwareProductId) {
           const nextFirmwareDistribution = await fetchJSON(apiPath(`/api/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`))
             .catch((err) => {
@@ -1270,7 +1267,6 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'product-services' ? (
           <ProductsPage loading={loading} data={products} onRefresh={() => setRefreshTick((tick) => tick + 1)} />
         ) : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'chipset-sdk' ? isPro2FirmwareBurner ? <Pro2FirmwareBurner /> : currentBoardRoute ? <BoardPage route={currentBoardRoute} data={chipsets} loading={loading} ResourceLinks={ResourceLinks} /> : <DeveloperChipsetResources data={chipsets} sdkRelease={sdkCatalog} loading={loading} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'developer-docs' ? <DeveloperDocs /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'firmware-ota' ? (
           <FirmwareOTAPage
@@ -2437,7 +2433,7 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
   </section>;
 }
 
-function DeveloperChipsetResources({ data, sdkRelease, loading }) {
+function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading = loading, sdkLoading = loading, retrySDK, retryChipsets, toolsVisible = true }) {
   const chipsets = data?.chipsets || [];
   const artifacts = sdkArtifacts(sdkRelease?.catalog);
   const [query, setQuery] = useState('');
@@ -2447,27 +2443,27 @@ function DeveloperChipsetResources({ data, sdkRelease, loading }) {
   const visibleChipsets = useMemo(() => filterChipsets(chipsets, query, vendor, recommendedOnly), [chipsets, query, vendor, recommendedOnly]);
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
     <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a Cloud Client SDK for your mobile, web, native, or device application. Hardware-specific SDKs and board resources remain available separately below.</p></div></div>
-    <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
+    {toolsVisible && <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
       <div className="sdk-section-heading"><div><h2 id="device-tools-heading">Device Tools</h2><p>Browser-based tools for bringing up and diagnosing hardware locally, before or alongside cloud provisioning.</p></div></div>
       <article className="panel pro2-tool-card">
         <span className="pro2-tool-icon" aria-hidden="true"><Icon name="microchip" /></span>
         <div className="pro2-tool-copy"><div><p className="sdk-format">AMEBA PRO2 · WEB SERIAL</p><h3>Ameba PRO2 Firmware Burner</h3></div><p>Connect a board over USB UART, burn and verify a local firmware image, then continue in the live serial console. Firmware and UART data stay in your browser.</p><div className="pro2-tool-meta"><span><Icon name="laptop" />Desktop Chrome or Edge</span><span><Icon name="shield-halved" />No firmware upload</span><span><Icon name="bolt" />NOR / UART flow</span></div></div>
         <a className="primary-button icon-text pro2-tool-action" href={PRO2_FIRMWARE_BURNER_PATH}><Icon name="arrow-right" />Open firmware burner</a>
       </article>
-    </section>
+    </section>}
     <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
       <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading">Cloud Client SDKs</h2><p>Use these packages to connect an app or a PRO2 device to Realtek Connect+. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
-      {loading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
-      {!loading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>No Cloud Client SDK release yet</h3><p>{sdkRelease.source_message}</p></div></section> : null}
-      {!loading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Cloud Client SDKs are temporarily unavailable</h3><p>{sdkRelease.source_message}</p></div></section> : null}
+      {sdkLoading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
+      {!sdkLoading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>No Cloud Client SDK release yet</h3><p>{sdkRelease.source_message}</p></div></section> : null}
+      {!sdkLoading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Cloud Client SDKs are temporarily unavailable</h3><p>{sdkRelease.source_message}</p>{retrySDK && <button type="button" onClick={retrySDK}>Retry SDK catalog</button>}</div></section> : null}
       {artifacts.length ? <div className="cloud-sdk-grid">{artifacts.map((artifact) => <CloudSDKCard artifact={artifact} release={sdkRelease} key={artifact.slug} />)}</div> : null}
     </section>
     <section className="sdk-catalog-section device-sdk-section" aria-labelledby="device-chipset-sdks-heading">
       <div className="sdk-section-heading"><div><h2 id="device-chipset-sdks-heading">Device &amp; ChipSet SDKs</h2><p>Find the official board SDKs, datasheets, examples, and support resources for the chipset used by your product.</p></div></div>
-      {loading && !data ? <ChipsetCardSkeletons /> : null}
-      {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p></div></section> : null}
-      {!loading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
-      {!loading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
+      {chipsetLoading && !data ? <ChipsetCardSkeletons /> : null}
+      {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p>{retryChipsets && <button type="button" onClick={retryChipsets}>Retry ChipSet catalog</button>}</div></section> : null}
+      {!chipsetLoading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
+      {!chipsetLoading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
     </section>
   </section>;
 }
@@ -7175,14 +7171,42 @@ const initialCanonicalPath = canonicalCustomerPath(window.location.pathname);
 if (initialCanonicalPath !== window.location.pathname) {
   window.history.replaceState({}, '', `${initialCanonicalPath}${window.location.search}${window.location.hash}`);
 }
-const initialManagedCloudRoute = managedCloudRoute(window.location.pathname);
-const usesManagedCloudApp = Boolean(initialManagedCloudRoute && (
-  !initialManagedCloudRoute.cloudId || ['products', 'members', 'settings', 'test-lab'].includes(initialManagedCloudRoute.section)
-));
+function ConsoleEntry() {
+  const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
+  useEffect(() => {
+    const sync = () => setLocation(window.location.pathname + window.location.search);
+    const navigate = event => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target.closest?.('a[href]');
+      if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
+      const target = new URL(link.href, window.location.href);
+      // This capture listener runs before the Docs article's click handler.
+      // Preserve its Cloud scope before deciding whether to intercept the link.
+      const cloudId = new URLSearchParams(window.location.search).get('cloudId');
+      if (link.closest('.docs-article') && target.origin === window.location.origin && target.pathname.startsWith('/console/') && cloudId && !target.searchParams.has('cloudId')) {
+        target.searchParams.set('cloudId', cloudId);
+      }
+      if (!sdkNavigationTarget(new URL(window.location.href), target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      window.history.pushState({}, '', target.pathname + target.search + target.hash);
+      sync();
+      window.scrollTo(0, 0);
+    };
+    document.addEventListener('click', navigate, true);
+    window.addEventListener('popstate', sync);
+    return () => { document.removeEventListener('click', navigate, true); window.removeEventListener('popstate', sync); };
+  }, []);
+  const route = managedCloudRoute(window.location.pathname);
+  const managed = route && (!route.cloudId || ['products','members','settings','test-lab'].includes(route.section));
+  const sdk = window.location.pathname === '/console/chipset-sdk' || window.location.pathname.startsWith('/console/chipset-sdk/');
+  const docs = window.location.pathname === '/console/developer-docs' || window.location.pathname.startsWith('/console/developer-docs/');
+  return <React.Fragment key={location}>{sdk || docs ? <SDKPage docs={docs} /> : handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : managed ? <MyCloudsApp /> : <App />}</React.Fragment>;
+}
 
 document.documentElement.lang = i18n.language;
 createRoot(document.getElementById('root')).render(
   <I18nextProvider i18n={i18n}>
-    {handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : usesManagedCloudApp ? <MyCloudsApp /> : <App />}
+    <ConsoleEntry />
   </I18nextProvider>,
 );

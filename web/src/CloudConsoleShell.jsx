@@ -95,7 +95,7 @@ export function CloudConsoleShell({ me, cloud = null, clouds = [], active = 'my-
           <p className="sidebar-section-label">{group.labelKey}</p>
           {group.items.map((item) => item.disabled
             ? <span key={item.id} className="sidebar-disabled" aria-disabled="true" title="Select a Brand Cloud to use this feature">{icon(item.icon)}{item.labelKey}</span>
-            : <a key={item.id} className={item.id === active ? 'active' : ''} aria-current={item.id === active ? 'page' : undefined} href={navigationPath ? navigationPath(item) : cloudConsolePath(cloudId, item.id)} onClick={(event) => { setMobileOpen(false); if (onNavigate) { event.preventDefault(); onNavigate(item); } }}>{icon(item.icon)}{item.labelKey}</a>)}
+            : <a key={item.id} className={item.id === active ? 'active' : ''} aria-current={item.id === active ? 'page' : undefined} href={navigationPath ? navigationPath(item) : cloudConsolePath(cloudId, item.id)} onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; setMobileOpen(false); if (onNavigate) { event.preventDefault(); onNavigate(item); } }}>{icon(item.icon)}{item.labelKey}</a>)}
         </section>)}
       </nav>
       {!cloudId && !navGroups && <p className="ui-nav-hint">Select a cloud to manage products, devices and team access.</p>}

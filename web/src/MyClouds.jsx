@@ -9,6 +9,7 @@ import { TestLab } from './TestLab.jsx';
 import { CloudConsoleShell } from './CloudConsoleShell.jsx';
 import { Dialog, CopyValue } from './ConsoleUI.jsx';
 import { rememberCloudPreference } from './cloud-preference.mjs';
+import { cloudConsolePath } from './routes.mjs';
 
 function SemanticIcon({ name }) {
   return <i className={`fa-solid fa-${name}`} aria-hidden="true" />;
@@ -65,6 +66,7 @@ export function MyCloudsApp() {
   const intent = useRef(null);
   const alive = useRef(true);
   const loginURL = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+  useEffect(() => { document.title = `${cloudId ? 'Brand Cloud' : 'My Clouds'} · RTK Cloud`; }, [cloudId]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
     const controller = new AbortController();
@@ -72,7 +74,11 @@ export function MyCloudsApp() {
     (async () => {
       try {
         if (!route) throw Object.assign(new Error(), { status: 404 });
-        const account = await managedCloudRequest('/api/me', { signal: controller.signal });
+        const initialization = !cloudId
+          ? await managedCloudRequest(`/api/developer/console/clouds-context?view=${view}&limit=25&offset=${offset}`, { signal: controller.signal })
+          : null;
+        if (controller.signal.aborted) return;
+        const account = initialization?.me || await managedCloudRequest('/api/me', { signal: controller.signal });
         if (!account.authenticated) { window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
         if (!controller.signal.aborted) setMe(account);
         if (account.kind === 'platform_admin') return;
@@ -81,15 +87,23 @@ export function MyCloudsApp() {
           if (!controller.signal.aborted) setOperation(result.operation);
           return;
         }
-        const result = await managedCloudRequest(cloudId ? cloudAPI(cloudId) : `${cloudAPI()}?view=${view}&limit=25&offset=${offset}`, { signal: controller.signal });
+        // The combined account/list response can render before sidebar context.
+        const navigationContext = !cloudId && navigationCloudId
+          ? managedCloudRequest(cloudAPI(navigationCloudId), { signal: controller.signal })
+            .then(value => ({ value }), error => ({ error }))
+          : null;
+        const result = initialization?.page || await managedCloudRequest(cloudAPI(cloudId), { signal: controller.signal });
         if (controller.signal.aborted) return;
         if (!cloudId) {
           const validClouds = (result.brand_clouds || []).filter((item) => isCloudID(item?.id));
           if (validClouds.length !== (result.brand_clouds || []).length) setError('Some clouds could not be displayed because the service returned an invalid cloud ID.');
           setPage({ ...result, brand_clouds: validClouds });
+          setLoading(false);
           if (navigationCloudId) {
             try {
-              const context = await managedCloudRequest(cloudAPI(navigationCloudId), { signal: controller.signal });
+              const outcome = await navigationContext;
+              if (outcome.error) throw outcome.error;
+              const context = outcome.value;
               if (!controller.signal.aborted) {
                 if (context.brand_cloud?.id === navigationCloudId) rememberCloudPreference(navigationCloudId);
                 setCloud(context.brand_cloud || null);
@@ -104,7 +118,7 @@ export function MyCloudsApp() {
           if (result.brand_cloud?.id === cloudId) rememberCloudPreference(cloudId);
           setCloud(result.brand_cloud || null);
         }
-      } catch (err) { if (!controller.signal.aborted) { setError(cloudError(err)); if ([401,403,404].includes(err.status)) { setForm(null); setOperation(null); } } }
+      } catch (err) { if (!controller.signal.aborted) { setError(cloudError(err)); if ([401,403,404].includes(err.status)) { setPage(null); setCloud(null); setForm(null); setOperation(null); } if (err.status === 401) window.location.replace(loginURL); } }
       finally { if (!controller.signal.aborted) setLoading(false); }
     })();
     return () => controller.abort();
@@ -170,7 +184,7 @@ export function MyCloudsApp() {
   const canManage = cloud?.capabilities?.includes('cloud.update');
   const canCreate = page && page.owned_count + page.reserved_count < page.owned_limit;
   const shellActive = section === 'test-lab' ? 'test-lab' : section === 'products' ? 'product-services' : section === 'members' ? 'access' : section === 'settings' ? 'settings' : 'my-clouds';
-  return <CloudConsoleShell me={me} cloud={cloud} clouds={page?.brand_clouds || me?.memberships || []} active={shellActive} title={cloudId ? (section === 'test-lab' ? 'Cloud Test Lab' : section === 'products' ? (deviceId ? 'Device details' : productId ? 'Product details' : 'Products') : section === 'members' ? 'Members & access' : section === 'settings' ? 'Settings' : cloud?.name || 'Brand Cloud') : 'My Clouds'} onError={setError}>
+  return <CloudConsoleShell me={me} cloud={cloud} clouds={page?.brand_clouds || me?.memberships || []} active={shellActive} navigationPath={item => cloudConsolePath(cloud?.id || cloudId || navigationCloudId, item.id)} title={cloudId ? (section === 'test-lab' ? 'Cloud Test Lab' : section === 'products' ? (deviceId ? 'Device details' : productId ? 'Product details' : 'Products') : section === 'members' ? 'Members & access' : section === 'settings' ? 'Settings' : cloud?.name || 'Brand Cloud') : 'My Clouds'} onError={setError}>
     <div className="my-clouds-main">
       <div className="my-clouds-heading"><div><p className="my-clouds-eyebrow">DEVELOPER CONSOLE</p><p>{cloudId ? cloudIntroduction(section) : 'Select a cloud to manage products, devices and team access.'}</p></div>{!cloudId && page && <button className="icon-text" disabled={!canCreate || busy} onClick={() => { intent.current = null; setForm({ id: '', name: '', description: '' }); }}><SemanticIcon name="plus" />Create cloud</button>}</div>
       {error && <div role="alert" className="my-clouds-error">{error} <button onClick={() => setReload((v) => v + 1)}>Refresh</button>{error.includes('Sign in') && <a href={loginURL}>Sign in</a>}</div>}
