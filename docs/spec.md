@@ -987,7 +987,7 @@ Acceptance: Report idempotency replay and conflict preserve original scope.
 ### [FEAT-CA-PROV-001] Fleet management and provisioning API compatibility
 
 <!-- rtk-feature
-{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/enterprise-console.spec.mjs","selector":"[UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001]"}]}
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/enterprise-console.spec.mjs","selector":"[UI-CA-PROVISIONING-RET-001]"}]}
 -->
 
 The CSV Provisioning console page and navigation entry were retired at the
@@ -1148,6 +1148,14 @@ Acceptance: The AMB82 MINI page shows a self-built, source-documented GLB with c
 -->
 
 Acceptance: Missing WebGL or a failed model request preserves the poster, specifications, components and resources with a retry action. Stale snapshots are labeled and unpublished boards are unavailable. Three.js and GLB load only on board detail pages, idle rendering stops, and retries/navigation release rendering resources.
+
+#### [REQ-UI-CA-VIDEOS-001] Curated development videos share the published chipset catalog
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: SDK overview cards show three curated videos and a keyboard-operable expand action. Board pages show platform, board and compatible-release videos, deduplicated by YouTube video ID. Local keyword, topic, SDK and language filters retain authored order and provide a clear empty state. Cards identify uploader, official/community source, tutorial/demo kind, language, SDK certainty and review date, open external links with noopener, and retain usable links when thumbnails or optional metadata are missing. Playlists appear separately. Existing catalog search includes board videos. Unpublished/unavailable providers expose no videos; stale published snapshots retain their library. No YouTube API credential, embedded player or live external dependency is added to automated tests.
 
 #### [REQ-UI-CA-DOCS-001] Developer Docs navigation and search
 
