@@ -90,7 +90,15 @@ raycasting provide rotation, zoom, front/back/reset and component selection.
 The model has no autoplay or explosion animation. Button selection describes
 hardware; programming links to the existing PRO2 Firmware Burner.
 
-Rendering is requested only on load, resize or interaction. Pixel ratio is
+Front, Back, Reset view and every component selection use a 600 ms eased camera
+transition. The camera interpolates orbit angle, distance and target, taking the
+shortest turn around the board instead of moving through its centre. A new
+selection starts from the current pose; dragging, touch gestures or zoom controls
+interrupt the transition. Reduced-motion preferences use immediate positioning.
+Initial framing and resize remain immediate.
+
+Rendering is requested only on load, resize, interaction or an active transition;
+it stops when the transition completes or is interrupted. Pixel ratio is
 capped at 1.5; panning is disabled to keep the board recoverable. Failure,
 unmount and retry abort outstanding loads and release observers, controls,
 geometry, materials, textures, environment maps and the WebGL context.

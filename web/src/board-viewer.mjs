@@ -13,6 +13,7 @@ export function createBoardViewer(host, assetPath, componentKeys, { onReady, onE
   const canvas = renderer.domElement;
   canvas.setAttribute('aria-label', 'Rotate board with pointer or touch. Use the view buttons and component list for keyboard controls.');
   canvas.setAttribute('role', 'img');
+  canvas.dataset.viewTransition = 'idle';
   host.append(canvas);
   const scene = new T.Scene();
   scene.background = new T.Color('#edf2f4');
@@ -34,38 +35,70 @@ export function createBoardViewer(host, assetPath, componentKeys, { onReady, onE
   const light = new T.DirectionalLight(0xffffff, 1.8);
   light.position.set(-.06, .1, .18); scene.add(light);
   const rearLight = new T.DirectionalLight(0xffffff, 1.4);rearLight.position.set(.08, .05, -.15);scene.add(rearLight);
-  let model, disposed = false, frame = 0, down, selected = [], currentView = 'reset';
+  let model, disposed = false, frame = 0, transition, down, selected = [], currentView = 'reset';
   const parts = new Map();
   const raycaster = new T.Raycaster();
   const center = new T.Vector3();
   let radius = .05;
   function render() {
     if (disposed || frame) return;
-    frame = requestAnimationFrame(() => { frame = 0; if (!disposed) renderer.render(scene, camera); });
+    frame = requestAnimationFrame(time => {
+      if (disposed) return;
+      if (transition) {
+        const { start, from, to, fromTarget, toTarget } = transition;
+        const progress = T.MathUtils.clamp((time - start) / 600, 0, 1);
+        const eased = progress * progress * (3 - 2 * progress);
+        const orbit = new T.Spherical(
+          T.MathUtils.lerp(from.radius, to.radius, eased),
+          T.MathUtils.lerp(from.phi, to.phi, eased),
+          T.MathUtils.lerp(from.theta, to.theta, eased),
+        );
+        controls.target.lerpVectors(fromTarget, toTarget, eased);
+        camera.position.setFromSpherical(orbit).add(controls.target);
+        controls.update();
+        if (progress === 1) stopTransition();
+      }
+      renderer.render(scene, camera);
+      frame = 0;
+      if (transition) render();
+    });
   }
+  function stopTransition() { transition = null; canvas.dataset.viewTransition = 'idle'; }
   function resize() {
     // The host is hidden until loading completes; measure the stage throughout.
     const bounds = host.parentElement.getBoundingClientRect();
     const width = Math.max(1, bounds.width), height = Math.max(1, bounds.height);
     camera.aspect = width / height; camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
-    if (model && !selected.length) view(currentView); else render();
+    if (model && !selected.length) view(currentView, false); else render();
   }
   function clearSelection() {
     for (const [mesh, material] of selected) { mesh.material.dispose(); mesh.material = material; }
     selected = [];
   }
-  function focus(target, size, direction) {
+  function focus(target, size, direction, animate = true) {
     const fov = Math.min(camera.fov * Math.PI / 180, 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect));
     const distance = T.MathUtils.clamp(size / Math.sin(fov / 2) * 1.08, controls.minDistance, controls.maxDistance);
+    stopTransition();
+    if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const from = new T.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
+      const to = new T.Spherical().setFromVector3(direction.normalize().multiplyScalar(distance));
+      // Orbit around the board via the shortest turn, never through its centre.
+      const angle = to.theta - from.theta;
+      to.theta = from.theta + Math.atan2(Math.sin(angle), Math.cos(angle));
+      transition = { start: performance.now(), from, to, fromTarget: controls.target.clone(), toTarget: target.clone() };
+      canvas.dataset.viewTransition = 'running';
+      render();
+      return;
+    }
     controls.target.copy(target);
     camera.position.copy(target).add(direction.normalize().multiplyScalar(distance));
     camera.lookAt(target); controls.update(); render();
   }
-  function view(side = 'reset') {
+  function view(side = 'reset', animate = true) {
     if (!model) return;
     currentView = side; clearSelection();
-    focus(center, radius, new T.Vector3(...(side === 'front' ? [0,0,1] : side === 'back' ? [0,0,-1] : [.065,-.080,.162])));
+    focus(center, radius, new T.Vector3(...(side === 'front' ? [0,0,1] : side === 'back' ? [0,0,-1] : [.065,-.080,.162])), animate);
   }
   function select(key) {
     const part = parts.get(key); if (!part) return;
@@ -80,9 +113,15 @@ export function createBoardViewer(host, assetPath, componentKeys, { onReady, onE
     const bounds = new T.Box3().setFromObject(part);
     const target = bounds.getCenter(new T.Vector3());
     const direction = target.z < -.001 ? new T.Vector3(.3,-.25,-1) : new T.Vector3(.3,-.4,1);
+    if (key === 'microsd') {
+      // The fitted camera covers the socket face; show its opening at the top edge.
+      target.y = bounds.max.y;
+      direction.set(.25, 1, .45);
+    }
     focus(target, Math.max(bounds.getBoundingSphere(new T.Sphere()).radius, .012), direction);
   }
   function zoom(factor) {
+    stopTransition();
     const offset = camera.position.clone().sub(controls.target);
     offset.setLength(T.MathUtils.clamp(offset.length()*factor, controls.minDistance, controls.maxDistance));
     camera.position.copy(controls.target).add(offset);controls.update();render();
@@ -108,13 +147,14 @@ export function createBoardViewer(host, assetPath, componentKeys, { onReady, onE
   }
   function dispose() {
     if (disposed) return;
-    disposed = true;abort.abort();cancelAnimationFrame(frame);observer.disconnect();
-    controls.removeEventListener('change', render);controls.dispose();
+    disposed = true;stopTransition();abort.abort();cancelAnimationFrame(frame);observer.disconnect();
+    controls.removeEventListener('start', stopTransition);controls.removeEventListener('change', render);controls.dispose();
     canvas.removeEventListener('pointerdown',pointerDown);canvas.removeEventListener('pointerup',pointerUp);canvas.removeEventListener('webglcontextlost',contextLost);
     clearSelection();releaseModel(model);environment.dispose();scene.clear();renderer.dispose();renderer.forceContextLoss();canvas.remove();
   }
   function fail() { if (!disposed) { dispose();onError(); } }
   controls.addEventListener('change', render);
+  controls.addEventListener('start', stopTransition);
   canvas.addEventListener('pointerdown',pointerDown);canvas.addEventListener('pointerup',pointerUp);canvas.addEventListener('webglcontextlost',contextLost);
   const observer = new ResizeObserver(resize);observer.observe(host.parentElement);
   resize();
@@ -131,7 +171,7 @@ export function createBoardViewer(host, assetPath, componentKeys, { onReady, onE
     for (const key of componentKeys) { const part=model.getObjectByName(key);if(part)parts.set(key,part); }
     const sphere = new T.Box3().setFromObject(model).getBoundingSphere(new T.Sphere());
     center.copy(sphere.center);radius=sphere.radius;
-    view();onReady();
+    view('reset', false);onReady();
   })().catch(fail);
   return { dispose, select, view, zoom };
 }
