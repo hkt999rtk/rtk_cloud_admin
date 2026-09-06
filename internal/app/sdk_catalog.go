@@ -15,6 +15,9 @@ func (s *Server) configureSDKPortal() {
 }
 
 func (s *Server) registerSDKPortalRoutes() {
+	s.mux.HandleFunc("GET /api/developer/chipset-sdk/context", s.apiSDKContext)
+	s.mux.HandleFunc("GET /api/developer/console/context", s.apiSDKContext)
+	s.mux.HandleFunc("GET /api/developer/console/clouds-context", s.apiSDKContext)
 	s.mux.HandleFunc("GET /api/developer/sdk-releases/latest", s.apiDeveloperSDKReleaseLatest)
 }
 
