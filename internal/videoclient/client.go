@@ -225,6 +225,8 @@ type FleetHealthDistribution struct {
 	Warning  int `json:"warning"`
 	Critical int `json:"critical"`
 	Unknown  int `json:"unknown"`
+	Stale    int `json:"stale"`
+	Total    int `json:"total"`
 }
 
 type FleetHealthTrendPoint struct {
@@ -243,6 +245,57 @@ type FleetHealthSummary struct {
 	Distribution    FleetHealthDistribution `json:"distribution"`
 	Trend7D         []FleetHealthTrendPoint `json:"trend_7d"`
 	Trend30D        []FleetHealthTrendPoint `json:"trend_30d"`
+}
+
+type FleetPresenceCurrent struct {
+	Online  int `json:"online"`
+	Offline int `json:"offline"`
+	Unknown int `json:"unknown"`
+	Total   int `json:"total"`
+}
+
+type FleetPresenceTrendPoint struct {
+	Date            string `json:"date"`
+	OnlineSeconds   int64  `json:"online_seconds"`
+	OfflineSeconds  int64  `json:"offline_seconds"`
+	KnownSeconds    int64  `json:"known_seconds"`
+	ExpectedSeconds int64  `json:"expected_seconds"`
+}
+
+type FleetPresenceHistory struct {
+	OnlineSeconds   int64                     `json:"online_seconds"`
+	OfflineSeconds  int64                     `json:"offline_seconds"`
+	KnownSeconds    int64                     `json:"known_seconds"`
+	ExpectedSeconds int64                     `json:"expected_seconds"`
+	OnlineRatePct   *float64                  `json:"online_rate_pct"`
+	CoveragePct     *float64                  `json:"coverage_pct"`
+	Trend           []FleetPresenceTrendPoint `json:"trend"`
+}
+
+type FleetPresenceSummary struct {
+	SourceStatus  string               `json:"source_status"`
+	SourceMessage string               `json:"source_message"`
+	AsOf          time.Time            `json:"as_of"`
+	Current       FleetPresenceCurrent `json:"current"`
+	History       FleetPresenceHistory `json:"history"`
+}
+
+type FleetAttentionItem struct {
+	DeviceID        string    `json:"device_id"`
+	AccountDeviceID string    `json:"account_device_id"`
+	DeviceName      string    `json:"device_name"`
+	State           string    `json:"state"`
+	Reason          string    `json:"reason"`
+	ObservedAt      time.Time `json:"observed_at"`
+}
+
+type FleetAttentionPage struct {
+	Items      []FleetAttentionItem `json:"items"`
+	Pagination struct {
+		Offset int `json:"offset"`
+		Limit  int `json:"limit"`
+		Total  int `json:"total"`
+	} `json:"pagination"`
 }
 
 func New(baseURL string) *Client {
@@ -603,6 +656,10 @@ func (c *Client) DeviceTelemetry(ctx context.Context, adminToken, devid, orgID s
 }
 
 func (c *Client) FleetStreamStats(ctx context.Context, adminToken, orgID, window string, devices []string) (FleetStreamStats, error) {
+	return c.FleetStreamStatsAt(ctx, adminToken, orgID, window, devices, time.Time{})
+}
+
+func (c *Client) FleetStreamStatsAt(ctx context.Context, adminToken, orgID, window string, devices []string, asOf time.Time) (FleetStreamStats, error) {
 	if !c.Enabled() {
 		return FleetStreamStats{}, fmt.Errorf("video cloud base URL is not configured")
 	}
@@ -612,6 +669,9 @@ func (c *Client) FleetStreamStats(ctx context.Context, adminToken, orgID, window
 	}
 	if strings.TrimSpace(window) != "" {
 		q.Set("window", strings.TrimSpace(window))
+	}
+	if !asOf.IsZero() {
+		q.Set("as_of", asOf.UTC().Format(time.RFC3339Nano))
 	}
 	cleanDevices := make([]string, 0, len(devices))
 	for _, device := range devices {
@@ -643,4 +703,63 @@ func (c *Client) FleetHealthSummary(ctx context.Context, adminToken, orgID strin
 		return FleetHealthSummary{}, err
 	}
 	return out, nil
+}
+
+func (c *Client) FleetHealthSummaryScoped(ctx context.Context, adminToken, orgID string, devices []string) (FleetHealthSummary, error) {
+	return c.FleetHealthSummaryScopedAt(ctx, adminToken, orgID, devices, time.Time{})
+}
+
+func (c *Client) FleetHealthSummaryScopedAt(ctx context.Context, adminToken, orgID string, devices []string, asOf time.Time) (FleetHealthSummary, error) {
+	var out FleetHealthSummary
+	extra := url.Values{}
+	if !asOf.IsZero() {
+		extra.Set("as_of", asOf.UTC().Format(time.RFC3339Nano))
+	}
+	err := c.doJSON(ctx, http.MethodGet, fleetScopedPath("/api/fleet/health-summary", orgID, devices, extra), adminToken, nil, &out)
+	return out, err
+}
+
+func (c *Client) FleetPresenceSummary(ctx context.Context, adminToken, orgID string, devices []string) (FleetPresenceSummary, error) {
+	return c.FleetPresenceSummaryAt(ctx, adminToken, orgID, devices, time.Time{})
+}
+
+func (c *Client) FleetPresenceSummaryAt(ctx context.Context, adminToken, orgID string, devices []string, asOf time.Time) (FleetPresenceSummary, error) {
+	var out FleetPresenceSummary
+	extra := url.Values{}
+	if !asOf.IsZero() {
+		extra.Set("as_of", asOf.UTC().Format(time.RFC3339Nano))
+	}
+	err := c.doJSON(ctx, http.MethodGet, fleetScopedPath("/api/fleet/presence-summary", orgID, devices, extra), adminToken, nil, &out)
+	return out, err
+}
+
+func (c *Client) FleetHealthAttention(ctx context.Context, adminToken, orgID string, devices []string, offset, limit int) (FleetAttentionPage, error) {
+	return c.FleetHealthAttentionAt(ctx, adminToken, orgID, devices, offset, limit, time.Time{})
+}
+
+func (c *Client) FleetHealthAttentionAt(ctx context.Context, adminToken, orgID string, devices []string, offset, limit int, asOf time.Time) (FleetAttentionPage, error) {
+	extra := url.Values{"offset": {fmt.Sprint(offset)}, "limit": {fmt.Sprint(limit)}}
+	if !asOf.IsZero() {
+		extra.Set("as_of", asOf.UTC().Format(time.RFC3339Nano))
+	}
+	var out FleetAttentionPage
+	err := c.doJSON(ctx, http.MethodGet, fleetScopedPath("/api/fleet/health-attention", orgID, devices, extra), adminToken, nil, &out)
+	return out, err
+}
+
+func fleetScopedPath(path, orgID string, devices []string, extra url.Values) string {
+	q := url.Values{}
+	for key, values := range extra {
+		q[key] = append([]string(nil), values...)
+	}
+	q.Set("org_id", strings.TrimSpace(orgID))
+	clean := make([]string, 0, len(devices))
+	for _, id := range devices {
+		if id = strings.TrimSpace(id); id != "" {
+			clean = append(clean, id)
+		}
+	}
+	// Set even when empty: an empty authorized scope must not mean the whole Cloud.
+	q.Set("devices", strings.Join(clean, ","))
+	return path + "?" + q.Encode()
 }

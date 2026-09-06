@@ -95,6 +95,25 @@ func TestDisabledClient(t *testing.T) {
 	}
 }
 
+func TestFleetScopeAlwaysSendsExplicitDevicesIncludingEmpty(t *testing.T) {
+	t.Parallel()
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/fleet/presence-summary" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		values, present := r.URL.Query()["devices"]
+		if !present || len(values) != 1 || values[0] != "" {
+			t.Fatalf("devices scope = %#v, present=%v; empty scope must be explicit", values, present)
+		}
+		_ = json.NewEncoder(w).Encode(FleetPresenceSummary{SourceStatus: "available"})
+	}))
+	defer upstream.Close()
+	_, err := New(upstream.URL).FleetPresenceSummaryAt(t.Context(), "fleet-token", "org-1", []string{}, time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestOTAConfigSuccessAndErrors(t *testing.T) {
 	t.Parallel()
 

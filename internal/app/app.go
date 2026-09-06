@@ -535,6 +535,8 @@ func (s *Server) scopedCustomerRoutes() {
 	register("GET "+root+"/fleet/summary", s.apiFleetSummary)
 	register("GET "+root+"/fleet/health-summary", s.apiFleetHealthSummary)
 	register("GET "+root+"/fleet/stream-stats", s.apiFleetStreamStats)
+	register("GET "+root+"/fleet/overview", s.apiFleetOverview)
+	register("GET "+root+"/fleet/attention", s.apiFleetAttention)
 	register("GET "+root+"/fleet/firmware-distribution", s.apiFleetFirmwareDistribution)
 	register("GET "+root+"/devices/{id}", s.apiDevice)
 	register("GET "+root+"/devices/{id}/telemetry", s.apiDeviceTelemetry)
@@ -573,6 +575,10 @@ func (s *Server) scopedCustomerRoutes() {
 	register("GET "+root+"/update-plans/{id}", s.apiUpdatePlans)
 	register("POST "+root+"/update-plans/{id}/{action}", s.apiUpdatePlans)
 	register("GET "+root+"/operations", s.apiOperations)
+	// Canonical fleet analytics routes. The brand-cloud form above remains for
+	// compatibility with existing Console clients.
+	register("GET /api/developer/clouds/{brandCloudID}/fleet/overview", s.apiFleetOverview)
+	register("GET /api/developer/clouds/{brandCloudID}/fleet/attention", s.apiFleetAttention)
 }
 
 const (
@@ -3435,9 +3441,14 @@ func (s *Server) apiFleetHealthSummary(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
+	devices, err := s.customerStreamDevices(r.Context(), session, orgID)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
 	status, message := s.customerFleetSourceStatus()
-	if s.videoClient.Enabled() && strings.TrimSpace(s.cfg.VideoCloudAdminToken) != "" {
-		summary, sourceErr := s.videoClient.FleetHealthSummary(r.Context(), s.cfg.VideoCloudAdminToken, orgID)
+	if s.videoClient.Enabled() && s.videoCloudFleetReadToken() != "" {
+		summary, sourceErr := s.videoClient.FleetHealthSummaryScoped(r.Context(), s.videoCloudFleetReadToken(), orgID, videoCloudDeviceIDs(devices))
 		if sourceErr != nil {
 			writeJSON(w, unavailableFleetHealthSummary(orgID, days, "unavailable", "Telemetry source is unavailable."))
 			return
@@ -3470,8 +3481,8 @@ func (s *Server) apiFleetStreamStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	devices = filterDevicesByOrg(devices, orgID)
-	if s.videoClient.Enabled() && strings.TrimSpace(s.cfg.VideoCloudAdminToken) != "" {
-		stats, err := s.videoClient.FleetStreamStats(r.Context(), s.cfg.VideoCloudAdminToken, orgID, window, videoCloudDeviceIDs(devices))
+	if s.videoClient.Enabled() && s.videoCloudFleetReadToken() != "" {
+		stats, err := s.videoClient.FleetStreamStats(r.Context(), s.videoCloudFleetReadToken(), orgID, window, videoCloudDeviceIDs(devices))
 		if err != nil {
 			writeJSON(w, unavailableFleetStreamStats(orgID, window, "unavailable", "Stream source is unavailable."))
 			return
@@ -6012,27 +6023,57 @@ func (s *Server) customerStreamDevices(ctx context.Context, session store.Sessio
 		}
 		return filterDevicesByOrg(allDevices, orgID), nil
 	}
-	org, tokens, err := s.activeCustomerOrg(ctx, session)
+	org, upstreamDevices, err := s.customerAuthorizedFleetDevices(ctx, session)
 	if err != nil {
 		return nil, err
-	}
-	var upstreamDevices []accountclient.Device
-	tokens, err = s.customerCall(ctx, tokens, func(token string) error {
-		var callErr error
-		upstreamDevices, callErr = s.accountClient.Devices(ctx, token, org.ID)
-		return callErr
-	})
-	if err != nil {
-		return nil, err
-	}
-	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
-		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
 	}
 	devices := make([]contracts.Device, 0, len(upstreamDevices))
 	for _, device := range upstreamDevices {
 		devices = append(devices, mapUpstreamDevice(org, device, nil))
 	}
 	return devices, nil
+}
+
+func (s *Server) customerAuthorizedFleetDevices(ctx context.Context, session store.Session) (accountclient.Organization, []accountclient.Device, error) {
+	org, tokens, err := s.activeCustomerOrg(ctx, session)
+	if err != nil {
+		return accountclient.Organization{}, nil, err
+	}
+	const pageSize = 250
+	devices := make([]accountclient.Device, 0)
+	seen := map[string]struct{}{}
+	for offset := 0; ; offset += pageSize {
+		query := url.Values{"limit": {strconv.Itoa(pageSize)}, "offset": {strconv.Itoa(offset)}}
+		var page accountclient.FleetDevicesPage
+		tokens, err = s.customerCall(ctx, tokens, func(token string) error {
+			var callErr error
+			page, callErr = s.accountClient.FleetDevices(ctx, token, org.ID, query)
+			return callErr
+		})
+		if err != nil {
+			return accountclient.Organization{}, nil, err
+		}
+		for _, dev := range page.Devices {
+			if dev.OrganizationID != org.ID {
+				return accountclient.Organization{}, nil, errors.New("Account Manager returned a device outside the authorized Cloud")
+			}
+			if _, duplicate := seen[dev.ID]; duplicate {
+				return accountclient.Organization{}, nil, errors.New("Account Manager returned duplicate fleet devices")
+			}
+			seen[dev.ID] = struct{}{}
+			devices = append(devices, dev)
+		}
+		if len(page.Devices) == 0 || offset+len(page.Devices) >= page.Pagination.Total {
+			break
+		}
+		if page.Pagination.Total <= 0 || page.Pagination.Offset != offset {
+			return accountclient.Organization{}, nil, errors.New("Account Manager returned invalid fleet pagination")
+		}
+	}
+	if tokens.AccessToken != session.AccessToken || tokens.RefreshToken != session.RefreshToken {
+		_ = s.sessions.UpdateSessionTokens(session.ID, tokens.AccessToken, tokens.RefreshToken, tokenTTL(tokens))
+	}
+	return org, devices, nil
 }
 
 func (s *Server) usePlatformAdminUpstream(session store.Session) bool {

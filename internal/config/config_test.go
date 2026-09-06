@@ -11,6 +11,7 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	t.Setenv("BILLING_SERVICE_TOKEN", "billing-service-token")
 	t.Setenv("VIDEO_CLOUD_BASE_URL", "https://video.example")
 	t.Setenv("VIDEO_CLOUD_ADMIN_TOKEN", "video-admin-token")
+	t.Setenv("VIDEO_CLOUD_FLEET_READ_TOKEN", "fleet-read-token")
 	t.Setenv("VIDEO_CLOUD_PROMETHEUS_BASE_URL", "http://10.42.1.30:9090")
 	t.Setenv("CLOUD_ADMIN_GRAFANA_BASE_URL", "http://grafana.observability.svc.cluster.local:3000")
 	t.Setenv("CLOUD_ADMIN_GRAFANA_DASHBOARD_PATH", "/d/custom/custom-dashboard")
@@ -38,6 +39,9 @@ func TestFromEnvDefaultsAndOverrides(t *testing.T) {
 	}
 	if cfg.VideoCloudAdminToken != "video-admin-token" {
 		t.Fatalf("VideoCloudAdminToken = %q", cfg.VideoCloudAdminToken)
+	}
+	if cfg.VideoCloudFleetReadToken != "fleet-read-token" {
+		t.Fatalf("VideoCloudFleetReadToken = %q", cfg.VideoCloudFleetReadToken)
 	}
 	if cfg.VideoCloudPrometheusBaseURL != "http://10.42.1.30:9090" {
 		t.Fatalf("VideoCloudPrometheusBaseURL = %q", cfg.VideoCloudPrometheusBaseURL)

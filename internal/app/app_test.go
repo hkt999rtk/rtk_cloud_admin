@@ -2557,11 +2557,12 @@ func TestFleetStreamStatsProxyModeUsesVideoCloudAndActiveOrg(t *testing.T) {
 					{"id": "org-nova", "name": "Nova", "role": "viewer"},
 				},
 			})
-		case "/v1/orgs/org-acme/devices":
+		case "/v1/orgs/org-acme/fleet/devices":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"devices": []map[string]any{
 					{"id": "dev-acme", "organization_id": "org-acme", "organization": "Acme", "name": "Acme Cam", "category": "ip_camera", "model": "RTK-CAM-A", "serial_number": "ACME-001", "video_cloud_devid": "vc-acme", "status": "online", "readiness": "online", "last_seen_at": "2026-05-11T00:00:00Z", "updated_at": "2026-05-11T00:00:00Z"},
 				},
+				"pagination": map[string]any{"limit": 250, "offset": 0, "total": 1},
 			})
 		case "/v1/orgs/org-nova/devices":
 			t.Fatalf("inactive organization devices endpoint should not be called")

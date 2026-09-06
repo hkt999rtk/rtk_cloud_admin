@@ -285,6 +285,8 @@ function App() {
   const [fleetHealth, setFleetHealth] = useState(null);
   const [streamStats, setStreamStats] = useState(null);
   const [recentAlerts, setRecentAlerts] = useState([]);
+  const [fleetOverview, setFleetOverview] = useState(null);
+  const [fleetAttention, setFleetAttention] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [devices, setDevices] = useState([]);
   const [fleetDevices, setFleetDevices] = useState(null);
@@ -355,6 +357,8 @@ function App() {
     setFleetHealth(null);
     setStreamStats(null);
     setRecentAlerts([]);
+    setFleetOverview(null);
+    setFleetAttention(null);
     setCustomers([]);
     setDevices([]);
     setFleetDevices(null);
@@ -653,7 +657,24 @@ function App() {
         // Legacy Billing URLs cannot infer a target from shared active-org state.
         setBilling(null);
 
-        if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi) {
+        if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi && active === 'overview') {
+          const [nextOverview, nextAttention] = await Promise.all([
+            fetchJSON(apiPath('/api/fleet/overview')).catch((err) => {
+              if (err.isAuthError) throw err;
+              return null;
+            }),
+            fetchJSON(apiPath('/api/fleet/attention?limit=50&offset=0')).catch((err) => {
+              if (err.isAuthError) throw err;
+              return { items: [], source: { status: 'unavailable', message: translate('Health details are temporarily unavailable.') } };
+            }),
+          ]);
+          if (!alive) return;
+          setFleetOverview(nextOverview);
+          setFleetAttention(nextAttention);
+          setFleetHealth(null);
+          setStreamStats(null);
+          setRecentAlerts([]);
+        } else if (nextMe.authenticated && nextMe.kind === 'customer' && !useAdminApi && ['stream-health', 'analytics'].includes(active)) {
           const streamWindowToUse = active === 'stream-health' ? streamWindow : overviewWindow;
           const [nextFleetHealth, nextStreamStats] = await Promise.all([
             fetchJSON(apiPath(`/api/fleet/health-summary?window=${overviewWindow}`))
@@ -670,17 +691,15 @@ function App() {
           if (!alive) return;
           setFleetHealth(nextFleetHealth);
           setStreamStats(nextStreamStats);
-          if (active === 'overview' && sourceAvailable(nextFleetHealth)) {
-            const nextAlerts = await fetchRecentAlerts(nextDevices, requestedCloudId);
-            if (!alive) return;
-            setRecentAlerts(nextAlerts);
-          } else {
-            setRecentAlerts([]);
-          }
+          setFleetOverview(null);
+          setFleetAttention(null);
+          setRecentAlerts([]);
         } else {
           setFleetHealth(null);
           setStreamStats(null);
           setRecentAlerts([]);
+          setFleetOverview(null);
+          setFleetAttention(null);
           setBilling(null);
         }
       } catch (err) {
@@ -712,6 +731,8 @@ function App() {
           setFleetHealth(null);
           setStreamStats(null);
           setRecentAlerts([]);
+          setFleetOverview(null);
+          setFleetAttention(null);
         }
         if (alive) {
           if (!isPlatformView && [403, 404].includes(err.status) && cloudIdFromPath(window.location.pathname)) {
@@ -1237,6 +1258,8 @@ function App() {
             fleetHealth={fleetHealth}
             streamStats={streamStats}
             recentAlerts={recentAlerts}
+            fleetOverview={fleetOverview}
+            fleetAttention={fleetAttention}
             overviewWindow={overviewWindow}
             setOverviewWindow={setOverviewWindow}
             loading={loading}
@@ -2002,6 +2025,8 @@ function BrandCloudPage({
   fleetHealth,
   streamStats,
   recentAlerts,
+  fleetOverview,
+  fleetAttention,
   overviewWindow,
   setOverviewWindow,
   loading,
@@ -2045,6 +2070,8 @@ function BrandCloudPage({
       fleetHealth={fleetHealth}
       streamStats={streamStats}
       recentAlerts={recentAlerts}
+      fleetOverview={fleetOverview}
+      fleetAttention={fleetAttention}
       overviewWindow={overviewWindow}
       setOverviewWindow={setOverviewWindow}
       me={me}
@@ -2108,6 +2135,8 @@ function Overview({
   fleetHealth,
   streamStats,
   recentAlerts,
+  fleetOverview,
+  fleetAttention,
   overviewWindow,
   setOverviewWindow,
   me,
@@ -2126,14 +2155,28 @@ function Overview({
   const quotaRatio = `${activeDevices} / ${quotaLimit} devices`;
   const isEvaluation = (activeMembership?.tier || '').toLowerCase() === 'evaluation';
   const nearQuota = isEvaluation && activeDevices >= Math.max(quotaLimit - 1, 1);
-  const current = fleetHealth?.current || {};
-  const onlineCount = summary?.online_devices;
-  const telemetryAvailable = sourceAvailable(fleetHealth);
-  const streamAvailable = sourceAvailable(streamStats);
+  const current = fleetOverview?.health || fleetHealth?.current || {};
+  const displayFleetHealth = fleetOverview ? {
+    source_status: fleetOverview?.health?.source?.status,
+    source_message: fleetOverview?.health?.source?.message,
+    current,
+    online_rate_7d_pct: fleetOverview?.presence?.online_rate_7d_pct,
+    trend: (fleetOverview?.presence?.trend || []).map((point) => ({
+      date: point.date,
+      online_pct: point.online_rate_pct,
+      warning_count: fleetOverview?.health?.trend?.find((healthPoint) => healthPoint.date === point.date)?.warning || 0,
+      critical_count: fleetOverview?.health?.trend?.find((healthPoint) => healthPoint.date === point.date)?.critical || 0,
+    })),
+  } : fleetHealth;
+  const onlineCount = fleetOverview?.presence?.current?.online ?? summary?.online_devices;
+  const onlineTotal = fleetOverview?.presence?.current?.total ?? summary?.total_devices;
+  const onlineUnknown = fleetOverview?.presence?.current?.unknown ?? 0;
+  const telemetryAvailable = fleetOverview ? ['available', 'partial'].includes(fleetOverview?.health?.source?.status) : sourceAvailable(fleetHealth);
+  const streamAvailable = fleetOverview ? ['available', 'partial'].includes(fleetOverview?.sessions?.source?.status) : sourceAvailable(streamStats);
   const telemetryState = sourceStateForPanel({
     loading,
-    source: fleetHealth,
-    hasData: Boolean(fleetHealth?.current || fleetHealth?.trend?.length),
+    source: displayFleetHealth,
+    hasData: Boolean(displayFleetHealth?.current || displayFleetHealth?.trend?.length),
     category: 'telemetry',
     fallbackMessage: 'No telemetry source configured.',
   });
@@ -2144,23 +2187,30 @@ function Overview({
     category: 'stream',
     fallbackMessage: 'No stream source configured.',
   });
-  const onlineRate = telemetryAvailable ? fleetHealth?.online_rate_7d_pct : null;
+  const onlineRate = fleetOverview?.presence?.online_rate_7d_pct ?? (telemetryAvailable ? fleetHealth?.online_rate_7d_pct : null);
+  const coverageRate = fleetOverview?.presence?.coverage_7d_pct;
   const needsAttention = telemetryAvailable && (current.warning !== undefined || current.critical !== undefined)
     ? (current.warning || 0) + (current.critical || 0)
     : 'N/A';
-  const activeStreams = streamAvailable ? (streamStats?.active_sessions ?? 0) : 'N/A';
-  const telemetryReason = telemetryState.message || sourceMessage(fleetHealth, 'No telemetry source configured.');
+  const activeStreams = streamAvailable ? (fleetOverview?.sessions?.active_sessions ?? streamStats?.active_sessions ?? 0) : 'N/A';
+  const telemetryReason = telemetryState.message || sourceMessage(displayFleetHealth, 'No telemetry source configured.');
   const streamReason = streamState.message || sourceMessage(streamStats, 'No stream source configured.');
-  const attentionDevices = buildAttentionQueue(devices, recentAlerts);
+  const attentionDevices = fleetAttention?.items?.map((item) => ({
+    device_id: item.account_device_id || item.device_id,
+    device_name: item.device_name || item.account_device_id || item.device_id,
+    issue: item.reason || `${toTitleCase(item.state)} health status`,
+    tone: item.state === 'critical' ? 'danger' : 'warn',
+    since: item.observed_at ? formatRelativeTime(item.observed_at) : '—',
+  })) || buildAttentionQueue(devices, recentAlerts);
 
   return (
     <div className="overview-layout">
       <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
       <section className="metrics overview-metrics">
-        <MetricCard icon="video" label="Online" value={Number.isFinite(onlineCount) ? `${onlineCount} / ${summary.total_devices ?? onlineCount}` : 'Unknown'} hint="Devices online" tone="info" />
-        <MetricCard icon="chart-line" label="Online Rate" value={telemetryAvailable ? formatPercent(onlineRate) : 'N/A'} hint={telemetryAvailable ? '7-day trend' : 'Telemetry unavailable'} tone="info" />
+        <MetricCard icon="video" label="Online" value={Number.isFinite(onlineCount) ? `${onlineCount} / ${onlineTotal ?? onlineCount}` : 'Unknown'} hint={onlineUnknown > 0 ? `${onlineUnknown} devices have unknown presence` : 'Provisioned devices currently online'} tone="info" />
+        <MetricCard icon="chart-line" label="7-day Online Rate" value={onlineRate == null ? 'N/A' : formatPercent(onlineRate)} hint={coverageRate == null ? 'Historical presence is accumulating' : `${formatPercent(coverageRate)} data coverage`} tone="info" />
         <MetricCard icon="triangle-exclamation" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : 'Telemetry unavailable'} tone={needsAttention === 0 ? 'good' : 'warn'} />
-        <MetricCard icon="tower-broadcast" label="Active Streams" value={activeStreams} hint={streamAvailable ? 'Current streaming sessions' : 'Stream data unavailable'} tone="info" />
+        <MetricCard icon="tower-broadcast" label="Active Sessions" value={activeStreams} hint={streamAvailable ? 'WebRTC sessions established and not closed or expired; playback is not confirmed' : 'Session data unavailable'} tone="info" />
       </section>
 
 
@@ -2169,16 +2219,16 @@ function Overview({
       {telemetryAvailable && <section className="overview-grid">
         <HealthDistributionPanel
           loading={loading}
-          current={fleetHealth?.current}
+          current={displayFleetHealth?.current}
           onFilter={onHealthFilter}
-          source={fleetHealth}
+          source={displayFleetHealth}
         />
         <FleetHealthTrendPanel
           loading={loading}
-          trend={fleetHealth?.trend || []}
+          trend={displayFleetHealth?.trend || []}
           window={overviewWindow}
           onWindowChange={setOverviewWindow}
-          source={fleetHealth}
+          source={displayFleetHealth}
         />
       </section>}
       {!streamAvailable && <SourceBlockedState title={streamState.title} message={streamReason} />}
