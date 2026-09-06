@@ -36,7 +36,8 @@
   margin-bottom: 16px;
 }
 
-.sdk-section-heading h2 { margin: 0 0 6px; }
+.sdk-section-heading h2 { margin: 0 0 6px; display: flex; align-items: center; gap: 9px; }
+.sdk-section-heading h2 > i { color: var(--brand); font-size: .86em; }
 .sdk-section-heading p { color: var(--muted); margin: 0; max-width: 920px; }
 
 .sdk-release-summary {
@@ -72,7 +73,9 @@
 }
 
 .cloud-sdk-card-heading h3 { margin: 0; }
-.sdk-format { color: var(--brand); font-size: 11px; font-weight: 800; letter-spacing: .04em; margin: 0 0 4px; text-transform: uppercase; }
+.sdk-format { color: var(--brand); font-size: 11px; font-weight: 800; letter-spacing: .04em; margin: 0 0 4px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 7px; }
+.sdk-format > i { width: 15px; text-align: center; font-size: 12px; }
+.cloud-sdk-card-heading .status-badge { display: inline-flex; align-items: center; gap: 5px; }
 
 .cloud-sdk-metadata {
   display: grid;

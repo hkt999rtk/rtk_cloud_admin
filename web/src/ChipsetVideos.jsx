@@ -17,12 +17,12 @@ export function ChipsetVideos({ chipset, boardKey, preview = false }) {
   function update(name, value) { setFilters(current => ({ ...current, [name]: value })); }
   if (!resources.length) return null;
   return <section className={`chipset-videos${preview ? ' chipset-videos-preview' : ' panel'}`} aria-labelledby={`${id}-heading`}>
-    <div className="chipset-videos-heading"><div><Heading id={`${id}-heading`}>Development videos</Heading><p>Learn with official tutorials and community projects. Check the SDK guides for current setup instructions.</p></div>{videos.length > 0 ? <span className="chipset-video-total">{videos.length} videos</span> : null}</div>
+    <div className="chipset-videos-heading"><div><Heading id={`${id}-heading`}><Icon name="circle-play" />Development videos</Heading><p>Learn with official tutorials and community projects. Check the SDK guides for current setup instructions.</p></div>{videos.length > 0 ? <span className="chipset-video-total"><Icon name="film" />{videos.length} videos</span> : null}</div>
     {expanded && videos.length > 0 ? <div className="chipset-video-filters">
-      <label>Search videos<input className="input" type="search" value={filters.query} onChange={event => update('query', event.target.value)} placeholder="Title, topic or channel" /></label>
-      <label>Topic<select className="input" value={filters.topic} onChange={event => update('topic', event.target.value)}><option value="all">All topics</option>{Object.entries(VIDEO_TOPICS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
-      <label>SDK<select className="input" value={filters.sdk} onChange={event => update('sdk', event.target.value)}><option value="all">All SDKs</option>{Object.entries(VIDEO_SDKS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
-      <label>Language<select className="input" value={filters.language} onChange={event => update('language', event.target.value)}><option value="all">All languages</option>{languages.map(language => <option value={language} key={language}>{language}</option>)}</select></label>
+      <label><span><Icon name="magnifying-glass" />Search videos</span><input className="input" type="search" value={filters.query} onChange={event => update('query', event.target.value)} placeholder="Title, topic or channel" /></label>
+      <label><span><Icon name="layer-group" />Topic</span><select className="input" value={filters.topic} onChange={event => update('topic', event.target.value)}><option value="all">All topics</option>{Object.entries(VIDEO_TOPICS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
+      <label><span><Icon name="code" />SDK</span><select className="input" value={filters.sdk} onChange={event => update('sdk', event.target.value)}><option value="all">All SDKs</option>{Object.entries(VIDEO_SDKS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
+      <label><span><Icon name="language" />Language</span><select className="input" value={filters.language} onChange={event => update('language', event.target.value)}><option value="all">All languages</option>{languages.map(language => <option value={language} key={language}>{language}</option>)}</select></label>
     </div> : null}
     <div id={`${id}-videos`}>
       {expanded && videos.length > 0 ? <p className="chipset-video-results" role="status">{matches.length} of {videos.length} videos</p> : null}
@@ -30,7 +30,7 @@ export function ChipsetVideos({ chipset, boardKey, preview = false }) {
       {expanded && videos.length > 0 && !matches.length ? <div className="chipset-video-empty"><p>No matching videos. Try another topic, SDK or language.</p><button type="button" className="ghost-button" onClick={() => setFilters({ query: '', topic: 'all', sdk: 'all', language: 'all' })}>Clear filters</button></div> : null}
     </div>
     {preview && videos.length > 3 ? <button className="ghost-button chipset-video-expand" type="button" aria-expanded={expanded} aria-controls={`${id}-videos`} onClick={() => setExpanded(value => !value)}>{expanded ? 'Show featured videos' : `View all ${videos.length} videos`}</button> : null}
-    {playlists.length ? <div className="chipset-video-playlists"><strong>Explore playlists</strong>{playlists.map(playlist => <a key={playlist.key} href={playlist.url} target="_blank" rel="noopener noreferrer">{playlist.title} <span aria-hidden="true">↗</span></a>)}</div> : null}
+    {playlists.length ? <div className="chipset-video-playlists"><strong><Icon name="list" />Explore playlists</strong>{playlists.map(playlist => <a key={playlist.key} href={playlist.url} target="_blank" rel="noopener noreferrer">{playlist.title} <span aria-hidden="true">↗</span></a>)}</div> : null}
   </section>;
 }
 
@@ -44,8 +44,10 @@ function VideoCard({ video, Heading }) {
     <div className="chipset-video-body">
       {video.summary ? <p>{video.summary}</p> : null}
       {video.channel ? <p className="chipset-video-channel">{video.channel}</p> : null}
-      <div className="chipset-video-tags">{video.source ? <span className={`resource-source ${video.source}`}>{video.source === 'official' ? 'Official' : 'Community'}</span> : null}{video.kind ? <span>{VIDEO_KINDS[video.kind]}</span> : null}{video.topic ? <span>{VIDEO_TOPICS[video.topic]}</span> : null}<span>{VIDEO_SDKS[video.sdk]}</span>{video.languages?.map(language => <span key={language}>{language}</span>)}</div>
+      <div className="chipset-video-tags">{video.source ? <span className={`resource-source ${video.source}`}><Icon name={video.source === 'official' ? 'building' : 'people-group'} />{video.source === 'official' ? 'Official' : 'Community'}</span> : null}{video.kind ? <span><Icon name={video.kind === 'tutorial' ? 'graduation-cap' : 'flask'} />{VIDEO_KINDS[video.kind]}</span> : null}{video.topic ? <span><Icon name="tag" />{VIDEO_TOPICS[video.topic]}</span> : null}<span><Icon name="code" />{VIDEO_SDKS[video.sdk]}</span>{video.languages?.map(language => <span key={language}><Icon name="language" />{language}</span>)}</div>
       {video.verified_at ? <small className="chipset-video-verified">Reviewed <time dateTime={video.verified_at}>{video.verified_at.slice(0, 10)}</time></small> : null}
     </div>
   </article>;
 }
+
+function Icon({ name }) { return <i className={`fa-solid fa-${name}`} aria-hidden="true" />; }
