@@ -217,11 +217,13 @@ func aggregateFleetOverview(out *contracts.FleetOverview, batches []fleetOvervie
 	trend := map[string]*contracts.FleetPresenceTrendPoint{}
 	healthTrend := map[string]*contracts.FleetHealthDaily{}
 	presenceOK, healthOK, streamOK := 0, 0, 0
+	presenceDegraded, healthDegraded := false, false
 	activeSessions := 0
 	for _, batch := range batches {
 		if batch.presenceErr == nil {
-			if batch.presence.SourceStatus == "available" {
+			if usable, degraded := fleetMetricSourceUsable(batch.presence.SourceStatus); usable {
 				presenceOK++
+				presenceDegraded = presenceDegraded || degraded
 			}
 			out.Presence.Current.Online += batch.presence.Current.Online
 			out.Presence.Current.Offline += batch.presence.Current.Offline
@@ -244,7 +246,10 @@ func aggregateFleetOverview(out *contracts.FleetOverview, batches []fleetOvervie
 			}
 		}
 		if batch.healthErr == nil {
-			healthOK++
+			if usable, degraded := fleetMetricSourceUsable(batch.health.SourceStatus); usable {
+				healthOK++
+				healthDegraded = healthDegraded || degraded
+			}
 			out.Health.Healthy += batch.health.Distribution.Healthy
 			out.Health.Warning += batch.health.Distribution.Warning
 			out.Health.Critical += batch.health.Distribution.Critical
@@ -283,8 +288,27 @@ func aggregateFleetOverview(out *contracts.FleetOverview, batches []fleetOvervie
 	out.Presence.Source = batchSource(presenceOK, len(batches), "Fleet presence data is partially unavailable.")
 	out.Health.Source = batchSource(healthOK, len(batches), "Fleet health data is partially unavailable.")
 	out.Sessions.Source = batchSource(streamOK, len(batches), "WebRTC session data is partially unavailable.")
+	if presenceDegraded {
+		out.Presence.Source.Status = "partial"
+		out.Presence.Source.Message = "Some fleet presence data is stale or partially available."
+	}
+	if healthDegraded {
+		out.Health.Source.Status = "partial"
+		out.Health.Source.Message = "Some fleet health data is stale or partially available."
+	}
 	if streamOK > 0 {
 		out.Sessions.ActiveSessions = &activeSessions
+	}
+}
+
+func fleetMetricSourceUsable(status string) (bool, bool) {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "", "available", "configured", "ok":
+		return true, false
+	case "partial", "stale", "degraded":
+		return true, true
+	default:
+		return false, false
 	}
 }
 
