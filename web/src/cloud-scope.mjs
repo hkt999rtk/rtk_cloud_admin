@@ -8,7 +8,7 @@ export function scopedCustomerAPI(path, cloudId) {
   if (!cloudPattern.test(cloudId)) throw new Error('Invalid cloud ID');
   const input = String(path || '');
   const root = `/api/developer/brand-clouds/${encodeURIComponent(cloudId)}`;
-  for (const prefix of ['/api/fleet', '/api/devices', '/api/groups', '/api/tags', '/api/jobs', '/api/reports', '/api/update-plans', '/api/provisioning', '/api/operations', '/api/audit']) {
+  for (const prefix of ['/api/fleet', '/api/devices', '/api/groups', '/api/tags', '/api/jobs', '/api/reports', '/api/update-plans', '/api/provisioning', '/api/operations']) {
     if (input === prefix || input.startsWith(`${prefix}/`) || input.startsWith(`${prefix}?`)) {
       return `${root}${input.slice('/api'.length)}`;
     }

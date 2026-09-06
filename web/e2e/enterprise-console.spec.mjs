@@ -3,7 +3,7 @@ import { login } from './fixtures/session.mjs';
 
 const cloud = '33333333-3333-4333-8333-333333333333';
 const billingCloud = '11111111-1111-4111-8111-111111111111';
-const pages = ['', '/products', '/fleet', '/firmware-ota', '/analytics', '/members', '/settings', '/audit'];
+const pages = ['', '/products', '/fleet', '/fleet/provisioning', '/firmware-ota', '/analytics', '/members', '/settings'];
 
 for (const width of [1440, 1280, 768, 390]) {
   test(`[UI-CA-ENTERPRISE-LAYOUT-001] enterprise page coverage at ${width}px`, async ({ page }, testInfo) => {
@@ -72,25 +72,6 @@ test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and 
     }
     await testInfo.attach(label, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
   }
-});
-
-test('[UI-CA-ENTERPRISE-AUDIT-001] customer audit is scoped, handles states and excludes internal metadata @smoke', async ({ page }) => {
-  await login(page, 'developer');
-  let status = 200, body = [];
-  const requests = [];
-  page.on('request', request => { if (request.url().includes('/audit')) requests.push(new URL(request.url()).pathname); });
-  await page.route(`**/api/developer/brand-clouds/${cloud}/audit`, route => route.fulfill({ status, json: body }));
-  await page.goto(`/console/clouds/${cloud}/audit`);
-  await expect(page.getByRole('heading', { name: 'No device activity yet' })).toBeVisible();
-  body = [{ id: 1, action: 'DeviceUpdated', target: 'device-001', result: 'accepted', created_at: '2026-09-05T00:00:00Z', upstream_operation_id: 'internal-only-reference' }];
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-  await expect(page.getByRole('cell', { name: 'device-001', exact: true })).toBeVisible();
-  await expect(page.getByText('internal-only-reference')).toHaveCount(0);
-  status = 403;
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Your role cannot view');
-  await expect(page.getByRole('cell', { name: 'device-001' })).toHaveCount(0);
-  expect(requests.filter(path => path.startsWith('/api/'))).not.toContain('/api/audit');
 });
 
 test('[UI-CA-ENTERPRISE-DIALOG-001] create dialog traps focus, escapes, and restores focus @smoke', async ({ page }) => {

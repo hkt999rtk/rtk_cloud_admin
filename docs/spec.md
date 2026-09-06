@@ -250,7 +250,6 @@ and must not be inferred from `mqtt`. Product list capability cells must not
 render human management permissions such as Manage Devices or Edit Product.
 - `GET /api/operations`: lifecycle operation list.
 - `GET /api/service-health`: configured upstream service health.
-- `GET /api/audit`: audit log.
 - `GET /api/admin/audit`: platform-admin protected audit log.
 - `GET /api/admin/brand-clouds`: Account Manager-backed brand cloud list.
 - `POST /api/admin/brand-clouds`: Account Manager-backed brand cloud create.

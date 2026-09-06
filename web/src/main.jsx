@@ -7,7 +7,6 @@ import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
 import { CloudConsoleShell } from './CloudConsoleShell.jsx';
 import { sdkJSON, useSDKSection, sdkNavigationTarget } from './sdk-page.mjs';
-import { CustomerAudit } from './ConsoleUI.jsx';
 import { productInvitationDestination } from './cloud-products.mjs';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
 import { handoffRoute } from './owner-handoff.mjs';
@@ -461,7 +460,7 @@ function App() {
           setDeveloperBrandClouds([]);
         }
 
-        if (!useAdminApi && ['developer-docs', 'audit'].includes(active) && nextMe.kind === 'customer') {
+        if (!useAdminApi && active === 'developer-docs' && nextMe.kind === 'customer') {
           setSummary(null);
           setDevices([]);
           setLoading(false);
@@ -1356,7 +1355,6 @@ function App() {
         ) : null}
         {!needsPlatformAccess && active === 'platform-operations' ? <Operations operations={operations} /> : null}
         {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} loading={loading} /> : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'audit' ? <CustomerAudit cloudId={urlCloudId} /> : null}
     </CloudConsoleShell>
   );
 }

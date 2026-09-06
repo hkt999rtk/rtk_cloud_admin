@@ -33,7 +33,6 @@ export const customerNavGroups = [
       { id: 'access', labelKey: 'Members & Access', segment: 'members', icon: 'users', capabilities: ['team.read', 'role_assignment.read'] },
       { id: 'billing', labelKey: 'Billing', segment: 'billing', icon: 'credit-card', capabilities: ['billing_account.read'], ownerOnly: true },
       { id: 'settings', labelKey: 'Settings', segment: 'settings', icon: 'gear', alwaysVisible: true },
-      { id: 'audit', labelKey: 'Audit', segment: 'audit', icon: 'shield-halved', capabilities: ['audit.read', 'customer.audit.read', 'fleet.read'] },
     ],
   },
 ];
@@ -54,7 +53,6 @@ const cloudRouteSegments = Object.freeze({
   access: 'members',
   billing: 'billing',
   settings: 'settings',
-  audit: 'audit',
 });
 
 // Page-level meaning is separate from sidebar navigation so headings can stay
@@ -63,8 +61,8 @@ export const pageIcons = Object.freeze({
   'test-lab': 'flask',
   'my-clouds': 'cloud', overview: 'gauge-high', devices: 'video',
   'product-services': 'boxes-stacked', 'chipset-sdk': 'code-branch', 'developer-docs': 'book-open',
-  groups: 'tags', access: 'user-shield', settings: 'gear', billing: 'credit-card',
-  'firmware-ota': 'microchip', 'stream-health': 'tower-broadcast', reports: 'chart-column', analytics: 'chart-column', audit: 'shield-halved',
+  groups: 'tags', provisioning: 'file-csv', access: 'user-shield', settings: 'gear', billing: 'credit-card',
+  'firmware-ota': 'microchip', 'stream-health': 'tower-broadcast', reports: 'chart-column', analytics: 'chart-column',
   'platform-dashboard': 'gauge-high', 'platform-grafana': 'chart-simple', 'platform-health': 'heart-pulse',
   'platform-logs': 'file-lines', 'platform-brand-clouds': 'cloud',
   'platform-sso': 'key', 'platform-operations': 'list-check', 'platform-audit': 'shield-halved',
@@ -273,7 +271,6 @@ export function titleFor(active) {
     'stream-health': 'Video Streaming Health',
     reports: 'Reports',
     analytics: 'Analytics',
-    audit: 'Audit',
     billing: 'Billing',
     'platform-dashboard': 'Platform Home',
     'platform-grafana': 'Grafana',
@@ -327,7 +324,6 @@ export function routeFromPath(path) {
     if (suffix === 'members' || suffix.startsWith('members/')) return 'access';
     if (suffix === 'billing' || suffix.startsWith('billing/')) return 'billing';
     if (suffix === 'settings' || suffix.startsWith('settings/')) return 'settings';
-    if (suffix === 'audit' || suffix.startsWith('audit/')) return 'audit';
     return 'overview';
   }
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
@@ -348,7 +344,6 @@ export function routeFromPath(path) {
   if (path === '/console/reports' || path.startsWith('/console/reports/')) return 'reports';
   if (
     path === '/console/customers' ||
-    path === '/console/audit' ||
     path === '/console/groups' ||
     path.startsWith('/console/groups/') ||
     path === '/console/operations' ||
@@ -386,7 +381,7 @@ export function canonicalCustomerPath(path) {
   if (path === '/console/clouds' || String(path || '').startsWith('/console/clouds/')) return path;
   if (path === '/console/chipset-sdk' || String(path || '').startsWith('/console/chipset-sdk/')) return path;
   if (path === '/console/developer-docs' || String(path || '').startsWith('/console/developer-docs/')) return path;
-  const explicit = String(path || '').match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|developer-docs|groups|provisioning|access|settings|firmware-ota|stream-health|jobs|reports|billing|audit)(?:\/.*)?$/);
+  const explicit = String(path || '').match(/^\/console\/([^/]+)\/(overview|devices|product-services|chipset-sdk|developer-docs|groups|provisioning|access|settings|firmware-ota|stream-health|jobs|reports|billing)(?:\/.*)?$/);
   if (explicit) {
     const cloudId = decodedCloudID(explicit[1]);
     if (!cloudId) return '/console/clouds';
@@ -404,12 +399,11 @@ export function canonicalCustomerPath(path) {
       jobs: 'firmware-ota',
       reports: 'analytics',
       billing: 'billing',
-      audit: 'audit',
     }[explicit[2]];
     const root = `/console/clouds/${encodeURIComponent(cloudId)}`;
     return mapped ? `${root}/${mapped}` : root;
   }
-  if (/^\/console\/(?:overview|devices|product-services|groups|provisioning|access|settings|firmware-ota|stream-health|jobs|reports|billing|audit)(?:\/|$)/.test(String(path || ''))) return '/console/clouds';
+  if (/^\/console\/(?:overview|devices|product-services|groups|provisioning|access|settings|firmware-ota|stream-health|jobs|reports|billing)(?:\/|$)/.test(String(path || ''))) return '/console/clouds';
   const scoped = String(path || '').match(/^\/console\/([^/]+)\/jobs(?:\/.*)?$/);
   if (scoped) return `/console/${scoped[1]}/firmware-ota`;
   if (path === '/console/jobs' || String(path || '').startsWith('/console/jobs/')) return '/console/firmware-ota';
