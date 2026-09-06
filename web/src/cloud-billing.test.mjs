@@ -8,6 +8,8 @@ function fetcher(cloud,options={}) {return async(path,init)=>{
   return new Response(JSON.stringify(account?{account:{organization_id:options.wrongCloud?b:cloud}}:{}),{status:options.status||200,headers:{'X-Cloud-Ownership-Version':options.mixed && account?'8':'7','ETag':'"3"'}});
 };}
 test('Billing routes and downloads are cloud-scoped, never active-session scoped',()=>{
+  assert.deepEqual(cloudBillingRoute(`/console/clouds/${a}/billing/pricing`),{cloudId:a});
+  assert.equal(cloudBillingRoute(`/console/clouds/${a}/billing/pricing/bad`),null);
   assert.deepEqual(cloudBillingRoute(`/console/clouds/${a}/billing/invoices/id`),{cloudId:a});
   assert.equal(cloudBillingRoute(`/console/clouds/${a}/billing/settings/bad`),null);
   assert.equal(cloudBillingRoute('/console/billing'),null);
