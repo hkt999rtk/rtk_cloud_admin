@@ -91,6 +91,7 @@ function decodedCloudID(value) {
 
 export const billingSubpaths = Object.freeze({
   overview: '/console/billing',
+  pricing: '/console/billing/pricing',
   usage: '/console/billing/usage',
   invoices: '/console/billing/invoices',
   activity: '/console/billing/activity',

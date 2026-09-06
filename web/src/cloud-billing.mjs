@@ -1,7 +1,7 @@
 import { cloudAPI } from './managed-clouds.mjs';
 
 export function cloudBillingRoute(path) {
-  const m = path.match(/^\/console\/clouds\/([0-9a-f-]{36})\/billing(?:\/(usage|invoices|activity|settings|profile)(?:\/([^/]+))?)?\/?$/);
+  const m = path.match(/^\/console\/clouds\/([0-9a-f-]{36})\/billing(?:\/(pricing|usage|invoices|activity|settings|profile)(?:\/([^/]+))?)?\/?$/);
   if (!m || (m[3] && !['invoices','activity'].includes(m[2]))) return null;
   try { cloudAPI(m[1]); } catch { return null; }
   return { cloudId: m[1] };

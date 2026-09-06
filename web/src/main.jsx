@@ -12,6 +12,7 @@ import { OwnerHandoffPage } from './OwnerHandoff.jsx';
 import { handoffRoute } from './owner-handoff.mjs';
 import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
 import './cloud-billing.css';
+import { BillingTabs, ServicePricing } from './ServicePricing.jsx';
 import { cloudAPI, cloudURL, managedCloudRoute, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { scopedCustomerAPI } from './cloud-scope.mjs';
 import { ProvisioningPage } from './ProvisioningPage.jsx';
@@ -2858,6 +2859,7 @@ const BillingScope = React.createContext(null);
 
 function CloudBillingApp() {
   const route = cloudBillingRoute(window.location.pathname), cloudId = route.cloudId;
+  const pricingOnly = /\/billing\/pricing\/?$/.test(window.location.pathname);
   const [state, setState] = useState(null), [error,setError] = useState(''), [reload,setReload] = useState(0);
   useEffect(() => {
     const controller = new AbortController(); setState(null); setError('');
@@ -2866,12 +2868,14 @@ function CloudBillingApp() {
       if (!me.authenticated) { window.location.replace(loginPathFor(window.location.pathname)); return; }
       const {brand_cloud:cloud} = await managedCloudRequest(cloudAPI(cloudId),{signal:controller.signal});
       if (cloud.my_role !== 'owner' || cloud.owner_user_id !== me.user_id || !cloud.capabilities?.includes('billing_account.read')) throw {status:403};
-      const data = await fetchCloudBillingData(cloudId,{signal:controller.signal});
+      // The proposal can be read while accounting data is unavailable. Cloud
+      // ownership is still checked above and revalidated below.
+      const data = pricingOnly ? {ownershipVersion:String(cloud.ownership_version)} : await fetchCloudBillingData(cloudId,{signal:controller.signal});
       if (String(cloud.ownership_version) !== data.ownershipVersion) throw {status:409};
       if (!controller.signal.aborted) setState({cloud,data,me});
     } catch (err) { if (!controller.signal.aborted) { setState(null); setError(billingScopeError(err.status)); } } })();
     return () => controller.abort();
-  },[cloudId,reload]);
+  },[cloudId,reload,pricingOnly]);
   useEffect(()=>{
     if (!state) return;
     const controller=new AbortController(); let checking=false;
@@ -2888,7 +2892,7 @@ function CloudBillingApp() {
     const timer=setInterval(verify,10000);window.addEventListener('focus',verify);
     return ()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',verify);};
   },[cloudId,state?.cloud.id,state?.data.ownershipVersion]);
-  return <CloudConsoleShell me={state?.me} cloud={state?.cloud} active="billing" title="Billing" onError={setError}><div className="billing-workspace">{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<button onClick={()=>setReload(v=>v+1)}>Refresh Billing</button>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</div></CloudConsoleShell>;
+  return <CloudConsoleShell me={state?.me} cloud={state?.cloud} active="billing" title="Billing" onError={setError}><div className="billing-workspace">{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<div className="inline-actions"><button onClick={()=>setReload(v=>v+1)}>Refresh Billing</button>{error && !pricingOnly && <a className="ghost-button" href={`/console/clouds/${cloudId}/billing/pricing`}>Service Pricing</a>}</div>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</div></CloudConsoleShell>;
 }
 
 function BillingPage({ data, loading, capabilities, onRefresh }) {
@@ -2923,7 +2927,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   const [busy, setBusy] = useState(false);
   const billingIntent = useRef(null), billingLocked = useRef(false), billingAlive = useRef(false);
   useEffect(()=>{billingAlive.current=true;return()=>{billingAlive.current=false;};},[]);
-  const [billingView, setBillingView] = useState(() => window.location.pathname.match(/\/billing\/(usage|invoices|activity|settings|profile)(?:\/|$)/)?.[1] || 'overview');
+  const [billingView, setBillingView] = useState(() => window.location.pathname.match(/\/billing\/(pricing|usage|invoices|activity|settings|profile)(?:\/|$)/)?.[1] || 'overview');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedActivity, setSelectedActivity] = useState(null);
 
@@ -2939,6 +2943,10 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     const canonical = billingSubpaths[view] || billingSubpaths.overview;
     const suffix = canonical.slice('/console/billing'.length);
     window.history.pushState({}, '', base + suffix);
+    if (view === 'pricing' || billingView === 'pricing') {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      return;
+    }
     setBillingView(view);
   }
 
@@ -3076,9 +3084,9 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   if (loading && !data) return <section className="panel split-panel"><div><h2>Loading billing information</h2><p>Read only the secure account summary of the current active Brand Cloud.</p></div></section>;
   if (data?.source_status === 'unavailable') return <section className="panel split-panel"><div><h2>Billing information temporarily unavailable</h2><p>{data.source_message}</p></div></section>;
 
-  const billingTabs = <nav className="billing-tabs" aria-label="Billing Pages">
-    {[['overview', 'Billing Overview'], ['usage', 'Usage and Forecast'], ['invoices', 'Invoices'], ['activity', 'Billing Activity'], ['settings', 'Payments and Automatic Top-Up'], ['profile', 'Billing Profile']].map(([id, label]) => <button key={id} type="button" className={billingView === id ? 'active' : ''} onClick={() => selectBillingView(id)}>{label}</button>)}
-  </nav>;
+  const billingTabs = <BillingTabs active={billingView} onSelect={selectBillingView} />;
+
+  if (billingView === 'pricing') return <ServicePricing tabs={billingTabs} />;
 
   if (selectedInvoice) return <BillingInvoiceDetail invoice={selectedInvoice} onBack={() => { setSelectedInvoice(null); selectBillingView('invoices'); }} />;
   if (selectedActivity) return <BillingActivityDetail activity={selectedActivity} onBack={() => { setSelectedActivity(null); selectBillingView('activity'); }} />;
