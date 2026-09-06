@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { boardAssetPath, boardPath, boardSDKs, CHIPSET_RESOURCES_PATH } from './boards.mjs';
 import { PRO2_FIRMWARE_BURNER_PATH } from './Pro2FirmwareBurner.jsx';
 import './boards.css';
+import { ChipsetVideos } from './ChipsetVideos.jsx';
 
 const emptyComponents = [];
 
@@ -35,11 +36,12 @@ export function BoardPage({ route, data, loading, ResourceLinks }) {
     <BoardExplorer key={`${chipset.id}:${board.board_key}`} board={board} />
     <div className="board-details-grid">
       <section className="panel board-specifications" aria-labelledby="board-specs-heading"><p className="eyebrow">At a glance</p><h3 id="board-specs-heading">Board specifications</h3><dl>{board.specs?.map(spec => <div key={spec.label}><dt>{spec.label}</dt><dd>{spec.value}</dd></div>)}</dl></section>
-      <section className="panel board-sdk-resources" aria-labelledby="board-sdk-heading"><p className="eyebrow">Start building</p><h3 id="board-sdk-heading">Compatible SDKs</h3>{releases.length ? releases.map(release => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{release.summary}</small> : null}</div>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div><ResourceLinks resources={release.endpoints} compact /></section>) : <p>No SDK is linked to this board in the published provider snapshot.</p>}
+      <section className="panel board-sdk-resources" aria-labelledby="board-sdk-heading"><p className="eyebrow">Start building</p><h3 id="board-sdk-heading">Compatible SDKs</h3>{releases.length ? releases.map(release => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{release.summary}</small> : null}</div>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div><ResourceLinks resources={release.endpoints.filter(resource => resource.type !== 'video')} compact /></section>) : <p>No SDK is linked to this board in the published provider snapshot.</p>}
         {chipset.ic_model === 'RTL8735B' ? <a className="ghost-button board-burner-link" href={PRO2_FIRMWARE_BURNER_PATH}>Open PRO2 Firmware Burner <span aria-hidden="true">↗</span></a> : null}
       </section>
     </div>
-    {board.resources?.length ? <section className="panel board-documents"><h3>Guides, hardware &amp; availability</h3><ResourceLinks resources={board.resources} /></section> : null}
+    <ChipsetVideos key={`${chipset.id}:${board.board_key}`} chipset={chipset} boardKey={board.board_key} />
+    {board.resources?.some(resource => resource.type !== 'video') ? <section className="panel board-documents"><h3>Guides, hardware &amp; availability</h3><ResourceLinks resources={board.resources.filter(resource => resource.type !== 'video')} /></section> : null}
     <p className="chipset-provider-attribution">Information provided by {chipset.provider_name || chipset.vendor}</p>
   </section>;
 }

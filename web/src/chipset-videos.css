@@ -1,0 +1,40 @@
+.chipset-videos { margin-top: 24px; min-width: 0; }
+.chipset-videos-preview { border-top: 1px solid var(--border, #e0e5eb); padding-top: 20px; }
+.chipset-videos-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.chipset-videos .chipset-videos-heading h3, .chipset-videos .chipset-videos-heading h4 { margin: 0 0 7px; display: flex; align-items: center; gap: 8px; }
+.chipset-videos-heading h3 > i, .chipset-videos-heading h4 > i { color: #27758a; font-size: .9em; }
+.chipset-videos-heading p { margin: 0; color: #526478; font-size: 13px; line-height: 1.6; }
+.chipset-video-total { white-space: nowrap; padding: 5px 8px; border-radius: 5px; background: #edf3f5; color: #395366; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.chipset-video-filters { display: grid; grid-template-columns: minmax(170px, 1.4fr) repeat(3, minmax(120px, 1fr)); gap: 12px; }
+.chipset-video-filters label { display: grid; gap: 6px; min-width: 0; color: #43586a; font-size: 12px; }
+.chipset-video-filters label > span { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.chipset-video-filters label > span i { color: #39798b; width: 14px; text-align: center; }
+.chipset-video-filters .input { width: 100%; min-width: 0; min-height: 40px; box-sizing: border-box; }
+.chipset-video-results { color: #526478; font-size: 12px; margin: 14px 0; }
+.chipset-video-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.chipset-video-card { border: 1px solid var(--border, #e0e5eb); border-radius: 10px; background: #fff; min-width: 0; overflow: hidden; }
+.chipset-video-watch { display: block; color: #263e50; text-decoration: none; }
+.chipset-video-thumbnail { position: relative; aspect-ratio: 16 / 9; background: #eaf1f4; overflow: hidden; display: grid; place-items: center; }
+.chipset-video-thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+.chipset-video-placeholder { color: #527580; font-size: 36px; }
+.chipset-video-watch-label { position: absolute; right: 8px; bottom: 8px; background: #213e4de8; color: #fff; border-radius: 4px; padding: 4px 7px; font-size: 11px; }
+.chipset-video-watch h4, .chipset-video-watch h5 { margin: 0; padding: 14px 14px 0; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+.chipset-video-watch:hover h4, .chipset-video-watch:hover h5 { text-decoration: underline; }
+.chipset-video-body { padding: 0 14px 14px; }
+.chipset-video-body p { margin: 9px 0; color: #526478; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.chipset-video-body .chipset-video-channel { color: #304c5e; font-weight: 600; }
+.chipset-video-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.chipset-video-tags > span { border-radius: 4px; padding: 3px 6px; background: #f0f4f6; color: #466070; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; }
+.chipset-video-tags > span i { font-size: 10px; opacity: .8; }
+.chipset-video-tags .official { background: #e6f3ed; color: #256448; }
+.chipset-video-tags .community { background: #eff0fb; color: #51538a; }
+.chipset-video-verified { display: block; margin-top: 12px; color: #607487; font-size: 11px; }
+.chipset-video-expand { margin-top: 16px; min-height: 40px; }
+.chipset-video-empty { padding: 18px; background: #f5f8fa; border-radius: 8px; color: #526478; }
+.chipset-video-playlists { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; border-top: 1px solid var(--border, #e0e5eb); margin-top: 20px; padding-top: 16px; font-size: 12px; }
+.chipset-video-playlists strong { display: inline-flex; align-items: center; gap: 7px; }
+.chipset-video-playlists a { color: #315f72; overflow-wrap: anywhere; }
+.chipset-videos a:focus-visible, .chipset-videos button:focus-visible, .chipset-videos input:focus-visible, .chipset-videos select:focus-visible { outline: 3px solid #318da1; outline-offset: 3px; }
+.chipset-video-watch:focus-visible { outline-offset: -3px; }
+@media (max-width: 1100px) { .chipset-video-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .chipset-video-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .chipset-video-grid, .chipset-video-filters { grid-template-columns: minmax(0, 1fr); } .chipset-videos-heading { flex-wrap: wrap; } }

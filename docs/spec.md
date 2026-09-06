@@ -74,7 +74,6 @@ Included in v0.1:
   - Product and Services, including product/device specifications and policies
   - Firmware Releases and full OTA Update Plans
   - Batch Jobs and Reports
-  - async provisioning validation, confirmation, execution, and result views
   - customer-readable health, firmware, and connectivity summaries
 - Platform admin pages:
   - Platform Dashboard with cross-tenant summary and curated Prometheus-backed
@@ -251,7 +250,6 @@ and must not be inferred from `mqtt`. Product list capability cells must not
 render human management permissions such as Manage Devices or Edit Product.
 - `GET /api/operations`: lifecycle operation list.
 - `GET /api/service-health`: configured upstream service health.
-- `GET /api/audit`: audit log.
 - `GET /api/admin/audit`: platform-admin protected audit log.
 - `GET /api/admin/brand-clouds`: Account Manager-backed brand cloud list.
 - `POST /api/admin/brand-clouds`: Account Manager-backed brand cloud create.
@@ -985,11 +983,26 @@ Acceptance: Reports preserve scope metadata and expose async download.
 
 Acceptance: Report idempotency replay and conflict preserve original scope.
 
-### [FEAT-CA-PROV-001] Durable CSV provisioning workflow
+### [FEAT-CA-PROV-001] Fleet management and provisioning API compatibility
 
 <!-- rtk-feature
-{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/provisioning-durable.spec.mjs","selector":"[UI-CA-PROV-P0-001]"},{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/provisioning-durable.spec.mjs","selector":"[UI-CA-PROV-P0-002]"}]}
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/enterprise-console.spec.mjs","selector":"[UI-CA-PROVISIONING-RET-001]"}]}
 -->
+
+The CSV Provisioning console page and navigation entry were retired at the
+product owner's request on 2026-09-06. Saved canonical and tenant-scoped CSV
+Provisioning URLs redirect to Fleet Management. Existing provisioning APIs,
+stored jobs, and device lifecycle operations remain compatible.
+
+#### [REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001] Retired CSV provisioning links return to Fleet Management
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: The console has no CSV Provisioning navigation entry or upload form;
+old canonical and tenant-scoped URLs redirect to Fleet Management without
+requesting provisioning APIs.
 
 #### [REQ-UI-CA-FLEETPAGE-001] Customer fleet pages load through the real BFF
 
@@ -1010,7 +1023,7 @@ Acceptance: Device fleet remains server paginated.
 #### [REQ-UI-CA-PROV-001] Invalid-device validation is immutable and cannot execute
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
 -->
 
 Acceptance: Invalid-device validation is immutable and cannot execute.
@@ -1026,7 +1039,7 @@ Acceptance: Provisioning upload replay is idempotent and conflicts are rejected.
 #### [REQ-UI-CA-PROV-003] Observers cannot start provisioning from browser or API
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
 -->
 
 Acceptance: Observers cannot start provisioning from browser or API.
@@ -1034,7 +1047,7 @@ Acceptance: Observers cannot start provisioning from browser or API.
 #### [REQ-UI-CA-PROV-004] Provisioning CSV upload starts browser validation
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
 -->
 
 Acceptance: Provisioning CSV upload starts browser validation.
@@ -1042,7 +1055,7 @@ Acceptance: Provisioning CSV upload starts browser validation.
 #### [REQ-UI-CA-PROV-005] Provisioning upload validates before creating an execution job
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
 -->
 
 Acceptance: Provisioning upload validates before creating an execution job.
@@ -1050,7 +1063,7 @@ Acceptance: Provisioning upload validates before creating an execution job.
 #### [REQ-UI-CA-PROV-006] Provisioning lifecycle controls and row results are server driven
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
 -->
 
 Acceptance: The browser renders Pause, Resume, Cancel, and Retry only from the
@@ -1134,6 +1147,14 @@ Acceptance: The AMB82 MINI page shows a self-built, source-documented GLB with c
 -->
 
 Acceptance: Missing WebGL or a failed model request preserves the poster, specifications, components and resources with a retry action. Stale snapshots are labeled and unpublished boards are unavailable. Three.js and GLB load only on board detail pages, idle rendering stops, and retries/navigation release rendering resources.
+
+#### [REQ-UI-CA-VIDEOS-001] Curated development videos share the published chipset catalog
+
+<!-- rtk-requirement
+{"acceptance_layer":"ui","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
+-->
+
+Acceptance: SDK overview cards show three curated videos and a keyboard-operable expand action. Board pages show platform, board and compatible-release videos, deduplicated by YouTube video ID. Local keyword, topic, SDK and language filters retain authored order and provide a clear empty state. Cards identify uploader, official/community source, tutorial/demo kind, language, SDK certainty and review date, open external links with noopener, and retain usable links when thumbnails or optional metadata are missing. Playlists appear separately. Existing catalog search includes board videos. Unpublished/unavailable providers expose no videos; stale published snapshots retain their library. No YouTube API credential, embedded player or live external dependency is added to automated tests.
 
 #### [REQ-UI-CA-DOCS-001] Developer Docs navigation and search
 

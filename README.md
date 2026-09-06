@@ -57,8 +57,8 @@ Implemented in this first version:
   implementation remains SQLite-backed and does not add Redis
 - explicit SQLite schema migrations tracked in `schema_migrations`
 - implemented compatibility routes for `/console`, `/console/customers`,
-  `/console/devices`, `/console/billing`, `/console/operations`,
-  `/console/audit`, and `/admin`; new Customer View work follows the canonical
+  `/console/devices`, `/console/billing`, `/console/operations`, and `/admin`;
+  new Customer View work follows the canonical
   `/console/clouds` and `/console/clouds/{cloudId}/*` route family documented in
   [`docs/multicloud_webui.md`](docs/multicloud_webui.md)
 - public email verification routes `/verify` and the mail-contract-compatible

@@ -1498,24 +1498,6 @@ paths:
         "410": { description: Report result expired. }
         default: { $ref: '#/components/responses/ManagedCloudError' }
 
-  /api/developer/brand-clouds/{brandCloudID}/audit:
-    parameters:
-      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
-    get:
-      operationId: listScopedBrandCloudAuditEvents
-      x-rtk-feature-id: FEAT-CA-BRAND-001
-      x-rtk-requirement-ids: [REQ-UI-CA-AUDIT-001]
-      tags: [Developer, Audit]
-      summary: List the customer-safe audit projection for the explicit cloud
-      security: [{ SessionCookie: [] }]
-      responses:
-        "200":
-          description: Authorized audit events for this cloud.
-          content:
-            application/json:
-              schema: { type: array, items: { $ref: "#/components/schemas/AuditEvent" } }
-        default: { $ref: '#/components/responses/ManagedCloudError' }
-
   /api/developer/brand-clouds/{brandCloudID}/products/{productID}/devices:
     get:
       operationId: listScopedProductDevices
@@ -4181,30 +4163,6 @@ paths:
         "401":
           $ref: "#/components/responses/PlainTextError"
         "403":
-          $ref: "#/components/responses/PlainTextError"
-
-  /api/audit:
-    get:
-      operationId: getApiAudit
-      x-rtk-feature-id: FEAT-CA-BRAND-001
-      x-rtk-requirement-ids:
-        - REQ-UI-CA-AUDIT-001
-      tags: [Audit]
-      summary: List audit events
-      description: Customer sessions return customer-scoped events; local/demo mode returns local events.
-      security:
-        - SessionCookie: []
-        - {}
-      responses:
-        "200":
-          description: Audit event list.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/AuditEvent"
-        "502":
           $ref: "#/components/responses/PlainTextError"
 
   /api/admin/audit:

@@ -18,7 +18,6 @@ for (const width of [1440, 1280, 768, 390]) {
       await expect(page.locator('.topbar h1')).not.toBeEmpty();
       await expect(page.locator('.topbar .org-switcher')).toHaveValue(cloud);
       await expect(page.locator('main')).not.toContainText('Loading session');
-      if (suffix === '/fleet/provisioning') await expect(page.getByRole('list', { name: 'Provisioning progress' })).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
       await testInfo.attach(`${width}-${suffix.slice(1) || 'overview'}`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
     }
@@ -30,6 +29,23 @@ for (const width of [1440, 1280, 768, 390]) {
     expect(errors).toEqual([]);
   });
 }
+
+test('[UI-CA-PROVISIONING-RET-001] retired CSV provisioning links return to fleet management @smoke', async ({ page }) => {
+  await login(page, 'developer');
+  const provisioningRequests = [];
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.includes('/provisioning/')) provisioningRequests.push(request.url());
+  });
+  for (const path of [`/console/clouds/${cloud}/fleet/provisioning`, `/console/${cloud}/provisioning`]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloud}/fleet$`));
+    await expect(page.locator('.topbar h1')).toHaveText('Fleet Management');
+    await expect(page.locator('main')).not.toContainText('Loading session');
+    await expect(page.getByRole('link', { name: 'CSV Provisioning', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Upload source', exact: true })).toHaveCount(0);
+  }
+  expect(provisioningRequests).toEqual([]);
+});
 
 test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and readable active navigation @smoke', async ({ page }, testInfo) => {
   await login(page, 'billing_owner');
