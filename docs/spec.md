@@ -987,7 +987,7 @@ Acceptance: Report idempotency replay and conflict preserve original scope.
 ### [FEAT-CA-PROV-001] Fleet management and provisioning API compatibility
 
 <!-- rtk-feature
-{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/enterprise-console.spec.mjs","selector":"[UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001]"}]}
+{"owner":"rtk_cloud_admin","risk":"critical","status":"active","change_paths":["repos/rtk_cloud_admin/**","repos/rtk_account_manager/**"],"commit_anchors":["workspace","cloud_admin"],"surfaces":[{"kind":"ui-route","source":"repos/rtk_cloud_admin/web/e2e/enterprise-console.spec.mjs","selector":"[UI-CA-PROVISIONING-RET-001]"}]}
 -->
 
 The CSV Provisioning console page and navigation entry were retired at the

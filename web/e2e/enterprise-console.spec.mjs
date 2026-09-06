@@ -30,7 +30,7 @@ for (const width of [1440, 1280, 768, 390]) {
   });
 }
 
-test('[UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001] retired CSV provisioning links return to fleet management @smoke', async ({ page }) => {
+test('[UI-CA-PROVISIONING-RET-001] retired CSV provisioning links return to fleet management @smoke', async ({ page }) => {
   await login(page, 'developer');
   const provisioningRequests = [];
   page.on('request', request => {
