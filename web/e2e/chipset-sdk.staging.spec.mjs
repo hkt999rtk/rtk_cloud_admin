@@ -51,9 +51,9 @@ test('[UI-CA-CHIPSET-STG-001] AmebaPro2 resources are published in staging @stag
 
   const library = page.getByRole('region', { name: 'Development videos' });
   await expect(library.locator('.chipset-video-card')).toHaveCount(12);
-  await library.getByLabel('Language', { exact: true }).selectOption('zh-TW');
+  await library.getByRole('combobox', { name: 'Language', exact: true }).selectOption('zh-TW');
   await expect(library.locator('.chipset-video-card')).toHaveCount(2);
-  await library.getByLabel('SDK', { exact: true }).selectOption('unknown');
+  await library.getByRole('combobox', { name: 'SDK', exact: true }).selectOption('unknown');
   await expect(library.locator('.chipset-video-card')).toHaveCount(1);
   await expect(library.locator('.chipset-video-card')).toContainText('GC5035');
   await expect(library.locator('.chipset-video-card')).toContainText('Community');
