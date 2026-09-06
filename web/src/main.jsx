@@ -7180,6 +7180,12 @@ function ConsoleEntry() {
       const link = event.target.closest?.('a[href]');
       if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
       const target = new URL(link.href, window.location.href);
+      // This capture listener runs before the Docs article's click handler.
+      // Preserve its Cloud scope before deciding whether to intercept the link.
+      const cloudId = new URLSearchParams(window.location.search).get('cloudId');
+      if (link.closest('.docs-article') && target.origin === window.location.origin && target.pathname.startsWith('/console/') && cloudId && !target.searchParams.has('cloudId')) {
+        target.searchParams.set('cloudId', cloudId);
+      }
       if (!sdkNavigationTarget(new URL(window.location.href), target)) return;
       event.preventDefault();
       event.stopPropagation();

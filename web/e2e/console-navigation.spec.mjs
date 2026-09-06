@@ -25,6 +25,23 @@ test('[UI-CA-CONSOLE-NAV-001] Clouds, Docs, chapters and history retain the docu
   await page.locator('.sidebar').getByRole('link',{name:'My Clouds',exact:true}).click();
   await expect(page.locator('.my-clouds-quota')).toBeVisible();
   expect(await page.evaluate(()=>window.__consoleMarker)).toBe(marker);
+
+  // Inline Markdown links are context-free until clicked. The navigation bridge
+  // must retain the explicitly selected Cloud before remounting the destination.
+  const cloudId='33333333-3333-4333-8333-333333333333';
+  for(const destination of ['/console/developer-docs/setup-cloud-device','/console/chipset-sdk']){
+    await page.goto(docs+'/overview?cloudId='+cloudId);
+    const inline=page.locator('.docs-article a[href="'+destination+'"]');
+    await expect(inline).toBeVisible();
+    const documentMarker=await page.evaluate(()=>window.__inlineMarker=crypto.randomUUID());
+    const contextRequest=page.waitForRequest(r=>new URL(r.url()).pathname===(destination==='/console/chipset-sdk'?'/api/developer/chipset-sdk/context':'/api/developer/console/context'));
+    await inline.click();
+    await expect(page).toHaveURL(new RegExp(destination+'\\?cloudId='+cloudId+'$'));
+    expect(new URL((await contextRequest).url()).searchParams.get('cloudId')).toBe(cloudId);
+    expect(await page.evaluate(()=>window.__inlineMarker)).toBe(documentMarker);
+    await page.goBack();
+    await expect(page).toHaveURL(docs+'/overview?cloudId='+cloudId);
+  }
 });
 
 test('[UI-CA-CONSOLE-NAV-002] slow sidebar context does not block Clouds or overwrite Docs',async({page})=>{
