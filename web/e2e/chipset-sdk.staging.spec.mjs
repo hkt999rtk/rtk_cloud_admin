@@ -24,11 +24,20 @@ test('[UI-CA-CHIPSET-STG-001] AmebaPro2 resources are published in staging @stag
   await expect(productLink).toContainText('en');
 
   const search = page.getByRole('textbox', { name: 'Search ChipSets and SDKs' });
-  for (const keyword of ['AMB82', 'RTL8735B', 'AmebaPRO2', 'forum', 'GitHub']) {
+  for (const keyword of ['AMB82', 'RTL8735B', 'AmebaPRO2', 'forum', 'GitHub', 'YOLOv7']) {
     await search.fill(keyword);
     await expect(card, `${keyword} should find AmebaPro2`).toBeVisible();
   }
   await search.fill('');
+
+  const preview = card.getByRole('region', { name: 'Development videos' });
+  await expect(preview.locator('.chipset-video-card')).toHaveCount(3);
+  await preview.getByRole('button', { name: 'View all 12 videos' }).click();
+  await expect(preview.locator('.chipset-video-card')).toHaveCount(12);
+  const tutorial = preview.getByRole('link', { name: 'Watch AMB82 Mini - Getting Started', exact: true });
+  await expect(tutorial).toHaveAttribute('href', 'https://www.youtube.com/watch?v=_rLiih5RkXY');
+  await expect(tutorial).toHaveAttribute('target', '_blank');
+  await expect(tutorial).toHaveAttribute('rel', /noopener/);
 
   await card.getByRole('link', { name: 'Explore board' }).click();
   await expect(page).toHaveURL(/\/console\/chipset-sdk\/[^/]+\/boards\/amb82-mini$/);
@@ -39,6 +48,15 @@ test('[UI-CA-CHIPSET-STG-001] AmebaPro2 resources are published in staging @stag
   await expect(page.locator('.board-part-description')).toContainText('capture images');
   await page.getByRole('button', { name: 'Reset view' }).click();
   await expect(page.getByRole('link', { name: 'Open PRO2 Firmware Burner' })).toBeVisible();
+
+  const library = page.getByRole('region', { name: 'Development videos' });
+  await expect(library.locator('.chipset-video-card')).toHaveCount(12);
+  await library.getByLabel('Language', { exact: true }).selectOption('zh-TW');
+  await expect(library.locator('.chipset-video-card')).toHaveCount(2);
+  await library.getByLabel('SDK', { exact: true }).selectOption('unknown');
+  await expect(library.locator('.chipset-video-card')).toHaveCount(1);
+  await expect(library.locator('.chipset-video-card')).toContainText('GC5035');
+  await expect(library.locator('.chipset-video-card')).toContainText('Community');
 
   await testInfo.attach('amebapro2-staging-resource-hub', {
     body: await page.screenshot({ fullPage: true }),

@@ -5,7 +5,7 @@ import { chipsetResourceLinks, collectChipsetVideos, VIDEO_TOPICS, VIDEO_SDKS, V
 
 const manifestPath = new URL('../public/assets/chipset-packages/realtek-amebapro2.json', import.meta.url);
 
-test('bundled AmebaPro2 videos have reviewed metadata and exclude known unavailable links', async () => {
+test('bundled AmebaPro2 resources contain only verified live links', async () => {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const resources = manifest.chipsets.flatMap(chipset => chipsetResourceLinks(chipset));
   const videos = resources.filter((resource) => resource.type === 'video');
