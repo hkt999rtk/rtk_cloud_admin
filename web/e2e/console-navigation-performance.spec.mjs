@@ -1,12 +1,19 @@
 import {test,expect} from '@playwright/test';
+import {login} from './fixtures/session.mjs';
 
 test('[UI-CA-CONSOLE-PERF-001] dev Clouds and Docs navigation timing',async({page},testInfo)=>{
-  test.skip(!process.env.SDK_BENCHMARK_LIVE,'explicit dev benchmark only');
   test.setTimeout(180000);
+  const live=process.env.SDK_BENCHMARK_LIVE==='true';
+  if(live){
   expect(process.env.E2E_BASE_URL).toBe('https://admin.video-cloud-dev.realtekconnect.com');
   const auth=await page.request.post('/api/auth/login',{data:{email:process.env.SDK_BENCHMARK_EMAIL,password:process.env.SDK_BENCHMARK_PASSWORD,next:'/console/clouds'}});
   expect(auth.status()).toBe(200);
+  }else await login(page,'developer');
   const me=await (await page.request.get('/api/me')).json();
+  if(!live)await page.route('**/api/**',async route=>{
+    await new Promise(resolve=>setTimeout(resolve,200));
+    await route.continue();
+  });
   await page.addInitScript(()=>{
     window.__consoleDocument=crypto.randomUUID();
     document.addEventListener('click',event=>{
@@ -43,5 +50,6 @@ test('[UI-CA-CONSOLE-PERF-001] dev Clouds and Docs navigation timing',async({pag
   samples.medians={toDocs:median(samples.toDocs),toClouds:median(samples.toClouds)};
   samples.apiTimings=apiTimings;
   console.log('CONSOLE_BENCHMARK',JSON.stringify(samples));
-  await testInfo.attach('console-'+process.env.SDK_BENCHMARK+'.json',{body:JSON.stringify(samples,null,2),contentType:'application/json'});
+  if(!live)expect(samples.reloads).toBe(0);
+  await testInfo.attach('console-'+(process.env.SDK_BENCHMARK||'local')+'.json',{body:JSON.stringify(samples,null,2),contentType:'application/json'});
 });

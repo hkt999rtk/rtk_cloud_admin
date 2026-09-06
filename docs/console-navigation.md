@@ -24,7 +24,8 @@ navigation, filtering and refresh; expired sessions clear displayed Cloud data.
 
 Tests: `console-navigation.spec.mjs`, existing `developer-docs.spec.mjs` and
 `sdk-loading.spec.mjs`, navigation unit tests, and `TestConsoleContextAlias`.
-`console-navigation-performance.spec.mjs` is an opt-in, dev-only, read-only
-benchmark using a normal authorized account sign-in. It times 10 navigations in
+`console-navigation-performance.spec.mjs` runs locally with controlled 200 ms API
+latency in normal CI. Live dev measurements require `SDK_BENCHMARK_LIVE=true`,
+the exact dev origin, and a normal authorized account sign-in. It times 10 navigations in
 each direction within the browser and records document reloads; it does not
 infer latency from automation tool round trips.
