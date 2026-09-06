@@ -994,7 +994,7 @@ product owner's request on 2026-09-06. Saved canonical and tenant-scoped CSV
 Provisioning URLs redirect to Fleet Management. Existing provisioning APIs,
 stored jobs, and device lifecycle operations remain compatible.
 
-#### [REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001] Retired CSV provisioning links return to Fleet Management
+#### [REQ-UI-CA-PROVISIONING-RETIRED-001] Retired CSV provisioning links return to Fleet Management
 
 <!-- rtk-requirement
 {"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":true,"status":"active"}
@@ -1023,7 +1023,7 @@ Acceptance: Device fleet remains server paginated.
 #### [REQ-UI-CA-PROV-001] Invalid-device validation is immutable and cannot execute
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
 -->
 
 Acceptance: Invalid-device validation is immutable and cannot execute.
@@ -1039,7 +1039,7 @@ Acceptance: Provisioning upload replay is idempotent and conflicts are rejected.
 #### [REQ-UI-CA-PROV-003] Observers cannot start provisioning from browser or API
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
 -->
 
 Acceptance: Observers cannot start provisioning from browser or API.
@@ -1047,7 +1047,7 @@ Acceptance: Observers cannot start provisioning from browser or API.
 #### [REQ-UI-CA-PROV-004] Provisioning CSV upload starts browser validation
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
 -->
 
 Acceptance: Provisioning CSV upload starts browser validation.
@@ -1055,7 +1055,7 @@ Acceptance: Provisioning CSV upload starts browser validation.
 #### [REQ-UI-CA-PROV-005] Provisioning upload validates before creating an execution job
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
 -->
 
 Acceptance: Provisioning upload validates before creating an execution job.
@@ -1063,7 +1063,7 @@ Acceptance: Provisioning upload validates before creating an execution job.
 #### [REQ-UI-CA-PROV-006] Provisioning lifecycle controls and row results are server driven
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-ENTERPRISE-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
+{"acceptance_layer":"ui","operation_model":"workflow","gate":"pr","environments":["local"],"targets":["desktop","mobile"],"evidence":["screenshot"],"required":false,"status":"deprecated","deprecation_owner":"rtk_cloud_admin","deprecation_reason":"The product owner requested removal of the CSV Provisioning console feature; its navigation and URL retirement are covered by REQ-UI-CA-PROVISIONING-RETIRED-001. Existing backend provisioning compatibility remains covered separately.","approved_at":"2026-09-06"}
 -->
 
 Acceptance: The browser renders Pause, Resume, Cancel, and Retry only from the
