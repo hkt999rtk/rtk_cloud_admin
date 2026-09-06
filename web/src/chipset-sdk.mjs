@@ -1,4 +1,5 @@
 import { translate } from './i18n/index.mjs';
+import { chipsetResourceLinks, videoSearchText } from './chipset-videos.mjs';
 
 export function providerKPIs(providers = []) {
   const published = providers.filter((provider) => provider.status === 'published');
@@ -55,7 +56,7 @@ export function filterChipsets(chipsets = [], query = '', vendor = 'all', recomm
     const haystack = [
 		chipset.name, chipset.vendor, chipset.family, chipset.description, chipset.ic_model,
     ...(chipset.boards || []).flatMap(board => [board.board_key, board.name, board.vendor, board.summary]),
-		...(chipset.resources || []).flatMap((resource) => [resource.type, resource.title, resource.url, resource.summary, ...(resource.languages || [])]),
+		...chipsetResourceLinks(chipset).map(resource => `${resource.type} ${videoSearchText(resource)}`),
 		...releases.flatMap((release) => [
 			release.name, release.version, release.summary, ...(release.supported_models || []),
 			...(release.endpoints || []).flatMap((endpoint) => [endpoint.type, endpoint.title, endpoint.url, endpoint.summary, ...(endpoint.languages || [])]),

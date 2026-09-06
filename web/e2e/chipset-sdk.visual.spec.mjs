@@ -9,7 +9,7 @@ const chipsets = [{
     { type: 'product', title: 'AmebaPro2 Product & Development Boards', url: 'https://www.amebaiot.com/en/amebapro2/', source: 'official', languages: ['en'], verified_at: '2026-08-28', summary: 'Official products, specifications and development board entrance.' },
     { type: 'datasheet', title: 'AMB82 Mini Datasheet', url: 'https://www.amebaiot.com/en/datasheet-download-amb82-mini/', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
     { type: 'forum', title: 'Ameba Developer Forum', url: 'https://forum.amebaiot.com/', source: 'official', languages: ['en', 'zh-TW'], verified_at: '2026-08-28' },
-    { type: 'video', title: 'AmebaPro2 Start Here', url: 'https://www.youtube.com/playlist?list=PLEQfNjOZQRyP1dyegDVYqgw53_AORspMK', source: 'official', languages: ['en'], verified_at: '2026-08-28' },
+    { type: 'video', title: 'Ameba Maker Projects', url: 'https://www.youtube.com/playlist?list=PLEQfNjOZQRyPWhySw16ZgBOPWnzLWDAjz', source: 'official', languages: ['en', 'zh-TW'], verified_at: '2026-09-06' },
   ],
   sdk_releases: [
     { name: 'Ameba Arduino Pro2', version: '4.1.0', summary: 'Arduino development package', recommended: true, supported_models: ['AMB82 MINI'], endpoints: [
