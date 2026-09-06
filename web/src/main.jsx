@@ -2486,6 +2486,7 @@ function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading =
   const [selectedChip, setSelectedChip] = useState('');
   const selected = chipsets.find((chipset) => (chipset.id || chipset.chipset_key) === selectedChip) || chipsets[0];
   const isPRO2 = selected?.chipset_key === 'realtek-amebapro2';
+  const hasPRO2 = chipsets.some((chipset) => chipset.chipset_key === 'realtek-amebapro2');
   const artifacts = sdkArtifacts(sdkRelease?.catalog).filter((artifact) => artifact.slug !== 'freertos-pro2' || isPRO2);
   const [query, setQuery] = useState('');
   const [vendor, setVendor] = useState('all');
@@ -2501,7 +2502,7 @@ function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading =
       </select>
       <p id="chip-selection-help">SDKs, boards, videos, and device tools below follow your selection.</p>
     </section>
-    {toolsVisible && isPRO2 ? <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
+    {toolsVisible && hasPRO2 ? <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
       <div className="sdk-section-heading"><div><h2 id="device-tools-heading"><Icon name="screwdriver-wrench" />Device Tools</h2><p>Browser-based tools for bringing up and diagnosing hardware locally, before or alongside cloud provisioning.</p></div></div>
       <article className="panel pro2-tool-card">
         <span className="pro2-tool-icon" aria-hidden="true"><Icon name="microchip" /></span>
