@@ -39,8 +39,12 @@ func TestPlatformPKIProxyRequiresSessionAndSameOrigin(t *testing.T) {
 }
 
 func TestPlatformPKIStepUpBindsStateAndSubject(t *testing.T) {
-	for _, subject := range []string{"user-1", "other-user"} {
-		t.Run(subject, func(t *testing.T) {
+	for _, tc := range []struct {
+		name, subject  string
+		controllerDown bool
+	}{{"same-user", "user-1", false}, {"different-user", "other-user", false}, {"controller-outage", "user-1", true}} {
+		subject := tc.subject
+		t.Run(tc.name, func(t *testing.T) {
 			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/v1/auth/oidc/pki/login":
@@ -51,10 +55,19 @@ func TestPlatformPKIStepUpBindsStateAndSubject(t *testing.T) {
 				case "/v1/auth/oidc/pki/callback":
 					json.NewEncoder(w).Encode(map[string]any{"user": map[string]string{"id": subject}, "tokens": map[string]string{"access_token": "mfa-access", "refresh_token": "mfa-refresh"}})
 				case "/v1/platform/pki/issuers/search":
+					if tc.controllerDown {
+						http.Error(w, "controller unavailable", 503)
+						return
+					}
 					if r.Header.Get("Authorization") != "Bearer mfa-access" {
 						t.Error("did not validate new token")
 					}
 					w.Write([]byte(`{"items":[]}`))
+				case "/v1/platform/admin-recovery":
+					if !tc.controllerDown || r.Method != "GET" || r.Header.Get("Authorization") != "Bearer mfa-access" {
+						t.Error("invalid recovery authority probe")
+					}
+					w.Write([]byte(`{"status":"authorized"}`))
 				default:
 					t.Errorf("unexpected upstream path %s", r.URL.Path)
 					http.NotFound(w, r)

@@ -64,7 +64,13 @@ func (s *Server) apiPlatformPKI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	result, err := s.accountClient.PKI(r.Context(), session.AccessToken, r.Method, path, key, raw)
+	var result json.RawMessage
+	var err error
+	if strings.HasPrefix(r.URL.Path, "/api/platform/admin-recovery") {
+		result, err = s.accountClient.AdminRecovery(r.Context(), session.AccessToken, r.Method, strings.TrimPrefix(r.URL.Path, "/api/platform/admin-recovery"), key, raw)
+	} else {
+		result, err = s.accountClient.PKI(r.Context(), session.AccessToken, r.Method, path, key, raw)
+	}
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -119,8 +125,11 @@ func (s *Server) completePKIStepUp(w http.ResponseWriter, r *http.Request) {
 	}
 	// Check effective PKI authority before placing the new access token in session.
 	if _, err = s.accountClient.PKI(r.Context(), result.Tokens.AccessToken, "POST", "/issuers/search", "", json.RawMessage(`{"limit":1}`)); err != nil {
-		http.Error(w, "Recent MFA and a PKI role are required", 403)
-		return
+		// Administrative recovery must remain usable during a controller outage.
+		if _, err = s.accountClient.AdminRecovery(r.Context(), result.Tokens.AccessToken, "GET", "", "", nil); err != nil {
+			http.Error(w, "Recent MFA and a recovery role are required", 403)
+			return
+		}
 	}
 	if err = s.sessions.UpdateSessionTokens(session.ID, result.Tokens.AccessToken, result.Tokens.RefreshToken, tokenTTL(result.Tokens)); err != nil {
 		http.Error(w, "session update failed", 500)

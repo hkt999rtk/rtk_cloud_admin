@@ -4,13 +4,13 @@ let operation, issuer, next = '';
 const message = text => { $('message').textContent = text; };
 // Reuse the same key after an uncertain network response to the same payload.
 // Keys contain no credential material and survive accidental page reloads.
-async function request(path, body, method = 'POST') {
+async function request(path, body, method = 'POST', prefix = '/api/platform/pki') {
   const payload = body === undefined ? '' : JSON.stringify(body);
-  const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(path + '\0' + payload)))).map(x => x.toString(16).padStart(2, '0')).join('');
+  const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(prefix + path + '\0' + payload)))).map(x => x.toString(16).padStart(2, '0')).join('');
   const storage = 'pki-request-' + digest;
   let key = sessionStorage.getItem(storage);
   if (!key) { key = crypto.randomUUID(); sessionStorage.setItem(storage, key); }
-  const response = await fetch('/api/platform/pki' + path, { method, headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: method === 'GET' ? undefined : payload });
+  const response = await fetch(prefix + path, { method, headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: method === 'GET' ? undefined : payload });
   if (!response.ok) throw new Error(response.status === 403 ? 'Request denied. Check recent MFA, exact roles, independent approvals and issuer state.' : 'Request failed (' + response.status + '). Reload the operation before retrying.');
   if (response.status === 204) return null;
   return response.json();
@@ -77,4 +77,25 @@ bind('crl', async body => {
   if (/PRIVATE KEY/.test(body.crl_pem)) throw new Error('Only a public CRL is accepted.');
   const result = await request('/issuers/' + encodeURIComponent(body.issuer) + '/crl', {crl_pem: body.crl_pem.trim()});
   message('Published CRL ' + result.crl_number + '. Awaiting consumer acknowledgments for ' + result.crl_sha256 + '.');
+});
+
+let recovery;
+async function loadRecovery(id) {
+  recovery = null; $('recoveryDetail').textContent = '';
+  const result = await request('/' + encodeURIComponent(id), undefined, 'GET', '/api/platform/admin-recovery');
+  recovery = result; $('recoveryID').value = result.request_id;
+  $('recoveryDetail').textContent = JSON.stringify(result, null, 2);
+  message('Recovery request ' + result.request_id + ': ' + result.status + '.');
+}
+bind('recover', async body => { const result = await request('', body, 'POST', '/api/platform/admin-recovery'); await loadRecovery(result.request_id); });
+bind('recoveryLookup', body => loadRecovery(body.request_id.trim()));
+bind('recoveryApprove', async body => {
+  if (!recovery) throw new Error('Review a recovery request first.');
+  await request('/' + recovery.request_id + '/approve', {role: body.role, request_sha256: recovery.request_sha256}, 'POST', '/api/platform/admin-recovery');
+  await loadRecovery(recovery.request_id);
+});
+bind('recoveryAction', async body => {
+  if (!recovery) throw new Error('Review a recovery request first.');
+  await request('/' + recovery.request_id + '/' + body.action, {}, 'POST', '/api/platform/admin-recovery');
+  await loadRecovery(recovery.request_id);
 });
