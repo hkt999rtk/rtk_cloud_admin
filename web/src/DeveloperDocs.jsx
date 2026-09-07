@@ -33,7 +33,8 @@ export function DeveloperDocs() {
   const href = (value = '') => developerDocsURL(value, window.location.search);
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/assets/developer-docs/index.en.json', { signal: controller.signal })
+    // The catalog URL is stable across releases; always read the deployed revision.
+    fetch('/assets/developer-docs/index.en.json', { signal: controller.signal, cache: 'no-store' })
       .then((response) => { if (!response.ok) throw new Error('Documents are temporarily unavailable. Please reload the page.'); return response.json(); })
       .then(setCatalog).catch((err) => { if (err.name !== 'AbortError') setError(err.message); });
     return () => controller.abort();
