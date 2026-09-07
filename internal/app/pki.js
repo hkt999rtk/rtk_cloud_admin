@@ -110,3 +110,10 @@ $('downloadDistrust').onclick = async () => {
     message('Downloaded policy ' + policy.policy_sha256 + '. Consumers must remove the roots, reload their runtime trust pool, and acknowledge the exact policy.');
   } catch (error) { message(error.message); }
 };
+
+
+bind('replacementReconcile', async body => {
+  const result = await request('/issuers/' + encodeURIComponent(body.issuer.trim()) + '/reconcile-replacement', {request_id: body.request_id.trim(), serial_number: body.serial_number.trim()});
+  $('replacementResult').textContent = JSON.stringify(result, null, 2);
+  message('Existing renewal certificate recovered. The device can retry its original renewal request, install the successor and acknowledge using successor mTLS.');
+});
