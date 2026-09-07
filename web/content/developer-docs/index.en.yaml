@@ -327,3 +327,10 @@ sections:
   - release
   - qualification
   source: compatibility-releases.en.md
+
+- slug: protwo-cloud-examples
+  title: PRO2 Cloud Examples
+  summary: Source, firmware, URL burning and MQTT/H.264 test instructions.
+  category: Firmware
+  keywords: [PRO2, MQTT, H264, camera, firmware]
+  source: protwo-cloud-examples.en.md

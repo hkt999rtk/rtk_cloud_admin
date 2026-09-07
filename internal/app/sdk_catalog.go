@@ -15,6 +15,8 @@ func (s *Server) configureSDKPortal() {
 }
 
 func (s *Server) registerSDKPortalRoutes() {
+	s.mux.HandleFunc("GET /api/developer/pro2-examples/catalog", s.apiPRO2Examples)
+	s.mux.HandleFunc("POST /api/developer/pro2-examples/download", s.apiPRO2Examples)
 	s.mux.HandleFunc("GET /api/developer/chipset-sdk/context", s.apiSDKContext)
 	s.mux.HandleFunc("GET /api/developer/console/context", s.apiSDKContext)
 	s.mux.HandleFunc("GET /api/developer/console/clouds-context", s.apiSDKContext)

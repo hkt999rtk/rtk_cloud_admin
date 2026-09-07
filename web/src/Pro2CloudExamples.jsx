@@ -1,0 +1,17 @@
+import React,{useEffect,useState} from 'react';
+import './pro2-examples.css';
+import {examplesCatalog,exampleDownload,PRO2_EXAMPLES_PATH} from './pro2-examples.mjs';
+import {PRO2_FIRMWARE_BURNER_PATH} from './Pro2FirmwareBurner.jsx';
+export function Pro2CloudExamples(){
+ const [catalog,setCatalog]=useState(null),[error,setError]=useState(''),[accepted,setAccepted]=useState(false),[busy,setBusy]=useState(false),[attempt,setAttempt]=useState(0);
+ useEffect(()=>{const c=new AbortController();setError('');setCatalog(null);setAccepted(false);examplesCatalog('',c.signal).then(setCatalog).catch(e=>{if(!c.signal.aborted)setError(e.message)});return()=>c.abort()},[attempt]);
+ async function download(id){setBusy(true);setError('');try{const t=await exampleDownload(catalog,id);const a=document.createElement('a');a.href=t.url;a.rel='noreferrer noopener';a.download=t.artifact.filename;a.click()}catch(e){setError(e.message)}finally{setBusy(false)}}
+ return <section className="page-content pro2-examples-page" data-testid="pro2-cloud-examples">
+ <a href="/console/chipset-sdk">← ChipSet &amp; SDK</a><div className="page-intro"><div><p className="eyebrow">AMEBA PRO2 · VIDEO ONLY</p><h2>Cloud Examples</h2><p>Build, burn and test MQTT messaging, synthetic H.264 video, or a live camera.</p></div></div>
+ <section className="panel"><h3>Developer evaluation release</h3><p>Website firmware contains isolated test settings and cannot connect to your Cloud. To test your Cloud, download your device certificate in Developer UI and rebuild locally with your own settings.</p><p>Plaintext filesystem keys and embedded key arrays are for development only. Production private keys must use the PRO2 protected zone; that integration is not implemented here.</p></section>
+ {error&&<p role="alert">{error} <button onClick={()=>setAttempt(n=>n+1)}>Reload release</button></p>}
+ {!catalog&&!error&&<p role="status">Loading examples…</p>}
+ {catalog&&<><section className="panel"><h3>Release {catalog.version}</h3><p>Source {catalog.source_commit.slice(0,12)}</p><p>{Object.entries(catalog.dependencies).map(([k,v])=>`${k}: ${v}`).join(' · ')}</p><details><summary>Evaluation terms · {catalog.terms_version}</summary><pre style={{whiteSpace:'pre-wrap'}}>{catalog.terms}</pre></details><label><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> I accept these evaluation terms.</label><p><button disabled={!accepted||busy} onClick={()=>download('source')}>Download source &amp; documentation</button></p></section>
+ <div className="chipset-resource-grid">{catalog.examples.map(x=><article className="panel" key={x.id}><p className="eyebrow">{x.id}</p><h3>{x.title}</h3><p>{x.description}</p><p>{x.board} · Sensor: {x.sensor}</p><p>Full non-TrustZone flash image · offset 0x{x.flash_offset.toString(16)}</p><p>{Object.entries(x.validation).map(([k,v])=>`${k}: ${v}`).join(' · ')}</p><div className="cloud-sdk-actions"><a className="ghost-button" href={`/console/developer-docs/protwo-cloud-examples#${x.id.replaceAll('_','-')}`}>Read guide</a><button disabled={!accepted||busy} onClick={()=>download(x.firmware_id)}>Download bin</button><button disabled={!accepted||busy} onClick={()=>download(x.checksum_id)}>SHA-256</button><a className="primary-button" href={`${PRO2_FIRMWARE_BURNER_PATH}?example=${encodeURIComponent(x.id)}&version=${encodeURIComponent(catalog.version)}`}>Burn this example</a></div></article>)}</div></>}
+ </section>
+}

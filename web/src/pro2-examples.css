@@ -1,0 +1,3 @@
+.pro2-examples-page .panel { min-width: 0; overflow-wrap: anywhere; }
+.pro2-examples-page details pre { max-height: 24rem; overflow: auto; white-space: pre-wrap; }
+.pro2-examples-page .cloud-sdk-actions { flex-wrap: wrap; }

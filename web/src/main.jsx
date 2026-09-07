@@ -1,3 +1,5 @@
+import { Pro2CloudExamples } from './Pro2CloudExamples.jsx';
+import { PRO2_EXAMPLES_PATH } from './pro2-examples.mjs';
 import { DeveloperDocs } from './DeveloperDocs.jsx';
 import { BoardCards, BoardPage } from './BoardExplorer.jsx';
 import { ChipsetVideos } from './ChipsetVideos.jsx';
@@ -249,6 +251,7 @@ function SDKPage({ docs = false }) {
   const [attempt, setAttempt] = useState(0);
   const cloudID = new URLSearchParams(window.location.search).get('cloudId') || cloudContextId(window.location.pathname, window.location.search);
   const burner = window.location.pathname === PRO2_FIRMWARE_BURNER_PATH;
+  const examples = window.location.pathname === PRO2_EXAMPLES_PATH;
   const board = boardRoute(window.location.pathname);
   const authError = useCallback(status => {
     setFailure(status);
@@ -266,13 +269,13 @@ function SDKPage({ docs = false }) {
     return () => controller.abort();
   }, [cloudID, attempt, authError, docs]);
   const ready = !!context && !failure;
-  const sdk = useSDKSection('/api/developer/sdk-releases/latest', ready && !docs && !burner && !board, authError);
-  const chipsets = useSDKSection('/api/developer/chipsets', ready && !docs && !burner, authError);
+  const sdk = useSDKSection('/api/developer/sdk-releases/latest', ready && !docs && !burner && !board && !examples, authError);
+  const chipsets = useSDKSection('/api/developer/chipsets', ready && !docs && !burner && !examples, authError);
   return <CloudConsoleShell me={context?.me} cloud={context?.brand_cloud} clouds={context?.brand_clouds || []} navigationPath={item => cloudConsolePath(context?.brand_cloud?.id || cloudID, item.id)} active={docs ? 'developer-docs' : 'chipset-sdk'} title={docs ? 'Developer Docs' : 'ChipSet & SDK'}>
     {failure ? <section className="panel" role="alert"><h2>{[403,404].includes(failure) ? 'Access unavailable' : 'Unable to load developer resources'}</h2><p>{[403,404].includes(failure) ? 'This account or Brand Cloud is not available to the signed-in developer.' : 'Please sign in again or retry loading this page.'}</p><button type="button" onClick={() => setAttempt(n=>n+1)}>Retry page</button></section> : <>
       {!context && <p role="status">Checking developer access…</p>}
       {context?.cloud_list_status === 'unavailable' && <p role="status">Cloud list is temporarily unavailable. <button type="button" onClick={() => setAttempt(n=>n+1)}>Retry cloud list</button></p>}
-      {docs ? ready && <DeveloperDocs /> : burner ? ready && <Pro2FirmwareBurner /> : board ? <><BoardPage route={board} data={ready ? chipsets.data : null} loading={!ready || chipsets.loading || !chipsets.data} ResourceLinks={ResourceLinks} />{chipsets.data?.source_status==='unavailable' && <button onClick={chipsets.retry}>Retry ChipSet catalog</button>}</> :
+      {docs ? ready && <DeveloperDocs /> : examples ? ready && <Pro2CloudExamples /> : burner ? ready && <Pro2FirmwareBurner /> : board ? <><BoardPage route={board} data={ready ? chipsets.data : null} loading={!ready || chipsets.loading || !chipsets.data} ResourceLinks={ResourceLinks} />{chipsets.data?.source_status==='unavailable' && <button onClick={chipsets.retry}>Retry ChipSet catalog</button>}</> :
         <DeveloperChipsetResources data={ready ? chipsets.data : null} sdkRelease={ready ? sdk.data : null} chipsetLoading={!ready || chipsets.loading || !chipsets.data} sdkLoading={!ready || sdk.loading || !sdk.data} toolsVisible={ready} retrySDK={sdk.retry} retryChipsets={chipsets.retry} />}
     </>}
   </CloudConsoleShell>;
@@ -2535,6 +2538,7 @@ function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading =
         <a className="primary-button icon-text pro2-tool-action" href={PRO2_FIRMWARE_BURNER_PATH}><Icon name="arrow-right" />Open firmware burner</a>
       </article>
     </section> : null}
+    {isPRO2 && <section className="panel"><h2>PRO2 Cloud Examples</h2><p>MQTT, H.264 test video and live camera: source, firmware, guides and browser burning.</p><a className="primary-button" href={PRO2_EXAMPLES_PATH}>Explore cloud examples</a></section>}
     <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
       <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading"><Icon name="cloud" />Cloud Client SDKs</h2><p>App SDKs are shared across chips. Device packages are shown for the selected chip; the complete bundle contains the entire release. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
       {sdkLoading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
