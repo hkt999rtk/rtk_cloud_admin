@@ -1,3 +1,61 @@
 .pro2-examples-page .panel { min-width: 0; overflow-wrap: anywhere; }
 .pro2-examples-page details pre { max-height: 24rem; overflow: auto; white-space: pre-wrap; }
 .pro2-examples-page .cloud-sdk-actions { flex-wrap: wrap; }
+
+.pro2-examples-page .pro2-release {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.pro2-release-info { padding: 28px 32px; }
+.pro2-release-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.pro2-release-heading .eyebrow { margin: 0 0 8px; font-size: 10px; letter-spacing: .12em; color: var(--muted, #576576); }
+.pro2-release-heading h3 { margin: 0; font-size: 22px; line-height: 1.3; letter-spacing: -.025em; }
+.pro2-release-badge { padding: 4px 9px; border: 1px solid #d5e5f4; border-radius: 5px; background: #f0f7fc; color: #205b87; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.pro2-release-info .pro2-release-description { margin: 12px 0 24px; color: var(--muted, #576576); font-size: 13px; }
+.pro2-release-dependencies { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 28px; margin: 0; }
+.pro2-release-dependencies dt { margin: 0 0 5px; font-size: 11px; font-weight: 500; color: var(--muted, #576576); }
+.pro2-release-dependencies dd { margin: 0; font-size: 14px; font-weight: 600; color: var(--text, #24292f); }
+.pro2-release code { font-size: 12px; letter-spacing: .015em; }
+.pro2-release-info .pro2-release-source { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 24px 0 0; padding-top: 16px; border-top: 1px solid var(--line, #e0e5eb); color: var(--muted, #576576); font-size: 11px; }
+.pro2-release-download { display: flex; flex-direction: column; align-items: flex-start; padding: 28px; border-left: 1px solid var(--line, #e0e5eb); background: #f8fafc; }
+.pro2-release-icon { display: grid; place-items: center; width: 36px; height: 36px; margin-bottom: 16px; border: 1px solid #dbe7f2; border-radius: 8px; background: #fff; color: var(--brand, #0068b7); }
+.pro2-release-download h4 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+.pro2-release-download > p { margin: 0 0 20px; color: var(--muted, #576576); font-size: 12px; line-height: 1.6; }
+.pro2-release-download .pro2-release-consent { display: flex; align-items: flex-start; gap: 8px; margin: auto 0 12px; color: var(--text, #24292f); font-size: 12px; line-height: 1.5; font-weight: 400; }
+.pro2-release-consent input[type=checkbox] { flex: 0 0 15px; width: 15px; height: 15px; min-height: 0; margin: 2px 0 0; accent-color: var(--brand, #0068b7); }
+.pro2-release-download .primary-button { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; line-height: 1.5; padding: 10px 12px; }
+.pro2-release-terms { grid-column: 1 / -1; border-top: 1px solid var(--line, #e0e5eb); }
+.pro2-release-terms summary { padding: 16px 28px; cursor: pointer; color: var(--text, #24292f); font-size: 12px; font-weight: 500; }
+.pro2-release-terms summary::marker { color: var(--muted, #576576); }
+.pro2-release-terms-version { margin-left: 12px; color: var(--muted, #576576); font-size: 11px; font-weight: 400; }
+.pro2-release-terms pre { margin: 0 28px 24px; padding: 20px; border: 1px solid var(--line, #e0e5eb); border-radius: 6px; background: #f8fafc; font-size: 12px; line-height: 1.7; }
+@media (max-width: 1000px) {
+  .pro2-examples-page .pro2-release { grid-template-columns: minmax(0, 1fr); }
+  .pro2-release-download { border-left: 0; border-top: 1px solid var(--line, #e0e5eb); }
+}
+@media (max-width: 560px) {
+  .pro2-release-info, .pro2-release-download { padding: 22px 20px; }
+  .pro2-release-heading h3 { font-size: 20px; }
+  .pro2-release-terms summary { padding: 16px 20px; }
+  .pro2-release-terms-version { display: block; margin: 6px 0 0 14px; }
+  .pro2-release-terms pre { margin: 0 20px 20px; padding: 14px; }
+}
+
+.pro2-icon-heading { display: flex; align-items: center; gap: 10px; }
+.pro2-icon-heading > i { color: var(--brand, #0068b7); font-size: .9em; }
+.pro2-inline-icon { margin-right: 5px; color: var(--muted, #576576); }
+.pro2-example-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.pro2-example-icon { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border: 1px solid #dbe7f2; border-radius: 9px; background: #f0f7fc; color: var(--brand, #0068b7); font-size: 17px; }
+.pro2-example-heading .eyebrow { margin: 0 0 5px; }
+.pro2-example-heading h3 { margin: 0; }
+.pro2-example-detail { display: flex; align-items: baseline; gap: 10px; }
+.pro2-example-detail > i { flex: 0 0 16px; text-align: center; color: var(--muted, #576576); font-size: 12px; }
+.pro2-example-validation { display: grid; gap: 8px; list-style: none; padding: 16px 0; margin: 18px 0; border-block: 1px solid var(--line, #e0e5eb); }
+.pro2-example-validation li { display: flex; align-items: baseline; gap: 9px; color: var(--muted, #576576); font-size: 12px; line-height: 1.5; }
+.pro2-example-validation strong { color: var(--text, #24292f); font-weight: 500; }
+.pro2-example-validation .pro2-status-pass { color: #27805c; }
+.pro2-example-card .cloud-sdk-actions { gap: 8px; }
+.pro2-example-card .cloud-sdk-actions > :is(a,button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
