@@ -6,7 +6,8 @@ import (
 
 func (s *Server) apiPRO2Examples(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if _, ok := s.customerSession(r); !ok {
+	session, ok := s.customerSession(r)
+	if !ok {
 		http.Error(w, "Developer authentication required", 401)
 		return
 	}
@@ -21,7 +22,7 @@ func (s *Server) apiPRO2Examples(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	b, status, e := s.sdkPortalClient.ExamplesRequest(r.Context(), r.Method, r.URL.Query().Get("version"), r.PostForm)
+	b, status, e := s.sdkPortalClient.ExamplesRequest(r.Context(), r.Method, r.URL.Query().Get("version"), r.PostForm, session.ID)
 	if e != nil || status >= 500 {
 		http.Error(w, "PRO2 examples are temporarily unavailable", 503)
 		return

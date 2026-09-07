@@ -2,6 +2,8 @@ package sdkportalclient
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,6 +19,13 @@ func TestExamplesRequestsUseOfficialPathsAndPreserveVersion(t *testing.T) {
 		} else if r.URL.Path != "/api/pro2-examples/download" || r.FormValue("artifact") != "mqtt" || r.FormValue("accepted") != "true" {
 			t.Errorf("unexpected download request: %s", r.URL)
 		}
+		if r.Method == http.MethodPost {
+			cookie, err := r.Cookie("rtk_sdk_session")
+			digest := sha256.Sum256([]byte("pro2-download:test-auth-session"))
+			if err != nil || cookie.Value != hex.EncodeToString(digest[:]) {
+				t.Fatal("missing anonymized acceptance session")
+			}
+		}
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"test_only":true}`))
 	}))
@@ -26,7 +35,7 @@ func TestExamplesRequestsUseOfficialPathsAndPreserveVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, method := range []string{http.MethodGet, http.MethodPost} {
-		body, status, err := c.ExamplesRequest(context.Background(), method, "0.1.0-dev.2", url.Values{"artifact": {"mqtt"}, "accepted": {"true"}})
+		body, status, err := c.ExamplesRequest(context.Background(), method, "0.1.0-dev.2", url.Values{"artifact": {"mqtt"}, "accepted": {"true"}}, "test-auth-session")
 		if err != nil || status != 200 || string(body) != `{"test_only":true}` {
 			t.Fatalf("response: %s %d %v", body, status, err)
 		}
@@ -35,7 +44,7 @@ func TestExamplesRequestsUseOfficialPathsAndPreserveVersion(t *testing.T) {
 
 func TestExamplesUnavailableAndCancelledRequests(t *testing.T) {
 	var missing *Client
-	if _, status, err := missing.ExamplesRequest(context.Background(), http.MethodGet, "", nil); status != 503 || err == nil {
+	if _, status, err := missing.ExamplesRequest(context.Background(), http.MethodGet, "", nil, ""); status != 503 || err == nil {
 		t.Fatal("missing Portal accepted")
 	}
 	c, err := New("https://portal.example")
@@ -44,7 +53,7 @@ func TestExamplesUnavailableAndCancelledRequests(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, status, err := c.ExamplesRequest(ctx, http.MethodGet, "", nil); status != 503 || err == nil {
+	if _, status, err := c.ExamplesRequest(ctx, http.MethodGet, "", nil, ""); status != 503 || err == nil {
 		t.Fatal("cancelled request accepted")
 	}
 }
