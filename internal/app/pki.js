@@ -72,3 +72,9 @@ $('download').onclick = () => {
   if (!issuer) return; const url = URL.createObjectURL(new Blob([JSON.stringify(issuer, null, 2)], { type: 'application/json' }));
   const link = document.createElement('a'); link.href = url; link.download = 'issuer-' + issuer.issuer_id + '.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
+
+bind('crl', async body => {
+  if (/PRIVATE KEY/.test(body.crl_pem)) throw new Error('Only a public CRL is accepted.');
+  const result = await request('/issuers/' + encodeURIComponent(body.issuer) + '/crl', {crl_pem: body.crl_pem.trim()});
+  message('Published CRL ' + result.crl_number + '. Awaiting consumer acknowledgments for ' + result.crl_sha256 + '.');
+});
