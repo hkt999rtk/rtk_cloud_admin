@@ -44,7 +44,7 @@ func (c *Client) pkiRequest(ctx context.Context, method, path, token, key string
 	return resp.StatusCode, raw, nil
 }
 
-var pkiPath = regexp.MustCompile(`^/(issuers|operations)(/search|/[0-9a-f-]{36}(/(operations|approvals|cancel|provision|import|activate|execute|reconcile|crl|revocation-complete|reconcile-replacement|reconcile-factory))?)?$`)
+var pkiPath = regexp.MustCompile(`^/(issuers|operations)(/search|/[0-9a-f-]{36}(/(operations|approvals|cancel|provision|import|activate|execute|reconcile|crl|revocation-complete|reconcile-replacement|reconcile-factory|legacy-import))?)?$`)
 var pkiProvider = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,100}$`)
 
 func (c *Client) PKI(ctx context.Context, token, method, path, key string, body json.RawMessage) (json.RawMessage, error) {

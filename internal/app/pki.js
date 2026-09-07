@@ -23,9 +23,13 @@ function bind(id, fn) {
   });
 }
 async function loadOperation(id) {
-  operation = null; issuer = null; $('download').disabled = true; $('operationDetail').textContent = ''; $('issuerDetail').textContent = '';
+  operation = null; issuer = null; $('download').disabled = true; $('operationDetail').textContent = ''; $('issuerDetail').textContent = ''; $('legacyDetail').textContent = '';
   const value = await request('/operations/' + encodeURIComponent(id), undefined, 'GET');
   const authority = await request('/issuers/' + value.issuer_id, undefined, 'GET');
+  if (value.action === 'legacy-import') {
+    const manifest = await request('/operations/' + value.operation_id + '/legacy-import', undefined, 'GET');
+    $('legacyDetail').textContent = JSON.stringify(manifest, null, 2);
+  }
   operation = value; issuer = authority; $('operation').value = id;
   $('operationDetail').textContent = JSON.stringify(value, null, 2); $('issuerDetail').textContent = JSON.stringify(authority, null, 2); $('download').disabled = false;
   message('Loaded operation ' + value.operation_id + ' (' + value.status + ').');
@@ -124,4 +128,12 @@ bind('factoryReconcile', async body => {
   const result = await request('/issuers/' + encodeURIComponent(body.issuer.trim()) + '/reconcile-factory', {request_id: body.request_id.trim(), serial_number: body.serial_number.trim(), csr_pem: body.csr_pem.trim()});
   $('factoryResult').textContent = JSON.stringify(result, null, 2);
   message('Existing factory certificate recovered. Replay the original factory request to continue enrollment; recovery does not project entitlement or complete the reservation.');
+});
+
+bind('legacyImport', async body => {
+  if (/PRIVATE KEY/.test(body.trust_anchor_pem + body.crls_pem)) throw new Error('Only public certificates and CRLs are accepted.');
+  const request_ids = body.request_ids.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  if (!request_ids.length || request_ids.length > 50 || new Set(request_ids).size !== request_ids.length) throw new Error('Enter 1–50 distinct issuance request IDs.');
+  const result = await request('/issuers/' + encodeURIComponent(body.root_id.trim()) + '/legacy-import', {trust_anchor_pem: body.trust_anchor_pem.trim(), crls_pem: body.crls_pem.trim(), request_ids, reason: body.reason.trim()});
+  await loadOperation(result.operation_id);
 });
