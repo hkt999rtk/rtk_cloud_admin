@@ -117,3 +117,11 @@ bind('replacementReconcile', async body => {
   $('replacementResult').textContent = JSON.stringify(result, null, 2);
   message('Existing renewal certificate recovered. The device can retry its original renewal request, install the successor and acknowledge using successor mTLS.');
 });
+
+
+bind('factoryReconcile', async body => {
+  if (/PRIVATE KEY/.test(body.csr_pem)) throw new Error('Only the original public CSR is accepted.');
+  const result = await request('/issuers/' + encodeURIComponent(body.issuer.trim()) + '/reconcile-factory', {request_id: body.request_id.trim(), serial_number: body.serial_number.trim(), csr_pem: body.csr_pem.trim()});
+  $('factoryResult').textContent = JSON.stringify(result, null, 2);
+  message('Existing factory certificate recovered. Replay the original factory request to continue enrollment; recovery does not project entitlement or complete the reservation.');
+});

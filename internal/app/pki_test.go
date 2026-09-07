@@ -150,3 +150,33 @@ func TestReplacementReconciliationProxyRequiresSessionAndSameOrigin(t *testing.T
 		t.Fatalf("unauthorized call reached upstream: %d", calls)
 	}
 }
+
+func TestFactoryReconciliationProxyRequiresSessionAndSameOrigin(t *testing.T) {
+	calls := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.URL.Path != "/v1/platform/pki/issuers/00000000-0000-0000-0000-000000000001/reconcile-factory" || r.Header.Get("Authorization") != "Bearer access" || r.Header.Get("Idempotency-Key") != "pki-test" {
+			t.Errorf("wrong proxy identity/path")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"items":[]}`))
+	}))
+	defer upstream.Close()
+	srv, session := newDeveloperPKITestServer(t, upstream.URL, "")
+	for _, tc := range []struct {
+		session, origin string
+		want            int
+	}{{"", "", 401}, {session, "https://other.example", 403}, {session, "http://example.com", 200}} {
+		req := developerPKIRequest(t, tc.session, "/api/platform/pki/issuers/00000000-0000-0000-0000-000000000001/reconcile-factory", "pki-test", `{"request_id":"renewal","serial_number":"ab:cd"}`)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", tc.origin)
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		if rec.Code != tc.want {
+			t.Errorf("status %d want %d: %s", rec.Code, tc.want, rec.Body.String())
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("unauthorized call reached upstream: %d", calls)
+	}
+}
