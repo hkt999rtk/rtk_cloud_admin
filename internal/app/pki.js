@@ -99,3 +99,14 @@ bind('recoveryAction', async body => {
   await request('/' + recovery.request_id + '/' + body.action, {}, 'POST', '/api/platform/admin-recovery');
   await loadRecovery(recovery.request_id);
 });
+
+$('downloadDistrust').onclick = async () => {
+  try {
+    if (!issuer || issuer.kind !== 'root' || !['revoked', 'compromised'].includes(issuer.status)) throw new Error('Load an executed Root CA revocation first.');
+    const policy = await request('/issuers/' + encodeURIComponent(issuer.issuer_id) + '/distrust', undefined, 'GET');
+    const url = URL.createObjectURL(new Blob([JSON.stringify(policy, null, 2)], {type: 'application/json'}));
+    const link = document.createElement('a'); link.href = url; link.download = 'root-distrust-' + policy.version + '.json'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    message('Downloaded policy ' + policy.policy_sha256 + '. Consumers must remove the roots, reload their runtime trust pool, and acknowledge the exact policy.');
+  } catch (error) { message(error.message); }
+};
