@@ -29,7 +29,7 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await page.goto(`/console/clouds/${cloud}`);
   const menu = page.getByRole('button',{name:'Open navigation',exact:true});
   if (await menu.isVisible()) await menu.click();
-  await page.getByRole('link',{name:'Cloud Test Lab',exact:true}).click();
+  await page.getByRole('complementary',{name:'Primary navigation'}).getByRole('link',{name:'Cloud Test Lab',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Cloud Test Lab',exact:true}).first()).toBeVisible();
   await expect(page.locator('#test-lab-product-id')).toHaveCount(0);
   await expect(page.getByRole('button',{name:/^(Previous|Next) (Products|devices)$/i})).toHaveCount(0);
