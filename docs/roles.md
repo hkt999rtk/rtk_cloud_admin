@@ -181,6 +181,15 @@ explicitly granted the developer capability.
 
 ### Product project collaboration
 
+Applicability: the assignment-based baseline below is refined for the multi-cloud
+target release by [multicloud_ownership.md](rtk_cloud_contracts_doc/multicloud_ownership.md)
+and [multicloud_webui.md](multicloud_webui.md). In that target, cloud-owner-approved
+viewer membership with `selected_products` or `all_products` grants scoped reads
+without another Product assignment. Membership remains the outer boundary;
+viewer grants exclude Billing, secrets and playback authorization. Existing
+admin/member operational roles retain their approved scope. Do not treat this
+transition note as evidence that the target is deployed.
+
 Brand Cloud membership is not Product visibility. The Brand Cloud owner has audited
 governance access and is the only actor allowed to create a Product. Each Product has
 one explicit, transferable owner plus Editors and Viewers:
