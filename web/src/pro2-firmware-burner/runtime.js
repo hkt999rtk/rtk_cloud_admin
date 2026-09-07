@@ -18,6 +18,10 @@ const ids = [
 const ui = Object.fromEntries(ids.map(id => [id, $(id)]));
 const steps = ['step-connect', 'step-download', 'step-transfer', 'step-verify', 'step-console'];
 const downloadBaudLevels = ['1000000', '2000000', '3000000', '4000000'];
+let remoteFile = null;
+let sourceBusy = false;
+let remoteMetadata = null;
+const selectedFile = () => remoteFile || ui.firmware.files[0];
 let connectInProgress = false;
 let progressStartedAt = 0;
 let firmwareChecksum = '';
@@ -88,11 +92,11 @@ function isBusy() { return connectInProgress || Boolean(controller.abortControll
 function updateButtons() {
   const connected = transport.connected;
   const busy = isBusy();
-  const hasFirmware = Boolean(ui.firmware.files.length) && firmwareChecksumFile === ui.firmware.files[0] && Boolean(firmwareChecksum);
+  const hasFirmware = Boolean(selectedFile()) && firmwareChecksumFile === selectedFile() && Boolean(firmwareChecksum);
   ui.connect.disabled = connected || busy || !('serial' in navigator);
   ui['open-burn'].disabled = !connected || busy;
   ui.disconnect.disabled = !connected || busy;
-  ui.burn.disabled = !connected || !hasFirmware || busy;
+  ui.burn.disabled = !connected || !hasFirmware || busy || sourceBusy;
   ui.cancel.disabled = !controller.abortController;
   ui.connect.hidden = connected || Boolean(controller.abortController);
   ui['open-burn'].hidden = !connected || busy;
@@ -127,20 +131,20 @@ function showBurnPanel(show = true) {
 }
 
 function updateFirmwareCard() {
-  const file = ui.firmware.files[0];
+  const file = selectedFile();
   ui['firmware-card'].hidden = !file;
-  ui['file-info'].textContent = file ? `${file.name} · ${formatBytes(file.size)}` : 'Choose flash_is.bin';
+  ui['file-info'].textContent = file ? `${file.name} · ${formatBytes(file.size)}` : 'Choose a complete flash .bin';
   if (!file) return;
   ui['firmware-kind'].textContent = 'Full Flash image';
-  ui['firmware-target'].textContent = 'Write at 0x0';
-  ui['firmware-note'].textContent = file.name === 'flash_is.bin' ? 'Expected filename' : 'The filename is not flash_is.bin. Confirm that this is a complete flash image.';
+  ui['firmware-target'].textContent = `Write at ${ui.offset.value}`;
+  ui['firmware-note'].textContent = remoteMetadata ? 'Published full non-TrustZone flash image · isolated test settings' : 'Confirm this is a complete flash image and check the write offset.';
   ui['firmware-checksum'].textContent = firmwareChecksumFile === file && firmwareChecksum
     ? firmwareChecksum
     : firmwareChecksumPending ? 'Calculating local SHA-256…' : firmwareChecksumError || 'Waiting for calculation';
 }
 
 async function calculateFirmwareChecksum() {
-  const file = ui.firmware.files[0];
+  const file = selectedFile();
   const request = ++firmwareChecksumRequest;
   firmwareChecksum = '';
   firmwareChecksumFile = null;
@@ -151,7 +155,7 @@ async function calculateFirmwareChecksum() {
   if (!file) return;
   try {
     const checksum = await sha256Hex(await file.arrayBuffer());
-    if (request !== firmwareChecksumRequest || ui.firmware.files[0] !== file) return;
+    if (request !== firmwareChecksumRequest || selectedFile() !== file) return;
     firmwareChecksum = checksum;
     firmwareChecksumFile = file;
     firmwareChecksumPending = false;
@@ -237,9 +241,9 @@ async function connect() {
 }
 
 async function burn() {
-  const file = ui.firmware.files[0];
+  const file = selectedFile();
   try {
-    if (!file) throw new Error('Choose flash_is.bin first.');
+    if (!file) throw new Error('Choose a complete flash .bin first.');
     if (firmwareChecksumFile !== file || !firmwareChecksum) throw new Error('The firmware SHA-256 is still being calculated. Review the checksum before burning.');
     if (ui.erase.value === 'chip' && !window.confirm('Chip erase removes the entire flash, including the current bootable image. Continue?')) return;
     clearRecovery();
@@ -252,7 +256,7 @@ async function burn() {
       baudRate: Number(ui['download-baud'].value), offset: parseOffset(ui.offset.value), erase: ui.erase.value,
       modeK: 1, enterDownload: ui['enter-download'].checked, verify: ui.verify.checked, pro2: true, reset: ui.reset.checked
     };
-    log(`local firmware loaded: ${file.name}, ${file.size} bytes (not uploaded)`);
+    log(`firmware loaded: ${file.name}, ${file.size} bytes (not uploaded)`);
     await controller.burn(firmware, options);
     if (ui['open-terminal'].checked) {
       setStatus('completed', 'Burn and verification completed. Reopening the console at 115200 baud…');
@@ -318,7 +322,15 @@ if ('serial' in navigator && window.isSecureContext) {
   ui['compatibility-icon'].className = 'fa-solid fa-triangle-exclamation';
 }
 
-ui.firmware.addEventListener('change', calculateFirmwareChecksum);
+ui.firmware.addEventListener('change', () => { remoteFile = null; remoteMetadata = null; sourceBusy = false; calculateFirmwareChecksum(); });
+const onFirmwareSource = event => {
+ if (controller.abortController) return;
+ ui.firmware.value = '';
+ remoteFile = event.detail.file; remoteMetadata = event.detail.metadata || null; sourceBusy = event.detail.busy;
+ if(remoteMetadata) ui.offset.value = `0x${remoteMetadata.flash_offset.toString(16)}`;
+ calculateFirmwareChecksum();
+};
+root.addEventListener('pro2-firmware-source', onFirmwareSource);
 ui.erase.addEventListener('change', () => { ui['erase-warning'].hidden = ui.erase.value !== 'chip'; });
 ui['enter-download'].addEventListener('change', updateDownloadModeGuide);
 ui['line-ending'].addEventListener('change', () => terminal.setLineEnding(ui['line-ending'].value));
@@ -387,9 +399,12 @@ function formatBytes(value) {
   return `${(value / 1024 ** 2).toFixed(2)} MiB`;
 }
 
+root.dataset.burnerReady = 'true';
 updateDownloadModeGuide();
 setStatus('idle', 'Connect UART to use the console and burn firmware.');
 return () => {
+  delete root.dataset.burnerReady;
+  root.removeEventListener('pro2-firmware-source', onFirmwareSource);
   navigator.serial?.removeEventListener('disconnect', onSerialDisconnect);
   controller.cancel();
   terminal.dispose();
