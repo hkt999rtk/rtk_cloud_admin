@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
-import {fetchExampleFirmware} from './pro2-examples.mjs';
+import {examplesCatalog,exampleDownload,fetchExampleFirmware} from './pro2-examples.mjs';
 const bytes=new TextEncoder().encode('firmware');
 const sha=Buffer.from(await webcrypto.subtle.digest('SHA-256',bytes)).toString('hex');
 const ticket={url:'https://objects.example/image',artifact:{kind:'firmware',filename:'test.bin',sha256:sha,size_bytes:bytes.length}};
@@ -17,5 +17,17 @@ test('remote firmware checks length/hash and supports failure and cancellation',
   globalThis.fetch=async()=>{throw new TypeError('Failed to fetch')};await assert.rejects(fetchExampleFirmware(ticket),/fetch/);
   globalThis.fetch=async()=>new Response(bytes);const c=new AbortController();c.abort();await assert.rejects(fetchExampleFirmware(ticket,{signal:c.signal}),{name:'AbortError'});
   await assert.rejects(fetchExampleFirmware({...ticket,url:'http://untrusted.example'}),/metadata/);
+ }finally{globalThis.fetch=original}
+});
+
+test('catalog and download requests preserve version/terms and reject service failures',async()=>{
+ const original=globalThis.fetch;
+ try {
+  globalThis.fetch=async(url,options)=>{assert.match(String(url),/version=v1/);return Response.json({version:'v1'})};
+  assert.deepEqual(await examplesCatalog('v1'),{version:'v1'});
+  globalThis.fetch=async(url,options)=>{assert.equal(options.method,'POST');assert.equal(options.body.get('accepted'),'true');assert.equal(options.body.get('terms_version'),'eval-v1');assert.equal(options.body.get('artifact'),'mqtt');return Response.json(ticket)};
+  assert.deepEqual(await exampleDownload({version:'v1',terms_version:'eval-v1'},'mqtt'),ticket);
+  globalThis.fetch=async()=>new Response('',{status:503});
+  await assert.rejects(examplesCatalog(),/unavailable/);await assert.rejects(exampleDownload({version:'v1',terms_version:'old'},'mqtt'),/terms/);
  }finally{globalThis.fetch=original}
 });

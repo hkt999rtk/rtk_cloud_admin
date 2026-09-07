@@ -399,9 +399,11 @@ function formatBytes(value) {
   return `${(value / 1024 ** 2).toFixed(2)} MiB`;
 }
 
+root.dataset.burnerReady = 'true';
 updateDownloadModeGuide();
 setStatus('idle', 'Connect UART to use the console and burn firmware.');
 return () => {
+  delete root.dataset.burnerReady;
   root.removeEventListener('pro2-firmware-source', onFirmwareSource);
   navigator.serial?.removeEventListener('disconnect', onSerialDisconnect);
   controller.cancel();

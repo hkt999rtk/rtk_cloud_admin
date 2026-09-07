@@ -5,7 +5,8 @@ export function Pro2RemoteFirmware({rootRef}){
  const [catalog,setCatalog]=useState(null),[error,setError]=useState(''),[accepted,setAccepted]=useState(false),[progress,setProgress]=useState(''),[busy,setBusy]=useState(false),[attempt,setAttempt]=useState(0);
  const active=useRef(null);
  const [uartBusy,setUartBusy]=useState(false);
- useEffect(()=>{const node=rootRef.current;const observer=new MutationObserver(()=>setUartBusy(node.dataset.uartBusy==='true'));observer.observe(node,{attributes:true,attributeFilter:['data-uart-busy']});return()=>observer.disconnect()},[]);
+ const [runtimeReady,setRuntimeReady]=useState(false);
+ useEffect(()=>{const node=rootRef.current;const update=()=>{setUartBusy(node.dataset.uartBusy==='true');setRuntimeReady(node.dataset.burnerReady==='true')};const observer=new MutationObserver(update);observer.observe(node,{attributes:true,attributeFilter:['data-uart-busy','data-burner-ready']});update();return()=>observer.disconnect()},[]);
  function emit(detail){rootRef.current?.dispatchEvent(new CustomEvent('pro2-firmware-source',{detail}))}
  useEffect(()=>{if(!id||!version)return;const c=new AbortController();setError('');setAccepted(false);examplesCatalog(version,c.signal).then(setCatalog).catch(e=>{if(!c.signal.aborted)setError(e.message)});return()=>c.abort()},[id,version,attempt]);
  useEffect(()=>{const local=()=>{active.current?.abort();active.current=null;setBusy(false);setProgress('Using local firmware.');setError('')};const input=rootRef.current.querySelector('#firmware');input.addEventListener('change',local);return()=>{input.removeEventListener('change',local);active.current?.abort()}},[]);
@@ -26,6 +27,6 @@ export function Pro2RemoteFirmware({rootRef}){
  return <section className="panel" aria-label="Website firmware"><h3>Website firmware · {example?.title||id} · {version}</h3><p>Isolated test firmware: cannot connect to your Cloud. Use a locally rebuilt image for your own device credentials.</p>
  {error&&<p role="alert">{error} <button onClick={()=>setAttempt(n=>n+1)}>Reload release</button></p>}
  {catalog&&!example&&<p role="alert">This example is not in the selected release.</p>}
- {example&&<><details><summary>Evaluation terms · {catalog.terms_version}</summary><pre style={{whiteSpace:'pre-wrap'}}>{catalog.terms}</pre></details><label><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> I accept these evaluation terms.</label><p><button disabled={!accepted||busy||uartBusy} onClick={download}>Download / retry firmware</button> <button disabled={!busy} onClick={()=>active.current?.abort()}>Cancel download</button></p></>}
+ {example&&<><details><summary>Evaluation terms · {catalog.terms_version}</summary><pre style={{whiteSpace:'pre-wrap'}}>{catalog.terms}</pre></details><label><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> I accept these evaluation terms.</label><p><button disabled={!accepted||busy||uartBusy||!runtimeReady} onClick={download}>Download / retry firmware</button> <button disabled={!busy} onClick={()=>active.current?.abort()}>Cancel download</button></p></>}
  <p role="status">{progress}</p><p>You can also choose a local file in the firmware panel below.</p></section>
 }
