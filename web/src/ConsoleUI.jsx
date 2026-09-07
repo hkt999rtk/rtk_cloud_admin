@@ -19,12 +19,14 @@ export function CopyValue({ value, label = 'identifier' }) {
   }}>Copy</button>}<span role="status">{message}</span></span>;
 }
 
-export function Dialog({ title, onClose, busy = false, role = 'dialog', returnFocus, children }) {
+export function Dialog({ title, onClose, busy = false, role = 'dialog', returnFocus, variant = 'dialog', children }) {
   const ref = useRef(null), titleId = useId();
   useEffect(() => {
     const previous = returnFocus || document.activeElement;
     const dialog = ref.current;
     dialog.showModal();
+    const previousOverflow = document.body.style.overflow;
+    if (variant === 'drawer') document.body.style.overflow = 'hidden';
     const trapFocus = (event) => {
       if (event.key !== 'Tab') return;
       const items = [...dialog.querySelectorAll('button, input, select, textarea, a[href], [tabindex]')]
@@ -37,11 +39,12 @@ export function Dialog({ title, onClose, busy = false, role = 'dialog', returnFo
     return () => {
       dialog.removeEventListener('keydown', trapFocus);
       dialog.close();
+      if (variant === 'drawer') document.body.style.overflow = previousOverflow;
       // Restore after React re-enables the triggering fieldset and removes the modal.
       queueMicrotask(() => { if (previous?.isConnected) previous.focus(); });
     };
   }, []);
-  return <dialog ref={ref} role={role} className="ui-dialog" aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
+  return <dialog ref={ref} role={role} className={`ui-dialog${variant === 'drawer' ? ' ui-dialog-drawer' : ''}`} aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
     <header><h2 id={titleId}>{title}</h2><button type="button" aria-label="Close dialog" disabled={busy} onClick={onClose}>Close</button></header>
     {children}
   </dialog>;
