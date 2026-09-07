@@ -655,7 +655,7 @@ async function runDesktopSmoke(page) {
   await gotoAndAssert(page, '/console/clouds', 'My Clouds');
   await screenshot(page, 'desktop-my-clouds.png');
 
-  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Device Overview');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Cloud Overview');
   await expectText(page, 'Online Rate');
   await expectText(page, 'Needs Attention');
   await expectText(page, 'Active Streams');
@@ -773,12 +773,12 @@ async function runMobileSmoke(browserContext) {
   await installApiMocks(page);
 
   await page.setViewportSize({ width: 360, height: 800 });
-  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Device Overview');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Cloud Overview');
   await expectText(page, 'Devices that need attention');
   await assertNoHorizontalOverflow(page, '360px Overview');
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Device Overview');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Cloud Overview');
   await assertNoHorizontalOverflow(page, '390px Overview');
   const menuButton = page.getByRole('button', { name: 'Open navigation' });
   if (await menuButton.getAttribute('aria-expanded') !== 'false') {
@@ -803,14 +803,14 @@ async function runMobileSmoke(browserContext) {
   await screenshot(page, 'mobile-overview.png');
 
   await page.setViewportSize({ width: 768, height: 1024 });
-  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Device Overview');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Cloud Overview');
   await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
   await assertOverviewStartsInViewport(page, '768px Overview');
   await assertNoHorizontalOverflow(page, '768px Overview');
   await screenshot(page, 'tablet-overview.png');
 
   await page.setViewportSize({ width: 1024, height: 768 });
-  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Device Overview');
+  await gotoAndAssert(page, `/console/clouds/${cloudId}`, 'Cloud Overview');
   await page.locator('.overview-layout').waitFor({ state: 'visible', timeout: 5000 });
   await assertNoHorizontalOverflow(page, '1024px Overview');
   await screenshot(page, 'compact-desktop-overview.png');
