@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { cloudRoot, cloudURL, cloudAPI, cloudError, managedCloudRoute, managedCloudRequest, cloudWriteIntent, cloudOperationFromSearch, cloudContextFromSearch, blockerLabels, isCloudID } from './managed-clouds.mjs';
 import './my-clouds.css';
-import { CloudSharing } from './CloudSharing.jsx';
+import { CloudSharing, CloudSharingGuide } from './CloudSharing.jsx';
 import { StartOwnerHandoff } from './OwnerHandoff.jsx';
 import { CloudProducts } from './CloudProducts.jsx';
 import { ProductDevices } from './ProductDevices.jsx';
 import { TestLab } from './TestLab.jsx';
 import { CloudConsoleShell } from './CloudConsoleShell.jsx';
 import { Dialog, CopyValue } from './ConsoleUI.jsx';
+import { CloudConceptGuide } from './CloudConceptGuide.jsx';
 import { rememberCloudPreference } from './cloud-preference.mjs';
 import { cloudConsolePath } from './routes.mjs';
 
@@ -186,7 +187,8 @@ export function MyCloudsApp() {
   const shellActive = section === 'test-lab' ? 'test-lab' : section === 'products' ? 'product-services' : section === 'members' ? 'access' : section === 'settings' ? 'settings' : 'my-clouds';
   return <CloudConsoleShell me={me} cloud={cloud} clouds={page?.brand_clouds || me?.memberships || []} active={shellActive} navigationPath={item => cloudConsolePath(cloud?.id || cloudId || navigationCloudId, item.id)} title={cloudId ? (section === 'test-lab' ? 'Cloud Test Lab' : section === 'products' ? (deviceId ? 'Device details' : productId ? 'Product details' : 'Products') : section === 'members' ? 'Members & access' : section === 'settings' ? 'Settings' : cloud?.name || 'Brand Cloud') : 'My Clouds'} onError={setError}>
     <div className="my-clouds-main">
-      <div className="my-clouds-heading"><div><p className="my-clouds-eyebrow">DEVELOPER CONSOLE</p><p>{cloudId ? cloudIntroduction(section) : 'Select a cloud to manage products, devices and team access.'}</p></div>{!cloudId && page && <button className="icon-text" disabled={!canCreate || busy} onClick={() => { intent.current = null; setForm({ id: '', name: '', description: '' }); }}><SemanticIcon name="plus" />Create cloud</button>}</div>
+      {cloudId ? <div className="my-clouds-heading"><div><p className="my-clouds-eyebrow">DEVELOPER CONSOLE</p><p>{cloudIntroduction(section)}</p></div></div>
+        : <CloudConceptGuide actions={page && <button className="icon-text primary-button" disabled={!canCreate || busy} onClick={() => { intent.current = null; setForm({ id: '', name: '', description: '' }); }}><SemanticIcon name="plus" />Create cloud</button>} />}
       {error && <div role="alert" className="my-clouds-error">{error} <button onClick={() => setReload((v) => v + 1)}>Refresh</button>{error.includes('Sign in') && <a href={loginURL}>Sign in</a>}</div>}
       {me?.kind === 'platform_admin' && <section className="my-clouds-panel"><h2>Platform admin cannot use the Brand Cloud console</h2><p>Switch to Brand Cloud view before opening My Clouds or a cloud-scoped feature.</p></section>}
       {form && <Dialog title={form.id ? "Edit cloud" : "Create cloud"} busy={busy} onClose={()=>setForm(null)}>{error && <p role="alert">{error}</p>}<form onSubmit={submit}><label>Name<input required maxLength={255} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} disabled={busy} /></label><label>Description<textarea maxLength={2000} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} disabled={busy} /></label><p>The cloud ID and tenant slug do not change when renamed.</p><div className="my-clouds-actions"><button disabled={busy} type="submit">{busy ? 'Saving…' : 'Save cloud'}</button><button type="button" disabled={busy} onClick={() => setForm(null)}>Cancel</button></div></form></Dialog>}
@@ -210,8 +212,9 @@ export function MyCloudsApp() {
         </>}
       </>}
       {cloudId && loading && <p role="status">Loading cloud…</p>}
+      {cloud && section === 'members' && !productId && !operation && <CloudConceptGuide />}
       {cloud && section === 'members' && !productId && !operation && cloud.my_role === 'owner' && cloud.capabilities?.includes('team.manage') && <CloudSharing key={`sharing:${cloudId}`} cloudId={cloudId} onAccessLost={showRequestError} />}
-      {cloud && section === 'members' && !productId && !operation && !(cloud.my_role === 'owner' && cloud.capabilities?.includes('team.manage')) && <section className="my-clouds-panel"><h2>Members &amp; Access</h2><p>Your current role can use only its authorized Product scope. Only this cloud’s owner can invite, change, or revoke collaborators.</p></section>}
+      {cloud && section === 'members' && !productId && !operation && !(cloud.my_role === 'owner' && cloud.capabilities?.includes('team.manage')) && <section className="my-clouds-panel"><h2>Members &amp; Access</h2><CloudSharingGuide /><p>Your current role can use only its authorized Product scope. Only this cloud’s owner can invite, change, or revoke collaborators.</p></section>}
       {cloud && section === 'settings' && !productId && !operation && cloud.my_role === 'owner' && cloud.capabilities?.includes('billing_account.read') && <a href={`${cloudURL(cloudId)}/billing`}>Manage this cloud’s Billing</a>}
       {cloud && section === 'settings' && !operation && <section className="my-clouds-panel"><h2><SemanticIcon name="gear" />Cloud settings</h2><dl><dt><SemanticIcon name="cloud" />Cloud name</dt><dd>{cloud.name}</dd><dt><SemanticIcon name="file-lines" />Description</dt><dd>{cloud.description || 'No description'}</dd><dt><SemanticIcon name="fingerprint" />Cloud ID</dt><dd><CopyValue value={cloud.id} label="cloud ID"/></dd><dt><SemanticIcon name="tag" />Tenant slug</dt><dd>{cloud.tenant_slug || 'Unavailable'}</dd><dt><SemanticIcon name="envelope" />Owner email</dt><dd>{ownerAccountEmail(cloud, me)}</dd><dt><SemanticIcon name="id-card" />Owner ID</dt><dd>{cloud.owner_user_id || 'Unavailable'}</dd><dt><SemanticIcon name="user-shield" />My role</dt><dd>{cloud.my_role}</dd></dl>{lifecycleWarning(cloud.status) && <p className="my-clouds-lifecycle-warning" role="status"><SemanticIcon name="triangle-exclamation" />{lifecycleWarning(cloud.status)}</p>}{canManage && <div className="my-clouds-actions"><button className="icon-text" disabled={busy} onClick={() => { intent.current = null; setForm({ id: cloud.id, name: cloud.name, description: cloud.description }); }}><SemanticIcon name="pen-to-square" />Edit cloud</button></div>}</section>}
       {cloud && section === 'settings' && !operation && canManage && <details className="ui-settings-advanced"><summary>Delete cloud</summary><p>Only an empty, fully settled cloud can be deleted. Check eligibility before confirming deletion.</p><button className="my-clouds-danger icon-text" disabled={busy} onClick={checkDeletion}><SemanticIcon name="trash-can" />Check deletion</button></details>}

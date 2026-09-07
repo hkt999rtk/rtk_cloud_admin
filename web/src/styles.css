@@ -847,11 +847,17 @@ main {
 
 .report-builder > input,
 .report-builder > .select-control,
+.report-type-field,
 .report-date-field,
 .dimension-picker {
   min-width: 0;
   width: 100%;
 }
+
+.report-type-field .select-control { width: 100%; min-height: 42px; }
+.report-type-field .report-type-hint, .stream-health-page .stream-metrics-note { font-size: 12px; line-height: 1.6; color: var(--muted); }
+.report-type-field .report-type-hint { margin: 8px 0 0; }
+.report-builder > input, .report-builder > select { align-self: start; }
 
 .report-builder > input,
 .report-builder > .select-control,
@@ -6269,6 +6275,8 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .stream-attention-panel { grid-column: auto; }
+
   .sso-provider-head,
   .sso-provider-foot {
     align-items: stretch;
@@ -6477,8 +6485,7 @@ th {
   gap: 3px;
 }
 
-.billing-breakdown small,
-.invoice-parties span {
+.billing-breakdown small {
   color: #6b7483;
 }
 
@@ -6491,21 +6498,6 @@ th {
 .icon-download { color: #1265e6; padding: 8px; }
 .billing-back { margin-bottom: 14px; }
 .button-link { display: inline-flex; align-items: center; text-decoration: none; }
-
-.invoice-paper {
-  max-width: 1000px;
-  margin-inline: auto;
-}
-
-.invoice-parties {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 32px;
-  margin-bottom: 28px;
-}
-
-.invoice-parties > div { display: grid; gap: 7px; }
-.invoice-totals { display: flex; justify-content: flex-end; gap: 24px; margin-top: 22px; }
 
 .billing-timeline {
   list-style: none;
@@ -6538,10 +6530,8 @@ th {
   .billing-overview-metrics,
   .billing-overview-grid,
   .billing-overview-grid.lower,
-  .billing-profile-form,
-  .invoice-parties { grid-template-columns: 1fr; }
+  .billing-profile-form { grid-template-columns: 1fr; }
   .billing-profile-form .wide { grid-column: auto; }
-  .invoice-totals { flex-direction: column; gap: 8px; }
 }
 
 .metric-card.tone-warning::before {

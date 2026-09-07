@@ -6,6 +6,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
 import { CloudConsoleShell } from './CloudConsoleShell.jsx';
+import { CloudConceptGuide } from './CloudConceptGuide.jsx';
+import { Dialog } from './ConsoleUI.jsx';
 import { sdkJSON, useSDKSection, sdkNavigationTarget } from './sdk-page.mjs';
 import { productInvitationDestination } from './cloud-products.mjs';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
@@ -13,6 +15,7 @@ import { handoffRoute } from './owner-handoff.mjs';
 import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
 import './cloud-billing.css';
 import { BillingTabs, ServicePricing } from './ServicePricing.jsx';
+import { BillingInvoiceDocument } from './BillingInvoiceDocument.jsx';
 import { cloudAPI, cloudURL, managedCloudRoute, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { scopedCustomerAPI } from './cloud-scope.mjs';
 import { Pro2FirmwareBurner, PRO2_FIRMWARE_BURNER_PATH } from './Pro2FirmwareBurner.jsx';
@@ -2065,6 +2068,8 @@ function BrandCloudPage({
       >{tab.label}</button>)}
     </nav>
     {active === 'overview' ? <Overview
+      key={cloud.id}
+      cloudId={cloud.id}
       summary={summary}
       fleetSummary={fleetSummary}
       fleetHealth={fleetHealth}
@@ -2130,6 +2135,7 @@ function TeamSummaryCard({ data, loading, me, onOpen }) {
 }
 
 function Overview({
+  cloudId,
   summary,
   fleetSummary,
   fleetHealth,
@@ -2148,6 +2154,12 @@ function Overview({
   onRequestQuotaRaise,
   onOpenAccess,
 }) {
+  const [conceptGuideOpen, setConceptGuideOpen] = useState(false);
+  const nextSteps = [
+    { route: 'product-services', text: 'manage product settings in ', label: 'Products' },
+    { route: 'test-lab', text: 'test device interactions in ', label: 'Cloud Test Lab' },
+    { route: 'devices', text: 'investigate individual devices in ', label: 'Fleet Management' },
+  ].filter(step => cloudId && canAccessCustomerRoute(step.route, me?.capabilities));
   const activeMembership = getActiveMembership(me);
   const tierLabel = formatTierLabel(activeMembership?.tier);
   const quotaLimit = activeMembership?.evaluation_device_quota ?? 5;
@@ -2205,7 +2217,20 @@ function Overview({
 
   return (
     <div className="overview-layout">
-      <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
+      <div className="page-intro overview-concept-intro">
+        <div>
+          <p className="eyebrow">DEVELOPER CONSOLE</p>
+          <h2>{translate('Cloud Overview')}</h2>
+          <p>See device connectivity, activity and health across your cloud.</p>
+          {nextSteps.length > 0 && <p className="overview-next-steps">{nextSteps.map((step, index) => <React.Fragment key={step.route}>
+            {index > 0 && (index === nextSteps.length - 1 ? (nextSteps.length === 2 ? ' and ' : ', and ') : ', ')}
+            {index === 0 ? step.text.charAt(0).toUpperCase() + step.text.slice(1) : step.text}
+            <a href={cloudConsolePath(cloudId, step.route)}>{step.label}</a>
+          </React.Fragment>)}.</p>}
+        </div>
+        <button type="button" className="overview-concept-trigger" aria-haspopup="dialog" onClick={() => setConceptGuideOpen(true)}>Cloud concepts</button>
+      </div>
+      {conceptGuideOpen && <Dialog variant="drawer" title="Clouds, products & devices" onClose={() => setConceptGuideOpen(false)}><CloudConceptGuide /></Dialog>}
       <section className="metrics overview-metrics">
         <MetricCard icon="video" label="Online" value={Number.isFinite(onlineCount) ? `${onlineCount} / ${onlineTotal ?? onlineCount}` : 'Unknown'} hint={onlineUnknown > 0 ? `${onlineUnknown} devices have unknown presence` : 'Provisioned devices currently online'} tone="info" />
         <MetricCard icon="chart-line" label="7-day Online Rate" value={onlineRate == null ? 'N/A' : formatPercent(onlineRate)} hint={coverageRate == null ? 'Historical presence is accumulating' : `${formatPercent(coverageRate)} data coverage`} tone="info" />
@@ -3202,7 +3227,14 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     <section className="panel billing-usage-card"><div className="panel-head"><div><h3>Cost This Month by Service Category</h3><p>{formatProviderTimestamp(usage.period_start)} – {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description} · {line.quantity} {line.unit}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>Month to Date</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
   </section>;
 
-  if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page"><div className="page-intro"><div><h2>Invoice</h2><p>Check the billing period, amount, payment status, and download PDF.</p></div><a className="ghost-button" href={billingAPI(cloudId, '/api/billing/statements')}>Export statement</a></div>{billingTabs}<section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section></section>;
+  if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page">
+    <div className="page-intro"><div><h2>Invoices</h2><p>Review service charges, tax, and settlement status for each billing period. Open an invoice to see its breakdown or download an available PDF.</p></div>{invoices.length > 0 && <a className="ghost-button" href={billingAPI(cloudId, '/api/billing/statements')}>Export statement</a>}</div>
+    {billingTabs}
+    {invoices.length ? <section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section> : <>
+      <div className="invoice-preview-intro"><h3>No invoices yet</h3><p>Here is an example of your invoice layout, including Taiwan tax at 5%. This preview does not reflect your account balance or payment history.</p></div>
+      <BillingInvoiceDocument preview />
+    </>}
+  </section>;
   if (billingView === 'activity') return <section className="page-content billing-page" data-testid="billing-activity-page"><div className="page-intro"><div><h2>Billing Activity</h2><p>Track top-ups, invoice charges, retries, and reconciliations with consistent status.</p></div></div>{billingTabs}<section className="panel"><BillingActivityTable activities={activities} onSelect={openBillingActivity} /></section></section>;
   if (billingView === 'profile') return <BillingProfilePage profile={billingProfile} tabs={billingTabs} canManage={capabilities.includes('billing_profile.manage')} onRefresh={onRefresh} />;
 
@@ -3256,7 +3288,11 @@ function BillingActivityTable({ activities, onSelect }) {
 
 function BillingInvoiceDetail({ invoice, onBack }) {
   const {cloudId,version,onAccessLost} = React.useContext(BillingScope);
-  return <section className="page-content billing-page" data-testid="billing-invoice-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← Back to invoices</button><div className="page-intro"><div><p className="eyebrow">Invoice</p><h2>{invoice.invoice_number}</h2><p>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</p></div><div className="inline-actions"><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? 'Paid' : invoice.state}</span>{invoice.document ? <a className="primary button-link" href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}>Download PDF</a> : null}</div></div><section className="panel invoice-paper"><div className="invoice-parties"><div><small>Billing recipient</small><strong>{invoice.recipient?.legal_name || '—'}</strong><span>{invoice.recipient?.tax_identifier || ''}</span><span>{invoice.recipient?.billing_address || ''}</span></div><div><small>Issue date</small><strong>{formatProviderTimestamp(invoice.issued_at)}</strong><small>Total</small><strong>{formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Service</th><th>Description</th><th>Usage</th><th>Subtotal</th></tr></thead><tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td>{line.service_code}</td><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{formatMinorAmount(line.total_minor, invoice.currency)}</td></tr>)}</tbody></table></div><div className="invoice-totals"><span>Subtotal {formatMinorAmount(invoice.subtotal_minor, invoice.currency)}</span><span>Tax {formatMinorAmount(invoice.tax_minor, invoice.currency)}</span><strong>Total {formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div><p className="notice">This invoice is settled from a prepaid balance; the payment-method top-up and invoice charge are separate accounting events.</p></section></section>;
+  return <section className="page-content billing-page" data-testid="billing-invoice-detail">
+    <button type="button" className="link-button billing-back" onClick={onBack}>← Back to invoices</button>
+    <div className="page-intro"><div><p className="eyebrow">Invoice</p><h2>{invoice.invoice_number}</h2></div>{invoice.document ? <a className="primary button-link" href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}>Download PDF</a> : null}</div>
+    <BillingInvoiceDocument invoice={invoice} />
+  </section>;
 }
 
 function BillingActivityDetail({ activity, onBack }) {
@@ -3355,6 +3391,7 @@ function PKITestBundleTool({ activeCloudId, products = [], productsLoading, prod
 }
 
 function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
+  const reportTypeHintId = React.useId();
   const reports = data?.reports || [];
   const [name, setName] = useState('Device Status Report');
   const [reportType, setReportType] = useState('fleet_status');
@@ -3374,10 +3411,10 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
     if (response.ok) { onRefresh(); }
   }
     return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>Reports</h2><p>Organize operational results by product, region, group, firmware, and timeframe.</p></div></div>
+    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>Reports</h2><p>Review device status and firmware coverage across your cloud.</p><p>Use Device Status reports to review online and offline devices, and Firmware Coverage reports to see which firmware versions are deployed. Filter by product, region, group or firmware to narrow your investigation, then export CSV or JSON results for further analysis and operational handoffs.</p></div></div>
     {!canCreate ? <section className="panel split-panel"><div><h3>You currently do not have reports.create permission</h3><p>Existing reports can be viewed, but new reports cannot be created.</p></div></section> : <section className="panel report-builder-panel"><form className="report-builder" onSubmit={createReport}>
       <input value={name} onChange={(event) => setName(event.target.value)} aria-label="Report Name" />
-      <select className="select-control" aria-label="Report Type" value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">Device Status</option><option value="firmware_coverage">Firmware Coverage</option></select>
+      <div className="report-type-field"><select className="select-control" aria-label="Report Type" aria-describedby={reportTypeHintId} value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">Device Status</option><option value="firmware_coverage">Firmware Coverage</option></select><p id={reportTypeHintId} className="report-type-hint">{reportType === 'firmware_coverage' ? 'Review deployed firmware versions to identify devices not yet on your target version. Coverage does not measure the success rate of an OTA campaign.' : 'Review online and offline device status to identify device groups that need follow-up.'}</p></div>
       <select className="select-control" aria-label="Output Format" value={format} onChange={(event) => setFormat(event.target.value)}><option value="json">JSON</option><option value="csv">CSV</option></select>
       <select className="select-control" aria-label="Timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)}><option>Asia/Taipei</option><option>UTC</option><option>America/Los_Angeles</option></select>
       <select className="select-control" aria-label="Product Filter" value={filters.product_id} onChange={(event) => setFilters({ ...filters, product_id: event.target.value })}><option value="">All Products</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
@@ -3941,7 +3978,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
       icon: 'clock',
       label: 'Avg Stream Duration',
       value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'N/A',
-      hint: available ? 'Average session length across observed requests' : unavailableText,
+      hint: available ? 'Average duration of successful sessions with a recorded end event.' : unavailableText,
     },
     {
       key: 'active-sessions',
@@ -3953,9 +3990,9 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
     {
       key: 'never-streamed',
       icon: 'circle-question',
-      label: 'Devices Never Streamed',
+      label: 'Devices Without Successful Streams',
       value: available ? (stats?.never_streamed_count ?? 0) : 'N/A',
-      hint: available ? 'Online devices that have no stream history' : unavailableText,
+      hint: available ? `Devices with no successful stream request recorded in the selected ${windowLabel} window; not a lifetime count.` : unavailableText,
     },
   ];
 
@@ -3964,7 +4001,9 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
       <div className="panel-head">
         <div>
           <h2>Stream Health</h2>
-          <p>Are device streams succeeding for end users, and where are the worst failures concentrated?</p>
+          <p>Monitor stream connection reliability and identify devices that need investigation.</p>
+          <p>Review request success rates, daily request volume, average session duration and active sessions to spot changes in streaming behavior. Start with the devices with the highest failure rates, check their request counts, and open device details to investigate.</p>
+          <p className="stream-metrics-note">Session metrics reflect recorded stream events; they do not confirm that video was successfully decoded or displayed in the app.</p>
         </div>
       </div>
 
@@ -3981,7 +4020,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
         ))}
       </section>
 
-      {!available && stats ? <SourceBlockedState title={pageState.title} message={unavailableText} /> : null}
+      {!available && stats ? <><SourceBlockedState title={pageState.title} message={unavailableText} /><p className="stream-metrics-note">N/A means stream metrics are currently unavailable. It does not mean there were no failures or that all streams succeeded.</p></> : null}
 
       {loading && !stats ? (
         <p className="empty-state">Loading stream health data.</p>
@@ -4101,7 +4140,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
           <StreamAttentionPanel stats={stats} onOpenDevice={onOpenDevice} />
         </div>
       ) : (
-        <p className="empty-state">{unavailableText}</p>
+        !stats ? <p className="empty-state">{unavailableText}</p> : null
       )}
     </section>
   );

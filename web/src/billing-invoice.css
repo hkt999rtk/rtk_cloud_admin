@@ -1,0 +1,57 @@
+.billing-invoice-document {
+  width: 100%;
+  max-width: 1040px;
+  min-width: 0;
+  margin-inline: auto;
+  padding: 36px;
+  border: 1px solid #dce4ef;
+  border-top: 4px solid #2468c8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 28px #213b6010;
+  color: #24364e;
+  overflow-wrap: anywhere;
+}
+.invoice-preview-intro { margin-block: 8px 20px; }
+.invoice-preview-intro h3 { margin: 0 0 6px; }
+.invoice-preview-intro p { margin: 0; color: #62748a; }
+.invoice-sample-banner { display: grid; gap: 5px; padding: 14px 18px; margin-bottom: 30px; border: 1px dashed #96b5df; border-radius: 8px; background: #f0f6ff; font-size: 13px; line-height: 1.6; }
+.invoice-sample-banner strong { color: #235b9f; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+.invoice-document-header { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 28px; border-bottom: 1px solid #dce4ef; }
+.billing-invoice-document .invoice-document-header h3 { margin: 5px 0 8px; font-size: 36px; font-weight: 650; letter-spacing: -.04em; }
+.invoice-document-header p { margin: 0; }
+.invoice-document-amount { display: grid; align-content: center; gap: 6px; text-align: right; font-size: 12px; color: #62748a; }
+.invoice-document-amount strong { color: #225faa; font-size: 32px; font-variant-numeric: tabular-nums; }
+.invoice-document-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; padding-block: 28px; font-size: 13px; }
+.billing-invoice-document h4 { color: #62748a; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 10px; }
+.invoice-document-meta p { margin: 6px 0 0; color: #62748a; line-height: 1.6; }
+.invoice-document-meta dl, .invoice-document-totals { display: grid; gap: 12px; margin: 0; }
+.invoice-document-meta dl > div, .invoice-document-totals > div { display: grid; grid-template-columns: 1fr 1.3fr; gap: 16px; }
+.billing-invoice-document dt { color: #62748a; }
+.billing-invoice-document dd { margin: 0; text-align: right; }
+.invoice-document-lines { width: 100%; min-width: 0; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.invoice-document-lines caption { text-align: left; font-weight: 600; padding-bottom: 12px; }
+.invoice-document-lines caption span { display: block; margin-top: 4px; font-size: 11px; font-weight: 400; color: #62748a; }
+.billing-invoice-document .invoice-document-lines th { padding: 12px; text-align: left; background: #f1f5fa; color: #526880; font-size: 11px; }
+.billing-invoice-document .invoice-document-lines td { padding: 16px 12px; vertical-align: top; border-bottom: 1px solid #e4eaf2; line-height: 1.6; font-size: 13px; }
+.invoice-document-lines th:first-child { width: 50%; }
+.billing-invoice-document .invoice-document-lines th:last-child, .invoice-document-lines td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.invoice-document-lines td span { display: block; color: #62748a; font-size: 12px; }
+.invoice-document-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; padding-block: 28px; }
+.invoice-document-note p { color: #62748a; font-size: 12px; line-height: 1.8; margin: 0; }
+.invoice-document-totals { align-content: start; font-size: 13px; }
+.invoice-document-totals > div { grid-template-columns: 1.5fr 1fr; }
+.invoice-document-totals dd { font-variant-numeric: tabular-nums; }
+.invoice-document-grand-total { padding-block: 15px; border-block: 1px solid #cbd9eb; font-weight: 700; font-size: 16px; }
+.invoice-document-grand-total dt, .invoice-document-grand-total dd { color: #225faa; }
+.invoice-document-footer { border-top: 1px solid #e4eaf2; padding-top: 18px; color: #62748a; font-size: 12px; line-height: 1.8; }
+@media (max-width: 600px) {
+  .billing-invoice-document { padding: 20px 16px; }
+  .invoice-sample-banner { padding: 12px; margin-bottom: 20px; }
+  .invoice-document-header { flex-direction: column; gap: 18px; padding-bottom: 20px; }
+  .invoice-document-amount { text-align: left; }
+  .invoice-document-meta, .invoice-document-summary { grid-template-columns: 1fr; gap: 24px; padding-block: 24px; }
+  .billing-invoice-document .invoice-document-lines th, .billing-invoice-document .invoice-document-lines td { padding: 12px 6px; font-size: 12px; }
+  .invoice-document-lines th:first-child { width: 44%; }
+  .invoice-document-lines td span { font-size: 11px; }
+}
