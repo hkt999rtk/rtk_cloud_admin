@@ -317,7 +317,7 @@ function saveTerminalLog() {
 if ('serial' in navigator && window.isSecureContext) {
   ui['compatibility-message'].textContent = 'Web Serial ready · Firmware and UART data stay on this computer.';
 } else {
-  ui['compatibility-message'].textContent = !window.isSecureContext ? 'Web Serial requires HTTPS (localhost may use HTTP).' : 'Use desktop Chrome or Edge.';
+  ui['compatibility-message'].textContent = !window.isSecureContext ? 'Web Serial requires HTTPS (localhost may use HTTP).' : 'This browser does not support USB serial connections (Web Serial). To flash firmware or use the serial console, use desktop Chrome or Edge. You can still browse documentation and download firmware in this browser.';
   ui.compatibility.classList.add('unsupported');
   ui['compatibility-icon'].className = 'fa-solid fa-triangle-exclamation';
 }
