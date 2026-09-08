@@ -11,7 +11,7 @@ async function request(path, body, method = 'POST', prefix = '/api/platform/pki'
   let key = sessionStorage.getItem(storage);
   if (!key) { key = crypto.randomUUID(); sessionStorage.setItem(storage, key); }
   const response = await fetch(prefix + path, { method, headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: method === 'GET' ? undefined : payload });
-  if (!response.ok) throw new Error(response.status === 403 ? 'Request denied. Check recent MFA, exact roles, independent approvals and issuer state.' : 'Request failed (' + response.status + '). Reload the operation before retrying.');
+  if (!response.ok) throw new Error(response.status === 403 ? 'Request denied. Check your role, independent approvals, issuer state and any enabled login policy.' : 'Request failed (' + response.status + '). Reload the operation before retrying.');
   if (response.status === 204) return null;
   return response.json();
 }
