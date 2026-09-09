@@ -1222,6 +1222,7 @@ function App() {
           onSocialLogin={handleSocialLogin}
           onForgotPassword={handleForgotPassword}
           onResetPassword={handleResetPassword}
+          privacyPolicyURL={me?.privacy_policy_url}
         />
       );
     }
@@ -1388,7 +1389,7 @@ function App() {
   );
 }
 
-function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswordLogin, onSocialLogin, onForgotPassword, onResetPassword }) {
+function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswordLogin, onSocialLogin, onForgotPassword, onResetPassword, privacyPolicyURL }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
@@ -1445,6 +1446,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
       onSocialLogin={onSocialLogin}
       socialProviders={socialProviders}
       disabled={loading}
+      privacyPolicyURL={privacyPolicyURL}
     />
   );
   return (
@@ -1484,7 +1486,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
   );
 }
 
-function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSignup, onPasswordLogin, onSocialLogin, socialProviders, disabled }) {
+function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSignup, onPasswordLogin, onSocialLogin, socialProviders, disabled, privacyPolicyURL }) {
   return (
     <div className="auth-stack">
       {!platformLogin ? <div className="auth-mode-tabs" role="tablist" aria-label="Auth mode">
@@ -1508,7 +1510,7 @@ function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSig
         </button>
       </div> : null}
       {!platformLogin && mode === 'signup' ? (
-        <SignupForm onSignup={onSignup} disabled={disabled} />
+        <SignupForm onSignup={onSignup} disabled={disabled} privacyPolicyURL={privacyPolicyURL} />
       ) : (
         <>
           <SocialLoginButtons providers={socialProviders} onSocialLogin={onSocialLogin} disabled={disabled} />
@@ -1802,7 +1804,7 @@ function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify
   );
 }
 
-function SignupForm({ onSignup, disabled = false }) {
+function SignupForm({ onSignup, disabled = false, privacyPolicyURL }) {
   const [email, setEmail] = useState('');
   const [honeypot, setHoneypot] = useState('');
   const [error, setLocalError] = useState('');
@@ -1835,6 +1837,7 @@ function SignupForm({ onSignup, disabled = false }) {
         <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
       </label>
       <button type="submit" disabled={busy || disabled || !!honeypot}>Create account</button>
+      {privacyPolicyURL ? <p className="auth-terms">By creating an account, you acknowledge that you have read our <a href={privacyPolicyURL} target="_blank" rel="noreferrer noopener">Privacy Policy</a>. We collect and use your email address to create and manage your account and to send service-related communications.</p> : null}
       {error ? <p className="error">{error}</p> : null}
     </form>
   );
