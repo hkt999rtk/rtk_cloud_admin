@@ -867,6 +867,7 @@ func (s *Server) apiAccountView(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) meAuthSettings(me contracts.Me) contracts.Me {
 	me.CustomerPasswordLoginEnabled = s.cfg.CustomerPasswordLoginEnabled
+	me.PrivacyPolicyURL = s.cfg.PrivacyPolicyURL
 	return me
 }
 
