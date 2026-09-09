@@ -246,6 +246,7 @@ export function defaultBrandCloudRoute(capabilities) {
 
 export function titleFor(active) {
   return {
+    'not-found': 'Page not found',
     login: 'Sign in',
     'login-check-email': 'Check your email',
     'login-activate': 'Activate sign-in',
@@ -307,10 +308,11 @@ export function routeFromPath(path) {
   if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
   if (path === '/admin/operations' || path.startsWith('/admin/operations/')) return 'platform-operations';
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
-  if (path.startsWith('/admin/')) return 'platform-dashboard';
+  if (path.startsWith('/admin/')) return 'not-found';
   if (path === '/console/clouds' || path === '/console/clouds/') return 'my-clouds';
   const canonicalCloud = String(path || '').match(/^\/console\/clouds\/([^/]+)(?:\/(.*))?\/?$/);
   if (canonicalCloud) {
+    if (!decodedCloudID(canonicalCloud[1])) return 'not-found';
     const suffix = String(canonicalCloud[2] || '').replace(/\/$/, '');
     if (!suffix) return 'overview';
     if (suffix === 'test-lab') return 'test-lab';
@@ -324,7 +326,7 @@ export function routeFromPath(path) {
     if (suffix === 'members' || suffix.startsWith('members/')) return 'access';
     if (suffix === 'billing' || suffix.startsWith('billing/')) return 'billing';
     if (suffix === 'settings' || suffix.startsWith('settings/')) return 'settings';
-    return 'overview';
+    return 'not-found';
   }
   if (path === '/console' || path === '/console/' || path === '/console/overview' || path.startsWith('/console/overview/')) return 'overview';
   if (path === '/console/billing' || path.startsWith('/console/billing/')) return 'billing';
@@ -349,7 +351,7 @@ export function routeFromPath(path) {
     path === '/console/operations' ||
     path.startsWith('/console/operations/')
   ) return 'overview';
-  return 'overview';
+  return 'not-found';
 }
 
 export function cloudIdFromPath(path) {
