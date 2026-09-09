@@ -330,6 +330,7 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   const isPublicRoute = isPublicRouteId(active);
+  const isNotFoundRoute = active === 'not-found';
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
@@ -1242,6 +1243,12 @@ function App() {
     return <BrandCloudMemberInvitationAcceptPage />;
   }
 
+  if (isNotFoundRoute) {
+    return <CloudConsoleShell me={me} active={active} title="Page not found" navGroups={[]} onLogout={handleLogout} onSwitchView={handleSwitchView} onError={setError}>
+      <NotFoundPage me={me} />
+    </CloudConsoleShell>;
+  }
+
   return (
     <CloudConsoleShell me={me} cloud={activeBrandCloud.id ? { ...activeBrandCloud, capabilities: me?.capabilities || [], my_role: activeBrandCloud.my_role || getActiveMembership(me)?.role } : null} clouds={developerBrandClouds} active={active} title={active === 'overview' ? 'Overview' : titleFor(active)} navGroups={visibleNavGroups} onNavigate={navigate} navigationPath={pathForNavigationItem} onSwitchCloud={handleSwitchOrg} onLogout={handleLogout} onSwitchView={handleSwitchView} onError={setError}>
         {error ? <div className="error">{error}</div> : null}
@@ -1387,6 +1394,27 @@ function App() {
         {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} loading={loading} /> : null}
     </CloudConsoleShell>
   );
+}
+
+function NotFoundPage({ me }) {
+  const destination = !me?.authenticated
+    ? loginPathFor(protectedPathFromLocation(window.location))
+    : me.kind === 'platform_admin'
+      ? '/admin'
+      : destinationForSession(me, '');
+  const destinationLabel = !me?.authenticated ? 'Sign in' : me.kind === 'platform_admin' ? 'Open Platform Home' : 'Open My Clouds';
+  return <section className="console-not-found panel" aria-labelledby="console-not-found-title">
+    <div className="console-not-found-copy">
+      <p className="console-not-found-code">404</p>
+      <h2 id="console-not-found-title">This console page is unavailable.</h2>
+      <p>The address may be outdated, or the page may have moved. Use a safe starting point to continue.</p>
+      <div className="console-not-found-actions">
+        <a className="primary-button" href={destination}><i className="fa-solid fa-house" aria-hidden="true" />{destinationLabel}</a>
+        <button className="ghost-button" type="button" onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign(destination)}><i className="fa-solid fa-arrow-left" aria-hidden="true" />Go back</button>
+      </div>
+    </div>
+    <div className="console-not-found-art" aria-hidden="true"><span className="console-not-found-ring ring-a" /><span className="console-not-found-ring ring-b" /><span className="console-not-found-cloud" /><span className="console-not-found-device"><i /><i /><i /></span></div>
+  </section>;
 }
 
 function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswordLogin, onSocialLogin, onForgotPassword, onResetPassword, privacyPolicyURL }) {

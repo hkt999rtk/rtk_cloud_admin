@@ -511,6 +511,7 @@ func (s *Server) routes() {
 		"/console/customers",
 		"/console/operations",
 		"/admin",
+		"/admin/grafana",
 		"/admin/resources",
 		"/admin/health",
 		"/admin/brand-clouds",
@@ -523,7 +524,8 @@ func (s *Server) routes() {
 	} {
 		s.mux.HandleFunc("GET "+path, s.shell)
 	}
-	s.mux.HandleFunc("GET /console/", s.shell)
+	s.mux.HandleFunc("GET /console/", s.consoleShell)
+	s.mux.HandleFunc("GET /admin/", s.adminShell)
 }
 
 func (s *Server) scopedCustomerRoutes() {
@@ -642,14 +644,35 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) shell(w http.ResponseWriter, r *http.Request) {
+	s.shellWithStatus(w, r, http.StatusOK)
+}
+
+func (s *Server) consoleShell(w http.ResponseWriter, r *http.Request) {
+	if isKnownConsolePath(r.URL.Path) {
+		s.shell(w, r)
+		return
+	}
+	s.shellWithStatus(w, r, http.StatusNotFound)
+}
+
+func (s *Server) adminShell(w http.ResponseWriter, r *http.Request) {
+	if isKnownAdminPath(r.URL.Path) {
+		s.shell(w, r)
+		return
+	}
+	s.shellWithStatus(w, r, http.StatusNotFound)
+}
+
+func (s *Server) shellWithStatus(w http.ResponseWriter, r *http.Request, status int) {
 	if strings.HasPrefix(r.URL.Path, "/api/") {
 		http.NotFound(w, r)
 		return
 	}
-	if served := serveDistIndex(w, r); served {
+	if served := serveDistIndex(w, r, status); served {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
 	_, _ = w.Write([]byte(`<!doctype html>
 <html lang="en">
 <head>
@@ -678,7 +701,7 @@ func (s *Server) assets(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
-func serveDistIndex(w http.ResponseWriter, r *http.Request) bool {
+func serveDistIndex(w http.ResponseWriter, r *http.Request, status int) bool {
 	path := filepath.Join("web", "dist", "index.html")
 	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -686,8 +709,58 @@ func serveDistIndex(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return false
 	}
+	if status != http.StatusOK {
+		w.WriteHeader(status)
+	}
 	http.ServeFile(w, r, path)
 	return true
+}
+
+var cloudPathID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+
+func isKnownConsolePath(requestPath string) bool {
+	path := strings.TrimSuffix(requestPath, "/")
+	if path == "/console" {
+		return true
+	}
+	for _, prefix := range []string{
+		"/console/overview", "/console/devices", "/console/firmware-ota", "/console/stream-health",
+		"/console/product-services", "/console/chipset-sdk", "/console/developer-docs", "/console/jobs",
+		"/console/reports", "/console/billing", "/console/groups", "/console/customers", "/console/operations",
+	} {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	parts := strings.Split(strings.TrimPrefix(path, "/console/clouds/"), "/")
+	if !strings.HasPrefix(path, "/console/clouds/") || len(parts) == 0 || !cloudPathID.MatchString(parts[0]) {
+		return false
+	}
+	if len(parts) == 1 {
+		return true
+	}
+	for _, segment := range []string{"test-lab", "products", "fleet", "firmware-ota", "analytics", "members", "billing", "settings", "owner-transfer"} {
+		if parts[1] == segment {
+			return true
+		}
+	}
+	return false
+}
+
+func isKnownAdminPath(requestPath string) bool {
+	path := strings.TrimSuffix(requestPath, "/")
+	if path == "/admin" {
+		return true
+	}
+	for _, prefix := range []string{
+		"/admin/grafana", "/admin/resources", "/admin/health", "/admin/brand-clouds",
+		"/admin/chipset-providers", "/admin/sso", "/admin/logs", "/admin/ops", "/admin/operations", "/admin/audit",
+	} {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) apiSummary(w http.ResponseWriter, r *http.Request) {
