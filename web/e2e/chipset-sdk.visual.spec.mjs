@@ -74,6 +74,7 @@ test('[UI-CA-CHIPSET-010] PRO2 firmware burner uses the Developer Console visual
     const [firstField, secondField] = await page.locator('.pro2-terminal-fields label').evaluateAll((fields) => fields.map((field) => field.getBoundingClientRect().toJSON()));
     expect(secondField.y).toBeGreaterThanOrEqual(firstField.y + firstField.height);
   }
+  await page.locator('[data-locale-selector]').evaluate((element) => { element.style.display = 'none'; });
   await expect(page).toHaveScreenshot('pro2-firmware-burner.png', { fullPage: testInfo.project.name === 'mobile' });
 });
 
@@ -114,5 +115,6 @@ test('[UI-CA-CHIPSET-011] PRO2 firmware burner keeps connected actions visually 
     const [firstField, secondField] = await page.locator('.pro2-terminal-fields label').evaluateAll((fields) => fields.map((field) => field.getBoundingClientRect().toJSON()));
     expect(secondField.y).toBeGreaterThanOrEqual(firstField.y + firstField.height);
   }
+  await page.locator('[data-locale-selector]').evaluate((element) => { element.style.display = 'none'; });
   await expect(page).toHaveScreenshot('pro2-firmware-burner-connected.png', { fullPage: testInfo.project.name === 'mobile' });
 });

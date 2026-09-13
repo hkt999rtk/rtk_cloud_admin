@@ -28,9 +28,10 @@
     "e2e:report": "playwright show-report",
     "e2e:install": "playwright install chromium",
     "prepare:chipset-packages": "node scripts/sync-chipset-packages.mjs",
-    "build": "npm run prepare:chipset-packages && npm run prepare:developer-docs && vite build",
+    "build": "npm run prepare:chipset-packages && npm run prepare:developer-docs && npm run localization:check && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "prepare:developer-docs": "node scripts/build-developer-docs.mjs",
+    "localization:check": "node scripts/verify-localization.mjs",
     "build:board-model": "node scripts/build-amb82-model.mjs"
   },
   "dependencies": {
