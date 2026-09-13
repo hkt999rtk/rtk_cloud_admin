@@ -148,7 +148,7 @@ import './styles.css';
 import './console-ui.css';
 import './service-login.css';
 import './developer-tools-ui.css';
-import i18n, { FORMAT_LOCALE, formatDateTime, formatNumber, translate } from './i18n/index.mjs';
+import i18n, { activeLocale, changeLocale, formatDateTime, formatLocale, formatNumber, LOCALE_LABELS, translate } from './i18n/index.mjs';
 
 const DEFAULT_PAGE_SIZE = 8;
 
@@ -1486,6 +1486,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
           <strong>Connect+</strong>
         </a>
         <span className="service-console-label">{platformLogin ? 'Platform administration' : 'Developer console'}</span>
+        <select className="org-switcher" value={activeLocale()} aria-label={translate('Language')} onChange={(event) => changeLocale(event.target.value)}>{Object.entries(LOCALE_LABELS).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select>
       </header>
       <main className="login-layout">
         <aside className="service-login-story" aria-label="About Connect+">
@@ -7252,7 +7253,7 @@ function trendPointValue(point, snakeKey, camelKey) {
 function formatTrendLabel(date) {
   const parsed = Date.parse(date);
   if (Number.isNaN(parsed)) return date;
-  return new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(new Date(parsed));
+  return new Intl.DateTimeFormat(formatLocale(), { month: 'short', day: 'numeric' }).format(new Date(parsed));
 }
 
 function formatTrendAxisLabel(date, range) {
@@ -7262,19 +7263,19 @@ function formatTrendAxisLabel(date, range) {
   const normalizedRange = String(range || '24h').toLowerCase();
   if (normalizedRange === '24h') {
     return {
-      primary: new Intl.DateTimeFormat(FORMAT_LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false }).format(value),
-      secondary: new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(value),
+      primary: new Intl.DateTimeFormat(formatLocale(), { hour: '2-digit', minute: '2-digit', hour12: false }).format(value),
+      secondary: new Intl.DateTimeFormat(formatLocale(), { month: 'short', day: 'numeric' }).format(value),
     };
   }
   if (normalizedRange === '7d') {
     return {
-      primary: new Intl.DateTimeFormat(FORMAT_LOCALE, { weekday: 'short' }).format(value),
-      secondary: new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(value),
+      primary: new Intl.DateTimeFormat(formatLocale(), { weekday: 'short' }).format(value),
+      secondary: new Intl.DateTimeFormat(formatLocale(), { month: 'short', day: 'numeric' }).format(value),
     };
   }
   return {
-    primary: new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(value),
-    secondary: new Intl.DateTimeFormat(FORMAT_LOCALE, { year: 'numeric' }).format(value),
+    primary: new Intl.DateTimeFormat(formatLocale(), { month: 'short', day: 'numeric' }).format(value),
+    secondary: new Intl.DateTimeFormat(formatLocale(), { year: 'numeric' }).format(value),
   };
 }
 
@@ -7317,6 +7318,12 @@ if (initialCanonicalPath !== window.location.pathname) {
 }
 function ConsoleEntry() {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
+  const [, setLocaleRevision] = useState(0);
+  useEffect(() => {
+    const refresh = () => setLocaleRevision(value => value + 1);
+    i18n.on('languageChanged', refresh);
+    return () => i18n.off('languageChanged', refresh);
+  }, []);
   useEffect(() => {
     const sync = () => setLocation(window.location.pathname + window.location.search);
     const navigate = event => {

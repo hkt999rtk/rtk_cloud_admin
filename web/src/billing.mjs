@@ -1,4 +1,4 @@
-import { FORMAT_LOCALE, translate } from './i18n/index.mjs';
+import { formatLocale, translate } from './i18n/index.mjs';
 
 export const AUTO_TOPUP_CONSENT_TEXT = 'I agree that when the balance falls strictly below the configured threshold, the selected payment method may be used to add funds automatically, subject to the daily attempt, daily amount, and cooldown limits.';
 
@@ -25,7 +25,7 @@ export const BILLING_CONSENTS = Object.freeze({
   }),
 });
 
-export function formatMinorAmount(amountMinor, currency = 'TWD', locale = FORMAT_LOCALE) {
+export function formatMinorAmount(amountMinor, currency = 'TWD', locale = formatLocale()) {
   const value = Number(amountMinor);
   if (!Number.isFinite(value)) return '—';
   const zeroDecimal = currency === 'TWD';

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { cloudConsolePath, cloudRouteForSwitch, cloudShellNavGroups, titleFor } from './routes.mjs';
 import { displayLabel } from './ConsoleUI.jsx';
+import { activeLocale, changeLocale, LOCALE_LABELS, translate } from './i18n/index.mjs';
 
 function icon(name) {
   return <i className={`fa-solid fa-${name}`} aria-hidden="true" />;
@@ -82,34 +83,35 @@ export function CloudConsoleShell({ me, cloud = null, clouds = [], active = 'my-
   }
 
   return <div className={`app-shell cloud-console-shell ${isPlatform ? 'platform-console-shell' : 'enterprise-console'}`}>
-    <a className="skip-link" href="#console-content">Skip to content</a>
+    <a className="skip-link" href="#console-content">{translate('Skip to content')}</a>
     <header className="mobile-appbar">
-      <button ref={menuRef} type="button" className="mobile-menu-button" aria-label="Open navigation" aria-controls="primary-navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}>{icon('bars')}</button>
+      <button ref={menuRef} type="button" className="mobile-menu-button" aria-label={translate('Open navigation')} aria-controls="primary-navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}>{icon('bars')}</button>
       <h1>{pageTitle}</h1><span className="mobile-appbar-mark" aria-hidden="true">C+</span>
     </header>
-    <button type="button" className={`mobile-nav-overlay ${mobileOpen ? 'open' : ''}`} aria-label="Close navigation" tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)} />
-    <aside id="primary-navigation" ref={drawerRef} className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`} aria-label="Primary navigation">
-      <div className="brand"><a href={isPlatform ? "/admin" : "/console/clouds"} aria-label="Realtek Connect+ home"><img src="/assets/realtek-logo.png" alt="Realtek" /><strong>Connect+</strong></a><button type="button" className="mobile-nav-close" aria-label="Close navigation" onClick={() => setMobileOpen(false)}>{icon('xmark')}</button></div>
+    <button type="button" className={`mobile-nav-overlay ${mobileOpen ? 'open' : ''}`} aria-label={translate('Close navigation')} tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)} />
+    <aside id="primary-navigation" ref={drawerRef} className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`} aria-label={translate('Primary navigation')}>
+      <div className="brand"><a href={isPlatform ? "/admin" : "/console/clouds"} aria-label="Realtek Connect+ home"><img src="/assets/realtek-logo.png" alt="Realtek" /><strong>Connect+</strong></a><button type="button" className="mobile-nav-close" aria-label={translate('Close navigation')} onClick={() => setMobileOpen(false)}>{icon('xmark')}</button></div>
       <nav className="sidebar-nav-groups">
         {groups.map((group) => <section className="sidebar-nav-group" key={group.id}>
-          <p className="sidebar-section-label">{group.labelKey}</p>
+          <p className="sidebar-section-label">{translate(group.labelKey)}</p>
           {group.items.map((item) => item.disabled
-            ? <span key={item.id} className="sidebar-disabled" aria-disabled="true" title="Select a Brand Cloud to use this feature">{icon(item.icon)}{item.labelKey}</span>
-            : <a key={item.id} className={item.id === active ? 'active' : ''} aria-current={item.id === active ? 'page' : undefined} href={navigationPath ? navigationPath(item) : cloudConsolePath(cloudId, item.id)} onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; setMobileOpen(false); if (onNavigate) { event.preventDefault(); onNavigate(item); } }}>{icon(item.icon)}{item.labelKey}</a>)}
+            ? <span key={item.id} className="sidebar-disabled" aria-disabled="true" title={translate('Select a Brand Cloud to use this feature')}>{icon(item.icon)}{translate(item.labelKey)}</span>
+            : <a key={item.id} className={item.id === active ? 'active' : ''} aria-current={item.id === active ? 'page' : undefined} href={navigationPath ? navigationPath(item) : cloudConsolePath(cloudId, item.id)} onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; setMobileOpen(false); if (onNavigate) { event.preventDefault(); onNavigate(item); } }}>{icon(item.icon)}{translate(item.labelKey)}</a>)}
         </section>)}
       </nav>
-      {!cloudId && !navGroups && <p className="ui-nav-hint">Select a cloud to manage products, devices and team access.</p>}
-      <div className="sidebar-account"><span className="avatar">{initials(me?.email)}</span><div><strong>{isPlatform ? 'Platform admin' : displayLabel(cloud?.my_role || 'developer')}</strong><small>{me?.email || 'Loading account…'}</small></div></div>
+      {!cloudId && !navGroups && <p className="ui-nav-hint">{translate('Select a cloud to manage products, devices and team access.')}</p>}
+      <div className="sidebar-account"><span className="avatar">{initials(me?.email)}</span><div><strong>{isPlatform ? translate('Platform admin') : displayLabel(cloud?.my_role || 'developer')}</strong><small>{me?.email || translate('Loading account…')}</small></div></div>
     </aside>
     <main id="console-content" tabIndex={-1}>
       <header className="topbar"><div className="topbar-title">{cloudId ? <nav className="ui-breadcrumb" aria-label="Breadcrumb"><a href="/console/clouds">My Clouds</a><span>/</span><a href={cloudConsolePath(cloudId)}>{cloud.name}</a></nav> : null}<h1>{pageTitle}</h1></div><div className="topbar-controls">
-        {isPlatform && <span className="topbar-context-badge">Platform Admin</span>}
-        {/video-cloud-(dev|staging)/.test(window.location.hostname) && <span className="ui-environment">{window.location.hostname.includes('-dev') ? 'Development' : 'Staging'}</span>}
-        {!isPlatform && options.length ? <select className="org-switcher" value={cloudId} aria-label="Brand Cloud" onChange={(event) => onSwitchCloud ? onSwitchCloud(event.target.value) : window.location.assign(cloudRouteForSwitch(options.find((item) => item.id === event.target.value), active, me?.user_id))}><option value="" disabled>Select a cloud</option>{options.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select> : null}
-        {me?.authenticated ? <details className="ui-account-menu"><summary aria-label="Account menu">{icon('circle-user')}<span>Account</span></summary><div><strong>{me.email}</strong>
-        {me.kind === 'customer' && (me.platform_capabilities?.length ?? 0) > 0 ? <button type="button" onClick={() => onSwitchView ? onSwitchView('platform') : accountAction('platform')}>Platform view</button> : null}
-        {me.kind === 'platform_admin' ? <button type="button" onClick={() => onSwitchView ? onSwitchView('customer') : accountAction('customer')}>Brand Cloud view</button> : null}
-        <button type="button" onClick={() => onLogout ? onLogout() : accountAction()}>{icon('right-from-bracket')}Logout</button></div></details> : null}
+        {isPlatform && <span className="topbar-context-badge">{translate('Platform Admin')}</span>}
+        {/video-cloud-(dev|staging)/.test(window.location.hostname) && <span className="ui-environment">{translate(window.location.hostname.includes('-dev') ? 'Development' : 'Staging')}</span>}
+        <select className="org-switcher" value={activeLocale()} aria-label={translate('Language')} onChange={(event) => changeLocale(event.target.value)}>{Object.entries(LOCALE_LABELS).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select>
+        {!isPlatform && options.length ? <select className="org-switcher" value={cloudId} aria-label={translate('Brand Cloud')} onChange={(event) => onSwitchCloud ? onSwitchCloud(event.target.value) : window.location.assign(cloudRouteForSwitch(options.find((item) => item.id === event.target.value), active, me?.user_id))}><option value="" disabled>{translate('Select a cloud')}</option>{options.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select> : null}
+        {me?.authenticated ? <details className="ui-account-menu"><summary aria-label={translate('Account menu')}>{icon('circle-user')}<span>{translate('Account')}</span></summary><div><strong>{me.email}</strong>
+        {me.kind === 'customer' && (me.platform_capabilities?.length ?? 0) > 0 ? <button type="button" onClick={() => onSwitchView ? onSwitchView('platform') : accountAction('platform')}>{translate('Platform view')}</button> : null}
+        {me.kind === 'platform_admin' ? <button type="button" onClick={() => onSwitchView ? onSwitchView('customer') : accountAction('customer')}>{translate('Brand Cloud view')}</button> : null}
+        <button type="button" onClick={() => onLogout ? onLogout() : accountAction()}>{icon('right-from-bracket')}{translate('Logout')}</button></div></details> : null}
       </div></header>
       {children}
     </main>

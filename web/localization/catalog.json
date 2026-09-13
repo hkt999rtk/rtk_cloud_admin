@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "sourceLocale": "en",
+  "policyVersion": 1,
+  "glossary": {
+    "Brand Cloud": { "zh-TW": "品牌雲端", "zh-CN": "品牌云端" },
+    "OTA": { "zh-TW": "OTA", "zh-CN": "OTA" }
+  },
+  "strings": [
+    { "key": "nav.overview", "source": "Overview", "context": "sidebar navigation item", "placeholders": [] },
+    { "key": "nav.products", "source": "Products", "context": "sidebar navigation item", "placeholders": [] },
+    { "key": "common.language", "source": "Language", "context": "language picker accessible label", "placeholders": [] },
+    { "key": "devices.count", "source": "{{count}} devices", "context": "fleet device count", "placeholders": ["{{count}}"] }
+  ]
+}
