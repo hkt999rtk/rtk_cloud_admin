@@ -32,6 +32,8 @@ test('i18n supports interpolation, plurals, and locale-aware formatting', async 
   await changeLocale('zh-TW');
   assert.equal(formatLocale(), 'zh-TW');
   assert.equal(translate('Overview'), '總覽');
+  assert.equal(translate('Platform Overview'), '平台總覽');
+  assert.equal(translate('Audit Log'), '稽核日誌');
   assert.equal(translate('deviceCount', { count: 2 }), '2 台裝置');
   await changeLocale('en');
 });
