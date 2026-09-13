@@ -1,4 +1,4 @@
-import { FORMAT_LOCALE } from './i18n/index.mjs';
+import { formatLocale } from './i18n/index.mjs';
 
 // Illustrative amounts only. Never submit this document to the billing API.
 export const SAMPLE_INVOICE = {
@@ -18,5 +18,5 @@ export function invoiceQuantity(line) {
   if (line.quantity == null) return 'Not available';
   const quantity = Number(line.quantity) / (10 ** (line.quantity_scale || 0));
   if (!Number.isFinite(quantity)) return 'Not available';
-  return new Intl.NumberFormat(FORMAT_LOCALE, { maximumFractionDigits: 10 }).format(quantity);
+  return new Intl.NumberFormat(formatLocale(), { maximumFractionDigits: 10 }).format(quantity);
 }

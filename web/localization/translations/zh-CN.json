@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "locale": "zh-CN",
+  "entries": {
+    "nav.overview": {
+      "sourceHash": "672dfb152d9e03992ff9bd3fac512530854c64dd027919ee9fc1ddc864eca452",
+      "text": "概览",
+      "status": "approved"
+    },
+    "nav.products": {
+      "sourceHash": "747dbfe61981af34ea368b13eb1080459719912c9183d721ffd6262a6e065109",
+      "text": "产品",
+      "status": "approved"
+    },
+    "common.language": {
+      "sourceHash": "205176beb1c2b9a451c53573598441c13f7a2b809f265faf2950104bd47573d5",
+      "text": "语言",
+      "status": "approved"
+    },
+    "devices.count": {
+      "sourceHash": "974f86df1f1d315aa04bde2411c0fd123b35b812a61f24292f2391bdd7c2fa64",
+      "text": "{{count}} 台设备",
+      "status": "approved"
+    }
+  }
+}
