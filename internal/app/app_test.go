@@ -5171,3 +5171,26 @@ func TestConsoleAndAdminPagesRenderSeedData(t *testing.T) {
 		}
 	}
 }
+
+func TestUnknownConsoleAndAdminPagesReturnShellWithNotFoundStatus(t *testing.T) {
+	t.Parallel()
+
+	srv, err := NewTestServer(t.TempDir() + "/admin.db")
+	if err != nil {
+		t.Fatalf("NewTestServer returned error: %v", err)
+	}
+	for _, path := range []string{"/console/does-not-exist", "/console/clouds/not-a-cloud/fleet", "/admin/does-not-exist"} {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("%s status = %d, want %d", path, rec.Code, http.StatusNotFound)
+		}
+	}
+	for _, path := range []string{"/console/chipset-sdk/pro2/firmware-burner", "/admin/brand-clouds/brand-1"} {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d", path, rec.Code, http.StatusOK)
+		}
+	}
+}

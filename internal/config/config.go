@@ -31,6 +31,7 @@ type Config struct {
 	CloudLoggerToken                    string
 	LogLevel                            string
 	CustomerPasswordLoginEnabled        bool
+	PrivacyPolicyURL                    string
 	AccountManagerJobAuthorizationToken string
 	BatchWorkerPollInterval             time.Duration
 	BatchWorkerLeaseDuration            time.Duration
@@ -66,6 +67,7 @@ func FromEnv() Config {
 		CloudLoggerToken:                    os.Getenv("CLOUD_LOGGER_INGEST_TOKEN"),
 		LogLevel:                            getenv("CLOUD_ADMIN_LOG_LEVEL", getenv("LOG_LEVEL", "info")),
 		CustomerPasswordLoginEnabled:        truthy(getenv("CUSTOMER_PASSWORD_LOGIN_ENABLED", "true")),
+		PrivacyPolicyURL:                    os.Getenv("PRIVACY_POLICY_URL"),
 		AccountManagerJobAuthorizationToken: os.Getenv("ACCOUNT_MANAGER_JOB_AUTHORIZATION_TOKEN"),
 		BatchWorkerPollInterval:             duration("BATCH_WORKER_POLL_INTERVAL", time.Second),
 		BatchWorkerLeaseDuration:            duration("BATCH_WORKER_LEASE_DURATION", 30*time.Second),

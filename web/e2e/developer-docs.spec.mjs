@@ -13,12 +13,12 @@ test('[UI-CA-DOCS-001] Developer Docs appears below ChipSet & SDK and supports l
   expect(names.map((name) => name.trim()).indexOf('Developer Docs')).toBe(names.map((name) => name.trim()).indexOf('ChipSet & SDK') + 1);
   await expect(page.locator('.sidebar').getByRole('link', { name: 'Developer Docs', exact: true })).toHaveAttribute('aria-current', 'page');
   if (isMobile) await page.locator('.mobile-nav-close').click();
-  if (isMobile) await expect(page.locator('.docs-mobile-chapters optgroup')).toHaveCount(6);
-  await expect(page.getByRole('navigation', { name: 'Documentation categories' }).getByRole('button')).toHaveCount(7);
+  if (isMobile) await expect(page.locator('.docs-mobile-chapters optgroup')).toHaveCount(7);
+  await expect(page.getByRole('navigation', { name: 'Documentation categories' }).getByRole('button')).toHaveCount(8);
   await page.getByRole('button', { name: 'Reference', exact: false }).click();
   await expect(page.locator('.docs-results article')).toHaveCount(5);
   await page.getByRole('button', { name: 'All documents', exact: false }).click();
-  await expect(page.locator('.docs-results article')).toHaveCount(26);
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
   await page.getByRole('searchbox').fill('MQTT Connection Guide');
   await expect(page.locator('.docs-results h3').first()).toHaveText('MQTT Connection Guide');
   await page.getByRole('searchbox').fill('409');
@@ -39,7 +39,7 @@ test('[UI-CA-DOCS-001] Developer Docs appears below ChipSet & SDK and supports l
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   expect(requests).toEqual([]);
   await page.goto('/console/developer-docs');
-  await expect(page.locator('.docs-result-group')).toHaveCount(6);
+  await expect(page.locator('.docs-result-group')).toHaveCount(7);
   await page.goto('/console/developer-docs/api-examples');
   await page.getByLabel('Jump to section').selectOption('field-presence-and-units');
   await expect(page.getByRole('heading', { name: 'Field presence and units', exact: true })).toBeInViewport();
@@ -97,9 +97,15 @@ test('[UI-CA-DOCS-003] every chapter and in-document link works @smoke', async (
         const destination = pages.find((item) => item.url === link.href);
         if (destination) await expect(page.locator('.docs-article header h2')).toHaveText(destination.title);
         else {
-          expect(link.href).toBe('/console/chipset-sdk');
+          const toolHeadings = {
+            '/console/chipset-sdk': 'Cloud Client SDKs',
+            '/console/chipset-sdk/pro2/cloud-examples': 'Cloud Examples',
+            '/console/chipset-sdk/pro2/firmware-burner': 'Ameba PRO2 Firmware Burner',
+          };
+          expect(toolHeadings[link.href], `Unknown documentation destination: ${link.href}`).toBeTruthy();
+          expect(new URL(page.url()).pathname).toBe(link.href);
           await expect(page.getByRole('heading', { name: 'ChipSet & SDK', exact: true }).first()).toBeVisible();
-          await expect(page.getByRole('heading', { name: 'Cloud Client SDKs', exact: true })).toBeVisible();
+          await expect(page.getByRole('heading', { name: toolHeadings[link.href], exact: true })).toBeVisible();
         }
         await expect(page.getByText('The requested data could not be loaded. Please try again.', { exact: true })).toHaveCount(0);
       }

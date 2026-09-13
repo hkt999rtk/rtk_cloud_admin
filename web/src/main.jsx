@@ -1,3 +1,5 @@
+import { Pro2CloudExamples } from './Pro2CloudExamples.jsx';
+import { PRO2_EXAMPLES_PATH } from './pro2-examples.mjs';
 import { DeveloperDocs } from './DeveloperDocs.jsx';
 import { BoardCards, BoardPage } from './BoardExplorer.jsx';
 import { ChipsetVideos } from './ChipsetVideos.jsx';
@@ -249,6 +251,7 @@ function SDKPage({ docs = false }) {
   const [attempt, setAttempt] = useState(0);
   const cloudID = new URLSearchParams(window.location.search).get('cloudId') || cloudContextId(window.location.pathname, window.location.search);
   const burner = window.location.pathname === PRO2_FIRMWARE_BURNER_PATH;
+  const examples = window.location.pathname === PRO2_EXAMPLES_PATH;
   const board = boardRoute(window.location.pathname);
   const authError = useCallback(status => {
     setFailure(status);
@@ -266,13 +269,13 @@ function SDKPage({ docs = false }) {
     return () => controller.abort();
   }, [cloudID, attempt, authError, docs]);
   const ready = !!context && !failure;
-  const sdk = useSDKSection('/api/developer/sdk-releases/latest', ready && !docs && !burner && !board, authError);
-  const chipsets = useSDKSection('/api/developer/chipsets', ready && !docs && !burner, authError);
+  const sdk = useSDKSection('/api/developer/sdk-releases/latest', ready && !docs && !burner && !board && !examples, authError);
+  const chipsets = useSDKSection('/api/developer/chipsets', ready && !docs && !burner && !examples, authError);
   return <CloudConsoleShell me={context?.me} cloud={context?.brand_cloud} clouds={context?.brand_clouds || []} navigationPath={item => cloudConsolePath(context?.brand_cloud?.id || cloudID, item.id)} active={docs ? 'developer-docs' : 'chipset-sdk'} title={docs ? 'Developer Docs' : 'ChipSet & SDK'}>
     {failure ? <section className="panel" role="alert"><h2>{[403,404].includes(failure) ? 'Access unavailable' : 'Unable to load developer resources'}</h2><p>{[403,404].includes(failure) ? 'This account or Brand Cloud is not available to the signed-in developer.' : 'Please sign in again or retry loading this page.'}</p><button type="button" onClick={() => setAttempt(n=>n+1)}>Retry page</button></section> : <>
       {!context && <p role="status">Checking developer access…</p>}
       {context?.cloud_list_status === 'unavailable' && <p role="status">Cloud list is temporarily unavailable. <button type="button" onClick={() => setAttempt(n=>n+1)}>Retry cloud list</button></p>}
-      {docs ? ready && <DeveloperDocs /> : burner ? ready && <Pro2FirmwareBurner /> : board ? <><BoardPage route={board} data={ready ? chipsets.data : null} loading={!ready || chipsets.loading || !chipsets.data} ResourceLinks={ResourceLinks} />{chipsets.data?.source_status==='unavailable' && <button onClick={chipsets.retry}>Retry ChipSet catalog</button>}</> :
+      {docs ? ready && <DeveloperDocs /> : examples ? ready && <Pro2CloudExamples /> : burner ? ready && <Pro2FirmwareBurner /> : board ? <><BoardPage route={board} data={ready ? chipsets.data : null} loading={!ready || chipsets.loading || !chipsets.data} ResourceLinks={ResourceLinks} />{chipsets.data?.source_status==='unavailable' && <button onClick={chipsets.retry}>Retry ChipSet catalog</button>}</> :
         <DeveloperChipsetResources data={ready ? chipsets.data : null} sdkRelease={ready ? sdk.data : null} chipsetLoading={!ready || chipsets.loading || !chipsets.data} sdkLoading={!ready || sdk.loading || !sdk.data} toolsVisible={ready} retrySDK={sdk.retry} retryChipsets={chipsets.retry} />}
     </>}
   </CloudConsoleShell>;
@@ -327,6 +330,7 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   const isPublicRoute = isPublicRouteId(active);
+  const isNotFoundRoute = active === 'not-found';
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
@@ -1219,6 +1223,7 @@ function App() {
           onSocialLogin={handleSocialLogin}
           onForgotPassword={handleForgotPassword}
           onResetPassword={handleResetPassword}
+          privacyPolicyURL={me?.privacy_policy_url}
         />
       );
     }
@@ -1236,6 +1241,12 @@ function App() {
 
   if (isMemberInvitationAccept && me?.authenticated) {
     return <BrandCloudMemberInvitationAcceptPage />;
+  }
+
+  if (isNotFoundRoute) {
+    return <CloudConsoleShell me={me} active={active} title="Page not found" navGroups={[]} onLogout={handleLogout} onSwitchView={handleSwitchView} onError={setError}>
+      <NotFoundPage me={me} />
+    </CloudConsoleShell>;
   }
 
   return (
@@ -1385,7 +1396,28 @@ function App() {
   );
 }
 
-function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswordLogin, onSocialLogin, onForgotPassword, onResetPassword }) {
+function NotFoundPage({ me }) {
+  const destination = !me?.authenticated
+    ? loginPathFor(protectedPathFromLocation(window.location))
+    : me.kind === 'platform_admin'
+      ? '/admin'
+      : destinationForSession(me, '');
+  const destinationLabel = !me?.authenticated ? 'Sign in' : me.kind === 'platform_admin' ? 'Open Platform Home' : 'Open My Clouds';
+  return <section className="console-not-found panel" aria-labelledby="console-not-found-title">
+    <div className="console-not-found-copy">
+      <p className="console-not-found-code">404</p>
+      <h2 id="console-not-found-title">This console page is unavailable.</h2>
+      <p>The address may be outdated, or the page may have moved. Use a safe starting point to continue.</p>
+      <div className="console-not-found-actions">
+        <a className="primary-button" href={destination}><i className="fa-solid fa-house" aria-hidden="true" />{destinationLabel}</a>
+        <button className="ghost-button" type="button" onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign(destination)}><i className="fa-solid fa-arrow-left" aria-hidden="true" />Go back</button>
+      </div>
+    </div>
+    <div className="console-not-found-art" aria-hidden="true"><span className="console-not-found-ring ring-a" /><span className="console-not-found-ring ring-b" /><span className="console-not-found-cloud" /><span className="console-not-found-device"><i /><i /><i /></span></div>
+  </section>;
+}
+
+function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswordLogin, onSocialLogin, onForgotPassword, onResetPassword, privacyPolicyURL }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
@@ -1442,6 +1474,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
       onSocialLogin={onSocialLogin}
       socialProviders={socialProviders}
       disabled={loading}
+      privacyPolicyURL={privacyPolicyURL}
     />
   );
   return (
@@ -1482,7 +1515,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
   );
 }
 
-function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSignup, onPasswordLogin, onSocialLogin, socialProviders, disabled }) {
+function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSignup, onPasswordLogin, onSocialLogin, socialProviders, disabled, privacyPolicyURL }) {
   return (
     <div className="auth-stack">
       {!platformLogin ? <div className="auth-mode-tabs" role="tablist" aria-label="Auth mode">
@@ -1506,7 +1539,7 @@ function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSig
         </button>
       </div> : null}
       {!platformLogin && mode === 'signup' ? (
-        <SignupForm onSignup={onSignup} disabled={disabled} />
+        <SignupForm onSignup={onSignup} disabled={disabled} privacyPolicyURL={privacyPolicyURL} />
       ) : (
         <>
           <SocialLoginButtons providers={socialProviders} onSocialLogin={onSocialLogin} disabled={disabled} />
@@ -1800,7 +1833,7 @@ function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify
   );
 }
 
-function SignupForm({ onSignup, disabled = false }) {
+function SignupForm({ onSignup, disabled = false, privacyPolicyURL }) {
   const [email, setEmail] = useState('');
   const [honeypot, setHoneypot] = useState('');
   const [error, setLocalError] = useState('');
@@ -1833,6 +1866,7 @@ function SignupForm({ onSignup, disabled = false }) {
         <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
       </label>
       <button type="submit" disabled={busy || disabled || !!honeypot}>Create account</button>
+      {privacyPolicyURL ? <p className="auth-terms">By creating an account, you acknowledge that you have read our <a href={privacyPolicyURL} target="_blank" rel="noreferrer noopener">Privacy Policy</a>. We collect and use your email address to create and manage your account and to send service-related communications.</p> : null}
       {error ? <p className="error">{error}</p> : null}
     </form>
   );
@@ -2536,6 +2570,7 @@ function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading =
         <a className="primary-button icon-text pro2-tool-action" href={PRO2_FIRMWARE_BURNER_PATH}><Icon name="arrow-right" />Open firmware burner</a>
       </article>
     </section> : null}
+    {isPRO2 && <section className="panel"><h2>PRO2 Cloud Examples</h2><p>MQTT, H.264 test video and live camera: source, firmware, guides and browser burning.</p><a className="primary-button" href={PRO2_EXAMPLES_PATH}>Explore cloud examples</a></section>}
     <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
       <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading"><Icon name="cloud" />Cloud Client SDKs</h2><p>App SDKs are shared across chips. Device packages are shown for the selected chip; the complete bundle contains the entire release. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
       {sdkLoading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}

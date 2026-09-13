@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './pro2-firmware-burner.css';
+import { Pro2RemoteFirmware } from './Pro2RemoteFirmware.jsx';
 
 export const PRO2_FIRMWARE_BURNER_PATH = '/console/chipset-sdk/pro2/firmware-burner';
 
@@ -38,6 +39,7 @@ export function Pro2FirmwareBurner() {
       </div>
     </div>
 
+    <Pro2RemoteFirmware rootRef={rootRef} />
     <div id="compatibility" className="pro2-notice" role="status"><Icon id="compatibility-icon" name="circle-check" /><span id="compatibility-message">Checking Web Serial compatibility…</span></div>
     {loadError ? <div className="error" role="alert">{loadError}</div> : null}
 
@@ -60,7 +62,7 @@ export function Pro2FirmwareBurner() {
     <section id="burn-panel" className="panel pro2-burn-panel" aria-labelledby="burn-title" hidden>
       <div className="pro2-panel-heading"><div><p className="eyebrow">FIRMWARE TASK</p><h2 id="burn-title">Burn firmware</h2></div><button id="close-burn" type="button" className="ghost-button">Close</button></div>
       <div className="pro2-burn-primary">
-        <label className="pro2-file-field"><span>Firmware image</span><input id="firmware" type="file" accept=".bin,application/octet-stream" /><small id="file-info">Choose flash_is.bin</small></label>
+        <label className="pro2-file-field"><span>Firmware image</span><input id="firmware" type="file" accept=".bin,application/octet-stream" /><small id="file-info">Choose a complete flash .bin</small></label>
         <label>Burn speed<select id="download-baud"><option value="1000000">1,000,000 baud</option><option value="2000000">2,000,000 baud</option><option value="3000000">3,000,000 baud</option><option value="4000000">4,000,000 baud</option></select></label>
         <label className="pro2-checkbox"><input id="open-terminal" type="checkbox" defaultChecked />Open the console after completion</label>
       </div>

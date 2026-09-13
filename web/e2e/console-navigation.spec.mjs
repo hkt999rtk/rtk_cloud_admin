@@ -10,18 +10,18 @@ test('[UI-CA-CONSOLE-NAV-001] Clouds, Docs, chapters and history retain the docu
   const requests=[];
   page.on('request',r=>{if(r.url().includes('/api/'))requests.push(new URL(r.url()).pathname)});
   await page.locator('.sidebar').getByRole('link',{name:'Developer Docs',exact:true}).click();
-  await expect(page.locator('.docs-results article')).toHaveCount(26);
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
   await expect(page).toHaveTitle('Developer Docs · RTK Cloud');
   expect(requests).toEqual(['/api/developer/console/context']);
   await page.locator('.docs-results').getByRole('link',{name:'Cloud Service Overview',exact:true}).click();
   await expect(page.locator('.docs-article header h2')).toHaveText('Cloud Service Overview');
   await page.goBack();
-  await expect(page.locator('.docs-results article')).toHaveCount(26);
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
   await page.goBack();
   await expect(page.locator('.my-clouds-quota')).toBeVisible();
   await expect(page).toHaveTitle('My Clouds · RTK Cloud');
   await page.goForward();
-  await expect(page.locator('.docs-results article')).toHaveCount(26);
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
   await page.locator('.sidebar').getByRole('link',{name:'My Clouds',exact:true}).click();
   await expect(page.locator('.my-clouds-quota')).toBeVisible();
   expect(await page.evaluate(()=>window.__consoleMarker)).toBe(marker);
@@ -55,7 +55,7 @@ test('[UI-CA-CONSOLE-NAV-002] slow sidebar context does not block Clouds or over
   await expect(page.locator('.my-clouds-quota')).toBeVisible();
   await expect(page.getByText('Loading clouds…',{exact:true})).toHaveCount(0);
   await page.locator('.sidebar').getByRole('link',{name:'Developer Docs',exact:true}).click();
-  await expect(page.locator('.docs-results article')).toHaveCount(26);
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
   release();
   expect(new URL(page.url()).searchParams.get('cloudId')).toBe(id);
   await expect(page).toHaveTitle('Developer Docs · RTK Cloud');
@@ -85,14 +85,14 @@ test('[UI-CA-CONSOLE-NAV-005] optional Cloud list outage does not block document
   await page.route('**/api/developer/console/context*',r=>r.fulfill({json:{...context,cloud_list_status:'unavailable',brand_clouds:[]}}));
   await page.goto(docs);
   await expect(page.getByText('Cloud list is temporarily unavailable.',{exact:false})).toBeVisible();
-  await expect(page.locator('.docs-results article')).toHaveCount(26);
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
 });
 
 test('[UI-CA-CONSOLE-NAV-006] modified Docs click retains the original tab',async({page,context})=>{
   await login(page,'developer');
   await page.goto('/console/clouds');
   const [popup]=await Promise.all([context.waitForEvent('page'),page.locator('.sidebar').getByRole('link',{name:'Developer Docs',exact:true}).click({modifiers:['ControlOrMeta']})]);
-  await expect(popup.locator('.docs-results article')).toHaveCount(26);
+  await expect(popup.locator('.docs-results article')).toHaveCount(27);
   await expect(page).toHaveURL(/\/console\/clouds$/);
   await popup.close();
 });
