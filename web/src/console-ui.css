@@ -50,7 +50,7 @@
 .ui-breadcrumb a { text-decoration: none; }
 .ui-environment { border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 4px; padding: 3px 8px; font-size: 12px; }
 .enterprise-console .topbar-controls { gap: 12px; flex-wrap: wrap; }
-.enterprise-console .org-switcher { max-width: 240px; min-height: 36px; font-size: 14px; }
+.enterprise-console .org-switcher, .enterprise-console .language-switcher { max-width: 240px; min-height: 36px; font-size: 14px; }
 .ui-account-menu { position: relative; }
 .ui-account-menu summary { cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 8px; }
 .ui-account-menu > div { position: absolute; right: 0; z-index: 40; top: 44px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-width: 240px; box-shadow: 0 8px 24px #24292f20; }
@@ -145,7 +145,7 @@
   .enterprise-console > main { padding: 16px; }
   .enterprise-console h1 { font-size: 24px; }
   .enterprise-console .topbar-controls { width: 100%; }
-  .enterprise-console .org-switcher { max-width: 100%; flex: 1; min-width: 0; }
+  .enterprise-console .org-switcher, .enterprise-console .language-switcher { max-width: 100%; flex: 1; min-width: 0; }
   .enterprise-console .my-clouds-grid > article { display: block; }
   .enterprise-console .my-clouds-grid dl { margin: 12px 0; }
   .enterprise-console :is(.panel, .my-clouds-panel, .metric-card) { padding: 16px; }

@@ -1486,7 +1486,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
           <strong>Connect+</strong>
         </a>
         <span className="service-console-label">{platformLogin ? 'Platform administration' : 'Developer console'}</span>
-        <select className="org-switcher" value={activeLocale()} aria-label={translate('Language')} onChange={(event) => changeLocale(event.target.value)}>{Object.entries(LOCALE_LABELS).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select>
+        <select className="language-switcher" data-locale-selector value={activeLocale()} aria-label={translate('Language')} onChange={(event) => changeLocale(event.target.value)}>{Object.entries(LOCALE_LABELS).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select>
       </header>
       <main className="login-layout">
         <aside className="service-login-story" aria-label="About Connect+">

@@ -655,6 +655,7 @@ main {
 }
 
 .org-switcher,
+.language-switcher,
 .ghost-button {
   background-color: #fff;
   border: 1px solid var(--line);
@@ -1303,7 +1304,8 @@ p {
   font-weight: 700;
 }
 
-.org-switcher {
+.org-switcher,
+.language-switcher {
   font-size: 13px;
   color: var(--brand-dark);
   background-color: #fff;
@@ -6885,6 +6887,7 @@ th {
   }
 
   .org-switcher,
+  .language-switcher,
   .window-toggle button {
     min-height: 44px;
   }
