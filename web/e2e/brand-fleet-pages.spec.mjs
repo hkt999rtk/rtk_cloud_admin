@@ -4,7 +4,7 @@ import { expectNoCJKText, expectPageTitle, login } from './fixtures/session.mjs'
 const cloud = '33333333-3333-4333-8333-333333333333';
 const product = '55555555-5555-4555-8555-555555555555';
 const pages = [
-  ['', 'Device Overview'],
+  ['', 'Cloud Overview'],
   ['/fleet', 'Devices'],
   ['/products', 'Products'],
   ['/firmware-ota', 'Firmware OTA'],

@@ -1,0 +1,327 @@
+{
+  "schemaVersion": 1,
+  "sourceLocale": "en",
+  "policyVersion": 2,
+  "glossary": {
+    "Brand Cloud": {
+      "zh-TW": "品牌雲端",
+      "zh-CN": "品牌云端"
+    },
+    "OTA": {
+      "zh-TW": "OTA",
+      "zh-CN": "OTA"
+    }
+  },
+  "strings": [
+    {
+      "key": "i18n.smoke",
+      "source": "English",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Language",
+      "source": "Language",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "English",
+      "source": "English",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Traditional Chinese",
+      "source": "Traditional Chinese",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Simplified Chinese",
+      "source": "Simplified Chinese",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Skip to content",
+      "source": "Skip to content",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Open navigation",
+      "source": "Open navigation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Close navigation",
+      "source": "Close navigation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Primary navigation",
+      "source": "Primary navigation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Clouds",
+      "source": "Clouds",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Brand Cloud",
+      "source": "Brand Cloud",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Features",
+      "source": "Features",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Management",
+      "source": "Management",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "My Clouds",
+      "source": "My Clouds",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Overview",
+      "source": "Overview",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Products",
+      "source": "Products",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud Test Lab",
+      "source": "Cloud Test Lab",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "ChipSet & SDK",
+      "source": "ChipSet & SDK",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Developer Docs",
+      "source": "Developer Docs",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Fleet Management",
+      "source": "Fleet Management",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Firmware & OTA",
+      "source": "Firmware & OTA",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Analytics",
+      "source": "Analytics",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Members & Access",
+      "source": "Members & Access",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Billing",
+      "source": "Billing",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Settings",
+      "source": "Settings",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Select a cloud",
+      "source": "Select a cloud",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Platform Admin",
+      "source": "Platform Admin",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Development",
+      "source": "Development",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Staging",
+      "source": "Staging",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Account menu",
+      "source": "Account menu",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Account",
+      "source": "Account",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Platform view",
+      "source": "Platform view",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Brand Cloud view",
+      "source": "Brand Cloud view",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Logout",
+      "source": "Logout",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Platform admin",
+      "source": "Platform admin",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Loading account…",
+      "source": "Loading account…",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Select a cloud to manage products, devices and team access.",
+      "source": "Select a cloud to manage products, devices and team access.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "deviceCount_one",
+      "source": "{{count}} device",
+      "context": "Admin fleet device count",
+      "placeholders": [
+        "{{count}}"
+      ]
+    },
+    {
+      "key": "deviceCount_other",
+      "source": "{{count}} devices",
+      "context": "Admin fleet device count",
+      "placeholders": [
+        "{{count}}"
+      ]
+    },
+    {
+      "key": "Platform Overview",
+      "source": "Platform Overview",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Platform Home",
+      "source": "Platform Home",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Monitoring and Diagnostics",
+      "source": "Monitoring and Diagnostics",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Grafana",
+      "source": "Grafana",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Service Health",
+      "source": "Service Health",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Service Logs",
+      "source": "Service Logs",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Organizations and Products",
+      "source": "Organizations and Products",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Brand Cloud Management",
+      "source": "Brand Cloud Management",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "SSO Providers",
+      "source": "SSO Providers",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Operations and Audit",
+      "source": "Operations and Audit",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Operations Log",
+      "source": "Operations Log",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    },
+    {
+      "key": "Audit Log",
+      "source": "Audit Log",
+      "context": "Admin platform navigation label",
+      "placeholders": []
+    }
+  ]
+}

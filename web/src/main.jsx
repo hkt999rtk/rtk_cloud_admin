@@ -1,3 +1,5 @@
+import { Pro2CloudExamples } from './Pro2CloudExamples.jsx';
+import { PRO2_EXAMPLES_PATH } from './pro2-examples.mjs';
 import { DeveloperDocs } from './DeveloperDocs.jsx';
 import { BoardCards, BoardPage } from './BoardExplorer.jsx';
 import { ChipsetVideos } from './ChipsetVideos.jsx';
@@ -6,6 +8,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client';
 import { MyCloudsApp } from './MyClouds.jsx';
 import { CloudConsoleShell } from './CloudConsoleShell.jsx';
+import { CloudConceptGuide } from './CloudConceptGuide.jsx';
+import { Dialog } from './ConsoleUI.jsx';
 import { sdkJSON, useSDKSection, sdkNavigationTarget } from './sdk-page.mjs';
 import { productInvitationDestination } from './cloud-products.mjs';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
@@ -13,6 +17,7 @@ import { handoffRoute } from './owner-handoff.mjs';
 import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
 import './cloud-billing.css';
 import { BillingTabs, ServicePricing } from './ServicePricing.jsx';
+import { BillingInvoiceDocument } from './BillingInvoiceDocument.jsx';
 import { cloudAPI, cloudURL, managedCloudRoute, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { scopedCustomerAPI } from './cloud-scope.mjs';
 import { Pro2FirmwareBurner, PRO2_FIRMWARE_BURNER_PATH } from './Pro2FirmwareBurner.jsx';
@@ -143,7 +148,7 @@ import './styles.css';
 import './console-ui.css';
 import './service-login.css';
 import './developer-tools-ui.css';
-import i18n, { FORMAT_LOCALE, formatDateTime, formatNumber, translate } from './i18n/index.mjs';
+import i18n, { activeLocale, changeLocale, formatDateTime, formatLocale, formatNumber, LOCALE_LABELS, translate } from './i18n/index.mjs';
 
 const DEFAULT_PAGE_SIZE = 8;
 
@@ -246,6 +251,7 @@ function SDKPage({ docs = false }) {
   const [attempt, setAttempt] = useState(0);
   const cloudID = new URLSearchParams(window.location.search).get('cloudId') || cloudContextId(window.location.pathname, window.location.search);
   const burner = window.location.pathname === PRO2_FIRMWARE_BURNER_PATH;
+  const examples = window.location.pathname === PRO2_EXAMPLES_PATH;
   const board = boardRoute(window.location.pathname);
   const authError = useCallback(status => {
     setFailure(status);
@@ -263,13 +269,13 @@ function SDKPage({ docs = false }) {
     return () => controller.abort();
   }, [cloudID, attempt, authError, docs]);
   const ready = !!context && !failure;
-  const sdk = useSDKSection('/api/developer/sdk-releases/latest', ready && !docs && !burner && !board, authError);
-  const chipsets = useSDKSection('/api/developer/chipsets', ready && !docs && !burner, authError);
+  const sdk = useSDKSection('/api/developer/sdk-releases/latest', ready && !docs && !burner && !board && !examples, authError);
+  const chipsets = useSDKSection('/api/developer/chipsets', ready && !docs && !burner && !examples, authError);
   return <CloudConsoleShell me={context?.me} cloud={context?.brand_cloud} clouds={context?.brand_clouds || []} navigationPath={item => cloudConsolePath(context?.brand_cloud?.id || cloudID, item.id)} active={docs ? 'developer-docs' : 'chipset-sdk'} title={docs ? 'Developer Docs' : 'ChipSet & SDK'}>
     {failure ? <section className="panel" role="alert"><h2>{[403,404].includes(failure) ? 'Access unavailable' : 'Unable to load developer resources'}</h2><p>{[403,404].includes(failure) ? 'This account or Brand Cloud is not available to the signed-in developer.' : 'Please sign in again or retry loading this page.'}</p><button type="button" onClick={() => setAttempt(n=>n+1)}>Retry page</button></section> : <>
       {!context && <p role="status">Checking developer access…</p>}
       {context?.cloud_list_status === 'unavailable' && <p role="status">Cloud list is temporarily unavailable. <button type="button" onClick={() => setAttempt(n=>n+1)}>Retry cloud list</button></p>}
-      {docs ? ready && <DeveloperDocs /> : burner ? ready && <Pro2FirmwareBurner /> : board ? <><BoardPage route={board} data={ready ? chipsets.data : null} loading={!ready || chipsets.loading || !chipsets.data} ResourceLinks={ResourceLinks} />{chipsets.data?.source_status==='unavailable' && <button onClick={chipsets.retry}>Retry ChipSet catalog</button>}</> :
+      {docs ? ready && <DeveloperDocs /> : examples ? ready && <Pro2CloudExamples /> : burner ? ready && <Pro2FirmwareBurner /> : board ? <><BoardPage route={board} data={ready ? chipsets.data : null} loading={!ready || chipsets.loading || !chipsets.data} ResourceLinks={ResourceLinks} />{chipsets.data?.source_status==='unavailable' && <button onClick={chipsets.retry}>Retry ChipSet catalog</button>}</> :
         <DeveloperChipsetResources data={ready ? chipsets.data : null} sdkRelease={ready ? sdk.data : null} chipsetLoading={!ready || chipsets.loading || !chipsets.data} sdkLoading={!ready || sdk.loading || !sdk.data} toolsVisible={ready} retrySDK={sdk.retry} retryChipsets={chipsets.retry} />}
     </>}
   </CloudConsoleShell>;
@@ -324,6 +330,7 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   const isPublicRoute = isPublicRouteId(active);
+  const isNotFoundRoute = active === 'not-found';
   const isLoginRoute = active === 'login';
   const isAuthEntryRoute = active === 'login' || active === 'login-check-email' || active === 'login-activate' || active === 'forgot-password' || active === 'reset-password';
   const isPlatformView = isPlatformRouteId(active);
@@ -1216,6 +1223,7 @@ function App() {
           onSocialLogin={handleSocialLogin}
           onForgotPassword={handleForgotPassword}
           onResetPassword={handleResetPassword}
+          privacyPolicyURL={me?.privacy_policy_url}
         />
       );
     }
@@ -1233,6 +1241,12 @@ function App() {
 
   if (isMemberInvitationAccept && me?.authenticated) {
     return <BrandCloudMemberInvitationAcceptPage />;
+  }
+
+  if (isNotFoundRoute) {
+    return <CloudConsoleShell me={me} active={active} title="Page not found" navGroups={[]} onLogout={handleLogout} onSwitchView={handleSwitchView} onError={setError}>
+      <NotFoundPage me={me} />
+    </CloudConsoleShell>;
   }
 
   return (
@@ -1382,7 +1396,28 @@ function App() {
   );
 }
 
-function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswordLogin, onSocialLogin, onForgotPassword, onResetPassword }) {
+function NotFoundPage({ me }) {
+  const destination = !me?.authenticated
+    ? loginPathFor(protectedPathFromLocation(window.location))
+    : me.kind === 'platform_admin'
+      ? '/admin'
+      : destinationForSession(me, '');
+  const destinationLabel = !me?.authenticated ? 'Sign in' : me.kind === 'platform_admin' ? 'Open Platform Home' : 'Open My Clouds';
+  return <section className="console-not-found panel" aria-labelledby="console-not-found-title">
+    <div className="console-not-found-copy">
+      <p className="console-not-found-code">404</p>
+      <h2 id="console-not-found-title">This console page is unavailable.</h2>
+      <p>The address may be outdated, or the page may have moved. Use a safe starting point to continue.</p>
+      <div className="console-not-found-actions">
+        <a className="primary-button" href={destination}><i className="fa-solid fa-house" aria-hidden="true" />{destinationLabel}</a>
+        <button className="ghost-button" type="button" onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign(destination)}><i className="fa-solid fa-arrow-left" aria-hidden="true" />Go back</button>
+      </div>
+    </div>
+    <div className="console-not-found-art" aria-hidden="true"><span className="console-not-found-ring ring-a" /><span className="console-not-found-ring ring-b" /><span className="console-not-found-cloud" /><span className="console-not-found-device"><i /><i /><i /></span></div>
+  </section>;
+}
+
+function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswordLogin, onSocialLogin, onForgotPassword, onResetPassword, privacyPolicyURL }) {
   const params = new URLSearchParams(window.location.search);
   const email = params.get('email') || '';
   const token = params.get('token') || '';
@@ -1439,6 +1474,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
       onSocialLogin={onSocialLogin}
       socialProviders={socialProviders}
       disabled={loading}
+      privacyPolicyURL={privacyPolicyURL}
     />
   );
   return (
@@ -1450,6 +1486,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
           <strong>Connect+</strong>
         </a>
         <span className="service-console-label">{platformLogin ? 'Platform administration' : 'Developer console'}</span>
+        <select className="language-switcher" data-locale-selector value={activeLocale()} aria-label={translate('Language')} onChange={(event) => changeLocale(event.target.value)}>{Object.entries(LOCALE_LABELS).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select>
       </header>
       <main className="login-layout">
         <aside className="service-login-story" aria-label="About Connect+">
@@ -1478,7 +1515,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
   );
 }
 
-function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSignup, onPasswordLogin, onSocialLogin, socialProviders, disabled }) {
+function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSignup, onPasswordLogin, onSocialLogin, socialProviders, disabled, privacyPolicyURL }) {
   return (
     <div className="auth-stack">
       {!platformLogin ? <div className="auth-mode-tabs" role="tablist" aria-label="Auth mode">
@@ -1502,7 +1539,7 @@ function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSig
         </button>
       </div> : null}
       {!platformLogin && mode === 'signup' ? (
-        <SignupForm onSignup={onSignup} disabled={disabled} />
+        <SignupForm onSignup={onSignup} disabled={disabled} privacyPolicyURL={privacyPolicyURL} />
       ) : (
         <>
           <SocialLoginButtons providers={socialProviders} onSocialLogin={onSocialLogin} disabled={disabled} />
@@ -1796,7 +1833,7 @@ function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify
   );
 }
 
-function SignupForm({ onSignup, disabled = false }) {
+function SignupForm({ onSignup, disabled = false, privacyPolicyURL }) {
   const [email, setEmail] = useState('');
   const [honeypot, setHoneypot] = useState('');
   const [error, setLocalError] = useState('');
@@ -1829,6 +1866,7 @@ function SignupForm({ onSignup, disabled = false }) {
         <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
       </label>
       <button type="submit" disabled={busy || disabled || !!honeypot}>Create account</button>
+      {privacyPolicyURL ? <p className="auth-terms">By creating an account, you acknowledge that you have read our <a href={privacyPolicyURL} target="_blank" rel="noreferrer noopener">Privacy Policy</a>. We collect and use your email address to create and manage your account and to send service-related communications.</p> : null}
       {error ? <p className="error">{error}</p> : null}
     </form>
   );
@@ -2065,6 +2103,8 @@ function BrandCloudPage({
       >{tab.label}</button>)}
     </nav>
     {active === 'overview' ? <Overview
+      key={cloud.id}
+      cloudId={cloud.id}
       summary={summary}
       fleetSummary={fleetSummary}
       fleetHealth={fleetHealth}
@@ -2130,6 +2170,7 @@ function TeamSummaryCard({ data, loading, me, onOpen }) {
 }
 
 function Overview({
+  cloudId,
   summary,
   fleetSummary,
   fleetHealth,
@@ -2148,6 +2189,12 @@ function Overview({
   onRequestQuotaRaise,
   onOpenAccess,
 }) {
+  const [conceptGuideOpen, setConceptGuideOpen] = useState(false);
+  const nextSteps = [
+    { route: 'product-services', text: 'manage product settings in ', label: 'Products' },
+    { route: 'test-lab', text: 'test device interactions in ', label: 'Cloud Test Lab' },
+    { route: 'devices', text: 'investigate individual devices in ', label: 'Fleet Management' },
+  ].filter(step => cloudId && canAccessCustomerRoute(step.route, me?.capabilities));
   const activeMembership = getActiveMembership(me);
   const tierLabel = formatTierLabel(activeMembership?.tier);
   const quotaLimit = activeMembership?.evaluation_device_quota ?? 5;
@@ -2205,7 +2252,20 @@ function Overview({
 
   return (
     <div className="overview-layout">
-      <div className="page-intro"><div><p className="eyebrow">Fleet Operations</p><h2>{translate('Device Overview')}</h2><p>{translate('Review device health and work that needs attention.')}</p></div></div>
+      <div className="page-intro overview-concept-intro">
+        <div>
+          <p className="eyebrow">DEVELOPER CONSOLE</p>
+          <h2>{translate('Cloud Overview')}</h2>
+          <p>See device connectivity, activity and health across your cloud.</p>
+          {nextSteps.length > 0 && <p className="overview-next-steps">{nextSteps.map((step, index) => <React.Fragment key={step.route}>
+            {index > 0 && (index === nextSteps.length - 1 ? (nextSteps.length === 2 ? ' and ' : ', and ') : ', ')}
+            {index === 0 ? step.text.charAt(0).toUpperCase() + step.text.slice(1) : step.text}
+            <a href={cloudConsolePath(cloudId, step.route)}>{step.label}</a>
+          </React.Fragment>)}.</p>}
+        </div>
+        <button type="button" className="overview-concept-trigger" aria-haspopup="dialog" onClick={() => setConceptGuideOpen(true)}>Cloud concepts</button>
+      </div>
+      {conceptGuideOpen && <Dialog variant="drawer" title="Clouds, products & devices" onClose={() => setConceptGuideOpen(false)}><CloudConceptGuide /></Dialog>}
       <section className="metrics overview-metrics">
         <MetricCard icon="video" label="Online" value={Number.isFinite(onlineCount) ? `${onlineCount} / ${onlineTotal ?? onlineCount}` : 'Unknown'} hint={onlineUnknown > 0 ? `${onlineUnknown} devices have unknown presence` : 'Provisioned devices currently online'} tone="info" />
         <MetricCard icon="chart-line" label="7-day Online Rate" value={onlineRate == null ? 'N/A' : formatPercent(onlineRate)} hint={coverageRate == null ? 'Historical presence is accumulating' : `${formatPercent(coverageRate)} data coverage`} tone="info" />
@@ -2510,6 +2570,7 @@ function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading =
         <a className="primary-button icon-text pro2-tool-action" href={PRO2_FIRMWARE_BURNER_PATH}><Icon name="arrow-right" />Open firmware burner</a>
       </article>
     </section> : null}
+    {isPRO2 && <section className="panel"><h2>PRO2 Cloud Examples</h2><p>MQTT, H.264 test video and live camera: source, firmware, guides and browser burning.</p><a className="primary-button" href={PRO2_EXAMPLES_PATH}>Explore cloud examples</a></section>}
     <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
       <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading"><Icon name="cloud" />Cloud Client SDKs</h2><p>App SDKs are shared across chips. Device packages are shown for the selected chip; the complete bundle contains the entire release. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
       {sdkLoading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
@@ -3202,7 +3263,14 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     <section className="panel billing-usage-card"><div className="panel-head"><div><h3>Cost This Month by Service Category</h3><p>{formatProviderTimestamp(usage.period_start)} – {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description} · {line.quantity} {line.unit}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>Month to Date</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
   </section>;
 
-  if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page"><div className="page-intro"><div><h2>Invoice</h2><p>Check the billing period, amount, payment status, and download PDF.</p></div><a className="ghost-button" href={billingAPI(cloudId, '/api/billing/statements')}>Export statement</a></div>{billingTabs}<section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section></section>;
+  if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page">
+    <div className="page-intro"><div><h2>Invoices</h2><p>Review service charges, tax, and settlement status for each billing period. Open an invoice to see its breakdown or download an available PDF.</p></div>{invoices.length > 0 && <a className="ghost-button" href={billingAPI(cloudId, '/api/billing/statements')}>Export statement</a>}</div>
+    {billingTabs}
+    {invoices.length ? <section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section> : <>
+      <div className="invoice-preview-intro"><h3>No invoices yet</h3><p>Here is an example of your invoice layout, including Taiwan tax at 5%. This preview does not reflect your account balance or payment history.</p></div>
+      <BillingInvoiceDocument preview />
+    </>}
+  </section>;
   if (billingView === 'activity') return <section className="page-content billing-page" data-testid="billing-activity-page"><div className="page-intro"><div><h2>Billing Activity</h2><p>Track top-ups, invoice charges, retries, and reconciliations with consistent status.</p></div></div>{billingTabs}<section className="panel"><BillingActivityTable activities={activities} onSelect={openBillingActivity} /></section></section>;
   if (billingView === 'profile') return <BillingProfilePage profile={billingProfile} tabs={billingTabs} canManage={capabilities.includes('billing_profile.manage')} onRefresh={onRefresh} />;
 
@@ -3256,7 +3324,11 @@ function BillingActivityTable({ activities, onSelect }) {
 
 function BillingInvoiceDetail({ invoice, onBack }) {
   const {cloudId,version,onAccessLost} = React.useContext(BillingScope);
-  return <section className="page-content billing-page" data-testid="billing-invoice-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← Back to invoices</button><div className="page-intro"><div><p className="eyebrow">Invoice</p><h2>{invoice.invoice_number}</h2><p>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</p></div><div className="inline-actions"><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? 'Paid' : invoice.state}</span>{invoice.document ? <a className="primary button-link" href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}>Download PDF</a> : null}</div></div><section className="panel invoice-paper"><div className="invoice-parties"><div><small>Billing recipient</small><strong>{invoice.recipient?.legal_name || '—'}</strong><span>{invoice.recipient?.tax_identifier || ''}</span><span>{invoice.recipient?.billing_address || ''}</span></div><div><small>Issue date</small><strong>{formatProviderTimestamp(invoice.issued_at)}</strong><small>Total</small><strong>{formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Service</th><th>Description</th><th>Usage</th><th>Subtotal</th></tr></thead><tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td>{line.service_code}</td><td>{line.description}</td><td>{line.quantity} {line.unit}</td><td>{formatMinorAmount(line.total_minor, invoice.currency)}</td></tr>)}</tbody></table></div><div className="invoice-totals"><span>Subtotal {formatMinorAmount(invoice.subtotal_minor, invoice.currency)}</span><span>Tax {formatMinorAmount(invoice.tax_minor, invoice.currency)}</span><strong>Total {formatMinorAmount(invoice.total_minor, invoice.currency)}</strong></div><p className="notice">This invoice is settled from a prepaid balance; the payment-method top-up and invoice charge are separate accounting events.</p></section></section>;
+  return <section className="page-content billing-page" data-testid="billing-invoice-detail">
+    <button type="button" className="link-button billing-back" onClick={onBack}>← Back to invoices</button>
+    <div className="page-intro"><div><p className="eyebrow">Invoice</p><h2>{invoice.invoice_number}</h2></div>{invoice.document ? <a className="primary button-link" href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}>Download PDF</a> : null}</div>
+    <BillingInvoiceDocument invoice={invoice} />
+  </section>;
 }
 
 function BillingActivityDetail({ activity, onBack }) {
@@ -3355,6 +3427,7 @@ function PKITestBundleTool({ activeCloudId, products = [], productsLoading, prod
 }
 
 function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
+  const reportTypeHintId = React.useId();
   const reports = data?.reports || [];
   const [name, setName] = useState('Device Status Report');
   const [reportType, setReportType] = useState('fleet_status');
@@ -3374,10 +3447,10 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
     if (response.ok) { onRefresh(); }
   }
     return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>Reports</h2><p>Organize operational results by product, region, group, firmware, and timeframe.</p></div></div>
+    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>Reports</h2><p>Review device status and firmware coverage across your cloud.</p><p>Use Device Status reports to review online and offline devices, and Firmware Coverage reports to see which firmware versions are deployed. Filter by product, region, group or firmware to narrow your investigation, then export CSV or JSON results for further analysis and operational handoffs.</p></div></div>
     {!canCreate ? <section className="panel split-panel"><div><h3>You currently do not have reports.create permission</h3><p>Existing reports can be viewed, but new reports cannot be created.</p></div></section> : <section className="panel report-builder-panel"><form className="report-builder" onSubmit={createReport}>
       <input value={name} onChange={(event) => setName(event.target.value)} aria-label="Report Name" />
-      <select className="select-control" aria-label="Report Type" value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">Device Status</option><option value="firmware_coverage">Firmware Coverage</option></select>
+      <div className="report-type-field"><select className="select-control" aria-label="Report Type" aria-describedby={reportTypeHintId} value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">Device Status</option><option value="firmware_coverage">Firmware Coverage</option></select><p id={reportTypeHintId} className="report-type-hint">{reportType === 'firmware_coverage' ? 'Review deployed firmware versions to identify devices not yet on your target version. Coverage does not measure the success rate of an OTA campaign.' : 'Review online and offline device status to identify device groups that need follow-up.'}</p></div>
       <select className="select-control" aria-label="Output Format" value={format} onChange={(event) => setFormat(event.target.value)}><option value="json">JSON</option><option value="csv">CSV</option></select>
       <select className="select-control" aria-label="Timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)}><option>Asia/Taipei</option><option>UTC</option><option>America/Los_Angeles</option></select>
       <select className="select-control" aria-label="Product Filter" value={filters.product_id} onChange={(event) => setFilters({ ...filters, product_id: event.target.value })}><option value="">All Products</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
@@ -3941,7 +4014,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
       icon: 'clock',
       label: 'Avg Stream Duration',
       value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'N/A',
-      hint: available ? 'Average session length across observed requests' : unavailableText,
+      hint: available ? 'Average duration of successful sessions with a recorded end event.' : unavailableText,
     },
     {
       key: 'active-sessions',
@@ -3953,9 +4026,9 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
     {
       key: 'never-streamed',
       icon: 'circle-question',
-      label: 'Devices Never Streamed',
+      label: 'Devices Without Successful Streams',
       value: available ? (stats?.never_streamed_count ?? 0) : 'N/A',
-      hint: available ? 'Online devices that have no stream history' : unavailableText,
+      hint: available ? `Devices with no successful stream request recorded in the selected ${windowLabel} window; not a lifetime count.` : unavailableText,
     },
   ];
 
@@ -3964,7 +4037,9 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
       <div className="panel-head">
         <div>
           <h2>Stream Health</h2>
-          <p>Are device streams succeeding for end users, and where are the worst failures concentrated?</p>
+          <p>Monitor stream connection reliability and identify devices that need investigation.</p>
+          <p>Review request success rates, daily request volume, average session duration and active sessions to spot changes in streaming behavior. Start with the devices with the highest failure rates, check their request counts, and open device details to investigate.</p>
+          <p className="stream-metrics-note">Session metrics reflect recorded stream events; they do not confirm that video was successfully decoded or displayed in the app.</p>
         </div>
       </div>
 
@@ -3981,7 +4056,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
         ))}
       </section>
 
-      {!available && stats ? <SourceBlockedState title={pageState.title} message={unavailableText} /> : null}
+      {!available && stats ? <><SourceBlockedState title={pageState.title} message={unavailableText} /><p className="stream-metrics-note">N/A means stream metrics are currently unavailable. It does not mean there were no failures or that all streams succeeded.</p></> : null}
 
       {loading && !stats ? (
         <p className="empty-state">Loading stream health data.</p>
@@ -4101,7 +4176,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
           <StreamAttentionPanel stats={stats} onOpenDevice={onOpenDevice} />
         </div>
       ) : (
-        <p className="empty-state">{unavailableText}</p>
+        !stats ? <p className="empty-state">{unavailableText}</p> : null
       )}
     </section>
   );
@@ -7178,7 +7253,7 @@ function trendPointValue(point, snakeKey, camelKey) {
 function formatTrendLabel(date) {
   const parsed = Date.parse(date);
   if (Number.isNaN(parsed)) return date;
-  return new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(new Date(parsed));
+  return new Intl.DateTimeFormat(formatLocale(), { month: 'short', day: 'numeric' }).format(new Date(parsed));
 }
 
 function formatTrendAxisLabel(date, range) {
@@ -7188,19 +7263,19 @@ function formatTrendAxisLabel(date, range) {
   const normalizedRange = String(range || '24h').toLowerCase();
   if (normalizedRange === '24h') {
     return {
-      primary: new Intl.DateTimeFormat(FORMAT_LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false }).format(value),
-      secondary: new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(value),
+      primary: new Intl.DateTimeFormat(formatLocale(), { hour: '2-digit', minute: '2-digit', hour12: false }).format(value),
+      secondary: new Intl.DateTimeFormat(formatLocale(), { month: 'short', day: 'numeric' }).format(value),
     };
   }
   if (normalizedRange === '7d') {
     return {
-      primary: new Intl.DateTimeFormat(FORMAT_LOCALE, { weekday: 'short' }).format(value),
-      secondary: new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(value),
+      primary: new Intl.DateTimeFormat(formatLocale(), { weekday: 'short' }).format(value),
+      secondary: new Intl.DateTimeFormat(formatLocale(), { month: 'short', day: 'numeric' }).format(value),
     };
   }
   return {
-    primary: new Intl.DateTimeFormat(FORMAT_LOCALE, { month: 'short', day: 'numeric' }).format(value),
-    secondary: new Intl.DateTimeFormat(FORMAT_LOCALE, { year: 'numeric' }).format(value),
+    primary: new Intl.DateTimeFormat(formatLocale(), { month: 'short', day: 'numeric' }).format(value),
+    secondary: new Intl.DateTimeFormat(formatLocale(), { year: 'numeric' }).format(value),
   };
 }
 
@@ -7243,6 +7318,12 @@ if (initialCanonicalPath !== window.location.pathname) {
 }
 function ConsoleEntry() {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
+  const [, setLocaleRevision] = useState(0);
+  useEffect(() => {
+    const refresh = () => setLocaleRevision(value => value + 1);
+    i18n.on('languageChanged', refresh);
+    return () => i18n.off('languageChanged', refresh);
+  }, []);
   useEffect(() => {
     const sync = () => setLocation(window.location.pathname + window.location.search);
     const navigate = event => {

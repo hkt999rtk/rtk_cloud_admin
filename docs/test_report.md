@@ -29,13 +29,13 @@
 | `rtk_cloud_admin/cmd/s3put` | 73.4% |
 | `rtk_cloud_admin/cmd/server` | 0.0% |
 | `rtk_cloud_admin/internal/accountclient` | 88.0% |
-| `rtk_cloud_admin/internal/app` | 80.3% |
+| `rtk_cloud_admin/internal/app` | 80.2% |
 | `rtk_cloud_admin/internal/billingclient` | 40.0% |
 | `rtk_cloud_admin/internal/config` | 62.5% |
 | `rtk_cloud_admin/internal/correlation` | 90.5% |
 | `rtk_cloud_admin/internal/readinessfacts` | 86.0% |
 | `rtk_cloud_admin/internal/reportstorage` | 87.1% |
-| `rtk_cloud_admin/internal/sdkportalclient` | 80.0% |
+| `rtk_cloud_admin/internal/sdkportalclient` | 84.3% |
 | `rtk_cloud_admin/internal/store` | 80.3% |
 | `rtk_cloud_admin/internal/videoclient` | 87.7% |
 

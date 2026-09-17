@@ -47,7 +47,7 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   await expect(page.getByRole('heading', { name: 'My Clouds', exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'My Clouds', exact: true })).toBeVisible();
   await expect(page.locator('.my-clouds-heading').getByRole('heading', { name: 'My Clouds', exact: true })).toHaveCount(0);
-  await expect(page.locator('.my-clouds-heading').getByText('Select a cloud to manage products, devices and team access.', { exact: false })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'A cloud brings your products and devices together.' })).toBeVisible();
   await expect(page.getByText('billing.owner@example.com', { exact: true }).first()).toBeVisible();
   await expect(page.locator('.my-clouds-grid').getByText('Status', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Create cloud', exact: true }).locator('.fa-plus')).toHaveCount(1);

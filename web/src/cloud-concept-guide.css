@@ -1,0 +1,57 @@
+.cloud-concept-guide {
+  container-type: inline-size;
+  padding: 24px;
+  border: 1px solid var(--line, #d0d7de);
+  border-radius: 8px;
+  background: linear-gradient(120deg, #f1f5fb, #fff 70%);
+  color: var(--text, #24292f);
+  margin-bottom: 24px;
+}
+.cloud-concept-heading { display: flex; align-items: flex-start; gap: 24px; justify-content: space-between; }
+.cloud-concept-guide .cloud-concept-heading h2 { font-size: 20px; line-height: 1.4; margin: 0 0 8px; }
+.cloud-concept-guide p { font-size: 14px; line-height: 1.6; margin: 0; }
+.cloud-concept-actions { flex-shrink: 0; }
+.cloud-concept-actions button { white-space: nowrap; }
+.cloud-concept-actions .icon-text { display: inline-flex; align-items: center; gap: 7px; }
+.cloud-concept-example { margin: 20px 0 16px; }
+.cloud-concept-example figcaption { display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 650; margin-bottom: 12px; }
+.cloud-concept-example figcaption span { padding: 2px 8px; border: 1px solid #d5dfed; border-radius: 20px; font-size: 11px; font-weight: 400; color: #56647a; }
+.cloud-concept-diagram { display: grid; grid-template-columns: 140px minmax(0, 1fr) 160px; align-items: center; gap: 16px; }
+.cloud-concept-actor { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px; font-size: 12px; color: #56647a; }
+.cloud-concept-actor > i { color: var(--brand, #4b65a8); font-size: 22px; margin-bottom: 5px; }
+.cloud-concept-actor strong { color: var(--text, #24292f); font-size: 14px; }
+.cloud-concept-team { align-self: start; margin-top: 20px; }
+.cloud-concept-users { align-self: end; margin-bottom: 24px; }
+.cloud-concept-connection { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #405a89; }
+.cloud-concept-connection > i { flex-shrink: 0; }
+.cloud-concept-cloud { border: 1px solid #b9cbe3; background: #eaf0f9; border-radius: 8px; padding: 16px; min-width: 0; }
+.cloud-concept-cloud-title, .cloud-concept-node { display: flex; align-items: flex-start; gap: 10px; }
+.cloud-concept-cloud-title > i, .cloud-concept-node > i { color: #4b65a8; padding-top: 3px; }
+.cloud-concept-cloud-title strong, .cloud-concept-node strong { display: block; font-size: 14px; }
+.cloud-concept-cloud-title span, .cloud-concept-node span { display: block; font-size: 12px; color: #56647a; }
+.cloud-concept-product { margin-top: 12px; padding: 14px; border: 1px solid #d3dfed; border-radius: 6px; background: #fff; }
+.cloud-concept-node b { display: block; font-size: 13px; font-weight: 500; margin-top: 6px; }
+.cloud-concept-device-link { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #56647a; margin: 12px 0; }
+.cloud-concept-devices > strong { display: block; font-size: 13px; }
+.cloud-concept-devices > strong span { font-weight: 400; font-size: 11px; color: #56647a; margin-left: 6px; }
+.cloud-concept-devices > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.cloud-concept-devices > div > span { display: inline-flex; align-items: center; gap: 7px; padding: 6px 8px; background: #f3f6fa; border: 1px solid #dce3ed; border-radius: 4px; font-size: 12px; }
+.cloud-concept-guide .cloud-concept-roles { margin-top: 12px; }
+.cloud-concept-guide .cloud-concept-note { margin-top: 6px; color: #647084; font-size: 12px; }
+.overview-concept-trigger { flex-shrink: 0; }
+.overview-concept-intro { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.overview-concept-intro > div { flex: 1 1 480px; min-width: 0; }
+.overview-next-steps a { text-decoration: underline; text-underline-offset: 2px; }
+.ui-dialog-drawer .cloud-concept-guide { border: 0; padding: 0; background: transparent; margin: 0; }
+@container (max-width: 660px) {
+  .cloud-concept-heading { flex-direction: column; gap: 12px; }
+  .cloud-concept-diagram { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .cloud-concept-actor { margin: 0; }
+  .cloud-concept-team .cloud-concept-connection { flex-direction: column; }
+  .cloud-concept-team .cloud-concept-connection > i { transform: rotate(90deg); }
+  .cloud-concept-users .cloud-concept-connection { order: -1; flex-direction: column; margin-top: 0; margin-bottom: 6px; }
+  .cloud-concept-users .cloud-concept-connection > i { transform: rotate(90deg); }
+}
+@media (max-width: 600px) {
+  .cloud-concept-guide { padding: 16px; }
+}

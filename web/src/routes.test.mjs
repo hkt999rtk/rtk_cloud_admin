@@ -40,6 +40,7 @@ test('maps platform shell paths to platform routes', () => {
   assert.equal(routeFromPath('/admin/ops'), 'platform-operations');
   assert.equal(routeFromPath('/admin/operations'), 'platform-operations');
   assert.equal(routeFromPath('/admin/audit'), 'platform-audit');
+  assert.equal(routeFromPath('/admin/does-not-exist'), 'not-found');
 });
 
 test('maps public signup paths to auth routes', () => {
@@ -47,7 +48,7 @@ test('maps public signup paths to auth routes', () => {
   assert.equal(routeFromPath('/login/'), 'login');
   assert.equal(routeFromPath('/login/check-email'), 'login-check-email');
   assert.equal(routeFromPath('/login/activate'), 'login-activate');
-	assert.equal(routeFromPath('/brand-cloud/activate'), 'overview');
+	assert.equal(routeFromPath('/brand-cloud/activate'), 'not-found');
   assert.equal(routeFromPath('/forgot-password'), 'forgot-password');
   assert.equal(routeFromPath('/reset-password'), 'reset-password');
   assert.equal(routeFromPath('/signup'), 'signup');
@@ -83,6 +84,8 @@ test('maps customer shell paths to customer routes', () => {
   assert.equal(routeFromPath(`/console/clouds/${cloud}/members`), 'access');
   assert.equal(routeFromPath(`/console/clouds/${cloud}/billing/invoices`), 'billing');
   assert.equal(routeFromPath(`/console/clouds/${cloud}/settings`), 'settings');
+  assert.equal(routeFromPath(`/console/clouds/${cloud}/missing`), 'not-found');
+  assert.equal(routeFromPath('/console/clouds/not-a-cloud/fleet'), 'not-found');
   assert.equal(cloudIdFromPath(`/console/clouds/${cloud}/fleet`), cloud);
   assert.equal(cloudIdFromPath('/console/clouds/not-a-uuid/fleet'), '');
   assert.equal(cloudIdFromPath('/console/clouds/%/fleet'), '');
@@ -275,16 +278,16 @@ test('uses English platform route titles in the unified shell', () => {
   assert.equal(titleFor('platform-audit'), 'Audit Log');
 });
 
-test('falls back unknown paths to the customer overview route', () => {
-  assert.equal(routeFromPath('/'), 'overview');
-  assert.equal(routeFromPath('/console/unknown'), 'overview');
-  assert.equal(routeFromPath('/console/provisioning'), 'overview');
-  assert.equal(routeFromPath('/console/cloud-123/provisioning'), 'overview');
+test('classifies unknown paths as not found', () => {
+  assert.equal(routeFromPath('/'), 'not-found');
+  assert.equal(routeFromPath('/console/unknown'), 'not-found');
+  assert.equal(routeFromPath('/console/provisioning'), 'not-found');
+  assert.equal(routeFromPath('/console/cloud-123/provisioning'), 'not-found');
 });
 
-test('falls back unknown platform paths inside Platform View', () => {
-  assert.equal(routeFromPath('/admin/unknown'), 'platform-dashboard');
-  assert.equal(routeFromPath('/admin/unknown/deep'), 'platform-dashboard');
+test('classifies unknown platform paths as not found', () => {
+  assert.equal(routeFromPath('/admin/unknown'), 'not-found');
+  assert.equal(routeFromPath('/admin/unknown/deep'), 'not-found');
 });
 
 test('provides titles for all public shell routes', () => {

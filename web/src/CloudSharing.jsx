@@ -5,6 +5,20 @@ import { SharingProducts } from './SharingProducts.jsx';
 import './cloud-sharing.css';
 import { Dialog } from './ConsoleUI.jsx';
 
+export function CloudSharingGuide() {
+  return <div className="cloud-sharing-guide">
+    <p>Collaborate on your cloud using individual developer accounts. Give teammates access to the Products they work on, so they can review device information without sharing the owner's account or exposing unrelated Products.</p>
+    <p>Members are developers and operators who use this console. End users pair and use devices through your app; inviting a member here does not pair devices or create an app end-user account.</p>
+    <p>Start with read-only access to selected Products. Choose entire-cloud access only when the collaborator should also see every current and future Product.</p>
+    <ol>
+      <li><strong>Invite a teammate.</strong> The cloud owner selects Share cloud and enters the email of a registered, verified developer. The invitee accepts using the matching account; invitations expire after 30 minutes.</li>
+      <li><strong>Choose their role and scope.</strong> Viewer provides read-only access to selected Products or the entire cloud. For example, give a camera developer access to Home Camera while keeping other Products outside their scope. Admin and Member use their existing cloud-role permissions, not the Viewer's read-only Product scope; neither grants ownership or Billing access.</li>
+      <li><strong>Keep access aligned with the work.</strong> The owner can change, disable or remove a member's access. Review pending invitations, resend an unchanged invitation, or cancel it before inviting with a different role or scope. Removing access invalidates Product grants; rejoining does not restore them automatically.</li>
+    </ol>
+    <p>Only the cloud owner can invite members or change access. If you are a collaborator, ask the owner for the Products and role you need for your work.</p>
+  </div>;
+}
+
 export function CloudSharing({ cloudId, onAccessLost }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -54,7 +68,7 @@ export function CloudSharing({ cloudId, onAccessLost }) {
   }
   return <section className="my-clouds-panel cloud-sharing" aria-label="Cloud sharing">
     <h2>Members and sharing</h2>
-    <p>Start with read-only access to selected Products. Choose entire-cloud access only when the collaborator should also see every current and future Product.</p>
+    <CloudSharingGuide />
     {error && <p role="alert">{error} <button disabled={busy} onClick={() => setRefresh(v => v + 1)}>Refresh sharing</button></p>}
     {notice && <p role="status">{notice}</p>}
     {loading && <p role="status">Loading current grants…</p>}

@@ -1,0 +1,312 @@
+{
+  "schemaVersion": 1,
+  "locale": "zh-TW",
+  "entries": {
+    "i18n.smoke": {
+      "sourceHash": "924ab1043015d9c0e37391b46c2fcc99886d7e9e04783c301e97a2a6d916cfdb",
+      "fingerprint": "28ada67d0d8fc55a3d9c433f62a325c75d1eeac593f4203ba95806139f335b8f",
+      "text": "繁體中文",
+      "status": "approved"
+    },
+    "Language": {
+      "sourceHash": "05b9a92a3e082d4704954c0eca231e3abcb33367d90c9f8a0dcd7573bde2b6dc",
+      "fingerprint": "f46a85b5f37f7d21f5a6559e34585e9604cf424f9856cd3b07dcc9fa246166d4",
+      "text": "語言",
+      "status": "approved"
+    },
+    "English": {
+      "sourceHash": "fb1206f1cf27b28c41716026d7d4d487d60ef3ed05dfd6d4bf35501821cfe34c",
+      "fingerprint": "432f995d3419f27b002ec0d462084668b77584433b517e0d4481fd6073d54d37",
+      "text": "英文",
+      "status": "approved"
+    },
+    "Traditional Chinese": {
+      "sourceHash": "25bc8b94e8d20f66b8a5ac01bc0740a7e838c221a58c7a42eef0cbdc84debc95",
+      "fingerprint": "df068865b2ef97d652b949798ad6729cf5350810b4ffee93e751a1368f551668",
+      "text": "繁體中文",
+      "status": "approved"
+    },
+    "Simplified Chinese": {
+      "sourceHash": "c9aa809cbbbb9fc28a0e267115d232cf399ac4664801a60b0e7bc827ad55489f",
+      "fingerprint": "952fb64bbf0263dec16bdfac8a6213e2a992debbba35f447e4fed9b4b0471f83",
+      "text": "簡體中文",
+      "status": "approved"
+    },
+    "Skip to content": {
+      "sourceHash": "b07b4580bd2ff46a2c2848b3a3836ec341fc6a4471cb1f83c28171bfc697a409",
+      "fingerprint": "614cab2c52c573244501825478416e689b33c484b99c8c3b2cf049f99ae70343",
+      "text": "跳至主要內容",
+      "status": "approved"
+    },
+    "Open navigation": {
+      "sourceHash": "57b30553e10ef003b603319c22d2b8656c11418eb12de1eaeeac2ba92edaee35",
+      "fingerprint": "67673094c0513cab3d5318690f475ec12d276d5cdb823833bd0cded0a9d3c5d1",
+      "text": "開啟導覽",
+      "status": "approved"
+    },
+    "Close navigation": {
+      "sourceHash": "530001d4b06886206bbf4bedf4b28cec414f79384aaa088f0c1ee4aede337a57",
+      "fingerprint": "d72abc574e07138d76acb83df37eaca57f7dbcdcb6a8a734ab57c187964a3508",
+      "text": "關閉導覽",
+      "status": "approved"
+    },
+    "Primary navigation": {
+      "sourceHash": "65b6f010b559afeadb2b774aba9eb595e2572f7a01993ef232ad9be0263d854a",
+      "fingerprint": "306b3552df4e6bd75897906c0e45e8953080f81aad2f127f0589c4942984acdb",
+      "text": "主要導覽",
+      "status": "approved"
+    },
+    "Clouds": {
+      "sourceHash": "eb339f8744ec4c4af64811352d791bdc5c0623aa37c2656033745896bbcc20dc",
+      "fingerprint": "d58148863ab4e45f5292484cfd7962674c405e840c48bac619a3f491ae9cf37a",
+      "text": "雲端",
+      "status": "approved"
+    },
+    "Brand Cloud": {
+      "sourceHash": "5c1b9339c890b9bdf5e9df81dad78044392bbf45547888b5d42afba77e74eedf",
+      "fingerprint": "ac696a968b4f5677763071d019f2572cb2f456919169771f75ff674e7a8881bd",
+      "text": "品牌雲端",
+      "status": "approved"
+    },
+    "Features": {
+      "sourceHash": "8c0704188787b6359032d2fd0e796e08f9714e1282b6718c6b088c95155a83c5",
+      "fingerprint": "296ace17599b6bd1d962843ad396542cdacdb7d597e14c2cfeb57ebc28bf8316",
+      "text": "功能",
+      "status": "approved"
+    },
+    "Management": {
+      "sourceHash": "620ff9a5b79afb42c60ee8e0700e950107fb6c1f93a874dc5011b480d2b920a6",
+      "fingerprint": "144f99e3a7dde367559443633ff313e12d5b8034e53f9a67c0a62f5c2a4fbc07",
+      "text": "管理",
+      "status": "approved"
+    },
+    "My Clouds": {
+      "sourceHash": "a86b7a617874d105c420b17be3c0f4c203b557c7c4144f16642d65f7b784cbbe",
+      "fingerprint": "e4250b5429ddf82bdf7fd1ba0c092668d9fd84a10e5c208e8365c807bd2ea42f",
+      "text": "我的雲端",
+      "status": "approved"
+    },
+    "Overview": {
+      "sourceHash": "b6921bb60534e0d07fb25daf2839b5194d29db40a8d099cafb6faa5c2a9e5bc3",
+      "fingerprint": "54eed00a7740ff280a025e584b83f48687f687f9e9ec7d4138bdd25abf88e7aa",
+      "text": "總覽",
+      "status": "approved"
+    },
+    "Products": {
+      "sourceHash": "75490b81196ef3876edf1f5abfa6ca5eebe79c7d258281efef730e7a45f91f5b",
+      "fingerprint": "d474e21821e5f607b2332a5d623d19eb80818ae87336655d9f79b2006072bf52",
+      "text": "產品",
+      "status": "approved"
+    },
+    "Cloud Test Lab": {
+      "sourceHash": "bdb25250ad064121f2bca2e5d9b5ba5d753c4f18e17477462803dc2b1947eb67",
+      "fingerprint": "e74f58588e3e45758b6f33e79b95a6551bf30c14f6df3fd0f24622e8534a80c9",
+      "text": "雲端測試實驗室",
+      "status": "approved"
+    },
+    "ChipSet & SDK": {
+      "sourceHash": "8675a8474751e53d6a0102b0b953420832236e212c727d8a59257fdab1c15bf0",
+      "fingerprint": "75af7371537461bed47b7d2f4afdfe27496ac9d0e99627899639e6bf27207679",
+      "text": "晶片組與 SDK",
+      "status": "approved"
+    },
+    "Developer Docs": {
+      "sourceHash": "7d6190f54fdb9a0b78f5123fc01e557613d11b9d985bbfcc684b66b2cdfd8af6",
+      "fingerprint": "0836337e1a8ec1a1e46c5755c8778afc2920e2e2e657c96aab6df947afb38b7e",
+      "text": "開發者文件",
+      "status": "approved"
+    },
+    "Fleet Management": {
+      "sourceHash": "108e49e6c38572f78978f1dacba2b1cd20963b139ce3ba6a8b6652b9e9531250",
+      "fingerprint": "744bc29f055ebeeb6f74fcab627ccf6cc6f634a37b067a388fbe79372480d62e",
+      "text": "裝置群管理",
+      "status": "approved"
+    },
+    "Firmware & OTA": {
+      "sourceHash": "5766b044f99e40001e8f242c5e635ba495325ce73cdc0765e7eead88580c9d83",
+      "fingerprint": "bc33b238455402e35c7271e5528b3a75de092cf00939a1f8a12fb6af5934cbc4",
+      "text": "韌體與 OTA",
+      "status": "approved"
+    },
+    "Analytics": {
+      "sourceHash": "e172956f967447f6bfc56f6153113facba452d79a3b6482f29696591fe7c5298",
+      "fingerprint": "f637800531477d2f32d0b3a40b823b6bb875a563f03ea19ab99db18e271e4c06",
+      "text": "分析",
+      "status": "approved"
+    },
+    "Members & Access": {
+      "sourceHash": "52d5f0ded95bc0e809f7bb3df147036002be29474706c76ea3a0d3f063424c97",
+      "fingerprint": "271486582ae9cb83acd0631524b2300582b26b9d47be1df74a4e0d774107402a",
+      "text": "成員與存取權",
+      "status": "approved"
+    },
+    "Billing": {
+      "sourceHash": "1759d14fb6f81d910251aacac9bbd902c6855becd3578726d1ea0b10e7297c88",
+      "fingerprint": "a5a1501d68a63fd46cbbb7887cf05728d90e07217d9d9e602a5df04f6557cb03",
+      "text": "帳務",
+      "status": "approved"
+    },
+    "Settings": {
+      "sourceHash": "8c0bcc51a9ef4b572c5c886581d25415d790919ecc480d21a9818418e9e8d105",
+      "fingerprint": "25061698afde1005967e253edef6b23550f636ba96fb420f4459c2ad37502479",
+      "text": "設定",
+      "status": "approved"
+    },
+    "Select a cloud": {
+      "sourceHash": "c95c5c06855d427328d26bf014c3f078b439853d420003acfb8f205a25efc265",
+      "fingerprint": "b34d5904454001d722325d70baecfe997352f79beed76ce8020fd56ee4f0ece0",
+      "text": "選擇雲端",
+      "status": "approved"
+    },
+    "Platform Admin": {
+      "sourceHash": "8be57c6d32a48cc9c7865d73fec730ca4ba33b44cb2594e40f0b57a814ce1be8",
+      "fingerprint": "9f95150863a76332cb48e9887410b5e84136db6c88c17c4333e087b541de588a",
+      "text": "平台管理員",
+      "status": "approved"
+    },
+    "Development": {
+      "sourceHash": "1077402c85a48060de4f36ff43a5b3fb2eb1ec0461d4df7ebac8de7a0cb6e630",
+      "fingerprint": "3b670d997f871e55a7b0eb0232dca9c2bfad3d61404a1d15cae0377db809d707",
+      "text": "開發環境",
+      "status": "approved"
+    },
+    "Staging": {
+      "sourceHash": "2778ed9c3586e69c32ef62e55445be147c59cb9558ced624eb635c439243143d",
+      "fingerprint": "1459e9c851a52427de79bbc9862c27486b89655abdc7f4f73a7b8ee4b2d4e312",
+      "text": "預備環境",
+      "status": "approved"
+    },
+    "Account menu": {
+      "sourceHash": "80269979b9a6a439237b5088c2a1c532bf501df30e58495ad90bfa8ebafad2ff",
+      "fingerprint": "b6c9e7499c6a9d42411744986c6c81901037bde06cce5c71e4dd2eeeb16cde53",
+      "text": "帳號選單",
+      "status": "approved"
+    },
+    "Account": {
+      "sourceHash": "68ab417c2ff2cf9645131e183ecb3ede795b981a6c2af7fd3303a0842d91903d",
+      "fingerprint": "cb5fe1d51910e0b7c0bb5a1b8b3b2f39422352f2d622f761967cee38dab1add0",
+      "text": "帳號",
+      "status": "approved"
+    },
+    "Platform view": {
+      "sourceHash": "5e4cd145907d95bab4ee8f9e0ec9f9f53a92420bdfa4ef5d874f2b588e47fb4b",
+      "fingerprint": "0ef179204f805cc35a6272946c2eeb3e1c4a3f54b4566275238c80dcc6390ef8",
+      "text": "平台檢視",
+      "status": "approved"
+    },
+    "Brand Cloud view": {
+      "sourceHash": "47b5b39a8d175ceac604ab0283f9a7aa787b521b91f86394c842a85aad0d0db5",
+      "fingerprint": "9e864bdc757a297c4c73938f642be8f1c0b052d4cac0226775276c08ca38b42e",
+      "text": "品牌雲端檢視",
+      "status": "approved"
+    },
+    "Logout": {
+      "sourceHash": "73bda30e6d115aff09ad57846834a3d71ed5becdc52e0d72de97f0dd497fbc88",
+      "fingerprint": "0234b15bea94eaf53288d7baee39d9483c4ab8b291724c4cbbf0be1f2cbd72ee",
+      "text": "登出",
+      "status": "approved"
+    },
+    "Platform admin": {
+      "sourceHash": "0a79c8b9f644f052af198924bcb9785aa2ded6a0503f68c0bc312961b4569207",
+      "fingerprint": "5dfc909bf39e7df890824236d8ea837fdf95b41276f9cc4cd9629099d6ec3d89",
+      "text": "平台管理員",
+      "status": "approved"
+    },
+    "Loading account…": {
+      "sourceHash": "8fc561dd56ffb16da27c9119363130d5ffc05d6844fc3dba466e3d4f8398c85d",
+      "fingerprint": "d43a9f32d6cc3c7ed8af78baef5b2849683a52912ef27b87e70f84b05ac32f1b",
+      "text": "正在載入帳號…",
+      "status": "approved"
+    },
+    "Select a cloud to manage products, devices and team access.": {
+      "sourceHash": "e118d30f8ca5de484d6e0ce2b7b17d5c968339cf099e0124e1e1256a39ec2715",
+      "fingerprint": "1527638882cb72c845856c5988121edc4698c5f009f48297417660ea343b9231",
+      "text": "選擇雲端以管理產品、裝置與團隊存取權。",
+      "status": "approved"
+    },
+    "deviceCount_one": {
+      "sourceHash": "a37bf4867b8828835bf1460bca0bea6e62eebfb3b66515bed0bb5be10de47a79",
+      "fingerprint": "f34f5404b824673bd371ded3561da6650ae027a5b4c045d57180a4b862df49ed",
+      "text": "{{count}} 台裝置",
+      "status": "approved"
+    },
+    "deviceCount_other": {
+      "sourceHash": "b574242e29e6a634f70f3e3502f96468cf1bff1342e54cea0522ba9ec542584d",
+      "fingerprint": "e3e3fcb9d9e2cd59cb4d570d4d1d40d43b66d702c0cc3046f721a4d4083c2354",
+      "text": "{{count}} 台裝置",
+      "status": "approved"
+    },
+    "Platform Overview": {
+      "sourceHash": "2d17363ea3d17a78bd8facfb680471151afbcc3cae664970d709653e77e687e4",
+      "fingerprint": "78af47ac67a4cd959cd894cbbb460a3033e3db3edf9416398300ac8d07c15b79",
+      "text": "平台總覽",
+      "status": "approved"
+    },
+    "Platform Home": {
+      "sourceHash": "f13bbfa5743bc6c08f0781e626c6e0034cb2e66d457442b03160014a00b6d0c2",
+      "fingerprint": "c10babcde3513d789d0d08019b22640a782fc9408dbe3dc052ef8fd608d9b685",
+      "text": "平台首頁",
+      "status": "approved"
+    },
+    "Monitoring and Diagnostics": {
+      "sourceHash": "147260a3dda74aeaecf8450b5eabb8b34b25be24456f6097f98bec0e6c835ffd",
+      "fingerprint": "80d67b7b02a540da526584631e22fa3c8068f00e61b0a9360368e1e1a84f1352",
+      "text": "監控與診斷",
+      "status": "approved"
+    },
+    "Grafana": {
+      "sourceHash": "20e9130dee605d31a438ba933e49cf81822ccb517539a253e01c9eb19576a319",
+      "fingerprint": "a3feb918812708edff711b3996cc12fc2211696a571261a6aaa6231d1f3befe0",
+      "text": "Grafana",
+      "status": "approved"
+    },
+    "Service Health": {
+      "sourceHash": "564905cfc05a7883cad7b2efa7a3610f49c1a331bcd03e1f10870593cdfc1d05",
+      "fingerprint": "a0ca88066d534586b540700dc8f59b80a19e265edcd0da7e12c8ce8bad81831d",
+      "text": "服務健康狀態",
+      "status": "approved"
+    },
+    "Service Logs": {
+      "sourceHash": "35b280ee7d3a02021549744a587b869285e0f162eab598a94617aba94d5428ef",
+      "fingerprint": "6896c322075ccfee7c9d0bc46f7cfa195aa4fa1653d83c5dad1e30ab6451a120",
+      "text": "服務日誌",
+      "status": "approved"
+    },
+    "Organizations and Products": {
+      "sourceHash": "16b3b0620cb9503bdc2ed2fed58b7d48c2cb4cb3b17b7201433b40933026d05a",
+      "fingerprint": "ec38bb1c61579ed14f973786c28aaab63bfc75ab501945ae483837610a7eff36",
+      "text": "組織與產品",
+      "status": "approved"
+    },
+    "Brand Cloud Management": {
+      "sourceHash": "35a4e2b8503cf6b48a307ec32b30453f01b2c4ef8dd81fe5c10f1223e9375efa",
+      "fingerprint": "8bee4440997ac664f0dcd693e77bc62d2cba7664671aa31f8d1bddc20c481872",
+      "text": "品牌雲端管理",
+      "status": "approved"
+    },
+    "SSO Providers": {
+      "sourceHash": "2c380d440ce920e85e636946730fd81e2f33e502172d9cd264b65fc2adffec4e",
+      "fingerprint": "99bf21e0b775124d354fe73b7233240699ddf65aa29a113f3b45d96d94b06138",
+      "text": "SSO 提供者",
+      "status": "approved"
+    },
+    "Operations and Audit": {
+      "sourceHash": "ae3f6449ca74b45be2d9041bae6cade354f0a900731757bdfe932f2d6a01939b",
+      "fingerprint": "f62f955c3aae84c65c9892f1353bd3c7ddddde2e20d45f399d4db75e479fe9f5",
+      "text": "營運與稽核",
+      "status": "approved"
+    },
+    "Operations Log": {
+      "sourceHash": "4d09c481bba1dd9a2a934c42a6cad7830a94baf9a70510ff99f578e577175423",
+      "fingerprint": "ae04605d210e45bc7cb1d73a71975073075aed0d63e99814a52b4d23ca756dd9",
+      "text": "營運日誌",
+      "status": "approved"
+    },
+    "Audit Log": {
+      "sourceHash": "a5eadf371807cc55a5da1a60a2c35980468b42e52ccca3f43a997e3fd0db653e",
+      "fingerprint": "d178315b6834ddd75ed9c8194061b811680fee46eeddd90e5be62ca71e5950cc",
+      "text": "稽核日誌",
+      "status": "approved"
+    }
+  }
+}

@@ -36,7 +36,11 @@ export async function expectPageTitle(page, title) {
 }
 
 export async function expectNoCJKText(page) {
-  const renderedText = await page.locator('body').innerText();
+  const renderedText = await page.locator('body').evaluate((body) => {
+    const copy = body.cloneNode(true);
+    copy.querySelectorAll('[data-locale-selector]').forEach((element) => element.remove());
+    return copy.innerText;
+  });
   expect(renderedText).not.toMatch(/[\u3400-\u9fff]/);
 }
 

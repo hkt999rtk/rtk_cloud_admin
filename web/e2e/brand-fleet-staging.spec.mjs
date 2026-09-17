@@ -6,7 +6,7 @@ test('[UI-CA-STAGING-002] Brandname staging read-only smoke @staging @brand-flee
   test.skip(!cloudId, 'E2E_BRAND_CLOUD_ID is required');
   await loginWithStagingSession(page, 'customer');
   for (const [path, heading] of [
-    [`/console/${cloudId}/overview`, 'Device Overview'],
+    [`/console/${cloudId}/overview`, 'Cloud Overview'],
     [`/console/${cloudId}/devices`, 'Devices'],
     [`/console/${cloudId}/product-services`, 'Products and Services'],
     [`/console/${cloudId}/firmware-ota`, 'Firmware OTA'],

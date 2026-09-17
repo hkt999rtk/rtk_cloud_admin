@@ -11,7 +11,7 @@ test.describe('Brandname cloud scope', () => {
     const activeOrgWrites = [];
     page.on('request', (request) => { if (new URL(request.url()).pathname === '/api/me/active-org' && request.method() !== 'GET') activeOrgWrites.push(request.url()); });
     await page.goto(`/console/clouds/${cloudA}`);
-    await expectPageTitle(page, 'Device Overview');
+    await expectPageTitle(page, 'Cloud Overview');
     const selector = page.getByLabel('Brand Cloud', { exact: true });
     await expect(selector).toHaveValue(cloudA);
     await expect(selector.locator(`option[value="${cloudB}"]`)).toHaveCount(1);
@@ -22,7 +22,7 @@ test.describe('Brandname cloud scope', () => {
 
     await selector.selectOption(cloudB);
     await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudB}$`));
-    await expectPageTitle(page, 'Device Overview');
+    await expectPageTitle(page, 'Cloud Overview');
     const betaDevices = await page.request.get(`/api/developer/brand-clouds/${cloudB}/fleet/devices?limit=100`);
     expect(betaDevices.ok()).toBeTruthy();
     const beta = await betaDevices.json();

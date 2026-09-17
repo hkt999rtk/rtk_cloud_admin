@@ -442,6 +442,7 @@ type Me struct {
 	PlatformCapabilities         []string     `json:"platform_capabilities,omitempty"`
 	UpstreamAccountManager       bool         `json:"upstream_account_manager"`
 	CustomerPasswordLoginEnabled bool         `json:"customer_password_login_enabled"`
+	PrivacyPolicyURL             string       `json:"privacy_policy_url,omitempty"`
 }
 
 type AuditEvent struct {
