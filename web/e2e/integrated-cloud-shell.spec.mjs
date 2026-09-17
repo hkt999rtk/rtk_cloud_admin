@@ -21,6 +21,12 @@ function cloud(id, index) {
   };
 }
 
+async function openMobileNavigation(menuButton) {
+  if (!await menuButton.isVisible()) return;
+  if (await menuButton.getAttribute('aria-expanded') !== 'true') await menuButton.click();
+  await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+}
+
 test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and request in its URL cloud @smoke', async ({ page, context }) => {
   await login(page, 'billing_owner');
   const activeOrgWrites = [];
@@ -64,17 +70,22 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudA}$`));
 
   const mobileMenu = page.getByRole('button', { name: 'Open navigation' });
-  if (await mobileMenu.isVisible()) await mobileMenu.click();
+  await openMobileNavigation(mobileMenu);
   for (const label of ['My Clouds', 'ChipSet & SDK', ...featureLabels]) {
     await expect(page.locator('.sidebar').getByRole('link', { name: label, exact: true })).toBeVisible();
   }
   await expect(page.getByRole('link', { name: 'ChipSet & SDK', exact: true })).toHaveAttribute('href', `/console/chipset-sdk?cloudId=${cloudA}`);
   await expect(page.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page');
-  await page.locator('.sidebar').getByRole('link', { name: 'My Clouds', exact: true }).click();
+  const myCloudsLink = page.locator('.sidebar').getByRole('link', { name: 'My Clouds', exact: true });
+  await openMobileNavigation(mobileMenu);
+  await expect(myCloudsLink).toBeInViewport();
+  await myCloudsLink.click();
   await expect(page).toHaveURL(`/console/clouds?cloudId=${cloudA}`);
   await expect(page.getByRole('link', { name: 'Fleet Management', exact: true })).toHaveAttribute('href', `/console/clouds/${cloudA}/fleet`);
-  if (await mobileMenu.isVisible()) await mobileMenu.click();
-  await page.getByRole('link', { name: 'Fleet Management', exact: true }).click();
+  await openMobileNavigation(mobileMenu);
+  const fleetLink = page.getByRole('link', { name: 'Fleet Management', exact: true });
+  await expect(fleetLink).toBeInViewport();
+  await fleetLink.click();
   await expect(page).toHaveURL(new RegExp(`/console/clouds/${cloudA}/fleet$`));
   await expect.poll(() => scopedReads.some((path) => path.startsWith(`/api/developer/brand-clouds/${cloudA}/fleet/`))).toBeTruthy();
 
