@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -145,12 +146,15 @@ func (s *Server) apiManagedCloudProducts(w http.ResponseWriter, r *http.Request)
 }
 
 type scopedProductInput struct {
-	Name     *string   `json:"name"`
-	Key      *string   `json:"profile_key"`
-	Model    *string   `json:"product_model"`
-	Category *string   `json:"category"`
-	Services *[]string `json:"service_options"`
+	Name            *string   `json:"name"`
+	Key             *string   `json:"profile_key"`
+	Model           *string   `json:"product_model"`
+	Category        *string   `json:"category"`
+	Services        *[]string `json:"service_options"`
+	CatalogRevision *int64    `json:"catalog_revision"`
 }
+
+var scopedServiceCodePattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
 func (s *Server) writeScopedProduct(w http.ResponseWriter, r *http.Request, sessionID, token string, cloud accountclient.ManagedCloud, product string) {
 	if !managedCloudSameOrigin(r) {
@@ -233,19 +237,26 @@ func (s *Server) writeScopedProduct(w http.ResponseWriter, r *http.Request, sess
 		return
 	}
 	if input.Services != nil {
-		if len(*input.Services) == 0 {
+		if len(*input.Services) == 0 || len(*input.Services) > 64 {
 			http.Error(w, "at least one service option required", 400)
 			return
 		}
 		seen := map[string]bool{}
 		for _, value := range *input.Services {
-			if (value != "mqtt" && value != "video_streaming" && value != "video_storage") || seen[value] {
+			if !scopedServiceCodePattern.MatchString(value) || seen[value] {
 				http.Error(w, "invalid service options", 400)
 				return
 			}
 			seen[value] = true
 		}
 		body["service_options"] = *input.Services
+	}
+	if input.CatalogRevision != nil {
+		if *input.CatalogRevision < 1 || input.Services == nil {
+			http.Error(w, "invalid catalog revision", 400)
+			return
+		}
+		body["catalog_revision"] = *input.CatalogRevision
 	}
 	if action == "disable" {
 		if len(body) != 0 {

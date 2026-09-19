@@ -1,6 +1,17 @@
 import { cloudAPI, cloudURL, managedCloudRequest } from './managed-clouds.mjs';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-export const productServices = [['mqtt','MQTT'],['video_streaming','Video streaming'],['video_storage','Video storage']];
+const legacyProductOptions = [
+  {code:'mqtt',display_name:'MQTT',selectable:true,requires:[]},
+  {code:'video_streaming',display_name:'Video streaming',selectable:true,requires:[]},
+  {code:'video_storage',display_name:'Video storage',selectable:true,requires:[]},
+];
+export async function fetchCloudServiceCatalog(cloudId,{signal}={}) {
+  const result=await managedCloudRequest(cloudAPI(cloudId)+'/service-options',{signal});
+  if(!Number.isSafeInteger(result?.catalog_revision)||result.catalog_revision<1||!Array.isArray(result?.options)||result.options.some(option=>!option||typeof option.code!=='string'||typeof option.display_name!=='string'||typeof option.selectable!=='boolean'||(option.requires!==undefined&&!Array.isArray(option.requires)))) throw {status:502};
+  // Keep the current Product form until registry-backed writes are enabled.
+  if(!result.product_writes_enabled) return {...result,product_writes_enabled:false,options:legacyProductOptions};
+  return {...result,options:result.options.map(option=>({...option,requires:option.requires||[]}))};
+}
 export function productAPI(cloudId, productId='') {
   if (productId && !uuid.test(productId)) throw new Error('Invalid Product ID');
   return cloudAPI(cloudId)+'/products'+(productId ? '/'+productId : '');

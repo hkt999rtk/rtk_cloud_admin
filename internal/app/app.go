@@ -324,6 +324,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/deletion-preflight", s.apiManagedCloud)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/operations/{operationID}", s.apiManagedCloud)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products", s.apiManagedCloudProducts)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/service-options", s.apiManagedCloudServiceOptions)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}", s.apiManagedCloudProducts)
 	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/products", s.apiManagedCloudProducts)
 	s.mux.HandleFunc("PATCH /api/developer/brand-clouds/{brandCloudID}/products/{productID}", s.apiManagedCloudProducts)
@@ -436,6 +437,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/reports", s.apiReports)
 	s.mux.HandleFunc("GET /api/reports/{id}", s.apiReport)
 	s.mux.HandleFunc("GET /api/products", s.apiProducts)
+	s.mux.HandleFunc("GET /api/product-service-options", s.apiProductServiceOptions)
 	s.mux.HandleFunc("POST /api/products", s.apiProductWrite)
 	s.mux.HandleFunc("GET /api/products/{id}", s.apiProduct)
 	s.mux.HandleFunc("PATCH /api/products/{id}", s.apiProductWrite)
@@ -2914,6 +2916,38 @@ func fleetDeviceQuery(values url.Values) url.Values {
 	return query
 }
 
+func (s *Server) apiProductServiceOptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	session, ok := s.customerSession(r)
+	if !ok {
+		http.Error(w, "customer authentication required", http.StatusUnauthorized)
+		return
+	}
+	if !s.accountClient.Enabled() {
+		http.Error(w, "The service catalog is not configured.", http.StatusServiceUnavailable)
+		return
+	}
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	if !requireCustomerCapability(w, org, capabilityProductRead, "registry_device.read") {
+		return
+	}
+	var catalog accountclient.ServiceCatalog
+	_, err = s.customerCall(r.Context(), tokens, func(token string) error {
+		var callErr error
+		catalog, callErr = s.accountClient.ServiceCatalog(r.Context(), token, org.ID)
+		return callErr
+	})
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
+		return
+	}
+	writeJSON(w, catalog)
+}
+
 func (s *Server) apiProducts(w http.ResponseWriter, r *http.Request) {
 	session, ok := s.customerSession(r)
 	if !ok {
@@ -3189,6 +3223,7 @@ func (s *Server) apiProductWrite(w http.ResponseWriter, r *http.Request) {
 		Category            string         `json:"category,omitempty"`
 		Manufacturer        string         `json:"manufacturer,omitempty"`
 		ServiceCapabilities []string       `json:"service_capabilities,omitempty"`
+		CatalogRevision     int64          `json:"catalog_revision,omitempty"`
 		DevicePolicy        map[string]any `json:"device_policy,omitempty"`
 		FirmwarePolicy      map[string]any `json:"firmware_policy,omitempty"`
 	}
@@ -3200,6 +3235,7 @@ func (s *Server) apiProductWrite(w http.ResponseWriter, r *http.Request) {
 			Category            string         `json:"category,omitempty"`
 			Manufacturer        string         `json:"manufacturer,omitempty"`
 			ServiceCapabilities []string       `json:"service_capabilities,omitempty"`
+			CatalogRevision     int64          `json:"catalog_revision,omitempty"`
 			DevicePolicy        map[string]any `json:"device_policy,omitempty"`
 			FirmwarePolicy      map[string]any `json:"firmware_policy,omitempty"`
 		}{}
@@ -3207,7 +3243,7 @@ func (s *Server) apiProductWrite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Product data is malformed.", http.StatusBadRequest)
 		return
 	}
-	request := accountclient.DeviceItemProfileRequest{ProfileKey: strings.TrimSpace(input.ProfileKey), DisplayName: strings.TrimSpace(input.Name), Category: strings.TrimSpace(input.Category), Manufacturer: strings.TrimSpace(input.Manufacturer), Model: strings.TrimSpace(input.ProductModel), ServiceOptions: customerServiceOptions(input.ServiceCapabilities), ClaimPolicy: input.DevicePolicy, ProvisioningPolicy: input.DevicePolicy}
+	request := accountclient.DeviceItemProfileRequest{ProfileKey: strings.TrimSpace(input.ProfileKey), DisplayName: strings.TrimSpace(input.Name), Category: strings.TrimSpace(input.Category), Manufacturer: strings.TrimSpace(input.Manufacturer), Model: strings.TrimSpace(input.ProductModel), ServiceOptions: customerServiceOptions(input.ServiceCapabilities), CatalogRevision: input.CatalogRevision, ClaimPolicy: input.DevicePolicy, ProvisioningPolicy: input.DevicePolicy}
 	if request.ProfileKey == "" && request.DisplayName != "" {
 		request.ProfileKey = "product-" + strings.ToLower(strings.NewReplacer(" ", "-", "/", "-", "_", "-").Replace(request.DisplayName))
 	}
@@ -3240,20 +3276,25 @@ func (s *Server) apiProductWrite(w http.ResponseWriter, r *http.Request) {
 }
 
 func customerServiceOptions(labels []string) []string {
+	if labels == nil {
+		return nil
+	}
 	options := make([]string, 0, len(labels))
 	for _, label := range labels {
-		switch strings.TrimSpace(label) {
+		code := strings.TrimSpace(label)
+		switch code {
 		case "video_streaming", "影像服務":
-			options = append(options, "video_streaming")
+			code = "video_streaming"
 		case "即時觀看":
-			options = append(options, "video_streaming")
+			code = "video_streaming"
 		case "video_storage", "錄影與保存":
-			options = append(options, "video_storage")
+			code = "video_storage"
 		case "mqtt", "設備回報":
-			options = append(options, "mqtt")
+			code = "mqtt"
 		case "ota", "韌體更新":
-			options = append(options, "ota")
+			code = "ota"
 		}
+		options = append(options, code)
 	}
 	return normalizeCapabilities(options)
 }
@@ -3394,6 +3435,8 @@ func customerProductWithActionsAndSummary(profile accountclient.DeviceItemProfil
 		case "firmware", "ota":
 			services = append(services, "ota")
 			hasOTA = true
+		default:
+			services = append(services, strings.TrimSpace(option))
 		}
 	}
 	deviceCount := 0
@@ -3408,7 +3451,7 @@ func customerProductWithActionsAndSummary(profile accountclient.DeviceItemProfil
 		ProductModel:        profile.Model,
 		Category:            profile.Category,
 		Status:              profile.Status,
-		ServiceCapabilities: services,
+		ServiceCapabilities: normalizeCapabilities(services),
 		DevicePolicy: map[string]any{
 			"setup_available":   len(profile.ProvisioningPolicy) > 0,
 			"binding_available": len(profile.ClaimPolicy) > 0,

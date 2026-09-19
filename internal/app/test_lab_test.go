@@ -61,16 +61,32 @@ func TestTestLabContextScopeCapabilitiesAndFeatureGate(t *testing.T) {
 		t.Fatalf("unauthenticated: %d", w.Code)
 	}
 	w := call(root, true)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"shadow_http":true`) || !strings.Contains(w.Body.String(), `"shadow_mqtt":true`) || strings.Contains(w.Body.String(), "secret-fixture") {
-		t.Fatalf("unsafe context: %d", w.Code)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"mqtt":true`) || !strings.Contains(w.Body.String(), `"shadow_http":false`) || !strings.Contains(w.Body.String(), `"shadow_mqtt":false`) || strings.Contains(w.Body.String(), "secret-fixture") {
+		t.Fatalf("MQTT-only Product exposed Shadow: %d %s", w.Code, w.Body.String())
 	}
 	f.mu.Lock()
 	profile := f.products[productA]
+	profile.ServiceOptions = []string{"mqtt", "iot_shadow"}
+	f.products[productA] = profile
+	f.mu.Unlock()
+	if w := call(root, true); w.Code != 200 || !strings.Contains(w.Body.String(), `"shadow_http":true`) || !strings.Contains(w.Body.String(), `"shadow_mqtt":true`) {
+		t.Fatal("MQTT+Shadow Product lost Shadow capabilities")
+	}
+	f.mu.Lock()
+	profile = f.products[productA]
+	profile.ServiceOptions = []string{"iot_shadow"}
+	f.products[productA] = profile
+	f.mu.Unlock()
+	if w := call(root, true); w.Code != 200 || !strings.Contains(w.Body.String(), `"shadow_http":true`) || !strings.Contains(w.Body.String(), `"shadow_mqtt":false`) {
+		t.Fatal("legacy HTTP-only Shadow Product gained MQTT Shadow or lost HTTP Shadow")
+	}
+	f.mu.Lock()
+	profile = f.products[productA]
 	profile.ServiceOptions = []string{"video_streaming"}
 	f.products[productA] = profile
 	f.mu.Unlock()
 	if w := call(root, true); w.Code != 200 || !strings.Contains(w.Body.String(), `"shadow_http":false`) || !strings.Contains(w.Body.String(), `"shadow_mqtt":false`) {
-		t.Fatal("Shadow enabled without MQTT Product service")
+		t.Fatal("Shadow enabled without IoT Shadow Product service")
 	}
 	if w := call(root+"&device_id="+sharedDeviceID, true); w.Code != 400 {
 		t.Fatalf("duplicate scope: %d", w.Code)

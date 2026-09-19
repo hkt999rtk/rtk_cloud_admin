@@ -1611,6 +1611,24 @@ paths:
               schema: { $ref: '#/components/schemas/ScopedProductDeviceResult' }
         default: { $ref: '#/components/responses/ManagedCloudError' }
 
+  /api/developer/brand-clouds/{brandCloudID}/service-options:
+    get:
+      operationId: getScopedProductServiceOptions
+      x-rtk-feature-id: FEAT-CONTRACT-SERVICE-REGISTRATION-001
+      x-rtk-requirement-ids: [REQ-CONTRACT-SVCREG-PRODUCT-001]
+      tags: [Developer, Product]
+      summary: List currently registered Product service options for an authorized cloud
+      description: Only selectable options may be chosen for a new Product. A stale catalog revision is rejected when service options are written.
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Live service catalog for the requested cloud; never cached by the BFF.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductServiceCatalog' }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
   /api/developer/brand-clouds/{brandCloudID}/products:
     get:
       operationId: getApiDeveloperBrandCloudsByBrandCloudIDProducts
@@ -3713,6 +3731,24 @@ paths:
         - { name: action, in: path, required: true, schema: { type: string, enum: [start, pause, resume, cancel, retry] } }
       responses: { "200": { description: Update plan changed. } }
 
+  /api/product-service-options:
+    get:
+      operationId: getApiProductServiceOptions
+      x-rtk-feature-id: FEAT-CONTRACT-SERVICE-REGISTRATION-001
+      x-rtk-requirement-ids: [REQ-CONTRACT-SVCREG-PRODUCT-001]
+      tags: [Fleet, Product]
+      summary: List registered Product service options for the active organization
+      description: Customer-session equivalent of the scoped catalog endpoint. Product writes use its catalog_revision when selecting options.
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Live service catalog; never cached by the BFF.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductServiceCatalog' }
+        '401': { $ref: '#/components/responses/PlainTextError' }
+        '502': { $ref: '#/components/responses/PlainTextError' }
+
   /api/products:
     get:
       operationId: getApiProducts
@@ -5510,8 +5546,7 @@ components:
         service_capabilities:
           type: array
           items:
-            type: string
-            enum: [video_streaming, video_storage, mqtt, iot_shadow]
+            $ref: '#/components/schemas/ServiceOptionCode'
         device_policy:
           type: object
           additionalProperties: true
@@ -5550,8 +5585,12 @@ components:
           type: array
           uniqueItems: true
           items:
-            type: string
-            enum: [video_streaming, video_storage, mqtt, iot_shadow]
+            $ref: '#/components/schemas/ServiceOptionCode'
+        catalog_revision:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Current service catalog revision when changing service_capabilities in registered-service mode.
         device_policy: { type: object, additionalProperties: true }
         firmware_policy: { type: object, additionalProperties: true }
 
@@ -5737,6 +5776,32 @@ components:
       properties:
         device: { $ref: '#/components/schemas/ScopedProductDevice' }
 
+    ServiceOptionCode:
+      type: string
+      pattern: '^[a-z][a-z0-9_]{0,63}$'
+      description: Registered service option code; not limited to the built-in MQTT, Shadow, or video options.
+
+    ProductServiceCatalogOption:
+      type: object
+      required: [code, display_name, description, service_id, manifest_version, selectable]
+      properties:
+        code: { $ref: '#/components/schemas/ServiceOptionCode' }
+        display_name: { type: string }
+        description: { type: string }
+        requires: { type: array, items: { $ref: '#/components/schemas/ServiceOptionCode' } }
+        service_id: { type: string }
+        manifest_version: { type: string }
+        selectable: { type: boolean }
+        unavailable_reason: { type: string }
+
+    ProductServiceCatalog:
+      type: object
+      required: [catalog_revision, options, product_writes_enabled]
+      properties:
+        catalog_revision: { type: integer, format: int64, minimum: 1 }
+        options: { type: array, items: { $ref: '#/components/schemas/ProductServiceCatalogOption' } }
+        product_writes_enabled: { type: boolean, description: False while registered-service Product writes are disabled; clients must not offer new plugin selections. }
+
     ManagedCloudProduct:
       type: object
       required: [id, brand_cloud_id, name, profile_key, status]
@@ -5748,7 +5813,7 @@ components:
         status: { type: string }
         product_model: { type: string }
         category: { type: string }
-        service_options: { type: array, items: { type: string } }
+        service_options: { type: array, items: { $ref: '#/components/schemas/ServiceOptionCode' } }
         my_role: { type: string, description: Cloud viewer membership always limits the projected role to product_viewer. }
         allowed_actions: { type: array, items: { type: string, enum: [read, edit, disable] } }
 
@@ -5766,7 +5831,8 @@ components:
         profile_key: { type: string, minLength: 1, maxLength: 120, description: Required on creation; forbidden on update. }
         product_model: { type: string, maxLength: 255 }
         category: { type: string, enum: [ip_camera, mqtt_device, generic] }
-        service_options: { type: array, minItems: 1, uniqueItems: true, items: { type: string, enum: [mqtt, video_streaming, video_storage] } }
+        service_options: { type: array, minItems: 1, maxItems: 64, uniqueItems: true, items: { $ref: '#/components/schemas/ServiceOptionCode' } }
+        catalog_revision: { type: integer, format: int64, minimum: 1, description: Required by the platform when service_options change in registered-service mode. }
 
     DeveloperMemberList:
       type: object

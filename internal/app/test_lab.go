@@ -100,7 +100,6 @@ func (s *Server) apiTestLabContext(w http.ResponseWriter, r *http.Request) {
 		"device_id": device, "devid": devid, "device_status": d.Status,
 		"account_id":    account,
 		"runtime_ready": reason == "", "blocked_reason": reason,
-		// Shadow is part of MQTT device integration, not a separate Product service.
-		"capabilities": map[string]bool{"mqtt": services["mqtt"], "shadow_http": services["mqtt"], "shadow_mqtt": services["mqtt"], "webrtc": services["video_streaming"]},
+		"capabilities": map[string]bool{"mqtt": services["mqtt"], "shadow_http": services["iot_shadow"], "shadow_mqtt": services["iot_shadow"] && services["mqtt"], "webrtc": services["video_streaming"]},
 	})
 }
