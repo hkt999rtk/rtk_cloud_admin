@@ -77,6 +77,14 @@ const server = createServer(async (req, res) => {
     if (shouldFailAuthenticatedRequest && mode === 'unavailable') return send(res, 503, { error: 'fixture unavailable' });
     if (shouldFailAuthenticatedRequest && mode === 'unauthorized') return send(res, 401, { error: 'unauthorized' });
     if (shouldFailAuthenticatedRequest && mode === 'forbidden') return send(res, 403, { error: 'forbidden' });
+    if (url.pathname === '/v1/platform/service-options' && req.method === 'GET') {
+      if (!state.brandClouds.some((cloud) => cloud.id === url.searchParams.get('brand_cloud_id'))) return send(res, 404, { error: 'cloud not found' });
+      return send(res, 200, { catalog_revision: 1, product_writes_enabled: false, options: [
+        { code: 'mqtt', display_name: 'MQTT', selectable: true },
+        { code: 'video_streaming', display_name: 'Video streaming', selectable: true },
+        { code: 'video_storage', display_name: 'Video storage', selectable: true },
+      ] });
+    }
     if (url.pathname === '/v1/admin/brand-clouds' && req.method === 'GET') return send(res, 200, { brand_clouds: state.brandClouds });
     if (url.pathname === '/v1/admin/brand-clouds' && req.method === 'POST') return createBrandCloud(req, res);
     if (url.pathname === '/v1/admin/chipset-providers') return handleChipsetProviders(req, res);

@@ -60,7 +60,7 @@ func newScopedProductsFixture(t *testing.T) (*httptest.Server, *scopedProductsFi
 				http.Error(w, "wrong cloud", 403)
 				return
 			}
-			writeJSON(w, map[string]any{"catalog_revision": 7, "product_writes_enabled": true, "options": []map[string]any{{"code": "mqtt", "display_name": "MQTT", "selectable": true}, {"code": "iot_shadow", "display_name": "IoT Shadow", "selectable": true, "requires": []string{"mqtt"}}}})
+			writeJSON(w, map[string]any{"catalog_revision": 7, "product_writes_enabled": true, "options": []map[string]any{{"code": "mqtt", "display_name": "MQTT", "selectable": true}, {"code": "iot_shadow", "display_name": "IoT Shadow", "selectable": true, "requires": []string{"mqtt"}}, {"code": "video_storage", "display_name": "Video storage", "selectable": true, "requires": []string{"mqtt"}}}})
 			return
 		}
 		f.mu.Lock()

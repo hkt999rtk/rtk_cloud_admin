@@ -33,7 +33,7 @@ test('[UI-CA-PRODUCTS-101] scoped Product CRUD pagination viewer and revocation 
  await panel.getByRole('button',{name:'Edit Product',exact:true}).click();
  await expect(page.getByRole('textbox',{name:'Product key',exact:true})).toBeDisabled();
  await page.getByRole('textbox',{name:'Product name',exact:true}).fill('Qualified Camera updated');
- await page.getByRole('checkbox',{name:'Video storage',exact:true}).check();
+ await page.getByRole('checkbox',{name:/^Video storage/}).check();
  await page.getByRole('button',{name:'Save Product',exact:true}).click();
  await expect(panel.getByRole('link',{name:'Qualified Camera updated',exact:true})).toBeVisible();
  await panel.getByRole('button',{name:'Disable Product',exact:true}).click();
