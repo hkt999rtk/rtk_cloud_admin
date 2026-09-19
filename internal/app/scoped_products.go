@@ -14,16 +14,19 @@ import (
 )
 
 type scopedProduct struct {
-	ID       string   `json:"id"`
-	CloudID  string   `json:"brand_cloud_id"`
-	Name     string   `json:"name"`
-	Key      string   `json:"profile_key"`
-	Status   string   `json:"status"`
-	Model    string   `json:"product_model"`
-	Category string   `json:"category"`
-	Services []string `json:"service_options"`
-	Role     string   `json:"my_role"`
-	Actions  []string `json:"allowed_actions"`
+	PKIStatus      string   `json:"pki_status"`
+	PKIOperationID string   `json:"pki_operation_id"`
+	PKIIssuerID    string   `json:"pki_issuer_id,omitempty"`
+	ID             string   `json:"id"`
+	CloudID        string   `json:"brand_cloud_id"`
+	Name           string   `json:"name"`
+	Key            string   `json:"profile_key"`
+	Status         string   `json:"status"`
+	Model          string   `json:"product_model"`
+	Category       string   `json:"category"`
+	Services       []string `json:"service_options"`
+	Role           string   `json:"my_role"`
+	Actions        []string `json:"allowed_actions"`
 }
 
 func scopedProductProjection(p accountclient.DeviceItemProfile, cloud accountclient.ManagedCloud) scopedProduct {
@@ -43,7 +46,7 @@ func scopedProductProjection(p accountclient.DeviceItemProfile, cloud accountcli
 	if cloud.MyRole == "viewer" {
 		role = "product_viewer"
 	}
-	return scopedProduct{p.ID, p.BrandCloudID, p.DisplayName, p.ProfileKey, p.Status, p.Model, p.Category, services, role, actions}
+	return scopedProduct{p.PKIStatus, p.PKIOperationID, p.PKIIssuerID, p.ID, p.BrandCloudID, p.DisplayName, p.ProfileKey, p.Status, p.Model, p.Category, services, role, actions}
 }
 
 func scopedProductQuery(in url.Values, list bool) (url.Values, error) {

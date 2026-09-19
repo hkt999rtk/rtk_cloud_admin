@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { PKIStatus } from './PKIStatus.jsx';
 import { cloudRoot, cloudURL, cloudAPI, cloudError, managedCloudRoute, managedCloudRequest, cloudWriteIntent, cloudOperationFromSearch, cloudContextFromSearch, blockerLabels, isCloudID } from './managed-clouds.mjs';
 import './my-clouds.css';
 import { CloudSharing, CloudSharingGuide } from './CloudSharing.jsx';
@@ -146,6 +147,12 @@ export function MyCloudsApp() {
     return () => { controller.abort(); clearTimeout(timer); };
   }, [operation?.id, operation?.state]);
 
+  useEffect(() => {
+    if (cloud?.pki_status !== 'pending' && !page?.brand_clouds?.some(item => item.pki_status === 'pending')) return;
+    const timer = setTimeout(() => setReload(value => value + 1), 5000);
+    return () => clearTimeout(timer);
+  }, [cloud, page, reload]);
+
   async function submit(event) {
     event.preventDefault();
     if (busyRef.current) return;
@@ -201,6 +208,7 @@ export function MyCloudsApp() {
             : <div className="my-clouds-grid">{page.brand_clouds.map((item) => <article className="my-clouds-panel" key={item.id}>
               <div className="my-clouds-card-head"><h2><a href={cloudURL(item.id)}>{item.name}</a></h2><span className="my-clouds-role">{item.my_role}</span></div>
               <p>{item.description || 'No description'}</p>
+              <PKIStatus value={item.pki_status}/>
               <dl><dt>Owner</dt><dd>{ownerAccountEmail(item, me)}</dd></dl>
               {lifecycleWarning(item.status) && <p className="my-clouds-lifecycle-warning" role="status">{lifecycleWarning(item.status)}</p>}
               <div className="my-clouds-actions">
@@ -215,6 +223,7 @@ export function MyCloudsApp() {
       {cloud && section === 'members' && !productId && !operation && <CloudConceptGuide />}
       {cloud && section === 'members' && !productId && !operation && cloud.my_role === 'owner' && cloud.capabilities?.includes('team.manage') && <CloudSharing key={`sharing:${cloudId}`} cloudId={cloudId} onAccessLost={showRequestError} />}
       {cloud && section === 'members' && !productId && !operation && !(cloud.my_role === 'owner' && cloud.capabilities?.includes('team.manage')) && <section className="my-clouds-panel"><h2>Members &amp; Access</h2><CloudSharingGuide /><p>Your current role can use only its authorized Product scope. Only this cloud’s owner can invite, change, or revoke collaborators.</p></section>}
+      {cloud && <PKIStatus value={cloud.pki_status}/>}
       {cloud && section === 'settings' && !productId && !operation && cloud.my_role === 'owner' && cloud.capabilities?.includes('billing_account.read') && <a href={`${cloudURL(cloudId)}/billing`}>Manage this cloud’s Billing</a>}
       {cloud && section === 'settings' && !operation && <section className="my-clouds-panel"><h2><SemanticIcon name="gear" />Cloud settings</h2><dl><dt><SemanticIcon name="cloud" />Cloud name</dt><dd>{cloud.name}</dd><dt><SemanticIcon name="file-lines" />Description</dt><dd>{cloud.description || 'No description'}</dd><dt><SemanticIcon name="fingerprint" />Cloud ID</dt><dd><CopyValue value={cloud.id} label="cloud ID"/></dd><dt><SemanticIcon name="tag" />Tenant slug</dt><dd>{cloud.tenant_slug || 'Unavailable'}</dd><dt><SemanticIcon name="envelope" />Owner email</dt><dd>{ownerAccountEmail(cloud, me)}</dd><dt><SemanticIcon name="id-card" />Owner ID</dt><dd>{cloud.owner_user_id || 'Unavailable'}</dd><dt><SemanticIcon name="user-shield" />My role</dt><dd>{cloud.my_role}</dd></dl>{lifecycleWarning(cloud.status) && <p className="my-clouds-lifecycle-warning" role="status"><SemanticIcon name="triangle-exclamation" />{lifecycleWarning(cloud.status)}</p>}{canManage && <div className="my-clouds-actions"><button className="icon-text" disabled={busy} onClick={() => { intent.current = null; setForm({ id: cloud.id, name: cloud.name, description: cloud.description }); }}><SemanticIcon name="pen-to-square" />Edit cloud</button></div>}</section>}
       {cloud && section === 'settings' && !operation && canManage && <details className="ui-settings-advanced"><summary>Delete cloud</summary><p>Only an empty, fully settled cloud can be deleted. Check eligibility before confirming deletion.</p><button className="my-clouds-danger icon-text" disabled={busy} onClick={checkDeletion}><SemanticIcon name="trash-can" />Check deletion</button></details>}

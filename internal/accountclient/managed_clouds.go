@@ -13,6 +13,9 @@ var managedOperationID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4
 
 // Deliberately excludes arbitrary metadata, payer data and secrets.
 type ManagedCloud struct {
+	PKIStatus        string   `json:"pki_status"`
+	PKIOperationID   string   `json:"pki_operation_id"`
+	PKIIssuerID      string   `json:"pki_issuer_id,omitempty"`
 	ID               string   `json:"id"`
 	Name             string   `json:"name"`
 	Description      string   `json:"description"`
