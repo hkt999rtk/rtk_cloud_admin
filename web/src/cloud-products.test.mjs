@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {productAPI,productURL,fetchCloudProducts,productError,productInvitationDestination} from './cloud-products.mjs';
+import {productAPI,productURL,fetchCloudProducts,fetchCloudServiceCatalog,productError,productInvitationDestination} from './cloud-products.mjs';
 const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',p='33333333-3333-4333-8333-333333333333';
 test('accepted invitations use a validated explicit cloud and Product destination',()=>{
  assert.equal(productInvitationDestination({invitation:{brand_cloud_id:b,product_id:p}}),productURL(b,p));
@@ -34,4 +34,20 @@ test('cross-cloud Product and unproven totals are withheld',async(t)=>{
 test('permission failures never display upstream diagnostics',async(t)=>{
  t.mock.method(globalThis,'fetch',async()=>({ok:false,status:403,json:async()=>({secret:'private'})}));
  await assert.rejects(fetchCloudProducts(a,p),e=>{assert.match(productError(e),/revoked/);assert.doesNotMatch(productError(e),/private/);return true;});
+});
+test('catalog fetch preserves scoped registered options and rejects malformed data',async(t)=>{
+ let body={catalog_revision:7,product_writes_enabled:true,options:[{code:'mqtt',display_name:'MQTT',selectable:true},{code:'iot_shadow',display_name:'Shadow',selectable:true,requires:['mqtt']}]};let path;
+ t.mock.method(globalThis,'fetch',async(target)=>{path=target;return {ok:true,json:async()=>body};});
+ const catalog=await fetchCloudServiceCatalog(a);
+ assert.equal(path,`/api/developer/brand-clouds/${a}/service-options`);
+ assert.deepEqual(catalog.options[0].requires,[]);
+ assert.equal(catalog.options[1].code,'iot_shadow');
+ body={catalog_revision:0,options:[]};
+ await assert.rejects(fetchCloudServiceCatalog(a),e=>e.status===502);
+});
+test('disabled Product write gate keeps the previous service choices',async(t)=>{
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({catalog_revision:1,product_writes_enabled:false,options:[]})}));
+ const catalog=await fetchCloudServiceCatalog(a);
+ assert.equal(catalog.product_writes_enabled,false);
+ assert.deepEqual(catalog.options.map(option=>option.code),['mqtt','video_streaming','video_storage']);
 });

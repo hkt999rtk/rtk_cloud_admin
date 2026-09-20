@@ -55,6 +55,14 @@ func newScopedProductsFixture(t *testing.T) (*httptest.Server, *scopedProductsFi
 	}
 	f.products[sharedProductID] = accountclient.DeviceItemProfile{ID: sharedProductID, BrandCloudID: cloudB, ProfileKey: "shared-product", DisplayName: "Shared sensor", Status: "active", Category: "mqtt_device", ServiceOptions: []string{"mqtt"}, CurrentUserRole: "product_owner", MetadataDefaults: map[string]any{"private_key": "never-project-this"}}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/platform/service-options" {
+			if r.URL.Query().Get("brand_cloud_id") != cloudA {
+				http.Error(w, "wrong cloud", 403)
+				return
+			}
+			writeJSON(w, map[string]any{"catalog_revision": 7, "product_writes_enabled": true, "options": []map[string]any{{"code": "mqtt", "display_name": "MQTT", "selectable": true}, {"code": "iot_shadow", "display_name": "IoT Shadow", "selectable": true, "requires": []string{"mqtt"}}, {"code": "video_storage", "display_name": "Video storage", "selectable": true, "requires": []string{"mqtt"}}}})
+			return
+		}
 		f.mu.Lock()
 		revoked := f.revoked
 		f.mu.Unlock()
@@ -184,6 +192,10 @@ func TestScopedProductCRUDUsesRequestedCloudAndCurrentAuthority(t *testing.T) {
 		return w
 	}
 	root := "/api/developer/brand-clouds/" + cloudA + "/products"
+	catalog := request("GET", "/api/developer/brand-clouds/"+cloudA+"/service-options", "")
+	if catalog.Code != 200 || !strings.Contains(catalog.Body.String(), `"catalog_revision":7`) || !strings.Contains(catalog.Body.String(), `"product_writes_enabled":true`) || !strings.Contains(catalog.Body.String(), `"iot_shadow"`) {
+		t.Fatalf("service catalog %d %s", catalog.Code, catalog.Body)
+	}
 	list := request("GET", root+"?limit=25&offset=25", "")
 	if list.Code != 200 || !strings.Contains(list.Body.String(), `"total":27`) {
 		t.Fatalf("pagination %d %s", list.Code, list.Body)
@@ -195,6 +207,10 @@ func TestScopedProductCRUDUsesRequestedCloudAndCurrentAuthority(t *testing.T) {
 	update := request("PATCH", root+"/"+createdProductID, `{"name":"Updated camera","service_options":["mqtt","video_storage"]}`)
 	if update.Code != 200 || !strings.Contains(update.Body.String(), "Updated camera") {
 		t.Fatalf("update %d %s", update.Code, update.Body)
+	}
+	plugin := request("PATCH", root+"/"+createdProductID, `{"service_options":["mqtt","iot_shadow","custom_option"],"catalog_revision":7}`)
+	if plugin.Code != 200 || !strings.Contains(plugin.Body.String(), "custom_option") {
+		t.Fatalf("catalog-driven option %d %s", plugin.Code, plugin.Body)
 	}
 	disabled := request("POST", root+"/"+createdProductID+"/disable", `{}`)
 	if disabled.Code != 200 || !strings.Contains(disabled.Body.String(), `"status":"disabled"`) {
@@ -234,7 +250,7 @@ func TestScopedProductCRUDUsesRequestedCloudAndCurrentAuthority(t *testing.T) {
 		t.Fatal("Product request mutated session scope")
 	}
 	f.mu.Lock()
-	if len(f.writes) != 3 {
+	if len(f.writes) != 4 {
 		t.Errorf("unauthorized mutation delivered: %v", f.writes)
 	}
 	for _, key := range f.keys {

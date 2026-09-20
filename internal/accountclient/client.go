@@ -327,6 +327,7 @@ type DeviceItemProfileRequest struct {
 	CAProfile          string         `json:"ca_profile,omitempty"`
 	IssuerProfile      string         `json:"issuer_profile,omitempty"`
 	ServiceOptions     []string       `json:"service_options,omitempty"`
+	CatalogRevision    int64          `json:"catalog_revision,omitempty"`
 	ClaimPolicy        map[string]any `json:"claim_policy,omitempty"`
 	ProvisioningPolicy map[string]any `json:"provisioning_policy,omitempty"`
 }

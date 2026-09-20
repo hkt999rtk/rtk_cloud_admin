@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -204,7 +205,7 @@ func TestCoverageGovernancePureHelpers(t *testing.T) {
 	if got := stringSetDiff([]string{"mqtt", "video", "ota"}, []string{"video"}); strings.Join(got, ",") != "mqtt,ota" {
 		t.Fatalf("stringSetDiff = %#v", got)
 	}
-	if got := customerServiceOptions([]string{"影像服務", "即時觀看", "錄影與保存", "設備回報", "unknown"}); len(got) != 3 {
+	if got := customerServiceOptions([]string{"影像服務", "即時觀看", "錄影與保存", "設備回報", "iot_shadow"}); len(got) != 4 || !slices.Contains(got, "iot_shadow") {
 		t.Fatalf("customerServiceOptions = %#v", got)
 	}
 	if got := customerServiceOptions([]string{"video_streaming", "video_storage", "mqtt", "ota"}); len(got) != 4 {
@@ -217,7 +218,7 @@ func TestCoverageGovernancePureHelpers(t *testing.T) {
 		Model:              "RTK-CAM",
 		Category:           "camera",
 		Status:             "active",
-		ServiceOptions:     []string{"video", "webrtc", "clips", "mqtt", "ota", "unknown"},
+		ServiceOptions:     []string{"video", "webrtc", "clips", "mqtt", "ota", "iot_shadow"},
 		ClaimPolicy:        map[string]any{"enabled": true},
 		ProvisioningPolicy: map[string]any{"enabled": true},
 		UpdatedAt:          "2026-07-24T00:00:00Z",
@@ -234,6 +235,9 @@ func TestCoverageGovernancePureHelpers(t *testing.T) {
 	}, summary)
 	if product.ID != "product-1" || product.DeviceCount != 7 || len(product.ServiceCapabilities) != 5 || len(product.AllowedActions) != 4 {
 		t.Fatalf("customerProductWithActionsAndSummary = %#v", product)
+	}
+	if !slices.Contains(product.ServiceCapabilities, "iot_shadow") {
+		t.Fatalf("registered service lost from Product projection: %#v", product.ServiceCapabilities)
 	}
 	if got := customerProduct(profile); got.ID != profile.ID {
 		t.Fatalf("customerProduct = %#v", got)
