@@ -435,7 +435,7 @@ never expose or enable the simulator.
 ### [REQ-CA-BFF-UI-001] Console UI follows the canonical operational style and state vocabulary
 
 <!-- rtk-requirement
-{"acceptance_layer":"ui","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
+{"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local","ci"],"evidence":["json","screenshot"],"required":true,"status":"active"}
 -->
 
 Acceptance: Directly linkable customer and platform routes use compact operational layout, canonical readiness/status vocabulary, source-fact detail, and the shared frontend style contract without marketing heroes or decorative card grids. The customer console renders My Clouds and every selected-cloud feature in one persistent Brand Cloud shell; Fleet Management remains a named first-level feature, and Billing is visible and directly accessible only to the selected cloud's current sole owner.
