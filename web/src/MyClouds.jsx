@@ -10,6 +10,7 @@ import { TestLab } from './TestLab.jsx';
 import { CloudConsoleShell } from './CloudConsoleShell.jsx';
 import { Dialog, CopyValue } from './ConsoleUI.jsx';
 import { CloudConceptGuide } from './CloudConceptGuide.jsx';
+import { BrandWebhookSettings } from './BrandWebhookSettings.jsx';
 import { rememberCloudPreference } from './cloud-preference.mjs';
 import { cloudConsolePath } from './routes.mjs';
 
@@ -226,6 +227,7 @@ export function MyCloudsApp() {
       {cloud && <PKIStatus value={cloud.pki_status}/>}
       {cloud && section === 'settings' && !productId && !operation && cloud.my_role === 'owner' && cloud.capabilities?.includes('billing_account.read') && <a href={`${cloudURL(cloudId)}/billing`}>Manage this cloud’s Billing</a>}
       {cloud && section === 'settings' && !operation && <section className="my-clouds-panel"><h2><SemanticIcon name="gear" />Cloud settings</h2><dl><dt><SemanticIcon name="cloud" />Cloud name</dt><dd>{cloud.name}</dd><dt><SemanticIcon name="file-lines" />Description</dt><dd>{cloud.description || 'No description'}</dd><dt><SemanticIcon name="fingerprint" />Cloud ID</dt><dd><CopyValue value={cloud.id} label="cloud ID"/></dd><dt><SemanticIcon name="tag" />Tenant slug</dt><dd>{cloud.tenant_slug || 'Unavailable'}</dd><dt><SemanticIcon name="envelope" />Owner email</dt><dd>{ownerAccountEmail(cloud, me)}</dd><dt><SemanticIcon name="id-card" />Owner ID</dt><dd>{cloud.owner_user_id || 'Unavailable'}</dd><dt><SemanticIcon name="user-shield" />My role</dt><dd>{cloud.my_role}</dd></dl>{lifecycleWarning(cloud.status) && <p className="my-clouds-lifecycle-warning" role="status"><SemanticIcon name="triangle-exclamation" />{lifecycleWarning(cloud.status)}</p>}{canManage && <div className="my-clouds-actions"><button className="icon-text" disabled={busy} onClick={() => { intent.current = null; setForm({ id: cloud.id, name: cloud.name, description: cloud.description }); }}><SemanticIcon name="pen-to-square" />Edit cloud</button></div>}</section>}
+      {cloud && section === 'settings' && !operation && cloud.my_role === 'owner' && canManage && <BrandWebhookSettings key={`webhook:${cloudId}`} cloudId={cloudId} onAccessLost={showRequestError} />}
       {cloud && section === 'settings' && !operation && canManage && <details className="ui-settings-advanced"><summary>Delete cloud</summary><p>Only an empty, fully settled cloud can be deleted. Check eligibility before confirming deletion.</p><button className="my-clouds-danger icon-text" disabled={busy} onClick={checkDeletion}><SemanticIcon name="trash-can" />Check deletion</button></details>}
       {cloud && section === 'settings' && !productId && !operation && cloud.my_role === 'owner' && <details className="ui-settings-advanced"><summary>Transfer cloud ownership</summary><p>Transferring ownership also transfers billing responsibility.</p><StartOwnerHandoff key={`handoff:${cloudId}`} cloudId={cloudId} /></details>}
       {cloud && section === 'products' && !operation && <CloudProducts key={`${cloudId}/${productId}`} cloudId={cloudId} productId={productId} onAccessLost={showRequestError} />}

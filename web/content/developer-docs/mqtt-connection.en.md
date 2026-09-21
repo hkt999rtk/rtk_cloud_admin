@@ -20,9 +20,7 @@ verification: Source review and local tests; live environment qualification pend
 
 Use the public MQTT TLS listener supplied by your environment. The token response supplies username and Client ID metadata, not the host, port, or CA trust bundle. Validate the server certificate and hostname.
 
-![A reconnecting client refreshes its credentials when needed and explicitly restores subscriptions.](assets/mqtt-reconnect.svg)
-
-[Open full-size diagram](assets/mqtt-reconnect.svg) · [Mermaid source](assets/mqtt-reconnect.mmd)
+[Open redesigned sequence diagram](assets/mqtt-reconnect.html)
 
 ## Connection settings
 

@@ -23,6 +23,7 @@ type Config struct {
 	Environment                         string
 	DeveloperPKITestToolsEnabled        bool
 	VideoCloudAdminToken                string
+	VideoCloudBrandWebhookToken         string
 	VideoCloudFleetReadToken            string
 	VideoCloudPrometheusBaseURL         string
 	GrafanaBaseURL                      string
@@ -59,6 +60,7 @@ func FromEnv() Config {
 		Environment:                         strings.ToLower(getenv("CLOUD_ADMIN_ENV", "local")),
 		DeveloperPKITestToolsEnabled:        truthy(os.Getenv("DEVELOPER_PKI_TEST_TOOLS_ENABLED")),
 		VideoCloudAdminToken:                os.Getenv("VIDEO_CLOUD_ADMIN_TOKEN"),
+		VideoCloudBrandWebhookToken:         os.Getenv("VIDEO_CLOUD_BRAND_WEBHOOK_BFF_TOKEN"),
 		VideoCloudFleetReadToken:            os.Getenv("VIDEO_CLOUD_FLEET_READ_TOKEN"),
 		VideoCloudPrometheusBaseURL:         os.Getenv("VIDEO_CLOUD_PROMETHEUS_BASE_URL"),
 		GrafanaBaseURL:                      os.Getenv("CLOUD_ADMIN_GRAFANA_BASE_URL"),

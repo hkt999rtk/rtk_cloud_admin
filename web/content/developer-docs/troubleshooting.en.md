@@ -21,9 +21,7 @@ verification: Source review and local tests; live environment qualification pend
 
 Start with the first failing layer: TLS, token issuance, MQTT connection, subscription, publication, Shadow response, then device action. Success at one layer does not prove the next.
 
-![Connection authentication, broker authorization, and Shadow validation fail at different boundaries.](assets/authentication-failures.svg)
-
-[Open full-size diagram](assets/authentication-failures.svg) · [Mermaid source](assets/authentication-failures.mmd)
+[Open redesigned sequence diagram](assets/authentication-failures.html)
 
 ## Symptom checklist
 

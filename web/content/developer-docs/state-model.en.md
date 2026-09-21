@@ -61,9 +61,7 @@ Example application-owned schema, not built-in service fields:
 
 `lastApply`, `requestId`, status and code are conventions you implement. They do not create server idempotency, command delivery, authorization or automatic timeout behavior. Report actual power `off` after a failed operation; do not copy desired to reported merely to clear delta. If using a request identifier, add it consistently to your intended schema and define retention and deduplication in firmware.
 
-![Firmware validates intent and reports actual state or an application-defined failure.](assets/state-application.svg)
-
-[Full-size diagram](assets/state-application.svg) · [Mermaid source](assets/state-application.mmd)
+[Open redesigned sequence diagram](assets/state-application.html)
 
 ## Unsupported settings and execution failures
 

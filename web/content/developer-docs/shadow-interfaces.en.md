@@ -30,9 +30,7 @@ MQTT and HTTP address the same device and Shadow name through distinct authentic
 
 ## MQTT request and response
 
-![Clients subscribe before sending a Shadow request and handle application responses separately from MQTT acknowledgements.](assets/shadow-mqtt-request.svg)
-
-[Open full-size diagram](assets/shadow-mqtt-request.svg) · [Mermaid source](assets/shadow-mqtt-request.mmd)
+[Open redesigned sequence diagram](assets/shadow-mqtt-request.html)
 
 Use the `shadow_publish` helper from [Shadow Quickstart](shadow-quickstart.en.md). Subscribe to the operation's exact accepted and rejected topics first. GET can carry a `clientToken` for correlation; UPDATE carries a JSON patch. DELETE ignores its payload and returns an empty accepted object, so do not depend on a delete `clientToken` echo.
 
@@ -46,9 +44,7 @@ GET afterwards should return 404. Serialize deletes for the same Shadow to avoid
 
 ## Signed HTTP requests
 
-![Signed HTTP updates commit before the service completes asynchronous MQTT notifications.](assets/shadow-http-request.svg)
-
-[Open full-size diagram](assets/shadow-http-request.svg) · [Mermaid source](assets/shadow-http-request.mmd)
+[Open redesigned sequence diagram](assets/shadow-http-request.html)
 
 The following Bash helper uses curl's SigV4 signer. Complete token issuance with `aws_iot_data:true` first. Credentials belong to RTK's custom endpoint; no AWS account credentials are needed.
 

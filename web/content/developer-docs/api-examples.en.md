@@ -22,9 +22,7 @@ verification: Source review and local checks; live environment qualification pen
 
 Use these fixtures to build parsers after completing [token setup](authentication.en.md) and [the Shadow interface tutorial](shadow-interfaces.en.md). All identifiers, token strings and timestamps below are illustrative, not captured credentials. Use device `device-1`, named Shadow `tutorial`, and power `off` → `on`. The [reference](shadow-reference.en.md) owns route, validation and size limits.
 
-![A single mutation has distinct response and notification shapes.](assets/message-shapes.svg)
-
-[Full-size diagram](assets/message-shapes.svg) · [Mermaid source](assets/message-shapes.mmd)
+[Open redesigned sequence diagram](assets/message-shapes.html)
 
 ## Token success and failure
 

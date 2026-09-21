@@ -30,12 +30,11 @@ test('[UI-CA-DOCS-001] Developer Docs appears below ChipSet & SDK and supports l
   await page.getByRole('searchbox').fill('');
   await page.locator('.docs-results').getByRole('link', { name: 'Quickstart: Synchronize Device State', exact: true }).click();
   await expect(page.locator('.docs-article h2').first()).toHaveText('Quickstart: Synchronize Device State');
-  const diagram = page.locator('.docs-body img').first();
+  const diagram = page.getByRole('link', { name: 'Open redesigned sequence diagram' }).first();
   await expect(diagram).toBeVisible();
-  expect(await diagram.evaluate((img) => img.complete && img.naturalWidth > 0)).toBeTruthy();
-  const source = await page.request.get(await page.getByRole('link', { name: 'Mermaid source' }).first().getAttribute('href'));
-  expect(source.ok()).toBeTruthy();
-  expect(await source.text()).toContain('sequenceDiagram');
+  const rendered = await page.request.get(await diagram.getAttribute('href'));
+  expect(rendered.ok()).toBeTruthy();
+  expect(await rendered.text()).toContain('<svg');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   expect(requests).toEqual([]);
   await page.goto('/console/developer-docs');
@@ -90,7 +89,7 @@ test('[UI-CA-DOCS-003] every chapter and in-document link works @smoke', async (
         }
         const content = await page.request.get(link.href);
         if (link.href.endsWith('.zip')) expect((await content.body()).subarray(0, 4).toString('hex')).toBe('504b0304');
-        else if (link.href.endsWith('.svg')) expect(await content.text()).toContain('<svg');
+        else if (link.href.endsWith('.svg') || link.href.endsWith('.html')) expect(await content.text()).toContain('<svg');
         else expect(await content.text()).toMatch(/^(flowchart|sequenceDiagram)\b/m);
       } else {
         await target.click();

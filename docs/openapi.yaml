@@ -1629,6 +1629,82 @@ paths:
               schema: { $ref: '#/components/schemas/ProductServiceCatalog' }
         default: { $ref: '#/components/responses/ManagedCloudError' }
 
+  /api/developer/brand-clouds/{brandCloudID}/webhook/subscription:
+    get:
+      operationId: getBrandCloudWebhookSubscription
+      tags: [Developer]
+      summary: Read the current cloud owner's webhook subscription without its secret
+      description: Requires a logged-in Account Manager session. Cloud Admin rechecks current ownership and cloud.update capability before contacting Video Cloud.
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Subscription state; no secret is returned.
+          headers:
+            X-Cloud-Ownership-Version: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  endpoint_url: { type: string, format: uri }
+                  enabled: { type: boolean }
+                required: [endpoint_url, enabled]
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    put:
+      operationId: putBrandCloudWebhookSubscription
+      tags: [Developer]
+      summary: Register or replace the current cloud owner's HTTPS webhook destination
+      description: Requires same-origin browser request and current ownership version. Cloud Admin uses a dedicated Video Cloud BFF token; the general admin token is not accepted.
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: X-Cloud-Ownership-Version, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint_url: { type: string, format: uri }
+                secret: { type: string, minLength: 32, maxLength: 256 }
+              required: [endpoint_url, secret]
+              additionalProperties: false
+      responses:
+        '200': { description: Subscription enabled; secret omitted. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+    delete:
+      operationId: deleteBrandCloudWebhookSubscription
+      tags: [Developer]
+      summary: Disable the current cloud owner's webhook subscription
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: X-Cloud-Ownership-Version, in: header, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Subscription disabled; an in-flight delivery may still finish. }
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
+  /api/developer/brand-clouds/{brandCloudID}/webhook/events/{eventID}/receipts:
+    get:
+      operationId: getBrandCloudWebhookEventReceipts
+      tags: [Developer]
+      summary: Read delivery attempt receipts for the current cloud owner
+      parameters:
+        - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: eventID, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 128 } }
+      responses:
+        '200':
+          description: Delivery attempts for one event; empty when no attempt was recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event_id: { type: string }
+                  receipts: { type: array, items: { type: object } }
+                required: [event_id, receipts]
+        default: { $ref: '#/components/responses/ManagedCloudError' }
+
   /api/developer/brand-clouds/{brandCloudID}/products:
     get:
       operationId: getApiDeveloperBrandCloudsByBrandCloudIDProducts

@@ -49,9 +49,7 @@ For any supported grant, verify the recipient can access only intended devices a
 
 ## Release a normal device for resale
 
-![Account binding release preserves factory identity and requires a fresh claim by the next owner.](assets/ownership-release.svg)
-
-[Full-size diagram](assets/ownership-release.svg) · [Mermaid source](assets/ownership-release.mmd)
+[Open redesigned sequence diagram](assets/ownership-release.html)
 
 Use unprovision only when the current owner intends to release the device. This command changes ownership; run it only on an explicitly selected disposable test device. It uses an Account Manager token, not a Video Cloud runtime token.
 
@@ -74,7 +72,7 @@ The next owner must supply fresh possession proof, resolve a claim and provision
 | Factory reset | Device-local product behavior | Cloud ownership released |
 | Admin claim transfer | Support-authorized transfer to another organization | Ordinary customer self-service permission |
 
-`POST /v1/admin/device-claims/{claimId}/transfer` is a platform-admin override requiring explicit reason and evidence. It is not the normal customer resale API. Support flows must not expose raw claim material or private keys. Data erasure and retained Shadow/media handling need an explicit product policy; unprovision is not a blanket data-deletion guarantee.
+`POST /v1/admin/device-claims/{claimId}/transfer` is a platform-admin override requiring explicit reason and evidence. It moves only claims that have not started Video Cloud activation. A cross-organization move after activation begins returns `409 cloud_lifecycle_bound`; it does not migrate runtime sessions or media. It is not the normal customer resale API. Support flows must not expose raw claim material or private keys. Data erasure and retained Shadow/media handling need an explicit product policy; unprovision is not a blanket data-deletion guarantee.
 
 ## Failure checks and acceptance
 

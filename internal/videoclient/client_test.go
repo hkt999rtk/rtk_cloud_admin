@@ -526,6 +526,75 @@ func TestDoOTAInjectsTrustedBrandAndIdempotencyHeaders(t *testing.T) {
 	}
 }
 
+func TestDoBrandWebhookRoutesTrustedRequestsAndRejectsInvalidInput(t *testing.T) {
+	t.Parallel()
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer service-token" || r.Header.Get("X-Brand-Cloud-ID") != "brand-1" {
+			t.Fatalf("trusted brand webhook headers = %#v", r.Header)
+		}
+		switch {
+		case r.Method == http.MethodPut && r.URL.Path == "/v1/brand/webhook/subscription":
+			if r.Header.Get("Content-Type") != "application/json" {
+				t.Fatalf("Content-Type = %q", r.Header.Get("Content-Type"))
+			}
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body["url"] != "https://brand.example/hook" {
+				t.Fatalf("subscription body = %#v, %v", body, err)
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"status":"active"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/brand/webhook/events/event-1/receipts":
+			if r.Header.Get("Content-Type") != "" {
+				t.Fatalf("unexpected Content-Type = %q", r.Header.Get("Content-Type"))
+			}
+			_, _ = w.Write([]byte(`{"items":[]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	client := New(upstream.URL)
+	response, err := client.DoBrandWebhook(t.Context(), http.MethodPut, "", "service-token", "brand-1", []byte(`{"url":"https://brand.example/hook"}`))
+	if err != nil || response.StatusCode != http.StatusCreated || !strings.Contains(string(response.Body), "active") {
+		t.Fatalf("subscription response = %#v, %v", response, err)
+	}
+	response, err = client.DoBrandWebhook(t.Context(), http.MethodGet, "event-1", "service-token", "brand-1", nil)
+	if err != nil || response.StatusCode != http.StatusOK || string(response.Body) != `{"items":[]}` {
+		t.Fatalf("receipt response = %#v, %v", response, err)
+	}
+
+	invalid := []struct {
+		name    string
+		client  *Client
+		method  string
+		eventID string
+		token   string
+		cloudID string
+	}{
+		{name: "disabled", client: New(""), method: http.MethodGet, token: "token", cloudID: "brand"},
+		{name: "missing token", client: client, method: http.MethodGet, cloudID: "brand"},
+		{name: "missing cloud", client: client, method: http.MethodGet, token: "token"},
+		{name: "subscription method", client: client, method: http.MethodPost, token: "token", cloudID: "brand"},
+		{name: "receipt method", client: client, method: http.MethodDelete, eventID: "event", token: "token", cloudID: "brand"},
+		{name: "receipt length", client: client, method: http.MethodGet, eventID: strings.Repeat("x", 129), token: "token", cloudID: "brand"},
+		{name: "receipt delimiter", client: client, method: http.MethodGet, eventID: "event/1", token: "token", cloudID: "brand"},
+		{name: "invalid base URL", client: New("://invalid"), method: http.MethodGet, token: "token", cloudID: "brand"},
+	}
+	for _, tc := range invalid {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := tc.client.DoBrandWebhook(t.Context(), tc.method, tc.eventID, tc.token, tc.cloudID, nil); err == nil {
+				t.Fatal("invalid brand webhook request succeeded")
+			}
+		})
+	}
+	canceled, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := client.DoBrandWebhook(canceled, http.MethodGet, "", "service-token", "brand-1", nil); err == nil {
+		t.Fatal("canceled brand webhook request succeeded")
+	}
+}
+
 func TestCanonicalOTAReadMethodsFollowPagesAndDecodeStatus(t *testing.T) {
 	t.Parallel()
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

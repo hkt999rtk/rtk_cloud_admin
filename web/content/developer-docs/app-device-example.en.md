@@ -27,9 +27,7 @@ Run an application and a simulated device as two independent authenticated MQTT 
 
 Complete [Cloud/device setup](setup-cloud-device.en.md), [credential setup](credential-setup.en.md), and [token issuance](authentication.en.md). You need current **separate** app/device runtime token files, `mqtt` and `iot_shadow`, an authorized test device, Python 3.10+, and access to the pinned dependency. Keep credential files outside the example directory.
 
-![Independent app and device clients subscribe before requests and report success only after convergence.](assets/two-principal-demo.svg)
-
-[Open full-size diagram](assets/two-principal-demo.svg) · [Mermaid source](assets/two-principal-demo.mmd)
+[Open redesigned sequence diagram](assets/two-principal-demo.html)
 
 ## 1. Install the example
 

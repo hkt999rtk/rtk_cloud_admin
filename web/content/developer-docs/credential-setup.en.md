@@ -31,9 +31,7 @@ Account access tokens serve Account Manager APIs. Device/app certificates bootst
 
 Prepare independent device and app credentials for the same authorized test device. You need a verified developer account with a password sign-in method, the Account Manager HTTPS origin, its CA trust chain, and a private tutorial directory from [Before You Start](before-you-start.en.md). SSO-only accounts should use their approved SDK/SSO bootstrap; this password example does not replace that flow.
 
-![The app retains its private key while Account Manager validates its CSR and returns a certificate.](assets/app-enrollment.svg)
-
-[Open full-size diagram](assets/app-enrollment.svg) · [Mermaid source](assets/app-enrollment.mmd)
+[Open redesigned sequence diagram](assets/app-enrollment.html)
 
 ## Choose the correct identity
 
@@ -95,9 +93,7 @@ Account Manager calls `POST /v1/certificates/app/issue` internally over service 
 
 Use the device certificate and matching private key already provisioned by the approved factory workflow, or an authorized short-lived test device bundle for a development exercise. A fresh hardware device generates/retains its key and supplies a CSR through the authenticated factory boundary `POST /v1/factory/enroll`. Factory authorization, production context and entitlement checks belong to that workflow; there is no unauthenticated developer certificate-minting endpoint.
 
-![Factory authorization creates device identity; claim and activation happen separately.](assets/device-enrollment.svg)
-
-[Open full-size diagram](assets/device-enrollment.svg) · [Mermaid source](assets/device-enrollment.mmd)
+[Open redesigned sequence diagram](assets/device-enrollment.html)
 
 Set `DEVICE_CERT` and `DEVICE_KEY` to the supplied test PEM paths. Validate their matching public keys using the same OpenSSL comparison as above, and verify the certificate-derived identity matches `DEVICE_ID`. Do not make a self-signed certificate and assume the cloud trusts it. Do not copy a production device private key to an app or backend.
 

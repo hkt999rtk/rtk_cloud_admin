@@ -19,9 +19,7 @@ verification: Source review and local tests; live environment qualification pend
 
 A Shadow is a stored JSON state document, not a connection or a queue of commands. A device can disconnect while the requested state remains available for later reconciliation.
 
-![The application requests a state change; the device reports the state only after applying it.](assets/shadow-sync.svg)
-
-[Open full-size diagram](assets/shadow-sync.svg) · [Mermaid source](assets/shadow-sync.mmd)
+[Open redesigned sequence diagram](assets/shadow-sync.html)
 
 ## Inside a Shadow document
 

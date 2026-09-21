@@ -19,9 +19,7 @@ verification: Source review and local tests; live environment qualification pend
 
 Goal: complete a real desired → device action → reported cycle using a dedicated named Shadow. Complete [setup](before-you-start.en.md) and [authentication](authentication.en.md), including separate app and device token files. Both principals must target the same device and Brand Cloud with `mqtt` and `iot_shadow` enabled.
 
-![The application requests a state change; the device reports the state only after applying it.](assets/shadow-sync.svg)
-
-[Open full-size diagram](assets/shadow-sync.svg) · [Mermaid source](assets/shadow-sync.mmd)
+[Open redesigned sequence diagram](assets/shadow-sync.html)
 
 ## 1. Subscribe before sending
 

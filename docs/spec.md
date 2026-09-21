@@ -584,6 +584,18 @@ Environment variables:
 - `BILLING_SERVICE_TOKEN`: dedicated service credential; Cloud Admin sends the resolved actor and one exact billing permission separately.
 - `VIDEO_CLOUD_BASE_URL`: optional upstream Video Cloud URL.
 - `VIDEO_CLOUD_ADMIN_TOKEN`: optional upstream Video Cloud admin token.
+- `VIDEO_CLOUD_BRAND_WEBHOOK_BFF_TOKEN`: optional dedicated credential for
+  tenant-scoped brand webhook management. It must match Video Cloud's value;
+  the general Video Cloud admin token is not accepted for this operation.
+
+An eligible Brand Cloud owner can manage the tenant-scoped event webhook from
+Cloud Settings. The page reads the owner-checked BFF route, sends the observed
+ownership version for register/disable, and can inspect attempt receipts by
+event ID, with each result labeled by device when an ID is reused. The signing secret is submitted only when registering or replacing
+the HTTPS endpoint; neither the read route nor the page displays it afterward.
+RTK's delivery receipt does not assert APNs/FCM or mobile-app delivery. If the
+Video Cloud feature or dedicated BFF credential is absent, the page reports the
+service as unavailable rather than falling back to the general admin token.
 - `SDK_PORTAL_BASE_URL`: allowlisted Realtek Connect+ Portal origin used by the
   global SDK catalog BFF and terms/download links. Cloud Admin receives no SDK
   Object Storage credential.

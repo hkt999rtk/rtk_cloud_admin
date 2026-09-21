@@ -30,9 +30,7 @@ Read this as a dependency map for the MQTT path, not a guaranteed network timing
 
 Locate the first failed observable interaction using the same test device and named Shadow as the [two-principal example](app-device-example.en.md). Retain UTC timestamps and process roles. Use a private local working directory; do not enable verbose credential-bearing request logging in a shared console.
 
-![A diagnostic read distinguishes transport acknowledgement from a Shadow response.](assets/diagnostic-read.svg)
-
-[Full-size diagram](assets/diagnostic-read.svg) · [Mermaid source](assets/diagnostic-read.mmd)
+[Open redesigned sequence diagram](assets/diagnostic-read.html)
 
 ## Check configuration without printing secrets
 

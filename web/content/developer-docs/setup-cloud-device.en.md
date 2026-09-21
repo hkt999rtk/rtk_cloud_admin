@@ -24,9 +24,7 @@ verification: Source/API review; automated sample checks; dev broker configurati
 
 Finish with one enabled registry device, its mapped cloud `devid`, a successful provisioning result, and an authorized application user. Use a dedicated test device with factory identity and valid Claim Token, a verified account, and permission to manage the target Cloud/Product. Obtain the Account Manager public HTTPS origin and CA bundle from your environment's connection handoff.
 
-![Cloud and device setup separates claim resolution from asynchronous activation.](assets/first-device.svg)
-
-[Open full-size diagram](assets/first-device.svg) · [Mermaid source](assets/first-device.mmd)
+[Open redesigned sequence diagram](assets/first-device.html)
 
 ## 1. Create or select a Brand Cloud and Product
 
