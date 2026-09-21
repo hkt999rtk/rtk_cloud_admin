@@ -30,9 +30,7 @@ The supervisor owns credential lifetime, retry budgets and worker cleanup. The w
 
 Keep a device integration working beyond one token lifetime. Prepare the certificate, private key, server CA and role-specific mTLS endpoint through [Credential Setup](credential-setup.en.md). Use the [downloadable simulator](app-device-example.en.md) as the worker; the recovery runner below supervises that simulated device. Production firmware must preserve its real hardware state rather than resetting simulated power at process startup.
 
-![Renewal distinguishes valid-token reissue, certificate bootstrap and terminal authorization denial.](assets/credential-renewal.svg)
-
-[Full-size diagram](assets/credential-renewal.svg) · [Mermaid source](assets/credential-renewal.mmd)
+[Open redesigned sequence diagram](assets/credential-renewal.html)
 
 ## Credential lifetime rules
 
@@ -69,9 +67,7 @@ For a short run no renewal may occur. Let it run past the returned lifetime to q
 
 ## Network changes and reconnect reconciliation
 
-![After network loss the device restores exact subscriptions and reads current desired state.](assets/network-recovery.svg)
-
-[Full-size diagram](assets/network-recovery.svg) · [Mermaid source](assets/network-recovery.mmd)
+[Open redesigned sequence diagram](assets/network-recovery.html)
 
 A DNS change, Wi-Fi switch or socket close requires a fresh transport connection. Use current endpoint settings and TLS verification, allow DNS to resolve again, and avoid concurrent clients using one Client ID. After CONNACK, wait for SUBACK, GET and establish a fresh state baseline, then consume deltas. Do not assume clean-session offline delivery or replay every missed delta.
 

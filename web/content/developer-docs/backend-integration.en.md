@@ -43,9 +43,7 @@ Read or update a device Shadow from a backend that already has authority for the
 
 An Account Manager admin role and a Video Cloud runtime admin token are different authorities. Do not copy app/device private keys, scrape browser cookies, or expose privileged orchestration tokens to a frontend. If your backend has no approved identity/delegation path, obtain that service integration from the operator before starting; the API examples cannot manufacture authorization.
 
-![A trusted backend obtains a scoped bundle and performs a signed request after authorizing its caller.](assets/backend-shadow.svg)
-
-[Open full-size diagram](assets/backend-shadow.svg) · [Mermaid source](assets/backend-shadow.mmd)
+[Open redesigned sequence diagram](assets/backend-shadow.html)
 
 ## 1. Trusted orchestration: acquire a device-bound bundle
 

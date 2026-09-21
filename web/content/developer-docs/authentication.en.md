@@ -20,9 +20,7 @@ verification: Source review and local tests; live environment qualification pend
 
 A verified device certificate identifies the device. An app certificate identifies the application user; an app runtime token is additionally bound to the requested device. Keep these two identities separate when testing.
 
-![A client exchanges its certificate identity for a token, then authenticates an MQTT connection.](assets/authentication.svg)
-
-[Open full-size diagram](assets/authentication.svg) · [Mermaid source](assets/authentication.mmd)
+[Open redesigned sequence diagram](assets/authentication.html)
 
 ## Authentication boundaries
 

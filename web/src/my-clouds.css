@@ -20,3 +20,4 @@
   text-decoration: none;
 }
 .cloud-console-shell .my-clouds-main a.my-clouds-open-action:hover { background: #dbeeff; border-color: #5899d1; }
+.brand-webhook-settings h3{font-size:16px;margin:22px 0 6px}.brand-webhook-settings .brand-webhook-error{color:#9a2530}.brand-webhook-confirm{border:1px solid #e3b0b7;background:#fff8f8;border-radius:8px;padding:14px;margin:16px 0}.brand-webhook-receipts{border-top:1px solid #dce3ec;margin-top:24px;padding-top:4px}.brand-webhook-receipt-list{overflow-x:auto}.brand-webhook-receipt-list table{border-collapse:collapse;width:100%;min-width:520px}.brand-webhook-receipt-list th,.brand-webhook-receipt-list td{text-align:left;border-bottom:1px solid #dce3ec;padding:9px 12px}.brand-webhook-receipt-list th{color:#56647a;font-weight:650}

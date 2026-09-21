@@ -21,9 +21,7 @@ verification: Source review and local tests; live environment qualification pend
 
 Prerequisites: current credentials, authorized exact subscriptions, and firmware that can read actual hardware state.
 
-![The device reads current state after reconnecting instead of relying on replay of offline notifications.](assets/shadow-offline.svg)
-
-[Open full-size diagram](assets/shadow-offline.svg) · [Mermaid source](assets/shadow-offline.mmd)
+[Open redesigned sequence diagram](assets/shadow-offline.html)
 
 1. Connect and subscribe before reading state.
 2. GET the named or unnamed Shadow you use. Treat 404 as missing state, not a transport failure.
@@ -35,9 +33,7 @@ Reproduce this with the [Shadow Quickstart](shadow-quickstart.en.md): stop the o
 
 ## Handle version conflicts
 
-![Two writers resolve a stale version through a fresh read and an application decision.](assets/shadow-conflict.svg)
-
-[Open full-size diagram](assets/shadow-conflict.svg) · [Mermaid source](assets/shadow-conflict.mmd)
+[Open redesigned sequence diagram](assets/shadow-conflict.html)
 
 Read a current version and send two updates with that same version. The first must succeed and the second must return 409. For the HTTP helper from [the interface guide](shadow-interfaces.en.md):
 

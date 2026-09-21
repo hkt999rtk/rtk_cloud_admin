@@ -23,9 +23,7 @@ verification: Source review and local package checks; live lifecycle qualificati
 
 Turn an integration into reproducible evidence. [Download the test/example package](assets/shadow-demo.zip), install `requirements.txt`, and prepare independent app/device token files plus the environment settings from [Before You Start](before-you-start.en.md). `verify.py` uses the pinned MQTT client and exact topics. It never acquires privileged credentials or changes account ownership.
 
-![The kit checks independent identities and reads before an explicitly selected control exercise.](assets/integration-checks.svg)
-
-[Full-size diagram](assets/integration-checks.svg) · [Mermaid source](assets/integration-checks.mmd)
+[Open redesigned sequence diagram](assets/integration-checks.html)
 
 ## Architecture and responsibility boundaries
 

@@ -30,6 +30,11 @@ type OTAResponse struct {
 	Header     http.Header
 }
 
+type BrandWebhookResponse struct {
+	StatusCode int
+	Body       []byte
+}
+
 type OTAConfig struct {
 	SystemMaxRateLimitPerMinute int `json:"system_max_rate_limit_per_minute"`
 	DefaultRateLimitPerMinute   int `json:"default_rate_limit_per_minute"`
@@ -401,6 +406,49 @@ func (c *Client) DoOTA(ctx context.Context, method, path, adminToken, brandCloud
 		return OTAResponse{}, err
 	}
 	return OTAResponse{StatusCode: resp.StatusCode, Body: raw, Header: resp.Header.Clone()}, nil
+}
+
+// DoBrandWebhook exposes only the subscription and receipt operations. The
+// caller resolves brandCloudID from Account Manager, never from browser JSON.
+func (c *Client) DoBrandWebhook(ctx context.Context, method, eventID, token, brandCloudID string, body []byte) (BrandWebhookResponse, error) {
+	if !c.Enabled() {
+		return BrandWebhookResponse{}, fmt.Errorf("video cloud base URL is not configured")
+	}
+	if token == "" || brandCloudID == "" {
+		return BrandWebhookResponse{}, fmt.Errorf("brand webhook service credential and cloud ID are required")
+	}
+	path := "/v1/brand/webhook/subscription"
+	if eventID == "" {
+		if method != http.MethodGet && method != http.MethodPut && method != http.MethodDelete {
+			return BrandWebhookResponse{}, fmt.Errorf("invalid brand webhook method")
+		}
+	} else {
+		if method != http.MethodGet || len(eventID) > 128 || strings.ContainsAny(eventID, "/?#") {
+			return BrandWebhookResponse{}, fmt.Errorf("invalid brand webhook receipt request")
+		}
+		path = "/v1/brand/webhook/events/" + url.PathEscape(eventID) + "/receipts"
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return BrandWebhookResponse{}, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if len(body) > 0 {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Brand-Cloud-ID", brandCloudID)
+	correlation.ApplyHeaders(ctx, req)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return BrandWebhookResponse{}, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return BrandWebhookResponse{}, err
+	}
+	return BrandWebhookResponse{StatusCode: resp.StatusCode, Body: raw}, nil
 }
 
 func (c *Client) OTAConfig(ctx context.Context, adminToken, brandCloudID string) (OTAConfig, error) {

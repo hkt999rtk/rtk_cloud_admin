@@ -49,9 +49,7 @@ Keep last-observed timestamps and source alongside status. A cached `reported.po
 
 ## One replaceable owner transport
 
-![WebSocket takes priority over MQTT owner transport, and commands target only the active owner.](assets/presence-owner.svg)
-
-[Full-size diagram](assets/presence-owner.svg) · [Mermaid source](assets/presence-owner.mmd)
+[Open redesigned sequence diagram](assets/presence-owner.html)
 
 The canonical device transport contract permits at most one active owner per device. WebSocket has priority over MQTT. A new WebSocket owner can replace an MQTT owner; a new MQTT session must not replace an existing WebSocket owner. Reconnect within the same transport replaces the previous session. These are owner-transport rules, not a ban on separate authorized Shadow observer connections.
 

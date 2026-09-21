@@ -19,9 +19,7 @@ verification: Source review and local tests; live environment qualification pend
 
 Goal: receive `{"temperature_c":23}` on an application-defined topic. Complete [authentication](authentication.en.md) first. Both connections below use the test device token and distinct role suffixes; this isolates MQTT mechanics before adding a second principal in the Shadow tutorial.
 
-![A subscriber confirms its subscription before the publisher sends a message.](assets/mqtt-exchange.svg)
-
-[Open full-size diagram](assets/mqtt-exchange.svg) · [Mermaid source](assets/mqtt-exchange.mmd)
+[Open redesigned sequence diagram](assets/mqtt-exchange.html)
 
 ## 1. Start a subscriber
 

@@ -26,9 +26,7 @@ verification: Source/API review; automated sample checks; dev broker configurati
 
 Select client settings from the target environment's connection handoff and understand which limits are contractual. The observed values below were read from the existing dev broker on **2026-09-04**. They are configuration evidence, not a production capacity guarantee or proof of end-to-end delivery for every MQTT feature.
 
-![Client setup checks endpoint, credentials, subscription authorization and application response independently.](assets/connection-check.svg)
-
-[Open full-size diagram](assets/connection-check.svg) · [Mermaid source](assets/connection-check.mmd)
+[Open redesigned sequence diagram](assets/connection-check.html)
 
 ## Required connection handoff
 
