@@ -196,3 +196,90 @@ func TestSchemaMaintenanceExpiresLoginSessionsOnce(t *testing.T) {
 		t.Fatalf("restart expired new session: count=%d error=%v", count, err)
 	}
 }
+
+func TestSchemaMaintenanceRejectsIncompatibleOrUnavailableDatabase(t *testing.T) {
+	for _, scenario := range []string{"future version", "restored index", "closed database"} {
+		t.Run(scenario, func(t *testing.T) {
+			s, err := Open(t.TempDir() + "/schema.db")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.Close()
+			if err := s.Migrate(); err != nil {
+				t.Fatal(err)
+			}
+			switch scenario {
+			case "future version":
+				if _, err := s.db.Exec(`INSERT INTO schema_migrations VALUES(12,'future','now')`); err != nil {
+					t.Fatal(err)
+				}
+				r, err := s.CheckSchemaMaintenance()
+				if err != nil || r.Ready || len(r.Blockers) != 1 {
+					t.Fatalf("future database accepted: report=%+v err=%v", r, err)
+				}
+				if err := s.ApplyMigrations(); err == nil {
+					t.Fatal("offline migration accepted a future schema")
+				}
+			case "restored index":
+				if _, err := s.db.Exec(`CREATE INDEX idx_readiness_facts_device ON readiness_facts(device_id)`); err != nil {
+					t.Fatal(err)
+				}
+			case "closed database":
+				if err := s.Close(); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := s.CheckSchemaMaintenance(); err == nil {
+					t.Fatal("unavailable database reported successful preflight")
+				}
+			}
+			if err := s.VerifySchemaMaintenance(); err == nil {
+				t.Fatal("invalid database passed verification")
+			}
+			if err := s.Migrate(); err == nil {
+				t.Fatal("normal startup accepted an incompatible database")
+			}
+		})
+	}
+}
+
+func TestSchemaMaintenanceFailureRollsBackCleanupAndCanRetry(t *testing.T) {
+	s, err := Open(t.TempDir() + "/retry.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	for _, m := range migrations {
+		if m.version < 11 {
+			applyMigrationFixture(t, s, m)
+		}
+	}
+	if _, err := s.db.Exec(`
+INSERT INTO sessions VALUES('session','brand_cloud_user','old-user','old@example.com','access','refresh','cloud','later','now');
+CREATE TRIGGER fail_migration_record BEFORE INSERT ON schema_migrations WHEN NEW.version=11
+BEGIN SELECT RAISE(ABORT,'fixture migration record failure'); END;`); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ApplyMigrations(); err == nil || !strings.Contains(err.Error(), "fixture migration record failure") {
+		t.Fatalf("expected cleanup transaction failure, got %v", err)
+	}
+	r, err := s.CheckSchemaMaintenance()
+	if err != nil || r.Version != 10 || len(r.Rows) != 4 || !r.Ready {
+		t.Fatalf("failed cleanup changed catalog: report=%+v err=%v", r, err)
+	}
+	var sessions int
+	if err := s.db.QueryRow(`SELECT count(*) FROM sessions`).Scan(&sessions); err != nil || sessions != 1 {
+		t.Fatalf("failed cleanup removed sessions: count=%d err=%v", sessions, err)
+	}
+	if _, err := s.db.Exec(`DROP TRIGGER fail_migration_record`); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ApplyMigrations(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.VerifySchemaMaintenance(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.db.QueryRow(`SELECT count(*) FROM sessions`).Scan(&sessions); err != nil || sessions != 0 {
+		t.Fatalf("retry did not expire sessions: count=%d err=%v", sessions, err)
+	}
+}

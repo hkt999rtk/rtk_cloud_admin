@@ -37,7 +37,7 @@
 | `rtk_cloud_admin/internal/readinessfacts` | 86.0% |
 | `rtk_cloud_admin/internal/reportstorage` | 87.1% |
 | `rtk_cloud_admin/internal/sdkportalclient` | 84.3% |
-| `rtk_cloud_admin/internal/store` | 79.2% |
+| `rtk_cloud_admin/internal/store` | 80.4% |
 | `rtk_cloud_admin/internal/videoclient` | 86.7% |
 
 ## Artifact Policy
