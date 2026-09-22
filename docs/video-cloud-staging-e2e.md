@@ -78,9 +78,10 @@ write redacted summaries:
 
 - `GET /api/devices/{devid}/telemetry?org_id=...`
 - `GET /api/fleet/stream-stats?org_id=...&window=7d|30d&devices=...`
-- `POST /enum_firmware`
-- `POST /query_firmware_rollout`
-- `POST /query_firmware_campaign`
+- `GET /v1/ota/products/{product_id}/releases`
+- `GET /v1/ota/products/{product_id}/campaigns`
+
+Set `E2E_PRODUCT_ID` to the selected Product for the OTA diagnostics.
 
 Diagnostic status values distinguish `auth_failed`, `not_found`,
 `source_unavailable`, `empty_data`, `unexpected_schema`, and successful `ok`

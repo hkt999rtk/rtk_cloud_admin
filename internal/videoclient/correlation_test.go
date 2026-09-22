@@ -20,7 +20,7 @@ func TestClientPropagatesCorrelationHeaders(t *testing.T) {
 		if got := r.Header.Get("X-Operation-Id"); got != "op-1" {
 			t.Fatalf("X-Operation-Id = %q, want op-1", got)
 		}
-		_, _ = w.Write([]byte(`{"status":"ok","versions":[],"releases":[]}`))
+		_, _ = w.Write([]byte(`{"items":[]}`))
 	}))
 	defer upstream.Close()
 
@@ -29,7 +29,7 @@ func TestClientPropagatesCorrelationHeaders(t *testing.T) {
 		TraceID:     "trace-1",
 		OperationID: "op-1",
 	})
-	if _, err := New(upstream.URL).EnumFirmware(ctx, "admin-token", "model-a"); err != nil {
-		t.Fatalf("EnumFirmware: %v", err)
+	if _, err := New(upstream.URL).ListOTAReleases(ctx, "admin-token", "brand", "product"); err != nil {
+		t.Fatalf("ListOTAReleases: %v", err)
 	}
 }

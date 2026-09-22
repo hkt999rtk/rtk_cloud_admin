@@ -792,12 +792,6 @@ func TestTelemetryPayloadAndSummaryHelpers(t *testing.T) {
 func TestFirmwareReadModelHelpers(t *testing.T) {
 	t.Parallel()
 
-	if got := latestFirmwareVersion(videoclient.FirmwareEnumResponse{Versions: []string{"v1.0.0", " v1.2.0 "}}); got != "v1.2.0" {
-		t.Fatalf("latestFirmwareVersion versions = %q", got)
-	}
-	if got := latestFirmwareVersion(videoclient.FirmwareEnumResponse{Releases: []videoclient.FirmwareRelease{{Version: "v1.2.9"}, {Version: "v1.10.0"}, {Version: ""}}}); got != "v1.10.0" {
-		t.Fatalf("latestFirmwareVersion releases = %q", got)
-	}
 	for _, state := range []string{"draft", "scheduled", "active", "paused", "completed", "canceled"} {
 		if !isVisibleFirmwareCampaignState(state) {
 			t.Fatalf("campaign state %q should be visible", state)
@@ -809,31 +803,7 @@ func TestFirmwareReadModelHelpers(t *testing.T) {
 		}
 	}
 
-	rollouts := []videoclient.FirmwareRolloutRecord{
-		{DeviceID: "vc-2", AccountDeviceID: "dev-2", DeviceName: "Camera B", CurrentVersion: "v1.0.0", TargetVersion: "v1.2.0", RolloutStatus: "applied", UpdatedAt: "2026-05-08T00:00:00Z"},
-		{DeviceID: "vc-1", DeviceName: "Camera A", TargetVersion: "v1.2.0", Status: "failed", Reason: "offline", LastUpdated: "2026-05-07T00:00:00Z"},
-		{DeviceID: "vc-3", DeviceName: "Camera C", TargetVersion: "v1.2.0", Status: "eligible", LastUpdated: "2026-05-06T00:00:00Z"},
-		{DeviceID: "vc-4", DeviceName: "Camera D", TargetVersion: "v1.2.0", Status: "mystery"},
-	}
-	campaign := summarizeFirmwareCampaign(videoclient.FirmwareCampaignRecord{CampaignID: "camp-1", TargetVersion: "v1.2.0", UpdatedAt: "2026-05-09T00:00:00Z"}, rollouts)
-	if campaign.CampaignID != "camp-1" || campaign.Policy != "normal" || campaign.State != "active" {
-		t.Fatalf("campaign defaults = %#v", campaign)
-	}
-	if campaign.Applied != 1 || campaign.Failed != 1 || campaign.Pending != 2 || campaign.Total != 4 {
-		t.Fatalf("campaign counts = %#v", campaign)
-	}
-	if campaign.UpdatedAt != "2026-05-09T00:00:00Z" {
-		t.Fatalf("campaign updated_at = %q", campaign.UpdatedAt)
-	}
-	if campaign.Rollouts[0].DeviceName != "Camera B" || campaign.Rollouts[1].FailureReason != "offline" {
-		t.Fatalf("rollout ordering/details = %#v", campaign.Rollouts)
-	}
-	if got := summarizeFirmwareCampaign(videoclient.FirmwareCampaignRecord{}, nil); got.CampaignID != "" {
-		t.Fatalf("empty campaign = %#v", got)
-	}
-	if got := oldestFirmwareTimestamp(rollouts); got.Format(time.RFC3339) != "2026-05-06T00:00:00Z" {
-		t.Fatalf("oldestFirmwareTimestamp = %s", got.Format(time.RFC3339))
-	}
+	campaign := contracts.FirmwareDistributionCampaign{CampaignID: "canonical"}
 	if !parseFirmwareTimestamp("not-a-time").IsZero() {
 		t.Fatalf("invalid timestamp should parse to zero")
 	}
@@ -847,13 +817,7 @@ func TestFirmwareReadModelHelpers(t *testing.T) {
 	if dist.OrgID != "org-acme" || len(dist.Versions) != 3 || dist.Versions[0].Version != "v1.2.0" || !dist.Versions[0].IsLatest {
 		t.Fatalf("firmware distribution = %#v", dist)
 	}
-	if !matchesFirmwareRolloutDevice(devices[0], videoclient.FirmwareRolloutRecord{DeviceID: "vc-1"}) || !matchesFirmwareRolloutDevice(devices[1], videoclient.FirmwareRolloutRecord{AccountDeviceID: "dev-2"}) {
-		t.Fatalf("matchesFirmwareRolloutDevice failed")
-	}
-	keys := firmwareCampaignKeys("camp-1", " ", "camp-1", "camp-2")
-	if len(keys) != 2 || keys[0] != "camp-1" || keys[1] != "camp-2" {
-		t.Fatalf("firmwareCampaignKeys = %#v", keys)
-	}
+
 }
 
 func TestCanonicalFirmwareCampaignSummary(t *testing.T) {

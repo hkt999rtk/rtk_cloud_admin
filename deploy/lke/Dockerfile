@@ -11,6 +11,7 @@ FROM golang:1.26-bookworm AS builder
 WORKDIR /src
 COPY . .
 COPY --from=web /src/web/dist /src/web/dist
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o /out/schema-maintenance ./cmd/schema-maintenance
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o /out/rtk-cloud-admin ./cmd/server
 
 FROM debian:bookworm-slim
@@ -22,6 +23,7 @@ RUN apt-get update \
     && useradd -r -u 10001 app \
     && chown app:app /app
 
+COPY --from=builder /out/schema-maintenance /app/schema-maintenance
 COPY --from=builder /out/rtk-cloud-admin /app/rtk-cloud-admin
 COPY --from=web /src/web/dist /app/web/dist
 

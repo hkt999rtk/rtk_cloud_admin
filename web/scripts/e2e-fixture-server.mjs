@@ -96,7 +96,6 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/v1/developer/chipsets' || url.pathname.startsWith('/v1/developer/chipsets/')) return handleDeveloperChipsets(req, res, url);
     if (url.pathname.startsWith('/v1/developer/')) return handleDeveloperResource(req, res, url);
     if (url.pathname.startsWith('/v1/ota/')) return handleOTA(req, res, url);
-    if (['/enum_firmware', '/query_firmware_rollout', '/query_firmware_campaign'].includes(url.pathname)) return send(res, 200, url.pathname === '/enum_firmware' ? { firmware: [{ version: 'v3.8.0', model: 'RTK-CAM-A' }] } : url.pathname === '/query_firmware_campaign' ? { campaigns: [] } : { rollouts: [] });
     if (url.pathname === '/api/fleet/stream-stats' || url.pathname === '/api/fleet/health-summary') return send(res, 200, { source_status: mode === 'stale' ? 'stale' : 'available', source_freshness: mode === 'stale' ? '2020-01-01T00:00:00Z' : new Date().toISOString(), total: 2, healthy: 1, warning: 1, devices: [] });
     if (url.pathname === '/get_camera_info' && req.method === 'POST') return readBody(req).then((body) => send(res, 200, { status: 'ok', info: { current_transport: 'mqtt', firmware_version: 'v3.8.0', devid: body.devid } }));
     if (url.pathname === '/query_camera_activate' && req.method === 'POST') return readBody(req).then((body) => send(res, 200, { status: 'ok', devices: (body.devices || []).map(() => '1') }));
