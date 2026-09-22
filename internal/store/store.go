@@ -51,6 +51,10 @@ func Open(path string) (*Store, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
+	if _, err := db.Exec(`PRAGMA busy_timeout=5000`); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return &Store{db: db}, nil
 }
 
@@ -58,7 +62,12 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func (s *Store) Migrate() error {
+func (s *Store) Migrate() error { return s.migrate(false) }
+
+// ApplyMigrations requires an offline maintenance window.
+func (s *Store) ApplyMigrations() error { return s.migrate(true) }
+
+func (s *Store) migrate(offline bool) error {
 	if _, err := s.db.Exec(`
 CREATE TABLE IF NOT EXISTS schema_migrations (
 	version INTEGER PRIMARY KEY,
@@ -66,6 +75,26 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 	applied_at TEXT NOT NULL
 );`); err != nil {
 		return err
+	}
+
+	var current int
+	if err := s.db.QueryRow(`SELECT COALESCE(MAX(version),0) FROM schema_migrations`).Scan(&current); err != nil {
+		return err
+	}
+	if current > 0 && current < 11 && !offline {
+		return fmt.Errorf("schema maintenance required: stop writers and run schema-maintenance apply")
+	}
+	if current > migrations[len(migrations)-1].version {
+		return fmt.Errorf("database schema is newer than this binary")
+	}
+	if current < 11 && offline {
+		report, err := s.CheckSchemaMaintenance()
+		if err != nil {
+			return err
+		}
+		if !report.Ready {
+			return fmt.Errorf("schema maintenance blocked: rows=%v dependencies=%v", report.Rows, report.Blockers)
+		}
 	}
 
 	for _, migration := range migrations {
@@ -80,6 +109,22 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 		if err != nil {
 			return err
 		}
+		if migration.version == 11 {
+			// Acquire SQLite's write reservation before repeating the checks.
+			if _, err := tx.Exec(`UPDATE schema_migrations SET name=name WHERE 0`); err != nil {
+				tx.Rollback()
+				return err
+			}
+			report, err := checkSchemaMaintenance(tx)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			if !report.Ready {
+				tx.Rollback()
+				return fmt.Errorf("schema maintenance blocked: rows=%v dependencies=%v", report.Rows, report.Blockers)
+			}
+		}
 		if _, err := tx.Exec(migration.sql); err != nil {
 			_ = tx.Rollback()
 			return err
@@ -92,7 +137,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 			return err
 		}
 	}
-	return nil
+	return s.VerifySchemaMaintenance()
 }
 
 type migration struct {
@@ -350,6 +395,15 @@ CREATE TABLE IF NOT EXISTS batch_job_action_receipts (
 	PRIMARY KEY(job_id,action_key)
 );`,
 	},
+	{version: 11, name: "retire_unused_projections", sql: `
+DROP INDEX IF EXISTS idx_readiness_facts_device;
+DROP TABLE IF EXISTS upstream_operations;
+DROP TABLE IF EXISTS upstream_devices;
+DROP TABLE IF EXISTS upstream_organizations;
+DROP TABLE IF EXISTS platform_admins;
+-- Force reauthentication through the global-user flow after identity cutover.
+DELETE FROM sessions;
+`},
 }
 
 func (s *Store) AppliedMigrations() ([]int, error) {

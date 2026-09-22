@@ -397,9 +397,6 @@ func TestMigrateTracksVersionsAndIsIdempotent(t *testing.T) {
 		t.Fatalf("versions = %#v, want %d migrations", versions, len(migrations))
 	}
 	for _, table := range []string{
-		"upstream_organizations",
-		"upstream_devices",
-		"upstream_operations",
 		"readiness_facts",
 		"integration_settings",
 	} {
@@ -432,7 +429,10 @@ VALUES ('operator@example.com', 'DeviceProvisionRequested', 'dev-upgrade', '2026
 		t.Fatalf("seed v2 fixture: %v", err)
 	}
 
-	if err := st.Migrate(); err != nil {
+	if err := st.Migrate(); err == nil {
+		t.Fatal("online destructive migration accepted")
+	}
+	if err := st.ApplyMigrations(); err != nil {
 		t.Fatalf("Migrate returned error: %v", err)
 	}
 
@@ -454,7 +454,9 @@ VALUES ('operator@example.com', 'DeviceProvisionRequested', 'dev-upgrade', '2026
 	if auditEvents[0].ActorKind != "operator" || auditEvents[0].Result != "accepted" {
 		t.Fatalf("audit defaults after upgrade = %#v", auditEvents[0])
 	}
-	assertTableExists(t, st, "upstream_devices")
+	if err := st.VerifySchemaMaintenance(); err != nil {
+		t.Fatal(err)
+	}
 	assertTableExists(t, st, "readiness_facts")
 }
 

@@ -280,9 +280,7 @@ summarize_upstream_body() {
         status: .status,
         source_status: .source_status,
         source_message: .source_message,
-        versions: (.versions // .releases // [] | length),
-        rollouts: (.rollouts // [] | length),
-        campaigns: (.campaigns // (if .campaign then [.campaign] else [] end) // [] | length)
+        items: (.items // [] | length)
       }' "$body_file" 2>/dev/null || printf '{}'
       ;;
     *)
@@ -308,7 +306,7 @@ classify_upstream_data() {
       }
       ;;
     firmware)
-      jq -e '((.versions // .releases // []) | length > 0) or ((.rollouts // []) | length > 0) or ((.campaigns // []) | length > 0) or (.campaign != null)' "$body_file" >/dev/null 2>&1 || {
+      jq -e '((.items // []) | length > 0)' "$body_file" >/dev/null 2>&1 || {
         printf 'empty_data'
         return
       }
@@ -361,16 +359,21 @@ run_upstream_diagnostics() {
     return
   fi
   log "running redacted Video Cloud upstream diagnostics"
-  local devices_csv model
+  local devices_csv product_id
   devices_csv="$VIDEO_DEVICE_1,$VIDEO_DEVICE_2"
-  model="${E2E_FIRMWARE_MODEL:-RTK-CAM-A}"
+  product_id="${E2E_PRODUCT_ID:-}"
   diagnose_get "upstream telemetry $VIDEO_DEVICE_1" "/api/devices/$VIDEO_DEVICE_1/telemetry?org_id=$ORG_ID" telemetry
   diagnose_get "upstream telemetry $VIDEO_DEVICE_2" "/api/devices/$VIDEO_DEVICE_2/telemetry?org_id=$ORG_ID" telemetry
   diagnose_get "upstream stream 7d" "/api/fleet/stream-stats?org_id=$ORG_ID&window=7d&devices=$devices_csv" stream
   diagnose_get "upstream stream 30d" "/api/fleet/stream-stats?org_id=$ORG_ID&window=30d&devices=$devices_csv" stream
-  diagnose_post "upstream firmware enum $model" "/enum_firmware" "{\"model\":\"$model\"}" firmware
-  diagnose_post "upstream firmware rollout $model" "/query_firmware_rollout" "{\"model\":\"$model\"}" firmware
-  diagnose_post "upstream firmware campaign $model" "/query_firmware_campaign" "{\"model\":\"$model\"}" firmware
+  if [[ -n "$product_id" ]]; then
+    local encoded_product
+    encoded_product="$(jq -rn --arg value "$product_id" '$value|@uri')"
+    diagnose_get "upstream OTA releases" "/v1/ota/products/$encoded_product/releases" firmware
+    diagnose_get "upstream OTA campaigns" "/v1/ota/products/$encoded_product/campaigns" firmware
+  else
+    record_check "upstream OTA diagnostics" "missing_fixture" "E2E_PRODUCT_ID is required" "/v1/ota/products/{product_id}"
+  fi
 }
 
 log "checking service health"

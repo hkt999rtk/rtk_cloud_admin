@@ -462,8 +462,8 @@ Clicking a campaign row opens a device-level breakdown table:
 | Reason | failure or skip reason when available |
 | Last Updated | timestamp |
 
-Data source: `firmware.rollout.status_changed` events per device per campaign,
-and `/query_firmware_rollout` existing route.
+Data source: Product OTA campaigns and their deployment status at
+`GET /v1/ota/campaigns/{campaign_id}/deployments`.
 
 ---
 
@@ -688,10 +688,9 @@ Response:
 }
 ```
 
-Data source: `firmware.version.observed` and `firmware.rollout.status_changed`
-events; existing `/query_firmware_rollout` route from http_api.md. Production
-validation must use observed firmware and rollout facts, not generated fallback
-versions.
+Data source: observed device firmware versions plus Product OTA releases,
+campaigns and deployments. Production validation uses observed current versions
+and persisted deployment state; a target version never implies completion.
 
 ### `GET /api/fleet/stream-stats`
 
