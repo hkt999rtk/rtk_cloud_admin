@@ -2487,11 +2487,11 @@ func (s *Server) runBatchJob(job contracts.BatchJob, accessToken string) {
 	}
 	if job.Type == "firmware_retry" {
 		planID, _ := job.Scope["update_plan_id"].(string)
-		if strings.TrimSpace(planID) == "" || !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+		if strings.TrimSpace(planID) == "" || !s.videoClient.Enabled() || s.videoCloudOTAToken() == "" {
 			_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, 1, 0)
 			return
 		}
-		response, err := s.videoClient.DoOTA(ctx, http.MethodPost, "/v1/ota/campaigns/"+url.PathEscape(planID)+":retry", s.cfg.VideoCloudAdminToken, job.OrganizationID, "batch-retry-"+job.ID, nil)
+		response, err := s.videoClient.DoOTA(ctx, http.MethodPost, "/v1/ota/campaigns/"+url.PathEscape(planID)+":retry", s.videoCloudOTAToken(), job.OrganizationID, "batch-retry-"+job.ID, nil)
 		if err != nil || response.StatusCode < 200 || response.StatusCode >= 300 {
 			_, _ = s.jobs.UpdateBatchJobProgress(job.OrganizationID, job.ID, "failed", 0, 1, 0)
 			return
@@ -3726,7 +3726,7 @@ func (s *Server) apiProductOTA(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+	if !s.videoClient.Enabled() || s.videoCloudOTAToken() == "" {
 		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"status": "fail", "code": "OTA_UNAVAILABLE", "reason": "Video Cloud OTA source is unavailable."})
 		return
 	}
@@ -3736,7 +3736,7 @@ func (s *Server) apiProductOTA(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	response, err := s.videoClient.DoOTA(r.Context(), r.Method, upstreamPath, s.cfg.VideoCloudAdminToken, orgID, r.Header.Get("Idempotency-Key"), body)
+	response, err := s.videoClient.DoOTA(r.Context(), r.Method, upstreamPath, s.videoCloudOTAToken(), orgID, r.Header.Get("Idempotency-Key"), body)
 	result := "succeeded"
 	if err != nil {
 		result = "failed"
@@ -4062,8 +4062,8 @@ func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Reques
 	total := 0
 	quotaStatus := "available"
 	maxRate := 10000
-	if s.videoClient != nil && s.videoClient.Enabled() && strings.TrimSpace(s.cfg.VideoCloudAdminToken) != "" {
-		if otaConfig, configErr := s.videoClient.OTAConfig(r.Context(), s.cfg.VideoCloudAdminToken, org.ID); configErr == nil && otaConfig.SystemMaxRateLimitPerMinute > 0 {
+	if s.videoClient != nil && s.videoClient.Enabled() && s.videoCloudOTAToken() != "" {
+		if otaConfig, configErr := s.videoClient.OTAConfig(r.Context(), s.videoCloudOTAToken(), org.ID); configErr == nil && otaConfig.SystemMaxRateLimitPerMinute > 0 {
 			maxRate = otaConfig.SystemMaxRateLimitPerMinute
 		}
 	}
@@ -4160,7 +4160,7 @@ func (s *Server) firmwareDistributionDevices(ctx context.Context, session store.
 }
 
 func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contracts.Device, orgID, productID string) (contracts.FirmwareDistribution, bool, error) {
-	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+	if !s.videoClient.Enabled() || s.videoCloudOTAToken() == "" {
 		return contracts.FirmwareDistribution{}, false, nil
 	}
 	campaigns, latest, err := s.canonicalFirmwareCampaigns(ctx, devices, orgID, productID)
@@ -4176,6 +4176,10 @@ func (s *Server) proxyFirmwareDistribution(ctx context.Context, devices []contra
 		facts[firmwareDistributionDeviceKey(device)] = version
 	}
 	return buildFirmwareDistribution(orgID, devices, facts, latest, campaigns), true, nil
+}
+
+func (s *Server) videoCloudOTAToken() string {
+	return strings.TrimSpace(firstNonEmpty(s.cfg.VideoCloudOTABFFToken, s.cfg.VideoCloudAdminToken))
 }
 
 func (s *Server) canonicalFirmwareCampaigns(ctx context.Context, devices []contracts.Device, orgID, selectedProduct string) ([]contracts.FirmwareDistributionCampaign, map[string]bool, error) {
@@ -4197,11 +4201,11 @@ func (s *Server) canonicalFirmwareCampaigns(ctx context.Context, devices []contr
 	out := make([]contracts.FirmwareDistributionCampaign, 0)
 	latest := map[string]bool{}
 	for productID := range products {
-		campaigns, err := s.videoClient.ListOTACampaigns(ctx, s.cfg.VideoCloudAdminToken, orgID, productID)
+		campaigns, err := s.videoClient.ListOTACampaigns(ctx, s.videoCloudOTAToken(), orgID, productID)
 		if err != nil {
 			return nil, nil, err
 		}
-		releases, err := s.videoClient.ListOTAReleases(ctx, s.cfg.VideoCloudAdminToken, orgID, productID)
+		releases, err := s.videoClient.ListOTAReleases(ctx, s.videoCloudOTAToken(), orgID, productID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -4220,11 +4224,11 @@ func (s *Server) canonicalFirmwareCampaigns(ctx context.Context, devices []contr
 			if !isVisibleFirmwareCampaignState(campaign.State) {
 				continue
 			}
-			deployments, err := s.videoClient.ListOTADeployments(ctx, s.cfg.VideoCloudAdminToken, orgID, campaign.ID)
+			deployments, err := s.videoClient.ListOTADeployments(ctx, s.videoCloudOTAToken(), orgID, campaign.ID)
 			if err != nil {
 				return nil, nil, err
 			}
-			summary, err := s.videoClient.GetOTACampaignSummary(ctx, s.cfg.VideoCloudAdminToken, orgID, campaign.ID)
+			summary, err := s.videoClient.GetOTACampaignSummary(ctx, s.videoCloudOTAToken(), orgID, campaign.ID)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -4521,7 +4525,7 @@ func (s *Server) customerStreamSourceStatus() (string, string) {
 }
 
 func (s *Server) customerFirmwareSourceStatus(devices []contracts.Device) (string, string) {
-	if !s.videoClient.Enabled() || strings.TrimSpace(s.cfg.VideoCloudAdminToken) == "" {
+	if !s.videoClient.Enabled() || s.videoCloudOTAToken() == "" {
 		return "not_configured", "Firmware observation source is not configured."
 	}
 	if len(devices) == 0 {
