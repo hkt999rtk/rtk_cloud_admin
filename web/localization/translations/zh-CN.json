@@ -317,7 +317,7 @@
     ", a certificate bundle containing the device identity, certificate chain, and private key.": {
       "sourceHash": "c3c425f33457d477e31f3822350f94384fa22188cef3709dcbd466fae052e2d3",
       "fingerprint": "936949911a062e3050279dfef07b7a26889775814173541fea25bb08cf0139c0",
-      "text": "，一个包含装置身份、证书链和私钥的证书捆绑包。",
+      "text": "，一个包含设备身份、证书链和私钥的证书捆绑包。",
       "status": "approved"
     },
     ", and": {
@@ -335,7 +335,7 @@
     ". Each successful device has a folder with": {
       "sourceHash": "18b234568febc761e849abfe5db8d6283f01ba14c1e1bb20f6552bcfa750c263",
       "fingerprint": "b57c0b724f891e0c49b7456c7a377c380ded97a2609e67ed6247f151f68eab86",
-      "text": ".每个成功的装置都有一个资料夹，里面有",
+      "text": ".每个成功的设备都有一个资料夹，里面有",
       "status": "approved"
     },
     ". Next reset:": {
@@ -353,7 +353,7 @@
     ". Runs only in your browser — no messages are published and no Shadow data is changed. Passing does not confirm device connectivity or whether the device accepts the payload. Results appear in the evidence timeline; errors appear above.": {
       "sourceHash": "aa3e2cb6e1dfa4074e9ad5576d634e8bb024a914e998048e2c499276dd006657",
       "fingerprint": "79a5ba1d438b5b43d452c454436ac7e14b274f4fbc9d72b377ad154462e8ac0f",
-      "text": "。仅在浏览器中执行——不会释出讯息，也不会更改影子资料。透过不确定装置连线性或装置是否接受有效载荷。结果会出现在证据时间线中；错误会出现在上方。",
+      "text": "。仅在浏览器中执行——不会释出讯息，也不会更改影子资料。透过不确定设备连接性或设备是否接受有效载荷。结果会出现在证据时间线中；错误会出现在上方。",
       "status": "approved"
     },
     ". Selections are kept across pages and revalidated when saved.": {
@@ -455,19 +455,19 @@
     "A Product is a shared configuration for a device model, not an individual device. It groups the model and cloud services so you can create multiple test devices with the same settings instead of configuring each one separately.": {
       "sourceHash": "a758ace14a4e243db2d36c5489585cad15c6b96bad7da3e084840aa5bd8a9228",
       "fingerprint": "aeba8dd1759d4346381dfddf20b9f04976f878980f6f3ccab3822b465499675d",
-      "text": "产品是装置模型的共享配置，而不是单个装置。它将模型和云服务分组在一起，以便您可以使用相同的设定建立多个测试装置，而不是单独配置每个装置。",
+      "text": "产品是设备模型的共享配置，而不是单个设备。它将模型和云服务分组在一起，以便您可以使用相同的设定建立多个测试设备，而不是单独配置每个设备。",
       "status": "approved"
     },
     "A cloud brings your products and devices together.": {
       "sourceHash": "8c9690f83a45e77e27ed5045dd69925bb964be240f5daba99b0e7811074d738f",
       "fingerprint": "b9c26992895ab126d2a99da92de803f952f27d8663a479edfd39cb1417b4317f",
-      "text": "云将您的产品和装置聚集在一起。",
+      "text": "云将您的产品和设备聚集在一起。",
       "status": "approved"
     },
     "A dedicated workspace for the people building and operating connected products.": {
       "sourceHash": "d88f8624cb6760861cf5a418c5ccf672cd8c0146881592db72c8d8d7fc32baf4",
       "fingerprint": "7fe3ec5fe29d8750877272ff9555479f25d1112f326dca1f6242b6d1eae8ab53",
-      "text": "专为打造及营运联网产品的团队设计的工作空间。",
+      "text": "专为开发和运营互联产品的团队打造的工作空间。",
       "status": "approved"
     },
     "A low balance will not trigger a charge.": {
@@ -593,7 +593,7 @@
     "Add firmware version": {
       "sourceHash": "18950fbcf1f00f2b6e5158c9fea1a095007eee91fc454c2a619f388f8cfa309e",
       "fingerprint": "f1480f1a1d1da8d60827095acec581e4fa0f8f9822c94836fbef99d4c3f54f75",
-      "text": "新增韧体版本",
+      "text": "新增固件版本",
       "status": "approved"
     },
     "Adjust the search text or filters.": {
@@ -737,7 +737,7 @@
     "Ameba PRO2 Firmware Burner": {
       "sourceHash": "07712a517595fdef82815b6187233a7962d530e22f44c3e8513658b8e67c32d5",
       "fingerprint": "7935ef78c18c344fb16ab816e247ef8506758b43c2fb09846fc267462d325b44",
-      "text": "Ameba PRO2韧体烧录器",
+      "text": "Ameba PRO2固件烧录器",
       "status": "approved"
     },
     "America/Los_Angeles": {
@@ -767,13 +767,13 @@
     "An end user can pair devices from multiple clouds. Each cloud only shows the user's device relationships within that cloud.": {
       "sourceHash": "c9cc3edda539c3a178409a767a8b568a7ed306f57ae6ec7ab14b7e8ab246c638",
       "fingerprint": "75fce54b7f4564c32e8fd4edb19af2a40ea26de5e0e160d304ee4695a3f8460f",
-      "text": "终端使用者可以将来自多个云端的装置配对。每个云端只显示使用者在该云端内的装置关系。",
+      "text": "终端使用者可以将来自多个云端的设备配对。每个云端只显示使用者在该云端内的设备关系。",
       "status": "approved"
     },
     "App SDKs are shared across chips. Device packages are shown for the selected chip; the complete bundle contains the entire release. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.": {
       "sourceHash": "3d3aa7465dc5e5909ee9f4fd8e7e73f543d161f4f197cee0ae7f544da43a5f71",
       "fingerprint": "c71afabbb88026f4a09ff992f8f62a40a161819932d11a36cd394feb31e4e8e0",
-      "text": "应用程式SDK在晶片之间共享。显示的是所选晶片的装置包；完整的捆绑包包含整个版本。WebRTC支援覆盖讯号传输或装置答复器整合边界；您的应用程式仍然提供对等连线、媒体引擎、轨道和渲染器。",
+      "text": "应用程式SDK在晶片之间共享。显示的是所选晶片的设备包；完整的捆绑包包含整个版本。WebRTC支援覆盖讯号传输或设备答复器整合边界；您的应用程式仍然提供对等连接、媒体引擎、轨道和渲染器。",
       "status": "approved"
     },
     "Applicable versions": {
@@ -911,7 +911,7 @@
     "Back to Product devices": {
       "sourceHash": "766506cae057a3c54af446dda5b1812216deba8cbf842cfc22c62a1d8cdcf10a",
       "fingerprint": "670ed4c275a0440336113ac5ca44e6a9e381ec215a8c1d2ae598662244559f2c",
-      "text": "返回产品装置",
+      "text": "返回产品设备",
       "status": "approved"
     },
     "Back to documents": {
@@ -1037,7 +1037,7 @@
     "Bind device": {
       "sourceHash": "d3fcb04552a65fade0ad2e8c386f1cdb33981adac9c52ee9ef9b0d04c763d9bd",
       "fingerprint": "f6aaf59a8e2dbe727f4b44d6a192a4429b6438adf55480ab0323ff67cbc685d5",
-      "text": "系结装置",
+      "text": "系结设备",
       "status": "approved"
     },
     "Board": {
@@ -1067,13 +1067,13 @@
     "Bound devices": {
       "sourceHash": "76963ecfeabcaecdd3c3942ecfa08882f47b524d41843f567e33c6bcb7ac0948",
       "fingerprint": "0fb73692816995a9154bec21d1460d87a7eecfb4acb72d99265856bfdb65540c",
-      "text": "已绑定装置",
+      "text": "已绑定设备",
       "status": "approved"
     },
     "Bound, provisioned and online are separate states. Load the downloaded device credentials into your test board or device client to connect it.": {
       "sourceHash": "1932f8a20eeee910d6e6a4cdea579d076555044f4e05e45b68858b9288ef1eb0",
       "fingerprint": "b81e9469ff3459882dd8980623f6b930e10686b065061f8eb6f1e1549f349f66",
-      "text": "系定、配置和线上是不同的状态。将下载的装置凭据载入到您的测试板或装置用户端中以连线它。",
+      "text": "系定、配置和线上是不同的状态。将下载的设备凭据载入到您的测试板或设备用户端中以连接它。",
       "status": "approved"
     },
     "Brand": {
@@ -1169,13 +1169,13 @@
     "Bring operations together": {
       "sourceHash": "6786a1682d60a8202681ed27da94dec0080cfb9b261893acf52ef184585907b7",
       "fingerprint": "a22b87e312dbce8c0e30157e1a79576f9caafac39910d823a4111c615146da3a",
-      "text": "集中管理营运",
+      "text": "统一管理运营",
       "status": "approved"
     },
     "Broker acceptance and device response are reported separately. Test ACLs allow this device’s commands and reports only.": {
       "sourceHash": "889e30fee3671a1ddbe535306b2154fc3469abd0f4dc2539469a226fe3f56541",
       "fingerprint": "3177f33d11ad985328a8731d09dcc669828ae5649728f114b0c7ddbcdd7a26fc",
-      "text": "经纪人接受和装置响应分别报告。测试ACL仅允许此装置的命令和报告。",
+      "text": "经纪人接受和设备响应分别报告。测试ACL仅允许此设备的命令和报告。",
       "status": "approved"
     },
     "Browse all documentation": {
@@ -1205,7 +1205,7 @@
     "Build your product ecosystem": {
       "sourceHash": "cef06aaeb3908510763254e378df26e9804bd8a3b4981f8f8126e9d52c0406a6",
       "fingerprint": "40691ce93fa5b02e905763ba2dbbd4a576790a7f09c738b1064659f971450b05",
-      "text": "建立产品生态系",
+      "text": "构建产品生态系统",
       "status": "approved"
     },
     "Build, burn and test MQTT messaging, synthetic H.264 video, or a live camera.": {
@@ -1217,7 +1217,7 @@
     "Burn firmware": {
       "sourceHash": "7805b7b991fb7c305078a242b6852fd170a65c3392eefbbeebc5413fae46170a",
       "fingerprint": "4cc90ffc835f285bdd2c0cd3b4c5e39b18eb033bbc7055140c532ad9c3bf064f",
-      "text": "烧录韧体",
+      "text": "烧录固件",
       "status": "approved"
     },
     "Burn speed": {
@@ -1271,7 +1271,7 @@
     "Calculating firmware metadata…": {
       "sourceHash": "e95b1ce413a6fe6bc6b2fe4acf50af9e55fd8302d07eafd4743d92004a6ae2de",
       "fingerprint": "b5acead9d144a89817ffd90cb8400c1ce27581b4dfff671986e51b015903e702",
-      "text": "计算韧体元资料...",
+      "text": "计算固件元资料...",
       "status": "approved"
     },
     "Camera 001": {
@@ -1379,7 +1379,7 @@
     "Checking device scope…": {
       "sourceHash": "73c00a63a80ba7e62565fb722dd58d86e3ee640d7942c47d9d38abe7b22698e2",
       "fingerprint": "1b14187e17b2b7537cea7ddb3c7b88b645c40c6d8ba42167e7c50f016929cdeb",
-      "text": "检查装置范围...",
+      "text": "检查设备范围...",
       "status": "approved"
     },
     "Checks that your payload is a valid JSON object within 8 KiB and that": {
@@ -1529,7 +1529,7 @@
     "Close device drawer": {
       "sourceHash": "64599efb670458451c345cc7039ea0b1b28bd33dfab6c2518a000b8d167a10ae",
       "fingerprint": "0a64e6ce898b07a8bb2786c48594144c2256d479b90fb7b80d1a7a7ec059ca57",
-      "text": "关闭装置抽屉",
+      "text": "关闭设备抽屉",
       "status": "approved"
     },
     "Close dialog": {
@@ -1589,13 +1589,13 @@
     "Cloud activation uses a separate clip-encryption key, not the device certificate key. Generate and save a test key, or paste your existing RSA public key. For retries, reuse the original key and activity ID. Private keys never leave this browser.": {
       "sourceHash": "3e10e1fb611563f16421349263d5bbcd5293c04eb136cdafca93cf670790bb51",
       "fingerprint": "80a253e164f66a0135617b27a509ad4935a4c67918e5cf672675b1ba872a1d2a",
-      "text": "云启动使用单独的剪辑加密金钥，而不是装置证书金钥。生成并储存一个测试金钥，或贴上您现有的RSA公钥。要重试，请重复使用原始金钥和活动ID。私钥永远不会离开此浏览器。",
+      "text": "云启动使用单独的剪辑加密金钥，而不是设备证书金钥。生成并储存一个测试金钥，或贴上您现有的RSA公钥。要重试，请重复使用原始金钥和活动ID。私钥永远不会离开此浏览器。",
       "status": "approved"
     },
     "Cloud and product setup, team access, device enrollment, MQTT connections and keep-alives, SDK documentation and console administration carry no separate fee.": {
       "sourceHash": "0c1f73bf471f518605fcd4b9c1cc4498c7641d18a356866fe8431560f02abebd",
       "fingerprint": "fa49d68317a7939574397b7d67f513d6d4ff92a5d38d2fd8ca2d242b56389c03",
-      "text": "云和产品设定、团队访问、装置注册、MQTT连线和保持活度、SDK文件和控制台管理均不收取单独费用。",
+      "text": "云和产品设定、团队访问、设备注册、MQTT连接和保持活度、SDK文件和控制台管理均不收取单独费用。",
       "status": "approved"
     },
     "Cloud concepts": {
@@ -1649,7 +1649,7 @@
     "Clouds, products & devices": {
       "sourceHash": "721d65338c4a2522c791a570d6b88c014677fdca0971f1e9397148dc90cc45cb",
       "fingerprint": "f80d2eee99775f247637d703fe761ab094305f8cdcb00e2c62a66349f4f0c5a2",
-      "text": "云端、产品和装置",
+      "text": "云端、产品和设备",
       "status": "approved"
     },
     "Cluster Nodes": {
@@ -1661,7 +1661,7 @@
     "Collaborate on your cloud using individual developer accounts. Give teammates access to the Products they work on, so they can review device information without sharing the owner's account or exposing unrelated Products.": {
       "sourceHash": "445ad7d9463550e22ba4ecb27f18c2f83a07257144c8f34b3df199a4ce9440b8",
       "fingerprint": "5bb93fa92448bd5f5d2e452d7776dceace4ae0fbd7814e036d2bf5e407cbf2d3",
-      "text": "使用单个开发者帐户在云端进行协作。让团队成员访问他们正在开发的产品，以便他们可以检视装置资讯而不需要共享所有者的帐户或暴露与产品无关的产品。",
+      "text": "使用单个开发者帐户在云端进行协作。让团队成员访问他们正在开发的产品，以便他们可以检视设备资讯而不需要共享所有者的帐户或暴露与产品无关的产品。",
       "status": "approved"
     },
     "Collaborator data is currently unavailable.": {
@@ -1703,7 +1703,7 @@
     "Compact device list": {
       "sourceHash": "395bd9e0d7398a3a279439f7d247df51ba45cf2dc66cf0506d00cec5c10fcb71",
       "fingerprint": "9989a682fb0040ddf6ea39eb2d576e7dcde1dfdbb93494294c4fda67191c3afc",
-      "text": "紧凑型装置列表",
+      "text": "紧凑型设备列表",
       "status": "approved"
     },
     "Company or legal name": {
@@ -1799,31 +1799,31 @@
     "Connect UART": {
       "sourceHash": "c7e3629951ba81f1908d32346e5b4a342e79a525e00ba5ac5fc21a2398f639f8",
       "fingerprint": "b54b6404b5adc70fd3f4bc6d31f44389cbe9ebdaf3b3b06cc5d6578f9ed4f434",
-      "text": "连线UART",
+      "text": "连接UART",
       "status": "approved"
     },
     "Connect UART to start the console": {
       "sourceHash": "394b6507ddb1c70e8a57ac62981ead6be4b45c2a5336ec2ab936c9c919f4c33a",
       "fingerprint": "fd33b5ea46a391ab97dc72b1c43da171769014332342dcfec99fb076572e1b5b",
-      "text": "连线UART以启动控制台",
+      "text": "连接UART以启动控制台",
       "status": "approved"
     },
     "Connect a PRO2 board over USB UART, burn a local firmware image, verify it, and continue in the live serial console—all without installing a desktop application.": {
       "sourceHash": "a807c370f9bb3d4a9b4fd8d3fbb7f2780a000887533c0a6010d5deb832c51c69",
       "fingerprint": "0ad906461c5e78703bcb06316540c46874ec1ed9140f0e26cac31ae9ec2cdb95",
-      "text": "透过USB UART连线PRO2板，烧制本地韧体映像，验证它，并继续在实时串列控制台中操作——所有这些操作均无需安装桌面应用程式。",
+      "text": "透过USB UART连接PRO2板，烧制本地固件映像，验证它，并继续在实时串列控制台中操作——所有这些操作均无需安装桌面应用程式。",
       "status": "approved"
     },
     "Connect a board over USB UART, burn and verify a local firmware image, then continue in the live serial console. Firmware and UART data stay in your browser.": {
       "sourceHash": "f8bc7ccf788115407629e6a51ac2ec758d2d0df50e29194c91fac0dcc44e5cdf",
       "fingerprint": "94fe0ff09d2c0f416950b4b24f446995e841f9c7da9b534ffc5bf2eea78daf6a",
-      "text": "透过USB UART连线一个板子，烧录并验证本地韧体映像，然后继续在实时串列控制台中操作。韧体和UART资料将保留在您的浏览器中。",
+      "text": "透过USB UART连接一个板子，烧录并验证本地固件映像，然后继续在实时串列控制台中操作。固件和UART资料将保留在您的浏览器中。",
       "status": "approved"
     },
     "Connect your PRO2 board": {
       "sourceHash": "7adf642584947670cd9adb71d2e82240eebf125269d62563a12aadcf8870b447",
       "fingerprint": "9cc102c73a2fd95baead0ceb4b7695614e6c6218ba5e94163f433382fa59d7f8",
-      "text": "连线您的PRO2板",
+      "text": "连接您的PRO2板",
       "status": "approved"
     },
     "Connect+": {
@@ -1835,7 +1835,7 @@
     "Connected.": {
       "sourceHash": "426a711a76949aa4887831d68f3f9da0f28e196f5513808b19e01e35e022e870",
       "fingerprint": "ae28062b79c8d74874b4a8044a1d3cc1c11e7dc129e7c58c4b0fc990741a9f62",
-      "text": "随时连线。",
+      "text": "保持连接。",
       "status": "approved"
     },
     "Connection": {
@@ -1865,7 +1865,7 @@
     "Contains a private key. Save it securely before refreshing, leaving this page or changing Product. The server does not retain the private key. Retrying this download uses the same file and does not create another device or key.": {
       "sourceHash": "f13da2b1ff7c2864f16eec7256f2fd956c2c02c29aa947f75ac206079034768a",
       "fingerprint": "125025c3c18296f4c65415c7d3d58b0d0a481d7d5e99ac22553af5abefb68290",
-      "text": "包含一个私钥。在重新整理、离开此页面或更改产品之前，请安全地储存它。伺服器不会保留私钥。重试此下载使用相同的档案，不会建立另一个装置或密钥。",
+      "text": "包含一个私钥。在重新整理、离开此页面或更改产品之前，请安全地储存它。伺服器不会保留私钥。重试此下载使用相同的档案，不会建立另一个设备或密钥。",
       "status": "approved"
     },
     "Continue": {
@@ -1961,7 +1961,7 @@
     "Create test device": {
       "sourceHash": "f4c835c09f7befb719bb404469e0874398230d1dacf3482c72558c2e09b68ce0",
       "fingerprint": "32c1a6b3118ba0126a854d62cd32882c026848e471beac44cf9da245e0bd5296",
-      "text": "建立测试装置",
+      "text": "建立测试设备",
       "status": "approved"
     },
     "Create update plan": {
@@ -2075,7 +2075,7 @@
     "DEVICE WORKFLOW": {
       "sourceHash": "f3a5c2ba805ff860dba1666f9b69b0971fc8f605bf96ac1d96ffa48ff95a3878",
       "fingerprint": "6a963ec809c4a162ab20014044f4b4385ebe2b4a4ed06c59e2b35ac46d8fe011",
-      "text": "装置工作流程",
+      "text": "设备工作流程",
       "status": "approved"
     },
     "DTR/RTS reset": {
@@ -2123,7 +2123,7 @@
     "Deactivate device": {
       "sourceHash": "c8c0f5e2d14d5a3565ef76c88be0c0a2a95a8d606ae485a94c9e089ddd1a18e8",
       "fingerprint": "e9c1e93323de3d03bbabc4ce7b2d02733637aacc397f8fc91be627626409dc11",
-      "text": "停用装置",
+      "text": "停用设备",
       "status": "approved"
     },
     "Dead Lettered": {
@@ -2147,7 +2147,7 @@
     "Define products in your cloud, connect devices to each product, and let end users pair and use those devices through your app.": {
       "sourceHash": "49d58d1e72a880054ec7a2576d17ff7dda84e793080cd7c2cfbb0a1558f665e5",
       "fingerprint": "6f54e0504cb4018e957c9d031abbcf4d0e1e9b966d7edb9136cf95e8f7f3ceb1",
-      "text": "在您的云中定义产品，将装置连线到每个产品，并让终端使用者透过您的应用程式配对和使用这些装置。",
+      "text": "在您的云中定义产品，将设备连接到每个产品，并让终端使用者透过您的应用程式配对和使用这些设备。",
       "status": "approved"
     },
     "Delete": {
@@ -2261,169 +2261,169 @@
     "Device": {
       "sourceHash": "8bb7743cc5e0b69f58c5141fde639650f8034645bfde8f1582a3fe970824ca56",
       "fingerprint": "1becdb6abb8d0e5882a4027786ea01bc1f376c3de00d8c29b8f6c80fb81e8469",
-      "text": "装置",
+      "text": "设备",
       "status": "approved"
     },
     "Device & ChipSet SDKs": {
       "sourceHash": "b1ee8e984390ee5609ce56b1c51a869f0ab603f508b414a0fc5f3de2a0cb6e6e",
       "fingerprint": "b28a2faf68a36db465592dac5f367f94f25f817163a1f67806ad5fe4e5611f42",
-      "text": "装置和晶片组SDK",
+      "text": "设备和晶片组SDK",
       "status": "approved"
     },
     "Device ID": {
       "sourceHash": "33aaa0b45fe1e6e1cb82047ae5df10979163e54dd3601dc43079a58e0c0ef1a8",
       "fingerprint": "abd6286c32fb3584f5f5c2cac41a206dd6f76b8913fab3c490dfdae77ea09dc2",
-      "text": "装置ID",
+      "text": "设备ID",
       "status": "approved"
     },
     "Device Policy": {
       "sourceHash": "0eb04061ed574b7937b3482f2025c17240e3feecbfd18b9eeb0fe171d1c778b6",
       "fingerprint": "4fbe849e87e5caf520d05e25701cc3baa94bd195d669c709bb5d54b8ff818a20",
-      "text": "装置政策",
+      "text": "设备政策",
       "status": "approved"
     },
     "Device Shadow": {
       "sourceHash": "58e85b3dda9eaa31ca3b65c4b7c57c8139d4f4fd583b503efa7edb8baa075fe7",
       "fingerprint": "6ba8799bb7a9530f83f6e3de81a1567f1d8c221f15bb821cfa43560572f50b0b",
-      "text": "装置影子",
+      "text": "设备影子",
       "status": "approved"
     },
     "Device Status": {
       "sourceHash": "9b7749d097bb57d8c5e8372fb79aa128ed64f60a85565f64c3c05583c70742d3",
       "fingerprint": "7f91c1e32ba17f7576cf7671bdf281e34d8d70572dff5a3e6c461d061d6ac24e",
-      "text": "装置状态",
+      "text": "设备状态",
       "status": "approved"
     },
     "Device Status by Region": {
       "sourceHash": "50139220d85e29ddc1d50e500ab555cef59a65deb1a8b9524cb41ae126e43dbb",
       "fingerprint": "66396fdb4ef12d4f9ae4da269ba1fa831277ac65a8cc1c6cde9e475a182c8f9a",
-      "text": "按地区划分的装置状态",
+      "text": "按地区划分的设备状态",
       "status": "approved"
     },
     "Device Tools": {
       "sourceHash": "35222b01f4d22c619818c803ffc3806eaf5a2eba6e08267773b4392d2dde2b8c",
       "fingerprint": "651a39f33d00c1c3beac90c26943ed08e6d9b1582187e6bbe2e493b79e9a6fd7",
-      "text": "装置工具",
+      "text": "设备工具",
       "status": "approved"
     },
     "Device detail": {
       "sourceHash": "17154d0bbf7af2cd19b82debea6efaba318364bba9d90d28c12b0141b1245464",
       "fingerprint": "2242a067de0cdba94446375b48388b8a160d3cf67d40a907977135bf1b5c956a",
-      "text": "装置详情",
+      "text": "设备详情",
       "status": "approved"
     },
     "Device detail drawer": {
       "sourceHash": "85d1b449213a4d7cff6f3563a151e6263b796e891bbdc6aea785d0279e210e33",
       "fingerprint": "ee4a15edad951364b5a286728619ec7e3db963966e923bf562df7772436a7c2c",
-      "text": "装置详细资讯抽屉",
+      "text": "设备详细资讯抽屉",
       "status": "approved"
     },
     "Device is in download mode — start burn": {
       "sourceHash": "fe4da141910fcab87d9ca94d8f56951a42c9a0eba80e938100b1768f52f178e9",
       "fingerprint": "f43d06289e4823e70868be86b2f1600ce5ddd496a9fbbd28372c1179891a5ffd",
-      "text": "装置处于下载模式——开始烧录",
+      "text": "设备处于下载模式——开始烧录",
       "status": "approved"
     },
     "Device live video": {
       "sourceHash": "3b5975789d75aeefd2988c5cb256a2b6166658c6e9fce2316c6760ead99e6f8e",
       "fingerprint": "9a55a68c6fa31b53d1d67e1cfb55a01bdad054ceb2b12c6ada786323dc87f3ab",
-      "text": "装置直播影片",
+      "text": "设备直播影片",
       "status": "approved"
     },
     "Device log retention": {
       "sourceHash": "35f102fbf971d5d82d85019829a5e2bd5137fa5e6ec21cee9834c68f92e58886",
       "fingerprint": "e22ca1645dfe59728188f7b9cd1ac764c42ac71518b65a33c3f9cb41c7827b52",
-      "text": "装置日志保留",
+      "text": "设备日志保留",
       "status": "approved"
     },
     "Device model": {
       "sourceHash": "25a76ca033ca5fe4efccf36adeea2ba3998851ac61627f28f41e7023c6c178b4",
       "fingerprint": "016e6761e4f7f8871e4284d0dacd7a592ee669a8e5016792851be43f15589c88",
-      "text": "装置型号",
+      "text": "设备型号",
       "status": "approved"
     },
     "Device name": {
       "sourceHash": "7f99bcaf0da6a52e16dfa0497040cf8af3d05b4b83b358a077ef262572862c65",
       "fingerprint": "e5a2d746bfc7ef032198d9a87b12510c55e315aa181fb117d551723ccfdd0898",
-      "text": "装置名称",
+      "text": "设备名称",
       "status": "approved"
     },
     "Device output will appear here.": {
       "sourceHash": "ba8640abf077320c1189be1cac34208e4b1dbdd7608e16c385aa57c5546d09e5",
       "fingerprint": "de45f41ee2610a34734711b0ec4d79905d8c68cc6b7ca1302177090b354f9c52",
-      "text": "装置输出将出现在这里。",
+      "text": "设备输出将出现在这里。",
       "status": "approved"
     },
     "Device pages": {
       "sourceHash": "3975a3c6b435c56ddf15d82ba4a4b7df0a77e978720f19d16b08f7f119cd47a8",
       "fingerprint": "6a2b315b8613efdbfaa49e2519645529391a5cdea280db995d0061001fc68206",
-      "text": "装置页面",
+      "text": "设备页面",
       "status": "approved"
     },
     "Device test workspace": {
       "sourceHash": "629a38f3fcad4e50324e5dba345ab8e13f14139eb40d340cc86f1db3c7a94a0a",
       "fingerprint": "63620cf85c14a6f9394685f40aeb6c47b07da7ce6d81f4e27576aea33d3c2b43",
-      "text": "装置测试工作区",
+      "text": "设备测试工作区",
       "status": "approved"
     },
     "Device upgrade details": {
       "sourceHash": "8067533a1f245373cd7bbb2e3523e6208109a47245508f2c8bea2e4f139112c8",
       "fingerprint": "c4277077c98ad9c2deb895092bddd0beffdbdb4135dfb3b714faa12d2dce1313",
-      "text": "装置升级详情",
+      "text": "设备升级详情",
       "status": "approved"
     },
     "Device:": {
       "sourceHash": "2859de187d80cf42469e6e59db8a7fed425a6a69d236447b299f9a5698433935",
       "fingerprint": "7a8ebd36426c5a963959fc4039988d2d6831d6497bbf19a552f4c791bcbb8c80",
-      "text": "装置：",
+      "text": "设备：",
       "status": "approved"
     },
     "Devices": {
       "sourceHash": "25a1f7fa50cde6f6f5a29f895a52ccaa2b323f08d74047e3bd3a00100bb75c54",
       "fingerprint": "0dcc19be0735cde011c37650073b5a301c354bf28601a689508fab2b455893ff",
-      "text": "装置",
+      "text": "设备",
       "status": "approved"
     },
     "Devices in this product": {
       "sourceHash": "3ff3017b383c1db933e2beb761c401573a9ddf133750e0bc89c58ede4ab6f3ca",
       "fingerprint": "b6431cbff9aa04fad6c5fe3b3a5b5574782bdec5212854a6d79546a3105aa97a",
-      "text": "本产品中的装置",
+      "text": "本产品中的设备",
       "status": "approved"
     },
     "Devices needing stream attention": {
       "sourceHash": "9e547bd44e36a2109da740bfcf7cabac357e609b2355f5c2d4da79772ab3c1b0",
       "fingerprint": "ab035288b09bf6e6e7b92d2bbd230862059a04f54fedaa29d1c7b70641c08088",
-      "text": "需要流关注的装置",
+      "text": "需要流关注的设备",
       "status": "approved"
     },
     "Devices ordered by failure rate, worst first.": {
       "sourceHash": "cfc46718004f7998ddbb1089401755bd175b42c10098f978bf0c130cca1c1c6c",
       "fingerprint": "c5a610fa1aa4078a86016dd45c855eacace525a28376229946cd2aa546598380",
-      "text": "按故障率排序的装置，从最差的排到最好的。",
+      "text": "按故障率排序的设备，从最差的排到最好的。",
       "status": "approved"
     },
     "Devices that need attention": {
       "sourceHash": "16dbaac3f9026b2773b30cb50b850d70aa1e6ddda11024c55ab730c5ee20d835",
       "fingerprint": "7b067e018c475df0a473d476b4f091fb56b1c02419282f59f8730a1014282cad",
-      "text": "需要注意的装置",
+      "text": "需要注意的设备",
       "status": "approved"
     },
     "Devices that need attention (": {
       "sourceHash": "fb342b24cfd64057fc29459cc37189de2f1a2988e3bd7e2711df88eeac79df66",
       "fingerprint": "5432ac6b794b7e750ef8a44cea21948eae4a91902780fe24ff511a93ae63d9da",
-      "text": "需要注意的装置（",
+      "text": "需要注意的设备（",
       "status": "approved"
     },
     "Devices/minute": {
       "sourceHash": "e1fe6a1099c04e741e74a00bade2dbdef9bda949b94f886096f7aaadd4190342",
       "fingerprint": "84b718a527940d8f7987a6af72be7ddd0ed6244d64feb1143069fb7044ab8f78",
-      "text": "装置/分钟",
+      "text": "设备/分钟",
       "status": "approved"
     },
     "Different Product hardware models, firmware versions and update plans are independent of each other.": {
       "sourceHash": "69e2dcc206849b2cc79aae9f22cbceb9979d0f50817ac5f1a1aaf5d6f832d239",
       "fingerprint": "fec3eda8b0a7923b6fdebb66843971bda0d971aacfaf4613bbaf80901501c58f",
-      "text": "不同的产品硬体型号、韧体版本和更新计划彼此独立。",
+      "text": "不同的产品硬体型号、固件版本和更新计划彼此独立。",
       "status": "approved"
     },
     "Dimensions": {
@@ -2543,7 +2543,7 @@
     "Download / retry firmware": {
       "sourceHash": "9746eea23ae1901c6d1fdc1d89461b61412f78e8cdc7103f39ec0548d57817ae",
       "fingerprint": "bd369672b0e2ec5154ad0fe53a9961f2eb85a61847058d4d0c208e76a95c4139",
-      "text": "下载/重试韧体",
+      "text": "下载/重试固件",
       "status": "approved"
     },
     "Download CSV": {
@@ -2603,7 +2603,7 @@
     "Drag to pan and scroll to zoom. Marker size represents device count.": {
       "sourceHash": "8352a59c638b765293f70c97d7a027573d7f8b75a2fccda8bec66ceaacdd11ff",
       "fingerprint": "a3f10eb0c1101738ddff1a7a4a068f73f3d56962d900a007c0113940f471451d",
-      "text": "拖动到画布上并滚动以缩放。标记大小表示装置数量。",
+      "text": "拖动到画布上并滚动以缩放。标记大小表示设备数量。",
       "status": "approved"
     },
     "Drag to rotate · Scroll or pinch to zoom · Select a part to explore": {
@@ -2645,7 +2645,7 @@
     "Edit device display": {
       "sourceHash": "80d032eeddb0ee12e0cf8e11642b40c87c46c90455b3e1336764db075df8d5a0",
       "fingerprint": "7db1b1fb5219a5c9c3ac5f984b16c7156a0d6d902b6a89251b96401f08581473",
-      "text": "编辑装置显示屏",
+      "text": "编辑设备显示屏",
       "status": "approved"
     },
     "Editor": {
@@ -2741,7 +2741,7 @@
     "Erase firmware range": {
       "sourceHash": "d90309a0e23279911df4c63d62ad8eedf53f563c9107bcd5d427e03dfac3fe21",
       "fingerprint": "91fcdb1bac224852232634932323612d0b726700cf285bb117b77924d05fbe93",
-      "text": "擦除韧体范围",
+      "text": "擦除固件范围",
       "status": "approved"
     },
     "Erase mode": {
@@ -2819,7 +2819,7 @@
     "Exclude device IDs (comma or space separated)": {
       "sourceHash": "babd7e47f4e7c1cac914bfc7bc8de8e8bf027736be5257346bb0ef4f5cfece8d",
       "fingerprint": "61ae07b6fbbce0fd9c2bdd4729ae2c87bfa3c861114a6e5338380b3392363273",
-      "text": "排除装置ID（用逗号或空格分隔）",
+      "text": "排除设备ID（用逗号或空格分隔）",
       "status": "approved"
     },
     "Excluded": {
@@ -2861,7 +2861,7 @@
     "Explore proposed rates for messaging, device state, video and cloud operations.": {
       "sourceHash": "4c4b913545b45fdc2b9fc3d3a6ada679d413da42fec7bdcdfa35e913ba8df421",
       "fingerprint": "1a673ea160cf6b71c835276d5ba8365f0720d5fcb49373114dc472881a6af435",
-      "text": "探索讯息传送、装置状态、影片和云端运营的拟议费率。",
+      "text": "探索讯息传送、设备状态、影片和云端运营的拟议费率。",
       "status": "approved"
     },
     "Explore the hardware": {
@@ -2891,7 +2891,7 @@
     "FIRMWARE TASK": {
       "sourceHash": "a18b2eaba0311b8c92e6f29d1e08d92c378376469a523b242df05bafc34101f2",
       "fingerprint": "d0378fde49c12d1d20d085cda29eae4299a53ea1bc9581f263522ac29220d2c8",
-      "text": "韧体任务",
+      "text": "固件任务",
       "status": "approved"
     },
     "FPS ·": {
@@ -2957,7 +2957,7 @@
     "Find SDKs, integration guides and technical resources.": {
       "sourceHash": "0a174e0a573acc50b102a09c75521d9dbc3a098d3598fdca7aa584479e8cab3f",
       "fingerprint": "d0e59a9137c5302b4cb8765e24c0259c2bdcc6856c43a58609737e9ab7fe4481",
-      "text": "取得 SDK、整合指南与技术资源。",
+      "text": "查找 SDK、集成指南和技术资源。",
       "status": "approved"
     },
     "Find log events": {
@@ -2981,91 +2981,91 @@
     "Firmware": {
       "sourceHash": "ce6611e9a43d46a9eccbc9a93e9025486fa120e70eadeb0ca0a2733389b7a229",
       "fingerprint": "992dde17a9b65b291e6f4dfcaed4e0bc879e4379c0d9dcd59fc2d86988dba470",
-      "text": "韧体中的程式）",
+      "text": "固件中的程式）",
       "status": "approved"
     },
     "Firmware Coverage": {
       "sourceHash": "9543ed5b0660a33c3a6003d968458d8a4a7e3d4dab42b4c49daee7886e2177f8",
       "fingerprint": "565e716518bbb7b87e745a487a1d5a69ada65197337662eb92bd3dfc0ff645fc",
-      "text": "韧体覆盖范围",
+      "text": "固件覆盖范围",
       "status": "approved"
     },
     "Firmware OTA": {
       "sourceHash": "712360ac811d82eef11f3ad80affc461e5d827381b5626aaf9d3527e4b964223",
       "fingerprint": "cca04094d5b9a44bc92b8f3ac178e1d42620c2749da053dca23f78588e6fea19",
-      "text": "韧体OTA",
+      "text": "固件OTA",
       "status": "approved"
     },
     "Firmware Policy": {
       "sourceHash": "6c7a31c62668b57d7a06e08f7790e9f2aa3d8ae29c80d35e4378d70353cb6607",
       "fingerprint": "2f886c845c7fce15d076d1fdab0c504cefe99d59cda92d5b4b1cdde5939b9f6a",
-      "text": "韧体策略",
+      "text": "固件策略",
       "status": "approved"
     },
     "Firmware Product selector": {
       "sourceHash": "9fa8e20a6d6e84c71d80b068da08aed126c22a7f5bcc2910d7c2689cb543f386",
       "fingerprint": "85a34254929a4454ec4a0b3d5c1eb200ded46ca66359a06d922680c57476378d",
-      "text": "韧体产品选择器",
+      "text": "固件产品选择器",
       "status": "approved"
     },
     "Firmware Update Summary": {
       "sourceHash": "5725fc9eeb1636dec41436dec4a0be8aa6bc7940fba7224bcc8db4bd52da428e",
       "fingerprint": "e282f81c493b546de7f50d9cfcaefb6a84cdecae904c24328d459b3002d3ec9c",
-      "text": "韧体更新摘要",
+      "text": "固件更新摘要",
       "status": "approved"
     },
     "Firmware Version": {
       "sourceHash": "6fe9c679de2d9233d43578590b59a308054eb2a581518da8a3ccd453bb093ebb",
       "fingerprint": "06087b86ba95d1ba0900d2604d42aed020a421d60ee71c543a96defd0d03477b",
-      "text": "韧体版本",
+      "text": "固件版本",
       "status": "approved"
     },
     "Firmware Version Distribution": {
       "sourceHash": "ce51b368d69a4ebbc292d094252888b88fa3f8de1c458adc416b585efd5b8f19",
       "fingerprint": "6b066472175b5a1e196874551f688ec6486e44b78b5a77222f9e9c79f72afd46",
-      "text": "韧体版本分发",
+      "text": "固件版本分发",
       "status": "approved"
     },
     "Firmware binary": {
       "sourceHash": "91cff9867e160578f7de37f3183bfdfe4b5751651479993d81cd3dfc937914fe",
       "fingerprint": "952d66f0822883f6049ced3163e91b5b5a4ff4439aaa2d97ddf57226c8ea7379",
-      "text": "韧体二进位制",
+      "text": "固件二进位制",
       "status": "approved"
     },
     "Firmware binary metadata": {
       "sourceHash": "e693b9df0d903bb79e56e11328ba7ddb79e72af46be1b4962b4468affb399aea",
       "fingerprint": "e8e92281a1d7e28a9c14537d9d78649b532cc5a1f9175b17fe6d7c69f1b6188d",
-      "text": "韧体二进位制元资料",
+      "text": "固件二进位制元资料",
       "status": "approved"
     },
     "Firmware burn progress": {
       "sourceHash": "9a7ad646d3b4c007fd37ad24eba1a9402b911fe33404bc6d5d897707833ab481",
       "fingerprint": "79c04915fbd1ef3107c5b00c689d96ba2993f27371b0cba02a89cfebde62f361",
-      "text": "韧体烧录进度",
+      "text": "固件烧录进度",
       "status": "approved"
     },
     "Firmware image": {
       "sourceHash": "a4fbb497bd253a30f98c14dfcfdf2ea598d21409f5e84e53c9b37503b1e1b5d1",
       "fingerprint": "f70629f6e227d09dfbb10ad1e2db56051c695e5392d17cd767032a4a471a7762",
-      "text": "韧体映像",
+      "text": "固件映像",
       "status": "approved"
     },
     "Firmware protocol events only; firmware and terminal data are excluded.": {
       "sourceHash": "299998140eddde925e3f2d7b2e553d5145a91379d33329c3d9c35556322bc23b",
       "fingerprint": "cbd63a8ec8a44b87ac3db57d045b6c1e89864d899245517d557781c352dd4a01",
-      "text": "仅限韧体协议事件；不包括韧体和终端资料。",
+      "text": "仅限固件协议事件；不包括固件和终端资料。",
       "status": "approved"
     },
     "Firmware update progress": {
       "sourceHash": "0445208caa496ba7d50b7aeb9090793569933173b01ec1179011875c16abfe28",
       "fingerprint": "bc0199cf399d7f3f15ddd538225682d8739aae8b70f7cd994ea28306f80ac23a",
-      "text": "韧体更新进度",
+      "text": "固件更新进度",
       "status": "approved"
     },
     "Firmware versions (comma separated)": {
       "sourceHash": "c71da4fb1161922a7c5461d57c5824de675da06af5676a36bceae7b5bfe55b5c",
       "fingerprint": "55633c92a7271471564a326ea56c083b93bc475ceb64d75aec3ba1fc6dcdda92",
-      "text": "韧体版本（用逗号分隔）",
+      "text": "固件版本（用逗号分隔）",
       "status": "approved"
     },
     "First decoded frame": {
@@ -3095,7 +3095,7 @@
     "Fleet Organization": {
       "sourceHash": "340effeb88ae8b36cf6104739e7c5314be938de29e92073e38e7a70882d78d4c",
       "fingerprint": "0feb2b462b6c22108311eef0681bbee3bc56d5e2b497e91bb4a8bffbc51830d5",
-      "text": "装置群管理",
+      "text": "设备群管理",
       "status": "approved"
     },
     "Fleet health distribution": {
@@ -3125,13 +3125,13 @@
     "For example, create a Product for your camera model and select its services, then request several test devices for it. They share the Product configuration, but each receives its own Device ID, private key, and certificate. No mass-production run is required.": {
       "sourceHash": "ae5cf3ac4f74a8555e0fa2ce6acbd9cb85c361b7708f37b53ff94f598b944d6e",
       "fingerprint": "43c59b48c2b6db67e74d8c68cc56353cf6de9901de305067c1efe743b516adb9",
-      "text": "例如，为您的相机型号建立一个产品，并选择其服务，然后为其请求几个测试装置。它们共享产品配置，但每个装置都收到自己的装置ID、私钥和证书。不需要大规模生产。",
+      "text": "例如，为您的相机型号建立一个产品，并选择其服务，然后为其请求几个测试设备。它们共享产品配置，但每个设备都收到自己的设备ID、私钥和证书。不需要大规模生产。",
       "status": "approved"
     },
     "For this version, use the certificate chain in the JSON bundle; separate CA-chain files, connection-configuration files, and a README are not included. The CSR is not included.": {
       "sourceHash": "82d8a6122efb80f58033bd4de1816961676f58de7e6e8d8be65e2d848df3d3db",
       "fingerprint": "a413fe70d452dfec7eb07e02de64f6ef26657200d02d8c02ed3a9821c89e7e19",
-      "text": "对于此版本，请使用JSON捆绑包中的证书链；不包括单独的CA链档案、连线配置档案和README。不包括CSR。",
+      "text": "对于此版本，请使用JSON捆绑包中的证书链；不包括单独的CA链档案、连接配置档案和README。不包括CSR。",
       "status": "approved"
     },
     "Forgot password?": {
@@ -3167,7 +3167,7 @@
     "General Device": {
       "sourceHash": "fe63a935e54956ae9ab108a98ff05608d1f16498ee21d8b386fe4fdcbf6c2dee",
       "fingerprint": "217802a54d2ac31e42449f0c3d025d61a7a1f1d0f28ee32d493c7262934a6e4b",
-      "text": "通用装置",
+      "text": "通用设备",
       "status": "approved"
     },
     "Generate and download test key": {
@@ -3179,7 +3179,7 @@
     "Generic device": {
       "sourceHash": "39ac531219bac73431ee5cf5d2d39e86bbf41fcd95cf1ea1862d4a8e3751ea66",
       "fingerprint": "151adb0284a26ab722d37e176a7912ed59478fa49ead16a2c36befdd0427f523",
-      "text": "通用装置",
+      "text": "通用设备",
       "status": "approved"
     },
     "Getting product and service settings.": {
@@ -3461,7 +3461,7 @@
     "If your browser shows only a blob: URL, the file has not necessarily been saved. Keep this page open and use Save file… if available. Do not create another device to retry a download.": {
       "sourceHash": "0f78fd50720ec03eea4f95bde4d30289071c51a76e5eea4f65ef656a5b48b83f",
       "fingerprint": "915a6763f6a476c37e34ce10f1906dfc5ee8f0a3b920dbf7165b1447b3eecaa3",
-      "text": "如果您的浏览器只显示一个块：URL，则档案可能尚未储存。请保持此页面开启，并使用「储存档案」……如果可用。不要建立另一个装置来重试下载。",
+      "text": "如果您的浏览器只显示一个块：URL，则档案可能尚未储存。请保持此页面开启，并使用「储存档案」……如果可用。不要建立另一个设备来重试下载。",
       "status": "approved"
     },
     "Illustrative amounts only. Not a tax invoice or payment request. No charge is made by this preview.": {
@@ -3479,7 +3479,7 @@
     "Imaging Device": {
       "sourceHash": "61311fcfb5b8d1e096bb383d2d0f5dc90732b47869bbef6a9d3a4c17cbab42ff",
       "fingerprint": "63ff0aa13e926765e34154692cf0141ac25fe90ce78caac83717572799e7a1ad",
-      "text": "成像装置",
+      "text": "成像设备",
       "status": "approved"
     },
     "Impact preview is currently unavailable.": {
@@ -3503,7 +3503,7 @@
     "Includes each device's identity, certificate, and server-generated private key. The Device ID identifies the device in the cloud and is also recorded in its certificate; you do not need to assign an ID yourself.": {
       "sourceHash": "8bc63bd6b65817aa717df0a06f6d5132ae76f6ca0b655d2dfa0f679dc136b601",
       "fingerprint": "afb23aaa29a53d61de8476fe128edafd622090d68bf6049852741978a4a0ea0c",
-      "text": "包括每个装置的身份、证书和伺服器生成的私钥。装置ID识别云中的装置，也记录在其证书中；您无需自己分配ID。",
+      "text": "包括每个设备的身份、证书和伺服器生成的私钥。设备ID识别云中的设备，也记录在其证书中；您无需自己分配ID。",
       "status": "approved"
     },
     "Includes these three usage items. Video, storage and other services are additional when used.": {
@@ -3623,7 +3623,7 @@
     "Isolated test firmware: cannot connect to your Cloud. Use a locally rebuilt image for your own device credentials.": {
       "sourceHash": "1c1d5452497287abd85a4e3c3949903424d7e61dafee59d0474ed52d122d31d3",
       "fingerprint": "157c23ad555add8ea3cc4b17b1cad1a34bf0ac588d00d0e4f4abc4ee77c5dd75",
-      "text": "孤立测试韧体：无法连线到您的云端。使用本地重建的映像为您的个人装置使用凭据。",
+      "text": "孤立测试固件：无法连接到您的云端。使用本地重建的映像为您的个人设备使用凭据。",
       "status": "approved"
     },
     "Issue": {
@@ -3683,7 +3683,7 @@
     "Keep development moving": {
       "sourceHash": "cbdeaaafc9e701eed6dadd847bfa6859a6da2b4beadd37e1726be1a884577aec",
       "fingerprint": "3c7c5955a46e121ef761bf3f12196f610db430e59d7570d829f8b0afec499de9",
-      "text": "加速开发",
+      "text": "加快开发进度",
       "status": "approved"
     },
     "Keep existing access": {
@@ -3713,13 +3713,13 @@
     "LOCAL DEVICE TOOL · RUNS LOCALLY": {
       "sourceHash": "7598af7f6b2d1923b1edb56a596b041b0ba3b240e8a78f055487ed73966fea0d",
       "fingerprint": "f9be5309e44f8aca95a21270edcadd9c766a7dcd1339b1523e0a91a0d7e4d87b",
-      "text": "本地装置工具·本地执行",
+      "text": "本地设备工具·本地执行",
       "status": "approved"
     },
     "Last 10 telemetry events from this device.": {
       "sourceHash": "3480874d4fae04ee7dc72007e101fa09cdc84fb1397f779c445b9d723ae9c4bb",
       "fingerprint": "569956693862d825354e522e7ccd1ec23ca696f75da59bdcfccfcdf7df1ae087",
-      "text": "此装置的最后10个遥测事件。",
+      "text": "此设备的最后10个遥测事件。",
       "status": "approved"
     },
     "Last Stream": {
@@ -3803,7 +3803,7 @@
     "List devices that failed to update, are waiting, or have an unknown version.": {
       "sourceHash": "3cd57838d099eb90a9d106a54f1d15d8a65badfe09324dffc17a30030ea357ab",
       "fingerprint": "7d43e045699006ab961401b465e8c27a7882490dbc25e9639e1089cd8d1a404e",
-      "text": "列出未能更新、正在等待或版本未知的装置。",
+      "text": "列出未能更新、正在等待或版本未知的设备。",
       "status": "approved"
     },
     "Load desired and version into editor": {
@@ -3815,7 +3815,7 @@
     "Load the matching bundle into your test client, or configure it with the device certificate and private key. Use the Device ID to find the device in the console and correlate requests or logs. Complete any required device claim and account binding separately; downloading credentials does not mean the device is online.": {
       "sourceHash": "f6e15576e33772fa147f0adb4f7635daf628dafa9dc828c3f9b90b7ea690f1be",
       "fingerprint": "6ebdc0efa78283f41d76061bf400bbc7524f60ac9c0fe0c4b5c0960f023a8e78",
-      "text": "将匹配的捆绑包载入到您的测试用户端中，或使用装置证书和私钥配置它。使用装置ID在控制台中查询装置，并对请求或日志进行关联。单独完成任何所需的装置索赔和帐户系结；下载凭据并不意味著装置线上。",
+      "text": "将匹配的捆绑包载入到您的测试用户端中，或使用设备证书和私钥配置它。使用设备ID在控制台中查询设备，并对请求或日志进行关联。单独完成任何所需的设备索赔和帐户系结；下载凭据并不意味著设备线上。",
       "status": "approved"
     },
     "Loading": {
@@ -3917,7 +3917,7 @@
     "Loading devices…": {
       "sourceHash": "56176132556129acc00aa78751e7422c9f187b2b1420d466bb269df07d9544ce",
       "fingerprint": "9762acc3ec0d62bcee6ae6ad828ef9754ed40a901cc21eef7a609ac2156f780f",
-      "text": "载入装置中...",
+      "text": "载入设备中...",
       "status": "approved"
     },
     "Loading documentation…": {
@@ -4007,7 +4007,7 @@
     "Loading telemetry for this device.": {
       "sourceHash": "ecad5e72c673a900aa17b10c96b2c0b4b81a30955d9a749c8649dffbc402bd27",
       "fingerprint": "e55ae8b24ff54309999eb1d4023cca035fc593c0ac303d76284957bed8f8fd45",
-      "text": "正在为此装置载入遥测资料。",
+      "text": "正在为此设备载入遥测资料。",
       "status": "approved"
     },
     "Loading webhook settings…": {
@@ -4019,7 +4019,7 @@
     "Local echo is off. UART data and firmware never leave this browser.": {
       "sourceHash": "52cfcbfc56b858ac975ddde669fdd3c444753f4af2cab091be06101740df3611",
       "fingerprint": "4adf6fbe5b124d4eb796bf22c8a3be0545fb1e1647d077ac54dd00abf4e8962c",
-      "text": "本地回声已关闭。UART资料和韧体永远不会离开此浏览器。",
+      "text": "本地回声已关闭。UART资料和固件永远不会离开此浏览器。",
       "status": "approved"
     },
     "Local preview": {
@@ -4049,7 +4049,7 @@
     "Look up an event ID received by your backend to see RTK delivery attempts, identified by device when an ID is reused. This does not confirm a mobile push was delivered.": {
       "sourceHash": "ab45a07d1ed90e404ab3255a00edb6fe8af8e6061553df1586ae9fd32fcca1a2",
       "fingerprint": "54c2299403c9cbd41fcc90e8e8359441bd778b5159d0594c54ab602f9c0a6719",
-      "text": "查询您的后端收到的事件ID，以检视RTK传送尝试，当ID被重新使用时，装置会识别这些尝试。这并不确认移动推送已传送。",
+      "text": "查询您的后端收到的事件ID，以检视RTK传送尝试，当ID被重新使用时，设备会识别这些尝试。这并不确认移动推送已传送。",
       "status": "approved"
     },
     "Low Balance Threshold (TWD)": {
@@ -4073,7 +4073,7 @@
     "MQTT device": {
       "sourceHash": "8f4feb69b8edd2a1a3386f35721c2c2bb3f1736a095f8855fdfd663bd603f684",
       "fingerprint": "e48400b893b492524194f4fa58d75d3930b86c0c8848e9a135d3d5d79b7216f7",
-      "text": "MQTT装置",
+      "text": "MQTT设备",
       "status": "approved"
     },
     "MQTT messages": {
@@ -4085,7 +4085,7 @@
     "MQTT, H.264 test video and live camera: source, firmware, guides and browser burning.": {
       "sourceHash": "5f941a64a5d35abd2bbd0272216233f4d230bb36b989d04aa18bcb8b73866ef6",
       "fingerprint": "d20934b9622252bae05a055587f50401f990a945872fa0074ebceee973ca974b",
-      "text": "MQTT、H.264测试影片和实时摄像头：源、韧体、指南和浏览器烧录。",
+      "text": "MQTT、H.264测试影片和实时摄像头：源、固件、指南和浏览器烧录。",
       "status": "approved"
     },
     "MQTT:": {
@@ -4133,7 +4133,7 @@
     "Manage product models, enabled services and device access.": {
       "sourceHash": "73c0cb9e00807451c77167803144760370a720cf50a8c672aff370723721cb86",
       "fingerprint": "fc3cc1cd4fb3f1c9b729cedc068d1571c53d7f695df36ea83c097fbcb90d6f40",
-      "text": "管理产品型号、启用服务和装置访问。",
+      "text": "管理产品型号、启用服务和设备访问。",
       "status": "approved"
     },
     "Manage this cloud’s Billing": {
@@ -4151,7 +4151,7 @@
     "Manage your fleet, firmware and cloud services.": {
       "sourceHash": "f947ae97d8daafca70402a328985ec56ca6a5ae72097a36bf23c5722d3a63bd8",
       "fingerprint": "1d8f5188ce500c8f72debed1018fd1623758eec0a2b41b492eba61b4fea5de38",
-      "text": "集中管理设备群、韧体与云端服务。",
+      "text": "统一管理设备、固件和云服务。",
       "status": "approved"
     },
     "Manifest": {
@@ -4265,7 +4265,7 @@
     "Members are developers and operators who use this console. End users pair and use devices through your app; inviting a member here does not pair devices or create an app end-user account.": {
       "sourceHash": "3b4b6612ea3570bb30dc8c27db2db721df0b077eef6c3d9bcc665d6bfca04dbf",
       "fingerprint": "d71334bac53a201600685bbaae2b331802dbdba084f7e45837c5ce4df4191d8b",
-      "text": "会员是使用此控制台的开发人员和运营商。终端使用者透过您的应用程式配对和使用装置；在此处邀请会员不会配对装置或建立应用程式终端使用者帐户。",
+      "text": "会员是使用此控制台的开发人员和运营商。终端使用者透过您的应用程式配对和使用设备；在此处邀请会员不会配对设备或建立应用程式终端使用者帐户。",
       "status": "approved"
     },
     "Members:": {
@@ -4307,7 +4307,7 @@
     "Monitor stream connection reliability and identify devices that need investigation.": {
       "sourceHash": "80a769109bc3b3de0f8366a7614e9919e7d75bea61c78c8a2b96cc760d475f45",
       "fingerprint": "72014d535e636e57f5dc156d6f371027453f917c8843e7283aba297d5fa8aef8",
-      "text": "监控流连线的可靠性，并识别需要调查的装置。",
+      "text": "监控流连接的可靠性，并识别需要调查的设备。",
       "status": "approved"
     },
     "Monitoring": {
@@ -4331,7 +4331,7 @@
     "Multiple devices:": {
       "sourceHash": "4f929488bda90fc17e0dcc26a94617727c28d3eedf985488f215caac1bfdb6cf",
       "fingerprint": "af043542cd7dcc94d9536a427b7d4ca1f105ba43c11e452f3bed57a174ca8867",
-      "text": "多个装置：",
+      "text": "多个设备：",
       "status": "approved"
     },
     "My Role": {
@@ -4445,7 +4445,7 @@
     "Next devices": {
       "sourceHash": "a9c03248c8cc0cba24296c347be3e1c4ab4150d1de627c5c2aab4b159f136cf2",
       "fingerprint": "6bbf7389cb4b9c1283ac1da4d48926c7259015295c41d61322009d6f065fca6a",
-      "text": "下一个装置",
+      "text": "下一个设备",
       "status": "approved"
     },
     "Next members": {
@@ -4535,7 +4535,7 @@
     "No bound test devices in this Product. Create or bind a test device to begin.": {
       "sourceHash": "a26f64f2708b184c82147b633b8884ac8ffcb59a7d50629536c90718e04fcc9b",
       "fingerprint": "e8cfd67807d15734b29dd24518d07c5bf9ad9f59f388d9e7539527b3b4ad0206",
-      "text": "本产品中没有系结测试装置。建立或系结测试装置以开始。",
+      "text": "本产品中没有系结测试设备。建立或系结测试设备以开始。",
       "status": "approved"
     },
     "No clouds in this view": {
@@ -4559,25 +4559,25 @@
     "No device locations have been reported yet.": {
       "sourceHash": "0b0f15ad8ac15d61ca6e95901e5ff87bde59548a69b44f00bcb01e91ec60263e",
       "fingerprint": "1da304018bdcc9ca5f813b2e35d94d8348359422a8c3f751c856123aa3fd8b5d",
-      "text": "尚未报告任何装置位置。",
+      "text": "尚未报告任何设备位置。",
       "status": "approved"
     },
     "No device selected.": {
       "sourceHash": "807821e86ab0acbf2dfb7bdd69d7fc433161435b4c57a42a8fe7fc9d3493d083",
       "fingerprint": "16e268e1673710f7aba0cd303291094373f0cfb79f0b787f63c0172c1c0ce652",
-      "text": "未选择任何装置。",
+      "text": "未选择任何设备。",
       "status": "approved"
     },
     "No devices match your authorized Product scope.": {
       "sourceHash": "0901d9409731b29af80eedf118d209a3ac2013e1ad7d8a2000e77d3566db4f06",
       "fingerprint": "7a6a53806b8efda0357a845f1163f2591def5700d8b23fdb8833a0c12b184c5f",
-      "text": "没有装置符合您的授权产品范围。",
+      "text": "没有设备符合您的授权产品范围。",
       "status": "approved"
     },
     "No devices require attention.": {
       "sourceHash": "83e87043706a8591e345acdff68942c68bd36489e6ba9a51584de75743bea7c4",
       "fingerprint": "67f4bca81644d8f9434ba266dcc11baa31017bad4af85390d151fca21011f2a9",
-      "text": "没有任何装置需要注意。",
+      "text": "没有任何设备需要注意。",
       "status": "approved"
     },
     "No exactly representable, confirmable settled snapshot is available.": {
@@ -4589,13 +4589,13 @@
     "No firmware upload": {
       "sourceHash": "250cc7efd61490fd028996e872fa0f165f470c4ad6a6b512b68b736d0ae61323",
       "fingerprint": "c09f8c85e31c477f67ce76e669787fd62ff003520d7e2ea2909e1ee9042943e7",
-      "text": "没有韧体上传",
+      "text": "没有固件上传",
       "status": "approved"
     },
     "No firmware version data available at this time.": {
       "sourceHash": "9796329f5edda950e76f72ab5c7f428e22f51f77e8711c4f61d92432f6ec3e35",
       "fingerprint": "cc99583fb2550a45637f611be3aaff013aeecd28314d3d93aa6da9c8ec2df6fe",
-      "text": "目前没有可用韧体版本资料。",
+      "text": "目前没有可用固件版本资料。",
       "status": "approved"
     },
     "No fleet health trend data available.": {
@@ -4805,7 +4805,7 @@
     "Not connected": {
       "sourceHash": "1749fd1b6f5f905a253b1ff8d28bc922b8484c048bf82258a3997f2bd5f98582",
       "fingerprint": "3ae49bbc6f9747fe156c8f3b320a69c9cbf1beb78fcf175426e7ec7db83b81f9",
-      "text": "未连线",
+      "text": "未连接",
       "status": "approved"
     },
     "Not received": {
@@ -4871,7 +4871,7 @@
     "One device:": {
       "sourceHash": "047ec51d7866f7bd95160e8e769b5d84b577f3e523f5292333d9ba6e8f3bf47b",
       "fingerprint": "bfff1906da77da8a24ad3be6d4c74b52e0f8f1e07b35a60c29fe1d4f7d6eac26",
-      "text": "一个装置：",
+      "text": "一个设备：",
       "status": "approved"
     },
     "One release. Three ready-to-build cloud examples.": {
@@ -4907,7 +4907,7 @@
     "Only devices in this Product and your current authorized scope are shown.": {
       "sourceHash": "4b62c899847d69116c6e70e3b9f386b95fd882e1e8335fdaa3e3fa185885db02",
       "fingerprint": "20b78d119395f02bce90f1ddf18be36700011e25d7e1554c7feba0bd1f646142",
-      "text": "仅显示本产品中的装置和您当前授权范围内的装置。",
+      "text": "仅显示本产品中的设备和您当前授权范围内的设备。",
       "status": "approved"
     },
     "Only safe metadata such as provider, brand, last four digits, and expiration month is stored.": {
@@ -4925,7 +4925,7 @@
     "Only server-verified test-issued devices are eligible. Binding uses a fresh, developer-approved test authorization, not a production claim override.": {
       "sourceHash": "97992ca37dd5026bdfe25a16552054bf6b67b8ebc6c5f290ea7fe410bd29f564",
       "fingerprint": "125b9638791781786c86e2c010f7b1753f74db76e7947e7f59ffa555e39852a9",
-      "text": "只有经过伺服器验证的测试发放装置才有资格。系结使用的是开发人员批准的新测试授权，而不是生产索赔覆盖。",
+      "text": "只有经过伺服器验证的测试发放设备才有资格。系结使用的是开发人员批准的新测试授权，而不是生产索赔覆盖。",
       "status": "approved"
     },
     "Only the cloud owner can invite members or change access. If you are a collaborator, ask the owner for the Products and role you need for your work.": {
@@ -4961,7 +4961,7 @@
     "Open PRO2 Firmware Burner": {
       "sourceHash": "f1930e0706072e2bf54d6e1d8b8f824043c0d2b90ed2073e76061b39231b9726",
       "fingerprint": "6f4a3eb2b2fd496c2d2e24a8e9570223451e6a9cf5cf774164c21acafb52ac8c",
-      "text": "开启PRO2韧体烧录器",
+      "text": "开启PRO2固件烧录器",
       "status": "approved"
     },
     "Open Products and Services": {
@@ -4997,7 +4997,7 @@
     "Open firmware burner": {
       "sourceHash": "245694564856de04695a9f2aa82228a7ce9247096e79108f9c92fe6c6221ab4c",
       "fingerprint": "f746f894e8f168ea8c2949417b2825e71bd8e0a5ebe10cf34bf40ebddc22a8c9",
-      "text": "开启韧体",
+      "text": "开启固件",
       "status": "approved"
     },
     "Open the console after completion": {
@@ -5057,19 +5057,19 @@
     "Organization-level fleet health aggregated from cached device projections.": {
       "sourceHash": "aabb86e9616b30f669bb3da6ab5e41421e1db240ecf7521604c28960566ab3d7",
       "fingerprint": "91bfbac461b924c06cc7162614dca586e93eddfdf1bbf9471dcca530c329ce26",
-      "text": "从快取装置预测中汇总的组织级设备群健康状况。",
+      "text": "从快取设备预测中汇总的组织级设备群健康状况。",
       "status": "approved"
     },
     "Organize devices into groups to manage firmware updates and reports.": {
       "sourceHash": "a780a294469603ca0a845b2b244c514d2306c38e6e37ffecd09d9ba612459d0a",
       "fingerprint": "419ad83e1c134db1367f047555609f6851543e9d260c8cecc85d30603f3b20a4",
-      "text": "将装置组织成组，以管理韧体更新和报告。",
+      "text": "将设备组织成组，以管理固件更新和报告。",
       "status": "approved"
     },
     "Organize products and connect your devices.": {
       "sourceHash": "7ce15c104980bb8066a44efcf9e9170588265fa60068bfe70540af8b4db96ece",
       "fingerprint": "29f5ae80828482d83e2552e63d9c1bf3f1124631095728290080ecaf4b4e5ba0",
-      "text": "整理产品并连接装置。",
+      "text": "组织产品并连接设备。",
       "status": "approved"
     },
     "Out": {
@@ -5249,7 +5249,7 @@
     "People using your devices": {
       "sourceHash": "c76c1f0e3bf440d9ecc0b423bf2f010141e64906464c2ce16eea17bace90c913",
       "fingerprint": "1acba5acbdf5641a4b3828af543f0136f05020d23445ef82a6c43d9d94f6bf92",
-      "text": "使用您装置的人",
+      "text": "使用您设备的人",
       "status": "approved"
     },
     "Per-million and per-thousand prices are display units. Proposed charges are proportional to actual usage, not rounded up to whole million-request blocks. Monetary rounding is applied after monthly aggregation.": {
@@ -5273,7 +5273,7 @@
     "Physical devices": {
       "sourceHash": "74d7f224bcdefe3cffcb9f5a65619796c31e34208b4602af6116630a6b9617e2",
       "fingerprint": "d2f9fdc79696a863f7f35ea45e8fd4fe8014bfde78dd1059e06cad5518cabae1",
-      "text": "物理装置",
+      "text": "物理设备",
       "status": "approved"
     },
     "Plaintext filesystem keys and embedded key arrays are for development only. Production private keys must use the PRO2 protected zone; that integration is not implemented here.": {
@@ -5387,7 +5387,7 @@
     "Previous devices": {
       "sourceHash": "362e7edcc98e4631f5b8d48101658b0e05c2a342fe096588a58c1f867842667a",
       "fingerprint": "48d56406f343f77062cba22bb6d26532f5305cf9cddd5f49a240ef47f22a4cf2",
-      "text": "以前的装置",
+      "text": "以前的设备",
       "status": "approved"
     },
     "Previous members": {
@@ -5675,7 +5675,7 @@
     "Put the device in download mode": {
       "sourceHash": "b8c868d531e24e37ff33eba9b90689010c80e5e5af944bd1cdbd7c5f51545a83",
       "fingerprint": "2e8dc3cbd8752ca901cd95c6cb99beecdec82814740d259d91d54615cc4f31ed",
-      "text": "将装置置于下载模式",
+      "text": "将设备置于下载模式",
       "status": "approved"
     },
     "Quantity": {
@@ -5693,7 +5693,7 @@
     "REALTEK CLOUD SERVICES": {
       "sourceHash": "8789b85ed8121615e572fba53dfb361802c7b40404fb32b8cc4b2066c7ad88a4",
       "fingerprint": "451dac324c6a33e6bb654f05a7ce4d607f33ad54187d6051ddf70815f0de6230",
-      "text": "REALTEK 云端服务",
+      "text": "REALTEK 云服务",
       "status": "approved"
     },
     "RELEASE PACKAGE": {
@@ -5885,7 +5885,7 @@
     "Reconnect UART": {
       "sourceHash": "03721096368fb6494873650c333436051fa155798da99086e63f07f35c25110f",
       "fingerprint": "03da73e348b2ed31fcee3595a7f0f0ec166cecf76f022aac6f9c3da76d448e61",
-      "text": "重新连线UART",
+      "text": "重新连接UART",
       "status": "approved"
     },
     "Reference": {
@@ -5921,7 +5921,7 @@
     "Refresh devices": {
       "sourceHash": "167aaefecbd46f6888c760af4c85cead001569fdba5075a18d0ada98db46242e",
       "fingerprint": "fd0323434b75c3658c3e6a6c6d6f4db6d5c56dd7685258f0072b9fb841faee31",
-      "text": "重新整理装置",
+      "text": "重新整理设备",
       "status": "approved"
     },
     "Refresh service catalog": {
@@ -5957,7 +5957,7 @@
     "Regional device distribution map": {
       "sourceHash": "5f142b4ad87521b3c820c48004d3dc7f81ed541f8e8f96c666d8ef856a7e125f",
       "fingerprint": "f846a74e07f03cb423498d7591ac5b77ee6312313042e88cab16f3302429c3d6",
-      "text": "区域装置分布地图",
+      "text": "区域设备分布地图",
       "status": "approved"
     },
     "Regions (comma separated)": {
@@ -5987,13 +5987,13 @@
     "Reload devices & access": {
       "sourceHash": "9850eee5c0d521a51fda5b3122d58efac302058ae83e268f50529fbe70ee540f",
       "fingerprint": "a8c358b09966b808f4812218e43969684173c7e192b52139356b45ce9f619a27",
-      "text": "重新载入装置和访问",
+      "text": "重新载入设备和访问",
       "status": "approved"
     },
     "Reload lists and permissions. Ends the current test connection.": {
       "sourceHash": "d364bfe3c2e30e6c798b641692b108496c6ea631487360cbef21fd9891cd533a",
       "fingerprint": "483b8da725170fcfd69fcf860b618aa23fa7926c6d5cf633c9c463972ff5f1a2",
-      "text": "重新载入列表和许可权。终止当前测试连线。",
+      "text": "重新载入列表和许可权。终止当前测试连接。",
       "status": "approved"
     },
     "Reload release": {
@@ -6239,7 +6239,7 @@
     "Return to Brand Cloud Home → Settings → Test Devices, then choose your Product and quantity.": {
       "sourceHash": "a4cdfe854bb214729e63dd7600ff9e0a595943b9682d79513dd7e2196b744424",
       "fingerprint": "0b7a87507341deb508a6ed38b1041647beecfd834784c3f342a148c1b6a0d169",
-      "text": "返回品牌云主页→设定→测试装置，然后选择您的产品和数量。",
+      "text": "返回品牌云主页→设定→测试设备，然后选择您的产品和数量。",
       "status": "approved"
     },
     "Return to My Clouds": {
@@ -6263,7 +6263,7 @@
     "Review device status and firmware coverage across your cloud.": {
       "sourceHash": "55a1b4ed86fd2fc2dc381dc503b9a6b8e47cc0d6be1f2f20f5b571d210f40da5",
       "fingerprint": "a2e8f35786e3314f76f68565020d35ce35928cbf5758ec2f6b349dae6b5acdfe",
-      "text": "检视您的云中装置状态和韧体覆盖范围。",
+      "text": "检视您的云中设备状态和固件覆盖范围。",
       "status": "approved"
     },
     "Review each global account's membership in this Brand Cloud.": {
@@ -6281,7 +6281,7 @@
     "Review request success rates, daily request volume, average session duration and active sessions to spot changes in streaming behavior. Start with the devices with the highest failure rates, check their request counts, and open device details to investigate.": {
       "sourceHash": "40c832aef098168eb1ea9010d74271003d20599f33a39a5b373778c9923f3a9d",
       "fingerprint": "ec8ab8686c01c01018553985a4eb66c657bbf3b059b5e1733046bf3d950bdce5",
-      "text": "检视请求成功率、每日请求量、平均会话持续时间和活跃会话，以发现流媒体行为的变化。从故障率最高的装置开始，检查它们的请求数量，并开启装置详细资讯进行调查。",
+      "text": "检视请求成功率、每日请求量、平均会话持续时间和活跃会话，以发现流媒体行为的变化。从故障率最高的设备开始，检查它们的请求数量，并开启设备详细资讯进行调查。",
       "status": "approved"
     },
     "Review selected Product IDs": {
@@ -6377,7 +6377,7 @@
     "SDKs, boards, videos, and device tools below follow your selection.": {
       "sourceHash": "55501eb1af695812aeefe49f7c39e2bd7259d7008e91f098578d63b506a6c2eb",
       "fingerprint": "8c0bad5d8691522d7c487ba86d89d0eba676c65711a3967aa4673240f8e4bbe7",
-      "text": "以下的SDK、板块、影片和装置工具遵循您的选择。",
+      "text": "以下的SDK、板块、影片和设备工具遵循您的选择。",
       "status": "approved"
     },
     "SHA-256": {
@@ -6443,7 +6443,7 @@
     "Save your files immediately. To reduce private-key exposure, this page does not retain a copy for later download. If you lose the files, create new test devices: they receive new Device IDs, private keys, and certificates, not replacements for the lost credentials.": {
       "sourceHash": "0fad2f3d652988eba7d5f57a2920499e38252d53e42cb2cd93ae88fb785902da",
       "fingerprint": "383e4d369281f5acca0d39953a8d0c89235dd2b7435b9b7994def1e111ecda83",
-      "text": "立即储存您的档案。为了减少私钥泄露，此页面不会保留副本以供稍后下载。如果您丢失了档案，请建立新的测试装置：它们会收到新的装置ID、私钥和证书，而不是丢失的凭据的替代品。",
+      "text": "立即储存您的档案。为了减少私钥泄露，此页面不会保留副本以供稍后下载。如果您丢失了档案，请建立新的测试设备：它们会收到新的设备ID、私钥和证书，而不是丢失的凭据的替代品。",
       "status": "approved"
     },
     "Scope": {
@@ -6509,7 +6509,7 @@
     "Search devices": {
       "sourceHash": "35ab1ee0e463b177d1d78ab5f876604e749c8f6910f6180af5b633d901e0bf18",
       "fingerprint": "1f062caf992935a741a88df309e02f52d0bb2ace0838ba66e410b23721fa9bdb",
-      "text": "搜寻装置",
+      "text": "搜寻设备",
       "status": "approved"
     },
     "Search documentation": {
@@ -6545,7 +6545,7 @@
     "Search, filter, and inspect fleet devices without exposing internal platform identifiers.": {
       "sourceHash": "384e8658e0f0ebe039457f94160ff0e68512f102e65bc5d2982aaf0e105d79c7",
       "fingerprint": "c528b1d5c86d0cf5b882b3a11e3bd0596db78066d5d2d4dc9bd7a9038fb847db",
-      "text": "在不暴露内部平台识别符号的情况下，搜寻、过滤和检查设备群装置。",
+      "text": "在不暴露内部平台识别符号的情况下，搜寻、过滤和检查设备群设备。",
       "status": "approved"
     },
     "Secret handling": {
@@ -6563,13 +6563,13 @@
     "See device connectivity, activity and health across your cloud.": {
       "sourceHash": "621f76c6a37de572ef5c6a71a59df17c5ab239f611e235d7db72f984e0b8e307",
       "fingerprint": "cc781a54884436e4f112bb7e1aca9fa5e82aecd742b367fc4f7e1a1fe60be035",
-      "text": "检视您整个云中的装置连线、活动和健康状况。",
+      "text": "检视您整个云中的设备连接、活动和健康状况。",
       "status": "approved"
     },
     "See the number of devices for each version; tap a version to go to the list of devices that have that version applied.": {
       "sourceHash": "788de298d1ead860c6e16a34acaff6e3669aa39800d09660efa1f6ad1345aa41",
       "fingerprint": "66e0b4fbf10911256a08510abf16b37f2e18b1b4586c2b7c499395182ca13e5a",
-      "text": "检视每个版本的装置数量；点选一个版本即可转到应用该版本的装置列表。",
+      "text": "检视每个版本的设备数量；点选一个版本即可转到应用该版本的设备列表。",
       "status": "approved"
     },
     "See what services are available for each product and what your current role can manage.": {
@@ -6587,7 +6587,7 @@
     "Select Firmware Product": {
       "sourceHash": "298000045ef461a07ebcdf05da8a1aa6b3f3b8c867a8221f2110f729dc85bd6b",
       "fingerprint": "bc83d3ed0eca25e0522bfc8f42011408bce6ce0926fa6a9b8ce809250c20b7c8",
-      "text": "选择韧体产品",
+      "text": "选择固件产品",
       "status": "approved"
     },
     "Select Product": {
@@ -6605,7 +6605,7 @@
     "Select a Product and quantity. Device IDs, private keys, and certificates are generated automatically.": {
       "sourceHash": "4b6cfac396a275adc7bbebdf690316fe01f4d346fb4be4ea015e3fb9343ed806",
       "fingerprint": "ced1edf7fc59388aa0ea8a276b9c6521f2cd1a4f5013513498b01fcadeb4e911",
-      "text": "选择一个产品和数量。装置ID、私钥和证书将自动生成。",
+      "text": "选择一个产品和数量。设备ID、私钥和证书将自动生成。",
       "status": "approved"
     },
     "Select a cloud for Billing": {
@@ -6623,19 +6623,19 @@
     "Select a test device": {
       "sourceHash": "98a4a6ba4a1ccc0daae2910be1a310e573e19f483f0e6a358bcc60c17d0c29d9",
       "fingerprint": "1a524d63a1ac8d707b20d6f71d1d2c6230f53fcdfdaa1ba17f638cadd07eeafd",
-      "text": "选择一个测试装置",
+      "text": "选择一个测试设备",
       "status": "approved"
     },
     "Select firmware version": {
       "sourceHash": "584af409d1cc45dc1890becc2af18e86987eabbf2976f3b05b276ef101468b45",
       "fingerprint": "f31181946b27011f34a9bc30d0374a5d8838a69d4a1eb305eccb9dc0700c3226",
-      "text": "选择韧体版本",
+      "text": "选择固件版本",
       "status": "approved"
     },
     "Select its USB UART to start the console or burn firmware.": {
       "sourceHash": "01faa03426337f5ebab0709fefc9aea9795a960ca94fd2591e579d59ae937dff",
       "fingerprint": "145c3f43821c98df9cf8dfc10349655811af65038090b328844dbc1c3d134e88",
-      "text": "选择其USB UART以启动控制台或烧写韧体。",
+      "text": "选择其USB UART以启动控制台或烧写固件。",
       "status": "approved"
     },
     "Selected Products (default)": {
@@ -6791,7 +6791,7 @@
     "Shadow requires the Product's IoT Shadow service option. MQTT Shadow also requires MQTT; legacy HTTP-only Shadow Products can still use HTTP. Reported state comes from your real device. Connect in the MQTT tab before using MQTT Shadow.": {
       "sourceHash": "abfb25d0533209762e397047e94d88281c491239c9a2f7c4be365d8dd21a1793",
       "fingerprint": "214ea688c9a1c30696b9610d7f6eb07337d259923f4d1ea3f78ac4bdbf290a45",
-      "text": "Shadow需要产品的物联网Shadow服务选项。MQTT Shadow也需要MQTT；传统仅限HTTP的Shadow产品仍然可以使用HTTP。报告的状态来自您的真实装置。在使用MQTT Shadow之前，请在MQTT选项卡中连线。",
+      "text": "Shadow需要产品的物联网Shadow服务选项。MQTT Shadow也需要MQTT；传统仅限HTTP的Shadow产品仍然可以使用HTTP。报告的状态来自您的真实设备。在使用MQTT Shadow之前，请在MQTT选项卡中连接。",
       "status": "approved"
     },
     "Share cloud": {
@@ -6905,7 +6905,7 @@
     "Start and stop OTA rollouts, publish firmware versions, and track device progress for the selected Product.": {
       "sourceHash": "0e89afbc8fcc9c1f1d3f55cf99beaee5606eaa94b7809bd29569b31f5bba86fc",
       "fingerprint": "95aa80f743f9db01482600ce17dac7c9894831687e57af4927bdc6057fd0766b",
-      "text": "开始和停止OTA部署，释出韧体版本，并跟踪所选产品的装置进度。",
+      "text": "开始和停止OTA部署，释出固件版本，并跟踪所选产品的设备进度。",
       "status": "approved"
     },
     "Start building": {
@@ -7073,7 +7073,7 @@
     "Tags can be used to search for devices and define firmware update scopes.": {
       "sourceHash": "6ad41b93e5e5511034ff9ce59a95ae812b77e4a6bd3f8fd679a8fbec3fbf7d80",
       "fingerprint": "c20368e19c66fe630beb702ebfbd37ec89a593459845c41b33417d64b1703e06",
-      "text": "标签可用于搜寻装置并定义韧体更新范围。",
+      "text": "标签可用于搜寻设备并定义固件更新范围。",
       "status": "approved"
     },
     "Target": {
@@ -7085,7 +7085,7 @@
     "Target Device": {
       "sourceHash": "8f34109d59d9d3ce157cf6ab226e86d6cf40f61ae5a581755f5b977b877bd5c0",
       "fingerprint": "106f06ff6ee695dee69a25199aa4cd66678903896ae1df1b666021639ba7cffc",
-      "text": "目标装置",
+      "text": "目标设备",
       "status": "approved"
     },
     "Target Version": {
@@ -7127,19 +7127,19 @@
     "Team members manage your cloud in the console. End users pair and use devices through your app.": {
       "sourceHash": "2923f98e2aca80e2482278c72ba636b8e236a529b1e9ca9e3bf13c07de89dd5e",
       "fingerprint": "b5ddbee710186b76f3dab4ac0044c6e6cb1644c5b319e6efabec2cc0fadde990",
-      "text": "团队成员在控制台中管理您的云。终端使用者透过您的应用程式配对和使用装置。",
+      "text": "团队成员在控制台中管理您的云。终端使用者透过您的应用程式配对和使用设备。",
       "status": "approved"
     },
     "Telemetry Device": {
       "sourceHash": "2e73237a8a5a06a245a875de763c07fc06d95ab554d49768214b8fc8dfdb9517",
       "fingerprint": "056376c19ddcbfeadf62f482a77ffdcf39a3cd0821b6eb1d17abe82e09def29b",
-      "text": "遥测装置",
+      "text": "遥测设备",
       "status": "approved"
     },
     "Tenant & Device Footprint": {
       "sourceHash": "26a565dbbd802b963844d6f665d4702b97f645fadd106a4cdd3b421f5d52e698",
       "fingerprint": "3e5dba51cc8a8a31fd422e2ae072dc402204cc5190bdfcbb6359f676a41e409c",
-      "text": "租户和装置占用空间",
+      "text": "租户和设备占用空间",
       "status": "approved"
     },
     "Tenant slug": {
@@ -7157,25 +7157,25 @@
     "Test Devices": {
       "sourceHash": "f1fe8d51dd2bf04e6238e4d2a64d27197ab3e98a6019f3f9a2db31bd8a76c3ec",
       "fingerprint": "e58842d212b71fee3b7e7f3e713be994af52376ba29bc8f2d7b86147693dfb92",
-      "text": "测试装置",
+      "text": "测试设备",
       "status": "approved"
     },
     "Test account and device bindings": {
       "sourceHash": "b2ced1b4f0204641d9183b23cf3a31d8311f9066a394b15c27ad23b0648c0f5b",
       "fingerprint": "49a3c0270a653944c1c9f3b301a684a3d5f4a65842bc2d7691f521965f731681",
-      "text": "测试帐户和装置系结",
+      "text": "测试帐户和设备系结",
       "status": "approved"
     },
     "Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and view live video over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.": {
       "sourceHash": "b83e34f6998f5a1440ce899463ba6ceac384e964ef517daf7c1c87992c607e54",
       "fingerprint": "de4d33e4603bc9fd1824a200c67eca90dc415277c8dc2e603b203cd6ab121402",
-      "text": "直接在开发者控制台中测试和除错您的装置——无需先构建应用程式、MQTT用户端或WebRTC检视器。选择一个产品和装置来传送和接收MQTT讯息、读取或更新装置影子状态，并透过WebRTC检视实时影片。在编写您自己的应用程式之前，使用这些工具检查装置的行为并进行云整合故障排除。可用的测试取决于您的许可权和为所选装置启用的服务。",
+      "text": "直接在开发者控制台中测试和除错您的设备——无需先构建应用程式、MQTT用户端或WebRTC检视器。选择一个产品和设备来传送和接收MQTT讯息、读取或更新设备影子状态，并透过WebRTC检视实时影片。在编写您自己的应用程式之前，使用这些工具检查设备的行为并进行云整合故障排除。可用的测试取决于您的许可权和为所选设备启用的服务。",
       "status": "approved"
     },
     "Test authorization expires after 5 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. Playback stops after 85 seconds. Operations affect your real device.": {
       "sourceHash": "d07b49af6db3281dda5bd2c31acb3d7369f2ef42ba097cbfc113dcc9eb0e4c4e",
       "fingerprint": "f6f0bb17fcc745a041b9d0982fedcdf4e5cb8160a2a3c2147e666281efe4a370",
-      "text": "测试授权在5分钟后到期。MQTT凭据透过重新连线续订；续订期间的讯息可能会错过。播放在85秒后停止。操作会影响您的真实装置。",
+      "text": "测试授权在5分钟后到期。MQTT凭据透过重新连接续订；续订期间的讯息可能会错过。播放在85秒后停止。操作会影响您的真实设备。",
       "status": "approved"
     },
     "Test protocol": {
@@ -7247,7 +7247,7 @@
     "The device query service is temporarily unavailable.": {
       "sourceHash": "26c0363d36465acbbc982e349af18cbe18e6758666e87634707b2beac12283b0",
       "fingerprint": "589c20d0626fb9a03d6066bcf1686021a53e499d0124999eb6d830c6d9db8e4c",
-      "text": "装置查询服务暂时不可用。",
+      "text": "设备查询服务暂时不可用。",
       "status": "approved"
     },
     "The download contains private keys. Keep it secure and do not share it in source control, logs, or support screenshots.": {
@@ -7337,7 +7337,7 @@
     "The role determines what can be done, and the scope determines which Products, Regions, Groups, or Devices can be managed.": {
       "sourceHash": "edcc73b260d3a2635439b156d86ff423035e2d75afec0820aeacad387014773d",
       "fingerprint": "7c4d7dda1291601e6ed2bec4759e297745a44cbbf14ce7436412b8f5a5b4d80f",
-      "text": "角色决定了可以做什么，范围决定了可以管理哪些产品、地区、组或装置。",
+      "text": "角色决定了可以做什么，范围决定了可以管理哪些产品、地区、组或设备。",
       "status": "approved"
     },
     "The secret is required when saving or re-enabling the subscription; it is never displayed after submission.": {
@@ -7415,13 +7415,13 @@
     "There are currently no devices to process.": {
       "sourceHash": "0fab4764f13b136b019369611d326e8eb01c7ea4a0ef25fb5055af94a0754ccd",
       "fingerprint": "66f839174b2b899d8c91b4a4d4720e255453cbf21ca2b124ff117f3711861612",
-      "text": "目前没有装置需要处理。",
+      "text": "目前没有设备需要处理。",
       "status": "approved"
     },
     "There are currently no firmware updates.": {
       "sourceHash": "6cdbb6c9f6a281d5b3e08623cf958bb5028dc2c52112144e4fe9c13f4b2edc4b",
       "fingerprint": "fb2dbcaa494291111ad971c6b95fd0240bcaee40ebb1e7f8bbc0cc992bb43a1c",
-      "text": "目前没有韧体更新。",
+      "text": "目前没有固件更新。",
       "status": "approved"
     },
     "There are currently no invoices.": {
@@ -7451,7 +7451,7 @@
     "This disables the Product; it does not delete its devices, firmware or history, and does not make the cloud empty.": {
       "sourceHash": "5702a1563b63f98b8924b0e7fa5199faad12281672d5f4e860aeae086442abef",
       "fingerprint": "849eb737a2ac0c9e27541c5181e02c64d95b1e7e478310adad7d84952d725a1b",
-      "text": "这会停用该产品；它不会删除其装置、韧体或历史记录，也不会使云端空空如也。",
+      "text": "这会停用该产品；它不会删除其设备、固件或历史记录，也不会使云端空空如也。",
       "status": "approved"
     },
     "This example is not in the selected release.": {
@@ -7469,7 +7469,7 @@
     "This limits how long leaked credentials or forgotten test devices can be used. After expiry, the certificate cannot authenticate new connections; create a new test device to continue testing. Creating another device does not revoke the old certificate or extend its expiry.": {
       "sourceHash": "72f742122fddb3c8b89bfb72f56fc0bd62bda3b6d90357aa89bc3f2e8097c2c5",
       "fingerprint": "f7c656dc20f41349801b215651f574a29f3ac1dd7d577c8f642eb6d5fbf2fcb6",
-      "text": "这限制了泄露的凭据或忘记的测试装置可以使用多长时间。过期后，证书无法验证新的连线；建立一个新的测试装置以继续测试。建立另一个装置不会撤销旧证书或延长其到期日期。",
+      "text": "这限制了泄露的凭据或忘记的测试设备可以使用多长时间。过期后，证书无法验证新的连接；建立一个新的测试设备以继续测试。建立另一个设备不会撤销旧证书或延长其到期日期。",
       "status": "approved"
     },
     "This reset link is not valid": {
@@ -7655,7 +7655,7 @@
     "Unbound test device": {
       "sourceHash": "4322b852b876b03ab940718b0024e35305a7f61e906df6193f9e12ba7ac0e769",
       "fingerprint": "18ddc3227e9b2de8d1ec5b045de87cb4cd6d79704c473e38bf2ae53f0119735a",
-      "text": "未系结的测试装置",
+      "text": "未系结的测试设备",
       "status": "approved"
     },
     "Unpublish": {
@@ -7685,7 +7685,7 @@
     "Upgrade rate (devices/minute)": {
       "sourceHash": "907b21e563889ab5c346ff48ef8d96063aa95664d17f4e5184c4a8eedf2a1f8d",
       "fingerprint": "c0f24d4d62af324e6bf75ef5d697bc7946f084805c55e11e3064946c44801295",
-      "text": "升级率（装置/分钟）",
+      "text": "升级率（设备/分钟）",
       "status": "approved"
     },
     "Uptime history": {
@@ -7721,7 +7721,7 @@
     "Use Device Status reports to review online and offline devices, and Firmware Coverage reports to see which firmware versions are deployed. Filter by product, region, group or firmware to narrow your investigation, then export CSV or JSON results for further analysis and operational handoffs.": {
       "sourceHash": "ae5cdc716059adef58c575eac8e60dd5c0ec6f174253aa9165251547db998b0a",
       "fingerprint": "9d24be4aefb0e510583bb7d0d143194b2ef187918da89e6c652cb42a416c1346",
-      "text": "使用装置状态报告检视线上和离线装置，并使用韧体覆盖率报告检视部署了哪些韧体版本。按产品、地区、组或韧体筛选以缩小调查范围，然后汇出CSV或JSON结果进行进一步分析和运营交接。",
+      "text": "使用设备状态报告检视线上和离线设备，并使用固件覆盖率报告检视部署了哪些固件版本。按产品、地区、组或固件筛选以缩小调查范围，然后汇出CSV或JSON结果进行进一步分析和运营交接。",
       "status": "approved"
     },
     "Use a lower speed": {
@@ -7751,7 +7751,7 @@
     "Use the map to locate regions and compare fleet size by device count.": {
       "sourceHash": "1926f63f9382fc4ef6644f70a4728cac59d321b971e791b3b671e4ed1d45d09b",
       "fingerprint": "9caf58ec0c1eb0d418814ed1dbbe244812ac7cbec468a839025d1004c1019f55",
-      "text": "使用地图定位区域，并按装置数量比较设备群规模。",
+      "text": "使用地图定位区域，并按设备数量比较设备群规模。",
       "status": "approved"
     },
     "Use this page to find a failed request, identify the affected service, and follow its trace or request ID.": {
@@ -7877,7 +7877,7 @@
     "View device": {
       "sourceHash": "db63d634aa03ae0978a0244607be118d84bf5379c69a5538b48086151e7da109",
       "fingerprint": "11d24003073d1ffa7373fff3f93cce4ba654529aed54e22cd7ca0cd103d29be0",
-      "text": "检视装置",
+      "text": "检视设备",
       "status": "approved"
     },
     "View map": {
@@ -7925,7 +7925,7 @@
     "Waiting devices": {
       "sourceHash": "b5ddb36af7093698c78a785e216bffaba49ffbd13756aa30375b8230fc51a15c",
       "fingerprint": "8cb9a635e44524dca91c221611ed6ac34eb64dd4bd73cef6f61f2f266de62cae",
-      "text": "等待装置",
+      "text": "等待设备",
       "status": "approved"
     },
     "Waiting to re-arm": {
@@ -7973,19 +7973,19 @@
     "Website firmware": {
       "sourceHash": "8402a6556e5cc3ef97781cc51f3423c529597a576719cb90dc9c91d9e43d99f9",
       "fingerprint": "7b299d4764e5853013cb322fb2f82ed76a5002f011a283fd32b0f42b6dca1564",
-      "text": "网站韧体",
+      "text": "网站固件",
       "status": "approved"
     },
     "Website firmware contains isolated test settings and cannot connect to your Cloud. To test your Cloud, download your device certificate in Developer UI and rebuild locally with your own settings.": {
       "sourceHash": "0732cde847599a5f9a17a90fb580936aeea39e865c6b28bb86cf8477e7471c39",
       "fingerprint": "bcc5c4c5d04c7f814f5cfc73b661139b444e391dd472b582662e3ecac7f2112c",
-      "text": "网站韧体包含孤立的测试设定，无法连线到您的云端。要测试您的云端，请在开发者使用者介面下下载您的装置证书，然后使用您自己的设定本地重新构建。",
+      "text": "网站固件包含孤立的测试设定，无法连接到您的云端。要测试您的云端，请在开发者使用者介面下下载您的设备证书，然后使用您自己的设定本地重新构建。",
       "status": "approved"
     },
     "Website firmware ·": {
       "sourceHash": "5863aefff2ffa903795a8fff9cc287448a6ee773e4097c33274187eef2816ca4",
       "fingerprint": "3a903b5284ae9d28907a926a69f4fdf12a8507017ab3efe069276e4a27e9f153",
-      "text": "网站韧体·",
+      "text": "网站固件·",
       "status": "approved"
     },
     "We’ll verify both the invitation token and the signed-in Developer account.": {
@@ -8003,7 +8003,7 @@
     "Why do you need more devices?": {
       "sourceHash": "e8d3fd3cd75d4f135c8b72f15f17514597d4dd69e437529013c6a35a6e6bb06a",
       "fingerprint": "136265cda87d38a98eccffc3eddbc2c66032ca1c8211a3ce5656b5e9a43a3ac5",
-      "text": "你为什么需要更多的装置？",
+      "text": "你为什么需要更多的设备？",
       "status": "approved"
     },
     "Withdraw": {
@@ -8021,7 +8021,7 @@
     "Worst devices": {
       "sourceHash": "be03702a1105922308e40f9a6ae751182692ee16855b2e72ba52c72b85989019",
       "fingerprint": "002e100840d51193ff93816b42ab2458ab5f22a989e2983ed8cc28526f9f26e0",
-      "text": "最糟糕的装置",
+      "text": "最糟糕的设备",
       "status": "approved"
     },
     "Write at 0x0": {
@@ -8033,7 +8033,7 @@
     "You can also choose a local file in the firmware panel below.": {
       "sourceHash": "8ea75ce915f45e8539c579d6491dca1ed69648f9840438477ec993aa32435e90",
       "fingerprint": "69b06cbdd9f78d1dd849649f557369973a5e6223d27e8d9d3652a1220267ef2d",
-      "text": "您还可以在下面的韧体面板中选择本地档案。",
+      "text": "您还可以在下面的固件面板中选择本地档案。",
       "status": "approved"
     },
     "You can invite or adjust team members above; brand owners can only pass through the Ownership Transfer.": {
@@ -8081,7 +8081,7 @@
     "Your bound test devices will appear automatically.": {
       "sourceHash": "cf0321359ee22114237d2a27262416d1720fd7a44aa402c201486ee35be6b86d",
       "fingerprint": "afebe03533e8d8b3bc203cbb25332c393774b3cc3c1d41aae32259e8a5933fce",
-      "text": "您的系结测试装置将自动显示。",
+      "text": "您的系结测试设备将自动显示。",
       "status": "approved"
     },
     "Your cloud.": {
@@ -8159,7 +8159,7 @@
     "Zoomable and draggable world device distribution map": {
       "sourceHash": "85285067f0b3685ffa60c6c072bbab6bbd2f54cb189571fedb909769fc451d34",
       "fingerprint": "1369fc33e3ed27cf777e58de538d87d3bcb9797290b8530c8f40329c60661a23",
-      "text": "可放大和拖动的世界装置分布地图",
+      "text": "可放大和拖动的世界设备分布地图",
       "status": "approved"
     },
     "account for": {
@@ -8177,7 +8177,7 @@
     "authorized devices · Page": {
       "sourceHash": "5e126ca5d07f7ea1c6f26bb542eb2de4d521447050a3a63f808ad2a0cdcdcf35",
       "fingerprint": "0754fecc499d8b93766c973750a51893b1b267f4fa0ca1dec2b99bbfd83cc170",
-      "text": "授权装置·页面",
+      "text": "授权设备·页面",
       "status": "approved"
     },
     "cap.": {
@@ -8195,7 +8195,7 @@
     "devices": {
       "sourceHash": "153da4af8a86ef9cf8698b5b5b308315004f4c8903091a0b49ec5c2a64bb199a",
       "fingerprint": "906dca8775c415bba64a559f66e71c7bbe48fd0b0c2816a40861f3edd1bb7f58",
-      "text": "装置",
+      "text": "设备",
       "status": "approved"
     },
     "down": {
@@ -8249,7 +8249,7 @@
     "lists device results and any errors.": {
       "sourceHash": "9dbc7af05db6968b5100dd2a6569e5a4399febeb0139be7fc228cec50aef075c",
       "fingerprint": "0d8d337adccd756c813d614e6fd4bf6d0f9133c008c2fdefb20e25e16802be60",
-      "text": "列出装置结果和任何错误。",
+      "text": "列出设备结果和任何错误。",
       "status": "approved"
     },
     "minor units (": {
@@ -8339,7 +8339,7 @@
     "state of the firmware.": {
       "sourceHash": "d96da56462d96da549e93a6f4a16008890e986e0969411167c9c82faf4c0f986",
       "fingerprint": "e9d5de7c932c5f5481bffc91ba9000d07d311207f5f8c8d006f77e8f96306cff",
-      "text": "韧体状态。",
+      "text": "固件状态。",
       "status": "approved"
     },
     "up /": {
@@ -8357,13 +8357,13 @@
     "{{count}} devices": {
       "sourceHash": "81c17075eb5030cf1e4b1d020c274e65e9b794617ccb953b334985cbf6b26634",
       "fingerprint": "845b5eaa75606d17e7a550661485814205ae71d2267817e3be1cacf1c5f6ce90",
-      "text": "{{count}}装置",
+      "text": "{{count}}设备",
       "status": "approved"
     },
     "{{count}} devices will be affected. {{impact}}": {
       "sourceHash": "f7e43a7996eecb936fe285cd11f58130567b4756a72ab75a4d74f36de9febdbe",
       "fingerprint": "01b7c25cebd17b5e1834d264214a6e222d388bb9e0f2adec3085e4cb28a1de1a",
-      "text": "{{count}}装置将受到影响。{{impact}}",
+      "text": "{{count}}设备将受到影响。{{impact}}",
       "status": "approved"
     },
     "{{name}} manifest is delayed": {
@@ -8387,7 +8387,7 @@
     "· Device:": {
       "sourceHash": "870188cc07f787ec0331752255c2d73ac270c6206f492439998b9b8b0d690504",
       "fingerprint": "faadf1629b16505140ca6f6254306399a37fc87ce2e3e6364e6c492d2f494b37",
-      "text": "·装置：",
+      "text": "·设备：",
       "status": "approved"
     },
     "· Expires:": {
@@ -8597,7 +8597,7 @@
     "Allow firmware updates": {
       "sourceHash": "1cdc6225a11bae9ac0ac44e9428649c2474c1178878d40cec9a2ace3dfedaa45",
       "fingerprint": "1905baf5948c6dcf96212583e44c5e75eca1577f2c2225b489f08cc29f963056",
-      "text": "允许韧体更新",
+      "text": "允许固件更新",
       "status": "approved"
     },
     "Amounts and recipient details reflect the issued invoice snapshot. Updating your billing profile does not change this invoice.": {
@@ -8735,7 +8735,7 @@
     "Create test devices": {
       "sourceHash": "53f55df5197ea0f15f7d7fc0c64104f298ee7102ee21f23e26de6cb7851eda10",
       "fingerprint": "e81495c11cf149596b538d896361403f0e80b4f4124ba887588d637ce542f539",
-      "text": "建立测试装置",
+      "text": "建立测试设备",
       "status": "approved"
     },
     "Creating...": {
@@ -8789,13 +8789,13 @@
     "Device details": {
       "sourceHash": "c578fc9ae2f2aca8bc569ab2a669650904f25827281e54aefecaf3210bc86901",
       "fingerprint": "006afa1906ac39b2ecfd48c0bf2f43d84b4c6da1e604c06e26776ed26396425a",
-      "text": "装置详情",
+      "text": "设备详情",
       "status": "approved"
     },
     "Device setup and enrollment are handled by existing processes; only status and deactivation are shown here.": {
       "sourceHash": "c002f57c70b731e5c35ac40a2c8d5dccb54f0cfa9c6c8a811ded270e6e2b4a23",
       "fingerprint": "29947675a71cbe84e54b231ea1097caa06daf5894c27f8ef80fb1e2c089dc9fc",
-      "text": "装置设定和注册由现有流程处理；此处仅显示状态和停用。",
+      "text": "设备设定和注册由现有流程处理；此处仅显示状态和停用。",
       "status": "approved"
     },
     "Disable Brand Cloud": {
@@ -8999,7 +8999,7 @@
     "No firmware update history selected.": {
       "sourceHash": "93767328ce169392ac5cfaadd99e6a1ee80df587395402bc36f18857fadf6d44",
       "fingerprint": "5ce74675bf30e532529dda07b816d82afee5cc15468448b5cca6ba2fd510c889",
-      "text": "未选择韧体更新历史记录。",
+      "text": "未选择固件更新历史记录。",
       "status": "approved"
     },
     "No live state received": {
@@ -9179,7 +9179,7 @@
     "Please select a firmware update record.": {
       "sourceHash": "c2151913893d348875d73cd9ee92a988d4e1cd9e02880836c4814530de1bc444",
       "fingerprint": "bbf8e41919a70f241a23b4d52578e367871e7dcce64c9c2edc366280c8e07023",
-      "text": "请选择一个韧体更新记录。",
+      "text": "请选择一个固件更新记录。",
       "status": "approved"
     },
     "Please sign in again or retry loading this page.": {
@@ -9299,19 +9299,19 @@
     "Review deployed firmware versions to identify devices not yet on your target version. Coverage does not measure the success rate of an OTA campaign.": {
       "sourceHash": "4cd5f7d652ff59821c390dff9dae3464d22fb24e5953e2d50978ca899235ff4d",
       "fingerprint": "c89b997ee9a843b66d7f48d5d98e505065bd3d6e798198b383425a685ff3e795",
-      "text": "检视部署的韧体版本，以识别尚未在目标版本上的装置。覆盖范围并不能衡量OTA活动的成功率。",
+      "text": "检视部署的固件版本，以识别尚未在目标版本上的设备。覆盖范围并不能衡量OTA活动的成功率。",
       "status": "approved"
     },
     "Review online and offline device status to identify device groups that need follow-up.": {
       "sourceHash": "f52ad0407fa1ec28d7039e81ab37e627f303d059e90b33501fc11cae0be3bfc4",
       "fingerprint": "7e63fc54a9d5b940e512f4a8cc06a80d58aaf8304704f00a6ad8d52d7883360d",
-      "text": "检视线上和离线装置状态，以识别需要跟进的装置组。",
+      "text": "检视线上和离线设备状态，以识别需要跟进的设备组。",
       "status": "approved"
     },
     "Rotate the board to see both sides. The camera, connections and controls each have a story to tell.": {
       "sourceHash": "fa7e547c9a526fe4b14462315a8964f264b903cd6e9f69a4bae16dfaacfcbd97",
       "fingerprint": "1f4a058db9a0685506115f7a812cb5769b83a47d88f0a1835b3c5c733f133a7f",
-      "text": "旋转板子以看到两面。相机、连线和控制器都有自己的故事要讲。",
+      "text": "旋转板子以看到两面。相机、连接和控制器都有自己的故事要讲。",
       "status": "approved"
     },
     "Sample only": {
@@ -9341,7 +9341,7 @@
     "Save device": {
       "sourceHash": "34e91acd7587a5340f723952a57088b4812184157426dcb8dc262e9409822cee",
       "fingerprint": "54fd7ce2984bf6b9989455448d570f5201e4343a1e09d019a917530c31c6e1c8",
-      "text": "储存装置",
+      "text": "储存设备",
       "status": "approved"
     },
     "Save provider": {
@@ -9383,13 +9383,13 @@
     "Select a Product to load its firmware and OTA status.": {
       "sourceHash": "d9bc1b88c26259ab5a09e2df78536d4491d5aa5061111b8f4f758fd3551a734c",
       "fingerprint": "296c0b2117f49df358043e1f0b2869d8c7ce222474ed1cdb774ee1d9eaaae656",
-      "text": "选择一个产品以载入其韧体和OTA状态。",
+      "text": "选择一个产品以载入其固件和OTA状态。",
       "status": "approved"
     },
     "Select a device row to inspect its telemetry.": {
       "sourceHash": "b45810b1561a4aedce0d9771a1e4a77a9962932447e1863f5fd2656361ee0dd5",
       "fingerprint": "80902d58759f12bc92d5e44feb37f0e33d775fc9fe43ba6e420eeaf754228c2d",
-      "text": "选择一个装置行来检查其遥测资料。",
+      "text": "选择一个设备行来检查其遥测资料。",
       "status": "approved"
     },
     "Select a product": {
@@ -9503,7 +9503,7 @@
     "There is currently no device status data for this update.": {
       "sourceHash": "e32a9cc1bda4ec9b61536abdbf346c16114dc47edfee3fa9234beabad3c68c7f",
       "fingerprint": "2e08ce0055086c4687bfbea54a284cf95c7ad71d07fec45d83633346410f16cb",
-      "text": "目前没有此更新时的装置状态资料。",
+      "text": "目前没有此更新时的设备状态资料。",
       "status": "approved"
     },
     "This account or Brand Cloud is not available to the signed-in developer.": {
@@ -9575,7 +9575,7 @@
     "Unknown device": {
       "sourceHash": "05a4cc5dbd0f6a6762b16cbfb354a1f26cf9eabc9ad57c9dcceea4d92b531bda",
       "fingerprint": "09474008ea29115eb39a8cb73bc2fbf166de8a7a57045b4a37acccd576a5d0ad",
-      "text": "未知装置",
+      "text": "未知设备",
       "status": "approved"
     },
     "Unknown tenant": {
@@ -9713,7 +9713,7 @@
     "device credentials": {
       "sourceHash": "de7596bdad67187638a1361892101a6c3e2cea72bd924ea953bd3e4a14ace8ac",
       "fingerprint": "d6712d664f6f9e211613e8e761f2f66bf5f07643507bd8d455011fdf074caa40",
-      "text": "装置凭据",
+      "text": "设备凭据",
       "status": "approved"
     },
     "document": {
@@ -10175,37 +10175,37 @@
     "Loading firmware data": {
       "sourceHash": "df488aee6ebb635a1ebbe43d88ce52a8b266aad52b6fb89dd9315fe538e0ab0b",
       "fingerprint": "6ce944bf53885ef3208d39888913fc94bb91de5186287e1e13125d55f70f1064",
-      "text": "载入韧体资料",
+      "text": "载入固件资料",
       "status": "approved"
     },
     "Loading firmware data.": {
       "sourceHash": "11833daba5141c1a1d3d9b323c15ddc83d146e431a66a1a43fa742e1110ed193",
       "fingerprint": "09ab785d3184d57046b4a4df5fbfce9230629b62124d2d44187bbf37614b1482",
-      "text": "载入韧体资料。",
+      "text": "载入固件资料。",
       "status": "approved"
     },
     "Firmware source available": {
       "sourceHash": "f4232f07f2bee410b540d12f648bb2fd22c9d4e40eb405e9e17b1e07c887dd05",
       "fingerprint": "bde128da1c88804de53872ccf9e572068906a062fae71a4887b8aafdc833107b",
-      "text": "韧体源可用",
+      "text": "固件源可用",
       "status": "approved"
     },
     "Firmware source available.": {
       "sourceHash": "f11d9d4680034d5490054232ae4da89bfd7c2259323fb5520ee7cb0b8fc9c199",
       "fingerprint": "dfae37f05e956474f4d2e082155def844f4868a7faac0cdaee51b26bc86cbeba",
-      "text": "韧体源可用。",
+      "text": "固件源可用。",
       "status": "approved"
     },
     "Firmware source unavailable": {
       "sourceHash": "5fa2064900d73380139e95e31b529e4887d2d508adbc92f9e1b1934615693df4",
       "fingerprint": "930cd2ddec4d0931a01b19529fcffebb773d5471eccc5964ecd48748026c7fa0",
-      "text": "韧体源不可用",
+      "text": "固件源不可用",
       "status": "approved"
     },
     "Firmware gateway error": {
       "sourceHash": "e8847370a84edd0058241900622b80e76ef9c90df1fbe0ab1bcfe2254e9fb621",
       "fingerprint": "5d3019b80db9a3fda9629a9329e7fd806733fc93754c320a1488e19f1942c1a7",
-      "text": "韧体闸道器错误",
+      "text": "固件闸道器错误",
       "status": "approved"
     },
     "Loading stream data": {
@@ -10343,7 +10343,7 @@
     "Device-demo source bundle": {
       "sourceHash": "0cdbcbbc828c74fde5e9d0e3163acbd951a9e6d68b43f17be694efd655830d19",
       "fingerprint": "285b8de39065b50ecf6fb0a239e369825403e64c5a182e4fa918603d7ba93a12",
-      "text": "装置演示源捆绑包",
+      "text": "设备演示源捆绑包",
       "status": "approved"
     },
     "Complete release bundle": {
@@ -10421,7 +10421,7 @@
     "Cloud-to-device or cloud-to-app file delivery.": {
       "sourceHash": "f98481285203c181fe01dfad7ba997d7422e0de8137b6e94ff1c0de59cebbedc",
       "fingerprint": "bc905c2cb379e551c13e58f8f916016f27e6e8251227f4e5aef1f40111089eea",
-      "text": "云端到装置或云端到应用程式档案交付.",
+      "text": "云端到设备或云端到应用程式档案交付.",
       "status": "approved"
     },
     "Critical": {
@@ -10439,31 +10439,31 @@
     "Deliver an update task to a target device.": {
       "sourceHash": "fa340e4c4fbd7f266f55f8d8b52da49e2b43ca77a340057c49cf2f3b5dffe13b",
       "fingerprint": "f144a5feeafee9934b6dbdf103b49d0548cdd651b3a04297c789f4e45d8c2774",
-      "text": "交付更新任务给目标装置.",
+      "text": "交付更新任务给目标设备.",
       "status": "approved"
     },
     "Device Health": {
       "sourceHash": "f263e54b09a686fe80b35a1a80034b65a1cf38a8b09c363fa629e69f85c64d35",
       "fingerprint": "2d1187df0265d74f0a5692bad080d2832753a0a8fb1547163d95018ff3324347",
-      "text": "装置健康",
+      "text": "设备健康",
       "status": "approved"
     },
     "Device credentials ready": {
       "sourceHash": "7165f43601723d8524bbb327d1cd660b3f92974c5495fc6c324ad7b41c821df6",
       "fingerprint": "7ec6134b192eb6477294cd852ff6e77c63b9223d40c74af1568faa5cdb961dbe",
-      "text": "装置的身份证已准备",
+      "text": "设备的身份证已准备",
       "status": "approved"
     },
     "Device operations manager": {
       "sourceHash": "c2f6001b5f8c4e117fbf0b6474ea174c4a8eebb73387e56eb189fb0890cd42af",
       "fingerprint": "82f3f0cb096c69d6e59dfd0ad956c7e1247cb571be3a07d6e375872f2bde8562",
-      "text": "装置操作经理",
+      "text": "设备操作经理",
       "status": "approved"
     },
     "Devices Without Successful Streams": {
       "sourceHash": "e302c63a254450516fdc102c3c3bb5945687c17587bc289d2b13e082f13f0e81",
       "fingerprint": "ef4323ad0cb359cfbaa0c75bd40eb9da71b7553409dbb5b8bb9b2f75018000d5",
-      "text": "没有成功的流程的装置",
+      "text": "没有成功的流程的设备",
       "status": "approved"
     },
     "Example message delivery": {
@@ -10493,7 +10493,7 @@
     "Firmware update manager": {
       "sourceHash": "c74e766a103605c9106140603cda959ab90fb72a948e388596e92077555fff81",
       "fingerprint": "25b0142dbc5f0367b536be21153b4d2930160be4872589e4105ca071f78eeb66",
-      "text": "韧体更新管理器",
+      "text": "固件更新管理器",
       "status": "approved"
     },
     "Friendly Summary": {
@@ -10565,7 +10565,7 @@
     "Messages accepted from devices or applications.": {
       "sourceHash": "dada763ba61475f8a549945c934f4dcd2e2e551e250e4e92e7d2ec064adb8049",
       "fingerprint": "41ecf9b4c0b4da80df826e15da271b76d880d6f3ca96a88bd95913193cbdf0c8",
-      "text": "接收来自装置或应用程式的资讯.",
+      "text": "接收来自设备或应用程式的资讯.",
       "status": "approved"
     },
     "Messages delivered to subscribers.": {
@@ -10589,7 +10589,7 @@
     "Other device and application data API calls.": {
       "sourceHash": "b37f4161ea058cf20e9423599f84aca3a273dbd8ae9eb45b640408e0ce623479",
       "fingerprint": "33bb764d504fa758385b4156331f63dd085e2cb18740747c3f456bd64044aff2",
-      "text": "其他装置和应用资料API呼叫.",
+      "text": "其他设备和应用资料API呼叫.",
       "status": "approved"
     },
     "Pending Activation": {
@@ -10625,13 +10625,13 @@
     "Read media or firmware from storage.": {
       "sourceHash": "a3097aa33c30b6b70b619d2ccfe839f53dd82623bd7297e6265212884a1a8964",
       "fingerprint": "84c7f44cc3e4e6fa28f33300fdc89dd4dd55c43c27d3b264b323df7d4a1a5db8",
-      "text": "读取媒体或韧体从储存中.",
+      "text": "读取媒体或固件从储存中.",
       "status": "approved"
     },
     "Read, update, delete and list device state.": {
       "sourceHash": "3b38007beb06804587c6d6a9732bb20c904e69eeaf6b1da3e534ca40eef6bdc1",
       "fingerprint": "53717739e47e566476a3e63d0689546896537b4ed31468996977b6fa038c4af6",
-      "text": "阅读,更新,删除和列表装置状态.",
+      "text": "阅读,更新,删除和列表设备状态.",
       "status": "approved"
     },
     "Read-only viewer": {
@@ -10691,7 +10691,7 @@
     "Stored clips, snapshots and firmware artifacts.": {
       "sourceHash": "2a9336aafa69f3068b57adf8ae9f0e8a1340cb19d558bbe547f5e899e88c3d7e",
       "fingerprint": "8213c983eec09b5bee4998cfafde89f1b183ab7a22af8520c4a6dd434c6e3933",
-      "text": "储存的剪辑,快照和韧体.",
+      "text": "储存的剪辑,快照和固件.",
       "status": "approved"
     },
     "Stream source reports an active session.": {
@@ -10733,7 +10733,7 @@
     "Upload clips, snapshots and firmware objects.": {
       "sourceHash": "ed34fa09363465c1d637f0db908bd7505cc787e91503022a5aab3c36984a428b",
       "fingerprint": "5cd575c8ad2484c3d557c38df1f247e6da6ff94aab170e742a214f8cc86357cd",
-      "text": "装载剪辑,快照和韧体物件.",
+      "text": "装载剪辑,快照和固件物件.",
       "status": "approved"
     },
     "Waiting": {
@@ -10757,19 +10757,19 @@
     "You are responsible for Product settings, collaborators, and associated devices.": {
       "sourceHash": "a78c3695a790d76c11876a28f456e4cdd12d6a60c7e9eb153c3a579858000bbb",
       "fingerprint": "3c698c5cd91a04d9971604d2cc000689a357d76970d7cb978e814f7ea8407dfa",
-      "text": "您负责产品设定,合作者和相关装置.",
+      "text": "您负责产品设定,合作者和相关设备.",
       "status": "approved"
     },
     "You are responsible for day-to-day device operations and maintenance within the assigned scope.": {
       "sourceHash": "2ca793eef86a11d59d589d61c8936eb3eb536cf753b86ce18b20272fef517f8c",
       "fingerprint": "13f25f00b9cdec24ad6cda0fdf5605cad961ca5ed19e43c441ec51ff07020579",
-      "text": "您负责在分配范围内的日常装置执行和维护.",
+      "text": "您负责在分配范围内的日常设备执行和维护.",
       "status": "approved"
     },
     "You are responsible for device installation, bundling, and activation for the specified site or group.": {
       "sourceHash": "24bf931580fd54cba2105e989890598ef5fea3cb20cc7831a32363046f4427b6",
       "fingerprint": "13c6e16ca74e386c460450e6a3b35ba363aec2fb8ec5e5e3e94ce0dd5cbc2168",
-      "text": "您负责安装,捆绑和启用装置,用于指定站点或组.",
+      "text": "您负责安装,捆绑和启用设备,用于指定站点或组.",
       "status": "approved"
     },
     "You are responsible for the final management and ownership handover of this Brand Cloud.": {
@@ -10781,7 +10781,7 @@
     "You are responsible for the specified range of firmware versions and update schedules.": {
       "sourceHash": "f7bd910b9ff06b1a0afb360d0abbe078ccc7a5f60356652201bfc8735452ad8e",
       "fingerprint": "7e2f195e1a305c084aede0042f80b5822c45fcf41f0ae4923a6773a3c7d30b1a",
-      "text": "您负责指定的韧体版本和更新时间表.",
+      "text": "您负责指定的固件版本和更新时间表.",
       "status": "approved"
     },
     "You can maintain the assigned Product and work on the project, but you can’t transfer ownership.": {
@@ -10805,7 +10805,7 @@
     "You can view operational information, but you can’t modify devices, settings, or member information.": {
       "sourceHash": "ba298a19930c867520f97aa02c0265078316cac22a3655ceb2345a86068149e4",
       "fingerprint": "cc950d31986bc31136d5cb5f403600c2cc5bf3697efb7daef5b3c98e747dbe7a",
-      "text": "您可以检视操作资讯,但不能修改装置,设定或成员资讯.",
+      "text": "您可以检视操作资讯,但不能修改设备,设定或成员资讯.",
       "status": "approved"
     },
     "You help brand owners manage their teams and day-to-day operations, but you can’t transfer brand ownership.": {
@@ -10817,7 +10817,7 @@
     "You manage brand accounts, users, and overall device operations.": {
       "sourceHash": "56a366684fd605d3da1db93b140d5255f9a7faeee321c0b4919afdfc8d6d303c",
       "fingerprint": "ac024b5ae06fedd290db58ef442e01340ecdd16cb5e16d89b4f80de0e5802b4a",
-      "text": "您管理品牌账户,使用者和装置运营.",
+      "text": "您管理品牌账户,使用者和设备运营.",
       "status": "approved"
     },
     "Platform Admin sign in": {
@@ -11087,7 +11087,7 @@
     "The device query service is not configured.": {
       "sourceHash": "65c8395a67797e691cc1b5b52e032f261450673588d287ac9bf0f5774a5f32a1",
       "fingerprint": "8b64d78dfd55ea34e5371f3bc76380720834b15ff02d388b255bff7c5e372ba6",
-      "text": "尚未设定装置查询服务。",
+      "text": "尚未设定设备查询服务。",
       "status": "approved"
     },
     "Idempotency-Key is required for report writes.": {
@@ -11111,7 +11111,7 @@
     "Automatic download mode failed. If only TX/RX/GND are connected, enter download mode manually and turn off automatic download mode.": {
       "sourceHash": "4f000bfb8c2b88f88dff4096d9e1a8461b1d5df85bd646a80973a25b82b2220b",
       "fingerprint": "634aa894923d4dcd0e5d17ee07c5a9556f19a2d03c2332ee2f9897e3c3dd8a96",
-      "text": "如果只有TX/RX/GND连线,请手动输入下载模式,然后关闭自动下载模式.",
+      "text": "如果只有TX/RX/GND连接,请手动输入下载模式,然后关闭自动下载模式.",
       "status": "approved"
     },
     "Burn and verification completed. Reopening the console at 115200 baud…": {
@@ -11141,7 +11141,7 @@
     "Burn canceled. Reconnect UART if you want to continue.": {
       "sourceHash": "3198cef6b936cb6b03c8ffb41495703721bd3340042e1007e70ccdede1298789",
       "fingerprint": "32eea7d2743fa4e37645c380124e6d5c98e95a28988f68bc8309d595f06042f2",
-      "text": "如果您想继续,请重新连线UART.",
+      "text": "如果您想继续,请重新连接UART.",
       "status": "approved"
     },
     "Burn canceled. UART console reopened at {{baud}} baud.": {
@@ -11213,13 +11213,13 @@
     "Connect UART to use the console and burn firmware.": {
       "sourceHash": "3313159b829e08438134634a4d4c3abb204d4e1a867b3b41183de93677f579b9",
       "fingerprint": "cefe2045aeb5f1e3db40eb48fbdd6f2b865a1bfbdee45edcdfd58500071090b2",
-      "text": "连线UART使用控制台并烧毁韧体.",
+      "text": "连接UART使用控制台并烧毁固件.",
       "status": "approved"
     },
     "Connected and waiting for device output.": {
       "sourceHash": "db8eedf952df924dd1826060aa8c5cb994f178994743539f9064fd0db7695f65",
       "fingerprint": "3d428a84a27ae94556895bc4c2534b53b6c03df791df8bb30c1e737ca7d346ae",
-      "text": "连线,等待装置输出.",
+      "text": "连接,等待设备输出.",
       "status": "approved"
     },
     "Console log copied.": {
@@ -11243,7 +11243,7 @@
     "Console ready. This adapter cannot reset the device automatically; reset it manually.": {
       "sourceHash": "1e54031f111b02925091bebe25880a94e401dc48af34db581e1f4454e8fbdf14",
       "fingerprint": "2b9c5b9a77aaca381d8f152eea9120d0bf38e9d425d3b1288ba142a055d954e9",
-      "text": "控制台准备好. 这个介面卡不能自动重新设定装置;",
+      "text": "控制台准备好. 这个介面卡不能自动重新设定设备;",
       "status": "approved"
     },
     "Copy failed: {{message}}": {
@@ -11255,13 +11255,13 @@
     "Device canceled": {
       "sourceHash": "c0cf49f7ed992b60ec574456361a7d1831ef4145c8e73e3b5747318ed320b6f0",
       "fingerprint": "327c3f596d02bda0da6cf9a0b7ad90ebbada78f5da138e6a50ba5c49f7dff197",
-      "text": "取消装置",
+      "text": "取消设备",
       "status": "approved"
     },
     "Device canceled XMODEM.": {
       "sourceHash": "5c4ee4c08fb246e47ddeb4ffb753293f20e1880ad1951470caf6157aa2a7940f",
       "fingerprint": "ef2384f3d0d0e29e97a19fb72c425d2ed196dcc11a51508b8f748c3fa63b1fb1",
-      "text": "装置取消了XMODEM.",
+      "text": "设备取消了XMODEM.",
       "status": "approved"
     },
     "Diagnostics copied.": {
@@ -11273,7 +11273,7 @@
     "Do not boot the device yet. Burn again at a lower speed.": {
       "sourceHash": "ef62df6129d242052651191898fd29dd5e83d2f2ce000a69ff38f58e90796768",
       "fingerprint": "b1192dd27dee1155fa71aa24461dd1dbf3cb55b1fe26da5a9f1019ca85833229",
-      "text": "没有启动装置,更低速度再次燃烧.",
+      "text": "没有启动设备,更低速度再次燃烧.",
       "status": "approved"
     },
     "Download mode was not detected": {
@@ -11315,7 +11315,7 @@
     "Erasing the firmware range…": {
       "sourceHash": "4f0c7d1b21c07c94af08128ab9558e424964c8dfb99aa72f475e5cd3e7aea371",
       "fingerprint": "d4e31631369f552d5ebaf90e3a64dfeee26aae684bf93803834584b57f0b22eb",
-      "text": "删除韧体范围...",
+      "text": "删除固件范围...",
       "status": "approved"
     },
     "Firmware SHA-256 copied.": {
@@ -11339,19 +11339,19 @@
     "Firmware loaded: {{name}}, {{size}} bytes (not uploaded)": {
       "sourceHash": "317c6a4c0b1ce3d26e25a418e3cae63e9ae6a85ac68def6f3c1ed3f05181f73e",
       "fingerprint": "5181d270ff7a10afd5b6270b2590f6c73566b11877044493bac27f8ca5280a0b",
-      "text": "装载的韧体:{{name}}, {{size}}位元组 (未上传)",
+      "text": "装载的固件:{{name}}, {{size}}位元组 (未上传)",
       "status": "approved"
     },
     "Firmware ready": {
       "sourceHash": "4b1efd9c6b0ee990b35ccbb11ac87f95c55c55166e93b74688be9aece0e55469",
       "fingerprint": "75d6c17e59ff8784a1bcea5ea2448ef4277c13a8feeb36ecca3e6052a45f0b43",
-      "text": "韧体准备好",
+      "text": "固件准备好",
       "status": "approved"
     },
     "Firmware verification failed": {
       "sourceHash": "c965b8f98dd3fba4091dc960913eb1395c79d53278154c75a0c10ff0c0809bf0",
       "fingerprint": "cf13066ac6fc8dc22b02c381faac31b570c1e33c06a29dc7f0de3da92c540214",
-      "text": "韧体验证失败",
+      "text": "固件验证失败",
       "status": "approved"
     },
     "Flash offset has an invalid format.": {
@@ -11393,7 +11393,7 @@
     "No UART was selected. Select Connect UART to try again.": {
       "sourceHash": "78a61450d7a00b0684802fa6e706a3e0431e993de854d26dd9a2563bb97763f7",
       "fingerprint": "595066268a70c81cfee21a19a710f8e9a4bd50cf3792247f1ecd01805966176f",
-      "text": "没有选择 UART. 选择连线 UART,再尝试.",
+      "text": "没有选择 UART. 选择连接 UART,再尝试.",
       "status": "approved"
     },
     "No serial port has been selected.": {
@@ -11411,7 +11411,7 @@
     "Ping failed. Confirm that the device is in UART download mode.": {
       "sourceHash": "0c8feb60ded8b57f14a7555591e4641e877ae1805022a9a74ad154774bdb6cdc",
       "fingerprint": "9e11813f45ea4ed399e0fd2461df8250f760b0b0eacddd479f541ce78af705c5",
-      "text": "失败,确认装置已在UART下载模式下.",
+      "text": "失败,确认设备已在UART下载模式下.",
       "status": "approved"
     },
     "Published full non-TrustZone flash image · isolated test settings": {
@@ -11423,13 +11423,13 @@
     "Reconnect the USB UART, then select Reconnect UART.": {
       "sourceHash": "f3e26698c2ea218f879e883c40b269a17d5caf312d00f241d25a53367da560db",
       "fingerprint": "7c768d1bf916bf72d692c7e45644ce3cf7828daefe99c27c130a02b0479adfcc",
-      "text": "再连线USB UART,然后选择再连线 UART.",
+      "text": "再连接USB UART,然后选择再连接 UART.",
       "status": "approved"
     },
     "Reset the device through DTR/RTS.": {
       "sourceHash": "710942af46277fcf1b223c9adaba16ee78646553633c98e71039566dbc60b419",
       "fingerprint": "d252b29d723e2849ef25e179e788ba311b7d0bad38ee31f7165d111c8de3376f",
-      "text": "透过DTR/RTS重新设定装置.",
+      "text": "透过DTR/RTS重新设定设备.",
       "status": "approved"
     },
     "SHA-256 verification failed.": {
@@ -11459,19 +11459,19 @@
     "The bootloader did not start receiving firmware": {
       "sourceHash": "aa591cae0bcfaf24a7c8968c2ce837a277c7652a1f9ab8ed8121f33abd5fa1ec",
       "fingerprint": "91e164455c8c8da815568237440b23ff21a623d02a2b463b85e87994a26841e0",
-      "text": "启动器没有开始接收韧体",
+      "text": "启动器没有开始接收固件",
       "status": "approved"
     },
     "The firmware SHA-256 is still being calculated. Review the checksum before burning.": {
       "sourceHash": "83191c9e8164675a29043f798d2ebf67e7626027e7641289db603b8a98caf036",
       "fingerprint": "89dc8d770eb65a9abe5f201219e2ddae4a9321131a316ebf52b2bf46f87f6c31",
-      "text": "现在还在计算SHA-256的韧体.",
+      "text": "现在还在计算SHA-256的固件.",
       "status": "approved"
     },
     "The firmware file is empty.": {
       "sourceHash": "cc9894857828e016a0e53f0fab6c2dbcc4eed49f3e33a07749233f5ec5472bab",
       "fingerprint": "71118eb31014188bdaf4f963353a94ec3a8c2e9e6e765d999e4259d1958959ba",
-      "text": "韧体档案是空的.",
+      "text": "固件档案是空的.",
       "status": "approved"
     },
     "This USB UART adapter cannot control the reset/boot pins. Enter download mode manually and turn off automatic download mode.": {
@@ -11483,7 +11483,7 @@
     "This browser does not support USB serial connections (Web Serial). To flash firmware or use the serial console, use desktop Chrome or Edge. You can still browse documentation and download firmware in this browser.": {
       "sourceHash": "9a85f84ce0934f6c2826b890046fb14a94df9ab16d674a7f219b181d2791a798",
       "fingerprint": "fcdf27fc9cb24cf456359ad04f92d0a5640ffe650f71acc383ef110c3047c59b",
-      "text": "您可以在此浏览器中浏览档案和下载韧体.",
+      "text": "您可以在此浏览器中浏览档案和下载固件.",
       "status": "approved"
     },
     "This browser does not support Web Serial.": {
@@ -11501,13 +11501,13 @@
     "Transferring firmware": {
       "sourceHash": "9fd3024ba7b1a6c1b5d275c85c0368d283c2ee2f2602d2e0345c9913fcd31d8d",
       "fingerprint": "d18f9511bf20627275e3377e44d288168d9d3be9f29e896c0e6e8415ec1732bb",
-      "text": "转移韧体",
+      "text": "转移固件",
       "status": "approved"
     },
     "Transferring firmware…": {
       "sourceHash": "7db35151655287589d303b6efc47212c384dff5ec1c8d9dd708a2f50f3761478",
       "fingerprint": "32d5ac657100232a38b893da1eb4a04f1df6c37f9767ef580bcd8c7ba2fa3029",
-      "text": "转移韧体...",
+      "text": "转移固件...",
       "status": "approved"
     },
     "UART closed": {
@@ -11519,19 +11519,19 @@
     "UART connected": {
       "sourceHash": "0674e5eef56f971932678081f1d36ab66173434b2a4496016d277f729b9d08a0",
       "fingerprint": "793479b349fc43ba65e786617d089d53756a0966aa41ad279bb26d6908004332",
-      "text": "连线到UART",
+      "text": "连接到UART",
       "status": "approved"
     },
     "UART disconnected. Reconnect when needed.": {
       "sourceHash": "85153872dea3eb15b4d433d6c56e7f2264960d041ed973faf963ac850ff7cd4a",
       "fingerprint": "830de190b4b1869ccccea375ebf27b2a154d2b0c390911c55631596b7401bd99",
-      "text": "关闭了UART,需要时重新连线.",
+      "text": "关闭了UART,需要时重新连接.",
       "status": "approved"
     },
     "UART is already connected.": {
       "sourceHash": "2c89b4e6bc85f878364900321024403a43ce4e2aad85a30601de6fb09d8648da",
       "fingerprint": "8a4c338ad29e8c9b1d3ff255810208e6e33eea4ad71582755b49cde07b872c40",
-      "text": "现在已经连线了.",
+      "text": "现在已经连接了.",
       "status": "approved"
     },
     "UART is in use by another application": {
@@ -11543,7 +11543,7 @@
     "UART is not connected.": {
       "sourceHash": "31289bfd52c68132a46056d8d992cac0cc589ca1a9a57ebd502bf5bd45301dc1",
       "fingerprint": "3eefd8e4d3479bb41570a008171682bf71024764678ace14aa532853b89fdc96",
-      "text": "没有连线.",
+      "text": "没有连接.",
       "status": "approved"
     },
     "UART ownership changed": {
@@ -11567,13 +11567,13 @@
     "USB UART was disconnected. Reconnect it, then select Reconnect UART.": {
       "sourceHash": "65eda6ad66eb3393b6bf28d564b7a3645a764d2d3ccbcc3860465b3a015847ec",
       "fingerprint": "5e476b3b481822fc5be595a09a74892e834686ed5dcb129971c06896063ecd96",
-      "text": "连线,然后选择连线.",
+      "text": "连接,然后选择连接.",
       "status": "approved"
     },
     "Verifying firmware": {
       "sourceHash": "2aa3a1bc712502dba88d9a50354e75fcf4f49232267d34e9aaec2d017ab8e96f",
       "fingerprint": "d85e8840ff858cd91dc3c25ea21bdf9d1c6a7c60c22304c4a5631a1495d2aba9",
-      "text": "验证韧体",
+      "text": "验证固件",
       "status": "approved"
     },
     "Waiting for calculation": {
@@ -11585,7 +11585,7 @@
     "Web Serial ready · Firmware and UART data stay on this computer.": {
       "sourceHash": "50cb3681eb83493725a8f088d9002c538af0c3006251c74e3a9bceb3e878fdd9",
       "fingerprint": "81acd8ed0a63d037b6f241e3b9ef855cadcaddd25110a702f0bcabca7cdbb16a",
-      "text": "网路连载准备 · 韧体和UART资料保持在这个计算机上.",
+      "text": "网路连载准备 · 固件和UART资料保持在这个计算机上.",
       "status": "approved"
     },
     "Web Serial requires HTTPS (localhost may use HTTP).": {
@@ -11693,7 +11693,7 @@
     "Connecting to {{value0}}": {
       "sourceHash": "18af3f0dd120a18edec0c4f0ffddb9b5e9b4301c307d740049d0a03fba4eee7a",
       "fingerprint": "75acee1e002a8ba518075080440e4038b0d31a9dd8d583e32468c62b61c42cbd",
-      "text": "连线到{{value0}}",
+      "text": "连接到{{value0}}",
       "status": "approved"
     },
     "Continue with {{value0}}": {
@@ -11753,7 +11753,7 @@
     "Showing firmware versions, device distribution, and OTA update status for {{value0}}.": {
       "sourceHash": "f83deea0f4a42690bccf1c0aad89a624ffc9ea1ae412f53316514ee091a1ef09",
       "fingerprint": "46e0e004bc3a1ae1f1349eb46c69ee448884c6ed11a60dd244eec6f6664e4079",
-      "text": "显示韧体版本,装置分布和OTA更新状态{{value0}}.",
+      "text": "显示固件版本,设备分布和OTA更新状态{{value0}}.",
       "status": "approved"
     },
     "Signals: {{value0}}": {
@@ -11795,7 +11795,7 @@
     "Waiting devices for {{value0}}": {
       "sourceHash": "bcaee06ae68b1d776e6400b8ec7a591877d92da8345d46145996bde2c3173cce",
       "fingerprint": "938175ff1de68b1e0480cee2ce29c4e464eb271ca4be6b05219ddec6faff306a",
-      "text": "等待装置{{value0}}",
+      "text": "等待设备{{value0}}",
       "status": "approved"
     },
     "Watch {{value0}}": {
@@ -11813,7 +11813,7 @@
     "{{value0}} Devices": {
       "sourceHash": "df2c6a60aaa60d8eb3be76cffee5027336120255b4355b56ecbaa8d0c38c9b67",
       "fingerprint": "6cd707dd33dc76469ed951b89c07be1a5069bb1e80d40d593033fafa4332a7fd",
-      "text": "{{value0}}装置",
+      "text": "{{value0}}设备",
       "status": "approved"
     },
     "{{value0}} appearance model": {
@@ -12065,7 +12065,7 @@
     "Devices with no successful stream request recorded in the selected 7D window; not a lifetime count.": {
       "sourceHash": "fd4f1a638aeae486fbea44affb0f103bbaf3cff5463c8aa6c9898611865a67ba",
       "fingerprint": "0f9fed7c6e78e6af3dd7c4391ea37d1c3f28503665ba8f97330ddf5539c0128b",
-      "text": "所选 7 天期间内未记录到成功串流请求的装置；此数字并非历史总数。",
+      "text": "所选 7 天期间内未记录到成功串流请求的设备；此数字并非历史总数。",
       "status": "approved"
     },
     "Disk utilization": {
@@ -12077,7 +12077,7 @@
     "Does not include a WebRTC peer connection, media engine, renderer, or media-track runtime.": {
       "sourceHash": "b2f40e458a95b66e973dbca36830c2ff6ab658ea6984ac952c53d8aadfba05bb",
       "fingerprint": "9d56fae5871158e7565548b4c0e6b8b7318b5f5c0571e3c3e3e06a5cb73fb873",
-      "text": "不含 WebRTC 对等连线、媒体引擎、渲染器或媒体轨执行环境。",
+      "text": "不含 WebRTC 对等连接、媒体引擎、渲染器或媒体轨执行环境。",
       "status": "approved"
     },
     "E2E operation failed while calling upstream.": {
@@ -12125,7 +12125,7 @@
     "Inspect and test an authorized device from your Developer Console. Live operations require device-scoped runtime authorization.": {
       "sourceHash": "73357aaf44261a4b0754c0811f842fd2790ac749258279260963a3c4a5062b2e",
       "fingerprint": "1902436d9423e5ace4236d4b581bd053f7eaaafd27b26dbd9d14ac9b4d94ffda",
-      "text": "从开发者主控台检视并测试已授权的装置。即时操作需要装置范围的执行阶段授权。",
+      "text": "从开发者主控台检视并测试已授权的设备。即时操作需要设备范围的执行阶段授权。",
       "status": "approved"
     },
     "Linux x86_64 and macOS arm64 static libraries, headers, and CMake metadata": {
@@ -12197,7 +12197,7 @@
     "Organize device models, cloud services and firmware by product.": {
       "sourceHash": "a983ed8eaac918eb1ceb0306591adb89e1629ec1f173158d7c083fe72cbd1b42",
       "fingerprint": "71fda08e9a10bcf72e902063a4989f1f451afebceec08c12d8351f781dad59ed",
-      "text": "依产品整理装置型号、云端服务与韧体。",
+      "text": "依产品整理设备型号、云端服务与固件。",
       "status": "approved"
     },
     "Owner, SSO, or quota pending": {
@@ -12227,7 +12227,7 @@
     "Provisioned devices currently online": {
       "sourceHash": "96b79aba3053d84eefcbdf36c6b3fd9e152500b06fc4f22d18ff692e80a2d478",
       "fingerprint": "0ebb7c54e254ae893aedd404ddb999b9548c8b358591beea5aca41fbee52a6ba",
-      "text": "目前在线的已布建装置",
+      "text": "目前在线的已布建设备",
       "status": "approved"
     },
     "Provisioning failed": {
@@ -12317,13 +12317,13 @@
     "Total devices": {
       "sourceHash": "36badc14006876a2bec4cbffee6bf3c544ec714a5f9273ae60e35d98820914bf",
       "fingerprint": "6718436f02d9939abd05362c587ca3bffaf681a66e4e07fce161ef17e826ffc6",
-      "text": "装置总数",
+      "text": "设备总数",
       "status": "approved"
     },
     "Video devices online": {
       "sourceHash": "415307c9d2226a291b0bccbc0cca05eb7684689b501bc385da4665975ca674c8",
       "fingerprint": "e1a8568abef6aa05af61a9c5c22d42469af6f6c7ea5234326003bde16292add7",
-      "text": "在线视讯装置",
+      "text": "在线视讯设备",
       "status": "approved"
     },
     "Waiting for downstream completion.": {
