@@ -3289,7 +3289,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     <div className="page-intro"><div><h2>Invoices</h2><p>Review service charges, tax, and settlement status for each billing period. Open an invoice to see its breakdown or download an available PDF.</p></div>{invoices.length > 0 && <a className="ghost-button" href={billingAPI(cloudId, '/api/billing/statements')}>Export statement</a>}</div>
     {billingTabs}
     {invoices.length ? <section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section> : <>
-      <div className="invoice-preview-intro"><h3>No invoices yet</h3><p>Here is an example of your invoice layout, including Taiwan tax at 5%. This preview does not reflect your account balance or payment history.</p></div>
+      <div className="invoice-preview-intro"><h3>No invoices yet</h3><p>Here is an example of your invoice layout before tax. This preview does not reflect your account balance or payment history; tax is shown on an issued invoice.</p></div>
       <BillingInvoiceDocument preview />
     </>}
   </section>;

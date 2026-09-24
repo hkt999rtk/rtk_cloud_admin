@@ -25,6 +25,8 @@ test('[UI-CA-INVOICE-001] empty invoice history shows a non-payable before-tax s
   await page.goto(invoicesURL);
   const preview = page.getByTestId('invoice-preview');
   await expect(page.getByRole('heading', { name: 'No invoices yet' })).toBeVisible();
+  await expect(page.locator('.invoice-preview-intro')).toContainText('before tax');
+  await expect(page.locator('.invoice-preview-intro')).not.toContainText('5%');
   await expect(preview).toContainText('Sample / Not issued');
   await expect(preview).toContainText('Not a tax invoice or payment request');
   const totals = preview.locator('.invoice-document-totals');
