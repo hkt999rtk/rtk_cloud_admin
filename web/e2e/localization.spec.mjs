@@ -7,6 +7,7 @@ test('[UI-CA-I18N-001] language switch keeps form state and survives reload @smo
   await page.getByLabel('Email', { exact: true }).fill('developer@example.com');
   await page.locator('[data-locale-selector]').selectOption('zh-TW');
   await expect(page.getByRole('heading', { name: '登入 Connect+', exact: true })).toBeVisible();
+  await expect(page).toHaveTitle('登入 Connect+');
   await expect(page.locator('input[type=email]')).toHaveValue('developer@example.com');
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
   await page.reload();
@@ -14,6 +15,9 @@ test('[UI-CA-I18N-001] language switch keeps form state and survives reload @smo
   await page.locator('[data-locale-selector]').selectOption('zh-CN');
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hans');
   await expect(page.getByRole('heading', { name: '登录 Connect+', exact: true })).toBeVisible();
+  await expect(page).toHaveTitle('登录 Connect+');
+  await page.goto('/forgot-password');
+  await expect(page).toHaveTitle('忘记密码 · RTK Cloud');
 });
 
 test('[UI-CA-I18N-002] documentation search, articles and anchors follow the chosen language @smoke', async ({ page, isMobile }) => {
@@ -80,6 +84,10 @@ test('[UI-CA-I18N-004] every current customer and platform route renders in all 
         await expect.soft(page.locator('html'), `${role} ${locale} ${path}`).toHaveAttribute('lang', htmlLang);
         await expect.soft(page.locator('[data-locale-selector]'), `${role} ${locale} ${path}`).toHaveValue(locale);
         await expect.soft(page.locator('#root'), `${role} ${locale} ${path}`).not.toBeEmpty();
+        if (path === '/console/clouds') {
+          const title = { en: 'My Clouds', 'zh-TW': '我的雲端', 'zh-CN': '我的云端' }[locale];
+          await expect.soft(page).toHaveTitle(`${title} · RTK Cloud`);
+        }
       }
     }
   }

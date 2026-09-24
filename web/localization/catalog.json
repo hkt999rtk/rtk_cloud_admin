@@ -12532,6 +12532,24 @@
         "{{down}}",
         "{{up}}"
       ]
+    },
+    {
+      "key": "Create account Connect+",
+      "source": "Create account Connect+",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Platform Admin sign in Connect+",
+      "source": "Platform Admin sign in Connect+",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Sign in Connect+",
+      "source": "Sign in Connect+",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

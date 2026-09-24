@@ -12391,6 +12391,24 @@
       "fingerprint": "ab5c1b9566a192559a54ce3a8f888e39ea008d27b21144d60e2393f8027c7e50",
       "text": "{{up}} 个正常／{{down}} 个离线",
       "status": "approved"
+    },
+    "Create account Connect+": {
+      "sourceHash": "b1560da7926d39087fbd48acf206a49a16534a6e0b3213d1f0dafdf681924fd9",
+      "fingerprint": "84f1e6c1d912b93f358f86cae489328398b2377304dd910a1d80c34b3b7970fd",
+      "text": "创建账户 Connect+",
+      "status": "approved"
+    },
+    "Platform Admin sign in Connect+": {
+      "sourceHash": "3629c8c61efc72c0adc1b2198819166ceeecba10c81a5c579ce9e175465362d1",
+      "fingerprint": "b8a459c4da8815d48185cf2be371444e0b2d86921e055b966db025095f2d33cc",
+      "text": "平台管理员登录 Connect+",
+      "status": "approved"
+    },
+    "Sign in Connect+": {
+      "sourceHash": "b6c7b7e8b038e863cf3bd8dd7411d0c5f863d9e8a58f00b75b25b8abb20acc0b",
+      "fingerprint": "69cf9dc80c608a4c22a6bec9884c572b238dfa5fd512e3a42e4738406132618f",
+      "text": "登录 Connect+",
+      "status": "approved"
     }
   }
 }

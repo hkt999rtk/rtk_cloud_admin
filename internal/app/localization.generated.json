@@ -2063,7 +2063,10 @@
       "Unexpected status {{status}}": "非預期的狀態碼 {{status}}",
       "Up": "起身",
       "Down": "倒下",
-      "{{up}} up / {{down}} down": "{{up}} 個正常／{{down}} 個離線"
+      "{{up}} up / {{down}} down": "{{up}} 個正常／{{down}} 個離線",
+      "Create account Connect+": "建立帳戶 Connect+",
+      "Platform Admin sign in Connect+": "平台管理員登入 Connect+",
+      "Sign in Connect+": "登入 Connect+"
     },
     "service": {
       "Cloud-to-device or cloud-to-app file delivery.": "雲端到裝置或雲端到應用程式檔案交付.",
@@ -4148,7 +4151,10 @@
       "Unexpected status {{status}}": "非预期的状态码 {{status}}",
       "Up": "起身",
       "Down": "倒下",
-      "{{up}} up / {{down}} down": "{{up}} 个正常／{{down}} 个离线"
+      "{{up}} up / {{down}} down": "{{up}} 个正常／{{down}} 个离线",
+      "Create account Connect+": "创建账户 Connect+",
+      "Platform Admin sign in Connect+": "平台管理员登录 Connect+",
+      "Sign in Connect+": "登录 Connect+"
     },
     "service": {
       "Cloud-to-device or cloud-to-app file delivery.": "云端到设备或云端到应用程式档案交付.",

@@ -2064,7 +2064,10 @@ export const en = Object.freeze({ translation: Object.freeze({
   "Unexpected status {{status}}": "Unexpected status {{status}}",
   "Up": "Up",
   "Down": "Down",
-  "{{up}} up / {{down}} down": "{{up}} up / {{down}} down"
+  "{{up}} up / {{down}} down": "{{up}} up / {{down}} down",
+  "Create account Connect+": "Create account Connect+",
+  "Platform Admin sign in Connect+": "Platform Admin sign in Connect+",
+  "Sign in Connect+": "Sign in Connect+"
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -4132,7 +4135,10 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "Unexpected status {{status}}": "非預期的狀態碼 {{status}}",
   "Up": "起身",
   "Down": "倒下",
-  "{{up}} up / {{down}} down": "{{up}} 個正常／{{down}} 個離線"
+  "{{up}} up / {{down}} down": "{{up}} 個正常／{{down}} 個離線",
+  "Create account Connect+": "建立帳戶 Connect+",
+  "Platform Admin sign in Connect+": "平台管理員登入 Connect+",
+  "Sign in Connect+": "登入 Connect+"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -6200,7 +6206,10 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "Unexpected status {{status}}": "非预期的状态码 {{status}}",
   "Up": "起身",
   "Down": "倒下",
-  "{{up}} up / {{down}} down": "{{up}} 个正常／{{down}} 个离线"
+  "{{up}} up / {{down}} down": "{{up}} 个正常／{{down}} 个离线",
+  "Create account Connect+": "创建账户 Connect+",
+  "Platform Admin sign in Connect+": "平台管理员登录 Connect+",
+  "Sign in Connect+": "登录 Connect+"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });

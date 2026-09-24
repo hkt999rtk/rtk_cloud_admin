@@ -1423,11 +1423,11 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
 
   useEffect(() => {
     if (active !== 'login') return;
-    document.title = translate(platformLogin
-      ? 'Platform Admin sign in Connect+'
+    document.title = platformLogin
+      ? translate('Platform Admin sign in Connect+')
       : authMode === 'signup'
-        ? 'Create account Connect+'
-        : 'Sign in Connect+');
+        ? translate('Create account Connect+')
+        : translate('Sign in Connect+');
   }, [active, authMode, platformLogin, activeLocale()]);
 
   useEffect(() => {

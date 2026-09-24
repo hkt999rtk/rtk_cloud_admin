@@ -1,4 +1,4 @@
-import { translate } from './i18n/index.mjs';
+import { activeLocale, translate } from './i18n/index.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { PKIStatus } from './PKIStatus.jsx';
 import { cloudRoot, cloudURL, cloudAPI, cloudError, managedCloudRoute, managedCloudRequest, cloudWriteIntent, cloudOperationFromSearch, cloudContextFromSearch, blockerLabels, isCloudID } from './managed-clouds.mjs';
@@ -70,7 +70,7 @@ export function MyCloudsApp() {
   const intent = useRef(null);
   const alive = useRef(true);
   const loginURL = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-  useEffect(() => { document.title = `${cloudId ? 'Brand Cloud' : 'My Clouds'} · RTK Cloud`; }, [cloudId]);
+  useEffect(() => { document.title = `${translate(cloudId ? 'Brand Cloud' : 'My Clouds')} · RTK Cloud`; }, [cloudId, activeLocale()]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
     const controller = new AbortController();

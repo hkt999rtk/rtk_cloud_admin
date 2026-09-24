@@ -12391,6 +12391,24 @@
       "fingerprint": "7aaa581a075363405bd5cfdfa6233cc909c6866bc5e0c484fe8ad3fab8e9730f",
       "text": "{{up}} 個正常／{{down}} 個離線",
       "status": "approved"
+    },
+    "Create account Connect+": {
+      "sourceHash": "b1560da7926d39087fbd48acf206a49a16534a6e0b3213d1f0dafdf681924fd9",
+      "fingerprint": "f7029f1602ea4ce870bca8043c1897e2faa239266f3e64a25fd51d0eb634179f",
+      "text": "建立帳戶 Connect+",
+      "status": "approved"
+    },
+    "Platform Admin sign in Connect+": {
+      "sourceHash": "3629c8c61efc72c0adc1b2198819166ceeecba10c81a5c579ce9e175465362d1",
+      "fingerprint": "4d7b3662fb4397c3313f520f29d8739f344245f472ef3a479e66081779b85747",
+      "text": "平台管理員登入 Connect+",
+      "status": "approved"
+    },
+    "Sign in Connect+": {
+      "sourceHash": "b6c7b7e8b038e863cf3bd8dd7411d0c5f863d9e8a58f00b75b25b8abb20acc0b",
+      "fingerprint": "05ea725f935b376d36217833c5ed01554bd0ac24d963f24f47bbf206722cf43a",
+      "text": "登入 Connect+",
+      "status": "approved"
     }
   }
 }
