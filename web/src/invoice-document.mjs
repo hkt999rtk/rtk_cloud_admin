@@ -5,8 +5,8 @@ export const SAMPLE_INVOICE = {
   currency: 'TWD',
   recipient: { legal_name: 'Example Company', billing_address: 'Taipei, Taiwan (example)' },
   subtotal_minor: 1000,
-  tax_minor: 50,
-  total_minor: 1050,
+  tax_minor: 0,
+  total_minor: 1000,
   lines: [
     { id: 'sample-video', service_code: 'Video streaming', description: 'Example streaming usage', quantity: 300, unit: 'minutes', subtotal_minor: 600 },
     { id: 'sample-storage', service_code: 'Cloud storage', description: 'Example recording storage', quantity: 100, unit: 'GB-month', subtotal_minor: 300 },

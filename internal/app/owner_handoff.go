@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"rtk_cloud_admin/internal/accountclient"
 )
 
 func (s *Server) apiOwnerHandoff(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +58,7 @@ func (s *Server) apiOwnerHandoff(w http.ResponseWriter, r *http.Request) {
 				BalanceMinor           *int64 `json:"balance_minor"`
 				Currency               string `json:"currency"`
 			}
-			if decodeStrictManagedJSON(w, r, &in) != nil || in.OwnershipVersion < 1 || in.BillingSnapshotVersion < 2 || in.BalanceMinor == nil || *in.BalanceMinor < 0 || in.Currency != "TWD" {
+			if decodeStrictManagedJSON(w, r, &in) != nil || in.OwnershipVersion < 1 || in.BillingSnapshotVersion < 2 || in.BalanceMinor == nil || *in.BalanceMinor < 0 || in.Currency != accountclient.CurrentCurrency {
 				http.Error(w, "exact nonnegative settled snapshot required", 400)
 				return
 			}

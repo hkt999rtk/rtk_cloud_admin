@@ -1,5 +1,7 @@
 import { formatLocale, translate } from './i18n/index.mjs';
 
+export const settlementCurrency = 'TWD';
+
 export const AUTO_TOPUP_CONSENT_TEXT = 'I agree that when the balance falls strictly below the configured threshold, the selected payment method may be used to add funds automatically, subject to the daily attempt, daily amount, and cooldown limits.';
 
 export const AUTO_TOPUP_CONSENT = Object.freeze({
@@ -25,7 +27,7 @@ export const BILLING_CONSENTS = Object.freeze({
   }),
 });
 
-export function formatMinorAmount(amountMinor, currency = 'TWD', locale = formatLocale()) {
+export function formatMinorAmount(amountMinor, currency = settlementCurrency, locale = formatLocale()) {
   const value = Number(amountMinor);
   if (!Number.isFinite(value)) return '—';
   const zeroDecimal = currency === 'TWD';
@@ -62,6 +64,7 @@ export function paymentIntentState(state) {
 export function billingErrorMessage(error) {
   const code = String(error?.code || '');
   const known = {
+    PAYMENT_CURRENCY_UNSUPPORTED: translate('The account currency is not supported for payment.'),
     PAYMENT_CAPABILITY_UNSUPPORTED: translate('The payment service has not completed automatic-charge eligibility verification, so no charge was submitted.'),
     PAYMENT_PROVIDER_NOT_CONFIGURED: translate('The payment service is not configured.'),
     PAYMENT_PROVIDER_UNAVAILABLE: translate('The payment service is temporarily unavailable. Please try again later.'),

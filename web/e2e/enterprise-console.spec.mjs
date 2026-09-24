@@ -58,7 +58,7 @@ test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and 
     await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText('Billing Cloud 1');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
     if (label === 'Service Pricing') {
-      await expect(page.locator('.pricing-cost-value')).toHaveText('US$7.25');
+      await expect(page.locator('.pricing-cost-value')).toHaveText('NT$232');
       await expect(page.locator('.pricing-cost-value')).toBeInViewport();
       await expect(page.locator('.pricing-table tbody tr')).toHaveCount(12);
       await expect(page.getByTestId('billing-pricing-page')).toContainText('not your Cloud’s actual spend');

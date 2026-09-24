@@ -63,7 +63,7 @@ func (c *Client) OwnerHandoff(ctx context.Context, token, subject, method, path,
 	if v.HasSettledSnapshot != (v.BalanceSnapshot != nil) || v.HasSettledSnapshot != (v.SourceConfirmed != nil && v.TargetConfirmed != nil) || (!v.HasSettledSnapshot && (v.SourceConfirmed != nil || v.TargetConfirmed != nil)) {
 		return v, fmt.Errorf("incomplete handoff snapshot")
 	}
-	if snap := v.BalanceSnapshot; snap != nil && (snap.OwnershipVersion < 1 || snap.OwnershipVersion != v.OwnershipVersion || snap.BillingSnapshotVersion < 2 || snap.BalanceMinor < 0 || snap.Currency != "TWD") {
+	if snap := v.BalanceSnapshot; snap != nil && (snap.OwnershipVersion < 1 || snap.OwnershipVersion != v.OwnershipVersion || snap.BillingSnapshotVersion < 2 || snap.BalanceMinor < 0 || snap.Currency != CurrentCurrency) {
 		return v, fmt.Errorf("invalid handoff snapshot")
 	}
 	if op := v.Operation; op != nil && (op.ID != v.ID || op.CloudID != v.CloudID || op.Type != "owner_transfer") {
