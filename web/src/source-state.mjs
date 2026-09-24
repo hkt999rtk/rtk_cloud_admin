@@ -1,3 +1,5 @@
+import { translate } from './i18n/index.mjs';
+
 const sourceLabels = {
   telemetry: 'Telemetry',
   firmware: 'Firmware',
@@ -20,18 +22,18 @@ export function sourceAvailable(source) {
 
 export function sourceMessage(source, fallback) {
   if (!source) return fallback;
-  if (source.source_message) return sanitizeSourceMessage(source.source_message, fallback);
+  if (source.source_message) return translate(sanitizeSourceMessage(source.source_message, fallback));
   switch (source.source_status) {
     case 'not_configured':
       return fallback;
     case 'no_data':
-      return 'No data in selected window.';
+      return translate('No data in selected window.');
     case 'unavailable':
-      return 'Source is unavailable.';
+      return translate('Source is unavailable.');
     case 'stale':
-      return 'Showing the last safe snapshot; source freshness is stale.';
+      return translate('Showing the last safe snapshot; source freshness is stale.');
     case 'unauthorized':
-      return 'Session expired; please sign in again.';
+      return translate('Session expired; please sign in again.');
     default:
       return fallback;
   }

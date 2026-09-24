@@ -1,0 +1,469 @@
+title: 開發者文件
+description: 整合RTK Cloud MQTT和Device Shadow。
+language: zh-TW
+placement: Peer of ChipSet & SDK
+sections:
+- slug: documentation-map
+  title: 文件導覽
+  summary: 選擇一個韌體、應用程式或後端學習路線，然後瀏覽完整的檔案集合。
+  category: Start here
+  keywords:
+  - 開始
+  - 學習途徑
+  - 韌體中的程式）
+  - 應用程式
+  - 後端
+  - 內容
+  - start
+  - learning path
+  - firmware
+  - App
+  - Backend
+  - contents
+  source: documentation-map.zh-TW.md
+- slug: overview
+  title: 雲端服務概覽
+  summary: 瞭解MQTT訊息傳遞、影子狀態以及裝置和應用程式的角色。
+  category: Start here
+  keywords:
+  - MQTT
+  - Shadow
+  - 架構
+  - 裝置
+  - 後端
+  - MQTT
+  - Shadow
+  - architecture
+  - device
+  - backend
+  source: overview.zh-TW.md
+- slug: before-you-start
+  title: 開始之前
+  summary: 準備一個測試裝置、授權身份、端點和命令列工具。
+  category: Start here
+  keywords:
+  - 先決條件
+  - 終點
+  - TLS
+  - 憑證
+  - 設定
+  - prerequisites
+  - endpoint
+  - TLS
+  - certificate
+  - setup
+  source: before-you-start.zh-TW.md
+- slug: setup-cloud-device
+  title: 建立第一個雲端與裝置
+  summary: 在請求執行時憑據之前，請建立產品、解決裝置索賠並驗證啟動。
+  category: Start here
+  keywords:
+  - 入職培訓
+  - 產品
+  - 索賠
+  - 供應
+  - 子
+  - 物聯網_影子
+  - onboarding
+  - Product
+  - claim
+  - provision
+  - mqtt
+  - iot_shadow
+  source: setup-cloud-device.zh-TW.md
+- slug: credential-setup
+  title: 設定裝置與應用程式憑證
+  summary: 生成本地應用程式金鑰和CSR，獲取證書，並區分工廠裝置身份與執行時令牌。
+  category: Start here
+  keywords:
+  - CSR
+  - 憑證
+  - 應用程式使用者
+  - 登記
+  - 其他
+  - CSR
+  - certificate
+  - app-user
+  - enrollment
+  - mTLS
+  source: credential-setup.zh-TW.md
+- slug: mqtt-quickstart
+  title: 快速入門：連線與交換訊息
+  summary: 釋出一個JSON訊息，並透過第二個已驗證的MQTT連線接收它。
+  category: Tutorials
+  keywords:
+  - 發布
+  - 訂閱
+  - SUBACK
+  - PUBACK
+  - mosquitto
+  - publish
+  - subscribe
+  - SUBACK
+  - PUBACK
+  - mosquitto
+  source: mqtt-quickstart.zh-TW.md
+- slug: shadow-quickstart
+  title: 快速入門：同步裝置狀態
+  summary: 從應用程式請求開機，並確認裝置報告了所應用狀態。
+  category: Tutorials
+  keywords:
+  - 渴望的
+  - 報告的
+  - 三角洲
+  - 力量
+  - 快速啟動
+  - desired
+  - reported
+  - delta
+  - power
+  - quickstart
+  source: shadow-quickstart.zh-TW.md
+- slug: app-device-example
+  title: 端到端應用程式與裝置範例
+  summary: 執行獨立的應用程式和裝置客戶端，並驗證所需到報告的收斂。
+  category: Tutorials
+  keywords:
+  - 模仿者
+  - 蟒
+  - 應用程式
+  - 裝置
+  - 下載
+  - 渴望的
+  - 報告的
+  - simulator
+  - Python
+  - app
+  - device
+  - download
+  - desired
+  - reported
+  source: app-device-example.zh-TW.md
+- slug: shadow-concepts
+  title: 裝置影子概念
+  summary: 瞭解所需和報告的狀態、差異、名稱、合併規則和版本。
+  category: Concepts
+  keywords:
+  - 渴望的
+  - 報告的
+  - 三角洲
+  - 版本
+  - 命名的影子
+  - desired
+  - reported
+  - delta
+  - version
+  - named shadow
+  source: shadow-concepts.zh-TW.md
+- slug: state-model
+  title: 設計裝置狀態模型
+  summary: 設計相容的所需和報告狀態、名為Shadows的狀態、故障報告和並行寫入器。
+  category: Concepts
+  keywords:
+  - 圖式
+  - 韌體中的程式）
+  - 遷移
+  - 狀態
+  - 多寫程式器
+  - schema
+  - firmware
+  - migration
+  - state
+  - multiwriter
+  source: state-model.zh-TW.md
+- slug: device-presence
+  title: 裝置在線狀態與生命週期
+  summary: 區分帳戶就緒性、MQTT連線性、所有者傳輸和應用程式健康狀況。
+  category: Concepts
+  keywords:
+  - 存在
+  - 線上的
+  - 所有人
+  - 運輸
+  - 活化
+  - presence
+  - online
+  - owner
+  - transport
+  - activation
+  source: device-presence.zh-TW.md
+- slug: authentication
+  title: 身分驗證與存取控制
+  summary: 獲取執行時令牌，並將其元資料對映到MQTT和Shadow HTTP憑據中。
+  category: Build integrations
+  keywords:
+  - 請求_令牌
+  - 重新整理_令牌
+  - 其他
+  - 體4
+  - 客戶端_id
+  - aws_憑據
+  - request_token
+  - refresh_token
+  - mTLS
+  - SigV4
+  - client_id
+  - aws_credentials
+  source: authentication.zh-TW.md
+- slug: mqtt-connection
+  title: MQTT 連線指南
+  summary: 在不假設持久離線交付的情況下配置客戶端身份和恢復。
+  category: Build integrations
+  keywords:
+  - 客戶端ID
+  - 品質服務
+  - 保持活著
+  - 會議
+  - 重新連線
+  - 保留
+  - Client ID
+  - QoS
+  - Keep Alive
+  - session
+  - reconnect
+  - retain
+  source: mqtt-connection.zh-TW.md
+- slug: backend-integration
+  title: 後端整合指南
+  summary: 選擇一個授權的後端身份，並在不借用裝置憑據的情況下執行已簽名的影子操作。
+  category: Build integrations
+  keywords:
+  - 後端
+  - 伺服器
+  - 體4
+  - 授權
+  - 管理員
+  - 代表團
+  - backend
+  - server
+  - SigV4
+  - authorization
+  - admin
+  - delegation
+  source: backend-integration.zh-TW.md
+- slug: shadow-interfaces
+  title: 透過 MQTT 與 HTTP 使用裝置影子
+  summary: 使用精確的MQTT主題或已簽名的HTTP請求執行影子操作。
+  category: Build integrations
+  keywords:
+  - 體4
+  - 得到
+  - 貼文
+  - 刪除
+  - 公認的
+  - 被拒絕的
+  - 為事物列出命名陰影
+  - SigV4
+  - GET
+  - POST
+  - DELETE
+  - accepted
+  - rejected
+  - ListNamedShadowsForThing
+  source: shadow-interfaces.zh-TW.md
+- slug: integration-recipes
+  title: 整合實作範例
+  summary: 從離線期間恢復，解決衝突，並保持報告的狀態真實。
+  category: Build integrations
+  keywords:
+  - 離線的
+  - 和解
+  - 複製的
+  - 衝突
+  - 同值性
+  - offline
+  - reconciliation
+  - duplicate
+  - conflict
+  - idempotency
+  source: integration-recipes.zh-TW.md
+- slug: ownership-sharing
+  title: 裝置所有權與分享
+  summary: 瞭解帳戶繫結、授權共享和轉售，而不會將它們與裝置身份混淆。
+  category: Build integrations
+  keywords:
+  - 所有權
+  - 分享
+  - 未規劃
+  - 轉移
+  - ownership
+  - sharing
+  - unprovision
+  - transfer
+  source: ownership-sharing.zh-TW.md
+- slug: credential-recovery
+  title: 憑證更新與連線復原
+  summary: 更新執行時憑據，並在到期或網路丟失後恢復訂閱和狀態。
+  category: Operate and troubleshoot
+  keywords:
+  - 更新
+  - 滿期
+  - 重新連線
+  - 撤回
+  - 電視網
+  - renewal
+  - expiry
+  - reconnect
+  - revocation
+  - network
+  source: credential-recovery.zh-TW.md
+- slug: debugging
+  title: 整合除錯
+  summary: 找到第一個故障的協議層，並準備一份有用的消毒支援報告。
+  category: Operate and troubleshoot
+  keywords:
+  - 診斷
+  - TLS
+  - SUBACK
+  - 支撐
+  - 暫停
+  - diagnostics
+  - TLS
+  - SUBACK
+  - support
+  - timeout
+  source: debugging.zh-TW.md
+- slug: troubleshooting
+  title: 疑難排解與相容性
+  summary: 按協議層診斷故障，並瞭解RTK Shadow相容性邊界。
+  category: Operate and troubleshoot
+  keywords:
+  - '401'
+  - '403'
+  - '409'
+  - 暫停
+  - 伺服器
+  - 體4
+  - SUBACK
+  - '401'
+  - '403'
+  - '409'
+  - timeout
+  - AWS
+  - SigV4
+  - SUBACK
+  source: troubleshooting.zh-TW.md
+- slug: integration-test-kit
+  title: 整合測試工具組
+  summary: 執行只讀MQTT影子探測器和自願模擬控制演習，然後評估生命週期和故障案例。
+  category: Operate and troubleshoot
+  keywords:
+  - 測試
+  - 資格
+  - 煙霧
+  - 接受
+  - 模仿者
+  - test
+  - qualification
+  - smoke
+  - acceptance
+  - simulator
+  source: integration-test-kit.zh-TW.md
+- slug: mqtt-topics
+  title: MQTT 主題與訊息參考
+  summary: 分離應用程式定義的訊息、裝置傳輸信封和保留的影子主題。
+  category: Reference
+  keywords:
+  - 主題
+  - 名稱空間
+  - 價格
+  - 錢
+  - 十字韌帶
+  - 收費載重量
+  - topic
+  - namespace
+  - $vc
+  - $aws
+  - ACL
+  - payload
+  source: mqtt-topics.zh-TW.md
+- slug: shadow-reference
+  title: 裝置影子 API 與訊息參考
+  summary: 查詢影子路徑、主題字尾、檔案欄位、限制和錯誤。
+  category: Reference
+  keywords:
+  - '409'
+  - '413'
+  - '429'
+  - 客戶端令牌
+  - 版本
+  - 8千位元組
+  - 名稱
+  - '409'
+  - '413'
+  - '429'
+  - clientToken
+  - version
+  - 8 KiB
+  - name
+  source: shadow-reference.zh-TW.md
+- slug: api-examples
+  title: API 與訊息範例
+  summary: 檢查完整的說明符號和影子訊息，包括欄位省略和相關規則。
+  category: Reference
+  keywords:
+  - JSON
+  - 公認的
+  - 三角洲
+  - 檔案
+  - 單位
+  - JSON
+  - accepted
+  - delta
+  - documents
+  - units
+  source: api-examples.zh-TW.md
+- slug: connection-settings
+  title: 連線設定與服務限制
+  summary: 區分契約限制、觀察到的dev經紀商設定以及需要環境資格的特徵。
+  category: Reference
+  keywords:
+  - 限制
+  - MQTT
+  - TLS
+  - 品質服務
+  - 保留
+  - 會議
+  - 網路軟體
+  - 開發人員
+  - limits
+  - MQTT
+  - TLS
+  - QoS
+  - retain
+  - session
+  - WebSocket
+  - dev
+  source: connection-settings.zh-TW.md
+- slug: compatibility-releases
+  title: 相容性與版本說明
+  summary: 跟蹤合格客戶的證據、RTK名稱空間差異和檔案更改。
+  category: Reference
+  keywords:
+  - 伺服器
+  - 遷移
+  - 版本
+  - 釋放
+  - 資格
+  - AWS
+  - migration
+  - versions
+  - release
+  - qualification
+  source: compatibility-releases.zh-TW.md
+- slug: protwo-cloud-examples
+  title: PRO2 雲端範例
+  summary: 源程式、韌體、URL燒錄和MQTT/H.264測試說明。
+  category: Firmware
+  keywords:
+  - PRO2
+  - MQTT
+  - H264
+  - 照相機
+  - 韌體中的程式）
+  - PRO2
+  - MQTT
+  - H264
+  - camera
+  - firmware
+  source: protwo-cloud-examples.zh-TW.md

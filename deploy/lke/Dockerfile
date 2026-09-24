@@ -4,6 +4,7 @@ WORKDIR /src
 COPY web/package*.json web/
 RUN cd web && npm ci
 COPY web web
+COPY internal/app internal/app
 RUN cd web && npm run build
 
 FROM golang:1.26-bookworm AS builder

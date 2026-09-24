@@ -1,0 +1,10 @@
+flowchart TB
+    App["應用程式/後端意圖"] -->|"傳統作家"| Desired["狀態。所需：開機"]
+    Hardware["裝置操作和讀取回饋"] -->|"傳統作家"| Reported["狀態。報告：關機"]
+    Desired --> Difference["服務計算所需的差異"]
+    Reported --> Difference
+    Difference --> Delta["狀態.delta：開機"]
+    Desired --> Stored["單一裝置的影子文件"]
+    Reported --> Stored
+    Service["服務擁有的元資料、版本和時間戳"] --> Stored
+    Note["顯示的寫入者角色是慣例，而不是內建的欄位ACLs"] -.-> App

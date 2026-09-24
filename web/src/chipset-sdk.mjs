@@ -1,4 +1,4 @@
-import { translate } from './i18n/index.mjs';
+import { formatLocale, translate } from './i18n/index.mjs';
 import { chipsetResourceLinks, videoSearchText } from './chipset-videos.mjs';
 
 export function providerKPIs(providers = []) {
@@ -81,6 +81,11 @@ export function compactHash(value = '') {
 }
 
 export function formatProviderTimestamp(value = '') {
-  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
-  return match ? `${match[1]} ${match[2]} UTC` : value || '—';
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return value || '—';
+  return new Intl.DateTimeFormat(formatLocale(), {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZone: 'UTC', timeZoneName: 'short',
+  }).format(date);
 }

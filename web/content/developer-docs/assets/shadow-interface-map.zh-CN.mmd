@@ -1,0 +1,8 @@
+flowchart TB
+    MQTT["MQTT客户端"] --> AuthM["执行时JWT、返回的使用者名称和客户端ID"]
+    AuthM --> Broker["经纪人/确切保留主题"]
+    Broker <-->|"请求和通知"| State["相同装置 device-1 的 tutorial 影子"]
+    HTTP["HTTP客户端"] --> AuthH["返回的端点、区域和SigV4凭据"]
+    AuthH <-->|"签名的请求/回应"| State
+    Rules["相同的状态合并和版本规则，独立的介面授权"] -.-> State
+    Caps["MQTT Shadow：mqtt + iot_shadow。HTTP Shadow：iot_shadow。"] -.-> Rules

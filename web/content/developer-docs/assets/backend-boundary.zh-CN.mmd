@@ -1,0 +1,10 @@
+flowchart TB
+    Caller["应用程式呼叫者"] --> Check["后端：授权呼叫者和目标装置"]
+    Check --> Identity["经批准的后端身份/委派边界"]
+    Identity -->|"仅限受信任的平台路径"| Admin["运营商提供的影片云管理员权限"]
+    Admin --> Issue["POST /request_token：范围内的目标捆绑包"]
+    Identity -->|"当透过批准的整合提供时"| Delegated["委托的短暂目标捆绑包"]
+    Issue --> Signed["后端SigV4客户端"]
+    Delegated --> Signed
+    Signed --> Shadow["目标装置和命名影子"]
+    Shadow --> Observe["单独观察报告的收敛"]

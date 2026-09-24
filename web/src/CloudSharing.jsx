@@ -1,3 +1,4 @@
+import { translate } from './i18n/index.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
 import { sharingPath, sharingBody, sharingScopeLabel, sharingError } from './cloud-sharing.mjs';
@@ -7,15 +8,15 @@ import { Dialog } from './ConsoleUI.jsx';
 
 export function CloudSharingGuide() {
   return <div className="cloud-sharing-guide">
-    <p>Collaborate on your cloud using individual developer accounts. Give teammates access to the Products they work on, so they can review device information without sharing the owner's account or exposing unrelated Products.</p>
-    <p>Members are developers and operators who use this console. End users pair and use devices through your app; inviting a member here does not pair devices or create an app end-user account.</p>
-    <p>Start with read-only access to selected Products. Choose entire-cloud access only when the collaborator should also see every current and future Product.</p>
+    <p>{translate("Collaborate on your cloud using individual developer accounts. Give teammates access to the Products they work on, so they can review device information without sharing the owner's account or exposing unrelated Products.")}</p>
+    <p>{translate("Members are developers and operators who use this console. End users pair and use devices through your app; inviting a member here does not pair devices or create an app end-user account.")}</p>
+    <p>{translate("Start with read-only access to selected Products. Choose entire-cloud access only when the collaborator should also see every current and future Product.")}</p>
     <ol>
-      <li><strong>Invite a teammate.</strong> The cloud owner selects Share cloud and enters the email of a registered, verified developer. The invitee accepts using the matching account; invitations expire after 30 minutes.</li>
-      <li><strong>Choose their role and scope.</strong> Viewer provides read-only access to selected Products or the entire cloud. For example, give a camera developer access to Home Camera while keeping other Products outside their scope. Admin and Member use their existing cloud-role permissions, not the Viewer's read-only Product scope; neither grants ownership or Billing access.</li>
-      <li><strong>Keep access aligned with the work.</strong> The owner can change, disable or remove a member's access. Review pending invitations, resend an unchanged invitation, or cancel it before inviting with a different role or scope. Removing access invalidates Product grants; rejoining does not restore them automatically.</li>
+      <li><strong>{translate("Invite a teammate.")}</strong> {translate("The cloud owner selects Share cloud and enters the email of a registered, verified developer. The invitee accepts using the matching account; invitations expire after 30 minutes.")}</li>
+      <li><strong>{translate("Choose their role and scope.")}</strong> {translate("Viewer provides read-only access to selected Products or the entire cloud. For example, give a camera developer access to Home Camera while keeping other Products outside their scope. Admin and Member use their existing cloud-role permissions, not the Viewer's read-only Product scope; neither grants ownership or Billing access.")}</li>
+      <li><strong>{translate("Keep access aligned with the work.")}</strong> {translate("The owner can change, disable or remove a member's access. Review pending invitations, resend an unchanged invitation, or cancel it before inviting with a different role or scope. Removing access invalidates Product grants; rejoining does not restore them automatically.")}</li>
     </ol>
-    <p>Only the cloud owner can invite members or change access. If you are a collaborator, ask the owner for the Products and role you need for your work.</p>
+    <p>{translate("Only the cloud owner can invite members or change access. If you are a collaborator, ask the owner for the Products and role you need for your work.")}</p>
   </div>;
 }
 
@@ -66,31 +67,31 @@ export function CloudSharing({ cloudId, onAccessLost }) {
     try { const body = sharingBody(form); write(form.userId ? 'PATCH' : 'POST', sharingPath(cloudId, form.userId ? 'members' : 'members/invitations', form.userId), body); }
     catch (err) { setError(err.message); }
   }
-  return <section className="my-clouds-panel cloud-sharing" aria-label="Cloud sharing">
-    <h2>Members and sharing</h2>
+  return <section className="my-clouds-panel cloud-sharing" aria-label={translate("Cloud sharing")}>
+    <h2>{translate("Members and sharing")}</h2>
     <CloudSharingGuide />
-    {error && <p role="alert">{error} <button disabled={busy} onClick={() => setRefresh(v => v + 1)}>Refresh sharing</button></p>}
+    {error && <p role="alert">{translate(error)} <button disabled={busy} onClick={() => setRefresh(v => v + 1)}>{translate("Refresh sharing")}</button></p>}
     {notice && <p role="status">{notice}</p>}
-    {loading && <p role="status">Loading current grants…</p>}
+    {loading && <p role="status">{translate("Loading current grants…")}</p>}
     {data && <>
-      <button disabled={busy} onClick={() => edit(null)}>Share cloud</button>
-      {form && <Dialog title={form.userId ? 'Change access' : 'Invite verified developer'} busy={busy} onClose={()=>setForm(null)}>{error && <p role="alert">{error}</p>}<form onSubmit={submit}>
-        {!form.userId && <label>Developer email<input type="email" required value={form.email} disabled={busy} onChange={e => setForm({ ...form, email: e.target.value })} /></label>}
-        <label>Role<select value={form.role} disabled={busy} onChange={e => setForm({ ...form, role: e.target.value })}><option value="viewer">Viewer — read-only</option><option value="admin">Admin — existing management permissions</option><option value="member">Member — existing member permissions</option></select></label>
+      <button disabled={busy} onClick={() => edit(null)}>{translate("Share cloud")}</button>
+      {form && <Dialog title={form.userId ? 'Change access' : 'Invite verified developer'} busy={busy} onClose={()=>setForm(null)}>{error && <p role="alert">{translate(error)}</p>}<form onSubmit={submit}>
+        {!form.userId && <label>{translate("Developer email")}<input type="email" required value={form.email} disabled={busy} onChange={e => setForm({ ...form, email: e.target.value })} /></label>}
+        <label>{translate("Role")}<select value={form.role} disabled={busy} onChange={e => setForm({ ...form, role: e.target.value })}><option value="viewer">{translate("Viewer — read-only")}</option><option value="admin">{translate("Admin — existing management permissions")}</option><option value="member">{translate("Member — existing member permissions")}</option></select></label>
         {form.role === 'viewer' ? <>
-          <label>Access scope<select value={form.kind} disabled={busy} onChange={e => setForm({ ...form, kind: e.target.value, confirmAll: false })}><option value="selected_products">Selected Products (default)</option><option value="all_products">Entire cloud — current and future Products</option></select></label>
-          {form.kind === 'all_products' ? <label><input type="checkbox" checked={form.confirmAll} disabled={busy} onChange={e => setForm({ ...form, confirmAll: e.target.checked })} />I authorize read-only access to every current and future Product in this cloud.</label> : <SharingProducts cloudId={cloudId} selectedIds={form.productIds} disabled={busy} onChange={productIds => setForm(current => current && { ...current, productIds })} onAccessLost={onAccessLost} />}
-        </> : <p>This is not a read-only role. Its existing cloud permissions apply; it still does not grant ownership or Billing access.</p>}
-        <p>New invitations require acceptance by the matching global account and expire after 30 minutes. Changing a pending invitation requires canceling it and creating another.</p>
-        <div className="my-clouds-actions"><button type="submit" disabled={busy}>{busy ? 'Submitting…' : form.userId ? 'Save access' : 'Send invitation'}</button><button type="button" disabled={busy} onClick={() => setForm(null)}>Cancel form</button></div>
+          <label>{translate("Access scope")}<select value={form.kind} disabled={busy} onChange={e => setForm({ ...form, kind: e.target.value, confirmAll: false })}><option value="selected_products">{translate("Selected Products (default)")}</option><option value="all_products">{translate("Entire cloud — current and future Products")}</option></select></label>
+          {form.kind === 'all_products' ? <label><input type="checkbox" checked={form.confirmAll} disabled={busy} onChange={e => setForm({ ...form, confirmAll: e.target.checked })} />{translate("I authorize read-only access to every current and future Product in this cloud.")}</label> : <SharingProducts cloudId={cloudId} selectedIds={form.productIds} disabled={busy} onChange={productIds => setForm(current => current && { ...current, productIds })} onAccessLost={onAccessLost} />}
+        </> : <p>{translate("This is not a read-only role. Its existing cloud permissions apply; it still does not grant ownership or Billing access.")}</p>}
+        <p>{translate("New invitations require acceptance by the matching global account and expire after 30 minutes. Changing a pending invitation requires canceling it and creating another.")}</p>
+        <div className="my-clouds-actions"><button type="submit" disabled={busy}>{busy ? translate("Submitting…") : form.userId ? translate("Save access") : translate("Send invitation")}</button><button type="button" disabled={busy} onClick={() => setForm(null)}>{translate("Cancel form")}</button></div>
       </form></Dialog>}
-      <h3>Current members</h3>
-      {(data.members || []).map(m => <article key={m.user_id}><h4>{m.display_name || m.email || m.user_id} · {m.role}</h4><p>{sharingScopeLabel(m)}{m.disabled_at ? ' · Disabled' : ''}</p>{m.role !== 'owner' && <div className="my-clouds-actions"><button disabled={busy} onClick={() => edit(m)}>Change access</button><button disabled={busy} onClick={() => { setForm(null); setConfirm({ method: 'DELETE', path: sharingPath(cloudId, 'members', m.user_id), label: `Remove ${m.email || m.user_id}? All Product grants become invalid; rejoining will not restore them.` }); }}>Remove access</button><button disabled={busy} onClick={() => { setForm(null); setConfirm({ method: 'PATCH', path: sharingPath(cloudId, 'members', m.user_id, m.disabled_at ? 'enable' : 'disable'), body: {}, label: `${m.disabled_at ? 'Enable' : 'Disable'} ${m.email || m.user_id}? Current authority is rechecked by the server.` }); }}>{m.disabled_at ? 'Enable' : 'Disable'}</button></div>}</article>)}
-      <nav aria-label="Member pages"><button disabled={busy || offset === 0} onClick={() => setOffset(Math.max(0, offset - 25))}>Previous members</button><span>Members: {data.pagination?.total || 0}</span><button disabled={busy || offset + 25 >= (data.pagination?.total || 0)} onClick={() => setOffset(offset + 25)}>Next members</button></nav>
-      <h3>Invitations</h3>
-      {data.invitations?.length === 0 && <p>No invitations.</p>}
-      {(data.invitations || []).map(i => <article key={i.id}><h4>{i.target_email} · {i.status}</h4><p>{sharingScopeLabel(i)} · Expires: {i.expires_at}</p>{i.status === 'pending' && <div className="my-clouds-actions"><button disabled={busy} onClick={() => write('POST', sharingPath(cloudId, 'members/invitations', i.id, 'resend'), {})}>Resend unchanged invitation</button><button disabled={busy} onClick={() => { setForm(null); setConfirm({ method: 'POST', path: sharingPath(cloudId, 'members/invitations', i.id, 'cancel'), body: {}, label: `Cancel the invitation for ${i.target_email}? Its old email token will no longer grant access.` }); }}>Cancel invitation</button></div>}</article>)}
-      {confirm && <div role="group" aria-label="Confirm access change"><p>{confirm.label}</p><button disabled={busy} onClick={() => write(confirm.method, confirm.path, confirm.body)}>Confirm access change</button><button disabled={busy} onClick={() => setConfirm(null)}>Keep existing access</button></div>}
+      <h3>{translate("Current members")}</h3>
+      {(data.members || []).map(m => <article key={m.user_id}><h4>{m.display_name || m.email || m.user_id} · {m.role}</h4><p>{sharingScopeLabel(m)}{m.disabled_at ? translate(" · Disabled") : ''}</p>{m.role !== 'owner' && <div className="my-clouds-actions"><button disabled={busy} onClick={() => edit(m)}>{translate("Change access")}</button><button disabled={busy} onClick={() => { setForm(null); setConfirm({ method: 'DELETE', path: sharingPath(cloudId, 'members', m.user_id), label: `Remove ${m.email || m.user_id}? All Product grants become invalid; rejoining will not restore them.` }); }}>{translate("Remove access")}</button><button disabled={busy} onClick={() => { setForm(null); setConfirm({ method: 'PATCH', path: sharingPath(cloudId, 'members', m.user_id, m.disabled_at ? 'enable' : 'disable'), body: {}, label: `${m.disabled_at ? 'Enable' : 'Disable'} ${m.email || m.user_id}? Current authority is rechecked by the server.` }); }}>{m.disabled_at ? translate("Enable") : translate("Disable")}</button></div>}</article>)}
+      <nav aria-label={translate("Member pages")}><button disabled={busy || offset === 0} onClick={() => setOffset(Math.max(0, offset - 25))}>{translate("Previous members")}</button><span>{translate("Members:")} {data.pagination?.total || 0}</span><button disabled={busy || offset + 25 >= (data.pagination?.total || 0)} onClick={() => setOffset(offset + 25)}>{translate("Next members")}</button></nav>
+      <h3>{translate("Invitations")}</h3>
+      {data.invitations?.length === 0 && <p>{translate("No invitations.")}</p>}
+      {(data.invitations || []).map(i => <article key={i.id}><h4>{i.target_email} · {i.status}</h4><p>{sharingScopeLabel(i)} {translate("· Expires:")} {i.expires_at}</p>{i.status === 'pending' && <div className="my-clouds-actions"><button disabled={busy} onClick={() => write('POST', sharingPath(cloudId, 'members/invitations', i.id, 'resend'), {})}>{translate("Resend unchanged invitation")}</button><button disabled={busy} onClick={() => { setForm(null); setConfirm({ method: 'POST', path: sharingPath(cloudId, 'members/invitations', i.id, 'cancel'), body: {}, label: `Cancel the invitation for ${i.target_email}? Its old email token will no longer grant access.` }); }}>{translate("Cancel invitation")}</button></div>}</article>)}
+      {confirm && <div role="group" aria-label={translate("Confirm access change")}><p>{translate(confirm.label)}</p><button disabled={busy} onClick={() => write(confirm.method, confirm.path, confirm.body)}>{translate("Confirm access change")}</button><button disabled={busy} onClick={() => setConfirm(null)}>{translate("Keep existing access")}</button></div>}
     </>}
   </section>;
 }

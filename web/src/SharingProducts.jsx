@@ -1,3 +1,4 @@
+import { translate } from './i18n/index.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { fetchCloudProducts, productError } from './cloud-products.mjs';
 
@@ -31,17 +32,17 @@ export function SharingProducts({ cloudId, selectedIds, disabled, onChange, onAc
   }, [cloudId, offset, reload]);
   const changePage = value => { setPage(null); setOffset(value); };
   return <fieldset disabled={disabled} data-testid="sharing-products">
-    <legend>Authorized Products</legend>
-    {error ? <p role="alert">{error} <button type="button" onClick={() => setReload(v => v + 1)}>Retry Product choices</button></p> : !page && <p role="status">Loading Product choices…</p>}
-    {page?.pagination.total === 0 && <p>No Products available. Create a Product or explicitly choose entire-cloud sharing.</p>}
-    {page && page.products.length === 0 && page.pagination.total > 0 && <p>No Products remain on this page. Return to the previous page.</p>}
+    <legend>{translate("Authorized Products")}</legend>
+    {error ? <p role="alert">{translate(error)} <button type="button" onClick={() => setReload(v => v + 1)}>{translate("Retry Product choices")}</button></p> : !page && <p role="status">{translate("Loading Product choices…")}</p>}
+    {page?.pagination.total === 0 && <p>{translate("No Products available. Create a Product or explicitly choose entire-cloud sharing.")}</p>}
+    {page && page.products.length === 0 && page.pagination.total > 0 && <p>{translate("No Products remain on this page. Return to the previous page.")}</p>}
     {page?.products.map(product => <label key={product.id}><input type="checkbox" checked={selectedIds.includes(product.id)} onChange={e => onChange(e.target.checked ? [...selectedIds, product.id] : selectedIds.filter(id => id !== product.id))} />{product.name}</label>)}
-    <nav aria-label="Sharing Product pages">
-      <button type="button" disabled={disabled || offset === 0} onClick={() => changePage(Math.max(0, offset - 25))}>Previous Product choices</button>
-      <span>Page {Math.floor(offset / 25) + 1}{page ? ` · ${page.pagination.total} Products` : ''}</span>
-      <button type="button" disabled={disabled || !page || offset + 25 >= page.pagination.total} onClick={() => changePage(offset + 25)}>Next Product choices</button>
+    <nav aria-label={translate("Sharing Product pages")}>
+      <button type="button" disabled={disabled || offset === 0} onClick={() => changePage(Math.max(0, offset - 25))}>{translate("Previous Product choices")}</button>
+      <span>{translate("Page")} {Math.floor(offset / 25) + 1}{page ? translate(" · {{value0}} Products", { value0: page.pagination.total }) : ''}</span>
+      <button type="button" disabled={disabled || !page || offset + 25 >= page.pagination.total} onClick={() => changePage(offset + 25)}>{translate("Next Product choices")}</button>
     </nav>
-    <p role="status">Selected Products: {selectedIds.length}. Selections are kept across pages and revalidated when saved.</p>
-    {selectedIds.length > 0 && <details><summary>Review selected Product IDs</summary><ul>{selectedIds.map(id => <li key={id}><code>{id}</code> <button type="button" aria-label={`Remove ${id}`} onClick={() => onChange(selectedIds.filter(value => value !== id))}>Remove</button></li>)}</ul></details>}
+    <p role="status">{translate("Selected Products:")} {selectedIds.length}{translate(". Selections are kept across pages and revalidated when saved.")}</p>
+    {selectedIds.length > 0 && <details><summary>{translate("Review selected Product IDs")}</summary><ul>{selectedIds.map(id => <li key={id}><code>{id}</code> <button type="button" aria-label={translate("Remove {{value0}}", { value0: id })} onClick={() => onChange(selectedIds.filter(value => value !== id))}>{translate("Remove")}</button></li>)}</ul></details>}
   </fieldset>;
 }

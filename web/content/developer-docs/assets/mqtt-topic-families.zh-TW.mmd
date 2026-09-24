@@ -1,0 +1,8 @@
+flowchart LR
+    Client["已驗證的MQTT客戶端"] --> Broker["經紀人：身份、命名空間和主題策略"]
+    Broker -->|"一般應用主題"| General["應用程式定義主題訂閱者"]
+    Broker -->|"裝置傳輸主題"| Transport["支援的裝置傳輸協議"]
+    Broker -->|"執行時日誌主題"| Logs["專用的執行時日誌模式"]
+    Broker -->|"保留的$vc Shadow主題"| Shadow["影子請求/響應協議"]
+    Shadow -->|"接受、拒絕和通知"| Broker
+    Note["一般主題中的裝置ID不是每個裝置的訪問控制"] -.-> General

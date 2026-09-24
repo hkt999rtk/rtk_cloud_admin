@@ -1,0 +1,12 @@
+flowchart TB
+    Factory["出廠身份和裝置金鑰"] --> Device["裝置韌體"]
+    subgraph Account["帳戶授權邊界"]
+        User["開發者使用者/消費者APP終端使用者"] --> Binding["會員資格、範圍和裝置繫結"]
+        Claim["所有權證明/索賠代幣"] --> Binding
+    end
+    Binding --> Decision["代幣發行授權"]
+    Device -->|"透過mTLS的裝置證書"| Decision
+    App["應用程式本地金鑰和使用者證書"] -->|"透過mTLS的應用程式證書"| Decision
+    Decision --> Runtime["範圍內的執行時JWT/請求的SigV4捆綁包"]
+    Runtime --> MQTT["MQTT和影子訪問"]
+    Note["共享更改贈款。它不會複製金鑰或出廠身份。"] -.-> Binding

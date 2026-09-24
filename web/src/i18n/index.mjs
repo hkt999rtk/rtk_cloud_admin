@@ -1,14 +1,16 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { en } from './en.mjs';
-import { zhTW } from './zh-TW.mjs';
-import { zhCN } from './zh-CN.mjs';
+import { resources } from './resources.generated.mjs';
+import { configuredLocales, localeByCode, localeConfig } from '../../localization/config.mjs';
 
-export const DEFAULT_LOCALE = 'en';
-export const SUPPORTED_LOCALES = Object.freeze(['en', 'zh-TW', 'zh-CN']);
-export const LOCALE_LABELS = Object.freeze({ en: 'English', 'zh-TW': '繁體中文', 'zh-CN': '简体中文' });
-const storageKey = 'rtk-console-locale';
-const formatLocales = Object.freeze({ en: 'en-US', 'zh-TW': 'zh-TW', 'zh-CN': 'zh-CN' });
+export const DEFAULT_LOCALE = localeConfig.defaultLocale;
+export const SUPPORTED_LOCALES = configuredLocales;
+export const LOCALE_LABELS = Object.freeze(Object.fromEntries(localeConfig.locales.map(({ code, label }) => [code, label])));
+const storageKey = localeConfig.storageKey;
+
+function syncLocaleCookie(locale) {
+  if (globalThis.document) document.cookie = `${localeConfig.cookieKey}=${encodeURIComponent(locale)}; Path=/; SameSite=Lax`;
+}
 
 export function normalizeLocale(value) {
   const candidate = String(value || '').replace('_', '-');
@@ -31,14 +33,15 @@ export function activeLocale() {
 }
 
 export function formatLocale() {
-  return formatLocales[activeLocale()] || formatLocales.en;
+  return localeByCode[activeLocale()]?.formatLocale || localeByCode[DEFAULT_LOCALE].formatLocale;
 }
 
 export async function changeLocale(locale) {
   const next = normalizeLocale(locale);
   await i18n.changeLanguage(next);
   try { window.localStorage.setItem(storageKey, next); } catch { /* preference remains in memory */ }
-  if (globalThis.document) document.documentElement.lang = next === 'zh-TW' ? 'zh-Hant' : next === 'zh-CN' ? 'zh-Hans' : 'en';
+  if (globalThis.document) document.documentElement.lang = localeByCode[next].htmlLang;
+  syncLocaleCookie(next);
   return next;
 }
 
@@ -46,7 +49,7 @@ if (!i18n.isInitialized) {
   i18n
     .use(initReactI18next)
     .init({
-      resources: { en, 'zh-TW': zhTW, 'zh-CN': zhCN },
+      resources,
       lng: initialLocale(),
       fallbackLng: DEFAULT_LOCALE,
       supportedLngs: SUPPORTED_LOCALES,
@@ -57,7 +60,12 @@ if (!i18n.isInitialized) {
     });
 }
 
+syncLocaleCookie(activeLocale());
+if (globalThis.document) document.documentElement.lang = localeByCode[activeLocale()].htmlLang;
+
 export function translate(message, options) {
+  const status = typeof message === 'string' && /^unexpected status (\d+)$/i.exec(message);
+  if (status) return i18n.t('Unexpected status {{status}}', { status: status[1], ...options });
   return i18n.t(message, options);
 }
 

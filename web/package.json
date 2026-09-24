@@ -31,7 +31,10 @@
     "build": "npm run prepare:chipset-packages && npm run prepare:developer-docs && npm run localization:check && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "prepare:developer-docs": "node scripts/build-developer-docs.mjs",
-    "localization:check": "node scripts/verify-localization.mjs",
+    "localization:check": "npm run localization:source && node scripts/verify-localization.mjs",
+    "localization:source": "node scripts/localization-source.mjs",
+    "localization:extract": "node scripts/localization-source.mjs --extract",
+    "localization:compile": "node scripts/build-localization.mjs",
     "build:board-model": "node scripts/build-amb82-model.mjs"
   },
   "dependencies": {
@@ -51,6 +54,9 @@
     "world-atlas": "^2.0.2"
   },
   "devDependencies": {
+    "@babel/generator": "^8.0.6",
+    "@babel/parser": "^8.0.6",
+    "@babel/traverse": "^8.0.6",
     "@playwright/test": "^1.60.0",
     "marked": "^18.0.11",
     "playwright": "^1.60.0",

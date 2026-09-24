@@ -1,0 +1,12 @@
+flowchart LR
+    Config["公共端點/CA/測試裝置設定"] --> Kit["驗證.py"]
+    Tokens["私人獨立應用程式和裝置令牌檔案"] --> Kit
+    Kit -->|"預設：只讀"| Probe["TLS，精確訂閱，相關GET"]
+    Probe --> Service["目標MQTT/影子服務"]
+    Kit -->|"明確的——練習"| App["應用程式演示：所需的更新和收斂檢查"]
+    Kit -->|"監督和停止"| Device["裝置模擬器：申請和報告"]
+    App <--> Service
+    Device <--> Service
+    Probe --> Evidence["消毒結果/退出程式"]
+    App --> Evidence
+    Matrix["單獨的實時資格：所有權、撤銷、HTTP、存在"] -.-> Evidence
