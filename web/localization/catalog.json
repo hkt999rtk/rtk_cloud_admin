@@ -12550,6 +12550,128 @@
       "source": "Sign in Connect+",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Device audio packets",
+      "source": "Device audio packets",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device audio:",
+      "source": "Device audio:",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device live audio",
+      "source": "Device live audio",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Enable microphone",
+      "source": "Enable microphone",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Microphone packets",
+      "source": "Microphone packets",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Microphone:",
+      "source": "Microphone:",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Mute microphone",
+      "source": "Mute microphone",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Play device audio",
+      "source": "Play device audio",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Speaker:",
+      "source": "Speaker:",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Start real-device video and audio streaming in {{environment}}? Streaming consumes service usage.",
+      "source": "Start real-device video and audio streaming in {{environment}}? Streaming consumes service usage.",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{environment}}"
+      ]
+    },
+    {
+      "key": "Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and test live video and two-way audio over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.",
+      "source": "Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and test live video and two-way audio over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Test authorization lasts 11 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. WebRTC playback runs for up to 10 minutes and may briefly reconnect as media sessions renew. Operations affect your real device.",
+      "source": "Test authorization lasts 11 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. WebRTC playback runs for up to 10 minutes and may briefly reconnect as media sessions renew. Operations affect your real device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "off",
+      "source": "off",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "permission denied",
+      "source": "permission denied",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "playing",
+      "source": "playing",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "press Play device audio",
+      "source": "press Play device audio",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "receiving",
+      "source": "receiving",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "sending",
+      "source": "sending",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "unavailable (video can continue)",
+      "source": "unavailable (video can continue)",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "waiting",
+      "source": "waiting",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

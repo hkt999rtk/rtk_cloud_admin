@@ -32,3 +32,14 @@ export function inboundVideoStats(report, previous) {
     decoded: (row.framesDecoded ?? 0) > 0,
   };
 }
+
+export function audioDirectionStats(report) {
+  const rows = [...report.values()];
+  const inbound = rows.find(item => item.type === 'inbound-rtp' && (item.kind || item.mediaType) === 'audio');
+  const outbound = rows.find(item => item.type === 'outbound-rtp' && (item.kind || item.mediaType) === 'audio');
+  return {
+    deviceAudioPackets: inbound?.packetsReceived ?? 0,
+    microphonePackets: outbound?.packetsSent ?? 0,
+    audioPacketsLost: inbound?.packetsLost ?? null,
+  };
+}

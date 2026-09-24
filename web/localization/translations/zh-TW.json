@@ -12409,6 +12409,126 @@
       "fingerprint": "05ea725f935b376d36217833c5ed01554bd0ac24d963f24f47bbf206722cf43a",
       "text": "登入 Connect+",
       "status": "approved"
+    },
+    "Device audio packets": {
+      "sourceHash": "365909611225ea8a8d639a6ae6a4ff2101449bf4077102f20ec2e4bc07ebcb75",
+      "fingerprint": "164f8ab4b4ec6275b40c2951f0c52cab630ae1038526d8ae0640c8b6ee039b12",
+      "text": "裝置音訊封包",
+      "status": "approved"
+    },
+    "Device audio:": {
+      "sourceHash": "8b7231e03b5a68d67df02a9ceb54fd8675df7fa9861d13dba73757d7603f91cf",
+      "fingerprint": "3bce00438d58ea6c6e52f87f05774770376e0f6d0737347d4208f8f165c24414",
+      "text": "裝置音訊：",
+      "status": "approved"
+    },
+    "Device live audio": {
+      "sourceHash": "3a6b85ecf405824263beaf85aaa66a2661ab36853fa0b72d7b5a940674befff1",
+      "fingerprint": "aac9cc1d276b009f94e6c7674c42c7e46b1ad308b83451f39fc16c9ce0fe7853",
+      "text": "裝置即時音訊",
+      "status": "approved"
+    },
+    "Enable microphone": {
+      "sourceHash": "1f9adc2e1fa88c53fdba207471797e752a88d934a02961d421bb01c69e92c7e0",
+      "fingerprint": "82f4964506efcc271ac3c26d480bc3120bd0282cf0539f0feb6479767967eabf",
+      "text": "啟用麥克風",
+      "status": "approved"
+    },
+    "Microphone packets": {
+      "sourceHash": "2ec841886c747f6493c9eeba1fd12931bd63c536a8861226483269c0b13d41a7",
+      "fingerprint": "a824c158e2519fab6cdbcbfe9475b18376d37089339315b0a8ad804007f3b29c",
+      "text": "麥克風封包",
+      "status": "approved"
+    },
+    "Microphone:": {
+      "sourceHash": "3499a3ed0c27ccdf9533ed0d1de630584b3854c6b6a5093c43245d533ec9ec90",
+      "fingerprint": "d18e4013f878671653d88953877da2f5bcd38eb993608b6df942ddcf3a969244",
+      "text": "麥克風：",
+      "status": "approved"
+    },
+    "Mute microphone": {
+      "sourceHash": "3a04df32aa9f1f6bcb11b121ae455e37600ed312773dca159063e51115372e51",
+      "fingerprint": "d4a8fb32f3c94a2c51102e0a05ed50aa2172a05ba062541f2839591c2a922b7c",
+      "text": "將麥克風靜音",
+      "status": "approved"
+    },
+    "Play device audio": {
+      "sourceHash": "96d403477ede980abf53eec11ef9771935d76341bcf1c34da7455cb70e608c43",
+      "fingerprint": "e056457b67de2d6dd589d05d5a562c3621d5efa0596092701a1dbe0314a28bae",
+      "text": "播放裝置音訊",
+      "status": "approved"
+    },
+    "Speaker:": {
+      "sourceHash": "fe91c61e7187f60a13573181edf73df1812faec996beda7795da42849286cc0b",
+      "fingerprint": "709757a805f27ec29291e342dde42ac16a571301025501b0b35b1e457e17378b",
+      "text": "喇叭：",
+      "status": "approved"
+    },
+    "Start real-device video and audio streaming in {{environment}}? Streaming consumes service usage.": {
+      "sourceHash": "2262cf59d8456239ab97ad45d4d00192a9234091f80bf57d9c29960430983dcf",
+      "fingerprint": "d470bee954662bc0783c362b33f74b8d20682c315cbbfd5b87d0dbd1a5a70d19",
+      "text": "要在 {{environment}} 開始傳送真實裝置的視訊與音訊嗎？串流會產生服務用量。",
+      "status": "approved"
+    },
+    "Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and test live video and two-way audio over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.": {
+      "sourceHash": "bf66c9a4083e6bb5979f46e693dd8adf69e7a2351e556a1322626ce10d20760e",
+      "fingerprint": "f95ed931348602d7ab374a7934bbeba14ffaec1f6001545860d07cbb6c00267f",
+      "text": "直接在開發者主控台測試及除錯裝置，無須先建立 App、MQTT 用戶端或 WebRTC 檢視器。選擇產品與裝置後，即可傳送及接收 MQTT 訊息、讀取或更新裝置影子狀態，並透過 WebRTC 測試即時視訊與雙向音訊。在撰寫自己的應用程式前，可利用這些工具檢查裝置行為及排查雲端整合問題。可用的測試取決於您的權限與所選裝置啟用的服務。",
+      "status": "approved"
+    },
+    "Test authorization lasts 11 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. WebRTC playback runs for up to 10 minutes and may briefly reconnect as media sessions renew. Operations affect your real device.": {
+      "sourceHash": "d1bf4618e7b3fb2f8d1a4b1dbbe0aad0b3fb90fc9752ec8cc06081008f445137",
+      "fingerprint": "19c253d10727cdf27fee3894cfb6fe2f8a3aff3043820aba0a78c63da55de09d",
+      "text": "測試授權有效期為 11 分鐘。MQTT 憑證會透過重新連線更新；更新期間可能會漏接訊息。WebRTC 播放最長 10 分鐘，媒體工作階段更新時可能會短暫重新連線。這些操作會影響真實裝置。",
+      "status": "approved"
+    },
+    "off": {
+      "sourceHash": "c4c8cc70b8dc2ed13e7c986ea4db97a4bd81b6634d27b39c0d5a76ea11920d55",
+      "fingerprint": "bfcff67edfa57b53e7536d3c1a8ce050bed7266d4ccbe6138b06824e9bd86557",
+      "text": "關閉",
+      "status": "approved"
+    },
+    "permission denied": {
+      "sourceHash": "83a82c0feaee455266ec4b11e68850759e5f9cebe860c07e5c7ca1991c18562b",
+      "fingerprint": "dfff7c7e56aef04b13ccc7a625cde83a328a65dca9593f9efd35e645941be132",
+      "text": "權限遭拒",
+      "status": "approved"
+    },
+    "playing": {
+      "sourceHash": "52954410cc711952c9ca707ed1d3182fbe2a5d7a9229ddf83228774898233c89",
+      "fingerprint": "6986b5f527f8e16a9fdb955a836af637b6da72b9a221d5bf23c3f75d1b2788cc",
+      "text": "播放中",
+      "status": "approved"
+    },
+    "press Play device audio": {
+      "sourceHash": "8249779f01fecc1d90f377439903874c289d0896b484855a924efa07f089bb0a",
+      "fingerprint": "2a4c8b56347e2b8efe27840e6a496eb349ca61145d7f357754099004a751f620",
+      "text": "請按「播放裝置音訊」",
+      "status": "approved"
+    },
+    "receiving": {
+      "sourceHash": "b62359aff44b16363961de0aa69c26e8b9a441159bab80ae32d86fa5b5716dc4",
+      "fingerprint": "7d5f929447e3cbd7bf5b79cf4d24a39a3effd743e329d79849b6345cb33a0960",
+      "text": "接收中",
+      "status": "approved"
+    },
+    "sending": {
+      "sourceHash": "1d972b13586c14daffc70e7f16717544c39ac1ec996ae42453015d8108632542",
+      "fingerprint": "77d452e5eea11d544683a0969c9cdf3edcc1cace72c6d8846f25e6a2433fb5d3",
+      "text": "傳送中",
+      "status": "approved"
+    },
+    "unavailable (video can continue)": {
+      "sourceHash": "da24327e0fabb18a00aca3584d3976a54a37d5ecc9019ebf424cfa3ebb58bc9d",
+      "fingerprint": "7fb7d92b14322764c75d75d710a7c0489a93f7d1c329bcdf0740a228b3454704",
+      "text": "無法使用（視訊可繼續）",
+      "status": "approved"
+    },
+    "waiting": {
+      "sourceHash": "526ac5a16a318db17fc4aa9f91b10a16a1dd69b43fa89e2b86d2b1f4bab4bb1c",
+      "fingerprint": "640afd2793a7d0217d9e35d3078f931eb30a2ee3cb1dd68b6015697eada48105",
+      "text": "等待中",
+      "status": "approved"
     }
   }
 }

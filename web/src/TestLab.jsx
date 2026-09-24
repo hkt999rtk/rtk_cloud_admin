@@ -27,8 +27,10 @@ export function TestLab({ cloudId }) {
   const [shadowName, setShadowName] = useState(''), [transport, setTransport] = useState('http');
   const [reload, setReload] = useState(0), [loading, setLoading] = useState(false);
   const generation = useRef(0);
-  const runtime = useRef(null), video = useRef(null);
+  const runtime = useRef(null), video = useRef(null), audio = useRef(null);
   const [busy, setBusy] = useState(false), [connected, setConnected] = useState(false), [playing, setPlaying] = useState(false);
+  const [microphone, setMicrophone] = useState(false), [micStatus, setMicStatus] = useState('off');
+  const [deviceAudio, setDeviceAudio] = useState('waiting'), [speaker, setSpeaker] = useState('off');
   const [pendingAction, setPendingAction] = useState(null);
   const [messages, setMessages] = useState([]), [shadow, setShadow] = useState(null), [shadowNotFound, setShadowNotFound] = useState(false), [stats, setStats] = useState(null);
   const [subscription, setSubscription] = useState('');
@@ -36,11 +38,11 @@ export function TestLab({ cloudId }) {
 
   useEffect(() => {
     setPendingAction(null);
-    setConnected(false); setPlaying(false); setMessages([]); setShadow(null); setShadowNotFound(false); setStats(null);
+    setConnected(false); setPlaying(false); setMicrophone(false); setMicStatus('off'); setDeviceAudio('waiting'); setSpeaker('off'); setMessages([]); setShadow(null); setShadowNotFound(false); setStats(null);
     if (!context?.runtime_ready) return undefined;
     let active = true;
     const lab = new LabRuntime(context,
-      (operation, outcome, status) => { if (!active) return; record(operation, outcome, status); if (operation === 'mqtt') setConnected(outcome === 'connected'); if (operation === 'webrtc' && outcome === 'stopped') setPlaying(false); if (operation === 'session' && outcome === 'closed') { setConnected(false); setPlaying(false); } },
+      (operation, outcome, status) => { if (!active) return; record(operation, outcome, status); if (operation === 'mqtt') setConnected(outcome === 'connected'); if (operation === 'device_audio') setDeviceAudio(outcome); if (operation === 'speaker') setSpeaker(outcome); if (operation === 'microphone') { setMicrophone(outcome === 'enabled'); setMicStatus(outcome); } if (operation === 'webrtc' && outcome === 'stopped') { setPlaying(false); setMicrophone(false); setMicStatus('off'); setDeviceAudio('waiting'); setSpeaker('off'); } if (operation === 'session' && outcome === 'closed') { setConnected(false); setPlaying(false); setMicrophone(false); setMicStatus('off'); setSpeaker('off'); } },
       (topic, text) => { if (active) setMessages(rows => [...rows.slice(-99), { topic, text }]); },
       value => { if (active) setStats(value); });
     runtime.current = lab; setSubscription(`devices/${context.devid}/up/messages`);
@@ -106,7 +108,7 @@ export function TestLab({ cloudId }) {
     if (busy) return;
     if (tab === 'webrtc' && id !== tab) {
       runtime.current?.stopVideo().catch(() => {});
-      setPlaying(false); setStats(null);
+      setPlaying(false); setMicrophone(false); setMicStatus('off'); setDeviceAudio('waiting'); setSpeaker('off'); setStats(null);
     }
     setTab(id);
   }
@@ -136,7 +138,7 @@ export function TestLab({ cloudId }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <section className="my-clouds-panel test-lab" data-testid="test-lab">
-    <h2><LabIcon name="flask" />{translate("Device test workspace")}</h2><details className="test-lab-intro"><summary>{translate("About the test workflows")}</summary><p>{translate("Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and view live video over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.")}</p></details>
+    <h2><LabIcon name="flask" />{translate("Device test workspace")}</h2><details className="test-lab-intro"><summary>{translate("About the test workflows")}</summary><p>{translate("Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and test live video and two-way audio over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.")}</p></details>
     <div className="test-lab-selectors">
       <div><label><span><LabIcon name="boxes-stacked" />{translate("Product")}</span><select value={product} aria-describedby={product ? 'test-lab-product-id' : undefined} onChange={e => { setProduct(e.target.value); setDevice(''); setContext(null); setEvents([]); }}><option value="">{translate("Select Product")}</option>{product && !products.some(p => p.id === product) && <option value={product}>{selectedProduct?.id === product ? selectedProduct.name || translate("Unnamed Product") : translate("Loading selected Product…")}</option>}{products.map(p => <option key={p.id} value={p.id}>{p.name || translate("Unnamed Product")}</option>)}</select></label>{product && <p id="test-lab-product-id" className="test-lab-product-id"><LabIcon name="fingerprint" />{translate("Product ID:")} <code>{product}</code></p>}</div>
     </div>
@@ -145,7 +147,7 @@ export function TestLab({ cloudId }) {
     <div className="test-lab-actions"><button disabled={busy} aria-describedby="test-lab-reload-help" onClick={() => { if ((connected || playing) && !window.confirm('Reloading ends the current test connection. Continue?')) return; setReload(v => v + 1); }}><LabIcon name="arrows-rotate" />{translate("Reload devices & access")}</button><small id="test-lab-reload-help">{translate("Reload lists and permissions. Ends the current test connection.")}</small></div>
     {loading && <p role="status"><LabIcon name="hourglass-half" />{translate("Checking device scope…")}</p>}
     {error && <p role="alert" className="test-lab-warning"><LabIcon name="triangle-exclamation" />{translate(error)}</p>}
-    {context && <><p className="test-lab-context"><LabIcon name="cloud" />{translate("Environment:")} <strong>{context.environment}</strong> {translate("· Device:")} {context.device_status || translate("unknown")} · <LabIcon name={connected ? 'plug' : 'plug-circle-xmark'} />{translate("MQTT:")} {connected ? translate("Connected") : translate("Disconnected")}</p>{!context.runtime_ready ? <p role="status" className="test-lab-warning"><LabIcon name="triangle-exclamation" />{labBlockedMessage(context.blocked_reason)}</p> : <p><LabIcon name="circle-info" />{translate("Test authorization expires after 5 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. Playback stops after 85 seconds. Operations affect your real device.")}</p>}</>}
+    {context && <><p className="test-lab-context"><LabIcon name="cloud" />{translate("Environment:")} <strong>{context.environment}</strong> {translate("· Device:")} {context.device_status || translate("unknown")} · <LabIcon name={connected ? 'plug' : 'plug-circle-xmark'} />{translate("MQTT:")} {connected ? translate("Connected") : translate("Disconnected")}</p>{!context.runtime_ready ? <p role="status" className="test-lab-warning"><LabIcon name="triangle-exclamation" />{labBlockedMessage(context.blocked_reason)}</p> : <p><LabIcon name="circle-info" />{translate("Test authorization lasts 11 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. WebRTC playback runs for up to 10 minutes and may briefly reconnect as media sessions renew. Operations affect your real device.")}</p>}</>}
     <div role="tablist" aria-label={translate("Test protocol")}>{['mqtt', 'shadow', 'webrtc'].map(id => <button key={id} id={`tab-${id}`} role="tab" tabIndex={tab === id ? 0 : -1} disabled={busy} aria-selected={tab === id} aria-controls={`panel-${id}`} onKeyDown={protocolKey} onClick={() => selectProtocol(id)}><LabIcon name={protocolIcons[id]} />{id === 'webrtc' ? translate("WebRTC") : id === 'mqtt' ? translate("MQTT") : translate("Shadow")}</button>)}</div>
     <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
       {tab === 'mqtt' && <><h3><LabIcon name="comments" />{translate("MQTT messages")}</h3><p>{translate("Broker acceptance and device response are reported separately. Test ACLs allow this device’s commands and reports only.")}</p><label><span><LabIcon name="arrow-up-from-bracket" />{translate("Publish topic")}</span><input value={topic} maxLength={256} onChange={e => setTopic(e.target.value)} /></label><label><span><LabIcon name="inbox" />{translate("Subscription topic")}</span><input value={subscription} maxLength={256} onChange={e => setSubscription(e.target.value)} /></label><button disabled={busy || connected || !context?.runtime_ready || !context?.capabilities?.mqtt} onClick={() => run('mqtt_connect', lab => lab.connect())}><LabIcon name="plug" />{translate("Connect")}</button><button disabled={!connected || busy} onClick={() => { runtime.current?.disconnect(); setConnected(false); }}><LabIcon name="plug-circle-xmark" />{translate("Disconnect")}</button><button disabled={!connected || busy} onClick={() => run('mqtt_subscribe', lab => lab.subscribe(subscription))}><LabIcon name="bell" />{translate("Subscribe")}</button><button disabled={!connected || busy} onClick={() => run('mqtt_unsubscribe', lab => lab.unsubscribe(subscription))}><LabIcon name="bell-slash" />{translate("Unsubscribe")}</button><button disabled={!connected || busy} onClick={() => run('mqtt_publish', lab => lab.publish(validatePublishTopic(topic), parseTestPayload(payload)), `Publish a command to this real device in ${context.environment}?`)}><LabIcon name="paper-plane" />{translate("Publish")}</button><p><LabIcon name="inbox" />{translate("Recent messages (memory only, not exported)")}</p><pre>{messages.map(m => `${m.topic}\n${m.text}`).join('\n\n')}</pre></>}
@@ -154,13 +156,18 @@ export function TestLab({ cloudId }) {
       {tab === 'webrtc' && <div className="test-lab-viewer">
         <h3><LabIcon name="video" />{translate("WebRTC Viewer")}</h3>
         <video ref={video} controls playsInline muted aria-label={translate("Device live video")} />
+        <audio ref={audio} controls aria-label={translate("Device live audio")} />
         <div className="test-lab-viewer-toolbar">
           <p className="test-lab-playback-status"><LabIcon name={stats?.decoded ? 'circle-check' : 'circle-info'} />{stats?.decoded ? translate("Video frames decoded.") : translate("No decoded media received. Signaling success alone is not a playback pass.")}</p>
           <div className="test-lab-actions">
-            <button disabled={busy || playing || !context?.runtime_ready || !context?.capabilities?.webrtc} onClick={() => run('webrtc_start', async lab => { await lab.startVideo(video.current); if (runtime.current === lab) setPlaying(true); }, `Start real-device video streaming in ${context.environment}? Streaming consumes service usage.`)}><LabIcon name="play" />{translate("Start playback")}</button>
+            <button disabled={busy || playing || !context?.runtime_ready || !context?.capabilities?.webrtc} onClick={() => run('webrtc_start', async lab => { await lab.startVideo(video.current, audio.current); if (runtime.current === lab) setPlaying(true); }, translate("Start real-device video and audio streaming in {{environment}}? Streaming consumes service usage.", { environment: context.environment }))}><LabIcon name="play" />{translate("Start playback")}</button>
             <button disabled={busy || !playing} onClick={() => run('webrtc_stop', async lab => { await lab.stopVideo(); setPlaying(false); setStats(null); if (video.current) video.current.srcObject = null; })}><LabIcon name="stop" />{translate("Stop playback")}</button>
+            <button disabled={busy || !playing || microphone || micStatus === 'unavailable'} onClick={() => run('microphone_enable', async lab => { await lab.enableMicrophone(); setMicrophone(true); })}><LabIcon name="microphone" />{translate("Enable microphone")}</button>
+            <button disabled={busy || !microphone} onClick={() => run('microphone_disable', async lab => { await lab.disableMicrophone(); setMicrophone(false); })}><LabIcon name="microphone-slash" />{translate("Mute microphone")}</button>
+            <button disabled={!playing || speaker !== 'play_button_required'} onClick={() => run('speaker_enable', lab => lab.enableSpeaker())}><LabIcon name="volume-high" />{translate("Play device audio")}</button>
           </div>
         </div>
+        <p role="status">{translate("Device audio:")} {deviceAudio === 'receiving' ? translate("receiving") : deviceAudio === 'unavailable' ? translate("unavailable (video can continue)") : translate("waiting")} · {translate("Speaker:")} {speaker === 'playing' ? translate("playing") : speaker === 'play_button_required' ? translate("press Play device audio") : translate("off")} · {translate("Microphone:")} {microphone ? translate("sending") : micStatus === 'permission_denied' ? translate("permission denied") : micStatus === 'unavailable' ? translate("unavailable (video can continue)") : translate("off")}</p>
         <dl className="test-lab-video-metrics" aria-label={translate("WebRTC diagnostics")}>
           <div className="test-lab-video-metric">
             <dt><LabIcon name="stopwatch" />{translate("First decoded frame")}</dt>
@@ -177,6 +184,14 @@ export function TestLab({ cloudId }) {
           <div className="test-lab-video-metric">
             <dt><LabIcon name="triangle-exclamation" />{translate("Packets lost")}</dt>
             <dd>{stats?.packetsLost != null ? stats.packetsLost : <span className="test-lab-metric-empty">{translate("Not available")}</span>}</dd>
+          </div>
+          <div className="test-lab-video-metric">
+            <dt><LabIcon name="volume-high" />{translate("Device audio packets")}</dt>
+            <dd>{stats?.deviceAudioPackets ?? <span className="test-lab-metric-empty">{translate("Not available")}</span>}</dd>
+          </div>
+          <div className="test-lab-video-metric">
+            <dt><LabIcon name="microphone" />{translate("Microphone packets")}</dt>
+            <dd>{stats?.microphonePackets ?? <span className="test-lab-metric-empty">{translate("Not available")}</span>}</dd>
           </div>
         </dl>
       </div>}

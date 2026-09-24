@@ -11,12 +11,15 @@
 .test-lab .test-lab-validation button { margin: 0; }
 .test-lab-validation p { flex: 1 1 22rem; margin: 0; color: #526077; font-size: .85rem; line-height: 1.6; }
 .test-lab video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; background: #101827; border-radius: .6rem; }
+.test-lab audio { display: block; width: min(100%, 24rem); margin-top: .75rem; }
 .test-lab-viewer { min-width: 0; }
 .test-lab-viewer-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem 1.5rem; margin: 1rem 0; }
 .test-lab .test-lab-playback-status { flex: 1 1 24rem; margin: 0; font-size: .85rem; line-height: 1.6; }
-.test-lab .test-lab-video-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 1rem 0 0; border: 1px solid #dce3ec; border-radius: .6rem; background: #f8fafc; overflow: hidden; }
+.test-lab .test-lab-video-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 1rem 0 0; border: 1px solid #dce3ec; border-radius: .6rem; background: #f8fafc; overflow: hidden; }
 .test-lab-video-metric { min-width: 0; padding: 1rem 1.1rem; }
 .test-lab-video-metric + .test-lab-video-metric { border-left: 1px solid #dce3ec; }
+.test-lab-video-metric:nth-child(3n + 1) { border-left: 0; }
+.test-lab-video-metric:nth-child(n + 4) { border-top: 1px solid #dce3ec; }
 .test-lab .test-lab-video-metric dt { display: flex; align-items: center; gap: 0; color: #526077; font-size: .75rem; font-weight: 600; text-transform: none; }
 .test-lab .test-lab-video-metric dt .test-lab-icon { color: #4263a9; margin-right: .5em; }
 .test-lab .test-lab-video-metric dd { margin: .6rem 0 0; color: #182338; font-size: 1.2rem; font-weight: 650; line-height: 1.35; font-variant-numeric: tabular-nums; }
@@ -25,7 +28,8 @@
 .test-lab-metric-empty { font-size: .9rem; font-weight: 400; color: #526077; }
 @media (max-width: 900px) {
   .test-lab .test-lab-video-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .test-lab-video-metric:nth-child(3) { border-left: 0; }
+  .test-lab-video-metric:nth-child(odd) { border-left: 0; }
+  .test-lab-video-metric:nth-child(even) { border-left: 1px solid #dce3ec; }
   .test-lab-video-metric:nth-child(n + 3) { border-top: 1px solid #dce3ec; }
 }
 @media (max-width: 380px) {

@@ -59,10 +59,15 @@ Certificate expiry remains in the downloaded certificate, not an inferred UI dat
 - Live mutations and starting playback use a page-level Continue/Cancel
   confirmation. Cancel sends no request; a changed device scope invalidates a
   pending confirmation.
-- Native WebRTC uses recvonly video, server ICE policy and existing signaling.
-  Playback success requires decoded video frames; stats include bitrate and ICE
-  candidate type. Stopping, changing device or leaving the viewer closes the local
-  peer. A viewer test stops after 85 seconds.
+- WebRTC requests recvonly video and sendrecv Opus audio on one PeerConnection,
+  using the server ICE policy and existing signaling. The browser requests
+  microphone access only after the developer presses Enable microphone. Speaker,
+  device audio, and microphone have separate status; denial or unavailable audio
+  leaves video usable. An older device that rejects the audio offer gets one
+  video-only retry. Playback success requires decoded video frames; diagnostics
+  show bitrate, ICE candidate type, and audio packet counts. The viewer reconnects
+  before each 90-second media session expires, and stops after at most 10 minutes.
+  Stopping, changing device or leaving the viewer closes the local peer.
 - Exported diagnostics allowlist operation/status/timing fields. Credentials,
   payloads, SDP and ICE addresses are not exported.
 
@@ -75,7 +80,7 @@ Cloud Admin requires `CLOUD_ADMIN_TEST_LAB_ENABLED=true`, a non-production
 `TEST_LAB_ENABLED=true` and an allowed dev/local/staging environment.
 The deployment renderer exposes this only for explicitly enabled dev/staging stacks.
 
-An authenticated developer with device-management permission creates a five-minute
+An authenticated developer with device-management permission creates an 11-minute
 lease scoped to one cloud/product/device; at most three active leases per user.
 Account Manager rechecks device access when credentials are requested. Video Cloud
 checks the lease on HTTP calls and MQTT connection authentication. Thirty-second
@@ -106,13 +111,15 @@ All paths below are under `/api/developer`. Responses use `Cache-Control: no-sto
 - `GET /test-lab/mqtt`: authenticated same-origin WebSocket transport only.
 
 Runtime requires an enabled Product service, active test-account authorization,
-an active binding and successful provisioning. Device simulation, talkback,
-recording and load testing are not included.
+an active binding and successful provisioning. Device simulation, recording and
+load testing are not included.
 
 ## Verification
 
 Run Go app/config/accountclient tests, `npm test`, `npm run build`, and the isolated
 Chromium `web/e2e/test-lab.spec.mjs` test. The browser fixture verifies scope/UI and
-disabled-runtime behavior; it is not evidence of live MQTT or decoded camera video.
+disabled-runtime behavior; it is not evidence of live MQTT, decoded camera video,
+or physical two-way audio.
 Live dev acceptance must separately cover login, a permitted device, MQTT roundtrip,
-Shadow accepted/rejected responses, WebRTC first decoded frame and cleanup.
+Shadow accepted/rejected responses, WebRTC first decoded frame, Opus in both
+directions, speaker/AEC behavior, 10-minute playback and cleanup.

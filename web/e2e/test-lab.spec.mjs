@@ -120,7 +120,12 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await expect(panel).toContainText('No decoded media received');
   const videoBox = await panel.locator('video').boundingBox();
   expect(videoBox.width / videoBox.height).toBeCloseTo(16 / 9, 1);
-  await expect(panel.locator('.test-lab-video-metric')).toHaveCount(4);
+  await expect(panel.locator('.test-lab-video-metric')).toHaveCount(6);
+  await expect(panel.locator('audio')).toHaveCount(1);
+  await expect(panel.getByRole('button',{name:'Enable microphone',exact:true})).toBeDisabled();
+  await expect(panel.getByRole('button',{name:'Mute microphone',exact:true})).toBeDisabled();
+  await expect(panel.getByRole('button',{name:'Play device audio',exact:true})).toBeDisabled();
+  await expect(panel).toContainText('Device audio: waiting');
   await expect(panel.getByRole('button',{name:'Reload devices & access',exact:true})).toBeVisible();
   const download=page.waitForEvent('download');await panel.getByRole('button',{name:'Download diagnostic report'}).click();
   expect((await download).suggestedFilename()).toBe('cloud-test-lab-report.json');
@@ -138,7 +143,7 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel.getByRole('button',{name:'Unbind',exact:true})).toBeVisible();
   expect(claims).toBe(2);
-  await page.route('**/test-lab/sessions',route=>route.fulfill({json:{id:'99999999-9999-4999-8999-999999999999',expires_at:new Date(Date.now()+300000).toISOString()}}));
+  await page.route('**/test-lab/sessions',route=>route.fulfill({json:{id:'99999999-9999-4999-8999-999999999999',expires_at:new Date(Date.now()+11*60*1000).toISOString()}}));
   await page.route('**/test-lab/sessions/*/shadow',route=>route.fulfill({status:404}));
   runtimeReady=true;
   await panel.getByRole('button',{name:'Reload devices & access',exact:true}).click();
