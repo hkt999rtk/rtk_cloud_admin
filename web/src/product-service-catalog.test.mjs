@@ -39,3 +39,11 @@ test('legacy write gate keeps legacy options and omits catalog revision', () => 
   const payload = productServiceWritePayload({ name: 'Sensor', product_model: 'R1', category: 'mqtt_device', service_capabilities: ['mqtt'] }, null, legacy);
   assert.equal(payload.catalog_revision, undefined);
 });
+
+test('Logger retention is sent only when the registered option is selected', () => {
+  const withLogger = { ...catalog, options: [...catalog.options, { code: 'device_logging', display_name: 'Device Logs', selectable: true, requires: ['mqtt'] }] };
+  const form = { name: 'Sensor', product_model: 'R1', category: 'mqtt_device', service_capabilities: ['mqtt', 'device_logging'], log_retention_days: 90 };
+  assert.equal(productServiceWritePayload(form, null, withLogger).log_retention_days, 90);
+  assert.equal(productServiceWritePayload({ ...form, service_capabilities: ['mqtt'] }, null, withLogger).log_retention_days, undefined);
+  assert.equal(productServiceWritePayload({ ...form, log_retention_days: undefined }, null, withLogger).log_retention_days, 7);
+});

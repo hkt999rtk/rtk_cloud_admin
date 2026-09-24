@@ -2687,7 +2687,7 @@ function ProductsPage({ loading, data, onRefresh }) {
   const [showCreate, setShowCreate] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [form, setForm] = useState({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['mqtt'] });
+  const [form, setForm] = useState({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['mqtt'], log_retention_days: 7 });
   const [catalog, setCatalog] = useState(null);
   const [catalogError, setCatalogError] = useState('');
   const [catalogReload, setCatalogReload] = useState(0);
@@ -2762,7 +2762,7 @@ function ProductsPage({ loading, data, onRefresh }) {
           <h2>Products and Services</h2>
           <p>See what services are available for each product and what your current role can manage.</p>
         </div>
-        {canManage ? <button type="button" className="primary-button" disabled={!catalog || (catalog.product_writes_enabled && !mqttReady)} onClick={() => { setEditingProduct(null); setPreview(null); setForm({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['mqtt'] }); setShowCreate((value) => !value); setCatalogReload((value) => value + 1); }}>＋ Add Product</button> : null}
+        {canManage ? <button type="button" className="primary-button" disabled={!catalog || (catalog.product_writes_enabled && !mqttReady)} onClick={() => { setEditingProduct(null); setPreview(null); setForm({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['mqtt'], log_retention_days: 7 }); setShowCreate((value) => !value); setCatalogReload((value) => value + 1); }}>＋ Add Product</button> : null}
       </div>
       {message ? <div className="notice">{message}</div> : null}
       {catalogError ? <div className="notice">{catalogError} <button type="button" className="link-button" onClick={() => setCatalogReload((value) => value + 1)}>Refresh service catalog</button></div> : null}
@@ -2774,6 +2774,7 @@ function ProductsPage({ loading, data, onRefresh }) {
           <input type="checkbox" checked={form.service_capabilities.includes(service.code)} disabled={!catalog || (!service.selectable && !form.service_capabilities.includes(service.code)) || (catalog.product_writes_enabled && service.code === 'mqtt' && form.service_capabilities.includes('mqtt'))} onChange={(event) => setForm({ ...form, service_capabilities: event.target.checked ? [...form.service_capabilities, service.code] : form.service_capabilities.filter((item) => item !== service.code) })} />
           {translate(service.display_name || service.code)}{!service.selectable ? ` (${service.unavailable_reason || 'unavailable'})` : ''}{service.requires?.length ? ` — requires ${service.requires.join(', ')}` : ''}
         </label>)}</div>
+        {form.service_capabilities.includes('device_logging') ? <label>Device log retention <select value={form.log_retention_days} onChange={(event) => setForm({ ...form, log_retention_days: Number(event.target.value) })}>{(catalog?.options.find((option) => option.code === 'device_logging')?.log_retention_days || [7, 30, 90]).map((days) => <option key={days} value={days}>{days} days</option>)}</select><small>Changes apply to newly accepted logs.</small></label> : null}
         {editingProduct ? <button type="button" className="ghost-button" onClick={previewProduct}>{translate('Preview Change Impact')}</button> : null}
         <button type="submit" className="primary" disabled={serviceChangePending && (!catalog || !form.service_capabilities.length || (catalog.product_writes_enabled && !form.service_capabilities.includes('mqtt')))}>{editingProduct ? translate('Save Changes') : translate('Save Product')}</button>
         {preview ? <p className="notice">{preview.source_status === 'available' ? translate('{{count}} devices will be affected. {{impact}}', { count: formatNumber(preview.affected_devices || 0), impact: preview.requires_reprovision ? 'Reconfiguration may be required.' : 'No reconfiguration is required.' }) : translate('Impact preview is currently unavailable.')}</p> : null}
@@ -2792,10 +2793,10 @@ function ProductsPage({ loading, data, onRefresh }) {
                 <td>{product.product_model || product.category || '—'}</td>
                 <td>{formatNumber(product.device_count || 0)}</td>
                 <td>{formatNumber(product.production_run_count || 0)} production runs</td>
-                <td>{product.service_capabilities?.length ? product.service_capabilities.map((code) => productServiceCapabilityLabel(code, catalog)).join(', ') : 'Inactive'}</td>
+                <td>{product.service_capabilities?.length ? product.service_capabilities.map((code) => productServiceCapabilityLabel(code, catalog)).join(', ') : 'Inactive'}{product.service_capabilities?.includes('device_logging') ? ` · Logs ${product.log_retention_days || 7} days` : ''}</td>
                 <td>{product.device_policy?.setup_available || product.device_policy?.binding_available ? 'Set' : 'Not set'}</td>
                 <td>{product.firmware_policy?.ota_enabled ? 'Allow firmware updates' : 'Inactive'}</td>
-                <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? 'Manage Devices' : action === 'manage_updates' ? 'Manage Updates' : action === 'view_reports' ? 'View Reports' : action === 'manage_collaborators' ? 'Manage Collaborators' : action === 'edit_product' ? 'Edit Product' : 'View').join(', ') : 'Contact an administrator'}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: (product.service_capabilities || []).map(normalizeProductServiceCapability), original_services: (product.service_capabilities || []).map(normalizeProductServiceCapability) }); setPreview(null); setShowCreate(true); setCatalogReload((value) => value + 1); }}>Edit</button> : null}</td>
+                <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? 'Manage Devices' : action === 'manage_updates' ? 'Manage Updates' : action === 'view_reports' ? 'View Reports' : action === 'manage_collaborators' ? 'Manage Collaborators' : action === 'edit_product' ? 'Edit Product' : 'View').join(', ') : 'Contact an administrator'}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: (product.service_capabilities || []).map(normalizeProductServiceCapability), original_services: (product.service_capabilities || []).map(normalizeProductServiceCapability), log_retention_days: product.log_retention_days || 7 }); setPreview(null); setShowCreate(true); setCatalogReload((value) => value + 1); }}>Edit</button> : null}</td>
                 <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{product.status === 'active' ? 'Activate' : 'Deactivate'}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}>Deactivate</button> : null}</td>
               </tr>)}</tbody>
             </table>

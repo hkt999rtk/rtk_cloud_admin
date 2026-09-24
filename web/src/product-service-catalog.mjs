@@ -19,7 +19,7 @@ export function productServiceCapabilityLabel(value, catalog) {
   const code = normalizeProductServiceCapability(value);
   return catalog?.options?.find((item) => item.code === code)?.display_name
     || LEGACY_PRODUCT_SERVICE_CAPABILITIES.find((item) => item.code === code)?.display_name
-    || (code === 'ota' ? 'Firmware OTA' : code);
+    || (code === 'ota' ? 'Firmware OTA' : code === 'device_logging' ? 'Device Logs' : code);
 }
 
 export function productServiceChoices(catalog, selected = []) {
@@ -41,6 +41,9 @@ export function productServiceWritePayload(form, editingProduct, catalog) {
   if (changed) {
     payload.service_capabilities = selected;
     if (catalog?.product_writes_enabled) payload.catalog_revision = catalog.catalog_revision;
+  }
+  if (selected.includes('device_logging')) {
+    payload.log_retention_days = Number(form.log_retention_days || 7);
   }
   return payload;
 }

@@ -308,6 +308,7 @@ type DeviceItemProfile struct {
 	MetadataDefaults   map[string]any `json:"metadata_defaults"`
 	MetadataSchema     map[string]any `json:"metadata_schema"`
 	ServiceOptions     []string       `json:"service_options"`
+	LogRetentionDays   *int           `json:"log_retention_days,omitempty"`
 	ClaimPolicy        map[string]any `json:"claim_policy"`
 	ProvisioningPolicy map[string]any `json:"provisioning_policy"`
 	CreatedAt          string         `json:"created_at"`
@@ -327,6 +328,7 @@ type DeviceItemProfileRequest struct {
 	CAProfile          string         `json:"ca_profile,omitempty"`
 	IssuerProfile      string         `json:"issuer_profile,omitempty"`
 	ServiceOptions     []string       `json:"service_options,omitempty"`
+	LogRetentionDays   *int           `json:"log_retention_days,omitempty"`
 	CatalogRevision    int64          `json:"catalog_revision,omitempty"`
 	ClaimPolicy        map[string]any `json:"claim_policy,omitempty"`
 	ProvisioningPolicy map[string]any `json:"provisioning_policy,omitempty"`
