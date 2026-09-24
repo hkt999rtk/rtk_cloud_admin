@@ -31,7 +31,10 @@ test('provider dashboard helpers compute and filter design data', () => {
   assert.equal(providerValidationErrorMessage({ unavailable: true, validation_error: 'internal timeout: host=secret' }), 'Manifest validation failed and no valid synchronized snapshot is available.');
   assert.equal(providerValidationErrorMessage(null), '');
   assert.equal(compactHash('1234567890abcdef'), '12345678…');
-  assert.equal(formatProviderTimestamp('2026-07-19T03:04:05Z'), '2026-07-19 03:04 UTC');
+  assert.equal(formatProviderTimestamp('2026-07-19T03:04:05Z'), new Intl.DateTimeFormat('en-US', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZone: 'UTC', timeZoneName: 'short',
+  }).format(new Date('2026-07-19T03:04:05Z')));
   assert.equal(formatProviderTimestamp(''), '—');
 });
 

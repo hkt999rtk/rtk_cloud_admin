@@ -1,0 +1,11 @@
+flowchart TB
+    App["應用程式/後端"] -->|"MQTT或已簽名的HTTP"| Shadow["影子國家服務"]
+    Shadow <-->|"獲得，期望，報告"| Device["裝置韌體"]
+    Device --> Broker["MQTT 代理服務"]
+    Device --> WS["裝置WebSocket端點"]
+    Broker -->|"SDK所有者協議"| Owner["單個活躍所有者運輸"]
+    WS -->|"更高的優先順序"| Owner
+    Command["支援的裝置命令路由"] --> Owner
+    Owner -->|"僅限現任所有者"| Device
+    Observer["僅限影子教程客戶端"] --> Broker
+    Observer -.->|"不建立所有者生命週期"| Owner

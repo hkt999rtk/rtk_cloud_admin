@@ -1,0 +1,22 @@
+flowchart TB
+    subgraph Factory["工厂层"]
+        Identity["装置身份和规范权利"]
+    end
+    subgraph Account["帐户层"]
+        Claim["索赔/使用者组织系结"] --> Activation["非同步配置操作"]
+        Release["未配置"] -->|"释出"| Claim
+    end
+    subgraph Runtime["执行时层"]
+        Enabled["云启动状态"]
+        Owner["现任所有者运输"]
+        Shadow["持续的影子状态"]
+    end
+    Identity --> Claim
+    Activation --> Enabled
+    Enabled -->|"允许授权的执行时使用"| Owner
+    Enabled -->|"允许授权的州政府访问"| Shadow
+    Release -.->|"储存"| Identity
+    Owner -.->|"独立于储存状态"| Shadow
+    Status["舰队/准备状态显示：检查来源和观察时间"]
+    Activation --> Status
+    Owner --> Status

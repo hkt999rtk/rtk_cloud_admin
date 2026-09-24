@@ -1,36 +1,14 @@
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { localeConfig } from '../localization/config.mjs';
+import { fingerprint, placeholders, sourceHash } from '../localization/checksums.mjs';
 
-const locales = ['zh-TW', 'zh-CN'];
+const locales = localeConfig.locales.map(({ code }) => code).filter(code => code !== localeConfig.defaultLocale);
 const here = new URL('.', import.meta.url);
-const placeholderPattern = /{{\s*[-\w.]+\s*}}/g;
-
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isNonBlankString = value => typeof value === 'string' && value.trim().length > 0;
-const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-const canonicalJSON = value => Array.isArray(value)
-  ? value.map(canonicalJSON)
-  : isObject(value)
-    ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalJSON(value[key])]))
-    : value;
-const placeholders = text => typeof text === 'string'
-  ? [...new Set(text.match(placeholderPattern) || [])].sort()
-  : [];
 const sameStrings = (left, right) => left.length === right.length && left.every((value, index) => value === right[index]);
-const sourceHash = entry => digest({
-  key: entry.key,
-  source: entry.source,
-  context: entry.context || '',
-  placeholders: [...entry.placeholders].sort(),
-});
-const fingerprint = (entry, locale, catalog) => digest({
-  key: entry.key,
-  sourceHash: sourceHash(entry),
-  locale,
-  policyVersion: catalog.policyVersion,
-  glossaryHash: digest(canonicalJSON(catalog.glossary || {})),
-});
+const languageNeutralCopy = new Set(['CSV', 'Connect+', 'Grafana', 'HTTP', 'HTTP / SigV4', 'JSON', 'MQTT', 'Realtek', 'SDK', 'WebRTC', 'YouTube', 'mm', '· NT$']);
 
 async function readJSON(relativePath) {
   return JSON.parse(await readFile(new URL(relativePath, here), 'utf8'));
@@ -65,6 +43,8 @@ async function main() {
   const entries = validateCatalog(catalog, errors);
   const resources = await import(pathToFileURL(fileURLToPath(new URL('../src/i18n/resources.generated.mjs', here))).href);
   const runtime = { en: resources.en, 'zh-TW': resources.zhTW, 'zh-CN': resources.zhCN };
+  const apiResources = await readJSON('../../internal/app/localization.generated.json');
+  const lastEntryBySource = new Map(catalog.strings.map(entry => [entry.source, entry]));
   const sourceKeys = [...entries.keys()];
 
   for (const [key, entry] of entries) {
@@ -85,7 +65,9 @@ async function main() {
         errors.push(`${locale} translation artifact is invalid for ${key}`);
         continue;
       }
+      if (value.text === entry.source && /[A-Za-z]{2}/.test(entry.source) && !languageNeutralCopy.has(entry.source)) errors.push(`${locale}: untranslated interface or API copy ${key}`);
       if (runtime[locale]?.translation?.[key] !== value.text) errors.push(`generated ${locale} resource differs for ${key}`);
+      if (lastEntryBySource.get(entry.source) === entry && apiResources[locale]?.system?.[entry.source] !== value.text) errors.push(`generated ${locale} API resource differs for ${key}`);
     }
     requireExactKeys(runtime[locale]?.translation, sourceKeys, `generated ${locale} resource`, errors);
   }

@@ -1,0 +1,9 @@
+flowchart TB
+    D[装置韧体] <-->|MQTT透过TLS| B[MQTT 代理服务]
+    A[应用程式或后端] <-->|MQTT透过TLS| B
+    B <-->|影子请求与通知| S[装置影子服务]
+    A <-->|带有SigV4的HTTPS| S
+    D -->|带有客户端证书的HTTPS| T[权杖端点]
+    A -->|带应用程式证书的HTTPS| T
+    T -->|执行阶段凭证| D
+    T -->|执行阶段凭证| A

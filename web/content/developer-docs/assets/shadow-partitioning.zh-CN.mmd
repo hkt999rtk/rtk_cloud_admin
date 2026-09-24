@@ -1,0 +1,11 @@
+flowchart TB
+    Device["一个执行时装置身份"] --> Config["命名影子：配置"]
+    Device --> Diagnostics["名为Shadow：诊断"]
+    Device --> Default["无名影子"]
+    Config --> Desired["所需的配置意图"]
+    Config --> Reported["报告的应用配置"]
+    Diagnostics --> Status["受限制的应用程式定义诊断状态"]
+    Rules["每个影子都有自己的版本、大小预算和生命周期"] -.-> Config
+    Rules -.-> Diagnostics
+    Rules -.-> Default
+    Boundary["没有跨影子交易。仅仅是名称并不能提供孤立性。"] -.-> Rules

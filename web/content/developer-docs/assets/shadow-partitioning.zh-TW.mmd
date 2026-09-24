@@ -1,0 +1,11 @@
+flowchart TB
+    Device["一個執行時裝置身份"] --> Config["命名影子：配置"]
+    Device --> Diagnostics["名為Shadow：診斷"]
+    Device --> Default["無名影子"]
+    Config --> Desired["所需的配置意圖"]
+    Config --> Reported["報告的應用配置"]
+    Diagnostics --> Status["受限制的應用程式定義診斷狀態"]
+    Rules["每個影子都有自己的版本、大小預算和生命週期"] -.-> Config
+    Rules -.-> Diagnostics
+    Rules -.-> Default
+    Boundary["沒有跨影子交易。僅僅是名稱並不能提供孤立性。"] -.-> Rules

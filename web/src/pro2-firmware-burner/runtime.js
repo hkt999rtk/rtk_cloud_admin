@@ -3,6 +3,7 @@ import { SerialTransport } from './serial.js';
 import { BurnController, parseOffset } from './burner.js';
 import { sha256Hex } from './firmware-meta.js';
 import { TerminalConsole } from './terminal.js';
+import { formatLocale, translate } from '../i18n/index.mjs';
 
 export function mountPro2FirmwareBurner(root) {
 const $ = id => root.querySelector(`#${id}`);
@@ -31,8 +32,8 @@ let firmwareChecksumError = '';
 let firmwareChecksumRequest = 0;
 
 function log(message) {
-  const now = new Date().toLocaleTimeString();
-  ui['protocol-log'].textContent += `[${now}] ${message}\n`;
+  const now = new Date().toLocaleTimeString(formatLocale());
+  ui['protocol-log'].textContent += `[${now}] ${translate(message)}\n`;
   ui['protocol-log'].scrollTop = ui['protocol-log'].scrollHeight;
 }
 
@@ -54,8 +55,8 @@ function setStatus(state, message) {
   const presentation = statePresentation(state);
   ui['task-card'].dataset.state = state;
   ui['state-icon'].className = `pro2-state-icon fa-solid fa-${presentation.icon}${presentation.spin ? ' fa-spin' : ''}`;
-  ui['task-title'].textContent = presentation.title;
-  ui.message.textContent = message;
+  ui['task-title'].textContent = translate(presentation.title);
+  ui.message.textContent = translate(message);
   updateSteps(state);
   updateButtons();
 }
@@ -109,15 +110,15 @@ function updateButtons() {
   ui['scroll-lock'].disabled = !connected;
   ui['copy-checksum'].disabled = !firmwareChecksum;
   ui['reset-device'].disabled = !connected || busy || !ui['enter-download'].checked;
-  ui['reset-device'].title = ui['enter-download'].checked ? 'Reset the device through DTR/RTS.' : 'Enable DTR/RTS reset/boot control in Advanced settings first.';
+  ui['reset-device'].title = translate(ui['enter-download'].checked ? 'Reset the device through DTR/RTS.' : 'Enable DTR/RTS reset/boot control in Advanced settings first.');
   for (const input of [ui.firmware, ui['download-baud'], ui.offset, ui.erase, ui['enter-download'], ui.verify, ui['open-terminal']]) input.disabled = busy;
   ui.reset.disabled = busy || !ui['enter-download'].checked;
   root.dataset.uartConnected = String(connected);
   root.dataset.uartBusy = String(busy);
-  ui['connection-label'].textContent = connected ? `${transport.baudRate} baud · ${ownerLabel(transport.owner)}` : 'Not connected';
+  ui['connection-label'].textContent = connected ? `${transport.baudRate} baud · ${translate(ownerLabel(transport.owner))}` : translate('Not connected');
   ui['connection-label'].classList.toggle('connected', connected && !busy);
   ui['connection-label'].classList.toggle('busy', connected && busy);
-  ui['terminal-connection'].textContent = connected ? 'Online' : 'Offline';
+  ui['terminal-connection'].textContent = translate(connected ? 'Online' : 'Offline');
   ui['terminal-connection'].classList.toggle('connected', connected);
 }
 
@@ -133,14 +134,14 @@ function showBurnPanel(show = true) {
 function updateFirmwareCard() {
   const file = selectedFile();
   ui['firmware-card'].hidden = !file;
-  ui['file-info'].textContent = file ? `${file.name} · ${formatBytes(file.size)}` : 'Choose a complete flash .bin';
+  ui['file-info'].textContent = file ? `${file.name} · ${formatBytes(file.size)}` : translate('Choose a complete flash .bin');
   if (!file) return;
-  ui['firmware-kind'].textContent = 'Full Flash image';
-  ui['firmware-target'].textContent = `Write at ${ui.offset.value}`;
-  ui['firmware-note'].textContent = remoteMetadata ? 'Published full non-TrustZone flash image · isolated test settings' : 'Confirm this is a complete flash image and check the write offset.';
+  ui['firmware-kind'].textContent = translate('Full Flash image');
+  ui['firmware-target'].textContent = translate('Write at {{offset}}', { offset: ui.offset.value });
+  ui['firmware-note'].textContent = translate(remoteMetadata ? 'Published full non-TrustZone flash image · isolated test settings' : 'Confirm this is a complete flash image and check the write offset.');
   ui['firmware-checksum'].textContent = firmwareChecksumFile === file && firmwareChecksum
     ? firmwareChecksum
-    : firmwareChecksumPending ? 'Calculating local SHA-256…' : firmwareChecksumError || 'Waiting for calculation';
+    : firmwareChecksumPending ? translate('Calculating local SHA-256…') : translate(firmwareChecksumError || 'Waiting for calculation');
 }
 
 async function calculateFirmwareChecksum() {
@@ -171,7 +172,7 @@ async function calculateFirmwareChecksum() {
 function updateDownloadModeGuide() {
   const automatic = ui['enter-download'].checked;
   ui['manual-guide'].hidden = automatic;
-  ui.burn.textContent = automatic ? 'Start burn (enter download mode automatically)' : 'Device is in download mode — start burn';
+  ui.burn.textContent = translate(automatic ? 'Start burn (enter download mode automatically)' : 'Device is in download mode — start burn');
   if (!automatic) ui.reset.checked = false;
   updateButtons();
 }
@@ -204,8 +205,8 @@ function showRecovery(error) {
     message = 'Do not boot the device yet. Burn again at a lower speed.';
     showLowerBaud = Boolean(lowerDownloadBaud());
   }
-  ui['recovery-title'].textContent = title;
-  ui['recovery-message'].textContent = message;
+  ui['recovery-title'].textContent = translate(title);
+  ui['recovery-message'].textContent = translate(message);
   ui['retry-low-baud'].hidden = !showLowerBaud;
   ui.reconnect.hidden = !showReconnect;
   ui['recovery-card'].hidden = false;
@@ -245,7 +246,7 @@ async function burn() {
   try {
     if (!file) throw new Error('Choose a complete flash .bin first.');
     if (firmwareChecksumFile !== file || !firmwareChecksum) throw new Error('The firmware SHA-256 is still being calculated. Review the checksum before burning.');
-    if (ui.erase.value === 'chip' && !window.confirm('Chip erase removes the entire flash, including the current bootable image. Continue?')) return;
+    if (ui.erase.value === 'chip' && !window.confirm(translate('Chip erase removes the entire flash, including the current bootable image. Continue?'))) return;
     clearRecovery();
     progressStartedAt = Date.now();
     ui.progress.value = 0;
@@ -256,12 +257,12 @@ async function burn() {
       baudRate: Number(ui['download-baud'].value), offset: parseOffset(ui.offset.value), erase: ui.erase.value,
       modeK: 1, enterDownload: ui['enter-download'].checked, verify: ui.verify.checked, pro2: true, reset: ui.reset.checked
     };
-    log(`firmware loaded: ${file.name}, ${file.size} bytes (not uploaded)`);
+    log(translate('Firmware loaded: {{name}}, {{size}} bytes (not uploaded)', { name: file.name, size: file.size }));
     await controller.burn(firmware, options);
     if (ui['open-terminal'].checked) {
       setStatus('completed', 'Burn and verification completed. Reopening the console at 115200 baud…');
       await terminal.enter({ baudRate: Number(ui['console-baud'].value), hardwareReset: options.reset });
-      setStatus('terminal', `Burn and verification completed. UART reopened at ${ui['console-baud'].value} baud. Terminal ready.`);
+      setStatus('terminal', translate('Burn and verification completed. UART reopened at {{baud}} baud. Terminal ready.', { baud: ui['console-baud'].value }));
     } else {
       transport.acquire('idle');
       setStatus('completed', 'Burn and verification completed. The console was not opened automatically.');
@@ -271,13 +272,13 @@ async function burn() {
     if (error.name === 'AbortError') {
       try {
         await terminal.enter({ baudRate: Number(ui['console-baud'].value) });
-        setStatus('terminal', `Burn canceled. UART console reopened at ${ui['console-baud'].value} baud.`);
+        setStatus('terminal', translate('Burn canceled. UART console reopened at {{baud}} baud.', { baud: ui['console-baud'].value }));
       } catch {
         setStatus('cancelled', 'Burn canceled. Reconnect UART if you want to continue.');
       }
       return;
     }
-    log(`ERROR: ${error.message}`);
+    log(translate('ERROR: {{message}}', { message: error.message }));
     setStatus('failed', actionError(error));
     showRecovery(error);
   } finally {
@@ -289,7 +290,7 @@ async function returnToConsole() {
   try {
     clearRecovery();
     await terminal.enter({ baudRate: Number(ui['console-baud'].value) });
-    setStatus('terminal', `Console ready at ${ui['console-baud'].value} baud.`);
+    setStatus('terminal', translate('Console ready at {{baud}} baud.', { baud: ui['console-baud'].value }));
   } catch (error) {
     setStatus('failed', actionError(error));
     showRecovery(error);
@@ -299,9 +300,9 @@ async function returnToConsole() {
 async function copyText(text, successMessage) {
   try {
     await navigator.clipboard.writeText(text);
-    ui.message.textContent = successMessage;
+    ui.message.textContent = translate(successMessage);
   } catch (error) {
-    setStatus('failed', `Copy failed: ${error.message}`);
+    setStatus('failed', translate('Copy failed: {{message}}', { message: error.message }));
   }
 }
 
@@ -315,9 +316,9 @@ function saveTerminalLog() {
 }
 
 if ('serial' in navigator && window.isSecureContext) {
-  ui['compatibility-message'].textContent = 'Web Serial ready · Firmware and UART data stay on this computer.';
+  ui['compatibility-message'].textContent = translate('Web Serial ready · Firmware and UART data stay on this computer.');
 } else {
-  ui['compatibility-message'].textContent = !window.isSecureContext ? 'Web Serial requires HTTPS (localhost may use HTTP).' : 'This browser does not support USB serial connections (Web Serial). To flash firmware or use the serial console, use desktop Chrome or Edge. You can still browse documentation and download firmware in this browser.';
+  ui['compatibility-message'].textContent = translate(!window.isSecureContext ? 'Web Serial requires HTTPS (localhost may use HTTP).' : 'This browser does not support USB serial connections (Web Serial). To flash firmware or use the serial console, use desktop Chrome or Edge. You can still browse documentation and download firmware in this browser.');
   ui.compatibility.classList.add('unsupported');
   ui['compatibility-icon'].className = 'fa-solid fa-triangle-exclamation';
 }
@@ -368,7 +369,7 @@ ui['save-terminal'].addEventListener('click', saveTerminalLog);
 ui['scroll-lock'].addEventListener('click', () => {
   const locked = terminal.toggleScrollLock();
   ui['scroll-lock'].setAttribute('aria-pressed', String(locked));
-  ui['scroll-lock'].textContent = locked ? 'Scroll lock: on' : 'Scroll lock';
+  ui['scroll-lock'].textContent = translate(locked ? 'Scroll lock: on' : 'Scroll lock');
 });
 ui['reset-device'].addEventListener('click', async () => {
   try {
