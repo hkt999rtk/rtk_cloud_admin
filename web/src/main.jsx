@@ -1491,7 +1491,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
           <h1 id="login-title">{translate(pageHeading)}</h1>
           <p className="login-copy">{translate(pageCopy)}</p>
           {content}
-          {error || socialLoginCallbackError(params.get('social_error')) ? <div className="error" role="alert">{error || socialLoginCallbackError(params.get('social_error'))}</div> : null}
+          {error || socialLoginCallbackError(params.get('social_error')) ? <div className="error" role="alert">{translate(error || socialLoginCallbackError(params.get('social_error')))}</div> : null}
         </section>
       </main>
       <footer className="service-login-footer"><span>{translate("Realtek Connect+ · Cloud services")}</span><a href="https://www.realtek.com" target="_blank" rel="noreferrer noopener">{translate("Realtek corporate website")} <span aria-hidden="true">↗</span></a></footer>

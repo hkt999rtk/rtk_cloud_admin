@@ -467,7 +467,7 @@
     "A dedicated workspace for the people building and operating connected products.": {
       "sourceHash": "d88f8624cb6760861cf5a418c5ccf672cd8c0146881592db72c8d8d7fc32baf4",
       "fingerprint": "7fe3ec5fe29d8750877272ff9555479f25d1112f326dca1f6242b6d1eae8ab53",
-      "text": "为构建和运营互联产品的人们提供的专用工作空间。",
+      "text": "专为打造及营运联网产品的团队设计的工作空间。",
       "status": "approved"
     },
     "A low balance will not trigger a charge.": {
@@ -503,7 +503,7 @@
     "About Connect+": {
       "sourceHash": "c51dce892cae616cd2cca9e35a82b79d1209757edcfe7b9af83924ff0c91b30d",
       "fingerprint": "67d51fde94cfcebb02dbde2af2ab6d273808ce73e9e21cdc1c1e0d7c62eb801f",
-      "text": "关于Connect+",
+      "text": "关于 Connect+",
       "status": "approved"
     },
     "About the test workflows": {
@@ -845,7 +845,7 @@
     "Auth mode": {
       "sourceHash": "ad1e64d934c890b75f3fb3d1d30f17cabfc0bdc25ecf874b84e8ef8f7b99b396",
       "fingerprint": "bb15cd8fb2fdbe9bae62d32a6c7ee8b29923c7929c9bd625a7f2d5b35f2aa9b0",
-      "text": "授权模式",
+      "text": "登录方式",
       "status": "approved"
     },
     "Authorized Products": {
@@ -881,7 +881,7 @@
     "Available after publication": {
       "sourceHash": "a1324eeec416160fc22a7300ad86f1b501d776274a08c94356331f73dc12cdf4",
       "fingerprint": "074183d006dfc1fb0133387d36bc92358fb4c3e141fb3497a88010dfb6a21636",
-      "text": "出版后可用",
+      "text": "发布后可用",
       "status": "approved"
     },
     "Avg latency": {
@@ -1073,7 +1073,7 @@
     "Bound, provisioned and online are separate states. Load the downloaded device credentials into your test board or device client to connect it.": {
       "sourceHash": "1932f8a20eeee910d6e6a4cdea579d076555044f4e05e45b68858b9288ef1eb0",
       "fingerprint": "b81e9469ff3459882dd8980623f6b930e10686b065061f8eb6f1e1549f349f66",
-      "text": "系定、配置和线上是不同的状态。将下载的装置凭据载入到您的测试板或装置客户端中以连线它。",
+      "text": "系定、配置和线上是不同的状态。将下载的装置凭据载入到您的测试板或装置用户端中以连线它。",
       "status": "approved"
     },
     "Brand": {
@@ -1127,7 +1127,7 @@
     "Brand Clouds requires Account Manager login": {
       "sourceHash": "dd1a701db454a619804f82bf5a8a4dc68c6828178cd9844a17e5395d1a7f3c01",
       "fingerprint": "ba05eae21a02f7134856ca0e3008f93a013f8c2064e260a9e24ef264b6ab2648",
-      "text": "品牌云需要帐户经理登入",
+      "text": "品牌云需要Account Manager登入",
       "status": "approved"
     },
     "Brand Clouds unavailable:": {
@@ -1139,7 +1139,7 @@
     "Brand Fleet": {
       "sourceHash": "59981e88e979851b0f1e6b103bea43e7f9f32bb95f5978bba95445e9850b9fa4",
       "fingerprint": "5a27ab537f0e41f8b4dc164052352f749509d28c7a0a5f4da45f8849cd7db53a",
-      "text": "品牌车队",
+      "text": "品牌设备群",
       "status": "approved"
     },
     "Brand display name": {
@@ -1163,13 +1163,13 @@
     "Breakdown of the current fleet by telemetry health state.": {
       "sourceHash": "7d41b77727b888c42ff802cc871ecfba1bcd059402beb90161483664527cdd66",
       "fingerprint": "83a331f6aa9cdac174f228089ae3a4688dd6d2733632c8da8a4c7f54121d9796",
-      "text": "按远端测量健康状态对当前车队进行细分。",
+      "text": "按遥测健康状态对当前设备群进行细分。",
       "status": "approved"
     },
     "Bring operations together": {
       "sourceHash": "6786a1682d60a8202681ed27da94dec0080cfb9b261893acf52ef184585907b7",
       "fingerprint": "a22b87e312dbce8c0e30157e1a79576f9caafac39910d823a4111c615146da3a",
-      "text": "将运营整合在一起",
+      "text": "集中管理营运",
       "status": "approved"
     },
     "Broker acceptance and device response are reported separately. Test ACLs allow this device’s commands and reports only.": {
@@ -1205,7 +1205,7 @@
     "Build your product ecosystem": {
       "sourceHash": "cef06aaeb3908510763254e378df26e9804bd8a3b4981f8f8126e9d52c0406a6",
       "fingerprint": "40691ce93fa5b02e905763ba2dbbd4a576790a7f09c738b1064659f971450b05",
-      "text": "建立您的产品生态系统",
+      "text": "建立产品生态系",
       "status": "approved"
     },
     "Build, burn and test MQTT messaging, synthetic H.264 video, or a live camera.": {
@@ -1493,19 +1493,19 @@
     "Client ID": {
       "sourceHash": "4c05d60185146e406ec382106852d0fe671329b4019c4b6b2b2f1fd5a4411a18",
       "fingerprint": "8ff84da22e6de2244e62eaf790bf6b69eaa3880dad13f313bae8b262dad555c2",
-      "text": "客户端ID",
+      "text": "用户端ID",
       "status": "approved"
     },
     "Client secret": {
       "sourceHash": "40fdfdda610ed405f96fb0092602fe7f501d0a8c38133bdede15a4228f17097e",
       "fingerprint": "a9acc288df4b3c7318b24af22f8e092c840f0d585a27be548cef568d35ba4636",
-      "text": "客户端密码",
+      "text": "用户端密码",
       "status": "approved"
     },
     "Client secrets are sent only to Account Manager and are never returned by this console. OIDC is the first supported protocol; SAML is not implemented.": {
       "sourceHash": "7ca362a27af62868b431fd21658d3ff78cb5d79e115438c4bace1222ca7b4e8a",
       "fingerprint": "8b2e6b9f958bdca2378ba3bcf422410fc6299c30ac76ae2cd155a247d1969e7d",
-      "text": "客户端密码只传送给帐户经理，此控制台从不返回。OIDC是第一个受支援的协议；SAML未实现。",
+      "text": "用户端密码只传送给Account Manager，此控制台从不返回。OIDC是第一个受支援的协议；SAML未实现。",
       "status": "approved"
     },
     "Clip public key": {
@@ -1553,13 +1553,13 @@
     "Cloud Client SDKs": {
       "sourceHash": "a3b81bd0ca83af7cc2d4724075f1f778ad051ac511f4b0c9978373d338891ecb",
       "fingerprint": "cb1ec031fb926d33987586866b0cc448321794d9ed289db3835945ca87f47f82",
-      "text": "云客户端SDK",
+      "text": "云用户端SDK",
       "status": "approved"
     },
     "Cloud Client SDKs are temporarily unavailable": {
       "sourceHash": "9e3770107731f9e2908848b107b6e9be86e75c40ba68e1427d84522d7748ced3",
       "fingerprint": "08937cf3d172b902de80b5f9d7fd062d0ea2e6c98bb4ab5c661f177d3bf42a41",
-      "text": "云客户端SDK暂时不可用",
+      "text": "云用户端SDK暂时不可用",
       "status": "approved"
     },
     "Cloud Examples": {
@@ -1835,7 +1835,7 @@
     "Connected.": {
       "sourceHash": "426a711a76949aa4887831d68f3f9da0f28e196f5513808b19e01e35e022e870",
       "fingerprint": "ae28062b79c8d74874b4a8044a1d3cc1c11e7dc129e7c58c4b0fc990741a9f62",
-      "text": "连线。",
+      "text": "随时连线。",
       "status": "approved"
     },
     "Connection": {
@@ -2957,7 +2957,7 @@
     "Find SDKs, integration guides and technical resources.": {
       "sourceHash": "0a174e0a573acc50b102a09c75521d9dbc3a098d3598fdca7aa584479e8cab3f",
       "fingerprint": "d0e59a9137c5302b4cb8765e24c0259c2bdcc6856c43a58609737e9ab7fe4481",
-      "text": "查询SDK、整合指南和技术资源。",
+      "text": "取得 SDK、整合指南与技术资源。",
       "status": "approved"
     },
     "Find log events": {
@@ -3083,13 +3083,13 @@
     "Fleet Governance": {
       "sourceHash": "44a7933ec9456bcc3cb443f75239e512f11308fd17493daf369fced91f0ffe4e",
       "fingerprint": "9baa44170617ab20ea5a6a47942725cd7a8c0c50eb29ebd29685f7dcdd07fa4d",
-      "text": "车队治理",
+      "text": "设备群治理",
       "status": "approved"
     },
     "Fleet Insights": {
       "sourceHash": "ce6de6604b55d2137b78bfb48f517d5bda028ee11b795e1067e6e53ef0285fce",
       "fingerprint": "a7bfd199313b16d607e588ddddb978ba2cfcb74bfdd0c2e02ac3e30c1b8b85fb",
-      "text": "车队见解",
+      "text": "设备群见解",
       "status": "approved"
     },
     "Fleet Organization": {
@@ -3101,19 +3101,19 @@
     "Fleet health distribution": {
       "sourceHash": "e7062a971c6b70223e5cd464b01ac64691905a30fc181ff5c79bfa94ce98341a",
       "fingerprint": "91b8b7f2944c132eac10e0afb9f850777c03f26360682e6591825e318f0088d6",
-      "text": "车队健康分布",
+      "text": "设备群健康分布",
       "status": "approved"
     },
     "Fleet health trend": {
       "sourceHash": "efb0e9e441f51c1e8d4e4c83f44d7fb7aaa313b31d68501d6924c65582c04538",
       "fingerprint": "80192852521817e99c9aa2a8cccfe68fff8a9d3888f5b9e62ebaae218695e24a",
-      "text": "车队健康趋势",
+      "text": "设备群健康趋势",
       "status": "approved"
     },
     "Fleet health trend chart": {
       "sourceHash": "5fdf751d9714c486fb89bf0346fec65733d8edaa2306a9d63e4dbe3558b125a7",
       "fingerprint": "7e0cbf67c740db471e24f5fdb2dd90a7ccb591a380287c727ed092b44925e7ab",
-      "text": "车队健康趋势图表",
+      "text": "设备群健康趋势图表",
       "status": "approved"
     },
     "Fleet statistics are temporarily unavailable.": {
@@ -3149,7 +3149,7 @@
     "From device to cloud.": {
       "sourceHash": "520b70bbff619e819f4ff33e3eb69c08820a06ce8e2a6db307a0b8a3e051adf3",
       "fingerprint": "e2474cf6b41d3bca08ffde385c4d91c6c602550f9d45464e114394f283323b5c",
-      "text": "从装置到云端。",
+      "text": "从设备到云端。",
       "status": "approved"
     },
     "Full flash image": {
@@ -3683,7 +3683,7 @@
     "Keep development moving": {
       "sourceHash": "cbdeaaafc9e701eed6dadd847bfa6859a6da2b4beadd37e1726be1a884577aec",
       "fingerprint": "3c7c5955a46e121ef761bf3f12196f610db430e59d7570d829f8b0afec499de9",
-      "text": "保持发展的进展",
+      "text": "加速开发",
       "status": "approved"
     },
     "Keep existing access": {
@@ -3719,7 +3719,7 @@
     "Last 10 telemetry events from this device.": {
       "sourceHash": "3480874d4fae04ee7dc72007e101fa09cdc84fb1397f779c445b9d723ae9c4bb",
       "fingerprint": "569956693862d825354e522e7ccd1ec23ca696f75da59bdcfccfcdf7df1ae087",
-      "text": "此装置的最后10个远端测量事件。",
+      "text": "此装置的最后10个遥测事件。",
       "status": "approved"
     },
     "Last Stream": {
@@ -3815,7 +3815,7 @@
     "Load the matching bundle into your test client, or configure it with the device certificate and private key. Use the Device ID to find the device in the console and correlate requests or logs. Complete any required device claim and account binding separately; downloading credentials does not mean the device is online.": {
       "sourceHash": "f6e15576e33772fa147f0adb4f7635daf628dafa9dc828c3f9b90b7ea690f1be",
       "fingerprint": "6ebdc0efa78283f41d76061bf400bbc7524f60ac9c0fe0c4b5c0960f023a8e78",
-      "text": "将匹配的捆绑包载入到您的测试客户端中，或使用装置证书和私钥配置它。使用装置ID在控制台中查询装置，并对请求或日志进行关联。单独完成任何所需的装置索赔和帐户系结；下载凭据并不意味著装置线上。",
+      "text": "将匹配的捆绑包载入到您的测试用户端中，或使用装置证书和私钥配置它。使用装置ID在控制台中查询装置，并对请求或日志进行关联。单独完成任何所需的装置索赔和帐户系结；下载凭据并不意味著装置线上。",
       "status": "approved"
     },
     "Loading": {
@@ -3845,7 +3845,7 @@
     "Loading Cloud Client SDKs": {
       "sourceHash": "5dde3f501dc5a4e8c846f545e6e158b913aa0c86af2634c674214727605b39bd",
       "fingerprint": "20aa9d32a3fcb42209bbe22310f4418cc54eec4b264c2d6a723386aa794d98fd",
-      "text": "载入云客户端SDK",
+      "text": "载入云用户端SDK",
       "status": "approved"
     },
     "Loading Product": {
@@ -3935,13 +3935,13 @@
     "Loading fleet health distribution.": {
       "sourceHash": "bd74a69c56f7c9df512e755a765c5a2aa8f261850485407f201bfa2b7d005d04",
       "fingerprint": "6bc438e08057b0f1c6793f28420acd8e3f43670254f47b58361023664b4fa289",
-      "text": "载入车队健康分布。",
+      "text": "载入设备群健康分布。",
       "status": "approved"
     },
     "Loading fleet trend data.": {
       "sourceHash": "0d168a42f02b2511d7ee57ed8f16622bc6a2be73b4d5d63ead4c950af93cf4ba",
       "fingerprint": "30becf27c9ab43e9b2c02cfacc1a82e6f2519e6b8ff29ff0cc16ff17edba9ade",
-      "text": "载入车队趋势数据。",
+      "text": "载入设备群趋势数据。",
       "status": "approved"
     },
     "Loading groups": {
@@ -4007,7 +4007,7 @@
     "Loading telemetry for this device.": {
       "sourceHash": "ecad5e72c673a900aa17b10c96b2c0b4b81a30955d9a749c8649dffbc402bd27",
       "fingerprint": "e55ae8b24ff54309999eb1d4023cca035fc593c0ac303d76284957bed8f8fd45",
-      "text": "正在为此装置载入远端测量资料。",
+      "text": "正在为此装置载入遥测资料。",
       "status": "approved"
     },
     "Loading webhook settings…": {
@@ -4103,7 +4103,7 @@
     "Manage Information Provider sources, publication state, and synchronization health for the platform catalog.": {
       "sourceHash": "ea7829bc79b2123d7583aa41181ba30bbe6ebc25f4eb364347c9d2ac86b82264",
       "fingerprint": "240f44a4a4b4a0d4bca15c717ea8b0ef92ff5ce7e20b77aeca14b708bf6380a1",
-      "text": "管理平台目录的资讯提供商来源、出版状态和同步健康状况。",
+      "text": "管理平台目录的资讯提供商来源、发布状态和同步健康状况。",
       "status": "approved"
     },
     "Manage Members and Access": {
@@ -4151,7 +4151,7 @@
     "Manage your fleet, firmware and cloud services.": {
       "sourceHash": "f947ae97d8daafca70402a328985ec56ca6a5ae72097a36bf23c5722d3a63bd8",
       "fingerprint": "1d8f5188ce500c8f72debed1018fd1623758eec0a2b41b492eba61b4fea5de38",
-      "text": "管理您的车队、韧体和云服务。",
+      "text": "集中管理设备群、韧体与云端服务。",
       "status": "approved"
     },
     "Manifest": {
@@ -4481,7 +4481,7 @@
     "No Cloud Client SDK release yet": {
       "sourceHash": "2c25187f6da0afdf05eb262c321c9e6db79df40c4bd09f3c284b1c3089c46c3a",
       "fingerprint": "33d394c3ed4de99517f353d804ed61dd5d65813c1ad4954c160ae66a3c4f116c",
-      "text": "尚未释出云客户端SDK版本",
+      "text": "尚未释出云用户端SDK版本",
       "status": "approved"
     },
     "No Information Providers are available. Add a provider and complete validation preview before publishing.": {
@@ -4601,7 +4601,7 @@
     "No fleet health trend data available.": {
       "sourceHash": "7409423db268d53b33f9ed2f3f37b2401afd4d9b0b953d1aa49d54df4091e881",
       "fingerprint": "ffa0aa1ce317feb4dbafcc1cd6d06ed081b084e3b697a487b5a66054e91822c5",
-      "text": "没有可用车队健康趋势资料。",
+      "text": "没有可用设备群健康趋势资料。",
       "status": "approved"
     },
     "No free usage allowance or volume discount is assumed. Shared hosting costs, support, retention and measured operating margins must be reviewed before a production rate is approved. Private Cloud requires a separate quote.": {
@@ -5057,7 +5057,7 @@
     "Organization-level fleet health aggregated from cached device projections.": {
       "sourceHash": "aabb86e9616b30f669bb3da6ab5e41421e1db240ecf7521604c28960566ab3d7",
       "fingerprint": "91bfbac461b924c06cc7162614dca586e93eddfdf1bbf9471dcca530c329ce26",
-      "text": "从快取装置预测中汇总的组织级车队健康状况。",
+      "text": "从快取装置预测中汇总的组织级设备群健康状况。",
       "status": "approved"
     },
     "Organize devices into groups to manage firmware updates and reports.": {
@@ -5069,7 +5069,7 @@
     "Organize products and connect your devices.": {
       "sourceHash": "7ce15c104980bb8066a44efcf9e9170588265fa60068bfe70540af8b4db96ece",
       "fingerprint": "29f5ae80828482d83e2552e63d9c1bf3f1124631095728290080ecaf4b4e5ba0",
-      "text": "整理产品并连接您的装置。",
+      "text": "整理产品并连接装置。",
       "status": "approved"
     },
     "Out": {
@@ -5663,7 +5663,7 @@
     "Publish": {
       "sourceHash": "74a025e6184845b259719fa7d38704681fc98829be132cdc5177c7199a348a20",
       "fingerprint": "fb614623f427beda149df5e83f43d025238eac47212c0e54bcd258dae28cf3d0",
-      "text": "出版",
+      "text": "发布",
       "status": "approved"
     },
     "Publish topic": {
@@ -5693,7 +5693,7 @@
     "REALTEK CLOUD SERVICES": {
       "sourceHash": "8789b85ed8121615e572fba53dfb361802c7b40404fb32b8cc4b2066c7ad88a4",
       "fingerprint": "451dac324c6a33e6bb654f05a7ce4d607f33ad54187d6051ddf70815f0de6230",
-      "text": "REALTEK云服务",
+      "text": "REALTEK 云端服务",
       "status": "approved"
     },
     "RELEASE PACKAGE": {
@@ -5801,7 +5801,7 @@
     "Realtek Connect+ · Cloud services": {
       "sourceHash": "5b50bbf2914f984865933b1a229b9635f2810778093b117f6899181709423da0",
       "fingerprint": "9b2fdb61fca153efc3072132f105115ac6950750d900f8ededa7a96ce2cd0b23",
-      "text": "Realtek Connect+ · 云服务",
+      "text": "Realtek Connect+ · 云端服务",
       "status": "approved"
     },
     "Realtek Managed Cloud": {
@@ -5813,7 +5813,7 @@
     "Realtek corporate website": {
       "sourceHash": "20aaf7eb5a4ec7aee5a2c2fc78dcdba33291af52bf01ec4533db46096ff84134",
       "fingerprint": "4cea58b4176dabf6816a1d963dc744e4cacde9691f9758d3602167460a736771",
-      "text": "Realtek公司网站",
+      "text": "Realtek 官方网站",
       "status": "approved"
     },
     "Realtek manages cloud deployment, hosting, maintenance, and platform operations. Customers pay for actual service usage. Official rates and pricing units will be confirmed separately; this page does not represent a price commitment.": {
@@ -6545,7 +6545,7 @@
     "Search, filter, and inspect fleet devices without exposing internal platform identifiers.": {
       "sourceHash": "384e8658e0f0ebe039457f94160ff0e68512f102e65bc5d2982aaf0e105d79c7",
       "fingerprint": "c528b1d5c86d0cf5b882b3a11e3bd0596db78066d5d2d4dc9bd7a9038fb847db",
-      "text": "在不暴露内部平台识别符号的情况下，搜寻、过滤和检查车队装置。",
+      "text": "在不暴露内部平台识别符号的情况下，搜寻、过滤和检查设备群装置。",
       "status": "approved"
     },
     "Secret handling": {
@@ -6863,7 +6863,7 @@
     "Social sign-in options": {
       "sourceHash": "da25b305b036b1174be503fc467c46e4c2602da5800034f759b33556141a7afe",
       "fingerprint": "61c4dd8a6ab047bc7015776a30dc961b2fdaccd842625e30cd4f4d7c9205f1af",
-      "text": "社交登入选项",
+      "text": "社交登录选项",
       "status": "approved"
     },
     "Source & documentation": {
@@ -7133,7 +7133,7 @@
     "Telemetry Device": {
       "sourceHash": "2e73237a8a5a06a245a875de763c07fc06d95ab554d49768214b8fc8dfdb9517",
       "fingerprint": "056376c19ddcbfeadf62f482a77ffdcf39a3cd0821b6eb1d17abe82e09def29b",
-      "text": "远端测量装置",
+      "text": "遥测装置",
       "status": "approved"
     },
     "Tenant & Device Footprint": {
@@ -7169,7 +7169,7 @@
     "Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and view live video over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.": {
       "sourceHash": "b83e34f6998f5a1440ce899463ba6ceac384e964ef517daf7c1c87992c607e54",
       "fingerprint": "de4d33e4603bc9fd1824a200c67eca90dc415277c8dc2e603b203cd6ab121402",
-      "text": "直接在开发者控制台中测试和除错您的装置——无需先构建应用程式、MQTT客户端或WebRTC检视器。选择一个产品和装置来传送和接收MQTT讯息、读取或更新装置影子状态，并透过WebRTC检视实时影片。在编写您自己的应用程式之前，使用这些工具检查装置的行为并进行云整合故障排除。可用的测试取决于您的许可权和为所选装置启用的服务。",
+      "text": "直接在开发者控制台中测试和除错您的装置——无需先构建应用程式、MQTT用户端或WebRTC检视器。选择一个产品和装置来传送和接收MQTT讯息、读取或更新装置影子状态，并透过WebRTC检视实时影片。在编写您自己的应用程式之前，使用这些工具检查装置的行为并进行云整合故障排除。可用的测试取决于您的许可权和为所选装置启用的服务。",
       "status": "approved"
     },
     "Test authorization expires after 5 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. Playback stops after 85 seconds. Operations affect your real device.": {
@@ -7733,7 +7733,7 @@
     "Use an Account Manager-backed Platform Admin session to manage brand-cloud organizations and users.": {
       "sourceHash": "37cba99d9d876b3193e0d2eb3c1a20ebd2266b004b996af971c21f329bdc5be5",
       "fingerprint": "a2656510b70bf990666c28c36d6eb8f5e36ca617c09a3639564525ae574faf6c",
-      "text": "使用由帐户经理支援的平台管理员会话来管理品牌云组织和使用者。",
+      "text": "使用由Account Manager支援的平台管理员会话来管理品牌云组织和使用者。",
       "status": "approved"
     },
     "Use at least 8 characters.": {
@@ -7751,7 +7751,7 @@
     "Use the map to locate regions and compare fleet size by device count.": {
       "sourceHash": "1926f63f9382fc4ef6644f70a4728cac59d321b971e791b3b671e4ed1d45d09b",
       "fingerprint": "9caf58ec0c1eb0d418814ed1dbbe244812ac7cbec468a839025d1004c1019f55",
-      "text": "使用地图定位区域，并按装置数量比较车队规模。",
+      "text": "使用地图定位区域，并按装置数量比较设备群规模。",
       "status": "approved"
     },
     "Use this page to find a failed request, identify the affected service, and follow its trace or request ID.": {
@@ -8087,7 +8087,7 @@
     "Your cloud.": {
       "sourceHash": "6283b96436c5e9378f2efd94cc1dd276e92be8eded161478fb3e821c673f81b8",
       "fingerprint": "02020b1b59da7649d3f38d778411de1a54dcf061add31a8bc33e283a1490d724",
-      "text": "你的云。",
+      "text": "您的云端。",
       "status": "approved"
     },
     "Your cost at a glance": {
@@ -8123,7 +8123,7 @@
     "Your products.": {
       "sourceHash": "1b0cdceba5ee49d515599548b912d9b0d2379027d79c800e6971be6a2cfb0c83",
       "fingerprint": "9151eb48119aab80cd00b65cc2868c5973473262f462489b3a3d0665e279457a",
-      "text": "你的产品。",
+      "text": "您的产品。",
       "status": "approved"
     },
     "Your reset code is hidden and will be submitted securely.": {
@@ -8285,7 +8285,7 @@
     "oidc-client-id": {
       "sourceHash": "9335ed1102319a3513c6f2193f5959d6e2ca6f4328b842a55b2886867598e3ce",
       "fingerprint": "77760288bd397382b1011ecac6d3c5c148c8a240d51aafd9ab85c9f9ec5dc048",
-      "text": "oidc-客户端-ID",
+      "text": "oidc-用户端-ID",
       "status": "approved"
     },
     "once": {
@@ -8297,7 +8297,7 @@
     "or continue with email": {
       "sourceHash": "b962a7eed4e0e84b26093603547bd9d2f5ab68fceb70b47578c4338a8555e0b1",
       "fingerprint": "88a1b6ef31a6e1800a9a134e60d1a0fd2035dba15a3db60ca35c3bb02c99930b",
-      "text": "或者继续用电子邮件",
+      "text": "或使用电子邮件继续",
       "status": "approved"
     },
     "product resources": {
@@ -9023,7 +9023,7 @@
     "No recent telemetry events available.": {
       "sourceHash": "f8c71ab0f61fd4f80e0d7eb99c70d409ce02486e0a316e997b7cb5c913580e3b",
       "fingerprint": "d9527e4f070191aac861e905ddd02e9d6c37be10611164aeec37bde883bc54c9",
-      "text": "没有最近的远端测量事件可用。",
+      "text": "没有最近的遥测事件可用。",
       "status": "approved"
     },
     "No service log events found": {
@@ -9389,7 +9389,7 @@
     "Select a device row to inspect its telemetry.": {
       "sourceHash": "b45810b1561a4aedce0d9771a1e4a77a9962932447e1863f5fd2656361ee0dd5",
       "fingerprint": "80902d58759f12bc92d5e44feb37f0e33d775fc9fe43ba6e420eeaf754228c2d",
-      "text": "选择一个装置行来检查其远端测量资料。",
+      "text": "选择一个装置行来检查其遥测资料。",
       "status": "approved"
     },
     "Select a product": {
@@ -9659,7 +9659,7 @@
     "WELCOME TO CONNECT+": {
       "sourceHash": "3af4f29bbb374cb42f548a57173969ff40af92065c0823092bcc3ac941f0c300",
       "fingerprint": "89cc2356ce0edb8baccf968e62334551accf543294729e197acf22d17fd9b4c7",
-      "text": "欢迎来到CONNECT+",
+      "text": "欢迎使用 CONNECT+",
       "status": "approved"
     },
     "Watch video": {
@@ -10139,37 +10139,37 @@
     "Loading telemetry data": {
       "sourceHash": "a6eaf2accd715916cd35fd8ac03425b42604bcd6ec02b5c7b24cb05c2baf5e85",
       "fingerprint": "e372f4146574274e379539911053fe16b08931738444cfb02d073a829979f7e9",
-      "text": "载入远端测量资料",
+      "text": "载入遥测资料",
       "status": "approved"
     },
     "Loading telemetry data.": {
       "sourceHash": "86764822fa3339eddc0be8974ed1fb641de2d65a1f01be286eda1f81fbcbbdf1",
       "fingerprint": "1f50a1be606489d576974200ae4ee2a7bd10e1b8383a615a531908d3879fdeda",
-      "text": "载入远端测量资料。",
+      "text": "载入遥测资料。",
       "status": "approved"
     },
     "Telemetry source available": {
       "sourceHash": "3ead7e76689cd2424d6520c93cf1e6e80992126793a8214a83aa6c59e93177ad",
       "fingerprint": "f44514b8db642146d4008f2bb7f14a46ed6bd45b4d2b5b33b80215b7a3e912c5",
-      "text": "提供远端测量源",
+      "text": "提供遥测源",
       "status": "approved"
     },
     "Telemetry source available.": {
       "sourceHash": "39241ee3476893ad99cbeda71a4efb2b15605cd006e3f990cf1ff0889b63d8e7",
       "fingerprint": "aff3c64aec98fba0919a979a4efea920c0426a9ef9fc3ecaf7bb6746f2e6b61a",
-      "text": "远端测量源可用。",
+      "text": "遥测源可用。",
       "status": "approved"
     },
     "Telemetry source unavailable": {
       "sourceHash": "195bf85468fd059f62037443a75a29c30e74edbc7698c5a30dd1e0d888f04a8a",
       "fingerprint": "ab5835f650ced17262f3ebeb2fe7e8d5b5193852ddff194efd6b1cb1964cacf1",
-      "text": "远端测量来源不可用",
+      "text": "遥测来源不可用",
       "status": "approved"
     },
     "Telemetry gateway error": {
       "sourceHash": "69c577b3be2bf733fac80979c9a4acba6c23bfc132127b066870f1454e619d6b",
       "fingerprint": "554bba586e2af544a7e442c0d15f2d67a94b2a0a917f767d870f35f46075b288",
-      "text": "远端测量闸道器错误",
+      "text": "遥测闸道器错误",
       "status": "approved"
     },
     "Loading firmware data": {
@@ -10907,7 +10907,7 @@
     "Stream source loaded from Video Cloud.": {
       "sourceHash": "bc307cd4975b97e6035e67598f30c808f807f546668d762f158067059dfc7841",
       "fingerprint": "5fc7875a93c3048cc1f4ef8f429a7aab7a0319f06237efc43773c1dfb7664697",
-      "text": "从影片云载入的流媒体源。",
+      "text": "从Video Cloud载入的流媒体源。",
       "status": "approved"
     },
     "If-Match is required.": {
@@ -10967,7 +10967,7 @@
     "The fleet data source is not configured.": {
       "sourceHash": "675290155959984585a25dd108d9e847a455efd6d1074befe8f904ccaa66d472",
       "fingerprint": "1b504932b4357b945a3a66490b99430333382a7a489c44d0a8b45373416ba041",
-      "text": "车队资料来源未配置。",
+      "text": "设备群资料来源未配置。",
       "status": "approved"
     },
     "Idempotency-Key was already used with different request data.": {
@@ -11699,7 +11699,7 @@
     "Continue with {{value0}}": {
       "sourceHash": "84ab9fef2b5c3b7667b7ac16e6c713f12cd34d9668162bf1572f2043aa971914",
       "fingerprint": "0b14d6fe4780ff92bfe297d4e919c5e2fb186fc74848a9580aeb7ebeaa922a13",
-      "text": "继续{{value0}}",
+      "text": "使用 {{value0}} 继续",
       "status": "approved"
     },
     "Demo services active: {{value0}}": {
@@ -11861,7 +11861,7 @@
     "Telemetry source loaded from Video Cloud.": {
       "sourceHash": "46914a3f06adf1d7f304c95d9fd7188594ce7532205d199cf11a1943ce9ecc34",
       "fingerprint": "a89585bcc5e1ed101d6d6ed0b2867cbd683b8e2bd9abd1c2b86a327949d6c01a",
-      "text": "电气源从影片云中载入.",
+      "text": "已从 Video Cloud 载入遥测资料来源。",
       "status": "approved"
     },
     "N. Cyprus": {

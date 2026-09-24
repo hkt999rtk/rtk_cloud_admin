@@ -467,7 +467,7 @@
     "A dedicated workspace for the people building and operating connected products.": {
       "sourceHash": "d88f8624cb6760861cf5a418c5ccf672cd8c0146881592db72c8d8d7fc32baf4",
       "fingerprint": "18fa9000a2a8d7db650cf09491edce92f3d913f9fbaf5063b20434704990a854",
-      "text": "為構建和運營互聯產品的人們提供的專用工作空間。",
+      "text": "專為打造及營運聯網產品的團隊設計的工作空間。",
       "status": "approved"
     },
     "A low balance will not trigger a charge.": {
@@ -503,7 +503,7 @@
     "About Connect+": {
       "sourceHash": "c51dce892cae616cd2cca9e35a82b79d1209757edcfe7b9af83924ff0c91b30d",
       "fingerprint": "5d27d561fa1ba9622d23f37782e7ec3109f2d027f3df8eda7e2ca16e725719bd",
-      "text": "關於Connect+",
+      "text": "關於 Connect+",
       "status": "approved"
     },
     "About the test workflows": {
@@ -845,7 +845,7 @@
     "Auth mode": {
       "sourceHash": "ad1e64d934c890b75f3fb3d1d30f17cabfc0bdc25ecf874b84e8ef8f7b99b396",
       "fingerprint": "aab19678f98e696c57b5075295e9215ba5a37259cb12ba339ccf318d51ed7672",
-      "text": "授權模式",
+      "text": "登入方式",
       "status": "approved"
     },
     "Authorized Products": {
@@ -881,7 +881,7 @@
     "Available after publication": {
       "sourceHash": "a1324eeec416160fc22a7300ad86f1b501d776274a08c94356331f73dc12cdf4",
       "fingerprint": "c1b2c30637dbd47d0ab553a78a3141b0c748ca40b220781c7c59eae6f7661e45",
-      "text": "出版後可用",
+      "text": "發布後可用",
       "status": "approved"
     },
     "Avg latency": {
@@ -1073,7 +1073,7 @@
     "Bound, provisioned and online are separate states. Load the downloaded device credentials into your test board or device client to connect it.": {
       "sourceHash": "1932f8a20eeee910d6e6a4cdea579d076555044f4e05e45b68858b9288ef1eb0",
       "fingerprint": "219637a94dc519e910f6c35171168ea4f1d6b11c9931e77b931370fdc5d30be5",
-      "text": "繫定、配置和線上是不同的狀態。將下載的裝置憑據載入到您的測試板或裝置客戶端中以連線它。",
+      "text": "繫定、配置和線上是不同的狀態。將下載的裝置憑據載入到您的測試板或裝置用戶端中以連線它。",
       "status": "approved"
     },
     "Brand": {
@@ -1127,7 +1127,7 @@
     "Brand Clouds requires Account Manager login": {
       "sourceHash": "dd1a701db454a619804f82bf5a8a4dc68c6828178cd9844a17e5395d1a7f3c01",
       "fingerprint": "ddd474cc4efa37f783217d36f34ad38c652cfc5256b2f3699db721f7e48dfdcd",
-      "text": "品牌雲需要帳戶經理登入",
+      "text": "品牌雲需要Account Manager登入",
       "status": "approved"
     },
     "Brand Clouds unavailable:": {
@@ -1139,7 +1139,7 @@
     "Brand Fleet": {
       "sourceHash": "59981e88e979851b0f1e6b103bea43e7f9f32bb95f5978bba95445e9850b9fa4",
       "fingerprint": "ec3c90dbffb6b41086afff0701ee660e0ea688e4e4da88c8c21b7eab09180b54",
-      "text": "品牌車隊",
+      "text": "品牌裝置群",
       "status": "approved"
     },
     "Brand display name": {
@@ -1163,13 +1163,13 @@
     "Breakdown of the current fleet by telemetry health state.": {
       "sourceHash": "7d41b77727b888c42ff802cc871ecfba1bcd059402beb90161483664527cdd66",
       "fingerprint": "db3c04d415ef6213380fea0d24580017e0e55965e262b00419cb1bdfe145c164",
-      "text": "按遠端測量健康狀態對當前車隊進行細分。",
+      "text": "按遙測健康狀態對當前裝置群進行細分。",
       "status": "approved"
     },
     "Bring operations together": {
       "sourceHash": "6786a1682d60a8202681ed27da94dec0080cfb9b261893acf52ef184585907b7",
       "fingerprint": "bae18a395ebb29c4671cbec131c3594b15d837b429dd800adaa3acd1ce40701e",
-      "text": "將運營整合在一起",
+      "text": "集中管理營運",
       "status": "approved"
     },
     "Broker acceptance and device response are reported separately. Test ACLs allow this device’s commands and reports only.": {
@@ -1205,7 +1205,7 @@
     "Build your product ecosystem": {
       "sourceHash": "cef06aaeb3908510763254e378df26e9804bd8a3b4981f8f8126e9d52c0406a6",
       "fingerprint": "37e4b7a9d8f5808eaa514097dc81662dea6b8a0d2fc14f7a7043b6fd68cbbf6e",
-      "text": "建立您的產品生態系統",
+      "text": "建立產品生態系",
       "status": "approved"
     },
     "Build, burn and test MQTT messaging, synthetic H.264 video, or a live camera.": {
@@ -1493,19 +1493,19 @@
     "Client ID": {
       "sourceHash": "4c05d60185146e406ec382106852d0fe671329b4019c4b6b2b2f1fd5a4411a18",
       "fingerprint": "2d728ef9fb0bab5844b08356f6fbeb4eb5aee3d112465aa60be805833d86db25",
-      "text": "客戶端ID",
+      "text": "用戶端ID",
       "status": "approved"
     },
     "Client secret": {
       "sourceHash": "40fdfdda610ed405f96fb0092602fe7f501d0a8c38133bdede15a4228f17097e",
       "fingerprint": "846bdc8e5bfb77c201c73eef84cd9d92b5c7fdb2b27afc3f2854639bcced593d",
-      "text": "客戶端密碼",
+      "text": "用戶端密碼",
       "status": "approved"
     },
     "Client secrets are sent only to Account Manager and are never returned by this console. OIDC is the first supported protocol; SAML is not implemented.": {
       "sourceHash": "7ca362a27af62868b431fd21658d3ff78cb5d79e115438c4bace1222ca7b4e8a",
       "fingerprint": "fddd5e2ca8168b4560c9e2075692d9c18f21f6688f83aac1813d93fb0a177741",
-      "text": "客戶端密碼只傳送給帳戶經理，此控制檯從不返回。OIDC是第一個受支援的協議；SAML未實現。",
+      "text": "用戶端密碼只傳送給Account Manager，此主控台從不返回。OIDC是第一個受支援的協議；SAML未實現。",
       "status": "approved"
     },
     "Clip public key": {
@@ -1553,13 +1553,13 @@
     "Cloud Client SDKs": {
       "sourceHash": "a3b81bd0ca83af7cc2d4724075f1f778ad051ac511f4b0c9978373d338891ecb",
       "fingerprint": "e3489d189a639753fd6264a87ca6248f1141ffbb38e920b032304e8b942e8fb7",
-      "text": "雲客戶端SDK",
+      "text": "雲用戶端SDK",
       "status": "approved"
     },
     "Cloud Client SDKs are temporarily unavailable": {
       "sourceHash": "9e3770107731f9e2908848b107b6e9be86e75c40ba68e1427d84522d7748ced3",
       "fingerprint": "c607361d204f7c543badbe7f08462819473e870c3a350a596a1da948d0a28b53",
-      "text": "雲客戶端SDK暫時不可用",
+      "text": "雲用戶端SDK暫時不可用",
       "status": "approved"
     },
     "Cloud Examples": {
@@ -1595,7 +1595,7 @@
     "Cloud and product setup, team access, device enrollment, MQTT connections and keep-alives, SDK documentation and console administration carry no separate fee.": {
       "sourceHash": "0c1f73bf471f518605fcd4b9c1cc4498c7641d18a356866fe8431560f02abebd",
       "fingerprint": "da2ec1e79f0c0955156763ef082993c3a876d2d9a68d415e6dba8c04ce9db246",
-      "text": "雲和產品設定、團隊訪問、裝置註冊、MQTT連線和保持活度、SDK文件和控制檯管理均不收取單獨費用。",
+      "text": "雲和產品設定、團隊訪問、裝置註冊、MQTT連線和保持活度、SDK文件和主控台管理均不收取單獨費用。",
       "status": "approved"
     },
     "Cloud concepts": {
@@ -1805,19 +1805,19 @@
     "Connect UART to start the console": {
       "sourceHash": "394b6507ddb1c70e8a57ac62981ead6be4b45c2a5336ec2ab936c9c919f4c33a",
       "fingerprint": "85491631f9badb1a5444f3e28312c27ce31ad0c0a83a4c91265559950215754f",
-      "text": "連線UART以啟動控制檯",
+      "text": "連線UART以啟動主控台",
       "status": "approved"
     },
     "Connect a PRO2 board over USB UART, burn a local firmware image, verify it, and continue in the live serial console—all without installing a desktop application.": {
       "sourceHash": "a807c370f9bb3d4a9b4fd8d3fbb7f2780a000887533c0a6010d5deb832c51c69",
       "fingerprint": "bde27c0f057bbcd0de52489968a715191d097bf8dfde84841c2d9942f9921a5a",
-      "text": "透過USB UART連線PRO2板，燒製本地韌體映像，驗證它，並繼續在實時串列控制檯中操作——所有這些操作均無需安裝桌面應用程式。",
+      "text": "透過USB UART連線PRO2板，燒製本地韌體映像，驗證它，並繼續在實時串列主控台中操作——所有這些操作均無需安裝桌面應用程式。",
       "status": "approved"
     },
     "Connect a board over USB UART, burn and verify a local firmware image, then continue in the live serial console. Firmware and UART data stay in your browser.": {
       "sourceHash": "f8bc7ccf788115407629e6a51ac2ec758d2d0df50e29194c91fac0dcc44e5cdf",
       "fingerprint": "283f65805404236f8ddb51302896d2ec4d1365052be0e4c81903801d10181e2e",
-      "text": "透過USB UART連線一個板子，燒錄並驗證本地韌體映像，然後繼續在實時串列控制檯中操作。韌體和UART資料將保留在您的瀏覽器中。",
+      "text": "透過USB UART連線一個板子，燒錄並驗證本地韌體映像，然後繼續在實時串列主控台中操作。韌體和UART資料將保留在您的瀏覽器中。",
       "status": "approved"
     },
     "Connect your PRO2 board": {
@@ -1835,7 +1835,7 @@
     "Connected.": {
       "sourceHash": "426a711a76949aa4887831d68f3f9da0f28e196f5513808b19e01e35e022e870",
       "fingerprint": "7ed55caf719582b7a2dcad03aeb74e462cea474423f4437119e687cc73c58c93",
-      "text": "連線。",
+      "text": "隨時連線。",
       "status": "approved"
     },
     "Connection": {
@@ -2069,7 +2069,7 @@
     "DEVELOPER CONSOLE": {
       "sourceHash": "d14978e7d8d01182363ce58650e7c9bcf31c1559ce3fabc39a58534197eab81a",
       "fingerprint": "3f14b23e46a475e1a6afb3ba377e19e5921fed5e93f3a22c355ae6e666ae69be",
-      "text": "開發者控制檯",
+      "text": "開發者主控台",
       "status": "approved"
     },
     "DEVICE WORKFLOW": {
@@ -2957,7 +2957,7 @@
     "Find SDKs, integration guides and technical resources.": {
       "sourceHash": "0a174e0a573acc50b102a09c75521d9dbc3a098d3598fdca7aa584479e8cab3f",
       "fingerprint": "3d5f5d758c663aafde33df94ced7f8a061404c460310304adc191570d97dc8f4",
-      "text": "查詢SDK、整合指南和技術資源。",
+      "text": "取得 SDK、整合指南與技術資源。",
       "status": "approved"
     },
     "Find log events": {
@@ -3083,13 +3083,13 @@
     "Fleet Governance": {
       "sourceHash": "44a7933ec9456bcc3cb443f75239e512f11308fd17493daf369fced91f0ffe4e",
       "fingerprint": "e8f17274722134061142e8cbc26c11842fe9092ab6e66510c5033a626b37e002",
-      "text": "車隊治理",
+      "text": "裝置群治理",
       "status": "approved"
     },
     "Fleet Insights": {
       "sourceHash": "ce6de6604b55d2137b78bfb48f517d5bda028ee11b795e1067e6e53ef0285fce",
       "fingerprint": "35deb01e09f11ab3c3774df4606567bb6584d72f7d99a480699f92e36d5795da",
-      "text": "車隊見解",
+      "text": "裝置群見解",
       "status": "approved"
     },
     "Fleet Organization": {
@@ -3101,19 +3101,19 @@
     "Fleet health distribution": {
       "sourceHash": "e7062a971c6b70223e5cd464b01ac64691905a30fc181ff5c79bfa94ce98341a",
       "fingerprint": "4c7199810ddef53e07c097786f91fbedb74f5583cd16af8a39402e69584d7fb9",
-      "text": "車隊健康分佈",
+      "text": "裝置群健康分佈",
       "status": "approved"
     },
     "Fleet health trend": {
       "sourceHash": "efb0e9e441f51c1e8d4e4c83f44d7fb7aaa313b31d68501d6924c65582c04538",
       "fingerprint": "2d1b09248ab14f843bed8e87c7e17d3f1b564b99197fb785d0d9c3aa788ee7c4",
-      "text": "車隊健康趨勢",
+      "text": "裝置群健康趨勢",
       "status": "approved"
     },
     "Fleet health trend chart": {
       "sourceHash": "5fdf751d9714c486fb89bf0346fec65733d8edaa2306a9d63e4dbe3558b125a7",
       "fingerprint": "77e3ee8adbf000c29eaad1b7f341a836b176a0f79dccd1854d2d84e472b00c53",
-      "text": "車隊健康趨勢圖表",
+      "text": "裝置群健康趨勢圖表",
       "status": "approved"
     },
     "Fleet statistics are temporarily unavailable.": {
@@ -3683,7 +3683,7 @@
     "Keep development moving": {
       "sourceHash": "cbdeaaafc9e701eed6dadd847bfa6859a6da2b4beadd37e1726be1a884577aec",
       "fingerprint": "7f148178a13bd196e94bd34c5f0bb7cff83cfc67e1666d4dfde4188e9125b61c",
-      "text": "保持發展的進展",
+      "text": "加速開發",
       "status": "approved"
     },
     "Keep existing access": {
@@ -3719,7 +3719,7 @@
     "Last 10 telemetry events from this device.": {
       "sourceHash": "3480874d4fae04ee7dc72007e101fa09cdc84fb1397f779c445b9d723ae9c4bb",
       "fingerprint": "455f5d5d08a09b77b100a912c1e7b903ee388cf263ba3724b4a062e651ca8398",
-      "text": "此裝置的最後10個遠端測量事件。",
+      "text": "此裝置的最後10個遙測事件。",
       "status": "approved"
     },
     "Last Stream": {
@@ -3815,7 +3815,7 @@
     "Load the matching bundle into your test client, or configure it with the device certificate and private key. Use the Device ID to find the device in the console and correlate requests or logs. Complete any required device claim and account binding separately; downloading credentials does not mean the device is online.": {
       "sourceHash": "f6e15576e33772fa147f0adb4f7635daf628dafa9dc828c3f9b90b7ea690f1be",
       "fingerprint": "a67a81cbcbe6e74c4850087d5590f5db5ec908d5c21edd814309448c24718634",
-      "text": "將匹配的捆綁包載入到您的測試客戶端中，或使用裝置證書和私鑰配置它。使用裝置ID在控制檯中查詢裝置，並對請求或日誌進行關聯。單獨完成任何所需的裝置索賠和帳戶繫結；下載憑據並不意味著裝置線上。",
+      "text": "將匹配的捆綁包載入到您的測試用戶端中，或使用裝置證書和私鑰配置它。使用裝置ID在主控台中查詢裝置，並對請求或日誌進行關聯。單獨完成任何所需的裝置索賠和帳戶繫結；下載憑據並不意味著裝置線上。",
       "status": "approved"
     },
     "Loading": {
@@ -3845,7 +3845,7 @@
     "Loading Cloud Client SDKs": {
       "sourceHash": "5dde3f501dc5a4e8c846f545e6e158b913aa0c86af2634c674214727605b39bd",
       "fingerprint": "48092585fab163b6e93ac8622b993a78fbd0cb34ea12db6db89a901207ac8793",
-      "text": "載入雲客戶端SDK",
+      "text": "載入雲用戶端SDK",
       "status": "approved"
     },
     "Loading Product": {
@@ -3935,13 +3935,13 @@
     "Loading fleet health distribution.": {
       "sourceHash": "bd74a69c56f7c9df512e755a765c5a2aa8f261850485407f201bfa2b7d005d04",
       "fingerprint": "22851bd17388c0dcac787610bdfe040426d7b70e0af0598a5d96e3e305a104de",
-      "text": "載入車隊健康分佈。",
+      "text": "載入裝置群健康分佈。",
       "status": "approved"
     },
     "Loading fleet trend data.": {
       "sourceHash": "0d168a42f02b2511d7ee57ed8f16622bc6a2be73b4d5d63ead4c950af93cf4ba",
       "fingerprint": "df662c1f44c37c9f75d253eefea4880fbf05203f9784b465067b8d426529f0ad",
-      "text": "載入車隊趨勢數據。",
+      "text": "載入裝置群趨勢數據。",
       "status": "approved"
     },
     "Loading groups": {
@@ -4007,7 +4007,7 @@
     "Loading telemetry for this device.": {
       "sourceHash": "ecad5e72c673a900aa17b10c96b2c0b4b81a30955d9a749c8649dffbc402bd27",
       "fingerprint": "4f1f263715f292ebc114160f1751d7baceb604e2f840f5591bc9bf4c8caa8314",
-      "text": "正在為此裝置載入遠端測量資料。",
+      "text": "正在為此裝置載入遙測資料。",
       "status": "approved"
     },
     "Loading webhook settings…": {
@@ -4103,7 +4103,7 @@
     "Manage Information Provider sources, publication state, and synchronization health for the platform catalog.": {
       "sourceHash": "ea7829bc79b2123d7583aa41181ba30bbe6ebc25f4eb364347c9d2ac86b82264",
       "fingerprint": "d57741e4b599ec8f9ed99bcf903236faa9305f854a7fe4028bcb1aa5eaa179cb",
-      "text": "管理平臺目錄的資訊提供商來源、出版狀態和同步健康狀況。",
+      "text": "管理平臺目錄的資訊提供商來源、發布狀態和同步健康狀況。",
       "status": "approved"
     },
     "Manage Members and Access": {
@@ -4121,7 +4121,7 @@
     "Manage in console": {
       "sourceHash": "b984a8ba90c6204fe93b795aef1a6ffa65bdf8ef56559278d0440b0649312d3d",
       "fingerprint": "95d94a153cc80bce6d5d2050eeb0bf3a65754b5780ef90e81e490d9be7f57b5c",
-      "text": "在控制檯中管理",
+      "text": "在主控台中管理",
       "status": "approved"
     },
     "Manage ownership in My Clouds. Invitation acceptance starts settlement; it does not complete the transfer.": {
@@ -4151,7 +4151,7 @@
     "Manage your fleet, firmware and cloud services.": {
       "sourceHash": "f947ae97d8daafca70402a328985ec56ca6a5ae72097a36bf23c5722d3a63bd8",
       "fingerprint": "dc48d1e813b6e3a50117ec8769d2964c222c2595a86283bc8223e3e28dcf2588",
-      "text": "管理您的車隊、韌體和雲服務。",
+      "text": "集中管理裝置群、韌體與雲端服務。",
       "status": "approved"
     },
     "Manifest": {
@@ -4265,7 +4265,7 @@
     "Members are developers and operators who use this console. End users pair and use devices through your app; inviting a member here does not pair devices or create an app end-user account.": {
       "sourceHash": "3b4b6612ea3570bb30dc8c27db2db721df0b077eef6c3d9bcc665d6bfca04dbf",
       "fingerprint": "d480a2a6775539c8c00128aa8badba4f8fe9fcdeb06ef926ad84d08a4267838d",
-      "text": "會員是使用此控制檯的開發人員和運營商。終端使用者透過您的應用程式配對和使用裝置；在此處邀請會員不會配對裝置或建立應用程式終端使用者帳戶。",
+      "text": "會員是使用此主控台的開發人員和運營商。終端使用者透過您的應用程式配對和使用裝置；在此處邀請會員不會配對裝置或建立應用程式終端使用者帳戶。",
       "status": "approved"
     },
     "Members:": {
@@ -4481,7 +4481,7 @@
     "No Cloud Client SDK release yet": {
       "sourceHash": "2c25187f6da0afdf05eb262c321c9e6db79df40c4bd09f3c284b1c3089c46c3a",
       "fingerprint": "805295f7c2df0df68e8f0b51431e0c999987909ec8b17f72c206efa57f3b9d4a",
-      "text": "尚未釋出雲客戶端SDK版本",
+      "text": "尚未釋出雲用戶端SDK版本",
       "status": "approved"
     },
     "No Information Providers are available. Add a provider and complete validation preview before publishing.": {
@@ -4601,7 +4601,7 @@
     "No fleet health trend data available.": {
       "sourceHash": "7409423db268d53b33f9ed2f3f37b2401afd4d9b0b953d1aa49d54df4091e881",
       "fingerprint": "e948d8647b050cc2623b8b554d611a8c5a749317d6d4be5aca32244c60053974",
-      "text": "沒有可用車隊健康趨勢資料。",
+      "text": "沒有可用裝置群健康趨勢資料。",
       "status": "approved"
     },
     "No free usage allowance or volume discount is assumed. Shared hosting costs, support, retention and measured operating margins must be reviewed before a production rate is approved. Private Cloud requires a separate quote.": {
@@ -5003,7 +5003,7 @@
     "Open the console after completion": {
       "sourceHash": "d63e02b7bc3bfd575cead4f90fd0a1fd25c5a03321999e6127dcf9036c3e6ebd",
       "fingerprint": "3198ef529b94799d47425592b3efab216a1c233ca909fd9b1cf6c1864b822761",
-      "text": "完成後開啟控制檯",
+      "text": "完成後開啟主控台",
       "status": "approved"
     },
     "Open your cloud": {
@@ -5057,7 +5057,7 @@
     "Organization-level fleet health aggregated from cached device projections.": {
       "sourceHash": "aabb86e9616b30f669bb3da6ab5e41421e1db240ecf7521604c28960566ab3d7",
       "fingerprint": "92b2fcb87dc3ed90bf943c24ffa2b45c2710f0556a8623934342a3e6a02c3277",
-      "text": "從快取裝置預測中彙總的組織級車隊健康狀況。",
+      "text": "從快取裝置預測中彙總的組織級裝置群健康狀況。",
       "status": "approved"
     },
     "Organize devices into groups to manage firmware updates and reports.": {
@@ -5069,7 +5069,7 @@
     "Organize products and connect your devices.": {
       "sourceHash": "7ce15c104980bb8066a44efcf9e9170588265fa60068bfe70540af8b4db96ece",
       "fingerprint": "791b32e7566fcb05da3391ee2b88499fe0e9237c4c8ac2db39a58ccccadc2973",
-      "text": "整理產品並連接您的裝置。",
+      "text": "整理產品並連接裝置。",
       "status": "approved"
     },
     "Out": {
@@ -5315,7 +5315,7 @@
     "Platform admin cannot use the Brand Cloud console": {
       "sourceHash": "fdc81680d1c0aafd4096d4c193842e65464702d02274d9ce17e6f3cecebb8c4d",
       "fingerprint": "97c95f7c90c0b09b22e42084d2d66c5108c3b81d0a192e9d8913e8d02164f63a",
-      "text": "平臺管理員無法使用品牌雲控制檯",
+      "text": "平臺管理員無法使用品牌雲主控台",
       "status": "approved"
     },
     "Platform dashboard status": {
@@ -5417,7 +5417,7 @@
     "Private LKE observability dashboard embedded through the Admin Console.": {
       "sourceHash": "c06a9af774c250446245fc2bd3a8900ec3ab8c8ca7f105ff468ed072c168e40f",
       "fingerprint": "193f170753e7f4e3e016a3a94d77c4ab2c78a75edecb102dc701ca9daf24ca48",
-      "text": "透過管理控制檯嵌入的私人LKE可觀察性儀表板。",
+      "text": "透過管理主控台嵌入的私人LKE可觀察性儀表板。",
       "status": "approved"
     },
     "Processing": {
@@ -5663,7 +5663,7 @@
     "Publish": {
       "sourceHash": "74a025e6184845b259719fa7d38704681fc98829be132cdc5177c7199a348a20",
       "fingerprint": "1bf7a3b9f2455576c05bcd083b0631ac7148f244692bbf548091128f8d719b15",
-      "text": "出版",
+      "text": "發布",
       "status": "approved"
     },
     "Publish topic": {
@@ -5693,7 +5693,7 @@
     "REALTEK CLOUD SERVICES": {
       "sourceHash": "8789b85ed8121615e572fba53dfb361802c7b40404fb32b8cc4b2066c7ad88a4",
       "fingerprint": "9fa0251b808627154187a736a3000ba72cb48bbc67bf4ad9edebf673eddabf3d",
-      "text": "REALTEK雲服務",
+      "text": "REALTEK 雲端服務",
       "status": "approved"
     },
     "RELEASE PACKAGE": {
@@ -5801,7 +5801,7 @@
     "Realtek Connect+ · Cloud services": {
       "sourceHash": "5b50bbf2914f984865933b1a229b9635f2810778093b117f6899181709423da0",
       "fingerprint": "92b2687ce5ec6690ba2339adf5bfd40238a3ecda67d5b7c3836664ffcc5f4a87",
-      "text": "Realtek Connect+ · 雲服務",
+      "text": "Realtek Connect+ · 雲端服務",
       "status": "approved"
     },
     "Realtek Managed Cloud": {
@@ -5813,7 +5813,7 @@
     "Realtek corporate website": {
       "sourceHash": "20aaf7eb5a4ec7aee5a2c2fc78dcdba33291af52bf01ec4533db46096ff84134",
       "fingerprint": "2ee5b3c8839a904dc1464ffe6470a67da905d6882b9507298f2bdb0c10b59b38",
-      "text": "Realtek公司網站",
+      "text": "Realtek 官方網站",
       "status": "approved"
     },
     "Realtek manages cloud deployment, hosting, maintenance, and platform operations. Customers pay for actual service usage. Official rates and pricing units will be confirmed separately; this page does not represent a price commitment.": {
@@ -6251,7 +6251,7 @@
     "Return to console": {
       "sourceHash": "3ddd68b86ccf35e7d5ca276527db9c28455cce2c202eec7c7be79d84686b6cd9",
       "fingerprint": "046acd5cb69ab89fcf856c878805db3f129a0759ec8a815e0e39da46782ab2c4",
-      "text": "返回控制檯",
+      "text": "返回主控台",
       "status": "approved"
     },
     "Review": {
@@ -6545,7 +6545,7 @@
     "Search, filter, and inspect fleet devices without exposing internal platform identifiers.": {
       "sourceHash": "384e8658e0f0ebe039457f94160ff0e68512f102e65bc5d2982aaf0e105d79c7",
       "fingerprint": "2404c2778eb63145a9b5afd25c846ee54b1e0af0ebd3c281b29fcf8647acfa33",
-      "text": "在不暴露內部平臺識別符號的情況下，搜尋、過濾和檢查車隊裝置。",
+      "text": "在不暴露內部平臺識別符號的情況下，搜尋、過濾和檢查裝置群裝置。",
       "status": "approved"
     },
     "Secret handling": {
@@ -6635,7 +6635,7 @@
     "Select its USB UART to start the console or burn firmware.": {
       "sourceHash": "01faa03426337f5ebab0709fefc9aea9795a960ca94fd2591e579d59ae937dff",
       "fingerprint": "2708adf970099f4f0fed0da77f4a49b4529f37fd2ee1a31f0b7ab78203404562",
-      "text": "選擇其USB UART以啟動控制檯或燒寫韌體。",
+      "text": "選擇其USB UART以啟動主控台或燒寫韌體。",
       "status": "approved"
     },
     "Selected Products (default)": {
@@ -6809,7 +6809,7 @@
     "Sign in": {
       "sourceHash": "7d5d35b54c0ac367d65db371dd78e87972cc7c294c109ef5bda47e54010d7f5a",
       "fingerprint": "4bdf58e3c0f0b8cf7a28dbc00c6b62e2c04c78fcd699220dd1f3cef87bfc313f",
-      "text": "簽到",
+      "text": "登入",
       "status": "approved"
     },
     "Sign in again": {
@@ -6821,7 +6821,7 @@
     "Sign in with a customer account to open the operations console.": {
       "sourceHash": "7f0dbc34afdeae2af6de0e68f4ac83865d5625eb0d5fee2351d6f088b9dac7d7",
       "fingerprint": "ae696282b1004f1577882a85509c96bea2c36677ea96c492ca2845063c4e316b",
-      "text": "使用客戶帳戶登入以開啟操作控制檯。",
+      "text": "使用客戶帳戶登入以開啟操作主控台。",
       "status": "approved"
     },
     "Sign up again": {
@@ -6863,7 +6863,7 @@
     "Social sign-in options": {
       "sourceHash": "da25b305b036b1174be503fc467c46e4c2602da5800034f759b33556141a7afe",
       "fingerprint": "076e17a27b092db186cad03348e05df58b2018f7c3ece7f14dd81118d44ff3d7",
-      "text": "社交登入選項",
+      "text": "社群登入選項",
       "status": "approved"
     },
     "Source & documentation": {
@@ -7127,13 +7127,13 @@
     "Team members manage your cloud in the console. End users pair and use devices through your app.": {
       "sourceHash": "2923f98e2aca80e2482278c72ba636b8e236a529b1e9ca9e3bf13c07de89dd5e",
       "fingerprint": "6ccce0b031d6075762ed5be1f19742b6a658c028f4c092e749f789918d416ef6",
-      "text": "團隊成員在控制檯中管理您的雲。終端使用者透過您的應用程式配對和使用裝置。",
+      "text": "團隊成員在主控台中管理您的雲。終端使用者透過您的應用程式配對和使用裝置。",
       "status": "approved"
     },
     "Telemetry Device": {
       "sourceHash": "2e73237a8a5a06a245a875de763c07fc06d95ab554d49768214b8fc8dfdb9517",
       "fingerprint": "5c7a0f986aafdcc06db898c2a8c510e4258f4fa5507a765a40e7ab5c9367564a",
-      "text": "遠端測量裝置",
+      "text": "遙測裝置",
       "status": "approved"
     },
     "Tenant & Device Footprint": {
@@ -7169,7 +7169,7 @@
     "Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and view live video over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.": {
       "sourceHash": "b83e34f6998f5a1440ce899463ba6ceac384e964ef517daf7c1c87992c607e54",
       "fingerprint": "9f0826a1c41b8eaac70f77e178df40d21e503bed92987f804640abc22b88b846",
-      "text": "直接在開發者控制檯中測試和除錯您的裝置——無需先構建應用程式、MQTT客戶端或WebRTC檢視器。選擇一個產品和裝置來傳送和接收MQTT訊息、讀取或更新裝置影子狀態，並透過WebRTC檢視實時影片。在編寫您自己的應用程式之前，使用這些工具檢查裝置的行為並進行雲整合故障排除。可用的測試取決於您的許可權和為所選裝置啟用的服務。",
+      "text": "直接在開發者主控台中測試和除錯您的裝置——無需先構建應用程式、MQTT用戶端或WebRTC檢視器。選擇一個產品和裝置來傳送和接收MQTT訊息、讀取或更新裝置影子狀態，並透過WebRTC檢視實時影片。在編寫您自己的應用程式之前，使用這些工具檢查裝置的行為並進行雲整合故障排除。可用的測試取決於您的許可權和為所選裝置啟用的服務。",
       "status": "approved"
     },
     "Test authorization expires after 5 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. Playback stops after 85 seconds. Operations affect your real device.": {
@@ -7445,7 +7445,7 @@
     "This console page is unavailable.": {
       "sourceHash": "601670ec36da30a5b3eb45337d6fe362674688f1ab409f13e5cd32903ec4690e",
       "fingerprint": "5f45845be3b54ded3214f7c2a6959a74453284dbce8496e6f08cca912140119c",
-      "text": "此控制檯頁面不可用。",
+      "text": "此主控台頁面不可用。",
       "status": "approved"
     },
     "This disables the Product; it does not delete its devices, firmware or history, and does not make the cloud empty.": {
@@ -7733,7 +7733,7 @@
     "Use an Account Manager-backed Platform Admin session to manage brand-cloud organizations and users.": {
       "sourceHash": "37cba99d9d876b3193e0d2eb3c1a20ebd2266b004b996af971c21f329bdc5be5",
       "fingerprint": "f4a8462d5190bca4484951814d29c955c53c0748f9a4c3668bb9ed0ce2e3407f",
-      "text": "使用由帳戶經理支援的平臺管理員會話來管理品牌雲組織和使用者。",
+      "text": "使用由Account Manager支援的平臺管理員會話來管理品牌雲組織和使用者。",
       "status": "approved"
     },
     "Use at least 8 characters.": {
@@ -7751,7 +7751,7 @@
     "Use the map to locate regions and compare fleet size by device count.": {
       "sourceHash": "1926f63f9382fc4ef6644f70a4728cac59d321b971e791b3b671e4ed1d45d09b",
       "fingerprint": "3aa49313b0dd19fc18a6f8eb6c1ab0eb2edbb183b20b2af80413c5a96af78ec0",
-      "text": "使用地圖定位區域，並按裝置數量比較車隊規模。",
+      "text": "使用地圖定位區域，並按裝置數量比較裝置群規模。",
       "status": "approved"
     },
     "Use this page to find a failed request, identify the affected service, and follow its trace or request ID.": {
@@ -8087,7 +8087,7 @@
     "Your cloud.": {
       "sourceHash": "6283b96436c5e9378f2efd94cc1dd276e92be8eded161478fb3e821c673f81b8",
       "fingerprint": "a70113c3e354afded1fe3e70dbe507d799f5a7936e195c5e56a8eb4d8c15ed9d",
-      "text": "你的雲。",
+      "text": "您的雲端。",
       "status": "approved"
     },
     "Your cost at a glance": {
@@ -8123,7 +8123,7 @@
     "Your products.": {
       "sourceHash": "1b0cdceba5ee49d515599548b912d9b0d2379027d79c800e6971be6a2cfb0c83",
       "fingerprint": "02f5f859317cdcd1fb374e3e41e250f7ae0d949b5a65bba422ba66a84cf8eef3",
-      "text": "你的產品。",
+      "text": "您的產品。",
       "status": "approved"
     },
     "Your reset code is hidden and will be submitted securely.": {
@@ -8285,7 +8285,7 @@
     "oidc-client-id": {
       "sourceHash": "9335ed1102319a3513c6f2193f5959d6e2ca6f4328b842a55b2886867598e3ce",
       "fingerprint": "6e80e76f2956618ad2fb6c168db2096f6305e72fb0337e119afd906ab296613b",
-      "text": "oidc-客戶端-ID",
+      "text": "oidc-用戶端-ID",
       "status": "approved"
     },
     "once": {
@@ -8297,7 +8297,7 @@
     "or continue with email": {
       "sourceHash": "b962a7eed4e0e84b26093603547bd9d2f5ab68fceb70b47578c4338a8555e0b1",
       "fingerprint": "1d6e1cbee1df88f5a5850f73b1239c0fc0d86b1973ebda328ed3311a4fe405aa",
-      "text": "或者繼續用電子郵件",
+      "text": "或使用電子郵件繼續",
       "status": "approved"
     },
     "product resources": {
@@ -8783,7 +8783,7 @@
     "Developer console": {
       "sourceHash": "249921ba22902d9fa9b29f7077feee7968aa600db403030ac22d7077a3594812",
       "fingerprint": "dcfe12a1c78d1cb16aa85bf3cdea98deda3305d058016cf1fa8b633d9f60d487",
-      "text": "開發者控制檯",
+      "text": "開發者主控台",
       "status": "approved"
     },
     "Device details": {
@@ -8939,7 +8939,7 @@
     "Loading your Console test access…": {
       "sourceHash": "2e442be6131d95069e7032cb9c865769c619e38ba06068f17deb0809a608d2a2",
       "fingerprint": "c1c1b169f237687b4da3b294b9c71499e12c526a7934e5a535b4f6c1a2be64c1",
-      "text": "載入您的控制檯測試訪問權限...",
+      "text": "載入您的主控台測試訪問權限...",
       "status": "approved"
     },
     "Manual Top-Up": {
@@ -9023,7 +9023,7 @@
     "No recent telemetry events available.": {
       "sourceHash": "f8c71ab0f61fd4f80e0d7eb99c70d409ce02486e0a316e997b7cb5c913580e3b",
       "fingerprint": "720a21c80c9f0b53ecfbf7f3ccd867b0761d9c922ca3a1c917d3bc292f3b473d",
-      "text": "沒有最近的遠端測量事件可用。",
+      "text": "沒有最近的遙測事件可用。",
       "status": "approved"
     },
     "No service log events found": {
@@ -9389,7 +9389,7 @@
     "Select a device row to inspect its telemetry.": {
       "sourceHash": "b45810b1561a4aedce0d9771a1e4a77a9962932447e1863f5fd2656361ee0dd5",
       "fingerprint": "62c566bc83b8f445b7ead1f86f9a9102760243a099352701ce28b28b609d24ce",
-      "text": "選擇一個裝置行來檢查其遠端測量資料。",
+      "text": "選擇一個裝置行來檢查其遙測資料。",
       "status": "approved"
     },
     "Select a product": {
@@ -9659,7 +9659,7 @@
     "WELCOME TO CONNECT+": {
       "sourceHash": "3af4f29bbb374cb42f548a57173969ff40af92065c0823092bcc3ac941f0c300",
       "fingerprint": "76445882e4757072935946395a3007ecfcab32f854872b27a3aa8e1639937511",
-      "text": "歡迎來到CONNECT+",
+      "text": "歡迎使用 CONNECT+",
       "status": "approved"
     },
     "Watch video": {
@@ -10001,7 +10001,7 @@
     "You do not have access to this console view.": {
       "sourceHash": "b68b55cf63035bac72425642ae63fb216e4f9222752a1952c37c4d7e404a08c6",
       "fingerprint": "d294000d708630061ceeb5dd48f688ba4ed8b43f6aa362e9812076db2bf54ab5",
-      "text": "您無法訪問此控制檯檢視。",
+      "text": "您無法訪問此主控台檢視。",
       "status": "approved"
     },
     "Video Streaming Health": {
@@ -10139,37 +10139,37 @@
     "Loading telemetry data": {
       "sourceHash": "a6eaf2accd715916cd35fd8ac03425b42604bcd6ec02b5c7b24cb05c2baf5e85",
       "fingerprint": "aa427c8e71a1810aa2a20138902bd0ff1e333123f64fbd831d890efa873c1680",
-      "text": "載入遠端測量資料",
+      "text": "載入遙測資料",
       "status": "approved"
     },
     "Loading telemetry data.": {
       "sourceHash": "86764822fa3339eddc0be8974ed1fb641de2d65a1f01be286eda1f81fbcbbdf1",
       "fingerprint": "eb2215c01890af69e6f3e5da7671dd920cce84f80243fdebe050c39875868be3",
-      "text": "載入遠端測量資料。",
+      "text": "載入遙測資料。",
       "status": "approved"
     },
     "Telemetry source available": {
       "sourceHash": "3ead7e76689cd2424d6520c93cf1e6e80992126793a8214a83aa6c59e93177ad",
       "fingerprint": "43ddb968067ef389dfb8587baf5af5d94aa8bae1fde516b7807278d34b22fe7f",
-      "text": "提供遠端測量源",
+      "text": "提供遙測源",
       "status": "approved"
     },
     "Telemetry source available.": {
       "sourceHash": "39241ee3476893ad99cbeda71a4efb2b15605cd006e3f990cf1ff0889b63d8e7",
       "fingerprint": "f42b458f1e97e272e31c3d8bd0835c1479594278afd4ae8e5cdda4d40bba483e",
-      "text": "遠端測量源可用。",
+      "text": "遙測源可用。",
       "status": "approved"
     },
     "Telemetry source unavailable": {
       "sourceHash": "195bf85468fd059f62037443a75a29c30e74edbc7698c5a30dd1e0d888f04a8a",
       "fingerprint": "6c35f4689aab0636fe76f13a54adf00df73cc3025e037743f6a6d878d78fd7a3",
-      "text": "遠端測量來源不可用",
+      "text": "遙測來源不可用",
       "status": "approved"
     },
     "Telemetry gateway error": {
       "sourceHash": "69c577b3be2bf733fac80979c9a4acba6c23bfc132127b066870f1454e619d6b",
       "fingerprint": "876af15bc4c8c51c161588646706748df456f218272964dbbfe234bb5a1e6130",
-      "text": "遠端測量閘道器錯誤",
+      "text": "遙測閘道器錯誤",
       "status": "approved"
     },
     "Loading firmware data": {
@@ -10505,7 +10505,7 @@
     "Grafana iframe URL is not available through the Admin Console.": {
       "sourceHash": "8a90a4879d240066ef4c6fcf5dbc822a9d7d6761e77e99995cbda8618e6f8d32",
       "fingerprint": "63595ca2102825aefe0f7f1b1976faea6e2ef1f195a8ff940d15dd0c2e09ef76",
-      "text": "透過管理器控制檯無法訪問 Grafana iframe URL.",
+      "text": "透過管理器主控台無法訪問 Grafana iframe URL.",
       "status": "approved"
     },
     "Grafana is not configured.": {
@@ -10907,7 +10907,7 @@
     "Stream source loaded from Video Cloud.": {
       "sourceHash": "bc307cd4975b97e6035e67598f30c808f807f546668d762f158067059dfc7841",
       "fingerprint": "4f57426610cd2a3b3c94f8acbb2f0c3a01f4c076c3c78b328b1b88f70d8fe386",
-      "text": "從影片雲載入的流媒體源。",
+      "text": "從Video Cloud載入的流媒體源。",
       "status": "approved"
     },
     "If-Match is required.": {
@@ -10967,7 +10967,7 @@
     "The fleet data source is not configured.": {
       "sourceHash": "675290155959984585a25dd108d9e847a455efd6d1074befe8f904ccaa66d472",
       "fingerprint": "88fb8c2e4375f7bda326e95ef91f3c07f420ee99d217b09e0e2985456ea8c520",
-      "text": "車隊資料來源未配置。",
+      "text": "裝置群資料來源未配置。",
       "status": "approved"
     },
     "Idempotency-Key was already used with different request data.": {
@@ -11117,7 +11117,7 @@
     "Burn and verification completed. Reopening the console at 115200 baud…": {
       "sourceHash": "8d517a97931cc1819532dd0600cedb6d06e5729d1167aa95d710af30d2a92e6d",
       "fingerprint": "a58fc05a413b326149485dd393a5fcc83cbfb47d38cdf9b9de527e673abd2a08",
-      "text": "燒燬和驗證完成,重新開放控制檯在115,200 baud...",
+      "text": "燒燬和驗證完成,重新開放主控台在115,200 baud...",
       "status": "approved"
     },
     "Burn and verification completed. The console was not opened automatically.": {
@@ -11213,7 +11213,7 @@
     "Connect UART to use the console and burn firmware.": {
       "sourceHash": "3313159b829e08438134634a4d4c3abb204d4e1a867b3b41183de93677f579b9",
       "fingerprint": "74c6ef470b8410baea449f306f3a263c1759719fba695fdfec52cda473ec5562",
-      "text": "連線UART使用控制檯並燒燬韌體.",
+      "text": "連線UART使用主控台並燒燬韌體.",
       "status": "approved"
     },
     "Connected and waiting for device output.": {
@@ -11225,25 +11225,25 @@
     "Console log copied.": {
       "sourceHash": "22eda84ee008a101a6e757dd655163dc03bcd35aa45a00e1c0e4c7091e67791b",
       "fingerprint": "f16e5566f2a38f78ad4cc11aff6a6f7a1631f529d4663538df54993dee24b18c",
-      "text": "控制檯記錄複製.",
+      "text": "主控台記錄複製.",
       "status": "approved"
     },
     "Console ready": {
       "sourceHash": "4232d8c6af5d4a690c8b34edc9828589fb7cb119b38027120f9164cd4f0e222e",
       "fingerprint": "fd8a0be7865d0e12a854abc90a402135e2cf7f671bf761ec70d57884a5a5fb62",
-      "text": "控制檯準備好",
+      "text": "主控台準備好",
       "status": "approved"
     },
     "Console ready at {{baud}} baud.": {
       "sourceHash": "dec7c826d7c3ea615ca1566398e701e95365a1725fd6258144d0772a8bd42d67",
       "fingerprint": "f340ad5d0123351155c4d302ff4aad08a37df663547f034f5b25bd68bd4f25b0",
-      "text": "控制檯準備好{{baud}}率.",
+      "text": "主控台準備好{{baud}}率.",
       "status": "approved"
     },
     "Console ready. This adapter cannot reset the device automatically; reset it manually.": {
       "sourceHash": "1e54031f111b02925091bebe25880a94e401dc48af34db581e1f4454e8fbdf14",
       "fingerprint": "13c72032b39739a082fcdcb6c7f6362f693ba08f994d85f7c709034d8e989e85",
-      "text": "控制檯準備好. 這個介面卡不能自動重新設定裝置;",
+      "text": "主控台準備好. 這個介面卡不能自動重新設定裝置;",
       "status": "approved"
     },
     "Copy failed: {{message}}": {
@@ -11699,7 +11699,7 @@
     "Continue with {{value0}}": {
       "sourceHash": "84ab9fef2b5c3b7667b7ac16e6c713f12cd34d9668162bf1572f2043aa971914",
       "fingerprint": "c3e172af6b0b8ab4c052b37cdd072c913b2d8f442e91732945d72533e3f3b423",
-      "text": "繼續{{value0}}",
+      "text": "使用 {{value0}} 繼續",
       "status": "approved"
     },
     "Demo services active: {{value0}}": {
@@ -11765,7 +11765,7 @@
     "Testing as {{value0}} — using your Console login.": {
       "sourceHash": "f402f6f1b795a20576168485b9cf83703377ae6156a767cd773c094b128d69f4",
       "fingerprint": "fca03942d7a8238586825c2cc31a9d9eb40fc57adedd193a030babbfcc9d6154",
-      "text": "測試{{value0}}使用您的控制檯登入.",
+      "text": "測試{{value0}}使用您的主控台登入.",
       "status": "approved"
     },
     "Top up {{value0}} when the balance falls below {{value1}}.": {
@@ -11861,7 +11861,7 @@
     "Telemetry source loaded from Video Cloud.": {
       "sourceHash": "46914a3f06adf1d7f304c95d9fd7188594ce7532205d199cf11a1943ce9ecc34",
       "fingerprint": "942f28d16a214a7b00a8dc3723f8f832e05977cb129f116b167a2a6cdab86c23",
-      "text": "電氣源從影片雲中載入.",
+      "text": "已從 Video Cloud 載入遙測資料來源。",
       "status": "approved"
     },
     "N. Cyprus": {
