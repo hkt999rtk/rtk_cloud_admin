@@ -557,7 +557,7 @@
     "Active": {
       "sourceHash": "3edfb550d979723dd4067fdbc9c8c9149dd3d21596789347bf7f9334960306dc",
       "fingerprint": "de1fdc16ab69031582a96e404773ed9a7c7c59baa0ec0e8ad3fa792444afab2e",
-      "text": "活跃的",
+      "text": "启用中",
       "status": "approved"
     },
     "Active stream": {
@@ -1643,7 +1643,7 @@
     "Cloud visibility": {
       "sourceHash": "dbc90c85ca1d187295544c63986a4e1d8113b7455f32d9e2dc3e2ed53c7b1835",
       "fingerprint": "7e38f00f393668aa4b14966cbae49ac01a981c2d3b715c28f51f9db608efc032",
-      "text": "云可见性",
+      "text": "云端列表筛选",
       "status": "approved"
     },
     "Clouds, products & devices": {
@@ -1931,7 +1931,7 @@
     "Create a cloud or accept an owner’s invitation. Shared clouds do not use your ownership quota.": {
       "sourceHash": "4d9c777315935a4157bb1c6c9053465fcabd7bead873cc70b3e841dc679c42f4",
       "fingerprint": "93f54dda15be02809fc834238b17f2a82064e13586c006c31246ecb61234a205",
-      "text": "建立一个云或接受所有者的邀请。共享云不会使用您的所有权配额。",
+      "text": "创建云端，或接受所有者的邀请。与您共享的云端不计入可拥有云端的数量上限。",
       "status": "approved"
     },
     "Create a draft, then synchronize and validate the manifest before publishing.": {
@@ -1955,7 +1955,7 @@
     "Create cloud": {
       "sourceHash": "6e9ccf9825a7021381c27cf62b66977105ae807f5b6b108f30b72feab5eca53a",
       "fingerprint": "167ed91523cbbf4b5bc220577e9c55060afa23581ec5c744899c4a365b976064",
-      "text": "建立云",
+      "text": "创建云端",
       "status": "approved"
     },
     "Create test device": {
@@ -2435,7 +2435,7 @@
     "Disable": {
       "sourceHash": "57550a4bbd9d988724a044fbc4fd17df885e6799e2638e55af250e05ac444df5",
       "fingerprint": "57a177214fbd4ff37ef46432429df98bd200037b3b0e9620f58b21557ba74fb2",
-      "text": "使伤残",
+      "text": "停用",
       "status": "approved"
     },
     "Disable Automatic Top-Up": {
@@ -2459,7 +2459,7 @@
     "Disabled": {
       "sourceHash": "da15a9e99eb86d836ba192e09daffb9c563733f3c9fbf8c00c372a25d34c9362",
       "fingerprint": "c1d22370b308f2edd5d8554f3f0c5b7b7bc776d1e9eaf9b8381932df3a080716",
-      "text": "残废的",
+      "text": "已停用",
       "status": "approved"
     },
     "Disconnect": {
@@ -4541,7 +4541,7 @@
     "No clouds in this view": {
       "sourceHash": "b99be90b83f6b187235e616a4dc959af6e54a9b77ed9226627bc432cdaf07039",
       "fingerprint": "96b5d7b214d160012c8e16584fef6d257e592822d4f46307d9493316a46521c8",
-      "text": "这个视角里没有云彩",
+      "text": "目前没有云端",
       "status": "approved"
     },
     "No customer organizations are available.": {
@@ -8501,7 +8501,7 @@
     " · Disabled": {
       "sourceHash": "3b1743cb9cf611de3c10eda5a5f54eacf9f02999c7cd71c050b4c92917b3eb3e",
       "fingerprint": "09703af5e93ba6afc9d94dbddc1d80e68b24d6bbb34a71ac90c9a1ce5ecf2f21",
-      "text": "·残疾",
+      "text": " · 已停用",
       "status": "approved"
     },
     ", and ": {
