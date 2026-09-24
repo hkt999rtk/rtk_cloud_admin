@@ -34,7 +34,7 @@ func TestTestLabManagementRuntimeAndMQTT(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(labSession{
 				ID: testLabSessionID, Cloud: cloudA, Product: productA,
 				Device: scopedDeviceID, Devid: "camera-1", Account: testLabAccountID,
-				Expires: time.Now().Add(5 * time.Minute),
+				Expires: time.Now().Add(11 * time.Minute),
 			})
 		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/"+testLabSessionID+"/credentials"):
 			_ = json.NewEncoder(w).Encode(map[string]any{

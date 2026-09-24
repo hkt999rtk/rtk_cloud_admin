@@ -97,7 +97,7 @@ func (s *Server) apiTestLabSession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var lab labSession
-		if json.Unmarshal(raw, &lab) != nil || !managedCloudUUID.MatchString(lab.ID) || lab.Cloud != cloud || lab.Product != in.Product || lab.Device != in.Device || !testLabDeviceID.MatchString(lab.Devid) || !lab.Expires.After(time.Now()) || lab.Expires.After(time.Now().Add(6*time.Minute)) {
+		if json.Unmarshal(raw, &lab) != nil || !managedCloudUUID.MatchString(lab.ID) || lab.Cloud != cloud || lab.Product != in.Product || lab.Device != in.Device || !testLabDeviceID.MatchString(lab.Devid) || !lab.Expires.After(time.Now()) || lab.Expires.After(time.Now().Add(12*time.Minute)) {
 			http.Error(w, "invalid runtime session", 502)
 			return
 		}

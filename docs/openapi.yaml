@@ -202,7 +202,7 @@ paths:
       operationId: createTestLabSession
       x-rtk-feature-id: FEAT-CA-AUTHZ-001
       x-rtk-requirement-ids: [REQ-UI-CA-TESTLAB-001]
-      summary: Create a five-minute device-scoped test session
+      summary: Create an 11-minute device-scoped test session
       description: Opt-in non-production feature. See docs/test-lab.md for payloads, lifetime, limits and revocation boundaries.
       requestBody:
         required: true
