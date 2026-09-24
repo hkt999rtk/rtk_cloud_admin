@@ -70,8 +70,12 @@ Required or recommended environment variables:
 - `BILLING_SERVICE_BASE_URL`: internal RTK Billing service URL
 - `BILLING_SERVICE_TOKEN`: dedicated Cloud Admin-to-Billing service credential
 - `VIDEO_CLOUD_BASE_URL`: upstream Video Cloud base URL
-- `VIDEO_CLOUD_ADMIN_TOKEN`: admin token used for telemetry, firmware, and
-  stream queries
+- `VIDEO_CLOUD_OTA_BFF_TOKEN`: dedicated Video Cloud Product OTA service
+  credential, shared only with the Video Cloud API. Required for the managed
+  staging OTA dashboard and operator actions.
+- `VIDEO_CLOUD_ADMIN_TOKEN`: optional short-lived admin token for legacy
+  telemetry and stream queries; local OTA setups may use it when no dedicated
+  OTA credential is configured.
 - `VIDEO_CLOUD_PROMETHEUS_BASE_URL`: private Prometheus query endpoint, for
   example `http://10.42.1.30:9090`
 - Platform admin login is backed by Account Manager; Cloud Admin does not

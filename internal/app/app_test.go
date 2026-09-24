@@ -2849,7 +2849,7 @@ func TestProductOTAProxyInjectsActiveOrganizationAndAudits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := NewWithOptions(st, Options{Config: config.Config{VideoCloudBaseURL: videoUpstream.URL, VideoCloudAdminToken: "vc-secret"}, VideoClient: videoclient.New(videoUpstream.URL)})
+	srv := NewWithOptions(st, Options{Config: config.Config{VideoCloudBaseURL: videoUpstream.URL, VideoCloudOTABFFToken: "vc-secret"}, VideoClient: videoclient.New(videoUpstream.URL)})
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/ota/products/product-1/releases", strings.NewReader(`{"version":"1"}`))
 	req.Header.Set("Idempotency-Key", "release-key")
