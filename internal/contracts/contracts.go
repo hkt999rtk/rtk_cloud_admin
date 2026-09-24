@@ -71,6 +71,7 @@ type Product struct {
 	Category             string         `json:"category,omitempty"`
 	Status               string         `json:"status"`
 	ServiceCapabilities  []string       `json:"service_capabilities"`
+	LogRetentionDays     *int           `json:"log_retention_days,omitempty"`
 	DevicePolicy         map[string]any `json:"device_policy,omitempty"`
 	FirmwarePolicy       map[string]any `json:"firmware_policy,omitempty"`
 	AllowedActions       []string       `json:"allowed_actions"`

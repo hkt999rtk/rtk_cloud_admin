@@ -20,7 +20,7 @@ export function BillingInvoiceDocument({ invoice = SAMPLE_INVOICE, preview = fal
     <table className="invoice-document-lines">
       <caption>Service breakdown <span>Amounts in {invoice.currency}, before tax</span></caption>
       <thead><tr><th scope="col">Service / Description</th><th scope="col">Usage</th><th scope="col">Subtotal</th></tr></thead>
-      <tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td><strong>{line.service_code}</strong><span>{line.description}</span></td><td>{invoiceQuantity(line)}<span>{line.unit}</span></td><td>{money(line.subtotal_minor)}</td></tr>)}</tbody>
+      <tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td><strong>{line.service_code}</strong><span>{line.description}</span>{line.product_id && <span>Product: {line.product_id}</span>}</td><td>{invoiceQuantity(line)}<span>{line.unit}</span></td><td>{money(line.subtotal_minor)}</td></tr>)}</tbody>
     </table>
     {!invoice.lines?.length && <p className="notice">No line items are available for this invoice.</p>}
     <div className="invoice-document-summary">

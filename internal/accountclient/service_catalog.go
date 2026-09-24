@@ -12,6 +12,7 @@ type ServiceCatalogOption struct {
 	DisplayName       string   `json:"display_name"`
 	Description       string   `json:"description"`
 	Requires          []string `json:"requires,omitempty"`
+	LogRetentionDays  []int    `json:"log_retention_days,omitempty"`
 	ServiceID         string   `json:"service_id"`
 	ManifestVersion   string   `json:"manifest_version"`
 	Selectable        bool     `json:"selectable"`

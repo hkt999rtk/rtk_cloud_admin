@@ -3227,6 +3227,7 @@ func (s *Server) apiProductWrite(w http.ResponseWriter, r *http.Request) {
 		Category            string         `json:"category,omitempty"`
 		Manufacturer        string         `json:"manufacturer,omitempty"`
 		ServiceCapabilities []string       `json:"service_capabilities,omitempty"`
+		LogRetentionDays    *int           `json:"log_retention_days,omitempty"`
 		CatalogRevision     int64          `json:"catalog_revision,omitempty"`
 		DevicePolicy        map[string]any `json:"device_policy,omitempty"`
 		FirmwarePolicy      map[string]any `json:"firmware_policy,omitempty"`
@@ -3239,6 +3240,7 @@ func (s *Server) apiProductWrite(w http.ResponseWriter, r *http.Request) {
 			Category            string         `json:"category,omitempty"`
 			Manufacturer        string         `json:"manufacturer,omitempty"`
 			ServiceCapabilities []string       `json:"service_capabilities,omitempty"`
+			LogRetentionDays    *int           `json:"log_retention_days,omitempty"`
 			CatalogRevision     int64          `json:"catalog_revision,omitempty"`
 			DevicePolicy        map[string]any `json:"device_policy,omitempty"`
 			FirmwarePolicy      map[string]any `json:"firmware_policy,omitempty"`
@@ -3247,7 +3249,7 @@ func (s *Server) apiProductWrite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Product data is malformed.", http.StatusBadRequest)
 		return
 	}
-	request := accountclient.DeviceItemProfileRequest{ProfileKey: strings.TrimSpace(input.ProfileKey), DisplayName: strings.TrimSpace(input.Name), Category: strings.TrimSpace(input.Category), Manufacturer: strings.TrimSpace(input.Manufacturer), Model: strings.TrimSpace(input.ProductModel), ServiceOptions: customerServiceOptions(input.ServiceCapabilities), CatalogRevision: input.CatalogRevision, ClaimPolicy: input.DevicePolicy, ProvisioningPolicy: input.DevicePolicy}
+	request := accountclient.DeviceItemProfileRequest{ProfileKey: strings.TrimSpace(input.ProfileKey), DisplayName: strings.TrimSpace(input.Name), Category: strings.TrimSpace(input.Category), Manufacturer: strings.TrimSpace(input.Manufacturer), Model: strings.TrimSpace(input.ProductModel), ServiceOptions: customerServiceOptions(input.ServiceCapabilities), LogRetentionDays: input.LogRetentionDays, CatalogRevision: input.CatalogRevision, ClaimPolicy: input.DevicePolicy, ProvisioningPolicy: input.DevicePolicy}
 	if request.ProfileKey == "" && request.DisplayName != "" {
 		request.ProfileKey = "product-" + strings.ToLower(strings.NewReplacer(" ", "-", "/", "-", "_", "-").Replace(request.DisplayName))
 	}
@@ -3456,6 +3458,7 @@ func customerProductWithActionsAndSummary(profile accountclient.DeviceItemProfil
 		Category:            profile.Category,
 		Status:              profile.Status,
 		ServiceCapabilities: normalizeCapabilities(services),
+		LogRetentionDays:    profile.LogRetentionDays,
 		DevicePolicy: map[string]any{
 			"setup_available":   len(profile.ProvisioningPolicy) > 0,
 			"binding_available": len(profile.ClaimPolicy) > 0,
