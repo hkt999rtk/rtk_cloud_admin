@@ -1,9 +1,10 @@
+import { translate } from './i18n/index.mjs';
 import React, { useEffect, useId, useRef, useState } from 'react';
 
 export function displayLabel(value) {
-  if (!value) return 'Not reported';
+  if (!value) return translate('Not reported');
   const labels = { mqtt: 'MQTT', video_storage: 'Video storage', video_streaming: 'Video streaming', ip_camera: 'IP camera' };
-  return labels[value] || String(value).replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase());
+  return translate(labels[value] || String(value).replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase()));
 }
 
 export function StatusBadge({ value = 'unknown' }) {
@@ -13,10 +14,10 @@ export function StatusBadge({ value = 'unknown' }) {
 
 export function CopyValue({ value, label = 'identifier' }) {
   const [message, setMessage] = useState('');
-  return <span className="ui-copy"><code>{value || 'Not reported'}</code>{value && <button type="button" aria-label={`Copy ${label}`} onClick={async () => {
+  return <span className="ui-copy"><code>{value || translate("Not reported")}</code>{value && <button type="button" aria-label={`${translate('Copy')} ${translate(label)}`} onClick={async () => {
     try { await navigator.clipboard.writeText(value); setMessage('Copied'); }
     catch { setMessage('Select the value to copy it.'); }
-  }}>Copy</button>}<span role="status">{message}</span></span>;
+  }}>{translate("Copy")}</button>}<span role="status">{translate(message)}</span></span>;
 }
 
 export function Dialog({ title, onClose, busy = false, role = 'dialog', returnFocus, variant = 'dialog', children }) {
@@ -45,7 +46,7 @@ export function Dialog({ title, onClose, busy = false, role = 'dialog', returnFo
     };
   }, []);
   return <dialog ref={ref} role={role} className={`ui-dialog${variant === 'drawer' ? ' ui-dialog-drawer' : ''}`} aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
-    <header><h2 id={titleId}>{title}</h2><button type="button" aria-label="Close dialog" disabled={busy} onClick={onClose}>Close</button></header>
+    <header><h2 id={titleId}>{translate(title)}</h2><button type="button" aria-label={translate("Close dialog")} disabled={busy} onClick={onClose}>{translate("Close")}</button></header>
     {children}
   </dialog>;
 }

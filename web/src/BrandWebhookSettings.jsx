@@ -1,3 +1,4 @@
+import { translate } from './i18n/index.mjs';
 import React, { useEffect, useState } from 'react';
 import { brandWebhookRequest } from './brand-webhook.mjs';
 
@@ -98,30 +99,30 @@ export function BrandWebhookSettings({ cloudId, onAccessLost = () => {} }) {
   }
 
   return <section className="my-clouds-panel brand-webhook-settings" aria-labelledby="brand-webhook-heading">
-    <h2 id="brand-webhook-heading">Brand event webhook</h2>
-    <p>RTK sends signed event metadata to your HTTPS endpoint. Your brand decides which app users to notify and owns APNs/FCM delivery.</p>
-    {loading ? <p role="status">Loading webhook settings…</p> : <>
-      {error && <p role="alert" className="brand-webhook-error">{error} <button type="button" onClick={() => setReload((value) => value + 1)}>Refresh</button></p>}
+    <h2 id="brand-webhook-heading">{translate("Brand event webhook")}</h2>
+    <p>{translate("RTK sends signed event metadata to your HTTPS endpoint. Your brand decides which app users to notify and owns APNs/FCM delivery.")}</p>
+    {loading ? <p role="status">{translate("Loading webhook settings…")}</p> : <>
+      {error && <p role="alert" className="brand-webhook-error">{translate(error)} <button type="button" onClick={() => setReload((value) => value + 1)}>{translate("Refresh")}</button></p>}
       {message && <p role="status">{message}</p>}
       {version && <>
-        <p role="status">Status: <strong>{subscription?.enabled ? 'Enabled' : subscription ? 'Disabled' : 'Not configured'}</strong></p>
+        <p role="status">{translate("Status:")} <strong>{subscription?.enabled ? translate("Enabled") : subscription ? translate("Disabled") : translate("Not configured")}</strong></p>
         <form onSubmit={save} autoComplete="off">
-          <label>HTTPS endpoint
-            <input type="url" required value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="https://hooks.example.com/events" disabled={busy} />
+          <label>{translate("HTTPS endpoint")}
+            <input type="url" required value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder={translate("https://hooks.example.com/events")} disabled={busy} />
           </label>
-          <label>New signing secret (32–256 characters)
+          <label>{translate("New signing secret (32–256 characters)")}
             <input type="password" required minLength={32} maxLength={256} autoComplete="new-password" value={secret} onChange={(event) => setSecret(event.target.value)} disabled={busy} />
           </label>
-          <p>The secret is required when saving or re-enabling the subscription; it is never displayed after submission.</p>
-          <div className="my-clouds-actions"><button type="submit" disabled={busy}>{busy ? 'Saving…' : subscription?.enabled ? 'Replace webhook' : 'Enable webhook'}</button>
-            {subscription?.enabled && <button type="button" disabled={busy} onClick={() => setConfirmDisable(true)}>Disable delivery</button>}
+          <p>{translate("The secret is required when saving or re-enabling the subscription; it is never displayed after submission.")}</p>
+          <div className="my-clouds-actions"><button type="submit" disabled={busy}>{busy ? translate("Saving…") : subscription?.enabled ? translate("Replace webhook") : translate("Enable webhook")}</button>
+            {subscription?.enabled && <button type="button" disabled={busy} onClick={() => setConfirmDisable(true)}>{translate("Disable delivery")}</button>}
           </div>
         </form>
-        {confirmDisable && <div className="brand-webhook-confirm" role="group" aria-label="Confirm webhook disable"><p>Stop new webhook deliveries for this cloud? An in-flight request may still finish.</p><div className="my-clouds-actions"><button type="button" className="my-clouds-danger" disabled={busy} onClick={disable}>Confirm disable</button><button type="button" disabled={busy} onClick={() => setConfirmDisable(false)}>Cancel</button></div></div>}
-        <div className="brand-webhook-receipts"><h3>Delivery receipts</h3><p>Look up an event ID received by your backend to see RTK delivery attempts, identified by device when an ID is reused. This does not confirm a mobile push was delivered.</p>
-          <form onSubmit={inspect}><label>Event ID<input value={eventId} required maxLength={128} onChange={(event) => setEventId(event.target.value)} disabled={receiptBusy} /></label><button type="submit" disabled={receiptBusy}>{receiptBusy ? 'Checking…' : 'Check receipts'}</button></form>
+        {confirmDisable && <div className="brand-webhook-confirm" role="group" aria-label={translate("Confirm webhook disable")}><p>{translate("Stop new webhook deliveries for this cloud? An in-flight request may still finish.")}</p><div className="my-clouds-actions"><button type="button" className="my-clouds-danger" disabled={busy} onClick={disable}>{translate("Confirm disable")}</button><button type="button" disabled={busy} onClick={() => setConfirmDisable(false)}>{translate("Cancel")}</button></div></div>}
+        <div className="brand-webhook-receipts"><h3>{translate("Delivery receipts")}</h3><p>{translate("Look up an event ID received by your backend to see RTK delivery attempts, identified by device when an ID is reused. This does not confirm a mobile push was delivered.")}</p>
+          <form onSubmit={inspect}><label>{translate("Event ID")}<input value={eventId} required maxLength={128} onChange={(event) => setEventId(event.target.value)} disabled={receiptBusy} /></label><button type="submit" disabled={receiptBusy}>{receiptBusy ? translate("Checking…") : translate("Check receipts")}</button></form>
           {receiptError && <p role="alert">{receiptError}</p>}
-          {receipts && (receipts.length ? <div className="brand-webhook-receipt-list"><table><thead><tr><th>Device</th><th>Attempt</th><th>Outcome</th><th>HTTP</th><th>Observed at</th></tr></thead><tbody>{receipts.map((receipt) => <tr key={`${receipt.device_id}-${receipt.event_id}-${receipt.attempt}`}><td>{receipt.device_id}</td><td>{receipt.attempt}</td><td>{receipt.outcome}</td><td>{receipt.status_code || '—'}</td><td>{receipt.observed_at || '—'}</td></tr>)}</tbody></table></div> : <p role="status">No delivery attempts recorded for this event.</p>)}
+          {receipts && (receipts.length ? <div className="brand-webhook-receipt-list"><table><thead><tr><th>{translate("Device")}</th><th>{translate("Attempt")}</th><th>{translate("Outcome")}</th><th>{translate("HTTP")}</th><th>{translate("Observed at")}</th></tr></thead><tbody>{receipts.map((receipt) => <tr key={`${receipt.device_id}-${receipt.event_id}-${receipt.attempt}`}><td>{receipt.device_id}</td><td>{receipt.attempt}</td><td>{receipt.outcome}</td><td>{receipt.status_code || '—'}</td><td>{receipt.observed_at || '—'}</td></tr>)}</tbody></table></div> : <p role="status">{translate("No delivery attempts recorded for this event.")}</p>)}
         </div>
       </>}
     </>}

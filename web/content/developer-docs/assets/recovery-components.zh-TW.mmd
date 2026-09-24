@@ -1,0 +1,10 @@
+flowchart TB
+    Cert["本地證書/金鑰和受信任的端點設定"] --> Supervisor["recover.py：終身和重試策略"]
+    Supervisor <-->|"HTTPS重新發行或mTLS啟動"| Token["執行時令牌服務"]
+    Supervisor --> File["私人臨時令牌檔案"]
+    Supervisor -->|"開始、等待和停止"| Worker["demo.py裝置工作人員"]
+    File --> Worker
+    Worker <-->|"TLS、MQTT和精確訂閱"| Broker["MQTT/影子服務"]
+    Worker --> Reconcile["獲取當前所需狀態，應用支援的狀態，報告實際狀態"]
+    Reconcile --> Broker
+    Limits["有限的持續時間和重試。真正的硬體需要自己的持久狀態處理。"] -.-> Supervisor

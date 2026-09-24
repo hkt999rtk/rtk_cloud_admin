@@ -1,3 +1,4 @@
+import { translate } from './i18n/index.mjs';
 import React, { useState } from 'react';
 
 export function BrandCloudCreateDrawer({ onClose, onCreate }) {
@@ -61,50 +62,50 @@ export function BrandCloudCreateDrawer({ onClose, onCreate }) {
 
   return (
     <div className="drawer-backdrop" role="presentation" onClick={onClose}>
-      <aside className="drawer-panel brand-cloud-drawer" role="dialog" aria-modal="true" aria-label="Create Brand Cloud" onClick={(event) => event.stopPropagation()}>
+      <aside className="drawer-panel brand-cloud-drawer" role="dialog" aria-modal="true" aria-label={translate("Create Brand Cloud")} onClick={(event) => event.stopPropagation()}>
         <div className="drawer-header">
           <div>
-            <h2>Create Brand Cloud</h2>
-            <p>Creates an Account Manager <code>organization_kind=brand_cloud</code> record.</p>
+            <h2>{translate("Create Brand Cloud")}</h2>
+            <p>{translate("Creates an Account Manager")} <code>organization_kind=brand_cloud</code> {translate("record.")}</p>
           </div>
-          <button type="button" className="drawer-close" onClick={onClose} aria-label="Close Brand Cloud drawer">x</button>
+          <button type="button" className="drawer-close" onClick={onClose} aria-label={translate("Close Brand Cloud drawer")}>x</button>
         </div>
-        <div className="brand-cloud-stepper" aria-label="Create Brand Cloud steps">
+        <div className="brand-cloud-stepper" aria-label={translate("Create Brand Cloud steps")}>
           {['Identity', 'Initial Admin', 'Review'].map((label, index) => <span className={step === index + 1 ? 'active' : step > index + 1 ? 'complete' : ''} key={label}>{index + 1}. {label}</span>)}
         </div>
         <form className="drawer-form" onSubmit={submit}>
           {step === 1 ? <>
-            <label>Brand display name<input className="input" value={form.name} onChange={(event) => update('name', event.target.value)} /></label>
+            <label>{translate("Brand display name")}<input className="input" value={form.name} onChange={(event) => update('name', event.target.value)} /></label>
             <div className="form-grid">
-              <label>Region<input className="input" value={form.region} onChange={(event) => update('region', event.target.value)} placeholder="Optional" /></label>
-              <label>Tier<select className="input" value={form.tier} onChange={(event) => update('tier', event.target.value)}><option>Evaluation</option><option>Commercial</option></select></label>
+              <label>{translate("Region")}<input className="input" value={form.region} onChange={(event) => update('region', event.target.value)} placeholder={translate("Optional")} /></label>
+              <label>{translate("Tier")}<select className="input" value={form.tier} onChange={(event) => update('tier', event.target.value)}><option>{translate("Evaluation")}</option><option>{translate("Commercial")}</option></select></label>
             </div>
-            <p className="source-note">Organization kind is fixed as <code>brand_cloud</code>.</p>
+            <p className="source-note">{translate("Organization kind is fixed as")} <code>brand_cloud</code>.</p>
           </> : null}
           {step === 2 ? <>
-            <label>Initial admin mode<select className="input" value={form.initialMode} onChange={(event) => update('initialMode', event.target.value)}>
-              <option value="none">Assign later</option>
-              <option value="create">Invite global user by email</option>
+            <label>{translate("Initial admin mode")}<select className="input" value={form.initialMode} onChange={(event) => update('initialMode', event.target.value)}>
+              <option value="none">{translate("Assign later")}</option>
+              <option value="create">{translate("Invite global user by email")}</option>
             </select></label>
             {form.initialMode === 'create' ? <>
-              <label>Email<input className="input" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
-              <label>Display name<input className="input" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} /></label>
-              <p className="source-note">The owner receives the global account activation email; no tenant password is created.</p>
+              <label>{translate("Email")}<input className="input" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} /></label>
+              <label>{translate("Display name")}<input className="input" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} /></label>
+              <p className="source-note">{translate("The owner receives the global account activation email; no tenant password is created.")}</p>
             </> : null}
-            {form.initialMode !== 'none' ? <label>Role<select className="input" value={form.role} onChange={(event) => update('role', event.target.value)}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label> : null}
+            {form.initialMode !== 'none' ? <label>{translate("Role")}<select className="input" value={form.role} onChange={(event) => update('role', event.target.value)}><option value="owner">{translate("Owner")}</option><option value="admin">{translate("Admin")}</option><option value="member">{translate("Member")}</option></select></label> : null}
           </> : null}
           {step === 3 ? <section className="drawer-summary create-review-summary">
-            <h3>Review</h3>
-            <div><span>Brand</span><strong>{form.name}</strong></div>
-            <div><span>Tier</span><strong>{form.tier}</strong></div>
-            <div><span>Initial owner</span><strong>{form.initialMode === 'none' ? 'Assign later' : form.email}</strong></div>
-            <p className="source-note">Quota and SSO setup can be completed after creation.</p>
+            <h3>{translate("Review")}</h3>
+            <div><span>{translate("Brand")}</span><strong>{form.name}</strong></div>
+            <div><span>{translate("Tier")}</span><strong>{form.tier}</strong></div>
+            <div><span>{translate("Initial owner")}</span><strong>{form.initialMode === 'none' ? translate("Assign later") : form.email}</strong></div>
+            <p className="source-note">{translate("Quota and SSO setup can be completed after creation.")}</p>
           </section> : null}
           {message ? <p className="form-message">{message}</p> : null}
           <div className="drawer-actions">
-            <button type="button" className="ghost-button" onClick={onClose}>Cancel</button>
-            {step > 1 ? <button type="button" className="ghost-button" onClick={() => setStep((current) => current - 1)} disabled={submitting}>Back</button> : null}
-            <button type="submit" className="primary-button" disabled={submitting}>{submitting ? 'Creating...' : step < 3 ? 'Continue' : 'Create Brand Cloud'}</button>
+            <button type="button" className="ghost-button" onClick={onClose}>{translate("Cancel")}</button>
+            {step > 1 ? <button type="button" className="ghost-button" onClick={() => setStep((current) => current - 1)} disabled={submitting}>{translate("Back")}</button> : null}
+            <button type="submit" className="primary-button" disabled={submitting}>{submitting ? translate("Creating...") : step < 3 ? translate("Continue") : translate("Create Brand Cloud")}</button>
           </div>
         </form>
       </aside>

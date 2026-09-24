@@ -33,7 +33,7 @@ export function CloudConsoleShell({ me, cloud = null, clouds = [], active = 'my-
   const showOwnerOnly = options.some((item) => (item.my_role || item.role) === 'owner' && (!me?.user_id || !item.owner_user_id || item.owner_user_id === me.user_id));
   const groups = (navGroups || cloudShellNavGroups(cloudId, capabilities, { isOwner, showOwnerOnly }))
     .map((group) => ({ ...group, items: group.items.filter((item) => !item.disabled) })).filter((group) => group.items.length);
-  const pageTitle = title || titleFor(active) || 'Brand Cloud';
+  const pageTitle = translate(title || titleFor(active) || 'Brand Cloud');
 
   useEffect(() => {
     if (!mobileOpen) return undefined;
@@ -90,7 +90,7 @@ export function CloudConsoleShell({ me, cloud = null, clouds = [], active = 'my-
     </header>
     <button type="button" className={`mobile-nav-overlay ${mobileOpen ? 'open' : ''}`} aria-label={translate('Close navigation')} tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)} />
     <aside id="primary-navigation" ref={drawerRef} className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`} aria-label={translate('Primary navigation')}>
-      <div className="brand"><a href={isPlatform ? "/admin" : "/console/clouds"} aria-label="Realtek Connect+ home"><img src="/assets/realtek-logo.png" alt="Realtek" /><strong>Connect+</strong></a><button type="button" className="mobile-nav-close" aria-label={translate('Close navigation')} onClick={() => setMobileOpen(false)}>{icon('xmark')}</button></div>
+      <div className="brand"><a href={isPlatform ? "/admin" : "/console/clouds"} aria-label={translate("Realtek Connect+ home")}><img src="/assets/realtek-logo.png" alt={translate("Realtek")} /><strong>{translate("Connect+")}</strong></a><button type="button" className="mobile-nav-close" aria-label={translate('Close navigation')} onClick={() => setMobileOpen(false)}>{icon('xmark')}</button></div>
       <nav className="sidebar-nav-groups">
         {groups.map((group) => <section className="sidebar-nav-group" key={group.id}>
           <p className="sidebar-section-label">{translate(group.labelKey)}</p>
@@ -103,7 +103,7 @@ export function CloudConsoleShell({ me, cloud = null, clouds = [], active = 'my-
       <div className="sidebar-account"><span className="avatar">{initials(me?.email)}</span><div><strong>{isPlatform ? translate('Platform admin') : displayLabel(cloud?.my_role || 'developer')}</strong><small>{me?.email || translate('Loading account…')}</small></div></div>
     </aside>
     <main id="console-content" tabIndex={-1}>
-      <header className="topbar"><div className="topbar-title">{cloudId ? <nav className="ui-breadcrumb" aria-label="Breadcrumb"><a href="/console/clouds">My Clouds</a><span>/</span><a href={cloudConsolePath(cloudId)}>{cloud.name}</a></nav> : null}<h1>{pageTitle}</h1></div><div className="topbar-controls">
+      <header className="topbar"><div className="topbar-title">{cloudId ? <nav className="ui-breadcrumb" aria-label={translate("Breadcrumb")}><a href="/console/clouds">{translate("My Clouds")}</a><span>/</span><a href={cloudConsolePath(cloudId)}>{cloud.name}</a></nav> : null}<h1>{pageTitle}</h1></div><div className="topbar-controls">
         {isPlatform && <span className="topbar-context-badge">{translate('Platform Admin')}</span>}
         {/video-cloud-(dev|staging)/.test(window.location.hostname) && <span className="ui-environment">{translate(window.location.hostname.includes('-dev') ? 'Development' : 'Staging')}</span>}
         <select className="language-switcher" data-locale-selector value={activeLocale()} aria-label={translate('Language')} onChange={(event) => changeLocale(event.target.value)}>{Object.entries(LOCALE_LABELS).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select>

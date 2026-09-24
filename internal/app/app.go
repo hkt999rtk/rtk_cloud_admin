@@ -155,6 +155,12 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		w.Header().Set("Content-Language", preferredAPILocale(r))
+		w.Header().Add("Vary", "Cookie")
+		w.Header().Add("Vary", "X-RTK-Locale")
+		w.Header().Add("Vary", "Accept-Language")
+	}
 	if s.cfg.RetireLegacyCustomerRoutes && isRetiredLegacyCustomerPath(r.URL.Path) {
 		retiredCustomerRoute(w, r)
 		return
@@ -6254,7 +6260,7 @@ func (s *Server) apiDeactivateDevice(w http.ResponseWriter, r *http.Request) {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(v); err != nil {
+	if err := writeLocalizedJSON(w, v); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -6262,7 +6268,7 @@ func writeJSON(w http.ResponseWriter, v any) {
 func writeJSONStatus(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
+	if err := writeLocalizedJSON(w, v); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

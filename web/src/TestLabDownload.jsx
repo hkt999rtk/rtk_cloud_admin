@@ -1,3 +1,4 @@
+import { translate } from './i18n/index.mjs';
 import React, { useEffect, useState } from 'react';
 
 // Credential material stays in this mounted page only, never persistent storage.
@@ -26,13 +27,13 @@ export function TestLabDownload({ file, onSaved }) {
   }
 
   return <section className="test-lab-binding-form" aria-label={file.label}>
-    <h4><i className="fa-solid fa-file-arrow-down test-lab-icon" aria-hidden="true" />{file.label}</h4>
-    <p><strong>{file.saved ? 'Saved — download remains available.' : 'Ready to download — not yet confirmed saved.'}</strong> {file.name}</p>
-    <p>Contains a private key. Save it securely before refreshing, leaving this page or changing Product. The server does not retain the private key. Retrying this download uses the same file and does not create another device or key.</p>
-    {typeof window.showSaveFilePicker === 'function' && <button type="button" onClick={saveAs}>Save file…</button>}
-    {url && <a className="test-lab-download-link" href={url} download={file.name} onClick={() => setMessage('Download requested. Check your browser downloads; this page cannot confirm that the file was saved. You can retry this link.')}>Download {file.kind === 'device' ? 'device credentials' : 'provision key'}</a>}
-    <p>If your browser shows only a blob: URL, the file has not necessarily been saved. Keep this page open and use Save file… if available. Do not create another device to retry a download.</p>
-    <label><input type="checkbox" checked={file.saved} onChange={e => onSaved(e.target.checked)} /> I have saved this file securely</label>
+    <h4><i className="fa-solid fa-file-arrow-down test-lab-icon" aria-hidden="true" />{translate(file.label)}</h4>
+    <p><strong>{file.saved ? translate("Saved — download remains available.") : translate("Ready to download — not yet confirmed saved.")}</strong> {file.name}</p>
+    <p>{translate("Contains a private key. Save it securely before refreshing, leaving this page or changing Product. The server does not retain the private key. Retrying this download uses the same file and does not create another device or key.")}</p>
+    {typeof window.showSaveFilePicker === 'function' && <button type="button" onClick={saveAs}>{translate("Save file…")}</button>}
+    {url && <a className="test-lab-download-link" href={url} download={file.name} onClick={() => setMessage('Download requested. Check your browser downloads; this page cannot confirm that the file was saved. You can retry this link.')}>{translate("Download")} {file.kind === 'device' ? translate("device credentials") : translate("provision key")}</a>}
+    <p>{translate("If your browser shows only a blob: URL, the file has not necessarily been saved. Keep this page open and use Save file… if available. Do not create another device to retry a download.")}</p>
+    <label><input type="checkbox" checked={file.saved} onChange={e => onSaved(e.target.checked)} /> {translate("I have saved this file securely")}</label>
     {message && <p role="status">{message}</p>}
   </section>;
 }

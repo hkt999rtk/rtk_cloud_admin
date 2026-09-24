@@ -1,3 +1,4 @@
+import { activeLocale, translate } from './i18n/index.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { developerDocsURL, searchDeveloperDocs, documentationSnippet } from './developer-docs.mjs';
 import './developer-docs.css';
@@ -21,6 +22,7 @@ function SearchHighlight({ text, query }) {
 }
 
 export function DeveloperDocs() {
+  const locale = activeLocale();
   const [category, setCategory] = useState('');
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState('');
@@ -33,15 +35,17 @@ export function DeveloperDocs() {
   const href = (value = '') => developerDocsURL(value, window.location.search);
   useEffect(() => {
     const controller = new AbortController();
+    setCatalog(null);
+    setError('');
     // The catalog URL is stable across releases; always read the deployed revision.
-    fetch('/assets/developer-docs/index.en.json', { signal: controller.signal, cache: 'no-store' })
-      .then((response) => { if (!response.ok) throw new Error('Documents are temporarily unavailable. Please reload the page.'); return response.json(); })
+    fetch(`/assets/developer-docs/index.${locale}.json`, { signal: controller.signal, cache: 'no-store' })
+      .then((response) => { if (!response.ok) throw new Error(translate('Documents are temporarily unavailable. Please reload the page.')); return response.json(); })
       .then(setCatalog).catch((err) => { if (err.name !== 'AbortError') setError(err.message); });
     return () => controller.abort();
-  }, []);
+  }, [locale]);
   useEffect(() => {
     if (!page) return;
-    document.title = `${page.title} · Developer Docs`;
+    document.title = `${page.title} · ${translate('Developer Docs')}`;
     if (window.location.hash) document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView();
   }, [page]);
   useEffect(() => {
@@ -54,24 +58,24 @@ export function DeveloperDocs() {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'docs-copy-code';
-      button.textContent = 'Copy';
-      button.setAttribute('aria-label', `Copy code example ${index + 1}`);
+      button.textContent = translate('Copy');
+      button.setAttribute('aria-label', translate('Copy code example {{number}}', { number: index + 1 }));
       const copy = async () => {
         button.disabled = true;
-        button.textContent = 'Copying…';
+        button.textContent = translate('Copying…');
         try {
-          if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+          if (!navigator.clipboard?.writeText) throw new Error(translate('Clipboard unavailable'));
           await navigator.clipboard.writeText(text);
           if (active) {
-            button.textContent = 'Copied';
+            button.textContent = translate('Copied');
             button.removeAttribute('title');
-            setCopyStatus(`Code example ${index + 1} copied.`);
+            setCopyStatus(translate('Code example {{number}} copied.', { number: index + 1 }));
           }
         } catch {
           if (active) {
-            button.textContent = 'Copy unavailable';
-            button.title = 'Select the code and copy it manually.';
-            setCopyStatus(`Could not copy code example ${index + 1}. Select the code and copy it manually.`);
+            button.textContent = translate('Copy unavailable');
+            button.title = translate('Select the code and copy it manually.');
+            setCopyStatus(translate('Could not copy code example {{number}}. Select the code and copy it manually.', { number: index + 1 }));
           }
         } finally {
           if (active) button.disabled = false;
@@ -87,15 +91,15 @@ export function DeveloperDocs() {
       };
     });
     return () => { active = false; removers.forEach((remove) => remove()); };
-  }, [page, browsing]);
+  }, [page, browsing, locale]);
   function keepCloudContext(event) {
     const link = event.target.closest('a');
     if (!link || !link.pathname.startsWith('/console/')) return;
     const context = new URLSearchParams(window.location.search).get('cloudId');
     if (context) { const next = new URL(link.href); next.searchParams.set('cloudId', context); link.href = next.href; }
   }
-  if (error) return <section className="panel" role="alert">{error}</section>;
-  if (!catalog) return <section className="panel" role="status">Loading documentation…</section>;
+  if (error) return <section className="panel" role="alert">{translate(error)}</section>;
+  if (!catalog) return <section className="panel" role="status">{translate("Loading documentation…")}</section>;
   const matches = searchDeveloperDocs(catalog.pages, query);
   const results = matches.filter((item) => !category || item.category === category);
   const groups = [...new Set(catalog.pages.map((item) => item.category))];
@@ -106,43 +110,43 @@ export function DeveloperDocs() {
     if (value) next.searchParams.set('q', value); else next.searchParams.delete('q');
     window.history.replaceState(window.history.state, '', next);
   }
-  return <section className="developer-docs" lang="en">
-    {browsing ? <><p className="docs-intro">Build with MQTT and Device Shadow. <a href={href('documentation-map')}><DocsIcon name="compass" /> Find your learning path</a></p>
-    <label className="docs-mobile-chapters">Choose a chapter<select value={page?.slug || ''} onChange={(event) => window.location.assign(href(event.target.value))}><option value="">All documentation</option>{groups.map((group) => <optgroup key={group} label={group}>{catalog.pages.filter((item) => item.category === group).map((item) => <option key={item.slug} value={item.slug}>{item.title}</option>)}</optgroup>)}</select></label></> : <nav className="docs-breadcrumb" aria-label="Documentation navigation"><a href={href()}><DocsIcon name="arrow-left" /> Back to documents</a>{page ? <label className="docs-jump">On this page<select aria-label="Jump to section" defaultValue="" onChange={(event) => { window.location.hash = event.target.value; }}><option value="" disabled>Jump to section…</option>{page.headings.filter((heading) => heading.depth === 2).map((heading) => <option key={heading.anchor} value={heading.anchor}>{heading.title}</option>)}</select></label> : null}</nav>}
+  return <section className="developer-docs" lang={locale}>
+    {browsing ? <><p className="docs-intro">{translate("Build with MQTT and Device Shadow.")} <a href={href('documentation-map')}><DocsIcon name="compass" /> {translate("Find your learning path")}</a></p>
+    <label className="docs-mobile-chapters">{translate("Choose a chapter")}<select value={page?.slug || ''} onChange={(event) => window.location.assign(href(event.target.value))}><option value="">{translate("All documentation")}</option>{groups.map((group) => <optgroup key={group} label={translate(group)}>{catalog.pages.filter((item) => item.category === group).map((item) => <option key={item.slug} value={item.slug}>{translate(item.title)}</option>)}</optgroup>)}</select></label></> : <nav className="docs-breadcrumb" aria-label={translate("Documentation navigation")}><a href={href()}><DocsIcon name="arrow-left" /> {translate("Back to documents")}</a>{page ? <label className="docs-jump">{translate("On this page")}<select aria-label={translate("Jump to section")} defaultValue="" onChange={(event) => { window.location.hash = event.target.value; }}><option value="" disabled>{translate("Jump to section…")}</option>{page.headings.filter((heading) => heading.depth === 2).map((heading) => <option key={heading.anchor} value={heading.anchor}>{translate(heading.title)}</option>)}</select></label> : null}</nav>}
     <div className={`docs-layout ${browsing ? 'docs-browse' : 'docs-detail'}`}>
-      {browsing ? <nav className="docs-categories" aria-label="Documentation categories">
-        <h2>Browse documentation</h2>
-        <button type="button" aria-pressed={!category} onClick={() => setCategory('')}><DocsIcon name="layer-group" /><span>All documents</span><small>{matches.length}</small></button>
-        {groups.map((group) => <button type="button" key={group} aria-pressed={category === group} onClick={() => setCategory(group)}><DocsIcon name={categoryIcons[group]} /><span>{group}</span><small>{matches.filter((item) => item.category === group).length}</small></button>)}
+      {browsing ? <nav className="docs-categories" aria-label={translate("Documentation categories")}>
+        <h2>{translate("Browse documentation")}</h2>
+        <button type="button" aria-pressed={!category} onClick={() => setCategory('')}><DocsIcon name="layer-group" /><span>{translate("All documents")}</span><small>{matches.length}</small></button>
+        {groups.map((group) => <button type="button" key={group} aria-pressed={category === group} onClick={() => setCategory(group)}><DocsIcon name={categoryIcons[group]} /><span>{translate(group)}</span><small>{matches.filter((item) => item.category === group).length}</small></button>)}
       </nav> : null}
       <div className="docs-reading">
         {browsing ? <form className="docs-search panel" action="/console/developer-docs" role="search" onSubmit={(event) => event.preventDefault()}>
-          <label htmlFor="docs-query"><DocsIcon name="magnifying-glass" /> Search documentation</label>
-          <div><input id="docs-query" name="q" type="search" maxLength={200} value={query} onChange={(event) => updateQuery(event.target.value)} placeholder="Search topics, API paths, errors…" />
+          <label htmlFor="docs-query"><DocsIcon name="magnifying-glass" /> {translate("Search documentation")}</label>
+          <div><input id="docs-query" name="q" type="search" maxLength={200} value={query} onChange={(event) => updateQuery(event.target.value)} placeholder={translate("Search topics, API paths, errors…")} />
           {new URLSearchParams(window.location.search).get('cloudId') ? <input type="hidden" name="cloudId" value={new URLSearchParams(window.location.search).get('cloudId')} /> : null}
-          <button className="primary-button" type="submit">Search</button></div>
+          <button className="primary-button" type="submit">{translate("Search")}</button></div>
         </form> : null}
-        {!slug || query ? <div className="docs-results" aria-label="Documentation results">
-          <p role="status">{results.length} {results.length === 1 ? 'document' : 'documents'}{query ? ` matching “${query}”` : ''}</p>
-          {!results.length ? <p className="panel">No matching documents. Try MQTT, desired, certificate, or version.</p> : null}
+        {!slug || query ? <div className="docs-results" aria-label={translate("Documentation results")}>
+          <p role="status">{translate('documentCount', { count: results.length })}{query ? translate(' matching “{{query}}”', { query }) : ''}</p>
+          {!results.length ? <p className="panel">{translate("No matching documents. Try MQTT, desired, certificate, or version.")}</p> : null}
           {resultGroups.filter((group) => group.items.length).map((group) => <section className="docs-result-section" key={group.title}>
-            <h2 className="docs-result-group"><DocsIcon name={query.trim() ? 'magnifying-glass' : categoryIcons[group.title]} />{group.title}<span>{group.items.length}</span></h2>
+            <h2 className="docs-result-group"><DocsIcon name={query.trim() ? 'magnifying-glass' : categoryIcons[group.title]} />{translate(group.title)}<span>{group.items.length}</span></h2>
             <div className="docs-result-list">{group.items.map((item) => <article className="docs-result" key={item.slug}>
               <span className="docs-topic-icon"><DocsIcon name={topicIcons[item.slug] || categoryIcons[item.category]} /></span>
-              <div>{query.trim() ? <small className="docs-match-category">{item.category}</small> : null}<h3><a href={href(item.slug)}><SearchHighlight text={item.title} query={query} /></a></h3><p><SearchHighlight text={documentationSnippet(item, query)} query={query} /></p></div>
+              <div>{query.trim() ? <small className="docs-match-category">{translate(item.category)}</small> : null}<h3><a href={href(item.slug)}><SearchHighlight text={item.title} query={query} /></a></h3><p><SearchHighlight text={documentationSnippet(item, query)} query={query} /></p></div>
               <DocsIcon name="chevron-right" />
             </article>)}</div>
           </section>)}
         </div> : page ? <article className="panel docs-article" onClick={keepCloudContext}>
-          <header><p className="docs-category"><DocsIcon name={categoryIcons[page.category]} /> {page.category}</p><h2>{page.title}</h2><p>{page.description}</p><small>Last verified: {String(page.last_verified)} · {page.verification}</small>
-          <details><summary>Applicable versions</summary><pre>{typeof page.applies_to === 'string' ? page.applies_to : JSON.stringify(page.applies_to, null, 2)}</pre></details></header>
-          <details className="docs-toc"><summary>On this page</summary>{page.headings.filter((heading) => heading.depth === 2).map((heading) => <a href={`#${heading.anchor}`} key={heading.anchor}>{heading.title}</a>)}</details>
+          <header><p className="docs-category"><DocsIcon name={categoryIcons[page.category]} /> {translate(page.category)}</p><h2>{translate(page.title)}</h2><p>{translate(page.description)}</p><small>{translate("Last verified:")} {String(page.last_verified)} · {page.verification}</small>
+          <details><summary>{translate("Applicable versions")}</summary><pre>{typeof page.applies_to === 'string' ? page.applies_to : JSON.stringify(page.applies_to, null, 2)}</pre></details></header>
+          <details className="docs-toc"><summary>{translate("On this page")}</summary>{page.headings.filter((heading) => heading.depth === 2).map((heading) => <a href={`#${heading.anchor}`} key={heading.anchor}>{translate(heading.title)}</a>)}</details>
           {/* HTML is generated at build time from the curated source; raw HTML is rejected by the publisher. */}
           <p className="docs-copy-status" role="status" aria-live="polite" aria-atomic="true">{copyStatus}</p>
           <DocumentationBody bodyRef={contentRef} html={page.html} />
-        </article> : <div className="panel"><h2>Document not found</h2><a href={href()}>Browse all documentation</a></div>}
+        </article> : <div className="panel"><h2>{translate("Document not found")}</h2><a href={href()}>{translate("Browse all documentation")}</a></div>}
       </div>
-      {!browsing && page?.headings.some((heading) => heading.depth === 2) ? <nav className="docs-section-nav" aria-label="Article sections"><h2>On this page</h2>{page.headings.filter((heading) => heading.depth === 2).map((heading) => <a href={`#${heading.anchor}`} key={heading.anchor}>{heading.title}</a>)}</nav> : null}
+      {!browsing && page?.headings.some((heading) => heading.depth === 2) ? <nav className="docs-section-nav" aria-label={translate("Article sections")}><h2>{translate("On this page")}</h2>{page.headings.filter((heading) => heading.depth === 2).map((heading) => <a href={`#${heading.anchor}`} key={heading.anchor}>{translate(heading.title)}</a>)}</nav> : null}
     </div>
   </section>;
 }

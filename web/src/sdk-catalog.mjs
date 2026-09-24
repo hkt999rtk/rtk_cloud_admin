@@ -1,3 +1,5 @@
+import { translate } from './i18n/index.mjs';
+
 const FORMATS = Object.freeze({
   native: 'Static-library archive',
   android: 'Android AAR package',
@@ -8,7 +10,7 @@ const FORMATS = Object.freeze({
 });
 
 export function sdkArtifactFormat(slug) {
-  return FORMATS[slug] || 'SDK package';
+  return translate(FORMATS[slug] || 'SDK package');
 }
 
 export function formatSDKBytes(size) {

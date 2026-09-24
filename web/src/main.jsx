@@ -26,6 +26,7 @@ import { BrandCloudCreateDrawer } from './BrandCloudCreateDrawer.jsx';
 import { I18nextProvider } from 'react-i18next';
 import { feature } from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
+import worldCountryCodes from './world-country-codes.json';
 import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs';
 import { firmwareArtifactMetadata, formatFirmwareSize } from './firmwareArtifact.mjs';
 import {
@@ -225,6 +226,7 @@ async function fetchBrandCloudAccessData(cloudId, { includeAssignments = false }
 }
 
 function SDKPage({ docs = false }) {
+  const locale = activeLocale();
   const [context, setContext] = useState(null);
   const [failure, setFailure] = useState(null);
   const [attempt, setAttempt] = useState(0);
@@ -241,26 +243,29 @@ function SDKPage({ docs = false }) {
     const controller = new AbortController();
     setContext(null);
     setFailure(null);
-    document.title = `${docs ? 'Developer Docs' : 'ChipSet & SDK'} · RTK Cloud`;
     sdkJSON(`/api/developer/${docs ? 'console' : 'chipset-sdk'}/context${cloudID ? `?cloudId=${encodeURIComponent(cloudID)}` : ''}`, controller.signal)
       .then(value => { if (!controller.signal.aborted) { setContext(value); if (value.brand_cloud?.id) rememberCloudPreference(value.brand_cloud.id); } })
       .catch(error => { if (!controller.signal.aborted) authError(error.status || 503); });
     return () => controller.abort();
   }, [cloudID, attempt, authError, docs]);
+  useEffect(() => {
+    document.title = `${translate(docs ? 'Developer Docs' : 'ChipSet & SDK')} · RTK Cloud`;
+  }, [docs, locale]);
   const ready = !!context && !failure;
   const sdk = useSDKSection('/api/developer/sdk-releases/latest', ready && !docs && !burner && !board && !examples, authError);
   const chipsets = useSDKSection('/api/developer/chipsets', ready && !docs && !burner && !examples, authError);
   return <CloudConsoleShell me={context?.me} cloud={context?.brand_cloud} clouds={context?.brand_clouds || []} navigationPath={item => cloudConsolePath(context?.brand_cloud?.id || cloudID, item.id)} active={docs ? 'developer-docs' : 'chipset-sdk'} title={docs ? 'Developer Docs' : 'ChipSet & SDK'}>
-    {failure ? <section className="panel" role="alert"><h2>{[403,404].includes(failure) ? 'Access unavailable' : 'Unable to load developer resources'}</h2><p>{[403,404].includes(failure) ? 'This account or Brand Cloud is not available to the signed-in developer.' : 'Please sign in again or retry loading this page.'}</p><button type="button" onClick={() => setAttempt(n=>n+1)}>Retry page</button></section> : <>
-      {!context && <p role="status">Checking developer access…</p>}
-      {context?.cloud_list_status === 'unavailable' && <p role="status">Cloud list is temporarily unavailable. <button type="button" onClick={() => setAttempt(n=>n+1)}>Retry cloud list</button></p>}
-      {docs ? ready && <DeveloperDocs /> : examples ? ready && <Pro2CloudExamples /> : burner ? ready && <Pro2FirmwareBurner /> : board ? <><BoardPage route={board} data={ready ? chipsets.data : null} loading={!ready || chipsets.loading || !chipsets.data} ResourceLinks={ResourceLinks} />{chipsets.data?.source_status==='unavailable' && <button onClick={chipsets.retry}>Retry ChipSet catalog</button>}</> :
+    {failure ? <section className="panel" role="alert"><h2>{[403,404].includes(failure) ? translate("Access unavailable") : translate("Unable to load developer resources")}</h2><p>{[403,404].includes(failure) ? translate("This account or Brand Cloud is not available to the signed-in developer.") : translate("Please sign in again or retry loading this page.")}</p><button type="button" onClick={() => setAttempt(n=>n+1)}>{translate("Retry page")}</button></section> : <>
+      {!context && <p role="status">{translate("Checking developer access…")}</p>}
+      {context?.cloud_list_status === 'unavailable' && <p role="status">{translate("Cloud list is temporarily unavailable.")} <button type="button" onClick={() => setAttempt(n=>n+1)}>{translate("Retry cloud list")}</button></p>}
+      {docs ? ready && <DeveloperDocs /> : examples ? ready && <Pro2CloudExamples /> : burner ? ready && <Pro2FirmwareBurner /> : board ? <><BoardPage route={board} data={ready ? chipsets.data : null} loading={!ready || chipsets.loading || !chipsets.data} ResourceLinks={ResourceLinks} />{chipsets.data?.source_status==='unavailable' && <button onClick={chipsets.retry}>{translate("Retry ChipSet catalog")}</button>}</> :
         <DeveloperChipsetResources data={ready ? chipsets.data : null} sdkRelease={ready ? sdk.data : null} chipsetLoading={!ready || chipsets.loading || !chipsets.data} sdkLoading={!ready || sdk.loading || !sdk.data} toolsVisible={ready} retrySDK={sdk.retry} retryChipsets={chipsets.retry} />}
     </>}
   </CloudConsoleShell>;
 }
 
 function App() {
+  const locale = activeLocale();
   const urlCloudId = cloudIdFromPath(window.location.pathname);
   const apiPath = useCallback((path) => scopedCustomerAPI(path, urlCloudId), [urlCloudId]);
   const [active, setActive] = useState(routeFromLocation());
@@ -327,8 +332,8 @@ function App() {
 
   useEffect(() => {
     if (active === 'login') return;
-    document.title = `${titleFor(active)} · RTK Cloud`;
-  }, [active]);
+    document.title = `${translate(titleFor(active))} · RTK Cloud`;
+  }, [active, locale]);
 
   useEffect(() => {
     const canonicalPath = canonicalCustomerPath(window.location.pathname);
@@ -1223,14 +1228,14 @@ function App() {
   }
 
   if (isNotFoundRoute) {
-    return <CloudConsoleShell me={me} active={active} title="Page not found" navGroups={[]} onLogout={handleLogout} onSwitchView={handleSwitchView} onError={setError}>
+    return <CloudConsoleShell me={me} active={active} title={translate("Page not found")} navGroups={[]} onLogout={handleLogout} onSwitchView={handleSwitchView} onError={setError}>
       <NotFoundPage me={me} />
     </CloudConsoleShell>;
   }
 
   return (
     <CloudConsoleShell me={me} cloud={activeBrandCloud.id ? { ...activeBrandCloud, capabilities: me?.capabilities || [], my_role: activeBrandCloud.my_role || getActiveMembership(me)?.role } : null} clouds={developerBrandClouds} active={active} title={active === 'overview' ? 'Overview' : titleFor(active)} navGroups={visibleNavGroups} onNavigate={navigate} navigationPath={pathForNavigationItem} onSwitchCloud={handleSwitchOrg} onLogout={handleLogout} onSwitchView={handleSwitchView} onError={setError}>
-        {error ? <div className="error">{error}</div> : null}
+        {error ? <div className="error">{translate(error)}</div> : null}
 
         {needsPlatformAccess ? (
           <PlatformAccessGate
@@ -1238,7 +1243,7 @@ function App() {
             me={me}
           />
         ) : null}
-        {!needsPlatformAccess && customerViewPending ? <section className="panel split-panel"><div><h2>Loading session</h2><p>Checking customer access before loading dashboard data.</p></div></section> : null}
+        {!needsPlatformAccess && customerViewPending ? <section className="panel split-panel"><div><h2>{translate("Loading session")}</h2><p>{translate("Checking customer access before loading dashboard data.")}</p></div></section> : null}
         {!needsPlatformAccess && !customerViewPending && customerViewBlocked ? <CustomerAccessGate me={me} active={active} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && ['overview', 'access', 'settings'].includes(active) ? (
           <BrandCloudPage
@@ -1322,7 +1327,7 @@ function App() {
         </> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} products={products?.products || []} loading={loading} canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'reports.create')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
-        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <section className="panel"><h2>Select a cloud for Billing</h2><p>Billing is scoped to the cloud URL, not the shared active-cloud session.</p><a href="/console/clouds">Open My Clouds</a></section> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <section className="panel"><h2>{translate("Select a cloud for Billing")}</h2><p>{translate("Billing is scoped to the cloud URL, not the shared active-cloud session.")}</p><a href="/console/clouds">{translate("Open My Clouds")}</a></section> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
@@ -1331,8 +1336,8 @@ function App() {
         {!needsPlatformAccess && brandCloudsBlocked ? (
           <section className="panel split-panel">
             <div>
-              <h2>Brand Clouds requires Account Manager login</h2>
-              <p>Use an Account Manager-backed Platform Admin session to manage brand-cloud organizations and users.</p>
+              <h2>{translate("Brand Clouds requires Account Manager login")}</h2>
+              <p>{translate("Use an Account Manager-backed Platform Admin session to manage brand-cloud organizations and users.")}</p>
             </div>
           </section>
         ) : null}
@@ -1385,11 +1390,11 @@ function NotFoundPage({ me }) {
   return <section className="console-not-found panel" aria-labelledby="console-not-found-title">
     <div className="console-not-found-copy">
       <p className="console-not-found-code">404</p>
-      <h2 id="console-not-found-title">This console page is unavailable.</h2>
-      <p>The address may be outdated, or the page may have moved. Use a safe starting point to continue.</p>
+      <h2 id="console-not-found-title">{translate("This console page is unavailable.")}</h2>
+      <p>{translate("The address may be outdated, or the page may have moved. Use a safe starting point to continue.")}</p>
       <div className="console-not-found-actions">
         <a className="primary-button" href={destination}><i className="fa-solid fa-house" aria-hidden="true" />{destinationLabel}</a>
-        <button className="ghost-button" type="button" onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign(destination)}><i className="fa-solid fa-arrow-left" aria-hidden="true" />Go back</button>
+        <button className="ghost-button" type="button" onClick={() => window.history.length > 1 ? window.history.back() : window.location.assign(destination)}><i className="fa-solid fa-arrow-left" aria-hidden="true" />{translate("Go back")}</button>
       </div>
     </div>
     <div className="console-not-found-art" aria-hidden="true"><span className="console-not-found-ring ring-a" /><span className="console-not-found-ring ring-b" /><span className="console-not-found-cloud" /><span className="console-not-found-device"><i /><i /><i /></span></div>
@@ -1418,12 +1423,12 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
 
   useEffect(() => {
     if (active !== 'login') return;
-    document.title = platformLogin
+    document.title = translate(platformLogin
       ? 'Platform Admin sign in Connect+'
       : authMode === 'signup'
         ? 'Create account Connect+'
-        : 'Sign in Connect+';
-  }, [active, authMode, platformLogin]);
+        : 'Sign in Connect+');
+  }, [active, authMode, platformLogin, activeLocale()]);
 
   useEffect(() => {
     if (active !== 'login') return undefined;
@@ -1459,37 +1464,37 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
   return (
     <div className="login-shell service-login-shell">
       <header className="service-login-header">
-        <a className="login-brand" href="/login" aria-label="Realtek Connect+ sign in">
-          <img src="/assets/realtek-logo.png" alt="Realtek" />
+        <a className="login-brand" href="/login" aria-label={translate("Realtek Connect+ sign in")}>
+          <img src="/assets/realtek-logo.png" alt={translate("Realtek")} />
           <span className="service-brand-divider" aria-hidden="true" />
-          <strong>Connect+</strong>
+          <strong>{translate("Connect+")}</strong>
         </a>
-        <span className="service-console-label">{platformLogin ? 'Platform administration' : 'Developer console'}</span>
+        <span className="service-console-label">{platformLogin ? translate("Platform administration") : translate("Developer console")}</span>
         <select className="language-switcher" data-locale-selector value={activeLocale()} aria-label={translate('Language')} onChange={(event) => changeLocale(event.target.value)}>{Object.entries(LOCALE_LABELS).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select>
       </header>
       <main className="login-layout">
-        <aside className="service-login-story" aria-label="About Connect+">
+        <aside className="service-login-story" aria-label={translate("About Connect+")}>
           <div className="service-story-content">
-            <p className="service-story-eyebrow">REALTEK CLOUD SERVICES</p>
-            <h2>Your products. <br />Your cloud. <br /><span>Connected.</span></h2>
-            <p className="service-story-copy">A dedicated workspace for the people building and operating connected products.</p>
+            <p className="service-story-eyebrow">{translate("REALTEK CLOUD SERVICES")}</p>
+            <h2>{translate("Your products.")} <br />{translate("Your cloud.")} <br /><span>{translate("Connected.")}</span></h2>
+            <p className="service-story-copy">{translate("A dedicated workspace for the people building and operating connected products.")}</p>
             <ul className="service-story-features">
-              <li><i className="fa-solid fa-cubes" aria-hidden="true" /><div><strong>Build your product ecosystem</strong><span>Organize products and connect your devices.</span></div></li>
-              <li><i className="fa-solid fa-sliders" aria-hidden="true" /><div><strong>Bring operations together</strong><span>Manage your fleet, firmware and cloud services.</span></div></li>
-              <li><i className="fa-solid fa-code" aria-hidden="true" /><div><strong>Keep development moving</strong><span>Find SDKs, integration guides and technical resources.</span></div></li>
+              <li><i className="fa-solid fa-cubes" aria-hidden="true" /><div><strong>{translate("Build your product ecosystem")}</strong><span>{translate("Organize products and connect your devices.")}</span></div></li>
+              <li><i className="fa-solid fa-sliders" aria-hidden="true" /><div><strong>{translate("Bring operations together")}</strong><span>{translate("Manage your fleet, firmware and cloud services.")}</span></div></li>
+              <li><i className="fa-solid fa-code" aria-hidden="true" /><div><strong>{translate("Keep development moving")}</strong><span>{translate("Find SDKs, integration guides and technical resources.")}</span></div></li>
             </ul>
           </div>
-          <div className="service-story-footer"><span className="service-story-rule" aria-hidden="true" />From device to cloud.</div>
+          <div className="service-story-footer"><span className="service-story-rule" aria-hidden="true" />{translate("From device to cloud.")}</div>
         </aside>
         <section className="login-primary" aria-labelledby="login-title">
-          <p className="service-form-eyebrow">{platformLogin ? 'PLATFORM ACCESS' : 'WELCOME TO CONNECT+'}</p>
-          <h1 id="login-title">{pageHeading}</h1>
-          <p className="login-copy">{pageCopy}</p>
+          <p className="service-form-eyebrow">{platformLogin ? translate("PLATFORM ACCESS") : translate("WELCOME TO CONNECT+")}</p>
+          <h1 id="login-title">{translate(pageHeading)}</h1>
+          <p className="login-copy">{translate(pageCopy)}</p>
           {content}
           {error || socialLoginCallbackError(params.get('social_error')) ? <div className="error" role="alert">{error || socialLoginCallbackError(params.get('social_error'))}</div> : null}
         </section>
       </main>
-      <footer className="service-login-footer"><span>Realtek Connect+ · Cloud services</span><a href="https://www.realtek.com" target="_blank" rel="noreferrer noopener">Realtek corporate website <span aria-hidden="true">↗</span></a></footer>
+      <footer className="service-login-footer"><span>{translate("Realtek Connect+ · Cloud services")}</span><a href="https://www.realtek.com" target="_blank" rel="noreferrer noopener">{translate("Realtek corporate website")} <span aria-hidden="true">↗</span></a></footer>
     </div>
   );
 }
@@ -1497,7 +1502,7 @@ function LoginPage({ active, error, loading, onSignup, onLoginActivate, onPasswo
 function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSignup, onPasswordLogin, onSocialLogin, socialProviders, disabled, privacyPolicyURL }) {
   return (
     <div className="auth-stack">
-      {!platformLogin ? <div className="auth-mode-tabs" role="tablist" aria-label="Auth mode">
+      {!platformLogin ? <div className="auth-mode-tabs" role="tablist" aria-label={translate("Auth mode")}>
         <button
           type="button"
           className={mode === 'login' ? 'active' : ''}
@@ -1505,7 +1510,7 @@ function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSig
           aria-selected={mode === 'login'}
           onClick={() => onModeChange('login')}
         >
-          Sign in
+          {translate("Sign in")}
         </button>
         <button
           type="button"
@@ -1514,7 +1519,7 @@ function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSig
           aria-selected={mode === 'signup'}
           onClick={() => onModeChange('signup')}
         >
-          Create account
+          {translate("Create account")}
         </button>
       </div> : null}
       {!platformLogin && mode === 'signup' ? (
@@ -1522,7 +1527,7 @@ function LoginEntryForm({ initialEmail, mode, onModeChange, platformLogin, onSig
       ) : (
         <>
           <SocialLoginButtons providers={socialProviders} onSocialLogin={onSocialLogin} disabled={disabled} />
-          {socialProviders.length ? <div className="social-login-divider"><span>or continue with email</span></div> : null}
+          {socialProviders.length ? <div className="social-login-divider"><span>{translate("or continue with email")}</span></div> : null}
           <LoginPasswordForm initialEmail={initialEmail} onPasswordLogin={onPasswordLogin} disabled={disabled} />
         </>
       )}
@@ -1545,7 +1550,7 @@ function SocialLoginButtons({ providers = [], onSocialLogin, disabled }) {
     }
   }
   return (
-    <div className="social-login-stack" aria-label="Social sign-in options">
+    <div className="social-login-stack" aria-label={translate("Social sign-in options")}>
       {providers.map((provider) => <button
         key={provider.id}
         type="button"
@@ -1554,7 +1559,7 @@ function SocialLoginButtons({ providers = [], onSocialLogin, disabled }) {
         onClick={() => begin(provider)}
       >
         <i className={`fa-brands fa-${provider.id}`} aria-hidden="true" />
-        <span>{busyProvider === provider.id ? `Connecting to ${provider.name}` : `Continue with ${provider.name}`}</span>
+        <span>{busyProvider === provider.id ? translate("Connecting to {{value0}}", { value0: provider.name }) : translate("Continue with {{value0}}", { value0: provider.name })}</span>
       </button>)}
       {localError ? <p className="error" role="alert">{localError}</p> : null}
     </div>
@@ -1582,18 +1587,18 @@ function LoginPasswordForm({ initialEmail = '', onPasswordLogin, disabled }) {
   return (
     <form className="login-form" onSubmit={submit} aria-busy={busy}>
       <label>
-        Email
-        <input type="email" name="email" autoComplete="username" autoCapitalize="none" spellCheck={false} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
+        {translate("Email")}
+        <input type="email" name="email" autoComplete="username" autoCapitalize="none" spellCheck={false} value={email} onChange={(event) => setEmail(event.target.value)} placeholder={translate("name@company.com")} required />
       </label>
       <div className="service-password-field">
-        <label htmlFor="service-login-password">Password</label>
+        <label htmlFor="service-login-password">{translate("Password")}</label>
         <div className="service-password-control">
-          <input id="service-login-password" name="password" autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required />
-          <button type="button" className="service-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-controls="service-login-password" onClick={() => setShowPassword(value => !value)}><i className={`fa-regular ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true" /></button>
+          <input id="service-login-password" name="password" autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={translate("Enter your password")} required />
+          <button type="button" className="service-password-toggle" aria-label={showPassword ? translate('Hide password') : translate('Show password')} aria-controls="service-login-password" onClick={() => setShowPassword(value => !value)}><i className={`fa-regular ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true" /></button>
         </div>
       </div>
-      <button type="submit" disabled={busy || disabled}>{busy ? 'Signing in' : 'Sign in'}</button>
-      <a className="auth-link" href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}>Forgot password?</a>
+      <button type="submit" disabled={busy || disabled}>{busy ? translate("Signing in") : translate("Sign in")}</button>
+      <a className="auth-link" href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}>{translate("Forgot password?")}</a>
       {localError ? <p className="error" role="alert">{localError}</p> : null}
     </form>
   );
@@ -1602,10 +1607,10 @@ function LoginPasswordForm({ initialEmail = '', onPasswordLogin, disabled }) {
 function LoginCheckEmail({ email }) {
   return (
     <div className="auth-stack">
-      <p>Check your email for a sign-in link.</p>
-      <p className="auth-status">If an eligible account exists, the link will activate this browser session.</p>
+      <p>{translate("Check your email for a sign-in link.")}</p>
+      <p className="auth-status">{translate("If an eligible account exists, the link will activate this browser session.")}</p>
       {email ? <p className="auth-meta">{email}</p> : null}
-      <a className="auth-link" href="/login">Back to sign in</a>
+      <a className="auth-link" href="/login">{translate("Back to sign in")}</a>
     </div>
   );
 }
@@ -1645,12 +1650,12 @@ function LoginActivateView({ token, onLoginActivate }) {
   return (
     <div className="auth-stack">
       <form className="auth-inline" onSubmit={submit}>
-        <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="Sign-in token" required />
-        <button type="submit" disabled={busy}>{busy ? 'Activating' : 'Activate'}</button>
+        <input value={value} onChange={(event) => setValue(event.target.value)} placeholder={translate("Sign-in token")} required />
+        <button type="submit" disabled={busy}>{busy ? translate("Activating") : translate("Activate")}</button>
       </form>
       <p className="auth-status">{status}</p>
-      {error ? <p className="error">{error}</p> : null}
-      <a className="auth-link" href="/login">Request a new sign-in link</a>
+      {error ? <p className="error">{translate(error)}</p> : null}
+      <a className="auth-link" href="/login">{translate("Request a new sign-in link")}</a>
     </div>
   );
 }
@@ -1676,13 +1681,13 @@ function ForgotPasswordView({ email, onForgotPassword }) {
   return (
     <form className="login-form" onSubmit={submit}>
       <label>
-        Email
-        <input type="email" value={value} onChange={(event) => setValue(event.target.value)} placeholder="name@company.com" required />
+        {translate("Email")}
+        <input type="email" value={value} onChange={(event) => setValue(event.target.value)} placeholder={translate("name@company.com")} required />
       </label>
-      <button type="submit" disabled={busy}>{busy ? 'Sending' : 'Send reset link'}</button>
+      <button type="submit" disabled={busy}>{busy ? translate("Sending") : translate("Send reset link")}</button>
       {status ? <p className="auth-status">{status}</p> : null}
-      {error ? <p className="error">{error}</p> : null}
-      <a className="auth-link" href="/login">Back to sign in</a>
+      {error ? <p className="error">{translate(error)}</p> : null}
+      <a className="auth-link" href="/login">{translate("Back to sign in")}</a>
     </form>
   );
 }
@@ -1732,11 +1737,11 @@ function ResetPasswordView({ token, email, onResetPassword }) {
         <div className="reset-link-status success">
           <span className="reset-link-status-icon" aria-hidden="true">✓</span>
           <div>
-            <strong>Password updated</strong>
-            <p>Your new password is ready. You can now sign in to your account.</p>
+            <strong>{translate("Password updated")}</strong>
+            <p>{translate("Your new password is ready. You can now sign in to your account.")}</p>
           </div>
         </div>
-        <a className="auth-primary-action" href={`/login${completedEmail ? `?email=${encodeURIComponent(completedEmail)}` : ''}`}>Continue to sign in</a>
+        <a className="auth-primary-action" href={`/login${completedEmail ? `?email=${encodeURIComponent(completedEmail)}` : ''}`}>{translate("Continue to sign in")}</a>
       </div>
     );
   }
@@ -1747,12 +1752,12 @@ function ResetPasswordView({ token, email, onResetPassword }) {
         <div className="reset-link-status invalid" role="alert">
           <span className="reset-link-status-icon" aria-hidden="true">!</span>
           <div>
-            <strong>This reset link is not valid</strong>
-            <p>Request a new email to continue. Reset links can expire or be used only once.</p>
+            <strong>{translate("This reset link is not valid")}</strong>
+            <p>{translate("Request a new email to continue. Reset links can expire or be used only once.")}</p>
           </div>
         </div>
-        <a className="auth-primary-action" href="/forgot-password">Request a new reset link</a>
-        <a className="auth-link" href="/login">Back to sign in</a>
+        <a className="auth-primary-action" href="/forgot-password">{translate("Request a new reset link")}</a>
+        <a className="auth-link" href="/login">{translate("Back to sign in")}</a>
       </div>
     );
   }
@@ -1763,23 +1768,23 @@ function ResetPasswordView({ token, email, onResetPassword }) {
       <div className="reset-link-status">
         <span className="reset-link-status-icon" aria-hidden="true">✓</span>
         <div>
-          <strong>Secure reset link recognized</strong>
-          <p>Your reset code is hidden and will be submitted securely.</p>
+          <strong>{translate("Secure reset link recognized")}</strong>
+          <p>{translate("Your reset code is hidden and will be submitted securely.")}</p>
         </div>
       </div>
       <label>
-        New password
-        <input type="password" autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setLocalError(''); }} placeholder="At least 8 characters" minLength={8} required />
+        {translate("New password")}
+        <input type="password" autoComplete="new-password" value={password} onChange={(event) => { setPassword(event.target.value); setLocalError(''); }} placeholder={translate("At least 8 characters")} minLength={8} required />
       </label>
       <label>
-        Confirm new password
-        <input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setLocalError(''); }} placeholder="Enter the new password again" minLength={8} aria-invalid={passwordsDoNotMatch} required />
+        {translate("Confirm new password")}
+        <input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setLocalError(''); }} placeholder={translate("Enter the new password again")} minLength={8} aria-invalid={passwordsDoNotMatch} required />
       </label>
-      <p className="password-requirement">Use at least 8 characters.</p>
-      {passwordsDoNotMatch ? <p className="field-error" role="alert">Passwords do not match.</p> : null}
-      <button type="submit" disabled={busy || passwordsDoNotMatch}>{busy ? 'Updating password' : 'Update password'}</button>
-      {error && !passwordsDoNotMatch ? <p className="error">{error}</p> : null}
-      <a className="auth-link" href="/login">Back to sign in</a>
+      <p className="password-requirement">{translate("Use at least 8 characters.")}</p>
+      {passwordsDoNotMatch ? <p className="field-error" role="alert">{translate("Passwords do not match.")}</p> : null}
+      <button type="submit" disabled={busy || passwordsDoNotMatch}>{busy ? translate("Updating password") : translate("Update password")}</button>
+      {error && !passwordsDoNotMatch ? <p className="error">{translate(error)}</p> : null}
+      <a className="auth-link" href="/login">{translate("Back to sign in")}</a>
     </form>
   );
 }
@@ -1791,10 +1796,10 @@ function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify
 
   return (
     <div className="public-auth-shell">
-      <section className="auth-hero"><a href="/login" aria-label="Realtek Connect+ sign in"><img src="/assets/realtek-logo.png" alt="Realtek" /></a>
-        <p className="eyebrow">Evaluation tier access</p>
-        <h1>{titleFor(active)}</h1>
-        <p>Self-service signup and verification for the public evaluation tier.</p>
+      <section className="auth-hero"><a href="/login" aria-label={translate("Realtek Connect+ sign in")}><img src="/assets/realtek-logo.png" alt={translate("Realtek")} /></a>
+        <p className="eyebrow">{translate("Evaluation tier access")}</p>
+        <h1>{translate(titleFor(active))}</h1>
+        <p>{translate("Self-service signup and verification for the public evaluation tier.")}</p>
       </section>
       <section className="panel auth-panel">
         {active === 'signup' ? (
@@ -1806,7 +1811,7 @@ function PublicAuthPage({ active, error, onSignup, onCheckVerification, onVerify
         ) : (
           <VerifyForm token={token} onCheckVerification={onCheckVerification} onVerify={onVerify} />
         )}
-        {error ? <div className="error">{error}</div> : null}
+        {error ? <div className="error">{translate(error)}</div> : null}
       </section>
     </div>
   );
@@ -1837,16 +1842,16 @@ function SignupForm({ onSignup, disabled = false, privacyPolicyURL }) {
   return (
     <form className="auth-form" onSubmit={submit}>
       <label>
-        Email
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" required />
+        {translate("Email")}
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={translate("name@company.com")} required />
       </label>
       <label className="auth-honeypot">
-        Leave this field empty
+        {translate("Leave this field empty")}
         <input value={honeypot} onChange={(event) => setHoneypot(event.target.value)} tabIndex={-1} autoComplete="off" />
       </label>
-      <button type="submit" disabled={busy || disabled || !!honeypot}>Create account</button>
-      {privacyPolicyURL ? <p className="auth-terms">By creating an account, you acknowledge that you have read our <a href={privacyPolicyURL} target="_blank" rel="noreferrer noopener">Privacy Policy</a>. We collect and use your email address to create and manage your account and to send service-related communications.</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      <button type="submit" disabled={busy || disabled || !!honeypot}>{translate("Create account")}</button>
+      {privacyPolicyURL ? <p className="auth-terms">{translate("By creating an account, you acknowledge that you have read our")} <a href={privacyPolicyURL} target="_blank" rel="noreferrer noopener">{translate("Privacy Policy")}</a>{translate(". We collect and use your email address to create and manage your account and to send service-related communications.")}</p> : null}
+      {error ? <p className="error">{translate(error)}</p> : null}
     </form>
   );
 }
@@ -1877,13 +1882,13 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
 
   return (
     <div className="auth-stack">
-      <p>We sent a verification link to {email || 'your email address'}.</p>
+      <p>{translate("We sent a verification link to")} {email || translate("your email address")}.</p>
       <form className="auth-inline" onSubmit={resend}>
-        <input type="email" value={resendEmail} onChange={(event) => setResendEmail(event.target.value)} placeholder="Email address" required />
-        <button type="submit" disabled={busy}>Resend</button>
+        <input type="email" value={resendEmail} onChange={(event) => setResendEmail(event.target.value)} placeholder={translate("Email address")} required />
+        <button type="submit" disabled={busy}>{translate("Resend")}</button>
       </form>
       {status ? <p className="auth-status">{status}</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="error">{translate(error)}</p> : null}
     </div>
   );
 }
@@ -1891,10 +1896,10 @@ function CheckEmailInterstitial({ email, onResendVerification }) {
 function ExpiredVerificationPage() {
   return (
     <div className="auth-stack expired-verification-page">
-      <h2>Verification link expired</h2>
-      <p>Your account was not verified. Start Sign Up again to receive a new verification email.</p>
-      <a className="primary-button auth-primary-link" href="/signup">Sign up again</a>
-      <a className="auth-link" href="/login">Back to Login</a>
+      <h2>{translate("Verification link expired")}</h2>
+      <p>{translate("Your account was not verified. Start Sign Up again to receive a new verification email.")}</p>
+      <a className="primary-button auth-primary-link" href="/signup">{translate("Sign up again")}</a>
+      <a className="auth-link" href="/login">{translate("Back to Login")}</a>
     </div>
   );
 }
@@ -1951,17 +1956,17 @@ function VerifyForm({ token, onCheckVerification, onVerify }) {
 
   return (
     <div className="auth-stack">
-      <p>Verify your email and create the password you will use to log in.</p>
+      <p>{translate("Verify your email and create the password you will use to log in.")}</p>
       {linkStatus === 'valid' ? <form className="auth-form" onSubmit={submit}>
         <label>
-          New password
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
+          {translate("New password")}
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={translate("At least 8 characters")} minLength={8} required />
         </label>
-        <button type="submit" disabled={busy || !tokenValue}>{busy ? 'Verifying' : 'Verify and continue'}</button>
+        <button type="submit" disabled={busy || !tokenValue}>{busy ? translate("Verifying") : translate("Verify and continue")}</button>
       </form> : null}
       <p className="auth-status">{status}</p>
-      {error ? <p className="error">{error}</p> : null}
-      {linkStatus === 'invalid' ? <a className="auth-link" href="/signup">Sign up again</a> : null}
+      {error ? <p className="error">{translate(error)}</p> : null}
+      {linkStatus === 'invalid' ? <a className="auth-link" href="/signup">{translate("Sign up again")}</a> : null}
     </div>
   );
 }
@@ -2010,24 +2015,24 @@ function QuotaRaiseForm({ organizationId, organizationName, currentUsage, curren
     <form className="quota-form" onSubmit={submit}>
       <p className="auth-status">{quotaUsageLabel(currentUsage, currentQuota)}</p>
       <label>
-        Requested quota
+        {translate("Requested quota")}
         <input type="number" min="1" max="200" value={requestedQuota} onChange={(event) => setRequestedQuota(event.target.value)} />
       </label>
       <label>
-        Use case
-        <input value={useCase} onChange={(event) => setUseCase(event.target.value)} placeholder="Why do you need more devices?" required />
+        {translate("Use case")}
+        <input value={useCase} onChange={(event) => setUseCase(event.target.value)} placeholder={translate("Why do you need more devices?")} required />
       </label>
       <label>
-        Contact email
+        {translate("Contact email")}
         <input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} required />
       </label>
       <label>
-        Contact name
+        {translate("Contact name")}
         <input value={contactName} onChange={(event) => setContactName(event.target.value)} />
       </label>
-      <button type="submit" disabled={busy}>Request quota raise</button>
+      <button type="submit" disabled={busy}>{translate("Request quota raise")}</button>
       {lastStatus ? <p className="auth-status">{lastStatus}</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="error">{translate(error)}</p> : null}
     </form>
   );
 }
@@ -2067,19 +2072,19 @@ function BrandCloudPage({
   return <section className="brand-cloud-page">
     <header className="brand-cloud-header">
       <div>
-        <p className="eyebrow">Brand Cloud</p>
+        <p className="eyebrow">{translate("Brand Cloud")}</p>
         <h2>{cloud.name}</h2>
         <p>{cloud.id || translate('No Brand Cloud selected')}</p>
       </div>
     </header>
-    <nav className="brand-cloud-tabs" aria-label="Brand Cloud sections">
+    <nav className="brand-cloud-tabs" aria-label={translate("Brand Cloud sections")}>
       {tabs.map((tab) => <button
         type="button"
         key={tab.id}
         className={active === tab.id ? 'active' : ''}
         aria-current={active === tab.id ? 'page' : undefined}
         onClick={() => onNavigate(tab.id)}
-      >{tab.label}</button>)}
+      >{translate(tab.label)}</button>)}
     </nav>
     {active === 'overview' ? <Overview
       key={cloud.id}
@@ -2141,7 +2146,7 @@ function TeamSummaryCard({ data, loading, me, onOpen }) {
     {unavailable ? <p className="empty-state">{sourceMessage(data, translate('Team data is temporarily unavailable.'))}</p> : null}
     {!loading && !unavailable ? <div className="team-summary-grid">
       <div><small>{translate('Members')}</small><strong>{members.length}</strong></div>
-      <div><small>Owner</small><strong>{owner?.display_name || owner?.email || '—'}</strong></div>
+      <div><small>{translate("Owner")}</small><strong>{owner?.display_name || owner?.email || '—'}</strong></div>
       <div><small>{translate('Pending Invitations')}</small><strong>{pendingInvitations.length}</strong></div>
       <div><small>{translate('My Role')}</small><strong>{role}</strong></div>
     </div> : null}
@@ -2170,9 +2175,9 @@ function Overview({
 }) {
   const [conceptGuideOpen, setConceptGuideOpen] = useState(false);
   const nextSteps = [
-    { route: 'product-services', text: 'manage product settings in ', label: 'Products' },
-    { route: 'test-lab', text: 'test device interactions in ', label: 'Cloud Test Lab' },
-    { route: 'devices', text: 'investigate individual devices in ', label: 'Fleet Management' },
+    { route: 'product-services', text: 'manage product settings in', label: 'Products' },
+    { route: 'test-lab', text: 'test device interactions in', label: 'Cloud Test Lab' },
+    { route: 'devices', text: 'investigate individual devices in', label: 'Fleet Management' },
   ].filter(step => cloudId && canAccessCustomerRoute(step.route, me?.capabilities));
   const activeMembership = getActiveMembership(me);
   const tierLabel = formatTierLabel(activeMembership?.tier);
@@ -2233,18 +2238,18 @@ function Overview({
     <div className="overview-layout">
       <div className="page-intro overview-concept-intro">
         <div>
-          <p className="eyebrow">DEVELOPER CONSOLE</p>
+          <p className="eyebrow">{translate("DEVELOPER CONSOLE")}</p>
           <h2>{translate('Cloud Overview')}</h2>
-          <p>See device connectivity, activity and health across your cloud.</p>
+          <p>{translate("See device connectivity, activity and health across your cloud.")}</p>
           {nextSteps.length > 0 && <p className="overview-next-steps">{nextSteps.map((step, index) => <React.Fragment key={step.route}>
-            {index > 0 && (index === nextSteps.length - 1 ? (nextSteps.length === 2 ? ' and ' : ', and ') : ', ')}
-            {index === 0 ? step.text.charAt(0).toUpperCase() + step.text.slice(1) : step.text}
-            <a href={cloudConsolePath(cloudId, step.route)}>{step.label}</a>
+            {index > 0 && (index === nextSteps.length - 1 ? (nextSteps.length === 2 ? translate(" and ") : translate(", and ")) : ', ')}
+            {translate(index === 0 ? step.text.charAt(0).toUpperCase() + step.text.slice(1) : step.text)}{' '}
+            <a href={cloudConsolePath(cloudId, step.route)}>{translate(step.label)}</a>
           </React.Fragment>)}.</p>}
         </div>
-        <button type="button" className="overview-concept-trigger" aria-haspopup="dialog" onClick={() => setConceptGuideOpen(true)}>Cloud concepts</button>
+        <button type="button" className="overview-concept-trigger" aria-haspopup="dialog" onClick={() => setConceptGuideOpen(true)}>{translate("Cloud concepts")}</button>
       </div>
-      {conceptGuideOpen && <Dialog variant="drawer" title="Clouds, products & devices" onClose={() => setConceptGuideOpen(false)}><CloudConceptGuide /></Dialog>}
+      {conceptGuideOpen && <Dialog variant="drawer" title={translate("Clouds, products & devices")} onClose={() => setConceptGuideOpen(false)}><CloudConceptGuide /></Dialog>}
       <section className="metrics overview-metrics">
         <MetricCard icon="video" label="Online" value={Number.isFinite(onlineCount) ? `${onlineCount} / ${onlineTotal ?? onlineCount}` : 'Unknown'} hint={onlineUnknown > 0 ? `${onlineUnknown} devices have unknown presence` : 'Provisioned devices currently online'} tone="info" />
         <MetricCard icon="chart-line" label="7-day Online Rate" value={onlineRate == null ? 'N/A' : formatPercent(onlineRate)} hint={coverageRate == null ? 'Historical presence is accumulating' : `${formatPercent(coverageRate)} data coverage`} tone="info" />
@@ -2281,8 +2286,8 @@ function Overview({
       {me?.authenticated && isEvaluation && nearQuota ? (
         <section className="panel quota-callout">
           <div>
-            <h2>Evaluation quota</h2>
-            <p>{tierLabel} account for {activeMembership?.organization || 'your active organization'} is near its {quotaRatio} cap.</p>
+            <h2>{translate("Evaluation quota")}</h2>
+            <p>{tierLabel} {translate("account for")} {activeMembership?.organization || translate("your active organization")} {translate("is near its")} {quotaRatio} {translate("cap.")}</p>
           </div>
           <QuotaRaiseForm
             organizationId={activeMembership?.organization_id}
@@ -2325,7 +2330,7 @@ function RegionFleetPanel({ summary, loading }) {
           </div>
           <div className="region-map-desktop"><RegionMap regions={regions} max={max} /></div>
           <details className="region-map-mobile">
-            <summary>View map</summary>
+            <summary>{translate("View map")}</summary>
             <RegionMap regions={regions} max={max} />
           </details>
         </div>
@@ -2335,12 +2340,24 @@ function RegionFleetPanel({ summary, loading }) {
 }
 
 function RegionMap({ regions, max }) {
+  const locale = activeLocale();
+  const regionNames = useMemo(() => new Intl.DisplayNames(formatLocale(), { type: 'region' }), [locale]);
   const [viewport, setViewport] = useState(WORLD_VIEWPORT);
   const [hoveredRegion, setHoveredRegion] = useState(null);
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef(null);
   const zoom = 1000 / viewport.width;
   const regionPoints = regions.slice(0, 8).map(([region, count]) => ({ region, count, point: regionMapPoint(region) })).filter(({ point }) => point);
+
+  function countryName(country) {
+    const code = worldCountryCodes[country.id];
+    return code ? regionNames.of(code) : translate(country.properties.name);
+  }
+
+  function regionName(region) {
+    const country = WORLD_COUNTRIES.find(item => item.properties.name.toLowerCase() === String(region).toLowerCase());
+    return country ? countryName(country) : translate(region);
+  }
 
   function zoomBy(factor, anchorX = .5, anchorY = .5) {
     setViewport((current) => {
@@ -2389,7 +2406,7 @@ function RegionMap({ regions, max }) {
   function showCountry(event, country) {
     if (dragRef.current) return;
     const bounds = event.currentTarget.ownerSVGElement.getBoundingClientRect();
-    setHoveredRegion({ name: country.properties.name, x: event.clientX - bounds.left, y: event.clientY - bounds.top });
+    setHoveredRegion({ name: countryName(country), x: event.clientX - bounds.left, y: event.clientY - bounds.top });
   }
 
   return <div className="region-map-vector" aria-label={translate('Regional device distribution map')}>
@@ -2419,12 +2436,12 @@ function RegionMap({ regions, max }) {
             onPointerEnter={(event) => showCountry(event, country)}
             onPointerMove={(event) => showCountry(event, country)}
             onPointerLeave={() => setHoveredRegion(null)}
-          ><title>{country.properties.name}</title></path>)}
+          ><title>{countryName(country)}</title></path>)}
         </g>
         <g className="region-map-markers">
           {regionPoints.map(({ region, count, point: [x, y] }) => <g key={region}>
             <circle cx={x} cy={y} r={Math.max(9, Math.min(22, 9 + count / max * 13)) / zoom} />
-            <text x={x + 18 / zoom} y={y + 5 / zoom} style={{ fontSize: `${12 / zoom}px` }}>{region}</text>
+            <text x={x + 18 / zoom} y={y + 5 / zoom} style={{ fontSize: `${12 / zoom}px` }}>{regionName(region)}</text>
           </g>)}
         </g>
       </svg>
@@ -2501,8 +2518,8 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
     if (response.ok) onRefresh();
   }
   return <section className="page-content chipset-provider-page" data-testid="chipset-provider-page">
-    <div className="page-intro"><div><p className="eyebrow">Platform Catalog Management</p><h2 className="heading-with-icon"><Icon name="database" />ChipSet &amp; SDK Providers</h2><p>{translate('Manage Information Provider sources, publication state, and synchronization health for the platform catalog.')}</p></div><div className="page-intro-actions"><button type="button" className="ghost-button icon-text" onClick={onRefresh}><Icon name="rotate" />{translate('Refresh Status')}</button>{canEdit ? <button type="button" className="primary-button icon-text" onClick={() => setDrawer({ mode: 'create', provider: null })}><Icon name="plus" />{translate('Add Provider')}</button> : null}</div></div>
-    <section className="metrics chipset-provider-kpis" aria-label="ChipSet provider summary">
+    <div className="page-intro"><div><p className="eyebrow">{translate("Platform Catalog Management")}</p><h2 className="heading-with-icon"><Icon name="database" />{translate("ChipSet & SDK Providers")}</h2><p>{translate('Manage Information Provider sources, publication state, and synchronization health for the platform catalog.')}</p></div><div className="page-intro-actions"><button type="button" className="ghost-button icon-text" onClick={onRefresh}><Icon name="rotate" />{translate('Refresh Status')}</button>{canEdit ? <button type="button" className="primary-button icon-text" onClick={() => setDrawer({ mode: 'create', provider: null })}><Icon name="plus" />{translate('Add Provider')}</button> : null}</div></div>
+    <section className="metrics chipset-provider-kpis" aria-label={translate("ChipSet provider summary")}>
       <MetricCard icon="database" label="Providers" value={kpis.total} hint={`${kpis.published} published · ${kpis.total - kpis.published} not published`} tone="info" />
       <MetricCard icon="microchip" label="Published ChipSets" value={kpis.publishedChipsets} hint={`${kpis.publishedSDKs} SDK releases`} tone="info" />
       <MetricCard icon="clock-rotate-left" label="Last successful sync" value={kpis.lastSuccess ? formatRelativeTime(kpis.lastSuccess) : '—'} hint={kpis.lastSuccess ? 'background refresh healthy' : 'No successful sync'} tone="good" />
@@ -2511,10 +2528,10 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
     {staleProviders.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>{translate('{{name}} manifest is delayed', { name: staleProviders[0].name })}</strong><span>{translate('The last valid data remains available to downstream consumers. Check the provider endpoint.')}</span></div><button type="button" className="link-button icon-text" onClick={() => setDrawer({ mode: 'preview', provider: staleProviders[0] })}><Icon name="magnifying-glass" />{translate('View Error')}</button></div> : null}
     {message ? <div className="notice">{message}</div> : null}
     {loading && !data ? <section className="panel chipset-loading-state"><p>{translate('Loading providers…')}</p></section> : null}
-    {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Provider catalog unavailable</h3><p>{data.source_message}</p></div></section> : null}
-    {data?.source_status !== 'unavailable' ? <section className="panel chipset-provider-list-panel"><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search providers, ChipSets, or manifest versions')} aria-label={translate('Search ChipSet providers')} /><div className="chipset-filter-tabs" role="group" aria-label="Provider status filter">{[['all', translate('All')], ['published', 'Published'], ['draft', 'Draft'], ['stale', 'Stale']].map(([value, label]) => <button type="button" className={filter === value ? 'active' : ''} aria-pressed={filter === value} onClick={() => setFilter(value)} key={value}>{label}</button>)}</div></div><div className="table-wrap"><table className="data-table chipset-provider-table"><thead><tr><th>Provider</th><th>Status</th><th>Manifest</th><th>Resources</th><th>Last success</th><th>Sync health</th><th>Actions</th></tr></thead><tbody>{visibleProviders.map((provider) => {
+    {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate("Provider catalog unavailable")}</h3><p>{translate(data.source_message)}</p></div></section> : null}
+    {data?.source_status !== 'unavailable' ? <section className="panel chipset-provider-list-panel"><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search providers, ChipSets, or manifest versions')} aria-label={translate('Search ChipSet providers')} /><div className="chipset-filter-tabs" role="group" aria-label={translate("Provider status filter")}>{[['all', translate('All')], ['published', 'Published'], ['draft', 'Draft'], ['stale', 'Stale']].map(([value, label]) => <button type="button" className={filter === value ? 'active' : ''} aria-pressed={filter === value} onClick={() => setFilter(value)} key={value}>{label}</button>)}</div></div><div className="table-wrap"><table className="data-table chipset-provider-table"><thead><tr><th>{translate("Provider")}</th><th>{translate("Status")}</th><th>{translate("Manifest")}</th><th>{translate("Resources")}</th><th>{translate("Last success")}</th><th>{translate("Sync health")}</th><th>{translate("Actions")}</th></tr></thead><tbody>{visibleProviders.map((provider) => {
       const health = providerSyncHealth(provider);
-      return <tr key={provider.id}><td><strong>{provider.name}</strong><small>{provider.id} · HTTPS allowlisted</small></td><td><span className={`status-badge ${provider.status === 'published' ? 'good' : 'neutral'}`}>{provider.status}</span></td><td><strong>v{provider.manifest_version || '—'} · {compactHash(provider.manifest_sha256)}</strong><small>{provider.etag ? `ETag ${provider.etag}` : provider.last_modified ? `Last-Modified ${provider.last_modified}` : 'No cache validator'}</small></td><td>{provider.chipset_count || 0} ChipSets · {provider.sdk_release_count || 0} SDKs</td><td>{formatProviderTimestamp(provider.last_successful_refresh_at)}</td><td><span className={`status-badge ${health.key === 'healthy' ? 'good' : health.key === 'stale' ? 'warning' : health.key === 'unavailable' ? 'danger' : 'neutral'}`}>{health.label}</span>{health.detail ? <small className={health.key === 'healthy' ? '' : 'provider-error'}>{health.detail}</small> : null}</td><td><div className="chipset-row-actions"><button className="link-button" type="button" onClick={() => setDrawer({ mode: 'preview', provider })}>{translate('Preview')}</button>{canEdit && provider.status !== 'published' ? <button className="link-button" type="button" onClick={() => setDrawer({ mode: 'edit', provider })}>{translate('Edit')}</button> : null}{canPublish ? <>{provider.status === 'published' ? <button className="link-button" type="button" onClick={() => act(provider, 'unpublish')}>{translate('Unpublish')}</button> : <button className="link-button" type="button" onClick={() => act(provider, 'publish')}>{translate('Publish')}</button>}<button className="link-button" type="button" onClick={() => act(provider, 'refresh')}>{translate('Refresh')}</button></> : null}</div></td></tr>;
+      return <tr key={provider.id}><td><strong>{provider.name}</strong><small>{provider.id} {translate("· HTTPS allowlisted")}</small></td><td><span className={`status-badge ${provider.status === 'published' ? 'good' : 'neutral'}`}>{provider.status}</span></td><td><strong>v{provider.manifest_version || '—'} · {compactHash(provider.manifest_sha256)}</strong><small>{provider.etag ? translate("ETag {{value0}}", { value0: provider.etag }) : provider.last_modified ? translate("Last-Modified {{value0}}", { value0: provider.last_modified }) : translate("No cache validator")}</small></td><td>{provider.chipset_count || 0} {translate("ChipSets ·")} {provider.sdk_release_count || 0} {translate("SDKs")}</td><td>{formatProviderTimestamp(provider.last_successful_refresh_at)}</td><td><span className={`status-badge ${health.key === 'healthy' ? 'good' : health.key === 'stale' ? 'warning' : health.key === 'unavailable' ? 'danger' : 'neutral'}`}>{translate(health.label)}</span>{health.detail ? <small className={health.key === 'healthy' ? '' : 'provider-error'}>{translate(health.detail)}</small> : null}</td><td><div className="chipset-row-actions"><button className="link-button" type="button" onClick={() => setDrawer({ mode: 'preview', provider })}>{translate('Preview')}</button>{canEdit && provider.status !== 'published' ? <button className="link-button" type="button" onClick={() => setDrawer({ mode: 'edit', provider })}>{translate('Edit')}</button> : null}{canPublish ? <>{provider.status === 'published' ? <button className="link-button" type="button" onClick={() => act(provider, 'unpublish')}>{translate('Unpublish')}</button> : <button className="link-button" type="button" onClick={() => act(provider, 'publish')}>{translate('Publish')}</button>}<button className="link-button" type="button" onClick={() => act(provider, 'refresh')}>{translate('Refresh')}</button></> : null}</div></td></tr>;
     })}</tbody></table>{!providers.length ? <p className="empty-state">{translate('No Information Providers are available. Add a provider and complete validation preview before publishing.')}</p> : null}{providers.length && !visibleProviders.length ? <p className="empty-state">{translate('No providers match the current search or filters.')}</p> : null}</div></section> : null}
     {drawer ? <ChipsetProviderDrawer mode={drawer.mode} initialProvider={drawer.provider} canEdit={canEdit} canPublish={canPublish} onClose={() => setDrawer(null)} onRefresh={onRefresh} onMessage={setMessage} /> : null}
   </section>;
@@ -2533,36 +2550,36 @@ function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading =
   const vendors = useMemo(() => chipsetVendors(selected ? [selected] : []), [selected]);
   const visibleChipsets = useMemo(() => filterChipsets(selected ? [selected] : [], query, vendor, recommendedOnly), [selected, query, vendor, recommendedOnly]);
   return <section className="page-content chipset-resource-page" data-testid="chipset-resource-page">
-    <div className="page-intro"><div><p className="eyebrow">Developer Resources</p><p>Choose a chip to explore its SDKs, development boards, tools, and videos.</p></div></div>
-    <section className="panel chipset-selection" aria-label="Chip selection">
-      <label htmlFor="developer-chip"><Icon name="microchip" />Select Chip</label>
+    <div className="page-intro"><div><p className="eyebrow">{translate("Developer Resources")}</p><p>{translate("Choose a chip to explore its SDKs, development boards, tools, and videos.")}</p></div></div>
+    <section className="panel chipset-selection" aria-label={translate("Chip selection")}>
+      <label htmlFor="developer-chip"><Icon name="microchip" />{translate("Select Chip")}</label>
       <select id="developer-chip" className="input" value={selected?.id || selected?.chipset_key || ''} disabled={!chipsets.length} aria-describedby="chip-selection-help" onChange={(event) => { setSelectedChip(event.target.value); setQuery(''); setVendor('all'); setRecommendedOnly(false); }}>
-        {!chipsets.length ? <option value="">{loading ? 'Loading chips…' : 'No chips available'}</option> : chipsets.map((chipset) => <option key={chipset.id || chipset.chipset_key} value={chipset.id || chipset.chipset_key}>{chipset.name}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}</option>)}
+        {!chipsets.length ? <option value="">{loading ? translate("Loading chips…") : translate("No chips available")}</option> : chipsets.map((chipset) => <option key={chipset.id || chipset.chipset_key} value={chipset.id || chipset.chipset_key}>{chipset.name}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}</option>)}
       </select>
-      <p id="chip-selection-help">SDKs, boards, videos, and device tools below follow your selection.</p>
+      <p id="chip-selection-help">{translate("SDKs, boards, videos, and device tools below follow your selection.")}</p>
     </section>
     {toolsVisible && hasPRO2 ? <section className="sdk-catalog-section pro2-tool-section" aria-labelledby="device-tools-heading">
-      <div className="sdk-section-heading"><div><h2 id="device-tools-heading"><Icon name="screwdriver-wrench" />Device Tools</h2><p>Browser-based tools for bringing up and diagnosing hardware locally, before or alongside cloud provisioning.</p></div></div>
+      <div className="sdk-section-heading"><div><h2 id="device-tools-heading"><Icon name="screwdriver-wrench" />{translate("Device Tools")}</h2><p>{translate("Browser-based tools for bringing up and diagnosing hardware locally, before or alongside cloud provisioning.")}</p></div></div>
       <article className="panel pro2-tool-card">
         <span className="pro2-tool-icon" aria-hidden="true"><Icon name="microchip" /></span>
-        <div className="pro2-tool-copy"><div><p className="sdk-format">AMEBA PRO2 · WEB SERIAL</p><h3>Ameba PRO2 Firmware Burner</h3></div><p>Connect a board over USB UART, burn and verify a local firmware image, then continue in the live serial console. Firmware and UART data stay in your browser.</p><div className="pro2-tool-meta"><span><Icon name="laptop" />Desktop Chrome or Edge</span><span><Icon name="shield-halved" />No firmware upload</span><span><Icon name="bolt" />NOR / UART flow</span></div></div>
-        <a className="primary-button icon-text pro2-tool-action" href={PRO2_FIRMWARE_BURNER_PATH}><Icon name="arrow-right" />Open firmware burner</a>
+        <div className="pro2-tool-copy"><div><p className="sdk-format">{translate("AMEBA PRO2 · WEB SERIAL")}</p><h3>{translate("Ameba PRO2 Firmware Burner")}</h3></div><p>{translate("Connect a board over USB UART, burn and verify a local firmware image, then continue in the live serial console. Firmware and UART data stay in your browser.")}</p><div className="pro2-tool-meta"><span><Icon name="laptop" />{translate("Desktop Chrome or Edge")}</span><span><Icon name="shield-halved" />{translate("No firmware upload")}</span><span><Icon name="bolt" />{translate("NOR / UART flow")}</span></div></div>
+        <a className="primary-button icon-text pro2-tool-action" href={PRO2_FIRMWARE_BURNER_PATH}><Icon name="arrow-right" />{translate("Open firmware burner")}</a>
       </article>
     </section> : null}
-    {isPRO2 && <section className="panel"><h2>PRO2 Cloud Examples</h2><p>MQTT, H.264 test video and live camera: source, firmware, guides and browser burning.</p><a className="primary-button" href={PRO2_EXAMPLES_PATH}>Explore cloud examples</a></section>}
+    {isPRO2 && <section className="panel"><h2>{translate("PRO2 Cloud Examples")}</h2><p>{translate("MQTT, H.264 test video and live camera: source, firmware, guides and browser burning.")}</p><a className="primary-button" href={PRO2_EXAMPLES_PATH}>{translate("Explore cloud examples")}</a></section>}
     <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
-      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading"><Icon name="cloud" />Cloud Client SDKs</h2><p>App SDKs are shared across chips. Device packages are shown for the selected chip; the complete bundle contains the entire release. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>Release {sdkRelease.catalog.version}</strong><span>Terms {sdkRelease.catalog.terms_version}</span></div> : null}</div>
+      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading"><Icon name="cloud" />{translate("Cloud Client SDKs")}</h2><p>{translate("App SDKs are shared across chips. Device packages are shown for the selected chip; the complete bundle contains the entire release. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.")}</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>{translate("Release")} {sdkRelease.catalog.version}</strong><span>{translate("Terms")} {sdkRelease.catalog.terms_version}</span></div> : null}</div>
       {sdkLoading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
-      {!sdkLoading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>No Cloud Client SDK release yet</h3><p>{sdkRelease.source_message}</p></div></section> : null}
-      {!sdkLoading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Cloud Client SDKs are temporarily unavailable</h3><p>{sdkRelease.source_message}</p>{retrySDK ? <button type="button" onClick={retrySDK}>Retry SDK catalog</button> : null}</div></section> : null}
+      {!sdkLoading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>{translate("No Cloud Client SDK release yet")}</h3><p>{translate(sdkRelease.source_message)}</p></div></section> : null}
+      {!sdkLoading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate("Cloud Client SDKs are temporarily unavailable")}</h3><p>{translate(sdkRelease.source_message)}</p>{retrySDK ? <button type="button" onClick={retrySDK}>{translate("Retry SDK catalog")}</button> : null}</div></section> : null}
       {artifacts.length ? <div className="cloud-sdk-grid">{artifacts.map((artifact) => <CloudSDKCard artifact={artifact} release={sdkRelease} key={artifact.slug} />)}</div> : null}
     </section>
     <section className="sdk-catalog-section device-sdk-section" aria-labelledby="device-chipset-sdks-heading">
-      <div className="sdk-section-heading"><div><h2 id="device-chipset-sdks-heading"><Icon name="microchip" />Device &amp; ChipSet SDKs</h2><p>Find the official board SDKs, datasheets, examples, and support resources for the chipset used by your product.</p></div></div>
+      <div className="sdk-section-heading"><div><h2 id="device-chipset-sdks-heading"><Icon name="microchip" />{translate("Device & ChipSet SDKs")}</h2><p>{translate("Find the official board SDKs, datasheets, examples, and support resources for the chipset used by your product.")}</p></div></div>
       {chipsetLoading && !data ? <ChipsetCardSkeletons /> : null}
-      {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{data.source_message}</p>{retryChipsets ? <button type="button" onClick={retryChipsets}>Retry ChipSet catalog</button> : null}</div></section> : null}
+      {data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate('Resources are temporarily unavailable')}</h3><p>{translate(data.source_message)}</p>{retryChipsets ? <button type="button" onClick={retryChipsets}>{translate("Retry ChipSet catalog")}</button> : null}</div></section> : null}
       {!chipsetLoading && data?.source_status !== 'unavailable' && !chipsets.length ? <section className="panel split-panel"><div><h3>{translate('No published resources')}</h3><p>{translate('ChipSets and SDKs appear here after the platform publishes an Information Provider.')}</p></div></section> : null}
-      {!chipsetLoading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label="ChipSet filters"><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>Recommended SDK</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
+      {!chipsetLoading && data?.source_status !== 'unavailable' && chipsets.length ? <><div className="chipset-toolbar"><input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translate('Search ChipSets, vendors, SDKs, or supported models')} aria-label={translate('Search ChipSets and SDKs')} /><div className="chipset-filter-tabs" role="group" aria-label={translate("ChipSet filters")}><button type="button" className={vendor === 'all' && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(false); }}>{translate('All')}</button>{vendors.map((option) => <button type="button" className={vendor === option && !recommendedOnly ? 'active' : ''} onClick={() => { setVendor(option); setRecommendedOnly(false); }} key={option}>{option}</button>)}<button type="button" className={recommendedOnly ? 'active' : ''} onClick={() => { setVendor('all'); setRecommendedOnly(true); }}>{translate("Recommended SDK")}</button></div></div><ChipsetCards chipsets={visibleChipsets} showFreshness />{!visibleChipsets.length ? <section className="panel split-panel"><div><h3>{translate('No matching resources')}</h3><p>{translate('Adjust the search text or filters.')}</p></div></section> : null}</> : null}
     </section>
   </section>;
 }
@@ -2571,12 +2588,12 @@ function CloudSDKCard({ artifact, release }) {
   const docsURL = sdkDocumentationURL(release?.portal_url, artifact.slug);
   const isPreview = Boolean(release?.local_preview);
   return <article className={`panel cloud-sdk-card${artifact.slug === 'all' ? ' complete-bundle' : ''}`}>
-    <div className="cloud-sdk-card-heading"><div><p className="sdk-format"><i className={`${['android', 'javascript', 'ios'].includes(artifact.slug) ? 'fa-brands' : 'fa-solid'} fa-${sdkFormatIcon(artifact.slug)}`} aria-hidden="true" />{sdkArtifactFormat(artifact.slug)}</p><h3>{artifact.title}</h3></div><span className="status-badge good"><Icon name="circle-check" />{artifact.validation_status}</span></div>
-    <p>{artifact.description}</p>
-    <dl className="cloud-sdk-metadata"><div><dt>Version</dt><dd>{release.catalog.version}</dd></div><div><dt>Size</dt><dd>{formatSDKBytes(artifact.size_bytes)}</dd></div><div className="checksum-row"><dt>SHA-256</dt><dd><code>{artifact.sha256}</code></dd></div></dl>
-    <div className="sdk-capability-list" aria-label={`${artifact.title} capabilities`}>{artifact.capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div>
-    <ul className="sdk-limitations">{artifact.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul>
-    <div className="cloud-sdk-actions">{isPreview ? <button type="button" className="ghost-button" disabled title="Documentation links are enabled with a published Portal release">Documentation preview</button> : docsURL ? <a className="ghost-button" href={docsURL} target="_blank" rel="noreferrer noopener">Documentation <Icon name="arrow-up-right-from-square" /></a> : null}{isPreview ? <button type="button" className="primary-button" disabled title="Local preview does not create downloadable artifacts">Local preview</button> : <a className="primary-button" href={`${release.portal_url}#downloads`} target="_blank" rel="noreferrer noopener">Review terms &amp; download <Icon name="arrow-up-right-from-square" /></a>}</div>
+    <div className="cloud-sdk-card-heading"><div><p className="sdk-format"><i className={`${['android', 'javascript', 'ios'].includes(artifact.slug) ? 'fa-brands' : 'fa-solid'} fa-${sdkFormatIcon(artifact.slug)}`} aria-hidden="true" />{sdkArtifactFormat(artifact.slug)}</p><h3>{translate(artifact.title)}</h3></div><span className="status-badge good"><Icon name="circle-check" />{translate(artifact.validation_status)}</span></div>
+    <p>{translate(artifact.description)}</p>
+    <dl className="cloud-sdk-metadata"><div><dt>{translate("Version")}</dt><dd>{release.catalog.version}</dd></div><div><dt>{translate("Size")}</dt><dd>{formatSDKBytes(artifact.size_bytes)}</dd></div><div className="checksum-row"><dt>{translate("SHA-256")}</dt><dd><code>{artifact.sha256}</code></dd></div></dl>
+    <div className="sdk-capability-list" aria-label={translate("{{value0}} capabilities", { value0: artifact.title })}>{artifact.capabilities.map((capability) => <span key={capability}>{translate(capability)}</span>)}</div>
+    <ul className="sdk-limitations">{artifact.limitations.map((limitation) => <li key={limitation}>{translate(limitation)}</li>)}</ul>
+    <div className="cloud-sdk-actions">{isPreview ? <button type="button" className="ghost-button" disabled title={translate("Documentation links are enabled with a published Portal release")}>{translate("Documentation preview")}</button> : docsURL ? <a className="ghost-button" href={docsURL} target="_blank" rel="noreferrer noopener">{translate("Documentation")} <Icon name="arrow-up-right-from-square" /></a> : null}{isPreview ? <button type="button" className="primary-button" disabled title={translate("Local preview does not create downloadable artifacts")}>{translate("Local preview")}</button> : <a className="primary-button" href={`${release.portal_url}#downloads`} target="_blank" rel="noreferrer noopener">{translate("Review terms & download")} <Icon name="arrow-up-right-from-square" /></a>}</div>
   </article>;
 }
 
@@ -2585,16 +2602,16 @@ function sdkFormatIcon(slug) {
 }
 
 function CloudSDKCardSkeletons() {
-  return <div className="cloud-sdk-grid" aria-label="Loading Cloud Client SDKs">{[0, 1, 2].map((index) => <article className="panel cloud-sdk-card chipset-card-skeleton" key={index}><span /><span /><span /><span /></article>)}</div>;
+  return <div className="cloud-sdk-grid" aria-label={translate("Loading Cloud Client SDKs")}>{[0, 1, 2].map((index) => <article className="panel cloud-sdk-card chipset-card-skeleton" key={index}><span /><span /><span /><span /></article>)}</div>;
 }
 
 function ChipsetCards({ chipsets, showFreshness }) {
-	return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id || chipset.chipset_key}><div className="chipset-card-heading"><div className="chipset-vendor-mark" aria-hidden="true">{vendorInitials(chipset)}</div><div><h3>{chipset.name}</h3><p className="chipset-vendor-line">{chipset.vendor}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}{chipset.family ? ` · ${chipset.family} family` : ''}</p></div><span className={`status-badge ${chipset.stale ? 'warning' : 'good'}`}>{chipset.stale ? 'Stale' : 'Current'}</span></div><p>{chipset.description || 'ChipSet developer information'}</p><div className="chipset-card-meta"><span>{chipset.resources?.length || 0} product resources</span><span>{chipset.sdk_releases?.length || 0} SDK releases</span>{showFreshness ? <span>{translate('Last synchronized: {{time}}', { time: chipset.last_successful_refresh_at ? formatRelativeTime(chipset.last_successful_refresh_at) : 'unknown' })}</span> : null}</div>{chipset.resources?.some(resource => resource.type !== 'video') ? <section className="chipset-product-resources"><h4>{translate('Products and Support')}</h4><ResourceLinks resources={chipset.resources.filter(resource => resource.type !== 'video')} /></section> : null}<BoardCards chipset={chipset} />{chipset.sdk_releases?.length ? <h4 className="chipset-sdk-heading">SDK</h4> : null}{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{release.summary}</small> : null}</div>{release.recommended ? <span className="status-badge good">Recommended</span> : null}</div>{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="chipset-model-chip" key={model}>{model}</span>)}</div> : null}<ResourceLinks resources={release.endpoints.filter(resource => resource.type !== 'video')} compact /></section>)}<ChipsetVideos chipset={chipset} preview />{showFreshness ? <small className="chipset-provider-attribution">Information provided by {chipset.provider_name}</small> : null}</article>)}</div>;
+	return <div className="chipset-resource-grid">{chipsets.map((chipset) => <article className="panel chipset-card" key={chipset.id || chipset.chipset_key}><div className="chipset-card-heading"><div className="chipset-vendor-mark" aria-hidden="true">{vendorInitials(chipset)}</div><div><h3>{chipset.name}</h3><p className="chipset-vendor-line">{chipset.vendor}{chipset.ic_model ? ` · ${chipset.ic_model}` : ''}{chipset.family ? translate(" · {{value0}} family", { value0: chipset.family }) : ''}</p></div><span className={`status-badge ${chipset.stale ? 'warning' : 'good'}`}>{chipset.stale ? translate("Stale") : translate("Current")}</span></div><p>{chipset.description || translate("ChipSet developer information")}</p><div className="chipset-card-meta"><span>{chipset.resources?.length || 0} {translate("product resources")}</span><span>{chipset.sdk_releases?.length || 0} {translate("SDK releases")}</span>{showFreshness ? <span>{translate('Last synchronized: {{time}}', { time: chipset.last_successful_refresh_at ? formatRelativeTime(chipset.last_successful_refresh_at) : 'unknown' })}</span> : null}</div>{chipset.resources?.some(resource => resource.type !== 'video') ? <section className="chipset-product-resources"><h4>{translate('Products and Support')}</h4><ResourceLinks resources={chipset.resources.filter(resource => resource.type !== 'video')} /></section> : null}<BoardCards chipset={chipset} />{chipset.sdk_releases?.length ? <h4 className="chipset-sdk-heading">{translate("SDK")}</h4> : null}{chipset.sdk_releases?.map((release) => <section className="sdk-release" key={`${release.name}:${release.version}`}><div className="sdk-release-title"><div><strong>{release.name} · {release.version}</strong>{release.summary ? <small>{translate(release.summary)}</small> : null}</div>{release.recommended ? <span className="status-badge good">{translate("Recommended")}</span> : null}</div>{release.supported_models?.length ? <div className="chip-list">{release.supported_models.map((model) => <span className="chipset-model-chip" key={model}>{model}</span>)}</div> : null}<ResourceLinks resources={release.endpoints.filter(resource => resource.type !== 'video')} compact /></section>)}<ChipsetVideos chipset={chipset} preview />{showFreshness ? <small className="chipset-provider-attribution">{translate("Information provided by")} {chipset.provider_name}</small> : null}</article>)}</div>;
 }
 
 function ResourceLinks({ resources = [], compact = false }) {
 	const icons = { product: 'microchip', getting_started: 'rocket', documentation: 'book', datasheet: 'file-lines', github: 'code-branch', sdk: 'download', download: 'download', example: 'flask', tool: 'screwdriver-wrench', forum: 'comments', faq: 'circle-question', video: 'circle-play', support: 'headset', community: 'people-group' };
-	return <div className={`chipset-resource-links${compact ? ' compact' : ''}`}>{resources.map((resource) => <a key={`${resource.type}:${resource.url}`} href={resource.url} target="_blank" rel="noreferrer noopener" className="chipset-resource-link" title={resource.verified_at ? `Verified ${resource.verified_at}` : undefined}><span className="chipset-resource-link-title"><Icon name={icons[resource.type] || 'arrow-up-right-from-square'} /><strong>{resource.title}</strong></span>{resource.summary && !compact ? <small>{resource.summary}</small> : null}<span className="chipset-resource-link-meta">{resource.source ? <span className={`resource-source ${resource.source}`}>{resource.source === 'official' ? 'Official' : 'Community'}</span> : null}{resource.languages?.length ? <span>{resource.languages.join(' · ')}</span> : null}<Icon name="arrow-up-right-from-square" /></span></a>)}</div>;
+	return <div className={`chipset-resource-links${compact ? ' compact' : ''}`}>{resources.map((resource) => <a key={`${resource.type}:${resource.url}`} href={resource.url} target="_blank" rel="noreferrer noopener" className="chipset-resource-link" title={resource.verified_at ? translate("Verified {{value0}}", { value0: resource.verified_at }) : undefined}><span className="chipset-resource-link-title"><Icon name={icons[resource.type] || 'arrow-up-right-from-square'} /><strong>{translate(resource.title)}</strong></span>{resource.summary && !compact ? <small>{translate(resource.summary)}</small> : null}<span className="chipset-resource-link-meta">{resource.source ? <span className={`resource-source ${resource.source}`}>{resource.source === 'official' ? translate("Official") : translate("Community")}</span> : null}{resource.languages?.length ? <span>{resource.languages.join(' · ')}</span> : null}<Icon name="arrow-up-right-from-square" /></span></a>)}</div>;
 }
 
 function ChipsetCardSkeletons() {
@@ -2680,7 +2697,7 @@ function ChipsetProviderDrawer({ mode, initialProvider, canEdit, canPublish, onC
   const detailProvider = preview?.provider || provider;
   const endpointCount = providerEndpointCount(preview?.chipsets || []);
   const validationError = providerValidationErrorMessage(detailProvider);
-  return <div className="drawer-backdrop" role="presentation" onClick={onClose}><aside className="drawer-panel chipset-provider-drawer" role="dialog" aria-modal="true" aria-label="ChipSet provider drawer" onClick={(event) => event.stopPropagation()}><div className="drawer-header"><div><h2>{mode === 'create' ? translate('Add Information Provider') : mode === 'edit' ? translate('Edit Information Provider') : translate('Manifest Parsing Preview')}</h2><p>{translate('Create a draft, then synchronize and validate the manifest before publishing.')}</p></div><button type="button" className="drawer-close" onClick={onClose} aria-label={translate('Close provider drawer')}>×</button></div><form className="drawer-form" onSubmit={submit}><label>Provider display name<input className="input" required disabled={readOnly} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>Manifest URL<input className="input" required disabled={readOnly} type="url" pattern="https://.*" value={form.manifest_url} onChange={(event) => setForm({ ...form, manifest_url: event.target.value })} /></label>{detailProvider ? <section className="chipset-validation-preview"><div className="panel-head"><div><h3>Validation preview</h3><p>{validationError || translate('Review the manifest schema and normalized resources.')}</p></div></div><div className="chipset-validation-grid"><div><span>Manifest</span><strong className={detailProvider.manifest_version ? 'good' : ''}>Version {detailProvider.manifest_version || '—'}</strong></div><div><span>ChipSets</span><strong>{detailProvider.chipset_count || 0}</strong></div><div><span>SDK releases</span><strong>{detailProvider.sdk_release_count || 0}</strong></div><div><span>Endpoints</span><strong>{endpointCount}</strong></div></div>{validationError ? <p className="drawer-error">{validationError}</p> : null}{preview?.chipsets?.length ? <ChipsetCards chipsets={preview.chipsets} showFreshness={false} /> : <p className="empty-state">{translate('No normalized preview is available. Run Validate Preview.')}</p>}</section> : null}{error ? <p className="drawer-error">{error}</p> : null}<div className="drawer-actions"><button type="button" className="ghost-button" onClick={onClose}>{translate('Cancel')}</button>{!readOnly ? <button type="submit" className="ghost-button" disabled={busy}>{translate('Save Draft')}</button> : null}{canPublish ? <button type="button" className="ghost-button" disabled={busy || (!provider?.id && readOnly)} onClick={validatePreview}>Validate Preview</button> : null}{canPublish && detailProvider?.status !== 'published' ? <button type="button" className="primary-button" disabled={busy || (!provider?.id && readOnly)} onClick={publish}>Publish</button> : null}</div></form></aside></div>;
+  return <div className="drawer-backdrop" role="presentation" onClick={onClose}><aside className="drawer-panel chipset-provider-drawer" role="dialog" aria-modal="true" aria-label={translate("ChipSet provider drawer")} onClick={(event) => event.stopPropagation()}><div className="drawer-header"><div><h2>{mode === 'create' ? translate('Add Information Provider') : mode === 'edit' ? translate('Edit Information Provider') : translate('Manifest Parsing Preview')}</h2><p>{translate('Create a draft, then synchronize and validate the manifest before publishing.')}</p></div><button type="button" className="drawer-close" onClick={onClose} aria-label={translate('Close provider drawer')}>×</button></div><form className="drawer-form" onSubmit={submit}><label>{translate("Provider display name")}<input className="input" required disabled={readOnly} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>{translate("Manifest URL")}<input className="input" required disabled={readOnly} type="url" pattern="https://.*" value={form.manifest_url} onChange={(event) => setForm({ ...form, manifest_url: event.target.value })} /></label>{detailProvider ? <section className="chipset-validation-preview"><div className="panel-head"><div><h3>{translate("Validation preview")}</h3><p>{validationError || translate('Review the manifest schema and normalized resources.')}</p></div></div><div className="chipset-validation-grid"><div><span>{translate("Manifest")}</span><strong className={detailProvider.manifest_version ? 'good' : ''}>{translate("Version")} {detailProvider.manifest_version || '—'}</strong></div><div><span>{translate("ChipSets")}</span><strong>{detailProvider.chipset_count || 0}</strong></div><div><span>{translate("SDK releases")}</span><strong>{detailProvider.sdk_release_count || 0}</strong></div><div><span>{translate("Endpoints")}</span><strong>{endpointCount}</strong></div></div>{validationError ? <p className="drawer-error">{validationError}</p> : null}{preview?.chipsets?.length ? <ChipsetCards chipsets={preview.chipsets} showFreshness={false} /> : <p className="empty-state">{translate('No normalized preview is available. Run Validate Preview.')}</p>}</section> : null}{error ? <p className="drawer-error">{translate(error)}</p> : null}<div className="drawer-actions"><button type="button" className="ghost-button" onClick={onClose}>{translate('Cancel')}</button>{!readOnly ? <button type="submit" className="ghost-button" disabled={busy}>{translate('Save Draft')}</button> : null}{canPublish ? <button type="button" className="ghost-button" disabled={busy || (!provider?.id && readOnly)} onClick={validatePreview}>{translate("Validate Preview")}</button> : null}{canPublish && detailProvider?.status !== 'published' ? <button type="button" className="primary-button" disabled={busy || (!provider?.id && readOnly)} onClick={publish}>{translate("Publish")}</button> : null}</div></form></aside></div>;
 }
 
 function ProductsPage({ loading, data, onRefresh }) {
@@ -2759,52 +2776,52 @@ function ProductsPage({ loading, data, onRefresh }) {
     <section className="page-content">
       <div className="page-intro">
         <div>
-          <p className="eyebrow">Brand Fleet</p>
-          <h2>Products and Services</h2>
-          <p>See what services are available for each product and what your current role can manage.</p>
+          <p className="eyebrow">{translate("Brand Fleet")}</p>
+          <h2>{translate("Products and Services")}</h2>
+          <p>{translate("See what services are available for each product and what your current role can manage.")}</p>
         </div>
-        {canManage ? <button type="button" className="primary-button" disabled={!catalog || (catalog.product_writes_enabled && !mqttReady)} onClick={() => { setEditingProduct(null); setPreview(null); setForm({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['mqtt'], log_retention_days: 7 }); setShowCreate((value) => !value); setCatalogReload((value) => value + 1); }}>＋ Add Product</button> : null}
+        {canManage ? <button type="button" className="primary-button" disabled={!catalog || (catalog.product_writes_enabled && !mqttReady)} onClick={() => { setEditingProduct(null); setPreview(null); setForm({ name: '', product_model: '', category: 'ip_camera', service_capabilities: ['mqtt'], log_retention_days: 7 }); setShowCreate((value) => !value); setCatalogReload((value) => value + 1); }}>{translate("＋ Add Product")}</button> : null}
       </div>
       {message ? <div className="notice">{message}</div> : null}
-      {catalogError ? <div className="notice">{catalogError} <button type="button" className="link-button" onClick={() => setCatalogReload((value) => value + 1)}>Refresh service catalog</button></div> : null}
+      {catalogError ? <div className="notice">{catalogError} <button type="button" className="link-button" onClick={() => setCatalogReload((value) => value + 1)}>{translate("Refresh service catalog")}</button></div> : null}
       {showCreate ? <section className="panel"><form className="product-create-form" onSubmit={createProduct}>
-        <input required placeholder="Product Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-        <input required placeholder="Product Model" value={form.product_model} onChange={(event) => setForm({ ...form, product_model: event.target.value })} />
-        <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="ip_camera">Imaging Device</option><option value="mqtt_device">Telemetry Device</option><option value="generic">General Device</option></select>
+        <input required placeholder={translate("Product Name")} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+        <input required placeholder={translate("Product Model")} value={form.product_model} onChange={(event) => setForm({ ...form, product_model: event.target.value })} />
+        <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="ip_camera">{translate("Imaging Device")}</option><option value="mqtt_device">{translate("Telemetry Device")}</option><option value="generic">{translate("General Device")}</option></select>
         <div className="service-checks">{serviceChoices.map((service) => <label key={service.code}>
           <input type="checkbox" checked={form.service_capabilities.includes(service.code)} disabled={!catalog || (!service.selectable && !form.service_capabilities.includes(service.code)) || (catalog.product_writes_enabled && service.code === 'mqtt' && form.service_capabilities.includes('mqtt'))} onChange={(event) => setForm({ ...form, service_capabilities: event.target.checked ? [...form.service_capabilities, service.code] : form.service_capabilities.filter((item) => item !== service.code) })} />
-          {translate(service.display_name || service.code)}{!service.selectable ? ` (${service.unavailable_reason || 'unavailable'})` : ''}{service.requires?.length ? ` — requires ${service.requires.join(', ')}` : ''}
+          {translate(service.display_name || service.code)}{!service.selectable ? ` (${service.unavailable_reason || 'unavailable'})` : ''}{service.requires?.length ? translate(" — requires {{value0}}", { value0: service.requires.join(', ') }) : ''}
         </label>)}</div>
-        {form.service_capabilities.includes('device_logging') ? <label>Device log retention <select value={form.log_retention_days} onChange={(event) => setForm({ ...form, log_retention_days: Number(event.target.value) })}>{(catalog?.options.find((option) => option.code === 'device_logging')?.log_retention_days || [7, 30, 90]).map((days) => <option key={days} value={days}>{days} days</option>)}</select><small>Changes apply to newly accepted logs.</small></label> : null}
+        {form.service_capabilities.includes('device_logging') ? <label>{translate("Device log retention")} <select value={form.log_retention_days} onChange={(event) => setForm({ ...form, log_retention_days: Number(event.target.value) })}>{(catalog?.options.find((option) => option.code === 'device_logging')?.log_retention_days || [7, 30, 90]).map((days) => <option key={days} value={days}>{days} {translate("days")}</option>)}</select><small>{translate("Changes apply to newly accepted logs.")}</small></label> : null}
         {editingProduct ? <button type="button" className="ghost-button" onClick={previewProduct}>{translate('Preview Change Impact')}</button> : null}
         <button type="submit" className="primary" disabled={serviceChangePending && (!catalog || !form.service_capabilities.length || (catalog.product_writes_enabled && !form.service_capabilities.includes('mqtt')))}>{editingProduct ? translate('Save Changes') : translate('Save Product')}</button>
         {preview ? <p className="notice">{preview.source_status === 'available' ? translate('{{count}} devices will be affected. {{impact}}', { count: formatNumber(preview.affected_devices || 0), impact: preview.requires_reprovision ? 'Reconfiguration may be required.' : 'No reconfiguration is required.' }) : translate('Impact preview is currently unavailable.')}</p> : null}
       </form></section> : null}
-      {loading ? <section className="panel split-panel"><div><h3>Loading Product</h3><p>Getting product and service settings.</p></div></section> : null}
-      {!loading && unavailable ? <section className="panel split-panel"><div><h3>Product data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later or make sure your Brand Cloud is configured.')}</p></div></section> : null}
-      {!loading && !unavailable && items.length === 0 ? <section className="panel split-panel"><div><h3>No Products yet</h3><p>Products and their available services will appear here after setup.</p></div></section> : null}
+      {loading ? <section className="panel split-panel"><div><h3>{translate("Loading Product")}</h3><p>{translate("Getting product and service settings.")}</p></div></section> : null}
+      {!loading && unavailable ? <section className="panel split-panel"><div><h3>{translate("Product data temporarily unavailable")}</h3><p>{sourceMessage(data, 'Please try again later or make sure your Brand Cloud is configured.')}</p></div></section> : null}
+      {!loading && !unavailable && items.length === 0 ? <section className="panel split-panel"><div><h3>{translate("No Products yet")}</h3><p>{translate("Products and their available services will appear here after setup.")}</p></div></section> : null}
       {!loading && !unavailable && items.length > 0 ? (
         <section className="panel">
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>Product</th><th>My Role</th><th>Product Model</th><th>Devices</th><th>Production Runs</th><th>Available Services</th><th>Device Policy</th><th>Firmware Policy</th><th>Available Actions</th><th>Status</th></tr></thead>
+              <thead><tr><th>{translate("Product")}</th><th>{translate("My Role")}</th><th>{translate("Product Model")}</th><th>{translate("Devices")}</th><th>{translate("Production Runs")}</th><th>{translate("Available Services")}</th><th>{translate("Device Policy")}</th><th>{translate("Firmware Policy")}</th><th>{translate("Available Actions")}</th><th>{translate("Status")}</th></tr></thead>
               <tbody>{items.map((product) => <tr key={product.id}>
                 <td><strong>{product.name}</strong><small>{product.id}</small></td>
-                <td><span className="status-badge neutral">{product.current_user_role === 'brand_owner' ? 'Brand Owner' : product.current_user_role === 'product_owner' ? 'Owner' : product.current_user_role === 'product_editor' ? 'Editor' : 'Viewer'}</span>{product.allowed_actions?.includes('manage_collaborators') ? <button type="button" className="link-button" onClick={() => loadCollaborators(product)}>Collaborators ({product.collaborator_count || 0})</button> : null}</td>
+                <td><span className="status-badge neutral">{product.current_user_role === 'brand_owner' ? translate("Brand Owner") : product.current_user_role === 'product_owner' ? translate("Owner") : product.current_user_role === 'product_editor' ? translate("Editor") : translate("Viewer")}</span>{product.allowed_actions?.includes('manage_collaborators') ? <button type="button" className="link-button" onClick={() => loadCollaborators(product)}>{translate("Collaborators (")}{product.collaborator_count || 0})</button> : null}</td>
                 <td>{product.product_model || product.category || '—'}</td>
                 <td>{formatNumber(product.device_count || 0)}</td>
-                <td>{formatNumber(product.production_run_count || 0)} production runs</td>
-                <td>{product.service_capabilities?.length ? product.service_capabilities.map((code) => productServiceCapabilityLabel(code, catalog)).join(', ') : 'Inactive'}{product.service_capabilities?.includes('device_logging') ? ` · Logs ${product.log_retention_days || 7} days` : ''}</td>
-                <td>{product.device_policy?.setup_available || product.device_policy?.binding_available ? 'Set' : 'Not set'}</td>
-                <td>{product.firmware_policy?.ota_enabled ? 'Allow firmware updates' : 'Inactive'}</td>
-                <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? 'Manage Devices' : action === 'manage_updates' ? 'Manage Updates' : action === 'view_reports' ? 'View Reports' : action === 'manage_collaborators' ? 'Manage Collaborators' : action === 'edit_product' ? 'Edit Product' : 'View').join(', ') : 'Contact an administrator'}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: (product.service_capabilities || []).map(normalizeProductServiceCapability), original_services: (product.service_capabilities || []).map(normalizeProductServiceCapability), log_retention_days: product.log_retention_days || 7 }); setPreview(null); setShowCreate(true); setCatalogReload((value) => value + 1); }}>Edit</button> : null}</td>
-                <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{product.status === 'active' ? 'Activate' : 'Deactivate'}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}>Deactivate</button> : null}</td>
+                <td>{formatNumber(product.production_run_count || 0)} {translate("production runs")}</td>
+                <td>{product.service_capabilities?.length ? product.service_capabilities.map((code) => productServiceCapabilityLabel(code, catalog)).join(', ') : translate("Inactive")}{product.service_capabilities?.includes('device_logging') ? translate(" · Logs {{value0}} days", { value0: product.log_retention_days || 7 }) : ''}</td>
+                <td>{product.device_policy?.setup_available || product.device_policy?.binding_available ? translate("Set") : translate("Not set")}</td>
+                <td>{product.firmware_policy?.ota_enabled ? translate("Allow firmware updates") : translate("Inactive")}</td>
+                <td>{product.allowed_actions?.length ? product.allowed_actions.map((action) => action === 'manage_devices' ? 'Manage Devices' : action === 'manage_updates' ? 'Manage Updates' : action === 'view_reports' ? 'View Reports' : action === 'manage_collaborators' ? 'Manage Collaborators' : action === 'edit_product' ? 'Edit Product' : 'View').join(', ') : translate("Contact an administrator")}{product.allowed_actions?.includes('edit_product') ? <button type="button" className="link-button" onClick={() => { setEditingProduct(product); setForm({ name: product.name, product_model: product.product_model || '', category: product.category || 'generic', service_capabilities: (product.service_capabilities || []).map(normalizeProductServiceCapability), original_services: (product.service_capabilities || []).map(normalizeProductServiceCapability), log_retention_days: product.log_retention_days || 7 }); setPreview(null); setShowCreate(true); setCatalogReload((value) => value + 1); }}>{translate("Edit")}</button> : null}</td>
+                <td><span className={product.status === 'active' ? 'status-badge good' : 'status-badge neutral'}>{product.status === 'active' ? translate("Activate") : translate("Deactivate")}</span>{product.status === 'active' && product.allowed_actions?.includes('disable_product') ? <button type="button" className="link-button" onClick={async () => { await fetch(`/api/products/${encodeURIComponent(product.id)}/disable`, { method: 'POST', headers: { 'Idempotency-Key': `product-disable-${product.id}` } }); onRefresh(); }}>{translate("Deactivate")}</button> : null}</td>
               </tr>)}</tbody>
             </table>
           </div>
         </section>
       ) : null}
-      {collaborationProduct ? <section className="panel" data-testid="product-collaborators"><div className="panel-head"><div><h3>{collaborationProduct.name} Collaborators</h3><p>Collaborators will only see the assigned Product; the Editor can perform project work and the Viewer is read-only.</p></div><button type="button" className="link-button" onClick={() => { setCollaborationProduct(null); setCollaboration(null); }}>Close</button></div>{collaboration?.source_status === 'unavailable' ? <p className="notice">Collaborator data is currently unavailable.</p> : <><form className="inline-form" onSubmit={inviteCollaborator}><input required type="email" placeholder="Registered Developer Email" value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} /><select value={invite.role} onChange={(event) => setInvite({ ...invite, role: event.target.value })}><option value="product_editor">Editor</option><option value="product_viewer">Viewer</option></select><button type="submit" className="primary">Invite to this Product</button></form><div className="table-wrap"><table className="data-table"><thead><tr><th>Developer</th><th>Role</th><th>Action</th></tr></thead><tbody>{(collaboration?.collaborators || []).map((person) => <tr key={person.user_id}><td><strong>{person.display_name || person.email}</strong><small>{person.email}</small></td><td>{person.role === 'product_owner' ? 'Owner' : <select value={person.role} onChange={(event) => updateCollaborator(person.user_id, event.target.value)}><option value="product_editor">Editor</option><option value="product_viewer">Viewer</option></select>}</td><td>{person.role === 'product_owner' ? 'Ownership transfer required' : <><button type="button" className="link-button" onClick={() => transferOwner(person.user_id)}>Transfer Owner</button><button type="button" className="link-button" onClick={() => removeCollaborator(person.user_id)}>Remove</button></>}</td></tr>)}</tbody></table></div>{(collaboration?.invitations || []).some((item) => item.status === 'pending') ? <div className="chip-list">{collaboration.invitations.filter((item) => item.status === 'pending').map((item) => <span className="status-badge neutral" key={item.id}>{item.target_email} · {item.role === 'product_editor' ? 'Editor' : 'Viewer'} · Pending Acceptance <button type="button" className="link-button" onClick={() => invitationAction(item.id, 'resend')}>Resend</button><button type="button" className="link-button" onClick={() => invitationAction(item.id, 'cancel')}>Cancel</button></span>)}</div> : null}</>}</section> : null}
+      {collaborationProduct ? <section className="panel" data-testid="product-collaborators"><div className="panel-head"><div><h3>{collaborationProduct.name} {translate("Collaborators")}</h3><p>{translate("Collaborators will only see the assigned Product; the Editor can perform project work and the Viewer is read-only.")}</p></div><button type="button" className="link-button" onClick={() => { setCollaborationProduct(null); setCollaboration(null); }}>{translate("Close")}</button></div>{collaboration?.source_status === 'unavailable' ? <p className="notice">{translate("Collaborator data is currently unavailable.")}</p> : <><form className="inline-form" onSubmit={inviteCollaborator}><input required type="email" placeholder={translate("Registered Developer Email")} value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} /><select value={invite.role} onChange={(event) => setInvite({ ...invite, role: event.target.value })}><option value="product_editor">{translate("Editor")}</option><option value="product_viewer">{translate("Viewer")}</option></select><button type="submit" className="primary">{translate("Invite to this Product")}</button></form><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Developer")}</th><th>{translate("Role")}</th><th>{translate("Action")}</th></tr></thead><tbody>{(collaboration?.collaborators || []).map((person) => <tr key={person.user_id}><td><strong>{person.display_name || person.email}</strong><small>{person.email}</small></td><td>{person.role === 'product_owner' ? translate("Owner") : <select value={person.role} onChange={(event) => updateCollaborator(person.user_id, event.target.value)}><option value="product_editor">{translate("Editor")}</option><option value="product_viewer">{translate("Viewer")}</option></select>}</td><td>{person.role === 'product_owner' ? translate("Ownership transfer required") : <><button type="button" className="link-button" onClick={() => transferOwner(person.user_id)}>{translate("Transfer Owner")}</button><button type="button" className="link-button" onClick={() => removeCollaborator(person.user_id)}>{translate("Remove")}</button></>}</td></tr>)}</tbody></table></div>{(collaboration?.invitations || []).some((item) => item.status === 'pending') ? <div className="chip-list">{collaboration.invitations.filter((item) => item.status === 'pending').map((item) => <span className="status-badge neutral" key={item.id}>{item.target_email} · {item.role === 'product_editor' ? translate("Editor") : translate("Viewer")} {translate("· Pending Acceptance")} <button type="button" className="link-button" onClick={() => invitationAction(item.id, 'resend')}>{translate("Resend")}</button><button type="button" className="link-button" onClick={() => invitationAction(item.id, 'cancel')}>{translate("Cancel")}</button></span>)}</div> : null}</>}</section> : null}
     </section>
   );
 }
@@ -2850,13 +2867,13 @@ function GroupsPage({ data, loading, onRefresh }) {
     if (response.ok) onRefresh();
   }
   return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Organization</p><h2>Groups and Tags</h2><p>Organize devices into groups to manage firmware updates and reports.</p></div>{canManage ? <button type="button" className="primary" onClick={() => setShowCreate((value) => !value)}>＋ Add Group</button> : null}</div>
+    <div className="page-intro"><div><p className="eyebrow">{translate("Fleet Organization")}</p><h2>{translate("Groups and Tags")}</h2><p>{translate("Organize devices into groups to manage firmware updates and reports.")}</p></div>{canManage ? <button type="button" className="primary" onClick={() => setShowCreate((value) => !value)}>{translate("＋ Add Group")}</button> : null}</div>
     {message ? <div className="notice">{message}</div> : null}
-    {showCreate ? <section className="panel"><form className="inline-form" onSubmit={createGroup}><input required placeholder="Group name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input placeholder="Description (optional)" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /><button type="submit" className="primary">Save Group</button></form></section> : null}
-    {loading ? <section className="panel split-panel"><div><h3>Loading groups</h3></div></section> : null}
-    {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>Group data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
-    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Group</th><th>Description</th><th>Devices</th>{canManage ? <th>Action</th> : null}</tr></thead><tbody>{groups.map((group) => <tr key={group.id}><td><strong>{group.name}</strong><small>{group.id}</small></td><td>{group.description || '—'}</td><td>{formatNumber(group.device_count || 0)} devices</td>{canManage ? <td><button type="button" className="link-button" onClick={() => deleteGroup(group)}>Delete</button></td> : null}</tr>)}</tbody></table>{!groups.length ? <p className="empty-state">No groups yet.</p> : null}</div></section> : null}
-    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="panel-head"><div><h3>Tags</h3><p>Tags can be used to search for devices and define firmware update scopes.</p></div></div>{canManage ? <form className="inline-form" onSubmit={createTag}><input required maxLength="100" placeholder="New tag name" value={newTagName} onChange={(event) => setNewTagName(event.target.value)} /><button type="submit" className="primary">Add Tag</button></form> : null}{editingTag ? <form className="inline-form" onSubmit={renameTag}><input required maxLength="100" value={tagName} onChange={(event) => setTagName(event.target.value)} /><button type="submit" className="primary">Save Tag</button><button type="button" className="link-button" onClick={() => setEditingTag(null)}>Cancel</button></form> : null}<div className="chip-list">{tags.map((tag) => <span className="status-badge neutral" key={tag.tag}>{tag.tag} · {formatNumber(tag.device_count)} devices{canManage ? <><button type="button" className="link-button" onClick={() => { setEditingTag(tag); setTagName(tag.tag); }}>Rename</button><button type="button" className="link-button" onClick={() => deleteTag(tag)}>Delete</button></> : null}</span>)}</div>{!tags.length ? <p className="empty-state">No tags yet.</p> : null}</section> : null}
+    {showCreate ? <section className="panel"><form className="inline-form" onSubmit={createGroup}><input required placeholder={translate("Group name")} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><input placeholder={translate("Description (optional)")} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /><button type="submit" className="primary">{translate("Save Group")}</button></form></section> : null}
+    {loading ? <section className="panel split-panel"><div><h3>{translate("Loading groups")}</h3></div></section> : null}
+    {!loading && data?.source_status !== 'available' ? <section className="panel split-panel"><div><h3>{translate("Group data temporarily unavailable")}</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
+    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Group")}</th><th>{translate("Description")}</th><th>{translate("Devices")}</th>{canManage ? <th>{translate("Action")}</th> : null}</tr></thead><tbody>{groups.map((group) => <tr key={group.id}><td><strong>{group.name}</strong><small>{group.id}</small></td><td>{group.description || '—'}</td><td>{formatNumber(group.device_count || 0)} {translate("devices")}</td>{canManage ? <td><button type="button" className="link-button" onClick={() => deleteGroup(group)}>{translate("Delete")}</button></td> : null}</tr>)}</tbody></table>{!groups.length ? <p className="empty-state">{translate("No groups yet.")}</p> : null}</div></section> : null}
+    {!loading && data?.source_status === 'available' ? <section className="panel"><div className="panel-head"><div><h3>{translate("Tags")}</h3><p>{translate("Tags can be used to search for devices and define firmware update scopes.")}</p></div></div>{canManage ? <form className="inline-form" onSubmit={createTag}><input required maxLength="100" placeholder={translate("New tag name")} value={newTagName} onChange={(event) => setNewTagName(event.target.value)} /><button type="submit" className="primary">{translate("Add Tag")}</button></form> : null}{editingTag ? <form className="inline-form" onSubmit={renameTag}><input required maxLength="100" value={tagName} onChange={(event) => setTagName(event.target.value)} /><button type="submit" className="primary">{translate("Save Tag")}</button><button type="button" className="link-button" onClick={() => setEditingTag(null)}>{translate("Cancel")}</button></form> : null}<div className="chip-list">{tags.map((tag) => <span className="status-badge neutral" key={tag.tag}>{tag.tag} · {formatNumber(tag.device_count)} {translate("devices")}{canManage ? <><button type="button" className="link-button" onClick={() => { setEditingTag(tag); setTagName(tag.tag); }}>{translate("Rename")}</button><button type="button" className="link-button" onClick={() => deleteTag(tag)}>{translate("Delete")}</button></> : null}</span>)}</div>{!tags.length ? <p className="empty-state">{translate("No tags yet.")}</p> : null}</section> : null}
   </section>;
 }
 
@@ -2899,7 +2916,7 @@ function BrandCloudMemberInvitationAcceptPage() {
   }
 
   const cloudID = result?.invitation?.brand_cloud_id || '';
-  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isProductInvitation ? 'Product invitation' : 'Brand Cloud invitation'}</p><h1>{isProductInvitation ? 'Accept Product collaboration invitation' : 'Accept team invitation'}</h1><p>We’ll verify both the invitation token and the signed-in Developer account.</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? 'Verifying…' : 'Accept invitation'}</button> : <a className="inline-action" href={isProductInvitation ? productInvitationDestination(result) : `/console/clouds/${encodeURIComponent(cloudID)}`}>{isProductInvitation ? 'Go to Product' : 'Open shared cloud'}</a>}</section></div>;
+  return <div className="public-auth-shell"><section className="auth-hero"><p className="eyebrow">{isProductInvitation ? translate("Product invitation") : translate("Brand Cloud invitation")}</p><h1>{isProductInvitation ? translate("Accept Product collaboration invitation") : translate("Accept team invitation")}</h1><p>{translate("We’ll verify both the invitation token and the signed-in Developer account.")}</p></section><section className="panel auth-panel"><p className="auth-status">{message}</p>{!result ? <button type="button" className="primary" disabled={!token || busy} onClick={acceptInvitation}>{busy ? translate("Verifying…") : translate("Accept invitation")}</button> : <a className="inline-action" href={isProductInvitation ? productInvitationDestination(result) : `/console/clouds/${encodeURIComponent(cloudID)}`}>{isProductInvitation ? translate("Go to Product") : translate("Open shared cloud")}</a>}</section></div>;
 }
 
 function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage, onRefresh }) {
@@ -2963,31 +2980,31 @@ function TeamAccessPage({ data, me, cloudName, loading, activeCloudId, canManage
   }
 
   return <section className="page-content team-access-page">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Governance</p><h2><Icon name="users" />Members and Access</h2><p>The role determines what can be done, and the scope determines which Products, Regions, Groups, or Devices can be managed.</p></div>
-      {canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setShowInviteForm((visible) => !visible)}><Icon name="user-plus" /> Invite members</button> : null}
+    <div className="page-intro"><div><p className="eyebrow">{translate("Fleet Governance")}</p><h2><Icon name="users" />{translate("Members and Access")}</h2><p>{translate("The role determines what can be done, and the scope determines which Products, Regions, Groups, or Devices can be managed.")}</p></div>
+      {canManage && activeCloudId ? <button type="button" className="primary" onClick={() => setShowInviteForm((visible) => !visible)}><Icon name="user-plus" /> {translate("Invite members")}</button> : null}
     </div>
     {showInviteForm ? <section className="panel invite-member-panel"><form className="inline-form" onSubmit={inviteMember}>
-      <input required type="email" placeholder="Member Email" value={email} onChange={(event) => setEmail(event.target.value)} />
-      <select value={role} onChange={(event) => setRole(event.target.value)}><option value="member">Member</option><option value="admin">Admin</option></select>
-      <button type="submit" className="primary">Send invitation</button>
-      <button type="button" className="ghost-button" onClick={() => setShowInviteForm(false)}>Cancel</button>
+      <input required type="email" placeholder={translate("Member Email")} value={email} onChange={(event) => setEmail(event.target.value)} />
+      <select value={role} onChange={(event) => setRole(event.target.value)}><option value="member">{translate("Member")}</option><option value="admin">{translate("Admin")}</option></select>
+      <button type="submit" className="primary">{translate("Send invitation")}</button>
+      <button type="button" className="ghost-button" onClick={() => setShowInviteForm(false)}>{translate("Cancel")}</button>
     </form></section> : null}
     {message ? <div className="notice">{message}</div> : null}
-    {loading && !data ? <section className="panel split-panel"><div><h3>Loading permissions</h3></div></section> : null}
-    {!loading && data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>Permission data temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
-    {canManage && sourceAvailableFor('invitations_source_status') ? <section className="panel"><div className="panel-head"><div><h3><Icon name="envelope" />Pending invitations</h3><p>Invitation links are valid for 30 minutes. Resending immediately expires the previous link.</p></div></div>{invitations.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expires</th><th>Action</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td>{invitation.target_email}</td><td>{invitation.role}</td><td><span className="status-badge neutral">Pending acceptance</span></td><td>{formatProviderTimestamp(invitation.expires_at)}</td><td><button type="button" className="link-button" onClick={() => invitationAction(invitation, 'resend')}>Resend</button> <button type="button" className="link-button" onClick={() => invitationAction(invitation, 'cancel')}>Cancel</button></td></tr>)}</tbody></table></div> : <p className="access-empty"><Icon name="inbox" /> {loading ? "Loading invitations…" : "No pending invitations."}</p>}</section> : null}
-    {sourceAvailableFor('members_source_status') ? <section className="panel"><div className="panel-head"><div><h3><Icon name="users" />Brand Cloud Members</h3><p>Manage who can access this Brand Cloud and what each member can do.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Members</th><th>Role</th><th>Status</th>{canManage ? <th>Action</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong>{member.display_name && member.display_name !== member.email ? <small>{member.email}</small> : null}</td><td>{canManage && member.role !== 'owner' ? <select value={member.role} onChange={(event) => updateMember(member, 'role', event.target.value)}><option value="admin">Admin</option><option value="member">Member</option></select> : userRoleDetails(member.role).title}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}><Icon name={member.disabled_at ? "circle-pause" : "circle-check"} /> {member.disabled_at ? 'Inactive' : 'Active'}</span></td>{canManage ? <td>{member.role === 'owner' ? 'Owner transfer only' : <><button type="button" className="link-button" onClick={() => updateMember(member, member.disabled_at ? 'enable' : 'disable')}>{member.disabled_at ? 'Activate' : 'Deactivate'}</button> <button type="button" className="link-button" onClick={() => updateMember(member, 'remove')}>Remove</button></>}</td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">There are currently no Brand Cloud members.</p> : null}</div></section> : null}
+    {loading && !data ? <section className="panel split-panel"><div><h3>{translate("Loading permissions")}</h3></div></section> : null}
+    {!loading && data?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate("Permission data temporarily unavailable")}</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section> : null}
+    {canManage && sourceAvailableFor('invitations_source_status') ? <section className="panel"><div className="panel-head"><div><h3><Icon name="envelope" />{translate("Pending invitations")}</h3><p>{translate("Invitation links are valid for 30 minutes. Resending immediately expires the previous link.")}</p></div></div>{invitations.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Email")}</th><th>{translate("Role")}</th><th>{translate("Status")}</th><th>{translate("Expires")}</th><th>{translate("Action")}</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td>{invitation.target_email}</td><td>{invitation.role}</td><td><span className="status-badge neutral">{translate("Pending acceptance")}</span></td><td>{formatProviderTimestamp(invitation.expires_at)}</td><td><button type="button" className="link-button" onClick={() => invitationAction(invitation, 'resend')}>{translate("Resend")}</button> <button type="button" className="link-button" onClick={() => invitationAction(invitation, 'cancel')}>{translate("Cancel")}</button></td></tr>)}</tbody></table></div> : <p className="access-empty"><Icon name="inbox" /> {loading ? translate("Loading invitations…") : translate("No pending invitations.")}</p>}</section> : null}
+    {sourceAvailableFor('members_source_status') ? <section className="panel"><div className="panel-head"><div><h3><Icon name="users" />{translate("Brand Cloud Members")}</h3><p>{translate("Manage who can access this Brand Cloud and what each member can do.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Members")}</th><th>{translate("Role")}</th><th>{translate("Status")}</th>{canManage ? <th>{translate("Action")}</th> : null}</tr></thead><tbody>{members.map((member) => <tr key={member.user_id}><td><strong>{member.display_name || member.email}</strong>{member.display_name && member.display_name !== member.email ? <small>{member.email}</small> : null}</td><td>{canManage && member.role !== 'owner' ? <select value={member.role} onChange={(event) => updateMember(member, 'role', event.target.value)}><option value="admin">{translate("Admin")}</option><option value="member">{translate("Member")}</option></select> : userRoleDetails(member.role).title}</td><td><span className={`status-badge ${member.disabled_at ? 'neutral' : 'good'}`}><Icon name={member.disabled_at ? "circle-pause" : "circle-check"} /> {member.disabled_at ? translate("Inactive") : translate("Active")}</span></td>{canManage ? <td>{member.role === 'owner' ? translate("Owner transfer only") : <><button type="button" className="link-button" onClick={() => updateMember(member, member.disabled_at ? 'enable' : 'disable')}>{member.disabled_at ? translate("Activate") : translate("Deactivate")}</button> <button type="button" className="link-button" onClick={() => updateMember(member, 'remove')}>{translate("Remove")}</button></>}</td> : null}</tr>)}</tbody></table>{!members.length ? <p className="empty-state">{translate("There are currently no Brand Cloud members.")}</p> : null}</div></section> : null}
     {sourceAvailableFor('assignments_source_status') ? <>
-      <section className="panel current-role-panel"><div className="panel-head"><div><h3><Icon name="shield-halved" />Your Roles and Permissions</h3><p>Your role defines your actions. Your assigned scope determines where you can use them.</p></div><span className="status-badge good"><Icon name="circle-check" /> Your access</span></div><div className="current-role-card"><div className="current-role-icon"><Icon name={currentRoleDetails.icon} /></div><div><div className="current-role-title"><h4>{currentRoleDetails.title}</h4>{currentRole ? <code>{currentRole}</code> : null}</div><p>{currentRoleDetails.description}</p><ul className="current-role-actions">{currentRoleDetails.actions.map((action) => <li key={action}><Icon name="circle-check" />{action}</li>)}</ul>{cloudName || activeMembership?.organization ? <p className="current-role-scope"><strong>Currently Applied:</strong>{cloudName || activeMembership.organization}</p> : null}</div></div>{canManage ? <p className="field-help">You can invite or adjust team members above; brand owners can only pass through the Ownership Transfer.</p> : <p className="field-help">If you need more access, contact your brand owner or administrator to adjust your role and scope.</p>}</section>
-      <section className="panel"><div className="panel-head"><div><h3><Icon name="bullseye" />Current Permission Scope</h3><p>The Brand Cloud, products, and other resources covered by your roles.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Role</th><th>Manage Scope</th><th>Status</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{userRoleDetails(assignment.role_name).title}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good"><Icon name="circle-check" /> Active</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">There are currently no additional range assignments.</p> : null}</div></section>
-    </> : <section className="panel split-panel"><div><h3>Roles and scopes are temporarily unavailable</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section>}
+      <section className="panel current-role-panel"><div className="panel-head"><div><h3><Icon name="shield-halved" />{translate("Your Roles and Permissions")}</h3><p>{translate("Your role defines your actions. Your assigned scope determines where you can use them.")}</p></div><span className="status-badge good"><Icon name="circle-check" /> {translate("Your access")}</span></div><div className="current-role-card"><div className="current-role-icon"><Icon name={currentRoleDetails.icon} /></div><div><div className="current-role-title"><h4>{translate(currentRoleDetails.title)}</h4>{currentRole ? <code>{currentRole}</code> : null}</div><p>{translate(currentRoleDetails.description)}</p><ul className="current-role-actions">{currentRoleDetails.actions.map((action) => <li key={action}><Icon name="circle-check" />{action}</li>)}</ul>{cloudName || activeMembership?.organization ? <p className="current-role-scope"><strong>{translate("Currently Applied:")}</strong>{cloudName || activeMembership.organization}</p> : null}</div></div>{canManage ? <p className="field-help">{translate("You can invite or adjust team members above; brand owners can only pass through the Ownership Transfer.")}</p> : <p className="field-help">{translate("If you need more access, contact your brand owner or administrator to adjust your role and scope.")}</p>}</section>
+      <section className="panel"><div className="panel-head"><div><h3><Icon name="bullseye" />{translate("Current Permission Scope")}</h3><p>{translate("The Brand Cloud, products, and other resources covered by your roles.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Role")}</th><th>{translate("Manage Scope")}</th><th>{translate("Status")}</th></tr></thead><tbody>{assignments.map((assignment) => <tr key={assignment.id}><td><strong>{translate(userRoleDetails(assignment.role_name).title)}</strong></td><td>{scopeLabel(assignment)}</td><td><span className="status-badge good"><Icon name="circle-check" /> {translate("Active")}</span></td></tr>)}</tbody></table>{!assignments.length ? <p className="empty-state">{translate("There are currently no additional range assignments.")}</p> : null}</div></section>
+    </> : <section className="panel split-panel"><div><h3>{translate("Roles and scopes are temporarily unavailable")}</h3><p>{sourceMessage(data, 'Please try again later.')}</p></div></section>}
   </section>;
 }
 
 function BrandCloudSettingsPage({ activeCloudId, canIssuePKITest, products = [], productsLoading, productsUnavailable }) {
   return <section className="page-content brand-cloud-settings-page">
-    <div className="page-intro"><h2>Settings</h2></div>
-    <section className="panel"><h3 className="test-device-icon-text"><Icon name="arrows-rotate" />Ownership and Billing handoff</h3><p>Manage ownership in My Clouds. Invitation acceptance starts settlement; it does not complete the transfer.</p><a className="ghost-button settings-action" href={activeCloudId ? `/console/clouds/${encodeURIComponent(activeCloudId)}` : '/console/clouds'}><Icon name="cloud" />Open cloud management<Icon name="arrow-right" /></a></section>
+    <div className="page-intro"><h2>{translate("Settings")}</h2></div>
+    <section className="panel"><h3 className="test-device-icon-text"><Icon name="arrows-rotate" />{translate("Ownership and Billing handoff")}</h3><p>{translate("Manage ownership in My Clouds. Invitation acceptance starts settlement; it does not complete the transfer.")}</p><a className="ghost-button settings-action" href={activeCloudId ? `/console/clouds/${encodeURIComponent(activeCloudId)}` : '/console/clouds'}><Icon name="cloud" />{translate("Open cloud management")}<Icon name="arrow-right" /></a></section>
     {canIssuePKITest && activeCloudId ? <PKITestBundleTool activeCloudId={activeCloudId} products={products} productsLoading={productsLoading} productsUnavailable={productsUnavailable} /> : null}
   </section>;
 }
@@ -3029,7 +3046,7 @@ function CloudBillingApp() {
     const timer=setInterval(verify,10000);window.addEventListener('focus',verify);
     return ()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',verify);};
   },[cloudId,state?.cloud.id,state?.data.ownershipVersion]);
-  return <CloudConsoleShell me={state?.me} cloud={state?.cloud} active="billing" title="Billing" onError={setError}><div className="billing-workspace">{error ? <p role="alert">{error}</p> : !state && <p role="status">Loading owner-scoped Billing…</p>}<div className="inline-actions"><button onClick={()=>setReload(v=>v+1)}>Refresh Billing</button>{error && !pricingOnly && <a className="ghost-button" href={`/console/clouds/${cloudId}/billing/pricing`}>Service Pricing</a>}</div>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</div></CloudConsoleShell>;
+  return <CloudConsoleShell me={state?.me} cloud={state?.cloud} active="billing" title={translate("Billing")} onError={setError}><div className="billing-workspace">{error ? <p role="alert">{translate(error)}</p> : !state && <p role="status">{translate("Loading owner-scoped Billing…")}</p>}<div className="inline-actions"><button onClick={()=>setReload(v=>v+1)}>{translate("Refresh Billing")}</button>{error && !pricingOnly && <a className="ghost-button" href={`/console/clouds/${cloudId}/billing/pricing`}>{translate("Service Pricing")}</a>}</div>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</div></CloudConsoleShell>;
 }
 
 function BillingPage({ data, loading, capabilities, onRefresh }) {
@@ -3226,8 +3243,8 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     }
   }
 
-  if (loading && !data) return <section className="panel split-panel"><div><h2>Loading billing information</h2><p>Read only the secure account summary of the current active Brand Cloud.</p></div></section>;
-  if (data?.source_status === 'unavailable') return <section className="panel split-panel"><div><h2>Billing information temporarily unavailable</h2><p>{data.source_message}</p></div></section>;
+  if (loading && !data) return <section className="panel split-panel"><div><h2>{translate("Loading billing information")}</h2><p>{translate("Read only the secure account summary of the current active Brand Cloud.")}</p></div></section>;
+  if (data?.source_status === 'unavailable') return <section className="panel split-panel"><div><h2>{translate("Billing information temporarily unavailable")}</h2><p>{translate(data.source_message)}</p></div></section>;
 
   const billingTabs = <BillingTabs active={billingView} onSelect={selectBillingView} />;
 
@@ -3237,25 +3254,25 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   if (selectedActivity) return <BillingActivityDetail activity={selectedActivity} onBack={() => { setSelectedActivity(null); selectBillingView('activity'); }} />;
 
   if (billingView === 'overview') return <section className="page-content billing-page" data-testid="billing-page">
-    <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>Billing overview</h2><p>Keep track of available balances, estimated charges for the month, invoices, and recent billing changes.</p></div><small>Updated {formatProviderTimestamp(summary.calculated_at || account?.updated_at)}</small></div>
+    <div className="page-intro"><div><p className="eyebrow">{translate("Commercial Settlement")}</p><h2>{translate("Billing overview")}</h2><p>{translate("Keep track of available balances, estimated charges for the month, invoices, and recent billing changes.")}</p></div><small>{translate("Updated")} {formatProviderTimestamp(summary.calculated_at || account?.updated_at)}</small></div>
     {billingTabs}
-    <details className="ui-settings-advanced" data-testid="managed-cloud-plan"><summary>Service plan and deployment options</summary><section className="managed-cloud-plan">
+    <details className="ui-settings-advanced" data-testid="managed-cloud-plan"><summary>{translate("Service plan and deployment options")}</summary><section className="managed-cloud-plan">
       <div className="managed-cloud-plan-main">
-        <span className="managed-cloud-plan-badge">Recommended plan</span>
+        <span className="managed-cloud-plan-badge">{translate("Recommended plan")}</span>
         <div>
-          <p className="eyebrow">Realtek Managed Cloud</p>
-          <h3>Hosted and operated by Realtek. Pay only for what you use.</h3>
-          <p>Realtek manages cloud deployment, hosting, maintenance, and platform operations. Customers pay for actual service usage. Official rates and pricing units will be confirmed separately; this page does not represent a price commitment.</p>
+          <p className="eyebrow">{translate("Realtek Managed Cloud")}</p>
+          <h3>{translate("Hosted and operated by Realtek. Pay only for what you use.")}</h3>
+          <p>{translate("Realtek manages cloud deployment, hosting, maintenance, and platform operations. Customers pay for actual service usage. Official rates and pricing units will be confirmed separately; this page does not represent a price commitment.")}</p>
         </div>
         <div className="inline-actions">
-          <button type="button" className="primary" onClick={() => selectBillingView('usage')}>View This Month’s Usage and Costs</button>
-          <button type="button" className="ghost-button" onClick={() => selectBillingView('invoices')}>View Invoice</button>
-          <button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>Payment Settings</button>
+          <button type="button" className="primary" onClick={() => selectBillingView('usage')}>{translate("View This Month’s Usage and Costs")}</button>
+          <button type="button" className="ghost-button" onClick={() => selectBillingView('invoices')}>{translate("View Invoice")}</button>
+          <button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>{translate("Payment Settings")}</button>
         </div>
       </div>
       <aside className="managed-cloud-private-option">
         <span><Icon name="cloud" /></span>
-        <div><strong>Need Private Cloud?</strong><p>If you need a customer’s own infrastructure, data location, or governance boundaries, contact Realtek for a dedicated deployment plan.</p></div>
+        <div><strong>{translate("Need Private Cloud?")}</strong><p>{translate("If you need a customer’s own infrastructure, data location, or governance boundaries, contact Realtek for a dedicated deployment plan.")}</p></div>
       </aside>
     </section></details>
     <div className="metric-grid billing-overview-metrics">
@@ -3265,39 +3282,39 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       <MetricCard icon="credit-card" label="Payment method" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? 'Status is OK' : 'No payment method set'} tone={activeMethod?.status === 'active' ? 'good' : 'warning'} />
     </div>
     <div className="billing-overview-grid">
-      <section className="panel billing-auto-card"><div className="panel-head"><div><h3>Automatic Top-Up · {policy?.enabled ? 'Enabled' : 'Disabled'}</h3><p>{policy ? `Top up ${formatMinorAmount(policy.top_up_amount_minor, policy.currency)} when the balance falls below ${formatMinorAmount(policy.threshold_minor, policy.currency)}.` : 'Set a threshold and payment method to enable automatic top-up.'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>{policy?.last_succeeded_at ? <p>Last top-up: {formatProviderTimestamp(policy.last_succeeded_at)}</p> : null}<button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>Manage Automatic Top-Up</button></section>
-      <section className="panel billing-usage-card" id="billing-usage"><div className="panel-head"><div><h3>Estimated Cost by Service Category</h3><p>Once the pricing version is locked, the settlement result becomes an immutable invoice.</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>Total</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
+      <section className="panel billing-auto-card"><div className="panel-head"><div><h3>{translate("Automatic Top-Up ·")} {policy?.enabled ? translate("Enabled") : translate("Disabled")}</h3><p>{policy ? translate("Top up {{value0}} when the balance falls below {{value1}}.", { value0: formatMinorAmount(policy.top_up_amount_minor, policy.currency), value1: formatMinorAmount(policy.threshold_minor, policy.currency) }) : translate("Set a threshold and payment method to enable automatic top-up.")}</p></div><span className={`status-badge ${policyState.tone}`}>{translate(policyState.label)}</span></div>{policy?.last_succeeded_at ? <p>{translate("Last top-up:")} {formatProviderTimestamp(policy.last_succeeded_at)}</p> : null}<button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>{translate("Manage Automatic Top-Up")}</button></section>
+      <section className="panel billing-usage-card" id="billing-usage"><div className="panel-head"><div><h3>{translate("Estimated Cost by Service Category")}</h3><p>{translate("Once the pricing version is locked, the settlement result becomes an immutable invoice.")}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{translate(line.description)}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>{translate("Total")}</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
     </div>
     <div className="billing-overview-grid lower">
-      <section className="panel"><div className="panel-head"><div><h3>View Invoice</h3><p>Invoiced and immutable PDF documents.</p></div><button type="button" className="link-button" onClick={() => selectBillingView('invoices')}>All invoices</button></div><BillingInvoiceTable invoices={invoices.slice(0, 3)} onSelect={openBillingInvoice} /></section>
-      <section className="panel"><div className="panel-head"><div><h3>Recent Billing Activity</h3><p>Top-ups, invoice charges, and statuses to be processed.</p></div><button type="button" className="link-button" onClick={() => selectBillingView('activity')}>All Events</button></div><BillingActivityTable activities={activities.slice(0, 4)} onSelect={openBillingActivity} /></section>
+      <section className="panel"><div className="panel-head"><div><h3>{translate("View Invoice")}</h3><p>{translate("Invoiced and immutable PDF documents.")}</p></div><button type="button" className="link-button" onClick={() => selectBillingView('invoices')}>{translate("All invoices")}</button></div><BillingInvoiceTable invoices={invoices.slice(0, 3)} onSelect={openBillingInvoice} /></section>
+      <section className="panel"><div className="panel-head"><div><h3>{translate("Recent Billing Activity")}</h3><p>{translate("Top-ups, invoice charges, and statuses to be processed.")}</p></div><button type="button" className="link-button" onClick={() => selectBillingView('activity')}>{translate("All Events")}</button></div><BillingActivityTable activities={activities.slice(0, 4)} onSelect={openBillingActivity} /></section>
     </div>
   </section>;
 
   if (billingView === 'usage') return <section className="page-content billing-page" data-testid="billing-usage-page">
-    <div className="page-intro"><div><h2>Usage and Forecast</h2><p>The Billing server estimates costs using the applicable pricing version. The end-of-month forecast is not a final invoice.</p></div><small>Data through {formatProviderTimestamp(usage.usage_through)}</small></div>
+    <div className="page-intro"><div><h2>{translate("Usage and Forecast")}</h2><p>{translate("The Billing server estimates costs using the applicable pricing version. The end-of-month forecast is not a final invoice.")}</p></div><small>{translate("Data through")} {formatProviderTimestamp(usage.usage_through)}</small></div>
     {billingTabs}
     <div className="metric-grid billing-overview-metrics">
       <MetricCard icon="chart-column" label="Month to Date" value={formatMinorAmount(usage.total_minor, usage.currency)} hint={`${formatNumber(usage.fact_count || 0)} usage records`} tone="info" />
       <MetricCard icon="chart-line" label="End-of-Month Forecast" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency) : 'Insufficient data'} hint={summary.forecast?.state === 'available' ? `Approximately ${formatMinorAmount(summary.forecast.projected_remaining_minor, usage.currency)} remaining · ${summary.forecast.confidence === 'medium' ? 'Medium' : 'Low'} confidence` : 'At least one complete observation day is required'} tone="neutral" />
       <MetricCard icon="wallet" label="Balance Runway" value={summary.runway?.state === 'available' ? `${summary.runway.projected_days} days` : 'Insufficient data'} hint={summary.runway?.state === 'available' ? `Average daily cost ${formatMinorAmount(summary.runway.average_daily_cost_minor, usage.currency)}` : 'Cannot be estimated yet'} tone="neutral" />
     </div>
-    <section className="panel billing-usage-card"><div className="panel-head"><div><h3>Cost This Month by Service Category</h3><p>{formatProviderTimestamp(usage.period_start)} – {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{line.description} · {line.quantity} {line.unit}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>Month to Date</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
+    <section className="panel billing-usage-card"><div className="panel-head"><div><h3>{translate("Cost This Month by Service Category")}</h3><p>{formatProviderTimestamp(usage.period_start)} – {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{translate(line.description)} · {line.quantity} {line.unit}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>{translate("Month to Date")}</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
   </section>;
 
   if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page">
-    <div className="page-intro"><div><h2>Invoices</h2><p>Review service charges, tax, and settlement status for each billing period. Open an invoice to see its breakdown or download an available PDF.</p></div>{invoices.length > 0 && <a className="ghost-button" href={billingAPI(cloudId, '/api/billing/statements')}>Export statement</a>}</div>
+    <div className="page-intro"><div><h2>{translate("Invoices")}</h2><p>{translate("Review service charges, tax, and settlement status for each billing period. Open an invoice to see its breakdown or download an available PDF.")}</p></div>{invoices.length > 0 && <a className="ghost-button" href={billingAPI(cloudId, '/api/billing/statements')}>{translate("Export statement")}</a>}</div>
     {billingTabs}
     {invoices.length ? <section className="panel"><BillingInvoiceTable invoices={invoices} onSelect={openBillingInvoice} /></section> : <>
-      <div className="invoice-preview-intro"><h3>No invoices yet</h3><p>Here is an example of your invoice layout before tax. This preview does not reflect your account balance or payment history; tax is shown on an issued invoice.</p></div>
+      <div className="invoice-preview-intro"><h3>{translate("No invoices yet")}</h3><p>{translate("Here is an example of your invoice layout before tax. This preview does not reflect your account balance or payment history; tax is shown on an issued invoice.")}</p></div>
       <BillingInvoiceDocument preview />
     </>}
   </section>;
-  if (billingView === 'activity') return <section className="page-content billing-page" data-testid="billing-activity-page"><div className="page-intro"><div><h2>Billing Activity</h2><p>Track top-ups, invoice charges, retries, and reconciliations with consistent status.</p></div></div>{billingTabs}<section className="panel"><BillingActivityTable activities={activities} onSelect={openBillingActivity} /></section></section>;
+  if (billingView === 'activity') return <section className="page-content billing-page" data-testid="billing-activity-page"><div className="page-intro"><div><h2>{translate("Billing Activity")}</h2><p>{translate("Track top-ups, invoice charges, retries, and reconciliations with consistent status.")}</p></div></div>{billingTabs}<section className="panel"><BillingActivityTable activities={activities} onSelect={openBillingActivity} /></section></section>;
   if (billingView === 'profile') return <BillingProfilePage profile={billingProfile} tabs={billingTabs} canManage={capabilities.includes('billing_profile.manage')} onRefresh={onRefresh} />;
 
   return <section className="page-content billing-page" data-testid="billing-page">
-    <div className="page-intro"><div><p className="eyebrow">Commercial Settlement</p><h2>Payments and Automatic Top-Up</h2><p>A top-up intent is created only when the balance falls strictly below the threshold. The backend validates the amount, attempt limits, cooldown, and consent.</p></div></div>
+    <div className="page-intro"><div><p className="eyebrow">{translate("Commercial Settlement")}</p><h2>{translate("Payments and Automatic Top-Up")}</h2><p>{translate("A top-up intent is created only when the balance falls strictly below the threshold. The backend validates the amount, attempt limits, cooldown, and consent.")}</p></div></div>
     {billingTabs}
     <div className="metric-grid billing-metrics">
       <MetricCard icon="wallet" label="Available Balance" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={`Account ${account?.state || 'unavailable'} · Last updated ${formatProviderTimestamp(account?.updated_at)}`} tone="info" />
@@ -3306,55 +3323,55 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       <MetricCard icon="clock-rotate-left" label="Recent Intents" value={String(intents.length)} hint="Includes succeeded, failed, reconciliation-pending, and processing states" tone="neutral" />
     </div>
 
-    <section className="panel billing-safety" data-testid="billing-provider-gate"><div className="panel-head"><div><h3>Payment Service Eligibility Status</h3><p>{setupProvider?.environment === 'simulated' ? 'Currently using staging virtual cash flow; no real charge will be generated.' : 'Verified hosted payment setup is not currently available.'}</p></div><span className={`status-badge ${setupProvider ? 'good' : 'warning'}`}>{setupProvider ? 'READY' : 'BLOCKED'}</span></div><p>Payment information is only processed on the provider hosted page; RTK Cloud does not receive card numbers or CVVs.</p><label className="billing-consent"><input type="checkbox" checked={paymentConsentAccepted} onChange={(event) => setPaymentConsentAccepted(event.target.checked)} />{PAYMENT_METHOD_CONSENT_TEXT}</label><button type="button" className="primary" disabled={busy || !canManageMethods || !setupProvider || !paymentConsentAccepted} onClick={setupPaymentMethod}>{busy ? 'Preparing…' : 'Add payment method'}</button></section>
+    <section className="panel billing-safety" data-testid="billing-provider-gate"><div className="panel-head"><div><h3>{translate("Payment Service Eligibility Status")}</h3><p>{setupProvider?.environment === 'simulated' ? translate("Currently using staging virtual cash flow; no real charge will be generated.") : translate("Verified hosted payment setup is not currently available.")}</p></div><span className={`status-badge ${setupProvider ? 'good' : 'warning'}`}>{setupProvider ? translate("READY") : translate("BLOCKED")}</span></div><p>{translate("Payment information is only processed on the provider hosted page; RTK Cloud does not receive card numbers or CVVs.")}</p><label className="billing-consent"><input type="checkbox" checked={paymentConsentAccepted} onChange={(event) => setPaymentConsentAccepted(event.target.checked)} />{PAYMENT_METHOD_CONSENT_TEXT}</label><button type="button" className="primary" disabled={busy || !canManageMethods || !setupProvider || !paymentConsentAccepted} onClick={setupPaymentMethod}>{busy ? translate("Preparing…") : translate("Add payment method")}</button></section>
 
     <div className="billing-columns">
-      <section className="panel"><div className="panel-head"><div><h3>Automatic top-up policy</h3><p>Daily limits use {policy?.limit_timezone || 'Asia/Taipei'}. Next reset: {policy?.limit_reset_at ? formatProviderTimestamp(policy.limit_reset_at) : '—'}</p></div><span className={`status-badge ${policyState.tone}`}>{policyState.label}</span></div>
+      <section className="panel"><div className="panel-head"><div><h3>{translate("Automatic top-up policy")}</h3><p>{translate("Daily limits use")} {policy?.limit_timezone || translate("Asia/Taipei")}{translate(". Next reset:")} {policy?.limit_reset_at ? formatProviderTimestamp(policy.limit_reset_at) : '—'}</p></div><span className={`status-badge ${policyState.tone}`}>{translate(policyState.label)}</span></div>
         <form className="billing-policy-form" onSubmit={savePolicy}>
-          <label>Low Balance Threshold (TWD)<input type="number" min="1" step="1" value={threshold} onChange={(event) => setThreshold(event.target.value)} /></label>
-          <label>Top-up amount (TWD)<input type="number" min="1" step="1" value={topUpAmount} onChange={(event) => setTopUpAmount(event.target.value)} /></label>
-          <label>Maximum Daily Value (TWD)<input type="number" min="1" step="1" value={dailyAmount} onChange={(event) => setDailyAmount(event.target.value)} /></label>
-          <label>Maximum daily charges<input type="number" min="1" max="10" step="1" value={dailyAttempts} onChange={(event) => setDailyAttempts(event.target.value)} /></label>
+          <label>{translate("Low Balance Threshold (TWD)")}<input type="number" min="1" step="1" value={threshold} onChange={(event) => setThreshold(event.target.value)} /></label>
+          <label>{translate("Top-up amount (TWD)")}<input type="number" min="1" step="1" value={topUpAmount} onChange={(event) => setTopUpAmount(event.target.value)} /></label>
+          <label>{translate("Maximum Daily Value (TWD)")}<input type="number" min="1" step="1" value={dailyAmount} onChange={(event) => setDailyAmount(event.target.value)} /></label>
+          <label>{translate("Maximum daily charges")}<input type="number" min="1" max="10" step="1" value={dailyAttempts} onChange={(event) => setDailyAttempts(event.target.value)} /></label>
           <label className="billing-consent"><input type="checkbox" checked={autoConsentAccepted} onChange={(event) => setAutoConsentAccepted(event.target.checked)} />{AUTO_TOPUP_CONSENT_TEXT}</label>
-          <div className="inline-actions"><button type="submit" className="primary" disabled={busy || !canManagePolicy || !chargeQualified || !autoConsentAccepted}>{busy ? 'Updating…' : 'Save and Enable'}</button>{policy?.enabled ? <button type="button" className="ghost-button" disabled={busy || !canManagePolicy} onClick={() => mutate('DELETE', '/api/billing/auto-topup', { reason: 'customer disabled automatic top-up' }, { 'If-Match': data?.policyEtag || `"${policy.version}"` })}>Disable Automatic Top-Up</button> : null}</div>
+          <div className="inline-actions"><button type="submit" className="primary" disabled={busy || !canManagePolicy || !chargeQualified || !autoConsentAccepted}>{busy ? translate("Updating…") : translate("Save and Enable")}</button>{policy?.enabled ? <button type="button" className="ghost-button" disabled={busy || !canManagePolicy} onClick={() => mutate('DELETE', '/api/billing/auto-topup', { reason: 'customer disabled automatic top-up' }, { 'If-Match': data?.policyEtag || `"${policy.version}"` })}>{translate("Disable Automatic Top-Up")}</button> : null}</div>
         </form>
-        {!chargeQualified ? <p className="notice">The payment method does not yet have merchant-initiated charge capability; the save button remains disabled and no charge will be submitted.</p> : null}
+        {!chargeQualified ? <p className="notice">{translate("The payment method does not yet have merchant-initiated charge capability; the save button remains disabled and no charge will be submitted.")}</p> : null}
         {message ? <p className="notice" role="status">{message}</p> : null}
       </section>
 
-      <section className="panel"><div className="panel-head"><div><h3>Payment Methods</h3><p>Only safe metadata such as provider, brand, last four digits, and expiration month is stored.</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : 'Expiration date not provided'}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{method.status}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>Revoke</button> : null}</div>)}</div> : <p className="empty-state">No verified payment methods are available.</p>}
-        <form className="inline-form" onSubmit={createManualTopUp}><label>Manual Top-Up Amount (TWD)<input type="number" min="1" step="1" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} /></label><button type="submit" className="ghost-button" disabled={busy || (!hostedChargeProvider && (!activeMethod || !chargeQualified)) || !capabilities.includes('payment_intent.create')}>{hostedChargeProvider ? 'Continue to Card Top-Up' : 'Top Up Now'}</button></form>
+      <section className="panel"><div className="panel-head"><div><h3>{translate("Payment Methods")}</h3><p>{translate("Only safe metadata such as provider, brand, last four digits, and expiration month is stored.")}</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : translate("Expiration date not provided")}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{method.status}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>{translate("Revoke")}</button> : null}</div>)}</div> : <p className="empty-state">{translate("No verified payment methods are available.")}</p>}
+        <form className="inline-form" onSubmit={createManualTopUp}><label>{translate("Manual Top-Up Amount (TWD)")}<input type="number" min="1" step="1" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} /></label><button type="submit" className="ghost-button" disabled={busy || (!hostedChargeProvider && (!activeMethod || !chargeQualified)) || !capabilities.includes('payment_intent.create')}>{hostedChargeProvider ? translate("Continue to Card Top-Up") : translate("Top Up Now")}</button></form>
       </section>
     </div>
 
-    <section className="panel"><div className="panel-head"><div><h3>Payment Intents</h3><p>Normalized states are shown for customer tracking. Provider transaction references and payloads are not displayed.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Created</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead><tbody>{intents.map((intent) => { const state = paymentIntentState(intent.state); return <tr key={intent.id}><td>{formatProviderTimestamp(intent.created_at)}</td><td>{intent.reason === 'auto_top_up' ? 'Automatic Top-Up' : 'Manual Top-Up'}</td><td>{formatMinorAmount(intent.amount_minor, intent.currency)}</td><td><span className={`status-badge ${state.tone}`}>{state.label}</span></td></tr>; })}</tbody></table>{!intents.length ? <p className="empty-state">No payment intents are available.</p> : null}</div></section>
+    <section className="panel"><div className="panel-head"><div><h3>{translate("Payment Intents")}</h3><p>{translate("Normalized states are shown for customer tracking. Provider transaction references and payloads are not displayed.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Created")}</th><th>{translate("Reason")}</th><th>{translate("Amount")}</th><th>{translate("Status")}</th></tr></thead><tbody>{intents.map((intent) => { const state = paymentIntentState(intent.state); return <tr key={intent.id}><td>{formatProviderTimestamp(intent.created_at)}</td><td>{intent.reason === 'auto_top_up' ? translate("Automatic Top-Up") : translate("Manual Top-Up")}</td><td>{formatMinorAmount(intent.amount_minor, intent.currency)}</td><td><span className={`status-badge ${state.tone}`}>{translate(state.label)}</span></td></tr>; })}</tbody></table>{!intents.length ? <p className="empty-state">{translate("No payment intents are available.")}</p> : null}</div></section>
 
-    <section className="panel"><div className="panel-head"><div><h3>Balance changes</h3><p>Non-overwritable ledger, only customer safety fields are displayed.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Time</th><th>Reason</th><th>Transfers</th><th>Balance after change</th></tr></thead><tbody>{ledger.map((entry) => <tr key={entry.id}><td>{formatProviderTimestamp(entry.created_at)}</td><td>{entry.reason}</td><td>{entry.direction === 'debit' ? '−' : '+'}{formatMinorAmount(entry.amount_minor, entry.currency)}</td><td>{formatMinorAmount(entry.balance_after_minor, entry.currency)}</td></tr>)}</tbody></table>{!ledger.length ? <p className="empty-state">There are currently no balance changes.</p> : null}</div></section>
+    <section className="panel"><div className="panel-head"><div><h3>{translate("Balance changes")}</h3><p>{translate("Non-overwritable ledger, only customer safety fields are displayed.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Time")}</th><th>{translate("Reason")}</th><th>{translate("Transfers")}</th><th>{translate("Balance after change")}</th></tr></thead><tbody>{ledger.map((entry) => <tr key={entry.id}><td>{formatProviderTimestamp(entry.created_at)}</td><td>{entry.reason}</td><td>{entry.direction === 'debit' ? '−' : '+'}{formatMinorAmount(entry.amount_minor, entry.currency)}</td><td>{formatMinorAmount(entry.balance_after_minor, entry.currency)}</td></tr>)}</tbody></table>{!ledger.length ? <p className="empty-state">{translate("There are currently no balance changes.")}</p> : null}</div></section>
   </section>;
 }
 
 function BillingInvoiceTable({ invoices, onSelect }) {
   const {cloudId,version,onAccessLost} = React.useContext(BillingScope);
-  if (!invoices.length) return <p className="empty-state">There are currently no invoices.</p>;
-  return <div className="table-wrap"><table className="data-table"><thead><tr><th>Invoice number</th><th>Billing period</th><th>Amount</th><th>Status</th><th>File</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button type="button" className="link-button" onClick={() => onSelect(invoice)}>{invoice.invoice_number}</button></td><td>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</td><td>{formatMinorAmount(invoice.total_minor, invoice.currency)}</td><td><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? 'Paid' : invoice.state}</span></td><td>{invoice.document ? <a className="icon-download" aria-label={`Download ${invoice.invoice_number} PDF`} href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}><i className="fa-solid fa-download" /></a> : '—'}</td></tr>)}</tbody></table></div>;
+  if (!invoices.length) return <p className="empty-state">{translate("There are currently no invoices.")}</p>;
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Invoice number")}</th><th>{translate("Billing period")}</th><th>{translate("Amount")}</th><th>{translate("Status")}</th><th>{translate("File")}</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button type="button" className="link-button" onClick={() => onSelect(invoice)}>{invoice.invoice_number}</button></td><td>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</td><td>{formatMinorAmount(invoice.total_minor, invoice.currency)}</td><td><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? translate("Paid") : invoice.state}</span></td><td>{invoice.document ? <a className="icon-download" aria-label={translate("Download {{value0}} PDF", { value0: invoice.invoice_number })} href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}><i className="fa-solid fa-download" /></a> : '—'}</td></tr>)}</tbody></table></div>;
 }
 
 function BillingActivityTable({ activities, onSelect }) {
-  if (!activities.length) return <p className="empty-state">There is currently no billing activity.</p>;
-  return <div className="table-wrap"><table className="data-table"><thead><tr><th>Time</th><th>Type</th><th>Reference</th><th>Amount</th><th>Status</th></tr></thead><tbody>{activities.map((activity) => <tr key={activity.id}><td>{formatProviderTimestamp(activity.occurred_at)}</td><td>{activity.type === 'invoice' ? 'Invoice' : activity.type === 'auto_top_up' ? 'Automatic Top-Up' : activity.type}</td><td><button type="button" className="link-button" onClick={() => onSelect(activity)}>{activity.customer_reference}</button></td><td className={activity.balance_effect === 'credit' ? 'money-credit' : ''}>{activity.balance_effect === 'credit' ? '+' : '−'}{formatMinorAmount(activity.amount_minor, activity.currency)}</td><td><span className={`status-badge ${activity.state === 'completed' ? 'good' : activity.state === 'failed' ? 'danger' : 'warning'}`}>{activity.state === 'completed' ? 'Succeeded' : activity.state}</span></td></tr>)}</tbody></table></div>;
+  if (!activities.length) return <p className="empty-state">{translate("There is currently no billing activity.")}</p>;
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Time")}</th><th>{translate("Type")}</th><th>{translate("Reference")}</th><th>{translate("Amount")}</th><th>{translate("Status")}</th></tr></thead><tbody>{activities.map((activity) => <tr key={activity.id}><td>{formatProviderTimestamp(activity.occurred_at)}</td><td>{activity.type === 'invoice' ? translate("Invoice") : activity.type === 'auto_top_up' ? translate("Automatic Top-Up") : activity.type}</td><td><button type="button" className="link-button" onClick={() => onSelect(activity)}>{activity.customer_reference}</button></td><td className={activity.balance_effect === 'credit' ? 'money-credit' : ''}>{activity.balance_effect === 'credit' ? '+' : '−'}{formatMinorAmount(activity.amount_minor, activity.currency)}</td><td><span className={`status-badge ${activity.state === 'completed' ? 'good' : activity.state === 'failed' ? 'danger' : 'warning'}`}>{activity.state === 'completed' ? translate("Succeeded") : activity.state}</span></td></tr>)}</tbody></table></div>;
 }
 
 function BillingInvoiceDetail({ invoice, onBack }) {
   const {cloudId,version,onAccessLost} = React.useContext(BillingScope);
   return <section className="page-content billing-page" data-testid="billing-invoice-detail">
-    <button type="button" className="link-button billing-back" onClick={onBack}>← Back to invoices</button>
-    <div className="page-intro"><div><p className="eyebrow">Invoice</p><h2>{invoice.invoice_number}</h2></div>{invoice.document ? <a className="primary button-link" href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}>Download PDF</a> : null}</div>
+    <button type="button" className="link-button billing-back" onClick={onBack}>{translate("← Back to invoices")}</button>
+    <div className="page-intro"><div><p className="eyebrow">{translate("Invoice")}</p><h2>{invoice.invoice_number}</h2></div>{invoice.document ? <a className="primary button-link" href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}>{translate("Download PDF")}</a> : null}</div>
     <BillingInvoiceDocument invoice={invoice} />
   </section>;
 }
 
 function BillingActivityDetail({ activity, onBack }) {
-  return <section className="page-content billing-page" data-testid="billing-activity-detail"><button type="button" className="link-button billing-back" onClick={onBack}>← Back to billing activity</button><div className="page-intro"><div><p className="eyebrow">Billing activity</p><h2>{activity.customer_reference}</h2><p>{activity.type === 'invoice' ? 'Invoice charge' : 'Automatic top-up'} · {formatMinorAmount(activity.amount_minor, activity.currency)}</p></div><span className={`status-badge ${activity.state === 'completed' ? 'good' : 'warning'}`}>{activity.state === 'completed' ? 'Completed' : activity.state}</span></div><section className="panel"><h3>Processing timeline</h3><ol className="billing-timeline">{(activity.steps?.length ? activity.steps : [{ kind: activity.type, state: activity.state, occurred_at: activity.occurred_at, customer_reference: activity.customer_reference }]).map((step, index) => <li key={`${step.kind}-${index}`}><i className="fa-solid fa-circle-check" /><div><strong>{step.kind}</strong><p>{step.state} · {formatProviderTimestamp(step.occurred_at)}</p><small>{step.customer_reference}</small></div></li>)}</ol></section></section>;
+  return <section className="page-content billing-page" data-testid="billing-activity-detail"><button type="button" className="link-button billing-back" onClick={onBack}>{translate("← Back to billing activity")}</button><div className="page-intro"><div><p className="eyebrow">{translate("Billing activity")}</p><h2>{activity.customer_reference}</h2><p>{activity.type === 'invoice' ? translate("Invoice charge") : translate("Automatic top-up")} · {formatMinorAmount(activity.amount_minor, activity.currency)}</p></div><span className={`status-badge ${activity.state === 'completed' ? 'good' : 'warning'}`}>{activity.state === 'completed' ? translate("Completed") : activity.state}</span></div><section className="panel"><h3>{translate("Processing timeline")}</h3><ol className="billing-timeline">{(activity.steps?.length ? activity.steps : [{ kind: activity.type, state: activity.state, occurred_at: activity.occurred_at, customer_reference: activity.customer_reference }]).map((step, index) => <li key={`${step.kind}-${index}`}><i className="fa-solid fa-circle-check" /><div><strong>{step.kind}</strong><p>{step.state} · {formatProviderTimestamp(step.occurred_at)}</p><small>{step.customer_reference}</small></div></li>)}</ol></section></section>;
 }
 
 function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
@@ -3377,7 +3394,7 @@ function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
     } catch (_) { if (profileAlive.current) setMessage('Update status is unknown. Refresh before retrying; no successful update has been confirmed.'); }
     finally { profileLocked.current=false; }
   }
-  return <section className="page-content billing-page" data-testid="billing-profile-page"><div className="page-intro"><div><h2>Billing information</h2><p>Each new invoice saves the current recipient details. Later changes do not overwrite existing invoice snapshots.</p></div></div>{tabs}<section className="panel"><form className="billing-profile-form" onSubmit={submit}><label>Company or legal name<input value={form.legal_name || ''} onChange={(event) => setForm({ ...form, legal_name: event.target.value })} required /></label><label>VAT number<input value={form.tax_identifier || ''} onChange={(event) => setForm({ ...form, tax_identifier: event.target.value })} /></label><label>Billing email<input type="email" value={form.contact_email || ''} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} /></label><label className="wide">Billing address<textarea value={form.billing_address || ''} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} /></label><label>Locale<input value={form.locale || 'en-US'} onChange={(event) => setForm({ ...form, locale: event.target.value })} /></label><label>Billing timezone<input value={form.timezone || 'Asia/Taipei'} onChange={(event) => setForm({ ...form, timezone: event.target.value })} /></label><label>Delivery method<select value={form.delivery_preference || 'portal'} onChange={(event) => setForm({ ...form, delivery_preference: event.target.value })}><option value="portal">Portal</option><option value="portal_and_email">Portal + Email</option></select></label><div className="wide"><button type="submit" className="primary" disabled={!canManage}>Save billing information</button>{message ? <p className="notice" role="status">{message}</p> : null}</div></form></section></section>;
+  return <section className="page-content billing-page" data-testid="billing-profile-page"><div className="page-intro"><div><h2>{translate("Billing information")}</h2><p>{translate("Each new invoice saves the current recipient details. Later changes do not overwrite existing invoice snapshots.")}</p></div></div>{tabs}<section className="panel"><form className="billing-profile-form" onSubmit={submit}><label>{translate("Company or legal name")}<input value={form.legal_name || ''} onChange={(event) => setForm({ ...form, legal_name: event.target.value })} required /></label><label>{translate("VAT number")}<input value={form.tax_identifier || ''} onChange={(event) => setForm({ ...form, tax_identifier: event.target.value })} /></label><label>{translate("Billing email")}<input type="email" value={form.contact_email || ''} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} /></label><label className="wide">{translate("Billing address")}<textarea value={form.billing_address || ''} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} /></label><label>{translate("Locale")}<input value={form.locale || 'en-US'} onChange={(event) => setForm({ ...form, locale: event.target.value })} /></label><label>{translate("Billing timezone")}<input value={form.timezone || 'Asia/Taipei'} onChange={(event) => setForm({ ...form, timezone: event.target.value })} /></label><label>{translate("Delivery method")}<select value={form.delivery_preference || 'portal'} onChange={(event) => setForm({ ...form, delivery_preference: event.target.value })}><option value="portal">{translate("Portal")}</option><option value="portal_and_email">{translate("Portal + Email")}</option></select></label><div className="wide"><button type="submit" className="primary" disabled={!canManage}>{translate("Save billing information")}</button>{message ? <p className="notice" role="status">{message}</p> : null}</div></form></section></section>;
 }
 function PKITestBundleTool({ activeCloudId, products = [], productsLoading, productsUnavailable }) {
   const [quantity, setQuantity] = useState(1);
@@ -3408,39 +3425,39 @@ function PKITestBundleTool({ activeCloudId, products = [], productsLoading, prod
     finally { setBusy(false); }
   }
   return <section className="panel">
-    <div className="panel-head"><div><h3 className="test-device-icon-text"><Icon name="microchip" />Test Devices</h3><p>Select a Product and quantity. Device IDs, private keys, and certificates are generated automatically.</p></div></div>
+    <div className="panel-head"><div><h3 className="test-device-icon-text"><Icon name="microchip" />{translate("Test Devices")}</h3><p>{translate("Select a Product and quantity. Device IDs, private keys, and certificates are generated automatically.")}</p></div></div>
     <form className="inline-form pki-test-form" onSubmit={issue}>
-        <label><span className="test-device-icon-text"><Icon name="cube" />Product</span><select className="select-control" required aria-describedby="test-device-product-help" disabled={productsLoading || productsUnavailable || !availableProducts.length} value={selectedProductAvailable ? profileId : ''} onChange={(event) => setProfileId(event.target.value)}>
-          <option value="" disabled>{productsLoading ? 'Loading products…' : productsUnavailable ? 'Products unavailable' : !availableProducts.length ? 'No active products available' : 'Select a product'}</option>
+        <label><span className="test-device-icon-text"><Icon name="cube" />{translate("Product")}</span><select className="select-control" required aria-describedby="test-device-product-help" disabled={productsLoading || productsUnavailable || !availableProducts.length} value={selectedProductAvailable ? profileId : ''} onChange={(event) => setProfileId(event.target.value)}>
+          <option value="" disabled>{productsLoading ? translate("Loading products…") : productsUnavailable ? translate("Products unavailable") : !availableProducts.length ? translate("No active products available") : translate("Select a product")}</option>
           {availableProducts.map((product) => <option key={product.id} value={product.id}>{product.display_name || product.name || product.profile_key || product.id}</option>)}
         </select></label>
-        <label><span className="test-device-icon-text"><Icon name="hashtag" />Quantity</span><input type="number" min="1" max="10" required value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label>
-      <button type="submit" className="primary-button test-device-icon-text" disabled={busy || productBlocked}><Icon name={busy ? 'hourglass-half' : 'plus'} />{busy ? 'Creating…' : 'Create test devices'}</button>
+        <label><span className="test-device-icon-text"><Icon name="hashtag" />{translate("Quantity")}</span><input type="number" min="1" max="10" required value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label>
+      <button type="submit" className="primary-button test-device-icon-text" disabled={busy || productBlocked}><Icon name={busy ? 'hourglass-half' : 'plus'} />{busy ? translate("Creating…") : translate("Create test devices")}</button>
     </form>
     <div className="test-device-product-help">
-      <p className="test-device-icon-text"><Icon name="download" /><strong>Your download</strong></p>
-      <p><strong>Download once, when created.</strong> Save your files immediately. To reduce private-key exposure, this page does not retain a copy for later download. If you lose the files, create new test devices: they receive new Device IDs, private keys, and certificates, not replacements for the lost credentials.</p>
-      <p><Icon name="clock" /> <strong>Certificates are valid for 30 days from issuance.</strong> This limits how long leaked credentials or forgotten test devices can be used. After expiry, the certificate cannot authenticate new connections; create a new test device to continue testing. Creating another device does not revoke the old certificate or extend its expiry.</p>
-      <p>Includes each device's identity, certificate, and server-generated private key. The Device ID identifies the device in the cloud and is also recorded in its certificate; you do not need to assign an ID yourself.</p>
-      <details><summary><Icon name="file-zipper" /> Files and next steps</summary>
+      <p className="test-device-icon-text"><Icon name="download" /><strong>{translate("Your download")}</strong></p>
+      <p><strong>{translate("Download once, when created.")}</strong> {translate("Save your files immediately. To reduce private-key exposure, this page does not retain a copy for later download. If you lose the files, create new test devices: they receive new Device IDs, private keys, and certificates, not replacements for the lost credentials.")}</p>
+      <p><Icon name="clock" /> <strong>{translate("Certificates are valid for 30 days from issuance.")}</strong> {translate("This limits how long leaked credentials or forgotten test devices can be used. After expiry, the certificate cannot authenticate new connections; create a new test device to continue testing. Creating another device does not revoke the old certificate or extend its expiry.")}</p>
+      <p>{translate("Includes each device's identity, certificate, and server-generated private key. The Device ID identifies the device in the cloud and is also recorded in its certificate; you do not need to assign an ID yourself.")}</p>
+      <details><summary><Icon name="file-zipper" /> {translate("Files and next steps")}</summary>
         <ul>
-          <li><strong>One device:</strong> <code>rtk-test-device.json</code>, a certificate bundle containing the device identity, certificate chain, and private key.</li>
-          <li><strong>Multiple devices:</strong> <code>rtk-test-devices.zip</code>. Each successful device has a folder with <code>certificate-bundle.json</code>, <code>device.crt</code>, and <code>device.key</code>. <code>index.json</code> lists device results and any errors.</li>
+          <li><strong>{translate("One device:")}</strong> <code>rtk-test-device.json</code>{translate(", a certificate bundle containing the device identity, certificate chain, and private key.")}</li>
+          <li><strong>{translate("Multiple devices:")}</strong> <code>rtk-test-devices.zip</code>{translate(". Each successful device has a folder with")} <code>certificate-bundle.json</code>, <code>device.crt</code>{translate(", and")} <code>device.key</code>. <code>index.json</code> {translate("lists device results and any errors.")}</li>
         </ul>
-        <p>Load the matching bundle into your test client, or configure it with the device certificate and private key. Use the Device ID to find the device in the console and correlate requests or logs. Complete any required device claim and account binding separately; downloading credentials does not mean the device is online.</p>
-        <p>For this version, use the certificate chain in the JSON bundle; separate CA-chain files, connection-configuration files, and a README are not included. The CSR is not included.</p>
+        <p>{translate("Load the matching bundle into your test client, or configure it with the device certificate and private key. Use the Device ID to find the device in the console and correlate requests or logs. Complete any required device claim and account binding separately; downloading credentials does not mean the device is online.")}</p>
+        <p>{translate("For this version, use the certificate chain in the JSON bundle; separate CA-chain files, connection-configuration files, and a README are not included. The CSR is not included.")}</p>
       </details>
-      <p><Icon name="key" /> The download contains private keys. Keep it secure and do not share it in source control, logs, or support screenshots.</p>
+      <p><Icon name="key" /> {translate("The download contains private keys. Keep it secure and do not share it in source control, logs, or support screenshots.")}</p>
     </div>
     <div id="test-device-product-help" className="test-device-product-help">
-      <p className="test-device-icon-text"><Icon name="circle-info" /><strong>Why a Product?</strong></p>
-      <p>A Product is a shared configuration for a device model, not an individual device. It groups the model and cloud services so you can create multiple test devices with the same settings instead of configuring each one separately.</p>
-      <p>For example, create a Product for your camera model and select its services, then request several test devices for it. They share the Product configuration, but each receives its own Device ID, private key, and certificate. No mass-production run is required.</p>
-      {productsLoading ? <p role="status">Loading products for this Brand Cloud…</p> : productsUnavailable ? <p role="status">Products could not be loaded. Refresh this page to try again.</p> : !availableProducts.length ? <div role="status">
-        <div className="test-device-empty-action"><span><Icon name="cube" /> No active products yet. Create a Product to get started.</span><a className="ghost-button settings-action" href={`/console/${encodeURIComponent(activeCloudId)}/product-services`}><Icon name="cube" />Open Products and Services<Icon name="arrow-right" /></a></div>
-        <details><summary><Icon name="list-check" /> How to create a Product</summary>
-        <ol><li>Open Products and Services and select Add Product.</li><li>Enter the product details, choose its cloud services, and save.</li><li>Return to Brand Cloud Home → Settings → Test Devices, then choose your Product and quantity.</li></ol>
-        <p>If Add Product is unavailable, ask your Brand Cloud owner or administrator to create a Product or grant the required access.</p>
+      <p className="test-device-icon-text"><Icon name="circle-info" /><strong>{translate("Why a Product?")}</strong></p>
+      <p>{translate("A Product is a shared configuration for a device model, not an individual device. It groups the model and cloud services so you can create multiple test devices with the same settings instead of configuring each one separately.")}</p>
+      <p>{translate("For example, create a Product for your camera model and select its services, then request several test devices for it. They share the Product configuration, but each receives its own Device ID, private key, and certificate. No mass-production run is required.")}</p>
+      {productsLoading ? <p role="status">{translate("Loading products for this Brand Cloud…")}</p> : productsUnavailable ? <p role="status">{translate("Products could not be loaded. Refresh this page to try again.")}</p> : !availableProducts.length ? <div role="status">
+        <div className="test-device-empty-action"><span><Icon name="cube" /> {translate("No active products yet. Create a Product to get started.")}</span><a className="ghost-button settings-action" href={`/console/${encodeURIComponent(activeCloudId)}/product-services`}><Icon name="cube" />{translate("Open Products and Services")}<Icon name="arrow-right" /></a></div>
+        <details><summary><Icon name="list-check" /> {translate("How to create a Product")}</summary>
+        <ol><li>{translate("Open Products and Services and select Add Product.")}</li><li>{translate("Enter the product details, choose its cloud services, and save.")}</li><li>{translate("Return to Brand Cloud Home → Settings → Test Devices, then choose your Product and quantity.")}</li></ol>
+        <p>{translate("If Add Product is unavailable, ask your Brand Cloud owner or administrator to create a Product or grant the required access.")}</p>
         </details>
       </div> : null}
     </div>
@@ -3469,24 +3486,24 @@ function ReportsPage({ data, products, loading, canCreate, onRefresh }) {
     if (response.ok) { onRefresh(); }
   }
     return <section className="page-content">
-    <div className="page-intro"><div><p className="eyebrow">Fleet Insights</p><h2>Reports</h2><p>Review device status and firmware coverage across your cloud.</p><p>Use Device Status reports to review online and offline devices, and Firmware Coverage reports to see which firmware versions are deployed. Filter by product, region, group or firmware to narrow your investigation, then export CSV or JSON results for further analysis and operational handoffs.</p></div></div>
-    {!canCreate ? <section className="panel split-panel"><div><h3>You currently do not have reports.create permission</h3><p>Existing reports can be viewed, but new reports cannot be created.</p></div></section> : <section className="panel report-builder-panel"><form className="report-builder" onSubmit={createReport}>
-      <input value={name} onChange={(event) => setName(event.target.value)} aria-label="Report Name" />
-      <div className="report-type-field"><select className="select-control" aria-label="Report Type" aria-describedby={reportTypeHintId} value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">Device Status</option><option value="firmware_coverage">Firmware Coverage</option></select><p id={reportTypeHintId} className="report-type-hint">{reportType === 'firmware_coverage' ? 'Review deployed firmware versions to identify devices not yet on your target version. Coverage does not measure the success rate of an OTA campaign.' : 'Review online and offline device status to identify device groups that need follow-up.'}</p></div>
-      <select className="select-control" aria-label="Output Format" value={format} onChange={(event) => setFormat(event.target.value)}><option value="json">JSON</option><option value="csv">CSV</option></select>
-      <select className="select-control" aria-label="Timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)}><option>Asia/Taipei</option><option>UTC</option><option>America/Los_Angeles</option></select>
-      <select className="select-control" aria-label="Product Filter" value={filters.product_id} onChange={(event) => setFilters({ ...filters, product_id: event.target.value })}><option value="">All Products</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
-      <select className="select-control" aria-label="Device Status" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">All Statuses</option><option value="online">Online</option><option value="offline">Offline</option></select>
-      <input placeholder="Area" value={filters.region} onChange={(event) => setFilters({ ...filters, region: event.target.value })} />
-      <input placeholder="Group ID" value={filters.group_id} onChange={(event) => setFilters({ ...filters, group_id: event.target.value })} />
-      <input placeholder="Firmware Version" value={filters.firmware} onChange={(event) => setFilters({ ...filters, firmware: event.target.value })} />
-      <label className="report-date-field"><span>From</span><input type="date" aria-label="Report Start Date" value={filters.start_at} onChange={(event) => setFilters({ ...filters, start_at: event.target.value })} /></label>
-      <label className="report-date-field"><span>To</span><input type="date" aria-label="Report End Date" value={filters.end_at} onChange={(event) => setFilters({ ...filters, end_at: event.target.value })} /></label>
-      <fieldset className="dimension-picker"><legend>Dimensions</legend>{['product', 'model', 'region', 'group', 'firmware', 'status'].map((dimension) => <label key={dimension}><input type="checkbox" checked={dimensions.includes(dimension)} onChange={() => toggleDimension(dimension)} />{dimension}</label>)}</fieldset>
-      <div className="report-builder-actions"><button type="submit" className="primary-button">Create Report</button></div>
+    <div className="page-intro"><div><p className="eyebrow">{translate("Fleet Insights")}</p><h2>{translate("Reports")}</h2><p>{translate("Review device status and firmware coverage across your cloud.")}</p><p>{translate("Use Device Status reports to review online and offline devices, and Firmware Coverage reports to see which firmware versions are deployed. Filter by product, region, group or firmware to narrow your investigation, then export CSV or JSON results for further analysis and operational handoffs.")}</p></div></div>
+    {!canCreate ? <section className="panel split-panel"><div><h3>{translate("You currently do not have reports.create permission")}</h3><p>{translate("Existing reports can be viewed, but new reports cannot be created.")}</p></div></section> : <section className="panel report-builder-panel"><form className="report-builder" onSubmit={createReport}>
+      <input value={name} onChange={(event) => setName(event.target.value)} aria-label={translate("Report Name")} />
+      <div className="report-type-field"><select className="select-control" aria-label={translate("Report Type")} aria-describedby={reportTypeHintId} value={reportType} onChange={(event) => setReportType(event.target.value)}><option value="fleet_status">{translate("Device Status")}</option><option value="firmware_coverage">{translate("Firmware Coverage")}</option></select><p id={reportTypeHintId} className="report-type-hint">{reportType === 'firmware_coverage' ? translate("Review deployed firmware versions to identify devices not yet on your target version. Coverage does not measure the success rate of an OTA campaign.") : translate("Review online and offline device status to identify device groups that need follow-up.")}</p></div>
+      <select className="select-control" aria-label={translate("Output Format")} value={format} onChange={(event) => setFormat(event.target.value)}><option value="json">{translate("JSON")}</option><option value="csv">{translate("CSV")}</option></select>
+      <select className="select-control" aria-label={translate("Timezone")} value={timezone} onChange={(event) => setTimezone(event.target.value)}><option>{translate("Asia/Taipei")}</option><option>{translate("UTC")}</option><option>{translate("America/Los_Angeles")}</option></select>
+      <select className="select-control" aria-label={translate("Product Filter")} value={filters.product_id} onChange={(event) => setFilters({ ...filters, product_id: event.target.value })}><option value="">{translate("All Products")}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select>
+      <select className="select-control" aria-label={translate("Device Status")} value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">{translate("All Statuses")}</option><option value="online">{translate("Online")}</option><option value="offline">{translate("Offline")}</option></select>
+      <input placeholder={translate("Area")} value={filters.region} onChange={(event) => setFilters({ ...filters, region: event.target.value })} />
+      <input placeholder={translate("Group ID")} value={filters.group_id} onChange={(event) => setFilters({ ...filters, group_id: event.target.value })} />
+      <input placeholder={translate("Firmware Version")} value={filters.firmware} onChange={(event) => setFilters({ ...filters, firmware: event.target.value })} />
+      <label className="report-date-field"><span>{translate("From")}</span><input type="date" aria-label={translate("Report Start Date")} value={filters.start_at} onChange={(event) => setFilters({ ...filters, start_at: event.target.value })} /></label>
+      <label className="report-date-field"><span>{translate("To")}</span><input type="date" aria-label={translate("Report End Date")} value={filters.end_at} onChange={(event) => setFilters({ ...filters, end_at: event.target.value })} /></label>
+      <fieldset className="dimension-picker"><legend>{translate("Dimensions")}</legend>{['product', 'model', 'region', 'group', 'firmware', 'status'].map((dimension) => <label key={dimension}><input type="checkbox" checked={dimensions.includes(dimension)} onChange={() => toggleDimension(dimension)} />{dimension}</label>)}</fieldset>
+      <div className="report-builder-actions"><button type="submit" className="primary-button">{translate("Create Report")}</button></div>
     </form>{message ? <p className="notice">{message}</p> : null}</section>}
-    {loading ? <section className="panel split-panel"><div><h3>Loading report</h3></div></section> : null}
-        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Report</th><th>Status</th><th>Scope / Freshness</th><th>Created By</th><th>Created</th><th>Results</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{batchJobStateLabel(report.state)}{report.failure_reason ? <small className="error-text">The report could not be completed. Please try again.</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} · expires {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={reportURL(report.id)}>View Results</a>{report.state === 'completed' ? <> <a href={reportURL(report.id, 'csv')}>Download CSV</a> <a href={reportURL(report.id, 'json')}>Download JSON</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">No reports are available.</p> : null}</div></section> : null}
+    {loading ? <section className="panel split-panel"><div><h3>{translate("Loading report")}</h3></div></section> : null}
+        {!loading && data?.source_status === 'available' ? <section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Report")}</th><th>{translate("Status")}</th><th>{translate("Scope / Freshness")}</th><th>{translate("Created By")}</th><th>{translate("Created")}</th><th>{translate("Results")}</th></tr></thead><tbody>{reports.map((report) => <tr key={report.id}><td><strong>{report.name}</strong><small>{report.id}</small></td><td>{batchJobStateLabel(report.state)}{report.failure_reason ? <small className="error-text">{translate("The report could not be completed. Please try again.")}</small> : null}</td><td><small>{report.scope?.scope_hash || '—'}</small><small>{report.result_metadata?.source_freshness || report.scope?.source_freshness || '—'} {translate("· expires")} {report.expires_at || '—'}</small></td><td>{report.created_by}</td><td>{formatRelativeTime(report.created_at)}</td><td><a href={reportURL(report.id)}>{translate("View Results")}</a>{report.state === 'completed' ? <> <a href={reportURL(report.id, 'csv')}>{translate("Download CSV")}</a> <a href={reportURL(report.id, 'json')}>{translate("Download JSON")}</a></> : null}</td></tr>)}</tbody></table>{!reports.length ? <p className="empty-state">{translate("No reports are available.")}</p> : null}</div></section> : null}
   </section>;
 }
 
@@ -3677,24 +3694,24 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
     <section className="panel firmware-ota-page">
       <div className="panel-head">
         <div>
-          <h2>Firmware OTA</h2>
-          <p>Start and stop OTA rollouts, publish firmware versions, and track device progress for the selected Product.</p>
+          <h2>{translate("Firmware OTA")}</h2>
+          <p>{translate("Start and stop OTA rollouts, publish firmware versions, and track device progress for the selected Product.")}</p>
         </div>
-        <button type="button" className="ghost-button" disabled={!hasSelection || statusRefreshing} onClick={refreshStatus}>{statusRefreshing ? 'Updating status…' : 'Refresh status'}</button>
+        <button type="button" className="ghost-button" disabled={!hasSelection || statusRefreshing} onClick={refreshStatus}>{statusRefreshing ? translate("Updating status…") : translate("Refresh status")}</button>
       </div>
 
-      <section className="firmware-product-selector" aria-label="Firmware Product selector">
+      <section className="firmware-product-selector" aria-label={translate("Firmware Product selector")}>
         <label className="firmware-product-field">
-          <span>Product</span>
-          <select className="select-control" aria-label="Select Firmware Product" value={selectedProductId} onChange={selectProduct} disabled={!products.length}>
-            <option value="">Please select Product first</option>
+          <span>{translate("Product")}</span>
+          <select className="select-control" aria-label={translate("Select Firmware Product")} value={selectedProductId} onChange={selectProduct} disabled={!products.length}>
+            <option value="">{translate("Please select Product first")}</option>
             {products.map((product) => <option value={product.id} key={product.id}>{product.name}</option>)}
           </select>
         </label>
-        <p>{selectedProduct ? `Showing firmware versions, device distribution, and OTA update status for ${selectedProduct.name}.` : 'Select a Product to load its firmware and OTA status.'}</p>
+        <p>{selectedProduct ? translate("Showing firmware versions, device distribution, and OTA update status for {{value0}}.", { value0: selectedProduct.name }) : translate("Select a Product to load its firmware and OTA status.")}</p>
       </section>
 
-      {!hasSelection ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3>Please select Product first</h3><p>Different Product hardware models, firmware versions and update plans are independent of each other.</p></div></section> : null}
+      {!hasSelection ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3>{translate("Please select Product first")}</h3><p>{translate("Different Product hardware models, firmware versions and update plans are independent of each other.")}</p></div></section> : null}
 
       {hasSelection && available ? <section className="metrics firmware-page-metrics">
         <MetricCard icon="microchip" label="Latest version" value={latestVersion} hint="Current target version" tone="info" />
@@ -3714,11 +3731,11 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
         />
       ) : null}
 
-      {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Add firmware version</h3><p>The version will be registered to {selectedProduct.name}. You can then create an update plan for the same Product.</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder="Version, e.g. 1.4.3" value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input ref={releaseFileInput} name="artifact" required type="file" accept="application/octet-stream,.bin" aria-label="Firmware binary" onChange={selectReleaseArtifact} /><input required placeholder="Hardware versions (comma separated)" value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} />{releaseArtifactLoading ? <div className="firmware-artifact-metadata" role="status">Calculating firmware metadata…</div> : null}{releaseArtifact ? <dl className="firmware-artifact-metadata" aria-label="Firmware binary metadata"><div><dt>File</dt><dd>{releaseArtifact.name}</dd></div><div><dt>Size</dt><dd>{formatFirmwareSize(releaseArtifact.size)}{releaseArtifact.size >= 1024 ? ` (${releaseArtifact.size.toLocaleString('en-US')} bytes)` : ''}</dd></div><div><dt>SHA-256</dt><dd><code>{releaseArtifact.sha256}</code></dd></div></dl> : null}<button type="submit" className="primary-button" disabled={releaseArtifactLoading || !releaseArtifact}>Create version</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
-      {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Create an update plan</h3><p>Obtain the server scope preview before creating the immutable OTA plan; the browser does not determine the target count.</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">Select firmware version</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder="Plan name (optional)" value={planName} onChange={(event) => setPlanName(event.target.value)} /><label className="ota-rate-field"><span>Upgrade rate (devices/minute)</span><input required type="number" min="1" max="10000" step="1" value={planRate} onChange={(event) => setPlanRate(event.target.value)} /></label><input placeholder="Regions (comma separated)" value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder="Group IDs (comma separated)" value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder="Firmware versions (comma separated)" value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder="Health statuses (comma separated)" value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder="Exclude device IDs (comma or space separated)" value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? 'Calculating scope…' : 'Preview server scope'}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope || Number(planRate) < 1 || Number(planRate) > 10000}>Create update plan</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>Target <strong>{formatNumber(scopePreview.target_count || 0)}</strong></span><span>Excluded <strong>{formatNumber(scopePreview.excluded_count || 0)}</strong></span><span>Scope <code>{scopePreview.scope.scope_hash}</code></span><span>Expires <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
-      {hasSelection && releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>Firmware Version</h3><p>The version must be uploaded and checked before it can be published to the update plan.</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Product</th><th>Version</th><th>Status</th><th>Action</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.product_id}:${release.id || release.release_id}`}><td>{selectedProduct.name}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>Publish</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>Withdraw</button> : null}{!canRelease ? <span className="muted">Read-only</span> : null}</td></tr>)}</tbody></table></div></section> : null}
+      {hasSelection && canRelease && selectedProduct.allowed_actions?.includes('manage_updates') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>{translate("Add firmware version")}</h3><p>{translate("The version will be registered to")} {selectedProduct.name}{translate(". You can then create an update plan for the same Product.")}</p></div></div><form className="inline-form" onSubmit={publishRelease}><input required placeholder={translate("Version, e.g. 1.4.3")} value={releaseVersion} onChange={(event) => setReleaseVersion(event.target.value)} /><input ref={releaseFileInput} name="artifact" required type="file" accept="application/octet-stream,.bin" aria-label={translate("Firmware binary")} onChange={selectReleaseArtifact} /><input required placeholder={translate("Hardware versions (comma separated)")} value={releaseHardware} onChange={(event) => setReleaseHardware(event.target.value)} />{releaseArtifactLoading ? <div className="firmware-artifact-metadata" role="status">{translate("Calculating firmware metadata…")}</div> : null}{releaseArtifact ? <dl className="firmware-artifact-metadata" aria-label={translate("Firmware binary metadata")}><div><dt>{translate("File")}</dt><dd>{releaseArtifact.name}</dd></div><div><dt>{translate("Size")}</dt><dd>{formatFirmwareSize(releaseArtifact.size)}{releaseArtifact.size >= 1024 ? translate(" ({{value0}} bytes)", { value0: releaseArtifact.size.toLocaleString('en-US') }) : ''}</dd></div><div><dt>{translate("SHA-256")}</dt><dd><code>{releaseArtifact.sha256}</code></dd></div></dl> : null}<button type="submit" className="primary-button" disabled={releaseArtifactLoading || !releaseArtifact}>{translate("Create version")}</button></form>{releaseMessage ? <p className="notice">{releaseMessage}</p> : null}</section> : null}
+      {hasSelection && canManageOTA && releases.some((release) => String(release.state || '').toLowerCase() === 'published') ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>{translate("Create an update plan")}</h3><p>{translate("Obtain the server scope preview before creating the immutable OTA plan; the browser does not determine the target count.")}</p></div></div><form className="inline-form" onSubmit={createUpdatePlan}><select className="select-control" required value={planRelease} onChange={(event) => { setPlanRelease(event.target.value); setScopePreview(null); }}><option value="">{translate("Select firmware version")}</option>{releases.filter((release) => String(release.state || '').toLowerCase() === 'published').map((release) => <option value={release.id || release.release_id} key={release.id || release.release_id}>{release.version}</option>)}</select><input placeholder={translate("Plan name (optional)")} value={planName} onChange={(event) => setPlanName(event.target.value)} /><label className="ota-rate-field"><span>{translate("Upgrade rate (devices/minute)")}</span><input required type="number" min="1" max="10000" step="1" value={planRate} onChange={(event) => setPlanRate(event.target.value)} /></label><input placeholder={translate("Regions (comma separated)")} value={scopeQuery.region} onChange={(event) => { setScopeQuery({ ...scopeQuery, region: event.target.value }); setScopePreview(null); }} /><input placeholder={translate("Group IDs (comma separated)")} value={scopeQuery.group_ids} onChange={(event) => { setScopeQuery({ ...scopeQuery, group_ids: event.target.value }); setScopePreview(null); }} /><input placeholder={translate("Firmware versions (comma separated)")} value={scopeQuery.firmware} onChange={(event) => { setScopeQuery({ ...scopeQuery, firmware: event.target.value }); setScopePreview(null); }} /><input placeholder={translate("Health statuses (comma separated)")} value={scopeQuery.health} onChange={(event) => { setScopeQuery({ ...scopeQuery, health: event.target.value }); setScopePreview(null); }} /><input className="wide-input" placeholder={translate("Exclude device IDs (comma or space separated)")} value={excludedDeviceText} onChange={(event) => { setExcludedDeviceText(event.target.value); setScopePreview(null); }} /><button type="button" className="ghost-button" disabled={scopeLoading || !planRelease} onClick={previewScope}>{scopeLoading ? translate("Calculating scope…") : translate("Preview server scope")}</button><button type="submit" className="primary-button" disabled={!scopePreview?.scope || Number(planRate) < 1 || Number(planRate) > 10000}>{translate("Create update plan")}</button></form>{scopePreview?.scope ? <div className="scope-preview-grid"><span>{translate("Target")} <strong>{formatNumber(scopePreview.target_count || 0)}</strong></span><span>{translate("Excluded")} <strong>{formatNumber(scopePreview.excluded_count || 0)}</strong></span><span>{translate("Scope")} <code>{scopePreview.scope.scope_hash}</code></span><span>{translate("Expires")} <strong>{scopePreview.scope.expires_at || '—'}</strong></span></div> : null}{planMessage ? <p className="notice">{planMessage}</p> : null}</section> : null}
+      {hasSelection && releases.length ? <section className="panel firmware-panel"><div className="panel-head"><div><h3>{translate("Firmware Version")}</h3><p>{translate("The version must be uploaded and checked before it can be published to the update plan.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Product")}</th><th>{translate("Version")}</th><th>{translate("Status")}</th><th>{translate("Action")}</th></tr></thead><tbody>{releases.map((release) => <tr key={`${release.product_id}:${release.id || release.release_id}`}><td>{selectedProduct.name}</td><td>{release.version}</td><td>{release.state}</td><td>{canRelease && String(release.state).toLowerCase() === 'ready' ? <button type="button" className="ghost-button" onClick={() => releaseAction(release, 'publish')}>{translate("Publish")}</button> : null}{canRelease && String(release.state).toLowerCase() === 'published' ? <button type="button" className="link-button" onClick={() => releaseAction(release, 'revoke')}>{translate("Withdraw")}</button> : null}{!canRelease ? <span className="muted">{translate("Read-only")}</span> : null}</td></tr>)}</tbody></table></div></section> : null}
 
-      {hasSelection && loading && !distribution ? <p className="empty-state">Loading {selectedProduct.name} state of the firmware.</p> : null}
+      {hasSelection && loading && !distribution ? <p className="empty-state">{translate("Loading")} {selectedProduct.name} {translate("state of the firmware.")}</p> : null}
       {hasSelection && distribution && !available ? <SourceBlockedState title={pageState.title} message={unavailableText} /> : null}
 
       {hasSelection && distribution && available ? (
@@ -3727,8 +3744,8 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
           <section className="panel firmware-panel">
             <div className="panel-head">
               <div>
-                <h3>Firmware Version Distribution</h3>
-                <p>See the number of devices for each version; tap a version to go to the list of devices that have that version applied.</p>
+                <h3>{translate("Firmware Version Distribution")}</h3>
+                <p>{translate("See the number of devices for each version; tap a version to go to the list of devices that have that version applied.")}</p>
               </div>
             </div>
             {versions.length ? (
@@ -3743,9 +3760,9 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
                     <div className="firmware-version-row__meta">
                       <div>
                         <strong>{version.version}</strong>
-                        {version.is_latest ? <span className="version-badge">Latest</span> : null}
+                        {version.is_latest ? <span className="version-badge">{translate("Latest")}</span> : null}
                       </div>
-                      <small>{version.count} Devices</small>
+                      <small>{version.count} {translate("Devices")}</small>
                     </div>
                     <div className="firmware-version-row__bar" aria-hidden="true">
                       <span style={{ width: `${Math.max(version.pct || 0, version.count ? 8 : 0)}%` }} />
@@ -3755,7 +3772,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
                 ))}
               </div>
             ) : (
-              <p className="empty-state">No firmware version data available at this time.</p>
+              <p className="empty-state">{translate("No firmware version data available at this time.")}</p>
             )}
           </section>
 
@@ -3785,11 +3802,11 @@ function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onActio
     setRateMessages((messages) => ({ ...messages, [campaign.campaign_id]: ok ? 'Upgrade rate updated.' : 'Upgrade rate could not be updated.' }));
   }
   return (
-    <section className="panel firmware-panel ota-dashboard" aria-label="OTA Dashboard">
+    <section className="panel firmware-panel ota-dashboard" aria-label={translate("OTA Dashboard")}>
       <div className="panel-head">
         <div>
-          <h3>OTA Dashboard</h3>
-          <p>OTA rollouts are ordered by start time, newest first. Stop pauses an active rollout so it can be started again.</p>
+          <h3>{translate("OTA Dashboard")}</h3>
+          <p>{translate("OTA rollouts are ordered by start time, newest first. Stop pauses an active rollout so it can be started again.")}</p>
         </div>
       </div>
       {campaigns.length ? (
@@ -3816,18 +3833,18 @@ function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onActio
                     <StatusBadge value={normalizeStatusKey(campaign.state)} label={firmwareCampaignStatusLabel(campaign.state)} />
                   </span>
                   <span className="ota-dashboard-row__meta">
-                    <span>Target {campaign.target_version || '—'}</span>
-                    <time dateTime={campaign.started_at || undefined}>Started {formatFirmwareStartTime(campaign.started_at)}</time>
-                    <span>Rate {formatNumber(configuredRate)}/min · effective {formatNumber(effectiveRate)}/min</span>
+                    <span>{translate("Target")} {campaign.target_version || '—'}</span>
+                    <time dateTime={campaign.started_at || undefined}>{translate("Started")} {formatFirmwareStartTime(campaign.started_at)}</time>
+                    <span>{translate("Rate")} {formatNumber(configuredRate)}{translate("/min · effective")} {formatNumber(effectiveRate)}{translate("/min")}</span>
                   </span>
                   <span className="ota-dashboard-waiting-copy">
-                    <span>Waiting devices</span>
+                    <span>{translate("Waiting devices")}</span>
                     <strong>{formatNumber(waiting.waiting)} / {formatNumber(waiting.total)}</strong>
                   </span>
                   <span
                     className="ota-dashboard-progress"
                     role="progressbar"
-                    aria-label={`Waiting devices for ${campaign.campaign_id}`}
+                    aria-label={translate("Waiting devices for {{value0}}", { value0: campaign.campaign_id })}
                     aria-valuemin="0"
                     aria-valuemax={Math.max(waiting.total, 1)}
                     aria-valuenow={Math.min(waiting.waiting, waiting.total || 0)}
@@ -3837,7 +3854,7 @@ function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onActio
                   </span>
                 </button>
                 <div className="ota-dashboard-row__actions">
-                  {canChangeRate ? <div className="ota-dashboard-rate"><label><span>Devices/minute</span><input type="number" min="1" max={systemMaxRate} step="1" value={rateDrafts[campaign.campaign_id] ?? configuredRate} onChange={(event) => setRateDrafts((rates) => ({ ...rates, [campaign.campaign_id]: event.target.value }))} /></label><button type="button" className="ghost-button" disabled={Boolean(busyAction)} onClick={() => updateRate(campaign)}>{rateBusy ? 'Saving…' : 'Update rate'}</button><small>System max {formatNumber(systemMaxRate)}/min</small>{rateMessages[campaign.campaign_id] ? <small role="status">{rateMessages[campaign.campaign_id]}</small> : null}</div> : <span className="muted">Rate {formatNumber(configuredRate)}/min · effective {formatNumber(effectiveRate)}/min</span>}
+                  {canChangeRate ? <div className="ota-dashboard-rate"><label><span>{translate("Devices/minute")}</span><input type="number" min="1" max={systemMaxRate} step="1" value={rateDrafts[campaign.campaign_id] ?? configuredRate} onChange={(event) => setRateDrafts((rates) => ({ ...rates, [campaign.campaign_id]: event.target.value }))} /></label><button type="button" className="ghost-button" disabled={Boolean(busyAction)} onClick={() => updateRate(campaign)}>{rateBusy ? translate("Saving…") : translate("Update rate")}</button><small>{translate("System max")} {formatNumber(systemMaxRate)}{translate("/min")}</small>{rateMessages[campaign.campaign_id] ? <small role="status">{rateMessages[campaign.campaign_id]}</small> : null}</div> : <span className="muted">{translate("Rate")} {formatNumber(configuredRate)}{translate("/min · effective")} {formatNumber(effectiveRate)}{translate("/min")}</span>}
                   {control ? (
                     <button
                       type="button"
@@ -3847,13 +3864,13 @@ function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onActio
                     >
                       {controlBusy ? `${control.label.replace(' OTA', '')}…` : control.label}
                     </button>
-                  ) : <span className="muted">{canManage ? 'No action available' : 'Read-only'}</span>}
+                  ) : <span className="muted">{canManage ? translate("No action available") : translate("Read-only")}</span>}
                 </div>
               </article>
             );
           })}
         </div>
-      ) : <p className="empty-state">There are currently no OTA rollouts for this Product.</p>}
+      ) : <p className="empty-state">{translate("There are currently no OTA rollouts for this Product.")}</p>}
     </section>
   );
 }
@@ -3871,24 +3888,24 @@ function FirmwareCampaignDetail({ campaign, onAction, canManage }) {
     <section className="panel firmware-panel firmware-campaign-detail">
       <div className="panel-head">
         <div>
-          <h3>Device upgrade details</h3>
-          <p>{campaign ? `${campaign.campaign_id} · Target Version ${campaign.target_version || '—'} · Last Updated ${campaign.updated_at ? formatRelativeTime(campaign.updated_at) : '—'}` : 'Please select a firmware update record.'}</p>
+          <h3>{translate("Device upgrade details")}</h3>
+          <p>{campaign ? translate("{{value0}} · Target Version {{value1}} · Last Updated {{value2}}", { value0: campaign.campaign_id, value1: campaign.target_version || '—', value2: campaign.updated_at ? formatRelativeTime(campaign.updated_at) : '—' }) : translate("Please select a firmware update record.")}</p>
         </div>
         {campaign && actions.length ? (
           <div className="inline-actions">
             {actions.map((action) => <button type="button" className={action === 'cancel' ? 'danger-button' : 'ghost-button'} key={action} onClick={() => onAction?.(campaign.campaign_id, action)}>{actionLabels[action]}</button>)}
           </div>
-        ) : campaign ? <span className="status-badge neutral">{canManage ? 'No action available' : 'Read-only'}</span> : null}
+        ) : campaign ? <span className="status-badge neutral">{canManage ? translate("No action available") : translate("Read-only")}</span> : null}
       </div>
       {campaign && rows.length ? (
         <div className="firmware-rollout-table">
           <div className="firmware-rollout-table__head">
-            <span>Device</span>
-            <span>Current Version</span>
-            <span>Target Version</span>
-            <span>Upgrade Status</span>
-            <span>Reason</span>
-            <span>Final report</span>
+            <span>{translate("Device")}</span>
+            <span>{translate("Current Version")}</span>
+            <span>{translate("Target Version")}</span>
+            <span>{translate("Upgrade Status")}</span>
+            <span>{translate("Reason")}</span>
+            <span>{translate("Final report")}</span>
           </div>
           {rows.map((rollout) => (
             <div className="firmware-rollout-table__row" key={`${campaign.campaign_id}:${rollout.device_id}`}>
@@ -3902,7 +3919,7 @@ function FirmwareCampaignDetail({ campaign, onAction, canManage }) {
           ))}
         </div>
       ) : (
-        <p className="empty-state">{campaign ? 'There is currently no device status data for this update.' : 'No firmware update history selected.'}</p>
+        <p className="empty-state">{campaign ? translate("There is currently no device status data for this update.") : translate("No firmware update history selected.")}</p>
       )}
     </section>
   );
@@ -3914,8 +3931,8 @@ function FirmwareCampaignSummary({ campaign }) {
       <section className="panel firmware-panel rollout-summary">
         <div className="panel-head">
           <div>
-            <h3>Firmware Update Summary</h3>
-            <p>There are currently no firmware updates.</p>
+            <h3>{translate("Firmware Update Summary")}</h3>
+            <p>{translate("There are currently no firmware updates.")}</p>
           </div>
         </div>
       </section>
@@ -3933,26 +3950,26 @@ function FirmwareCampaignSummary({ campaign }) {
     <section className="panel firmware-panel rollout-summary">
       <div className="panel-head">
         <div>
-          <h3>Firmware Update Summary</h3>
-          <p>Target {campaign.target_version} · {firmwarePolicyLabel(campaign.policy)} · Processed {formatPercent(progress.pct)} · Last updated {campaign.updated_at ? formatRelativeTime(campaign.updated_at) : '—'}</p>
+          <h3>{translate("Firmware Update Summary")}</h3>
+          <p>{translate("Target")} {campaign.target_version} · {firmwarePolicyLabel(campaign.policy)} {translate("· Processed")} {formatPercent(progress.pct)} {translate("· Last updated")} {campaign.updated_at ? formatRelativeTime(campaign.updated_at) : '—'}</p>
         </div>
         <StatusBadge value={normalizeStatusKey(campaign.state)} label={firmwareCampaignStatusLabel(campaign.state)} />
       </div>
       <div className="rollout-summary-grid">
         {segments.map((segment) => (
           <div key={segment.key}>
-            <span>{segment.label}</span>
+            <span>{translate(segment.label)}</span>
             <strong>{segment.count}</strong>
             <small>{formatPercent(total ? segment.count / total * 100 : 0)}</small>
           </div>
         ))}
         <div>
-          <span>Target Device</span>
+          <span>{translate("Target Device")}</span>
           <strong>{total}</strong>
           <small>100%</small>
         </div>
       </div>
-      <div className="rollout-progress" aria-label="Firmware update progress">
+      <div className="rollout-progress" aria-label={translate("Firmware update progress")}>
         {segments.map((segment) => (
           <span
             key={segment.key}
@@ -3971,18 +3988,18 @@ function FirmwareRiskQueue({ campaigns, onViewDevices }) {
     <section className="panel firmware-panel firmware-risk-queue">
       <div className="panel-head">
         <div>
-          <h3>Devices that need attention</h3>
-          <p>List devices that failed to update, are waiting, or have an unknown version.</p>
+          <h3>{translate("Devices that need attention")}</h3>
+          <p>{translate("List devices that failed to update, are waiting, or have an unknown version.")}</p>
         </div>
-        <span>{rows.length} Devices</span>
+        <span>{rows.length} {translate("Devices")}</span>
       </div>
       {rows.length ? (
         <div className="risk-table">
           <div className="risk-table-head">
-            <span>Device</span>
-            <span>Current Version</span>
-            <span>Status</span>
-            <span>Final report</span>
+            <span>{translate("Device")}</span>
+            <span>{translate("Current Version")}</span>
+            <span>{translate("Status")}</span>
+            <span>{translate("Final report")}</span>
           </div>
           {rows.map((rollout) => (
             <button
@@ -3999,7 +4016,7 @@ function FirmwareRiskQueue({ campaigns, onViewDevices }) {
           ))}
         </div>
       ) : (
-        <p className="empty-state">There are currently no devices to process.</p>
+        <p className="empty-state">{translate("There are currently no devices to process.")}</p>
       )}
     </section>
   );
@@ -4027,7 +4044,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
     {
       key: 'success-rate',
       icon: 'signal',
-      label: `Stream Success Rate (${windowLabel})`,
+      label: translate('Stream Success Rate ({{window}})', { window: windowLabel }),
       value: available ? formatPercent(stats?.success_rate_pct ?? 0) : 'N/A',
       hint: available ? 'Percent of stream requests that succeeded in the selected window' : unavailableText,
     },
@@ -4058,10 +4075,10 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
     <section className="panel stream-health-page">
       <div className="panel-head">
         <div>
-          <h2>Stream Health</h2>
-          <p>Monitor stream connection reliability and identify devices that need investigation.</p>
-          <p>Review request success rates, daily request volume, average session duration and active sessions to spot changes in streaming behavior. Start with the devices with the highest failure rates, check their request counts, and open device details to investigate.</p>
-          <p className="stream-metrics-note">Session metrics reflect recorded stream events; they do not confirm that video was successfully decoded or displayed in the app.</p>
+          <h2>{translate("Stream Health")}</h2>
+          <p>{translate("Monitor stream connection reliability and identify devices that need investigation.")}</p>
+          <p>{translate("Review request success rates, daily request volume, average session duration and active sessions to spot changes in streaming behavior. Start with the devices with the highest failure rates, check their request counts, and open device details to investigate.")}</p>
+          <p className="stream-metrics-note">{translate("Session metrics reflect recorded stream events; they do not confirm that video was successfully decoded or displayed in the app.")}</p>
         </div>
       </div>
 
@@ -4078,28 +4095,28 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
         ))}
       </section>
 
-      {!available && stats ? <><SourceBlockedState title={pageState.title} message={unavailableText} /><p className="stream-metrics-note">N/A means stream metrics are currently unavailable. It does not mean there were no failures or that all streams succeeded.</p></> : null}
+      {!available && stats ? <><SourceBlockedState title={pageState.title} message={unavailableText} /><p className="stream-metrics-note">{translate("N/A means stream metrics are currently unavailable. It does not mean there were no failures or that all streams succeeded.")}</p></> : null}
 
       {loading && !stats ? (
-        <p className="empty-state">Loading stream health data.</p>
+        <p className="empty-state">{translate("Loading stream health data.")}</p>
       ) : stats && available ? (
         <div className="stream-health-layout">
           <section className="panel stream-trend-panel">
             <div className="panel-head">
               <div>
-                <h3>Success trend</h3>
-                <p>Daily WebRTC request volume and success-rate lines.</p>
+                <h3>{translate("Success trend")}</h3>
+                <p>{translate("Daily WebRTC request volume and success-rate lines.")}</p>
               </div>
             </div>
 
             {chart.points.length ? (
               <>
                 <div className="stream-chart-legend">
-                  <span><i className="legend-bar legend-requests" /> Requests</span>
-                  <span><i className="legend-line legend-overall" /> Overall</span>
-                  <span><i className="legend-line legend-webrtc" /> WebRTC</span>
+                  <span><i className="legend-bar legend-requests" /> {translate("Requests")}</span>
+                  <span><i className="legend-line legend-overall" /> {translate("Overall")}</span>
+                  <span><i className="legend-line legend-webrtc" /> {translate("WebRTC")}</span>
                 </div>
-                <svg viewBox="0 0 720 300" className="trend-chart stream-trend-chart" role="img" aria-label="Stream success trend chart">
+                <svg viewBox="0 0 720 300" className="trend-chart stream-trend-chart" role="img" aria-label={translate("Stream success trend chart")}>
                   <defs>
                     <linearGradient id="streamRequestsFill" x1="0" x2="0" y1="0" y2="1">
                       <stop offset="0%" stopColor="rgba(6, 116, 194, 0.26)" />
@@ -4130,7 +4147,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
                       <circle cx={point.x} cy={point.overallY} r="4" className="chart-dot chart-dot-overall" />
                       {index % chart.labelStep === 0 ? (
                         <text x={point.x} y="258" textAnchor="middle" className="chart-label">
-                          {point.label}
+                          {translate(point.label)}
                         </text>
                       ) : null}
                     </g>
@@ -4140,10 +4157,10 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
                   <text x="700" y="34" textAnchor="end" className="chart-axis-label">{chart.maxRequests}</text>
                   <text x="700" y="228" textAnchor="end" className="chart-axis-label">0</text>
                 </svg>
-                <p className="chart-footnote">Bars show WebRTC request volume; lines show the overall and WebRTC success rate for the selected window.</p>
+                <p className="chart-footnote">{translate("Bars show WebRTC request volume; lines show the overall and WebRTC success rate for the selected window.")}</p>
               </>
             ) : (
-              <p className="empty-state">No stream requests in selected window.</p>
+              <p className="empty-state">{translate("No stream requests in selected window.")}</p>
             )}
 
             <div className="stream-mode-summary">
@@ -4153,11 +4170,11 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
                   <div key={mode} className="stream-mode-summary__item">
                     <span>{streamModeLabel(mode)}</span>
                     <strong>{formatPercent(statsForMode.success_rate_pct ?? 0)}</strong>
-                    <small>{statsForMode.requests ?? 0} requests</small>
+                    <small>{statsForMode.requests ?? 0} {translate("requests")}</small>
                   </div>
                 );
               }) : (
-                <p className="empty-state">No source-backed stream mode data in selected window.</p>
+                <p className="empty-state">{translate("No source-backed stream mode data in selected window.")}</p>
               )}
             </div>
           </section>
@@ -4165,20 +4182,20 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
           <section className="panel stream-table-panel">
             <div className="panel-head">
               <div>
-                <h3>Worst devices</h3>
-                <p>Devices ordered by failure rate, worst first.</p>
+                <h3>{translate("Worst devices")}</h3>
+                <p>{translate("Devices ordered by failure rate, worst first.")}</p>
               </div>
             </div>
 
             {worstDevices.length ? (
               <div className="stream-device-table">
                 <div className="stream-device-table__head">
-                  <span>Device</span>
-                  <span>Mode Used</span>
-                  <span>Success Rate ({windowLabel})</span>
-                  <span>Total Requests ({windowLabel})</span>
-                  <span>Last Stream</span>
-                  <span>Status</span>
+                  <span>{translate("Device")}</span>
+                  <span>{translate("Mode Used")}</span>
+                  <span>{translate("Success Rate (")}{windowLabel})</span>
+                  <span>{translate("Total Requests (")}{windowLabel})</span>
+                  <span>{translate("Last Stream")}</span>
+                  <span>{translate("Status")}</span>
                 </div>
                 {worstDevices.map((device) => (
                   <button key={device.device_id} type="button" className="stream-device-table__row" onClick={() => onOpenDevice(device.device_id)}>
@@ -4192,7 +4209,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
                 ))}
               </div>
             ) : (
-              <p className="empty-state">No stream requests in selected window.</p>
+              <p className="empty-state">{translate("No stream requests in selected window.")}</p>
             )}
           </section>
           <StreamAttentionPanel stats={stats} onOpenDevice={onOpenDevice} />
@@ -4209,8 +4226,8 @@ function CustomerAccessGate({ me, active }) {
     return (
       <section className="panel split-panel">
         <div>
-          <h2>Brand Cloud capability required</h2>
-          <p>Your active membership cannot access {titleFor(active)}. The active Cloud was preserved and no write controls were loaded.</p>
+          <h2>{translate("Brand Cloud capability required")}</h2>
+          <p>{translate("Your active membership cannot access")} {translate(titleFor(active))}{translate(". The active Cloud was preserved and no write controls were loaded.")}</p>
         </div>
       </section>
     );
@@ -4219,9 +4236,9 @@ function CustomerAccessGate({ me, active }) {
     return (
       <section className="panel split-panel">
         <div>
-          <h2>Platform admin cannot use the Brand Cloud console</h2>
-          <p>Your platform session remains isolated from customer data. Open the platform home to inspect cross-tenant operations.</p>
-          <a className="inline-action" href="/admin">Go to platform homepage</a>
+          <h2>{translate("Platform admin cannot use the Brand Cloud console")}</h2>
+          <p>{translate("Your platform session remains isolated from customer data. Open the platform home to inspect cross-tenant operations.")}</p>
+          <a className="inline-action" href="/admin">{translate("Go to platform homepage")}</a>
         </div>
       </section>
     );
@@ -4229,9 +4246,9 @@ function CustomerAccessGate({ me, active }) {
   return (
     <section className="panel split-panel">
       <div>
-        <h2>Customer access required</h2>
-        <p>Sign in with a customer account to open the operations console.</p>
-        <a className="inline-action" href={loginPathFor(protectedPathFromLocation(window.location))}>Go to sign in</a>
+        <h2>{translate("Customer access required")}</h2>
+        <p>{translate("Sign in with a customer account to open the operations console.")}</p>
+        <a className="inline-action" href={loginPathFor(protectedPathFromLocation(window.location))}>{translate("Go to sign in")}</a>
       </div>
     </section>
   );
@@ -4242,9 +4259,9 @@ function PlatformAccessGate({ active, me }) {
   return (
     <section className="panel split-panel">
       <div>
-        <h2>{signedInCustomer ? 'Platform access denied' : 'Platform access required'}</h2>
-        <p>{signedInCustomer ? 'Your current customer session cannot open platform administration routes.' : `Sign in with a platform admin session to open ${titleFor(active)}.`}</p>
-        {!signedInCustomer ? <a className="inline-action" href={loginPathFor(protectedPathFromLocation(window.location))}>Go to sign in</a> : null}
+        <h2>{signedInCustomer ? translate("Platform access denied") : translate("Platform access required")}</h2>
+        <p>{signedInCustomer ? translate("Your current customer session cannot open platform administration routes.") : `${translate('Sign in with a platform admin session to open')} ${translate(titleFor(active))}.`}</p>
+        {!signedInCustomer ? <a className="inline-action" href={loginPathFor(protectedPathFromLocation(window.location))}>{translate("Go to sign in")}</a> : null}
       </div>
     </section>
   );
@@ -4344,11 +4361,11 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations, logs
   return (
     <section className="platform-dashboard">
       <div className="platform-dashboard-head">
-        <div className="platform-context-controls" aria-label="Platform dashboard status">
-          <span className="platform-health-chip"><StatusDot value={dashboardHealth.tone} />{dashboardHealth.label}</span>
-          <span className="platform-source-state">Source: {platformSourceLabel(dashboardSourceStatus(dashboard))}</span>
+        <div className="platform-context-controls" aria-label={translate("Platform dashboard status")}>
+          <span className="platform-health-chip"><StatusDot value={dashboardHealth.tone} />{translate(dashboardHealth.label)}</span>
+          <span className="platform-source-state">{translate("Source:")} {platformSourceLabel(dashboardSourceStatus(dashboard))}</span>
         </div>
-        <span className="platform-updated"><Icon name="rotate" /> {platformCheckedAt(dashboard) ? `Checked ${formatRelativeTime(platformCheckedAt(dashboard))}` : 'Source freshness unavailable'}</span>
+        <span className="platform-updated"><Icon name="rotate" /> {platformCheckedAt(dashboard) ? translate("Checked {{value0}}", { value0: formatRelativeTime(platformCheckedAt(dashboard)) }) : translate("Source freshness unavailable")}</span>
       </div>
 
       <section className="platform-kpi-strip">
@@ -4356,9 +4373,9 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations, logs
           <article className={`platform-kpi platform-kpi-${kpi.tone}`} key={kpi.id}>
             <div className="platform-kpi-label">
               <Icon name={kpi.icon} />
-              <span>{kpi.label}</span>
+              <span>{translate(kpi.label)}</span>
             </div>
-            <strong>{formatCompactNumber(kpi.value)} <small>{kpi.detail}</small></strong>
+            <strong>{formatCompactNumber(kpi.value)} <small>{translate(kpi.detail)}</small></strong>
           </article>
         ))}
       </section>
@@ -4379,9 +4396,9 @@ function PlatformDashboardLanding({ dashboard, summary, health, operations, logs
         <FootprintPanel rows={footprintRows} />
         <PlatformActivityPanel health={health} />
         <PlatformIncidentContext logs={logs} />
-        <PlatformMetricPanel title="Cross-Service Risk" icon="diagram-project" rows={crossServiceRows} />
-        <PlatformMetricPanel title="Business Signals" icon="chart-line" rows={businessRows} secondary />
-        <PlatformMetricPanel title="Infrastructure Health" icon="microchip" rows={infrastructureRows} />
+        <PlatformMetricPanel title={translate("Cross-Service Risk")} icon="diagram-project" rows={crossServiceRows} />
+        <PlatformMetricPanel title={translate("Business Signals")} icon="chart-line" rows={businessRows} secondary />
+        <PlatformMetricPanel title={translate("Infrastructure Health")} icon="microchip" rows={infrastructureRows} />
         {serverResources.length ? <ServerResourceStatus resources={serverResources} source={dashboard?.panel_sources?.server_resources || source} legacy /> : null}
       </section>
     </section>
@@ -4394,14 +4411,14 @@ function PlatformGrafanaView({ status }) {
     <section className="platform-dashboard grafana-page">
       <div className="platform-dashboard-head">
         <div>
-          <h2>Grafana</h2>
-          <p>Private LKE observability dashboard embedded through the Admin Console.</p>
+          <h2>{translate("Grafana")}</h2>
+          <p>{translate("Private LKE observability dashboard embedded through the Admin Console.")}</p>
         </div>
       </div>
       {embed.ready ? (
         <article className="panel grafana-frame-panel">
           <iframe
-            title="RTK LKE Staging Grafana dashboard"
+            title={translate("RTK LKE Staging Grafana dashboard")}
             src={embed.iframeURL}
             className="grafana-frame"
             loading="lazy"
@@ -4411,8 +4428,8 @@ function PlatformGrafanaView({ status }) {
       ) : (
         <section className="panel split-panel">
           <div>
-            <h2>Grafana unavailable</h2>
-            <p>{embed.message}</p>
+            <h2>{translate("Grafana unavailable")}</h2>
+            <p>{translate(embed.message)}</p>
           </div>
         </section>
       )}
@@ -4425,8 +4442,8 @@ function ScrapeHealthPanel({ groups }) {
     <article className="panel platform-dashboard-panel platform-compact-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="gauge-high" />Scrape Health</h2>
-          <p>Grouped Prometheus target status.</p>
+          <h2 className="heading-with-icon"><Icon name="gauge-high" />{translate("Scrape Health")}</h2>
+          <p>{translate("Grouped Prometheus target status.")}</p>
         </div>
       </div>
       <div className="scrape-group-list">
@@ -4434,12 +4451,12 @@ function ScrapeHealthPanel({ groups }) {
           <div className="scrape-group-row" key={group.id}>
             <div>
               <strong>{group.name}</strong>
-              <small>{group.targets_up} up / {group.targets_down} down</small>
+              <small>{group.targets_up} {translate("up /")} {group.targets_down} {translate("down")}</small>
             </div>
             <CompactStatus value={group.status} label={toTitleCase(group.status)} />
           </div>
         ))}
-        {!groups.length ? <p className="empty-state">No scrape group data available.</p> : null}
+        {!groups.length ? <p className="empty-state">{translate("No scrape group data available.")}</p> : null}
       </div>
     </article>
   );
@@ -4450,14 +4467,14 @@ function FootprintPanel({ rows }) {
     <article className="panel platform-dashboard-panel platform-compact-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="building" />Tenant &amp; Device Footprint</h2>
-          <p>Admin read-model totals.</p>
+          <h2 className="heading-with-icon"><Icon name="building" />{translate("Tenant & Device Footprint")}</h2>
+          <p>{translate("Admin read-model totals.")}</p>
         </div>
       </div>
       <div className="footprint-list">
         {rows.map(([label, value]) => (
           <div key={label}>
-            <span>{label}</span>
+            <span>{translate(label)}</span>
             <strong>{value}</strong>
           </div>
         ))}
@@ -4471,30 +4488,30 @@ function OperationRiskPanel({ risk, operations }) {
     <article className="panel platform-dashboard-panel operation-risk-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="triangle-exclamation" />Operation Risk</h2>
-          <p>{risk.failed_operations || risk.dead_lettered_operations ? 'Failures need operator attention.' : 'No failed lifecycle work currently reported.'}</p>
+          <h2 className="heading-with-icon"><Icon name="triangle-exclamation" />{translate("Operation Risk")}</h2>
+          <p>{risk.failed_operations || risk.dead_lettered_operations ? translate("Failures need operator attention.") : translate("No failed lifecycle work currently reported.")}</p>
         </div>
-        <div className="operation-risk-legend" aria-label="Operation risk legend">
-          <span><StatusDot value="open" />Open</span>
-          <span><StatusDot value="warning" />Failed</span>
-          <span><StatusDot value="dead_lettered" />Dead-letter</span>
+        <div className="operation-risk-legend" aria-label={translate("Operation risk legend")}>
+          <span><StatusDot value="open" />{translate("Open")}</span>
+          <span><StatusDot value="warning" />{translate("Failed")}</span>
+          <span><StatusDot value="dead_lettered" />{translate("Dead-letter")}</span>
         </div>
       </div>
-      <div className="risk-strip" aria-label="Operation risk counts">
+      <div className="risk-strip" aria-label={translate("Operation risk counts")}>
         <div className="risk-metric">
-          <span>Open</span>
+          <span>{translate("Open")}</span>
           <strong>{risk.open_operations}</strong>
         </div>
         <div className={`risk-metric ${risk.failed_operations ? 'risk-hot' : ''}`}>
-          <span>Failed</span>
+          <span>{translate("Failed")}</span>
           <strong>{risk.failed_operations}</strong>
         </div>
         <div className={`risk-metric ${risk.dead_lettered_operations ? 'risk-hot' : ''}`}>
-          <span>Dead letters</span>
+          <span>{translate("Dead letters")}</span>
           <strong>{risk.dead_lettered_operations}</strong>
         </div>
       </div>
-      <div className="panel-action-row"><a className="inline-action" href="/admin/ops">View all operations <Icon name="arrow-right" /></a></div>
+      <div className="panel-action-row"><a className="inline-action" href="/admin/ops">{translate("View all operations")} <Icon name="arrow-right" /></a></div>
       <OperationList operations={operations} detailed />
     </article>
   );
@@ -4505,8 +4522,8 @@ function PlatformActivityPanel({ health }) {
     <article className="panel platform-dashboard-panel platform-activity-panel platform-compact-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="chart-line" />Platform Activity</h2>
-          <p>{health.filter((item) => item.status === 'ok').length} of {health.length} services healthy.</p>
+          <h2 className="heading-with-icon"><Icon name="chart-line" />{translate("Platform Activity")}</h2>
+          <p>{health.filter((item) => item.status === 'ok').length} {translate("of")} {health.length} {translate("services healthy.")}</p>
         </div>
       </div>
       <ServiceHealth health={health} compact />
@@ -4520,19 +4537,19 @@ function PlatformIncidentContext({ logs }) {
     <article className="panel platform-dashboard-panel platform-compact-panel platform-incident-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="triangle-exclamation" />Recent Incident Context</h2>
-          <p>Recent log events that help explain degraded platform state.</p>
+          <h2 className="heading-with-icon"><Icon name="triangle-exclamation" />{translate("Recent Incident Context")}</h2>
+          <p>{translate("Recent log events that help explain degraded platform state.")}</p>
         </div>
-        <a className="inline-action" href="/admin/logs">View service logs <Icon name="arrow-up-right-from-square" /></a>
+        <a className="inline-action" href="/admin/logs">{translate("View service logs")} <Icon name="arrow-up-right-from-square" /></a>
       </div>
-      {logs?.message ? <p className="source-note">{logs.message}</p> : null}
+      {logs?.message ? <p className="source-note">{translate(logs.message)}</p> : null}
       {events.length ? (
         <div className="incident-list">
           {events.map((event) => (
             <article className="incident-row" key={event.event_id || `${event.ts}-${event.msg}`}>
               <StatusDot value="warning" />
               <div>
-                <strong>{event.msg || 'Service event'}</strong>
+                <strong>{event.msg ? translate(event.msg) : translate("Service event")}</strong>
                 <span>{[event.service, event.level, event.trace_id || event.request_id].filter(Boolean).join(' · ')}</span>
               </div>
               <time>{event.ts ? formatRelativeTime(event.ts) : '-'}</time>
@@ -4540,7 +4557,7 @@ function PlatformIncidentContext({ logs }) {
           ))}
         </div>
       ) : (
-        <p className="empty-state compact-empty">No recent warning or error log events.</p>
+        <p className="empty-state compact-empty">{translate("No recent warning or error log events.")}</p>
       )}
     </article>
   );
@@ -4551,22 +4568,22 @@ function ServiceMetricsTable({ metrics, source }) {
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="heart-pulse" />Service Health</h2>
-          <p>Current k8s service target health and basic runtime metrics. Long-term trends live in Grafana.</p>
+          <h2 className="heading-with-icon"><Icon name="heart-pulse" />{translate("Service Health")}</h2>
+          <p>{translate("Current k8s service target health and basic runtime metrics. Long-term trends live in Grafana.")}</p>
         </div>
-        <a className="inline-action" href="/admin/health">View service health <Icon name="arrow-right" /></a>
+        <a className="inline-action" href="/admin/health">{translate("View service health")} <Icon name="arrow-right" /></a>
       </div>
       <div className="server-resource-table-wrap">
         <table className="server-resource-table service-metrics-table">
           <thead>
             <tr>
-              <th>Service</th>
-              <th>Namespace</th>
-              <th>Targets</th>
-              <th>Req/s</th>
-              <th>5xx/s</th>
-              <th>Avg latency</th>
-              <th>Status</th>
+              <th>{translate("Service")}</th>
+              <th>{translate("Namespace")}</th>
+              <th>{translate("Targets")}</th>
+              <th>{translate("Req/s")}</th>
+              <th>{translate("5xx/s")}</th>
+              <th>{translate("Avg latency")}</th>
+              <th>{translate("Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -4574,10 +4591,10 @@ function ServiceMetricsTable({ metrics, source }) {
               <tr key={metric.id}>
                 <td><strong>{metric.service || metric.id}</strong></td>
                 <td>{metric.namespace || '-'}</td>
-                <td>{metric.source_status === 'configured' || metric.source_status === 'stale' || metric.targets_total ? `${metric.targets_up} up / ${metric.targets_down} down` : 'Unavailable'}</td>
+                <td>{metric.source_status === 'configured' || metric.source_status === 'stale' || metric.targets_total ? translate("{{value0}} up / {{value1}} down", { value0: metric.targets_up, value1: metric.targets_down }) : translate("Unavailable")}</td>
                 <td>{formatCompactNumber(metric.request_rate ?? 0)}</td>
                 <td>{formatCompactNumber(metric.error_rate_5xx ?? 0)}</td>
-                <td>{metric.avg_latency_seconds === undefined || metric.avg_latency_seconds === null ? 'Unavailable' : `${formatCompactNumber(metric.avg_latency_seconds)}s`}</td>
+                <td>{metric.avg_latency_seconds === undefined || metric.avg_latency_seconds === null ? translate("Unavailable") : `${formatCompactNumber(metric.avg_latency_seconds)}s`}</td>
                 <td><CompactStatus value={resourceStatusTone(metric.status)} label={resourceStatusLabel(metric.status)} /></td>
               </tr>
             ))}
@@ -4598,23 +4615,23 @@ function WorkloadHealthTable({ workloads, source }) {
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="boxes-stacked" />K8s Workloads</h2>
-          <p>Deployment replica, pod readiness, restart, and crashloop status.</p>
+          <h2 className="heading-with-icon"><Icon name="boxes-stacked" />{translate("K8s Workloads")}</h2>
+          <p>{translate("Deployment replica, pod readiness, restart, and crashloop status.")}</p>
         </div>
-        <a className="inline-action" href="/admin/health">View workload health <Icon name="arrow-right" /></a>
+        <a className="inline-action" href="/admin/health">{translate("View workload health")} <Icon name="arrow-right" /></a>
       </div>
       <div className="server-resource-table-wrap">
         <table className="server-resource-table workload-health-table">
           <thead>
             <tr>
-              <th>Workload</th>
-              <th>Namespace</th>
-              <th>Kind</th>
-              <th>Replicas</th>
-              <th>Ready pods</th>
-              <th>Restarts</th>
-              <th>Crashloop</th>
-              <th>Status</th>
+              <th>{translate("Workload")}</th>
+              <th>{translate("Namespace")}</th>
+              <th>{translate("Kind")}</th>
+              <th>{translate("Replicas")}</th>
+              <th>{translate("Ready pods")}</th>
+              <th>{translate("Restarts")}</th>
+              <th>{translate("Crashloop")}</th>
+              <th>{translate("Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -4647,27 +4664,27 @@ function ClusterNodeSummary({ nodes, source }) {
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="server" />Cluster Nodes</h2>
-          <p>Current k8s node readiness and resource snapshot.</p>
+          <h2 className="heading-with-icon"><Icon name="server" />{translate("Cluster Nodes")}</h2>
+          <p>{translate("Current k8s node readiness and resource snapshot.")}</p>
         </div>
-        <a className="inline-action" href="/admin/health">View service health <Icon name="arrow-right" /></a>
+        <a className="inline-action" href="/admin/health">{translate("View service health")} <Icon name="arrow-right" /></a>
       </div>
       <div className="server-resource-table-wrap">
         <table className="server-resource-table cluster-node-table">
           <thead>
             <tr>
-              <th>Node</th>
-              <th>Ready</th>
-              <th>CPU</th>
-              <th>Memory</th>
-              <th>Status</th>
+              <th>{translate("Node")}</th>
+              <th>{translate("Ready")}</th>
+              <th>{translate("CPU")}</th>
+              <th>{translate("Memory")}</th>
+              <th>{translate("Status")}</th>
             </tr>
           </thead>
           <tbody>
             {nodes.map((node) => (
               <tr key={node.id}>
                 <td><strong>{node.name || node.id}</strong></td>
-                <td>{node.ready ? 'Ready' : 'Not ready'}</td>
+                <td>{node.ready ? translate("Ready") : translate("Not ready")}</td>
                 <td>{formatResourcePercent(node.cpu_percent)}</td>
                 <td>{formatResourcePercent(node.memory_percent)}</td>
                 <td><CompactStatus value={resourceStatusTone(node.status)} label={resourceStatusLabel(node.status)} /></td>
@@ -4690,32 +4707,32 @@ function ServiceExporterStatus({ exporters, source }) {
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="file-export" />Service Exporter Status</h2>
-          <p>Application and service-owned exporters published into the admin Prometheus boundary.</p>
+          <h2 className="heading-with-icon"><Icon name="file-export" />{translate("Service Exporter Status")}</h2>
+          <p>{translate("Application and service-owned exporters published into the admin Prometheus boundary.")}</p>
         </div>
       </div>
       <div className="server-resource-table-wrap">
         <table className="server-resource-table service-exporter-table">
           <thead>
             <tr>
-              <th>Service</th>
-              <th>Exporter role</th>
-              <th>Targets</th>
-              <th>Status</th>
+              <th>{translate("Service")}</th>
+              <th>{translate("Exporter role")}</th>
+              <th>{translate("Targets")}</th>
+              <th>{translate("Status")}</th>
             </tr>
           </thead>
           <tbody>
             {exporters.map((exporter) => (
               <tr key={exporter.id}>
                 <td><strong>{exporter.label || exporter.id}</strong></td>
-                <td>{exporter.role || '-'}</td>
-                <td>{exporter.source_status === 'configured' || exporter.source_status === 'stale' || exporter.targets_total ? `${exporter.targets_up} up / ${exporter.targets_down} down` : 'Unavailable'}</td>
+                <td>{exporter.role ? translate(exporter.role) : '-'}</td>
+                <td>{exporter.source_status === 'configured' || exporter.source_status === 'stale' || exporter.targets_total ? translate("{{value0}} up / {{value1}} down", { value0: exporter.targets_up, value1: exporter.targets_down }) : translate("Unavailable")}</td>
                 <td><CompactStatus value={resourceStatusTone(exporter.status)} label={resourceStatusLabel(exporter.status)} /></td>
               </tr>
             ))}
             {!exporters.length ? (
               <tr>
-                <td colSpan="4" className="empty-state">No service exporter data available.</td>
+                <td colSpan="4" className="empty-state">{translate("No service exporter data available.")}</td>
               </tr>
             ) : null}
           </tbody>
@@ -4730,35 +4747,35 @@ function ServerResourceStatus({ resources, source, legacy = false }) {
     <article className="panel platform-dashboard-panel server-resource-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="server" />{legacy ? 'Legacy Server Resource Status' : 'Server Resource Status'}</h2>
-          <p>{legacy ? 'Transition-only VM/server fallback while k8s metrics become the primary dashboard source.' : 'Per-server CPU, memory, root disk, and network throughput from the admin Prometheus boundary.'}</p>
+          <h2 className="heading-with-icon"><Icon name="server" />{legacy ? translate("Legacy Server Resource Status") : translate("Server Resource Status")}</h2>
+          <p>{legacy ? translate("Transition-only VM/server fallback while k8s metrics become the primary dashboard source.") : translate("Per-server CPU, memory, root disk, and network throughput from the admin Prometheus boundary.")}</p>
         </div>
       </div>
       <div className="server-resource-table-wrap">
         <table className="server-resource-table">
           <thead>
             <tr>
-              <th>Server</th>
-              <th>Role / Service</th>
-              <th>CPU</th>
-              <th>Memory</th>
-              <th>Disk</th>
-              <th>Network</th>
-              <th>Status</th>
+              <th>{translate("Server")}</th>
+              <th>{translate("Role / Service")}</th>
+              <th>{translate("CPU")}</th>
+              <th>{translate("Memory")}</th>
+              <th>{translate("Disk")}</th>
+              <th>{translate("Network")}</th>
+              <th>{translate("Status")}</th>
             </tr>
           </thead>
           <tbody>
             {resources.map((resource) => (
               <tr key={resource.id}>
                 <td><strong>{resource.label || resource.id}</strong></td>
-                <td>{resource.role || '-'}</td>
+                <td>{resource.role ? translate(resource.role) : '-'}</td>
                 <td>{formatResourcePercent(resource.cpu_percent)}</td>
                 <td>{formatResourcePercent(resource.memory_percent)}</td>
                 <td>{formatResourcePercent(resource.disk_percent)}</td>
                 <td>
                   <span className="network-throughput-cell">
-                    <span>In {formatThroughputBPS(resource.network_in_bps)}</span>
-                    <span>Out {formatThroughputBPS(resource.network_out_bps)}</span>
+                    <span>{translate("In")} {formatThroughputBPS(resource.network_in_bps)}</span>
+                    <span>{translate("Out")} {formatThroughputBPS(resource.network_out_bps)}</span>
                   </span>
                 </td>
                 <td><StatusBadge value={resourceStatusTone(resource.status)} label={resourceStatusLabel(resource.status)} /></td>
@@ -4766,7 +4783,7 @@ function ServerResourceStatus({ resources, source, legacy = false }) {
             ))}
             {!resources.length ? (
               <tr>
-                <td colSpan="7" className="empty-state">No server resource data available.</td>
+                <td colSpan="7" className="empty-state">{translate("No server resource data available.")}</td>
               </tr>
             ) : null}
           </tbody>
@@ -4781,14 +4798,14 @@ function PlatformMetricPanel({ title, icon = 'layer-group', rows, secondary = fa
     <article className={`panel platform-dashboard-panel ${secondary ? 'platform-dashboard-panel-secondary' : ''}`}>
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name={icon} />{title}</h2>
+          <h2 className="heading-with-icon"><Icon name={icon} />{translate(title)}</h2>
         </div>
       </div>
       <div className="metric-row-list">
         {rows.map((row) => (
           <div className="metric-row" key={row.label}>
-            <span>{row.label}</span>
-            <strong>{row.value}</strong>
+            <span>{translate(row.label)}</span>
+            <strong>{translate(row.value)}</strong>
           </div>
         ))}
       </div>
@@ -4810,7 +4827,7 @@ function metricPanelRow(label, item, { suffix = '' } = {}) {
     return { label, value: toTitleCase(item.source_status), status: item.source_status };
   }
   if (item.targets_total !== undefined) {
-    return { label, value: `${item.targets_up} up / ${item.targets_down} down`, status: item.source_status || 'configured' };
+    return { label, value: translate('{{up}} up / {{down}} down', { up: item.targets_up, down: item.targets_down }), status: item.source_status || 'configured' };
   }
   const total = (item.series || []).reduce((sum, series) => sum + Number(series.value || 0), 0);
   if (!item.series?.length) return { label, value: toTitleCase(item.source_status || 'empty'), status: item.source_status || 'empty' };
@@ -4836,16 +4853,16 @@ function PlatformHealth({ summary, health }) {
     <>
       <section className="panel split-panel">
         <div>
-          <h2 className="heading-with-icon"><Icon name="server" />Platform Operations</h2>
-          <p>Cross-customer view for service and operations support teams.</p>
+          <h2 className="heading-with-icon"><Icon name="server" />{translate("Platform Operations")}</h2>
+          <p>{translate("Cross-customer view for service and operations support teams.")}</p>
           <div className="admin-kpis">
-            <div><Icon name="building" /><strong>{customerCount}</strong><span>Customers</span></div>
-            <div><Icon name="heart-pulse" /><strong>{health.length}</strong><span>Service checks</span></div>
+            <div><Icon name="building" /><strong>{customerCount}</strong><span>{translate("Customers")}</span></div>
+            <div><Icon name="heart-pulse" /><strong>{health.length}</strong><span>{translate("Service checks")}</span></div>
           </div>
         </div>
         <ServiceHealth health={health} compact />
       </section>
-      {hasDemo ? <section className="panel demo-banner"><p><Icon name="flask" />{`Demo services active: ${demoServices.map((service) => service.name).join(', ')}`}</p></section> : null}
+      {hasDemo ? <section className="panel demo-banner"><p><Icon name="flask" />{translate("Demo services active: {{value0}}", { value0: demoServices.map((service) => service.name).join(', ') })}</p></section> : null}
     </>
   );
 }
@@ -4870,29 +4887,29 @@ function PlatformServiceLogs({ logs, loading }) {
     <section className="panel platform-dashboard-panel">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="file-lines" />Cloud Service Logs</h2>
-          <p>Use this page to find a failed request, identify the affected service, and follow its trace or request ID.</p>
+          <h2 className="heading-with-icon"><Icon name="file-lines" />{translate("Cloud Service Logs")}</h2>
+          <p>{translate("Use this page to find a failed request, identify the affected service, and follow its trace or request ID.")}</p>
         </div>
         <span className={`status-pill ${status === 'ok' ? 'ok' : 'warn'}`}><Icon name={status === 'ok' ? 'circle-check' : 'triangle-exclamation'} />{status}</span>
       </div>
       <div className="logs-start-here">
-        <strong><Icon name="wand-magic-sparkles" />Start here</strong>
-        <span>Choose a level or service, or search an ID/message to investigate a specific incident.</span>
+        <strong><Icon name="wand-magic-sparkles" />{translate("Start here")}</strong>
+        <span>{translate("Choose a level or service, or search an ID/message to investigate a specific incident.")}</span>
       </div>
       <div className="logs-filter-panel">
-        <div className="logs-filter-heading"><strong><Icon name="filter" />Find log events</strong><span>{visibleEvents.length} of {events.length} events</span></div>
+        <div className="logs-filter-heading"><strong><Icon name="filter" />{translate("Find log events")}</strong><span>{visibleEvents.length} {translate("of")} {events.length} {translate("events")}</span></div>
         <div className="filter-row logs-filter-row">
-          <label className="logs-search-field"><span><Icon name="magnifying-glass" />Search message or ID</span><input value={filters.query} onChange={(event) => updateFilter('query', event.target.value)} placeholder="e.g. trace-e2e-001" /></label>
-          <label><span><Icon name="layer-group" />Level</span><select value={filters.level} onChange={(event) => updateFilter('level', event.target.value)}><option value="">All levels</option>{levels.map((level) => <option key={level} value={level}>{toTitleCase(level)}</option>)}</select></label>
-          <label><span><Icon name="server" />Service</span><select value={filters.service} onChange={(event) => updateFilter('service', event.target.value)}><option value="">All services</option>{services.map((service) => <option key={service} value={service}>{service}</option>)}</select></label>
-          <button type="button" className="ghost-button logs-clear-button" onClick={clearFilters} disabled={!filters.query && !filters.level && !filters.service}><Icon name="rotate-left" />Clear filters</button>
+          <label className="logs-search-field"><span><Icon name="magnifying-glass" />{translate("Search message or ID")}</span><input value={filters.query} onChange={(event) => updateFilter('query', event.target.value)} placeholder={translate("e.g. trace-e2e-001")} /></label>
+          <label><span><Icon name="layer-group" />{translate("Level")}</span><select value={filters.level} onChange={(event) => updateFilter('level', event.target.value)}><option value="">{translate("All levels")}</option>{levels.map((level) => <option key={level} value={level}>{toTitleCase(level)}</option>)}</select></label>
+          <label><span><Icon name="server" />{translate("Service")}</span><select value={filters.service} onChange={(event) => updateFilter('service', event.target.value)}><option value="">{translate("All services")}</option>{services.map((service) => <option key={service} value={service}>{service}</option>)}</select></label>
+          <button type="button" className="ghost-button logs-clear-button" onClick={clearFilters} disabled={!filters.query && !filters.level && !filters.service}><Icon name="rotate-left" />{translate("Clear filters")}</button>
         </div>
       </div>
-      {logs?.message ? <p className="source-note">{logs.message}</p> : null}
+      {logs?.message ? <p className="source-note">{translate(logs.message)}</p> : null}
       <div className="table-wrap">
         <table>
           <thead>
-            <tr><th><Icon name="clock" />Time</th><th><Icon name="server" />Service</th><th><Icon name="shield-halved" />Level</th><th><Icon name="desktop" />Host</th><th><Icon name="message" />Message</th><th><Icon name="route" />Trace</th><th><Icon name="arrow-right-to-bracket" />Request</th></tr>
+            <tr><th><Icon name="clock" />{translate("Time")}</th><th><Icon name="server" />{translate("Service")}</th><th><Icon name="shield-halved" />{translate("Level")}</th><th><Icon name="desktop" />{translate("Host")}</th><th><Icon name="message" />{translate("Message")}</th><th><Icon name="route" />{translate("Trace")}</th><th><Icon name="arrow-right-to-bracket" />{translate("Request")}</th></tr>
           </thead>
           <tbody>
             {visibleEvents.map((event) => (
@@ -4901,12 +4918,12 @@ function PlatformServiceLogs({ logs, loading }) {
                 <td>{event.service || '-'}</td>
                 <td><span className={`log-level log-level-${String(event.level || 'unknown').toLowerCase()}`}><Icon name={statusIconName(event.level)} />{event.level || '-'}</span></td>
                 <td>{event.host || '-'}</td>
-                <td>{event.msg || '-'}</td>
+                <td>{event.msg ? translate(event.msg) : '-'}</td>
                 <td>{event.trace_id || '-'}</td>
                 <td>{event.request_id || '-'}</td>
               </tr>
             ))}
-            {!visibleEvents.length ? <tr><td colSpan="7"><div className="logs-empty"><Icon name={events.length ? 'filter-circle-xmark' : loading ? 'spinner' : 'inbox'} /><strong>{loading ? 'Loading service logs' : events.length ? 'No matching log events' : 'No service log events found'}</strong><span>{events.length ? 'Try clearing a filter or searching for another message or ID.' : 'When an event is available, start with its level and follow the trace or request ID.'}</span></div></td></tr> : null}
+            {!visibleEvents.length ? <tr><td colSpan="7"><div className="logs-empty"><Icon name={events.length ? 'filter-circle-xmark' : loading ? 'spinner' : 'inbox'} /><strong>{loading ? translate("Loading service logs") : events.length ? translate("No matching log events") : translate("No service log events found")}</strong><span>{events.length ? translate("Try clearing a filter or searching for another message or ID.") : translate("When an event is available, start with its level and follow the trace or request ID.")}</span></div></td></tr> : null}
           </tbody>
         </table>
       </div>
@@ -4954,40 +4971,40 @@ function PlatformBrandClouds({
       <section className="panel platform-dashboard-panel brand-cloud-list-panel">
         <div className="panel-head">
           <div>
-            <h2>Brand Clouds</h2>
-            <p>Licensed brand operators backed by Account Manager.</p>
+            <h2>{translate("Brand Clouds")}</h2>
+            <p>{translate("Licensed brand operators backed by Account Manager.")}</p>
           </div>
-          <button type="button" className="primary-button" onClick={onCreate}>Create Brand Cloud</button>
+          <button type="button" className="primary-button" onClick={onCreate}>{translate("Create Brand Cloud")}</button>
         </div>
         <div className="table-toolbar">
-          <input className="input" value={query} onChange={(event) => onFilterChange({ query: event.target.value })} placeholder="Search brand, org id, owner" aria-label="Search Brand Clouds" />
-          <select className="input" value={status} onChange={(event) => onFilterChange({ status: event.target.value })} aria-label="Filter Brand Clouds status">
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="setup_required">Setup Required</option>
-            <option value="disabled">Disabled</option>
-            <option value="error">Error</option>
+          <input className="input" value={query} onChange={(event) => onFilterChange({ query: event.target.value })} placeholder={translate("Search brand, org id, owner")} aria-label={translate("Search Brand Clouds")} />
+          <select className="input" value={status} onChange={(event) => onFilterChange({ status: event.target.value })} aria-label={translate("Filter Brand Clouds status")}>
+            <option value="all">{translate("All statuses")}</option>
+            <option value="active">{translate("Active")}</option>
+            <option value="setup_required">{translate("Setup Required")}</option>
+            <option value="disabled">{translate("Disabled")}</option>
+            <option value="error">{translate("Error")}</option>
           </select>
-          <select className="input" value={tier} onChange={(event) => onFilterChange({ tier: event.target.value })} aria-label="Filter Brand Clouds tier">
-            <option value="all">All tiers</option>
+          <select className="input" value={tier} onChange={(event) => onFilterChange({ tier: event.target.value })} aria-label={translate("Filter Brand Clouds tier")}>
+            <option value="all">{translate("All tiers")}</option>
             {tierOptions.map((option) => <option key={option} value={option}>{option}</option>)}
           </select>
         </div>
-        {unavailable ? <div className="error">Brand Clouds unavailable: {source.message}</div> : null}
-        {!unavailable && loading ? <p className="empty-state">Loading Brand Clouds...</p> : null}
-        {!unavailable && !loading && !brands.length ? <p className="empty-state">No Brand Clouds have been created.</p> : null}
+        {unavailable ? <div className="error">{translate("Brand Clouds unavailable:")} {translate(source.message)}</div> : null}
+        {!unavailable && loading ? <p className="empty-state">{translate("Loading Brand Clouds...")}</p> : null}
+        {!unavailable && !loading && !brands.length ? <p className="empty-state">{translate("No Brand Clouds have been created.")}</p> : null}
         {!unavailable && !loading && brands.length ? (
           <div className="table-wrap">
             <table className="brand-cloud-table">
               <thead>
                 <tr>
-                  <th>Brand</th>
-                  <th>Status</th>
-                  <th>Tier</th>
-                  <th>Owner/Admin</th>
-                  <th>Region</th>
-                  <th>Devices</th>
-                  <th>Actions</th>
+                  <th>{translate("Brand")}</th>
+                  <th>{translate("Status")}</th>
+                  <th>{translate("Tier")}</th>
+                  <th>{translate("Owner/Admin")}</th>
+                  <th>{translate("Region")}</th>
+                  <th>{translate("Devices")}</th>
+                  <th>{translate("Actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -4999,22 +5016,22 @@ function PlatformBrandClouds({
                     </td>
                     <td><StatusBadge value={brandCloudStatusKey(brand)} label={brandCloudStatusLabel(brand)} /></td>
                     <td>{brandCloudTier(brand)}</td>
-                    <td>{brandCloudOwner(brand) || 'Unassigned'}</td>
+                    <td>{brandCloudOwner(brand) || translate("Unassigned")}</td>
                     <td>{brandCloudRegion(brand)}</td>
                     <td>{brandCloudQuotaLabel(brand)}</td>
-                    <td><button type="button" className="inline-action compact-action" onClick={() => onOpenBrand(brand)}><i className="fa-solid fa-eye" aria-hidden="true" /> View</button></td>
+                    <td><button type="button" className="inline-action compact-action" onClick={() => onOpenBrand(brand)}><i className="fa-solid fa-eye" aria-hidden="true" /> {translate("View")}</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="pagination-bar" aria-label="Brand Clouds pagination">
-              <span>{pageStart}-{pageEnd} of {page.total}</span>
+            <div className="pagination-bar" aria-label={translate("Brand Clouds pagination")}>
+              <span>{pageStart}-{pageEnd} {translate("of")} {page.total}</span>
               <div className="pagination-controls">
                 <button type="button" onClick={() => onPageChange(page.offset - page.limit)} disabled={!canPrevious}>
-                  <i className="fa-solid fa-chevron-left" aria-hidden="true" /> Previous
+                  <i className="fa-solid fa-chevron-left" aria-hidden="true" /> {translate("Previous")}
                 </button>
                 <button type="button" onClick={() => onPageChange(page.offset + page.limit)} disabled={!canNext}>
-                  Next <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+                  {translate("Next")} <i className="fa-solid fa-chevron-right" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -5144,15 +5161,15 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser })
 
   return (
     <div className="drawer-backdrop" role="presentation" onClick={onClose}>
-      <aside className="drawer-panel brand-cloud-drawer" role="dialog" aria-modal="true" aria-label="Brand Cloud detail" onClick={(event) => event.stopPropagation()}>
+      <aside className="drawer-panel brand-cloud-drawer" role="dialog" aria-modal="true" aria-label={translate("Brand Cloud detail")} onClick={(event) => event.stopPropagation()}>
         <div className="drawer-header">
           <div>
             <h2>{detailBrand.name || detailBrand.id}</h2>
-            <p>{detailBrand.id} / {detailBrand.organization_kind || 'brand_cloud'}</p>
+            <p>{detailBrand.id} / {detailBrand.organization_kind || translate("brand_cloud")}</p>
           </div>
-          <button type="button" className="drawer-close" onClick={onClose} aria-label="Close Brand Cloud drawer">x</button>
+          <button type="button" className="drawer-close" onClick={onClose} aria-label={translate("Close Brand Cloud drawer")}>x</button>
         </div>
-        {detailSource.status === 'unavailable' ? <p className="form-message">{detailSource.message}</p> : null}
+        {detailSource.status === 'unavailable' ? <p className="form-message">{translate(detailSource.message)}</p> : null}
         <section className={`brand-cloud-detail-hero brand-cloud-detail-${brandCloudStatusKey(detailBrand)}`}>
           <div className="brand-cloud-status-block">
             <StatusBadge value={brandCloudStatusKey(brand)} label={brandCloudStatusLabel(brand)} />
@@ -5160,73 +5177,73 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser })
             <small>{detailBrand.id}</small>
           </div>
           <div className="brand-cloud-fact-grid">
-            <div><Icon name="location-dot" /><span>Region</span><strong>{brandCloudRegion(detailBrand)}</strong></div>
-            <div><Icon name="layer-group" /><span>Tier</span><strong>{brandCloudTier(detailBrand)}</strong></div>
-            <div><Icon name="user-shield" /><span>Owner/Admin</span><strong>{owner || 'Unassigned'}</strong></div>
-            <div><Icon name="video" /><span>Devices</span><strong>{brandCloudQuotaLabel(detailBrand)}</strong></div>
+            <div><Icon name="location-dot" /><span>{translate("Region")}</span><strong>{brandCloudRegion(detailBrand)}</strong></div>
+            <div><Icon name="layer-group" /><span>{translate("Tier")}</span><strong>{brandCloudTier(detailBrand)}</strong></div>
+            <div><Icon name="user-shield" /><span>{translate("Owner/Admin")}</span><strong>{owner || translate("Unassigned")}</strong></div>
+            <div><Icon name="video" /><span>{translate("Devices")}</span><strong>{brandCloudQuotaLabel(detailBrand)}</strong></div>
           </div>
         </section>
-        <section className="setup-list brand-cloud-setup-list" aria-label="Brand Cloud setup state">
-          <span className="ok"><Icon name="circle-check" />Created</span>
-          <span className={owner ? 'ok' : 'warn'}><Icon name={owner ? 'user-check' : 'user-clock'} />{owner ? 'Owner assigned' : 'Owner pending'}</span>
+        <section className="setup-list brand-cloud-setup-list" aria-label={translate("Brand Cloud setup state")}>
+          <span className="ok"><Icon name="circle-check" />{translate("Created")}</span>
+          <span className={owner ? 'ok' : 'warn'}><Icon name={owner ? 'user-check' : 'user-clock'} />{owner ? translate("Owner assigned") : translate("Owner pending")}</span>
           <span className={ssoProvider?.configured || ssoProvider?.enabled ? 'ok' : 'warn'}><Icon name="key" />{ssoStatusLabel(ssoProvider)}</span>
-          <span className="neutral"><Icon name="database" />{detailBrand.updated_at ? `Updated ${formatRelativeTime(detailBrand.updated_at)}` : 'No update time'}</span>
+          <span className="neutral"><Icon name="database" />{detailBrand.updated_at ? translate("Updated {{value0}}", { value0: formatRelativeTime(detailBrand.updated_at) }) : translate("No update time")}</span>
         </section>
         <section className="drawer-summary brand-cloud-summary">
           <article>
             <Icon name="users" />
             <strong>{users.length}</strong>
-            <span>Total users</span>
+            <span>{translate("Total users")}</span>
           </article>
           <article>
             <Icon name="circle-check" />
             <strong>{activeUsers}</strong>
-            <span>Active</span>
+            <span>{translate("Active")}</span>
           </article>
           <article className={pendingUsers ? 'attention' : ''}>
             <Icon name="envelope-circle-check" />
             <strong>{pendingUsers}</strong>
-            <span>Pending activation</span>
+            <span>{translate("Pending activation")}</span>
           </article>
           <article className={disabledUsers ? 'attention' : ''}>
             <Icon name="ban" />
             <strong>{disabledUsers}</strong>
-            <span>Disabled</span>
+            <span>{translate("Disabled")}</span>
           </article>
         </section>
         <div className="drawer-actions">
           <button type="button" className="ghost-button" onClick={() => updateStatus(disabled ? 'active' : 'disabled')}>
-            <Icon name={disabled ? 'rotate-right' : 'ban'} />{disabled ? 'Re-enable Brand Cloud' : 'Disable Brand Cloud'}
+            <Icon name={disabled ? 'rotate-right' : 'ban'} />{disabled ? translate("Re-enable Brand Cloud") : translate("Disable Brand Cloud")}
           </button>
             <a className="inline-action action-link" href={`/admin/sso?org=${encodeURIComponent(detailBrand.id)}`}>
-            <Icon name="key" />Open SSO Providers
+            <Icon name="key" />{translate("Open SSO Providers")}
           </a>
         </div>
         <section className="brand-cloud-users">
           <div className="panel-head compact-head">
             <div>
-			  <h3>Global Users</h3>
-			  <p>Review each global account's membership in this Brand Cloud.</p>
+			  <h3>{translate("Global Users")}</h3>
+			  <p>{translate("Review each global account's membership in this Brand Cloud.")}</p>
             </div>
-            <select className="input small-input" value={userFilter} onChange={(event) => changeUserFilter(event.target.value)} aria-label="Filter Brand Cloud users">
-              <option value="all">All users</option>
-              <option value="active">Active</option>
-              <option value="pending_verification">Pending activation</option>
-              <option value="disabled">Disabled</option>
+            <select className="input small-input" value={userFilter} onChange={(event) => changeUserFilter(event.target.value)} aria-label={translate("Filter Brand Cloud users")}>
+              <option value="all">{translate("All users")}</option>
+              <option value="active">{translate("Active")}</option>
+              <option value="pending_verification">{translate("Pending activation")}</option>
+              <option value="disabled">{translate("Disabled")}</option>
             </select>
           </div>
-          {usersSource.status === 'loading' ? <p className="empty-state">Loading Brand Cloud users...</p> : null}
-          {usersSource.status === 'unavailable' ? <p className="form-message">{usersSource.message}</p> : null}
-          {usersSource.status === 'ready' && !users.length ? <p className="empty-state">No Brand Cloud users match this view.</p> : null}
+          {usersSource.status === 'loading' ? <p className="empty-state">{translate("Loading Brand Cloud users...")}</p> : null}
+          {usersSource.status === 'unavailable' ? <p className="form-message">{translate(usersSource.message)}</p> : null}
+          {usersSource.status === 'ready' && !users.length ? <p className="empty-state">{translate("No Brand Cloud users match this view.")}</p> : null}
           {usersSource.status === 'ready' && users.length ? (
             <div className="table-wrap mini-table">
               <table>
                 <thead>
                   <tr>
-                    <th>Email</th>
-                    <th>Status</th>
-                    <th>Updated</th>
-                    <th>Actions</th>
+                    <th>{translate("Email")}</th>
+                    <th>{translate("Status")}</th>
+                    <th>{translate("Updated")}</th>
+                    <th>{translate("Actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -5240,11 +5257,11 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser })
                         <td>
                           <div className="row-actions">
                             {row.disabled_at ? (
-                              <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'enable')}><Icon name="rotate-right" />Enable</button>
+                              <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'enable')}><Icon name="rotate-right" />{translate("Enable")}</button>
 							) : (
-                              <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'disable')}><Icon name="ban" />Disable</button>
+                              <button type="button" className="inline-action" onClick={() => updateBrandUser(row, 'disable')}><Icon name="ban" />{translate("Disable")}</button>
                             )}
-                            <button type="button" className="inline-action danger-link" onClick={() => updateBrandUser(row, 'delete')}><Icon name="trash" />Delete</button>
+                            <button type="button" className="inline-action danger-link" onClick={() => updateBrandUser(row, 'delete')}><Icon name="trash" />{translate("Delete")}</button>
                           </div>
                         </td>
                       </tr>
@@ -5257,12 +5274,12 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser })
         </section>
         <section className="brand-cloud-form-grid">
 		  <form className="drawer-form compact" onSubmit={submitUser}>
-			<h3><Icon name="envelope-circle-check" />Assign Global User</h3>
-			<label>Email<input className="input" type="email" value={user.email} onChange={(event) => setUser((current) => ({ ...current, email: event.target.value }))} /></label>
-			<label>Display name<input className="input" value={user.display_name} onChange={(event) => setUser((current) => ({ ...current, display_name: event.target.value }))} /></label>
-			<label>Role<select className="input" value={user.role} onChange={(event) => setUser((current) => ({ ...current, role: event.target.value }))}><option value="owner">Owner</option><option value="admin">Admin</option><option value="member">Member</option></select></label>
-			<p className="source-note">Email activation uses the shared global account flow. Owner accounts can never be provisioned with an admin-supplied password.</p>
-			<button type="submit" className="primary-button"><Icon name="plus" />Assign and Send Email</button>
+			<h3><Icon name="envelope-circle-check" />{translate("Assign Global User")}</h3>
+			<label>{translate("Email")}<input className="input" type="email" value={user.email} onChange={(event) => setUser((current) => ({ ...current, email: event.target.value }))} /></label>
+			<label>{translate("Display name")}<input className="input" value={user.display_name} onChange={(event) => setUser((current) => ({ ...current, display_name: event.target.value }))} /></label>
+			<label>{translate("Role")}<select className="input" value={user.role} onChange={(event) => setUser((current) => ({ ...current, role: event.target.value }))}><option value="owner">{translate("Owner")}</option><option value="admin">{translate("Admin")}</option><option value="member">{translate("Member")}</option></select></label>
+			<p className="source-note">{translate("Email activation uses the shared global account flow. Owner accounts can never be provisioned with an admin-supplied password.")}</p>
+			<button type="submit" className="primary-button"><Icon name="plus" />{translate("Assign and Send Email")}</button>
           </form>
         </section>
         {message ? <p className="form-message">{message}</p> : null}
@@ -5292,23 +5309,23 @@ function PlatformSSOProviders({ providers, customers, onSave }) {
     <>
       <section className="panel split-panel">
         <div>
-          <h2>SSO Providers</h2>
-          <p>Platform Admin-managed customer organization identity provider settings.</p>
+          <h2>{translate("SSO Providers")}</h2>
+          <p>{translate("Platform Admin-managed customer organization identity provider settings.")}</p>
           <div className="admin-kpis">
-            <div><strong>{rows.filter((provider) => provider.configured).length}</strong><span>Configured</span></div>
-            <div><strong>{rows.filter((provider) => provider.enabled).length}</strong><span>Enabled</span></div>
+            <div><strong>{rows.filter((provider) => provider.configured).length}</strong><span>{translate("Configured")}</span></div>
+            <div><strong>{rows.filter((provider) => provider.enabled).length}</strong><span>{translate("Enabled")}</span></div>
           </div>
         </div>
         <div className="sso-note">
-          <strong>Secret handling</strong>
-          <span>Client secrets are sent only to Account Manager and are never returned by this console. OIDC is the first supported protocol; SAML is not implemented.</span>
+          <strong>{translate("Secret handling")}</strong>
+          <span>{translate("Client secrets are sent only to Account Manager and are never returned by this console. OIDC is the first supported protocol; SAML is not implemented.")}</span>
         </div>
       </section>
       <section className="panel">
         <div className="panel-head">
           <div>
-            <h2>Organization SSO status</h2>
-            <p>Review setup state, verified domains, issuer, and client identifier by customer organization.</p>
+            <h2>{translate("Organization SSO status")}</h2>
+            <p>{translate("Review setup state, verified domains, issuer, and client identifier by customer organization.")}</p>
           </div>
         </div>
         <div className="sso-provider-list">
@@ -5319,7 +5336,7 @@ function PlatformSSOProviders({ providers, customers, onSave }) {
               onSave={onSave}
             />
           ))}
-          {!rows.length ? <p className="empty-state">No customer organizations are available.</p> : null}
+          {!rows.length ? <p className="empty-state">{translate("No customer organizations are available.")}</p> : null}
         </div>
       </section>
     </>
@@ -5369,34 +5386,34 @@ function SSOProviderCard({ provider, onSave }) {
           <small>{ssoProtocolLabel(provider.protocol)}</small>
         </div>
         <span className={`status-pill ${provider.enabled ? 'ok' : provider.configured ? 'warn' : 'neutral'}`}>
-          {provider.enabled ? 'Enabled' : provider.configured ? 'Configured' : 'Not configured'}
+          {provider.enabled ? translate("Enabled") : provider.configured ? translate("Configured") : translate("Not configured")}
         </span>
       </div>
       <div className="sso-provider-grid">
         <label>
-          <span>Issuer</span>
-          <input value={issuer} onChange={(event) => setIssuer(event.target.value)} placeholder="https://idp.example.com" />
+          <span>{translate("Issuer")}</span>
+          <input value={issuer} onChange={(event) => setIssuer(event.target.value)} placeholder={translate("https://idp.example.com")} />
         </label>
         <label>
-          <span>Client ID</span>
-          <input value={clientID} onChange={(event) => setClientID(event.target.value)} placeholder="oidc-client-id" />
+          <span>{translate("Client ID")}</span>
+          <input value={clientID} onChange={(event) => setClientID(event.target.value)} placeholder={translate("oidc-client-id")} />
         </label>
         <label>
-          <span>Verified domains</span>
-          <input value={domains} onChange={(event) => setDomains(event.target.value)} placeholder="example.com, example.co.jp" />
+          <span>{translate("Verified domains")}</span>
+          <input value={domains} onChange={(event) => setDomains(event.target.value)} placeholder={translate("example.com, example.co.jp")} />
         </label>
         <label>
-          <span>Client secret</span>
-          <input type="password" value={clientSecret} onChange={(event) => setClientSecret(event.target.value)} placeholder="Only sent to Account Manager" autoComplete="new-password" />
+          <span>{translate("Client secret")}</span>
+          <input type="password" value={clientSecret} onChange={(event) => setClientSecret(event.target.value)} placeholder={translate("Only sent to Account Manager")} autoComplete="new-password" />
         </label>
       </div>
       <div className="sso-provider-foot">
         <label className="toggle-row">
           <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
-          <span>Enable provider</span>
+          <span>{translate("Enable provider")}</span>
         </label>
-        <span className="muted">{provider.status || 'not_configured'}{provider.last_validated_at ? ` · validated ${formatRelativeTime(provider.last_validated_at)}` : ''}</span>
-        <button type="submit" disabled={busy}>{busy ? 'Saving' : 'Save provider'}</button>
+        <span className="muted">{provider.status || translate("not_configured")}{provider.last_validated_at ? translate(" · validated {{value0}}", { value0: formatRelativeTime(provider.last_validated_at) }) : ''}</span>
+        <button type="submit" disabled={busy}>{busy ? translate("Saving") : translate("Save provider")}</button>
       </div>
     </form>
   );
@@ -5416,7 +5433,7 @@ function MetricGrid({ summary }) {
     <section className="metrics">
       {metrics.map(([label, value]) => (
         <div className="metric" key={label}>
-          <span>{label}</span>
+          <span>{translate(label)}</span>
           <strong>{value}</strong>
         </div>
       ))}
@@ -5429,9 +5446,9 @@ function MetricCard({ icon, label, value, hint, tone = 'neutral' }) {
     <div className={`metric-card tone-${tone}`}>
       {icon ? <span className="metric-icon" aria-hidden="true"><Icon name={icon} /></span> : null}
       <div>
-        <span>{label}</span>
+        <span>{translate(label)}</span>
         <strong>{value}</strong>
-        <small>{hint}</small>
+        <small>{typeof hint === 'string' ? translate(hint) : hint}</small>
       </div>
     </div>
   );
@@ -5459,8 +5476,8 @@ function SourceBlockedState({ title, message }) {
   return (
     <section className="panel source-blocked">
       <div>
-        <h2>{title}</h2>
-        <p>{message}</p>
+        <h2>{translate(title)}</h2>
+        <p>{translate(message)}</p>
       </div>
     </section>
   );
@@ -5473,21 +5490,21 @@ function FleetHealthTrendPanel({ loading, trend, source }) {
     <section className="panel overview-panel trend-panel">
       <div className="panel-head">
         <div>
-          <h2>Fleet health trend</h2>
-          <p>Daily online share and warning/critical volume across the current window.</p>
+          <h2>{translate("Fleet health trend")}</h2>
+          <p>{translate("Daily online share and warning/critical volume across the current window.")}</p>
         </div>
       </div>
       {!available ? (
         <p className="empty-state">{sourceMessage(source, 'No telemetry source configured.')}</p>
       ) : loading && !trend.length ? (
-        <p className="empty-state">Loading fleet trend data.</p>
+        <p className="empty-state">{translate("Loading fleet trend data.")}</p>
       ) : chart.points.length ? (
         <>
           <div className="chart-legend">
-            <span><i className="legend-line legend-online" /> Online %</span>
-            <span><i className="legend-line legend-alerts" /> Warning + critical</span>
+            <span><i className="legend-line legend-online" /> {translate("Online %")}</span>
+            <span><i className="legend-line legend-alerts" /> {translate("Warning + critical")}</span>
           </div>
-          <svg viewBox="0 0 720 280" className="trend-chart" role="img" aria-label="Fleet health trend chart">
+          <svg viewBox="0 0 720 280" className="trend-chart" role="img" aria-label={translate("Fleet health trend chart")}>
             <defs>
               <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stopColor="rgba(0, 104, 183, 0.22)" />
@@ -5506,7 +5523,7 @@ function FleetHealthTrendPanel({ loading, trend, source }) {
                 <circle cx={point.x} cy={point.alertY} r="4" className="chart-dot chart-dot-alerts" />
                 {index % chart.labelStep === 0 ? (
                   <text x={point.x} y="256" textAnchor="middle" className="chart-label">
-                    {point.label}
+                    {translate(point.label)}
                   </text>
                 ) : null}
               </g>
@@ -5517,11 +5534,11 @@ function FleetHealthTrendPanel({ loading, trend, source }) {
             <text x="700" y="228" textAnchor="end" className="chart-axis-label">0</text>
           </svg>
           <p className="chart-footnote">
-            Alert counts are plotted on the same grid as a normalized line for the selected window.
+            {translate("Alert counts are plotted on the same grid as a normalized line for the selected window.")}
           </p>
         </>
       ) : (
-        <p className="empty-state">No fleet health trend data available.</p>
+        <p className="empty-state">{translate("No fleet health trend data available.")}</p>
       )}
     </section>
   );
@@ -5541,17 +5558,17 @@ function HealthDistributionPanel({ loading, current, onFilter, source }) {
     <section className="panel overview-panel distribution-panel">
       <div className="panel-head">
         <div>
-          <h2>Health distribution</h2>
-          <p>Breakdown of the current fleet by telemetry health state.</p>
+          <h2>{translate("Health distribution")}</h2>
+          <p>{translate("Breakdown of the current fleet by telemetry health state.")}</p>
         </div>
       </div>
       {!available ? (
         <p className="empty-state">{sourceMessage(source, 'No telemetry source configured.')}</p>
       ) : loading && !current ? (
-        <p className="empty-state">Loading fleet health distribution.</p>
+        <p className="empty-state">{translate("Loading fleet health distribution.")}</p>
       ) : total > 0 ? (
         <div className="distribution-stack">
-          <div className="distribution-bar" aria-label="Fleet health distribution">
+          <div className="distribution-bar" aria-label={translate("Fleet health distribution")}>
             {items.map((item) => (
               <button
                 key={item.key}
@@ -5560,7 +5577,7 @@ function HealthDistributionPanel({ loading, current, onFilter, source }) {
                 style={{ width: `${Math.max(item.count / total * 100, item.count ? 8 : 0)}%` }}
                 onClick={() => onFilter(item.key)}
               >
-                <span>{item.label}</span>
+                <span>{translate(item.label)}</span>
                 <strong>{item.count}</strong>
               </button>
             ))}
@@ -5568,7 +5585,7 @@ function HealthDistributionPanel({ loading, current, onFilter, source }) {
           <div className="distribution-list">
             {items.map((item) => (
               <button key={`legend-${item.key}`} type="button" className="distribution-row" onClick={() => onFilter(item.key)}>
-                <span className={`status status-${item.key}`}>{item.label}</span>
+                <span className={`status status-${item.key}`}>{translate(item.label)}</span>
                 <strong>{item.count}</strong>
                 <small>{formatPercent(total ? (item.count / total) * 100 : 0)}</small>
               </button>
@@ -5576,7 +5593,7 @@ function HealthDistributionPanel({ loading, current, onFilter, source }) {
           </div>
         </div>
       ) : (
-        <p className="empty-state">No health data available yet.</p>
+        <p className="empty-state">{translate("No health data available yet.")}</p>
       )}
     </section>
   );
@@ -5587,31 +5604,31 @@ function AttentionQueuePanel({ loading, items, onOpenDevice }) {
     <section className="panel overview-panel attention-panel">
       <div className="panel-head">
         <div>
-          <h2>Devices that need attention ({items.length})</h2>
-          <p>Prioritized by current health, signal quality, and recent alerts.</p>
+          <h2>{translate("Devices that need attention (")}{items.length})</h2>
+          <p>{translate("Prioritized by current health, signal quality, and recent alerts.")}</p>
         </div>
       </div>
       {loading && !items.length ? (
-        <p className="empty-state">Loading attention queue.</p>
+        <p className="empty-state">{translate("Loading attention queue.")}</p>
       ) : items.length ? (
         <div className="attention-list">
           <div className="attention-list-head">
-            <span>Device</span>
-            <span>Issue</span>
-            <span>Since</span>
-            <span>Action</span>
+            <span>{translate("Device")}</span>
+            <span>{translate("Issue")}</span>
+            <span>{translate("Since")}</span>
+            <span>{translate("Action")}</span>
           </div>
           {items.slice(0, 7).map((item) => (
             <div className="attention-row" key={item.device_id}>
               <strong>{item.device_name}</strong>
-              <span className={`attention-issue tone-${item.tone}`}>{item.issue}</span>
+              <span className={`attention-issue tone-${item.tone}`}>{translate(item.issue)}</span>
               <time>{item.since}</time>
-              <button type="button" onClick={() => onOpenDevice(item.device_id)}>Investigate</button>
+              <button type="button" onClick={() => onOpenDevice(item.device_id)}>{translate("Investigate")}</button>
             </div>
           ))}
         </div>
       ) : (
-        <p className="empty-state">No devices require attention.</p>
+        <p className="empty-state">{translate("No devices require attention.")}</p>
       )}
     </section>
   );
@@ -5623,8 +5640,8 @@ function StreamAttentionPanel({ stats, onOpenDevice }) {
     <section className="panel stream-attention-panel">
       <div className="panel-head">
         <div>
-          <h3>Devices needing stream attention</h3>
-          <p>Customer-readable stream reliability risks.</p>
+          <h3>{translate("Devices needing stream attention")}</h3>
+          <p>{translate("Customer-readable stream reliability risks.")}</p>
         </div>
       </div>
       {items.length ? (
@@ -5633,15 +5650,15 @@ function StreamAttentionPanel({ stats, onOpenDevice }) {
             <div className="stream-attention-row" key={item.device_id}>
               <div>
                 <strong>{item.device_name}</strong>
-                <small>{item.issue}</small>
+                <small>{translate(item.issue)}</small>
               </div>
               <StatusBadge value={normalizeStatusKey(item.health)} label={formatHealthLabel(item.health)} />
-              <button type="button" onClick={() => onOpenDevice(item.device_id)}>View device</button>
+              <button type="button" onClick={() => onOpenDevice(item.device_id)}>{translate("View device")}</button>
             </div>
           ))}
         </div>
       ) : (
-        <p className="empty-state">No stream attention items.</p>
+        <p className="empty-state">{translate("No stream attention items.")}</p>
       )}
     </section>
   );
@@ -5810,7 +5827,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             setSelectedDeviceId(device.id);
           }}
         >
-          View
+          {translate("View")}
         </button>
       ),
     },
@@ -5856,13 +5873,13 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
       <div className="panel device-table-panel">
         <div className="panel-head">
           <div>
-            <h2>Devices</h2>
-            <p>Search, filter, and inspect fleet devices without exposing internal platform identifiers.</p>
+            <h2>{translate("Devices")}</h2>
+            <p>{translate("Search, filter, and inspect fleet devices without exposing internal platform identifiers.")}</p>
           </div>
         </div>
         <div className="device-filters">
           <label className="device-filter">
-            <span>Health</span>
+            <span>{translate("Health")}</span>
             <select value={healthFilter} onChange={(event) => updateFilter({ health: event.target.value })}>
               {processedDevices.healthValues.map((value) => (
                 <option key={`health-${value}`} value={value}>{value}</option>
@@ -5870,7 +5887,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             </select>
           </label>
           <label className="device-filter">
-            <span>Readiness</span>
+            <span>{translate("Readiness")}</span>
             <select value={readinessFilter} onChange={(event) => updateFilter({ readiness: event.target.value })}>
               {processedDevices.readinessValues.map((value) => (
                 <option key={`readiness-${value}`} value={value}>{value}</option>
@@ -5878,7 +5895,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             </select>
           </label>
           <label className="device-filter">
-            <span>Signal</span>
+            <span>{translate("Signal")}</span>
             <select value={signalFilter} onChange={(event) => updateFilter({ signal: event.target.value })}>
               {processedDevices.signalValues.map((value) => (
                 <option key={`signal-${value}`} value={value}>{value}</option>
@@ -5886,7 +5903,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
             </select>
           </label>
           <label className="device-filter">
-            <span>Firmware</span>
+            <span>{translate("Firmware")}</span>
             <select value={firmwareFilter} onChange={(event) => updateFilter({ firmware: event.target.value })}>
               {processedDevices.firmwareValues.map((value) => (
                 <option key={`firmware-${value}`} value={value}>{value}</option>
@@ -5904,7 +5921,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
               updateDevicesLocation({ deviceId: '', health: '', status: '', signal: '', firmware: '' });
             }}
           >
-            Clear filters
+            {translate("Clear filters")}
           </button>
         </div>
         <DataTable
@@ -5926,18 +5943,18 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
           onServerPage={(offset) => updateServerQuery({ offset })}
           paginationLabel="Devices"
           mobileContent={(
-            <div className="mobile-device-list" aria-label="Compact device list">
+            <div className="mobile-device-list" aria-label={translate("Compact device list")}>
               {tableRows.map((device) => (
                 <button key={device.id} type="button" className="mobile-device-row" onClick={() => setSelectedDeviceId(device.id)}>
                   <span>
                     <strong>{device.name}</strong>
-                    <small>{device.product_id || 'Product not set'} · {device.serial_number}</small>
+                    <small>{device.product_id || translate("Product not set")} · {device.serial_number}</small>
                   </span>
                   <span>
                     <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />
                     <StatusBadge value={normalizeStatusKey(device.readiness)} label={device.readiness_display} />
                   </span>
-                  <time title={device.last_seen_at || ''}>{device.last_seen_at ? formatRelativeTime(device.last_seen_at) : 'No transport evidence'}</time>
+                  <time title={device.last_seen_at || ''}>{device.last_seen_at ? formatRelativeTime(device.last_seen_at) : translate("No transport evidence")}</time>
                   <span className="mobile-row-action" aria-hidden="true">›</span>
                 </button>
               ))}
@@ -5991,8 +6008,8 @@ function Customers({ customers }) {
     <section className="panel">
       <div className="panel-head">
         <div>
-          <h2>Customers</h2>
-          <p>Organization-level fleet health aggregated from cached device projections.</p>
+          <h2>{translate("Customers")}</h2>
+          <p>{translate("Organization-level fleet health aggregated from cached device projections.")}</p>
         </div>
       </div>
       <DataTable
@@ -6028,64 +6045,64 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
   }
   return (
     <div className="drawer-backdrop" role="presentation" onClick={onClose}>
-      <aside className="drawer-panel" role="dialog" aria-modal="true" aria-label="Device detail drawer" onClick={(event) => event.stopPropagation()}>
+      <aside className="drawer-panel" role="dialog" aria-modal="true" aria-label={translate("Device detail drawer")} onClick={(event) => event.stopPropagation()}>
         <div className="drawer-header">
           <div>
-            <p className="eyebrow">Device detail</p>
+            <p className="eyebrow">{translate("Device detail")}</p>
             <h2>{drawerName}</h2>
-            <p>{device ? `${drawerOrganization} · ${drawerModel}` : 'Select a device row to inspect its telemetry.'}</p>
+            <p>{device ? `${drawerOrganization} · ${drawerModel}` : translate("Select a device row to inspect its telemetry.")}</p>
           </div>
-          <button type="button" className="drawer-close" onClick={onClose} aria-label="Close device drawer">
-            Close
+          <button type="button" className="drawer-close" onClick={onClose} aria-label={translate("Close device drawer")}>
+            {translate("Close")}
           </button>
         </div>
 
         {!device ? (
-          <p className="empty-state">No device selected.</p>
+          <p className="empty-state">{translate("No device selected.")}</p>
         ) : (
           <>
             <section className="drawer-identity">
               <div>
-                <span>Device</span>
+                <span>{translate("Device")}</span>
                 <strong>{drawerName}</strong>
               </div>
               <div>
-                <span>Serial</span>
+                <span>{translate("Serial")}</span>
                 <strong>{drawerSerial}</strong>
               </div>
               <div>
-                <span>Model</span>
+                <span>{translate("Model")}</span>
                 <strong>{drawerModel}</strong>
               </div>
               <div>
-                <span>Organization</span>
+                <span>{translate("Organization")}</span>
                 <strong>{drawerOrganization}</strong>
               </div>
             </section>
 
-            {loading ? <p className="empty-state">Loading telemetry for this device.</p> : null}
+            {loading ? <p className="empty-state">{translate("Loading telemetry for this device.")}</p> : null}
             {!loading && (error || (telemetry && !telemetryAvailable)) ? (
               <section className="drawer-unavailable">
-                <strong>{telemetryState.title}</strong>
-                <p>{telemetryUnavailableText}</p>
+                <strong>{translate(telemetryState.title)}</strong>
+                <p>{translate(telemetryUnavailableText)}</p>
               </section>
             ) : null}
 
             <section className="drawer-summary">
               <div className="summary-card">
-                <span>Health</span>
+                <span>{translate("Health")}</span>
                 <StatusBadge value={normalizeStatusKey(telemetry?.health || device.health || 'unknown')} label={toTitleCase(telemetry?.health || device.health || 'unknown')} />
-                <small>{telemetryAvailable ? `Signals: ${telemetry.signals?.length ? telemetry.signals.map(formatTelemetrySignal).join(', ') : 'none reported'}` : telemetryUnavailableText}</small>
+                <small>{telemetryAvailable ? translate("Signals: {{value0}}", { value0: telemetry.signals?.length ? telemetry.signals.map(formatTelemetrySignal).join(', ') : 'none reported' }) : telemetryUnavailableText}</small>
               </div>
               <div className="summary-card">
-                <span>Firmware</span>
+                <span>{translate("Firmware")}</span>
                 <strong>{drawerFirmware}</strong>
-                <small>{telemetry?.recent_events?.[0]?.occurred_at ? `Last updated ${formatRelativeTime(telemetry.recent_events[0].occurred_at)}` : drawerLastSeen ? `Last seen ${formatRelativeTime(drawerLastSeen)}` : 'No update timestamp available.'}</small>
+                <small>{telemetry?.recent_events?.[0]?.occurred_at ? translate("Last updated {{value0}}", { value0: formatRelativeTime(telemetry.recent_events[0].occurred_at) }) : drawerLastSeen ? translate("Last seen {{value0}}", { value0: formatRelativeTime(drawerLastSeen) }) : translate("No update timestamp available.")}</small>
               </div>
               <div className="summary-card">
-                <span>Active stream</span>
+                <span>{translate("Active stream")}</span>
                 <StatusBadge value={streamStatus.tone} label={streamStatus.label} />
-                <small>{streamStatus.detail}</small>
+                <small>{translate(streamStatus.detail)}</small>
               </div>
             </section>
 
@@ -6093,7 +6110,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
 
             {telemetryAvailable ? <section className="drawer-charts">
               <TelemetryChart
-                title="RSSI history"
+                title={translate("RSSI history")}
                 subtitle="Daily average dBm and quality bucket"
                 samples={telemetry?.rssi_7d || []}
                 valueKey="avg_dbm"
@@ -6104,7 +6121,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
                 sampleLabel={(sample) => `${sample.date}: ${sample.avg_dbm} dBm (${toTitleCase(sample.quality)})`}
               />
               <TelemetryChart
-                title="Uptime history"
+                title={translate("Uptime history")}
                 subtitle="Daily online percentage"
                 samples={telemetry?.uptime_7d || []}
                 valueKey="online_pct"
@@ -6119,8 +6136,8 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             <section className="drawer-events">
               <div className="panel-head">
                 <div>
-                  <h3>Recent events</h3>
-                  <p>Last 10 telemetry events from this device.</p>
+                  <h3>{translate("Recent events")}</h3>
+                  <p>{translate("Last 10 telemetry events from this device.")}</p>
                 </div>
               </div>
               {telemetryAvailable && telemetry?.recent_events?.length ? (
@@ -6129,20 +6146,20 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
                     <article className="event-row" key={`${event.occurred_at}:${event.event_type}`}>
                       <div>
                         <strong>{formatTelemetryEventType(event.event_type)}</strong>
-                        <span>{event.summary}</span>
+                        <span>{translate(event.summary)}</span>
                       </div>
                       <time title={event.occurred_at}>{formatRelativeTime(event.occurred_at)}</time>
                     </article>
                   ))}
                 </div>
               ) : (
-                <p className="empty-state">{telemetryAvailable ? 'No recent telemetry events available.' : telemetryUnavailableText}</p>
+                <p className="empty-state">{telemetryAvailable ? translate("No recent telemetry events available.") : telemetryUnavailableText}</p>
               )}
             </section>
 
             <div className="drawer-actions">
-              <button type="button" className="destructive" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}>Deactivate device</button>
-              <small>{!deactivateState.enabled ? deactivateState.reason : 'Device setup and enrollment are handled by existing processes; only status and deactivation are shown here.'}</small>
+              <button type="button" className="destructive" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}>{translate("Deactivate device")}</button>
+              <small>{!deactivateState.enabled ? deactivateState.reason : translate("Device setup and enrollment are handled by existing processes; only status and deactivation are shown here.")}</small>
             </div>
           </>
         )}
@@ -6154,18 +6171,18 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
 function SourceFactsTimeline({ facts }) {
   return (
     <section className="source-facts">
-      <h3>Readiness / Source Facts</h3>
+      <h3>{translate("Readiness / Source Facts")}</h3>
       {facts.length ? facts.map((fact) => (
         <article className="source-fact" key={`${fact.layer}:${fact.operation_id || fact.updated_at || fact.state}`}>
           <div>
             <strong>{sourceFactLayerLabel(fact.layer)}</strong>
             <span>{sourceFactStateLabel(fact.state)}</span>
-            <small>{fact.detail}</small>
+            <small>{translate(fact.detail)}</small>
           </div>
           <time>{fact.updated_at ? formatRelativeTime(fact.updated_at) : '—'}</time>
         </article>
       )) : (
-        <p className="empty-state">No source facts available.</p>
+        <p className="empty-state">{translate("No source facts available.")}</p>
       )}
     </section>
   );
@@ -6333,28 +6350,28 @@ function Operations({ operations }) {
     { key: 'organization', label: 'Customer', icon: 'building', value: (operation) => operation.organization },
     { key: 'device_name', label: 'Device', icon: 'microchip', value: (operation) => operation.device_name },
     { key: 'updated_at', label: 'Updated', icon: 'clock', value: (operation) => operation.updated_at },
-    { key: 'message', label: 'Message', icon: 'message', value: (operation) => operation.message },
+    { key: 'message', label: 'Message', icon: 'message', value: (operation) => translate(operation.message) },
   ], []);
 
   return (
     <section className="panel operations-page">
       <div className="panel-head">
         <div>
-          <h2 className="heading-with-icon"><Icon name="list-check" />Lifecycle operations</h2>
-          <p>Provisioning and deactivation commands projected from account/video contracts.</p>
+          <h2 className="heading-with-icon"><Icon name="list-check" />{translate("Lifecycle operations")}</h2>
+          <p>{translate("Provisioning and deactivation commands projected from account/video contracts.")}</p>
         </div>
         <label className="operation-filter">
-          <span><Icon name="traffic-light" />State</span>
+          <span><Icon name="traffic-light" />{translate("State")}</span>
           <select
             value={stateFilter}
             onChange={(event) => setStateFilter(event.target.value)}
-            aria-label="Filter operations by state"
+            aria-label={translate("Filter operations by state")}
           >
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="succeeded">Succeeded</option>
-            <option value="failed">Failed</option>
-            <option value="dead_lettered">Dead Lettered</option>
+            <option value="all">{translate("All")}</option>
+            <option value="pending">{translate("Pending")}</option>
+            <option value="succeeded">{translate("Succeeded")}</option>
+            <option value="failed">{translate("Failed")}</option>
+            <option value="dead_lettered">{translate("Dead Lettered")}</option>
           </select>
         </label>
       </div>
@@ -6373,7 +6390,7 @@ function Operations({ operations }) {
 }
 
 function OperationList({ operations, detailed = false }) {
-  if (!operations.length) return <p className="empty-state compact-empty">No operations need attention.</p>;
+  if (!operations.length) return <p className="empty-state compact-empty">{translate("No operations need attention.")}</p>;
   return (
     <div className={`operation-list ${detailed ? 'operation-list-detailed' : ''}`}>
       {operations.map((operation) => {
@@ -6383,8 +6400,8 @@ function OperationList({ operations, detailed = false }) {
             <div className="operation-row-icon"><Icon name={operationIconName(state)} /></div>
             <div className="operation-main">
               <strong>{operationSummary(operation)}</strong>
-              <span>{operation.organization || 'Unknown tenant'} / {operation.device_name || operation.device_id || 'Unknown device'}</span>
-              {detailed ? <p>{operation.message}</p> : null}
+              <span>{operation.organization || translate("Unknown tenant")} / {operation.device_name || operation.device_id || translate("Unknown device")}</span>
+              {detailed ? <p>{translate(operation.message)}</p> : null}
             </div>
             <StatusBadge value={operation.state} />
           </article>
@@ -6406,12 +6423,12 @@ function AuditLog({ audit, compact = false, loading = false }) {
     <section className="panel">
       <div className="panel-head">
         <div>
-          <h2>{compact ? 'Recent audit' : 'Audit log'}</h2>
-          <p>{auditCoverageCopy()}</p>
+          <h2>{compact ? translate("Recent audit") : translate("Audit log")}</h2>
+          <p>{translate(auditCoverageCopy())}</p>
         </div>
       </div>
       {loading && !audit.length ? (
-        <p className="empty-state">Loading audit events.</p>
+        <p className="empty-state">{translate("Loading audit events.")}</p>
       ) : compact && audit.length ? (
         <div className="audit-list">
           {audit.map((event) => (
@@ -6426,9 +6443,9 @@ function AuditLog({ audit, compact = false, loading = false }) {
           ))}
         </div>
       ) : !audit.length ? (
-        <p className="empty-state">No audit events recorded.</p>
+        <p className="empty-state">{translate("No audit events recorded.")}</p>
       ) : compact ? (
-        <p className="empty-state">No audit events recorded.</p>
+        <p className="empty-state">{translate("No audit events recorded.")}</p>
       ) : (
         <DataTable
           columns={columns}
@@ -6487,7 +6504,7 @@ function DataTable({
   return (
     <>
       <div className="table-toolbar">
-        <input aria-label={searchPlaceholder || "Search table"} value={serverMode ? serverFilter : filter} onChange={(event) => {
+        <input aria-label={searchPlaceholder || translate("Search table")} value={serverMode ? serverFilter : filter} onChange={(event) => {
           if (serverMode) {
             setServerFilter(event.target.value);
             onServerSearch?.(event.target.value);
@@ -6495,7 +6512,7 @@ function DataTable({
             setFilter(event.target.value);
           }
         }} placeholder={searchPlaceholder} />
-        <span>{serverMode ? `${serverTotal} Devices` : `${totalRows} of ${rows.length}`}</span>
+        <span>{serverMode ? translate("{{value0}} Devices", { value0: serverTotal }) : translate("{{value0}} of {{value1}}", { value0: totalRows, value1: rows.length })}</span>
       </div>
       {serverMode ? (
         <PaginationControls
@@ -6513,7 +6530,7 @@ function DataTable({
               {columns.map((column) => (
                 <th key={column.key} aria-sort={column.sortable === false ? undefined : sort.key === column.key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}>
                   {column.sortable === false ? (
-                    <span className="data-table-heading">{column.icon ? <Icon name={column.icon} /> : null}{column.label}</span>
+                    <span className="data-table-heading">{column.icon ? <Icon name={column.icon} /> : null}{translate(column.label)}</span>
                   ) : (
                     <button className="sort-button" onClick={() => {
                         if (serverMode) {
@@ -6524,7 +6541,7 @@ function DataTable({
                           requestSort(column.key);
                         }
                       }}>
-                      <span className="data-table-heading">{column.icon ? <Icon name={column.icon} /> : null}{column.label}</span>
+                      <span className="data-table-heading">{column.icon ? <Icon name={column.icon} /> : null}{translate(column.label)}</span>
                       <span aria-hidden="true">{sort.key === column.key ? (sort.direction === 'asc' ? '^' : 'v') : '-'}</span>
                     </button>
                   )}
@@ -6566,12 +6583,12 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
   const items = paginationItems(currentPage, totalPages);
   return (
     <nav className={`pagination pagination-${position}`} aria-label={ariaLabel}>
-      <span className="pagination-summary">Page {currentPage} of {totalPages}</span>
+      <span className="pagination-summary">{translate("Page")} {currentPage} {translate("of")} {totalPages}</span>
       <div className="pagination-page-list">
         <button
           type="button"
           className="pagination-arrow"
-          aria-label="Previous page"
+          aria-label={translate("Previous page")}
           disabled={currentPage <= 1}
           onClick={() => onPage(Math.max(1, currentPage - 1))}
         >
@@ -6583,7 +6600,7 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
           <button
             type="button"
             className={item === currentPage ? 'active' : ''}
-            aria-label={`Page ${item}`}
+            aria-label={translate("Page {{value0}}", { value0: item })}
             aria-current={item === currentPage ? 'page' : undefined}
             key={item}
             onClick={() => onPage(item)}
@@ -6594,7 +6611,7 @@ function PaginationControls({ currentPage, totalPages, onPage, ariaLabel, positi
         <button
           type="button"
           className="pagination-arrow"
-          aria-label="Next"
+          aria-label={translate("Next")}
           disabled={currentPage >= totalPages}
           onClick={() => onPage(Math.min(totalPages, currentPage + 1))}
         >
@@ -6695,7 +6712,7 @@ function displayValue(value) {
 
 function ServiceHealth({ health, compact = false }) {
   if (compact) {
-    if (!health.length) return <p className="empty-state compact-empty">No service checks reported.</p>;
+    if (!health.length) return <p className="empty-state compact-empty">{translate("No service checks reported.")}</p>;
     return (
       <section className="health compact">
         {health.map((item) => (
@@ -6703,10 +6720,10 @@ function ServiceHealth({ health, compact = false }) {
             <div className="health-row-icon"><Icon name={serviceHealthIconName(item.name, item.status)} /></div>
             <div className="health-service">
               <strong>{item.name}</strong>
-              <span>{item.detail}</span>
+              <span>{translate(item.detail)}</span>
             </div>
             <div className="health-meta">
-              {item.latency_ms ? <small>{item.latency_ms} ms</small> : null}
+              {item.latency_ms ? <small>{item.latency_ms} {translate("ms")}</small> : null}
               <StatusBadge value={item.status} />
             </div>
           </div>
@@ -6716,13 +6733,13 @@ function ServiceHealth({ health, compact = false }) {
   }
   return (
     <section className="panel health">
-      <h2>Service health</h2>
+      <h2>{translate("Service health")}</h2>
       {health.map((item) => (
         <div className="health-row" key={item.name}>
           <strong>{item.name}</strong>
           <StatusBadge value={item.status} />
-          <span>{item.detail}</span>
-          {item.latency_ms ? <small>{item.latency_ms} ms</small> : null}
+          <span>{translate(item.detail)}</span>
+          {item.latency_ms ? <small>{item.latency_ms} {translate("ms")}</small> : null}
           {item.last_checked_at ? <time>{item.last_checked_at}</time> : null}
         </div>
       ))}
@@ -6746,7 +6763,7 @@ function StatusBadge({ value, label }) {
   return (
     <span className={`status status-${String(value).replaceAll('_', '-')}`}>
       {icon ? <Icon name={icon} /> : null}
-      {text}
+      {translate(text)}
     </span>
   );
 }
@@ -6755,7 +6772,7 @@ function CompactStatus({ value, label }) {
   return (
     <span className="compact-status">
       <StatusDot value={value} />
-      {label ?? statusDisplayText(value)}
+      {translate(label ?? statusDisplayText(value))}
     </span>
   );
 }
@@ -7012,8 +7029,8 @@ function toTitleCase(value) {
 }
 
 function operationSummary(operation) {
-  const typeSummary = operationTypeSummary(operation.type);
-  const stateSummary = operationStateSummary(operation.state);
+  const typeSummary = translate(operationTypeSummary(operation.type));
+  const stateSummary = translate(operationStateSummary(operation.state));
   return stateSummary ? `${typeSummary} — ${stateSummary}` : typeSummary;
 }
 
@@ -7059,8 +7076,8 @@ class AuthError extends Error {
 
 async function fetchJSON(url) {
   const response = await fetch(url);
-  if (response.status === 401) throw new AuthError(401, 'Session expired; please sign in again.');
-  if (response.status === 403) throw new AuthError(403, 'Access denied.');
+  if (response.status === 401) throw new AuthError(401, translate('Session expired; please sign in again.'));
+  if (response.status === 403) throw new AuthError(403, translate('Access denied.'));
   if (!response.ok) {
     const error = new Error(`${url} failed with ${response.status}`);
     error.status = response.status;
@@ -7083,8 +7100,8 @@ async function sendJSONWithMethod(method, url, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (response.status === 401) throw new AuthError(401, 'Session expired; please sign in again.');
-  if (response.status === 403) throw new AuthError(403, 'Access denied.');
+  if (response.status === 401) throw new AuthError(401, translate('Session expired; please sign in again.'));
+  if (response.status === 403) throw new AuthError(403, translate('Access denied.'));
   if (!response.ok) {
     const details = await response.text().catch(() => '');
     const error = new Error(details || `${url} failed with ${response.status}`);
@@ -7152,13 +7169,14 @@ function formatRelativeTime(iso) {
   if (Number.isNaN(timestamp)) return iso || '-';
   const deltaSeconds = Math.round((Date.now() - timestamp) / 1000);
   const abs = Math.abs(deltaSeconds);
-  if (abs < 60) return deltaSeconds >= 0 ? `${abs}s ago` : `in ${abs}s`;
+  const formatter = new Intl.RelativeTimeFormat(formatLocale(), { numeric: 'auto', style: 'short' });
+  if (abs < 60) return formatter.format(-deltaSeconds, 'second');
   const minutes = Math.round(abs / 60);
-  if (minutes < 60) return deltaSeconds >= 0 ? `${minutes}m ago` : `in ${minutes}m`;
+  if (minutes < 60) return formatter.format(-Math.sign(deltaSeconds) * minutes, 'minute');
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return deltaSeconds >= 0 ? `${hours}h ago` : `in ${hours}h`;
+  if (hours < 24) return formatter.format(-Math.sign(deltaSeconds) * hours, 'hour');
   const days = Math.round(hours / 24);
-  return deltaSeconds >= 0 ? `${days}d ago` : `in ${days}d`;
+  return formatter.format(-Math.sign(deltaSeconds) * days, 'day');
 }
 
 function buildFleetTrendChart(trend) {
@@ -7377,7 +7395,6 @@ function ConsoleEntry() {
   return <React.Fragment key={location}>{sdk || docs ? <SDKPage docs={docs} /> : handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : managed ? <MyCloudsApp /> : <App />}</React.Fragment>;
 }
 
-document.documentElement.lang = i18n.language;
 createRoot(document.getElementById('root')).render(
   <I18nextProvider i18n={i18n}>
     <ConsoleEntry />
