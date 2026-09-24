@@ -14,7 +14,7 @@ async function checkLayout(page, testInfo) {
   await testInfo.attach('final-viewport', { path: screenshot, contentType: 'image/png' });
 }
 
-test('[UI-CA-INVOICE-001] empty invoice history shows a non-payable 5 percent sample @billing @smoke', async ({ page }, testInfo) => {
+test('[UI-CA-INVOICE-001] empty invoice history shows a non-payable before-tax sample @billing @smoke', async ({ page }, testInfo) => {
   await login(page, 'billing_owner');
   await page.route(invoicesAPI, async route => {
     const response = await route.fetch();
@@ -29,9 +29,9 @@ test('[UI-CA-INVOICE-001] empty invoice history shows a non-payable 5 percent sa
   await expect(preview).toContainText('Not a tax invoice or payment request');
   const totals = preview.locator('.invoice-document-totals');
   await expect(totals.locator('div').nth(0)).toContainText('1,000');
-  await expect(totals.locator('div').nth(1)).toContainText('Taiwan tax (5%)');
-  await expect(totals.locator('div').nth(1)).toContainText('50');
-  await expect(totals.locator('div').nth(2)).toContainText('1,050');
+  await expect(totals).toContainText('Example total before tax');
+  await expect(totals.locator('div').nth(1)).toContainText('1,000');
+  await expect(preview).not.toContainText('5%');
   await expect(page.getByRole('link', { name: /Download.*PDF|Export statement/ })).toHaveCount(0);
   await expect(preview).not.toContainText('ACME Corp.');
   expect(writes).toEqual([]);

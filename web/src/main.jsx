@@ -129,6 +129,7 @@ import {
   formatMinorAmount,
   paymentIntentState,
   paymentMethodLabel,
+  settlementCurrency,
 } from './billing.mjs';
 import {
   chipsetVendors,
@@ -3140,6 +3141,10 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
 
   function savePolicy(event) {
     event.preventDefault();
+    if (account?.currency !== settlementCurrency) {
+      setMessage(billingErrorMessage({ code: 'PAYMENT_CURRENCY_UNSUPPORTED' }));
+      return;
+    }
     if (!activeMethod || !chargeQualified || !autoConsentAccepted) {
       setMessage(billingErrorMessage({ code: 'PAYMENT_CAPABILITY_UNSUPPORTED' }));
       return;
@@ -3151,7 +3156,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       enabled: true,
       threshold_minor: Number(threshold),
       top_up_amount_minor: Number(topUpAmount),
-      currency: account?.currency || 'TWD',
+      currency: account.currency,
       payment_method_id: activeMethod.id,
       daily_attempt_limit: Number(dailyAttempts),
       daily_amount_limit_minor: Number(dailyAmount),
@@ -3167,11 +3172,15 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       setMessage(billingErrorMessage({ code: 'PAYMENT_AMOUNT_INVALID' }));
       return;
     }
+    if (account?.currency !== settlementCurrency) {
+      setMessage(billingErrorMessage({ code: 'PAYMENT_CURRENCY_UNSUPPORTED' }));
+      return;
+    }
     const idempotency = crypto.randomUUID();
     if (hostedChargeProvider) {
       const result = await mutate('POST', '/api/billing/topups/checkout', {
         amount_minor: amount,
-        currency: account?.currency || 'TWD',
+        currency: account.currency,
         provider: hostedChargeProvider.name,
       }, { 'Idempotency-Key': idempotency });
       const action = result?.payment_action;
@@ -3195,7 +3204,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       setMessage(billingErrorMessage({ code: 'PAYMENT_CAPABILITY_UNSUPPORTED' }));
       return;
     }
-    await mutate('POST', '/api/billing/topups', { amount_minor: amount, currency: account?.currency || 'TWD', payment_method_id: activeMethod.id }, { 'Idempotency-Key': idempotency });
+    await mutate('POST', '/api/billing/topups', { amount_minor: amount, currency: account.currency, payment_method_id: activeMethod.id }, { 'Idempotency-Key': idempotency });
   }
 
   async function setupPaymentMethod() {

@@ -1,4 +1,5 @@
 import { cloudAPI, cloudURL } from './managed-clouds.mjs';
+import { settlementCurrency } from './billing.mjs';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const handoffAcceptPath = '/brand-cloud-owner-transfer/accept';
 export function handoffRoute(path) {
@@ -13,7 +14,7 @@ export function handoffAPI(cloud, transfer = '', action = '') {
   return `${cloudAPI(cloud)}/owner-transfer${transfer ? `/${transfer}` : ''}${action ? `/${action}` : ''}`;
 }
 export function safeSnapshot(s) {
-  return Boolean(s && Number.isSafeInteger(s.ownership_version) && s.ownership_version >= 1 && Number.isSafeInteger(s.billing_snapshot_version) && s.billing_snapshot_version >= 2 && Number.isSafeInteger(s.balance_minor) && s.balance_minor >= 0 && s.currency === 'TWD');
+  return Boolean(s && Number.isSafeInteger(s.ownership_version) && s.ownership_version >= 1 && Number.isSafeInteger(s.billing_snapshot_version) && s.billing_snapshot_version >= 2 && Number.isSafeInteger(s.balance_minor) && s.balance_minor >= 0 && s.currency === settlementCurrency);
 }
 export function snapshotKey(v) { return safeSnapshot(v?.balance_snapshot) ? JSON.stringify([v.brand_cloud_id, v.id, v.balance_snapshot.ownership_version, v.balance_snapshot.billing_snapshot_version, v.balance_snapshot.balance_minor, v.balance_snapshot.currency]) : ''; }
 export function handoffConfirmable(v, actor) {

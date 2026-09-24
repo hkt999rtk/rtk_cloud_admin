@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { invoiceQuantity, SAMPLE_INVOICE } from './invoice-document.mjs';
 
-test('sample invoice balances at 5 percent tax without an issued identity or payment document', () => {
+test('sample invoice is before tax without an issued identity or payment document', () => {
   assert.equal(SAMPLE_INVOICE.currency, 'TWD');
   assert.equal(SAMPLE_INVOICE.lines.reduce((sum, line) => sum + line.subtotal_minor, 0), SAMPLE_INVOICE.subtotal_minor);
-  assert.equal(SAMPLE_INVOICE.tax_minor, SAMPLE_INVOICE.subtotal_minor * .05);
+  assert.equal(SAMPLE_INVOICE.tax_minor, 0);
   assert.equal(SAMPLE_INVOICE.total_minor, SAMPLE_INVOICE.subtotal_minor + SAMPLE_INVOICE.tax_minor);
   assert.equal(SAMPLE_INVOICE.id, undefined);
   assert.equal(SAMPLE_INVOICE.document, undefined);
