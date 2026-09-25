@@ -179,6 +179,10 @@ func decodeManagedCloudWrite(w http.ResponseWriter, r *http.Request) (*accountcl
 }
 
 func (s *Server) managedCloudError(w http.ResponseWriter, sessionID string, err error) {
+	if ownerTransferLimitError(err) {
+		writeJSONStatus(w, http.StatusConflict, map[string]string{"code": "owner_transfer_limit_reached", "message": "Brand Cloud ownership transfer limit reached"})
+		return
+	}
 	status := http.StatusBadGateway
 	var remote *accountclient.HTTPError
 	if errors.As(err, &remote) {

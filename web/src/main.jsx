@@ -4889,6 +4889,9 @@ function PlatformBrandClouds({
 
 function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser }) {
   const [detailBrand, setDetailBrand] = useState(brand);
+  const [transferQuota, setTransferQuota] = useState(null);
+  const [transferLimitDraft, setTransferLimitDraft] = useState('');
+  const [transferLimitBusy, setTransferLimitBusy] = useState(false);
   const [ssoProvider, setSSOProvider] = useState(null);
   const [detailSource, setDetailSource] = useState({ status: 'loading', message: '' });
   const [user, setUser] = useState({ email: '', display_name: '', role: 'admin' });
@@ -4905,12 +4908,15 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser })
   async function loadDetail() {
     setDetailSource({ status: 'loading', message: '' });
     try {
-      const [detailResult, ssoResult] = await Promise.all([
+      const [detailResult, ssoResult, quotaResult] = await Promise.all([
         fetchJSON(`/api/admin/brand-clouds/${encodeURIComponent(brand.id)}`),
         fetchJSON(`/api/admin/orgs/${encodeURIComponent(brand.id)}/sso-provider`).catch(() => ({ provider: null })),
+        fetchJSON(`/api/admin/brand-clouds/${encodeURIComponent(brand.id)}/owner-transfer-limit`).catch(() => null),
       ]);
       setDetailBrand(detailResult.brand_cloud || brand);
       setSSOProvider(ssoResult.provider || null);
+      setTransferQuota(quotaResult);
+      setTransferLimitDraft(quotaResult ? String(quotaResult.owner_transfer_limit) : '');
       setDetailSource({ status: 'ready', message: '' });
     } catch (err) {
       setDetailBrand(brand);
@@ -4952,6 +4958,23 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser })
     } catch (err) {
       setMessage(userFacingBrandCloudError(err));
     }
+  }
+
+  async function updateTransferLimit(event) {
+    event.preventDefault();
+    const limit = Number(transferLimitDraft);
+    if (!Number.isInteger(limit) || limit < 0 || limit > 200) {
+      setMessage('Transfer limit must be between 0 and 200.');
+      return;
+    }
+    setTransferLimitBusy(true); setMessage('');
+    try {
+      const result = await sendJSONWithMethod('PATCH', `/api/admin/brand-clouds/${encodeURIComponent(brand.id)}/owner-transfer-limit`, { owner_transfer_limit: limit });
+      setTransferQuota(result);
+      setTransferLimitDraft(String(result.owner_transfer_limit));
+      setMessage('Ownership transfer limit saved.');
+    } catch (err) { setMessage(userFacingBrandCloudError(err)); }
+    finally { setTransferLimitBusy(false); }
   }
 
   async function submitUser(event) {
@@ -5054,6 +5077,16 @@ function BrandCloudDetailDrawer({ brand, onClose, onUpdateBrand, onCreateUser })
             <Icon name="key" />{translate("Open SSO Providers")}
           </a>
         </div>
+        <section className="brand-cloud-users">
+          <h3>{translate("Ownership transfer limit")}</h3>
+          {transferQuota ? <><p>{translate("Used: {{used}} · Remaining: {{remaining}}", { used: transferQuota.owner_transfer_used, remaining: transferQuota.owner_transfer_remaining })}</p>
+            <form className="drawer-form compact" onSubmit={updateTransferLimit}>
+              <label>{translate("Maximum transfers for this cloud")}
+                <input className="input" type="number" min="0" max="200" step="1" required value={transferLimitDraft} disabled={transferLimitBusy} onChange={event => setTransferLimitDraft(event.target.value)} />
+              </label>
+              <button type="submit" className="primary-button" disabled={transferLimitBusy}>{transferLimitBusy ? translate("Saving…") : translate("Save transfer limit")}</button>
+            </form></> : <p>{translate("Transfer limit is unavailable. Refresh this cloud before trying again.")}</p>}
+        </section>
         <section className="brand-cloud-users">
           <div className="panel-head compact-head">
             <div>

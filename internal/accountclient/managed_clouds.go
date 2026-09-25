@@ -13,19 +13,22 @@ var managedOperationID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4
 
 // Deliberately excludes arbitrary metadata, payer data and secrets.
 type ManagedCloud struct {
-	PKIStatus        string   `json:"pki_status"`
-	PKIOperationID   string   `json:"pki_operation_id"`
-	PKIIssuerID      string   `json:"pki_issuer_id,omitempty"`
-	ID               string   `json:"id"`
-	Name             string   `json:"name"`
-	Description      string   `json:"description"`
-	TenantSlug       string   `json:"tenant_slug"`
-	OwnerUserID      string   `json:"owner_user_id"`
-	OwnerEmail       string   `json:"owner_email"`
-	MyRole           string   `json:"my_role"`
-	Status           string   `json:"status"`
-	OwnershipVersion int64    `json:"ownership_version"`
-	Capabilities     []string `json:"capabilities"`
+	PKIStatus              string   `json:"pki_status"`
+	PKIOperationID         string   `json:"pki_operation_id"`
+	PKIIssuerID            string   `json:"pki_issuer_id,omitempty"`
+	ID                     string   `json:"id"`
+	Name                   string   `json:"name"`
+	Description            string   `json:"description"`
+	TenantSlug             string   `json:"tenant_slug"`
+	OwnerUserID            string   `json:"owner_user_id"`
+	OwnerEmail             string   `json:"owner_email"`
+	MyRole                 string   `json:"my_role"`
+	Status                 string   `json:"status"`
+	OwnershipVersion       int64    `json:"ownership_version"`
+	OwnerTransferLimit     int      `json:"owner_transfer_limit"`
+	OwnerTransferUsed      int      `json:"owner_transfer_used"`
+	OwnerTransferRemaining int      `json:"owner_transfer_remaining"`
+	Capabilities           []string `json:"capabilities"`
 }
 type ManagedCloudPage struct {
 	BrandClouds   []ManagedCloud `json:"brand_clouds"`

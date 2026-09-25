@@ -31,6 +31,7 @@ export function handoffTitle(v) {
   return 'Handoff in progress';
 }
 export function handoffError(err) {
+  if (err?.code === 'owner_transfer_limit_reached') return 'Ownership transfer limit reached. No transfers remain for this cloud.';
   if (err?.status === 401) return 'Your session expired. Sign in again.';
   if ([403, 404].includes(err?.status)) return 'This account cannot access this handoff, or the invitation has expired.';
   if (err?.status === 409) return 'The handoff is blocked or its snapshot changed. Review status and request a fresh settled preview. Negative balance, unsettled usage, pending payments, quota or ownership changes can block transfer.';

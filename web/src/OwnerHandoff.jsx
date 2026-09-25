@@ -12,19 +12,22 @@ function SemanticIcon({ name, color }) {
 
 const policy = 'Positive credit stays with this cloud. Old payment methods and automatic-charge consent do not transfer. Cost-producing actions may pause during settlement. The former owner loses all cloud and Product access after owner commit; existing other collaborators retain their grants.';
 
-export function StartOwnerHandoff({ cloudId }) {
+export function StartOwnerHandoff({ cloudId, quota }) {
   const [email, setEmail] = useState(''), [ack, setAck] = useState(false), [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const intent = useRef(null), locked = useRef(false), alive = useRef(false);
+  const remaining = quota?.owner_transfer_remaining;
+  const unavailable = !Number.isInteger(remaining);
+  const blocked = unavailable || remaining <= 0;
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   async function submit(event) {
-    event.preventDefault(); if (!ack || locked.current) return;
+    event.preventDefault(); if (!ack || blocked || locked.current) return;
     locked.current = true; setBusy(true); setError('');
     const next = cloudWriteIntent(intent.current, 'POST', handoffAPI(cloudId), { target_email: email.trim() }); intent.current = next;
     try { const data = await managedCloudRequest(next.path, { method: next.method, body: next.body, key: next.key }); if (alive.current) window.location.assign(handoffURL(data.owner_transfer.brand_cloud_id, data.owner_transfer.id)); }
     catch (err) { if (alive.current) setError(handoffError(err)); }
     finally { locked.current = false; if (alive.current) setBusy(false); }
   }
-  return <section className="my-clouds-panel owner-handoff"><h2><SemanticIcon name="right-left" />{translate("Transfer ownership")}</h2><p>{translate("The available balance must be nonnegative (zero is allowed), and Billing must confirm settlement with no unresolved financial work.")}</p><p>{translate(policy)}</p>{error && <p role="alert"><SemanticIcon name="triangle-exclamation" />{translate(error)}</p>}<form onSubmit={submit}><label><SemanticIcon name="envelope-circle-check" />{translate("New owner’s verified email")}<input type="email" required disabled={busy} value={email} onChange={e => setEmail(e.target.value)} /></label><label><input type="checkbox" checked={ack} disabled={busy} onChange={e => setAck(e.target.checked)} /><SemanticIcon name="triangle-exclamation" color="#b42318" />{translate("I understand the ownership and Billing consequences.")}</label><button className="icon-text" disabled={busy || !ack}><SemanticIcon name="paper-plane" />{busy ? translate("Requesting…") : translate("Send ownership invitation")}</button></form><p><SemanticIcon name="circle-info" />{translate("Invitation acceptance starts the handoff. It does not complete ownership transfer.")}</p></section>;
+  return <section className="my-clouds-panel owner-handoff"><h2><SemanticIcon name="right-left" />{translate("Transfer ownership")}</h2><p>{unavailable ? translate("Transfer limit is unavailable. Refresh this cloud before trying again.") : translate("Ownership transfers remaining: {{count}}", { count: remaining })}</p>{!unavailable && remaining === 0 && <p role="status">{translate("Ownership transfer limit reached. No transfers remain for this cloud.")}</p>}<p>{translate("The available balance must be nonnegative (zero is allowed), and Billing must confirm settlement with no unresolved financial work.")}</p><p>{translate(policy)}</p>{error && <p role="alert"><SemanticIcon name="triangle-exclamation" />{translate(error)}</p>}<form onSubmit={submit}><label><SemanticIcon name="envelope-circle-check" />{translate("New owner’s verified email")}<input type="email" required disabled={busy || blocked} value={email} onChange={e => setEmail(e.target.value)} /></label><label><input type="checkbox" checked={ack} disabled={busy || blocked} onChange={e => setAck(e.target.checked)} /><SemanticIcon name="triangle-exclamation" color="#b42318" />{translate("I understand the ownership and Billing consequences.")}</label><button className="icon-text" disabled={busy || blocked || !ack}><SemanticIcon name="paper-plane" />{busy ? translate("Requesting…") : translate("Send ownership invitation")}</button></form><p><SemanticIcon name="circle-info" />{translate("Invitation acceptance starts the handoff. It does not complete ownership transfer.")}</p></section>;
 }
 
 export function OwnerHandoffPage() {
