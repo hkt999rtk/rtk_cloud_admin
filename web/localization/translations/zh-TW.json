@@ -14605,6 +14605,66 @@
       "fingerprint": "fc98930844159c7198384a84e1e2cabdc97e270aa73cf9101f0dfee594e9395c",
       "text": "「無法取得」表示目前無法讀取串流指標，並不代表沒有失敗，或所有串流都成功。",
       "status": "approved"
+    },
+    "Brand Cloud ownership transfer limit reached": {
+      "sourceHash": "426b81b417c8450c528cbc2ebe56ffe1f6c9b689e25e201e24bb95c9ed15517c",
+      "fingerprint": "56d602cd98ed518ba31603c3494b87349003c5d1b969f2fddd99816fc8b88b18",
+      "text": "品牌雲端所有權轉讓次數已達上限",
+      "status": "approved"
+    },
+    "Maximum transfers for this cloud": {
+      "sourceHash": "ed33374c3797e0e36159689be43a03bc46ef9d80c9422cdcc0c0825f8f9eca5b",
+      "fingerprint": "1bab709b36fd0bb60b9caca61aa4bdbb620d09dbdfeaeb2d5d8dde838a7ad413",
+      "text": "此雲端的轉讓次數上限",
+      "status": "approved"
+    },
+    "Ownership transfer limit": {
+      "sourceHash": "c5f4d8c8830e48d72f34a770dc1dea5a1edcbcce266d1bdc3ed32e153bd342b7",
+      "fingerprint": "53fbee4d43ecc2a09dddd1706d3df50c3460902cefec3d64f9da17dd213b6f91",
+      "text": "所有權轉讓次數上限",
+      "status": "approved"
+    },
+    "Ownership transfer limit reached. No transfers remain for this cloud.": {
+      "sourceHash": "d5a870d24ac80a78d6d891e0cdc30ba59d0c3e8d76a5394f498ae48a64eda758",
+      "fingerprint": "37c377761d6ab29e795f86421a2371ae47ba7ba6fabab5d7c7be72034872fd6a",
+      "text": "所有權轉讓次數已達上限，此雲端已無可用轉讓次數。",
+      "status": "approved"
+    },
+    "Ownership transfer limit saved.": {
+      "sourceHash": "6eb82e0b9abb4498d69def9f031232573f95ca60116843a5e501a11162e02685",
+      "fingerprint": "6c7c81a7c7e5abc0b4f56c41eacaec8a3eae5c5000a30486551d53f2e00f502c",
+      "text": "所有權轉讓次數上限已儲存。",
+      "status": "approved"
+    },
+    "Ownership transfers remaining: {{count}}": {
+      "sourceHash": "27fd4e3432aedf113cdc52dfb1bd69f417c481174211e562e8526670c149d0b6",
+      "fingerprint": "a9b93b54ee5557120fc4bf9c46cbb26e03eb82ef69fc43c0b5e8e199fbdc47e0",
+      "text": "剩餘所有權轉讓次數：{{count}}",
+      "status": "approved"
+    },
+    "Save transfer limit": {
+      "sourceHash": "545898e7893298f49bbb810d0a51e8605c175c3b47a3dac310154ddaf2dfbf04",
+      "fingerprint": "6063408dc59f98185f49e979ec6781e25bd09822cd12269b64cde5169281dcaa",
+      "text": "儲存轉讓次數上限",
+      "status": "approved"
+    },
+    "Transfer limit is unavailable. Refresh this cloud before trying again.": {
+      "sourceHash": "bd231690179c0bc0876649fe37925695a9783c4ef9d232abb4ddab88cf488cf1",
+      "fingerprint": "bdc825e80bd15e6ca30875573f55476d03306f5ebe0ded3da227eb2b480e86d9",
+      "text": "目前無法取得轉讓次數上限，請重新整理此雲端後再試。",
+      "status": "approved"
+    },
+    "Transfer limit must be between 0 and 200.": {
+      "sourceHash": "7a7c7776953512c500cbce2e0ce3964e9bc60bb7cc5068ad8115117dd8ad72e3",
+      "fingerprint": "a6ca1622d1d7ac8b01feedac651c9b040ba8f3901c7adecd547fe97e61029bf5",
+      "text": "轉讓次數上限必須介於 0 到 200。",
+      "status": "approved"
+    },
+    "Used: {{used}} · Remaining: {{remaining}}": {
+      "sourceHash": "de3caf0c71539bbf7f6c491dc1c9c6890292828a1c66ad4a979d176e57dfcd77",
+      "fingerprint": "12e8b24232185737077f9344013336adaca20dc06fd2cd692bc7e260df286398",
+      "text": "已使用：{{used}} · 剩餘：{{remaining}}",
+      "status": "approved"
     }
   }
 }

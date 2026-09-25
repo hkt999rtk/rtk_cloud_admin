@@ -72,3 +72,36 @@ func TestManagedCloudsRequiresQuotaAndStripsSecrets(t *testing.T) {
 		t.Fatalf("unsafe response: %s (%v)", raw, err)
 	}
 }
+
+func TestOwnerTransferQuotaAdminRequests(t *testing.T) {
+	const cloud = "11111111-1111-4111-8111-111111111111"
+	limit := 3
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/admin/brand-clouds/"+cloud+"/owner-transfer-limit" || r.Header.Get("Authorization") != "Bearer admin-token" {
+			t.Errorf("unexpected quota request: %s %s", r.Method, r.URL.Path)
+		}
+		if r.Method == http.MethodPatch {
+			var body struct {
+				Limit *int `json:"owner_transfer_limit"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Limit == nil {
+				t.Errorf("invalid limit request: %v", err)
+			} else {
+				limit = *body.Limit
+			}
+		} else if r.Method != http.MethodGet {
+			t.Errorf("unexpected method %s", r.Method)
+		}
+		_ = json.NewEncoder(w).Encode(OwnerTransferQuota{Limit: limit, Used: 1, Remaining: max(limit-1, 0)})
+	}))
+	defer upstream.Close()
+	client := New(upstream.URL)
+	quota, err := client.OwnerTransferQuota(context.Background(), "admin-token", cloud)
+	if err != nil || quota != (OwnerTransferQuota{Limit: 3, Used: 1, Remaining: 2}) {
+		t.Fatalf("get quota=%+v err=%v", quota, err)
+	}
+	quota, err = client.SetOwnerTransferLimit(context.Background(), "admin-token", cloud, 0)
+	if err != nil || quota != (OwnerTransferQuota{Limit: 0, Used: 1, Remaining: 0}) {
+		t.Fatalf("set quota=%+v err=%v", quota, err)
+	}
+}

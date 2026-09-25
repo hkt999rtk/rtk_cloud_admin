@@ -14814,6 +14814,71 @@
       "source": "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Brand Cloud ownership transfer limit reached",
+      "source": "Brand Cloud ownership transfer limit reached",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Maximum transfers for this cloud",
+      "source": "Maximum transfers for this cloud",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Ownership transfer limit",
+      "source": "Ownership transfer limit",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Ownership transfer limit reached. No transfers remain for this cloud.",
+      "source": "Ownership transfer limit reached. No transfers remain for this cloud.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Ownership transfer limit saved.",
+      "source": "Ownership transfer limit saved.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Ownership transfers remaining: {{count}}",
+      "source": "Ownership transfers remaining: {{count}}",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{count}}"
+      ]
+    },
+    {
+      "key": "Save transfer limit",
+      "source": "Save transfer limit",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Transfer limit is unavailable. Refresh this cloud before trying again.",
+      "source": "Transfer limit is unavailable. Refresh this cloud before trying again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Transfer limit must be between 0 and 200.",
+      "source": "Transfer limit must be between 0 and 200.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Used: {{used}} · Remaining: {{remaining}}",
+      "source": "Used: {{used}} · Remaining: {{remaining}}",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{remaining}}",
+        "{{used}}"
+      ]
     }
   ]
 }

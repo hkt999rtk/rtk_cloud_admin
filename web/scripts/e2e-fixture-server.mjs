@@ -34,6 +34,11 @@ for (const collection of [brandClouds, users, members, devices, operations, logs
   }
 }
 const state = { brandClouds, users, members, devices, operations, logs, sessions, prometheus, jobs: [], reports: [], sources: [], transfers: [], invitations: [], chipsetProviders: [], idempotency: new Map(), requestLog: [] };
+for (const cloud of state.brandClouds) {
+  cloud.owner_transfer_limit = 3;
+  cloud.owner_transfer_used = 0;
+  cloud.owner_transfer_remaining = 3;
+}
 for (const user of state.users) {
   if (!user.brand_cloud_id || state.members.some((member) => member.organization_id === user.brand_cloud_id && member.user_id === user.id)) continue;
   state.members.push({ organization_id: user.brand_cloud_id, user_id: user.id, email: user.email, role: 'member' });
@@ -474,7 +479,7 @@ async function handleDeveloperResource(req, res, url) {
   const memberships = profile.brand_cloud_memberships || profile.organizations;
   if (billingCloudIDs.includes(cloudID) && !suffix && req.method === 'GET') {
     const cloud = memberships.find(item=>item.id===cloudID);
-    return cloud ? send(res,200,{brand_cloud:cloud}) : send(res,403,{code:'MEMBERSHIP_REQUIRED'});
+    return cloud ? send(res,200,{brand_cloud:{owner_transfer_limit:3,owner_transfer_used:0,owner_transfer_remaining:3,...cloud}}) : send(res,403,{code:'MEMBERSHIP_REQUIRED'});
   }
   const clouds = memberships.map((membership) => {
     const brand = state.brandClouds.find((item) => item.id === membership.id) || {};
@@ -526,6 +531,7 @@ async function handleDeveloperResource(req, res, url) {
     const key = String(req.headers['idempotency-key'] || '');
     const replay = key && state.idempotency.get(`transfer:${cloudID}:${key}`);
     if (replay) return send(res, 202, { owner_transfer: replay, idempotent_replay: true });
+    if (fixtureCloud.owner_transfer_remaining <= 0) return send(res, 409, { code: 'owner_transfer_limit_reached' });
     const transfer = { id: randomUUID(), token: `owner-token-${cloudID}-${body.target_email}`, brand_cloud_id: cloudID, target_email: body.target_email, status: 'pending', expires_at: new Date(Date.now() + (mode === 'expired' ? -1 : 86_400_000)).toISOString() };
     state.transfers.push(transfer);
     if (key) state.idempotency.set(`transfer:${cloudID}:${key}`, transfer);
@@ -559,6 +565,15 @@ async function handleResource(req, res, root, id, suffix) {
   if (root !== 'brand-clouds') return send(res, 404, { error: 'not found' });
   const brand = state.brandClouds.find((item) => item.id === id);
   if (!brand) return send(res, 404, { error: 'brand cloud not found' });
+  if (suffix === '/owner-transfer-limit') {
+    if (req.method === 'PATCH') {
+      const body = await readBody(req);
+      if (!Number.isInteger(body.owner_transfer_limit) || body.owner_transfer_limit < 0 || body.owner_transfer_limit > 200) return send(res, 400, { code: 'invalid_owner_transfer_limit' });
+      brand.owner_transfer_limit = body.owner_transfer_limit;
+      brand.owner_transfer_remaining = Math.max(brand.owner_transfer_limit - brand.owner_transfer_used, 0);
+    }
+    return send(res, 200, { owner_transfer_limit: brand.owner_transfer_limit, owner_transfer_used: brand.owner_transfer_used, owner_transfer_remaining: brand.owner_transfer_remaining });
+  }
   if (suffix === '' && req.method === 'GET') return send(res, 200, { brand_cloud: brand });
   if (suffix === '' && req.method === 'PATCH') {
     Object.assign(brand, await readBody(req));

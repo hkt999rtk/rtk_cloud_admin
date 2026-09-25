@@ -474,6 +474,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/admin/brand-clouds", s.apiAdminBrandClouds)
 	s.mux.HandleFunc("GET /api/admin/brand-clouds/{brandCloudId}", s.apiAdminBrandCloud)
 	s.mux.HandleFunc("PATCH /api/admin/brand-clouds/{brandCloudId}", s.apiAdminBrandCloud)
+	s.mux.HandleFunc("GET /api/admin/brand-clouds/{brandCloudId}/owner-transfer-limit", s.apiAdminOwnerTransferLimit)
+	s.mux.HandleFunc("PATCH /api/admin/brand-clouds/{brandCloudId}/owner-transfer-limit", s.apiAdminOwnerTransferLimit)
 	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users", s.apiAdminBrandCloudUser)
 	s.mux.HandleFunc("GET /api/admin/brand-clouds/{brandCloudId}/users", s.apiAdminBrandCloudUsers)
 	s.mux.HandleFunc("POST /api/admin/brand-clouds/{brandCloudId}/users/{userId}/disable", s.apiAdminBrandCloudUserAction)

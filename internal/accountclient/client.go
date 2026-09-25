@@ -166,6 +166,12 @@ type BrandCloudRequest struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
+type OwnerTransferQuota struct {
+	Limit     int `json:"owner_transfer_limit"`
+	Used      int `json:"owner_transfer_used"`
+	Remaining int `json:"owner_transfer_remaining"`
+}
+
 type BrandCloudAccountRequest struct {
 	Email          string `json:"email"`
 	DisplayName    string `json:"display_name,omitempty"`
@@ -1164,6 +1170,20 @@ func (c *Client) UpdateBrandCloud(ctx context.Context, accessToken, brandCloudID
 	path := "/v1/admin/brand-clouds/" + url.PathEscape(brandCloudID)
 	err := c.doJSON(ctx, http.MethodPatch, path, accessToken, req, &body)
 	return body.BrandCloud, err
+}
+
+func (c *Client) OwnerTransferQuota(ctx context.Context, token, cloudID string) (OwnerTransferQuota, error) {
+	var out OwnerTransferQuota
+	path := "/v1/admin/brand-clouds/" + url.PathEscape(cloudID) + "/owner-transfer-limit"
+	err := c.doJSON(ctx, http.MethodGet, path, token, nil, &out)
+	return out, err
+}
+
+func (c *Client) SetOwnerTransferLimit(ctx context.Context, token, cloudID string, limit int) (OwnerTransferQuota, error) {
+	var out OwnerTransferQuota
+	path := "/v1/admin/brand-clouds/" + url.PathEscape(cloudID) + "/owner-transfer-limit"
+	err := c.doJSON(ctx, http.MethodPatch, path, token, map[string]int{"owner_transfer_limit": limit}, &out)
+	return out, err
 }
 
 func (c *Client) CreateBrandCloudUser(ctx context.Context, accessToken, brandCloudID string, req BrandCloudAccountRequest) (BrandCloudUserResult, int, error) {

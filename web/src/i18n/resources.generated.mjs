@@ -2433,7 +2433,17 @@ export const en = Object.freeze({ translation: Object.freeze({
   "No longer registered": "No longer registered",
   "Search device ID": "Search device ID",
   "Devices with no successful stream request recorded in the selected {{window}} window; not a lifetime count.": "Devices with no successful stream request recorded in the selected {{window}} window; not a lifetime count.",
-  "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.": "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded."
+  "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.": "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.",
+  "Brand Cloud ownership transfer limit reached": "Brand Cloud ownership transfer limit reached",
+  "Maximum transfers for this cloud": "Maximum transfers for this cloud",
+  "Ownership transfer limit": "Ownership transfer limit",
+  "Ownership transfer limit reached. No transfers remain for this cloud.": "Ownership transfer limit reached. No transfers remain for this cloud.",
+  "Ownership transfer limit saved.": "Ownership transfer limit saved.",
+  "Ownership transfers remaining: {{count}}": "Ownership transfers remaining: {{count}}",
+  "Save transfer limit": "Save transfer limit",
+  "Transfer limit is unavailable. Refresh this cloud before trying again.": "Transfer limit is unavailable. Refresh this cloud before trying again.",
+  "Transfer limit must be between 0 and 200.": "Transfer limit must be between 0 and 200.",
+  "Used: {{used}} · Remaining: {{remaining}}": "Used: {{used}} · Remaining: {{remaining}}"
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -4870,7 +4880,17 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "No longer registered": "已取消登錄",
   "Search device ID": "搜尋裝置 ID",
   "Devices with no successful stream request recorded in the selected {{window}} window; not a lifetime count.": "所選 {{window}} 期間內沒有成功串流請求紀錄的裝置；這不是裝置的歷史總計。",
-  "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.": "「無法取得」表示目前無法讀取串流指標，並不代表沒有失敗，或所有串流都成功。"
+  "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.": "「無法取得」表示目前無法讀取串流指標，並不代表沒有失敗，或所有串流都成功。",
+  "Brand Cloud ownership transfer limit reached": "品牌雲端所有權轉讓次數已達上限",
+  "Maximum transfers for this cloud": "此雲端的轉讓次數上限",
+  "Ownership transfer limit": "所有權轉讓次數上限",
+  "Ownership transfer limit reached. No transfers remain for this cloud.": "所有權轉讓次數已達上限，此雲端已無可用轉讓次數。",
+  "Ownership transfer limit saved.": "所有權轉讓次數上限已儲存。",
+  "Ownership transfers remaining: {{count}}": "剩餘所有權轉讓次數：{{count}}",
+  "Save transfer limit": "儲存轉讓次數上限",
+  "Transfer limit is unavailable. Refresh this cloud before trying again.": "目前無法取得轉讓次數上限，請重新整理此雲端後再試。",
+  "Transfer limit must be between 0 and 200.": "轉讓次數上限必須介於 0 到 200。",
+  "Used: {{used}} · Remaining: {{remaining}}": "已使用：{{used}} · 剩餘：{{remaining}}"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -7307,7 +7327,17 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "No longer registered": "已取消注册",
   "Search device ID": "搜索设备 ID",
   "Devices with no successful stream request recorded in the selected {{window}} window; not a lifetime count.": "所选 {{window}} 时段内没有成功串流请求记录的设备；这不是设备的历史总计。",
-  "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.": "“无法获取”表示当前无法读取串流指标，并不代表没有失败，或所有串流都成功。"
+  "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.": "“无法获取”表示当前无法读取串流指标，并不代表没有失败，或所有串流都成功。",
+  "Brand Cloud ownership transfer limit reached": "品牌云端所有权转让次数已达上限",
+  "Maximum transfers for this cloud": "此云端的转让次数上限",
+  "Ownership transfer limit": "所有权转让次数上限",
+  "Ownership transfer limit reached. No transfers remain for this cloud.": "所有权转让次数已达上限，此云端已无可用转让次数。",
+  "Ownership transfer limit saved.": "所有权转让次数上限已保存。",
+  "Ownership transfers remaining: {{count}}": "剩余所有权转让次数：{{count}}",
+  "Save transfer limit": "保存转让次数上限",
+  "Transfer limit is unavailable. Refresh this cloud before trying again.": "目前无法获取转让次数上限，请刷新此云端后重试。",
+  "Transfer limit must be between 0 and 200.": "转让次数上限必须介于 0 到 200。",
+  "Used: {{used}} · Remaining: {{remaining}}": "已使用：{{used}} · 剩余：{{remaining}}"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });
