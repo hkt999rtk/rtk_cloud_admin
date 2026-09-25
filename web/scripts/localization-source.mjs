@@ -18,13 +18,18 @@ for (const name of await readdir(root)) {
   const ast = parse(source, { sourceType: 'module', plugins: ['jsx'] });
   traverse(ast, {
     CallExpression(path) {
-      if (path.node.callee.type !== 'Identifier' || path.node.callee.name !== 'translate') return;
+      if (path.node.callee.type !== 'Identifier' || !['translate', 'ask', 'setError', 'setProductNameError', 'setMessage'].includes(path.node.callee.name)) return;
       const key = path.node.arguments[0];
-      if (key?.type === 'StringLiteral') found.add(key.value);
+      if (key?.type === 'StringLiteral' && key.value) found.add(key.value);
+      if (path.node.callee.name === 'ask' && key?.type === 'TemplateLiteral') bareCopy.push(`${name}:${path.node.loc.start.line}: confirmation text`);
+    },
+    ReturnStatement(path) {
+      if (path.getFunctionParent()?.node.id?.name !== 'webhookError') return;
+      if (path.node.argument?.type === 'StringLiteral') found.add(path.node.argument.value);
     },
     ObjectProperty(path) {
       const field = path.node.key.name || path.node.key.value;
-      if (!['label', 'title', 'detail', 'hint', 'message', 'description'].includes(field)) return;
+      if (!['label', 'title', 'detail', 'hint', 'message', 'description', 'reason'].includes(field)) return;
       if (path.node.value?.type === 'StringLiteral' && /[A-Za-z]{2}/.test(path.node.value.value)) found.add(path.node.value.value);
     },
     JSXText(path) {
@@ -33,8 +38,11 @@ for (const name of await readdir(root)) {
       if (/[A-Za-z]{2}/.test(copy) && !/^&[a-z]+;$/.test(copy)) bareCopy.push(`${name}:${path.node.loc.start.line}: ${copy.slice(0, 80)}`);
     },
     JSXAttribute(path) {
-      if (!['aria-label', 'placeholder', 'title', 'alt'].includes(path.node.name.name)) return;
       const element = path.parentPath.node.name?.name;
+      if (element === 'MetricCard' && ['label', 'hint'].includes(path.node.name.name) && path.node.value?.type === 'StringLiteral') {
+        found.add(path.node.value.value);
+      }
+      if (!['aria-label', 'placeholder', 'title', 'alt'].includes(path.node.name.name)) return;
       if (/^[A-Z]/.test(element || '')) return;
       if (path.node.value?.type === 'StringLiteral' && /[A-Za-z]{2}/.test(path.node.value.value)) bareCopy.push(`${name}:${path.node.loc.start.line}: ${path.node.name.name}`);
       if (path.node.value?.type === 'JSXExpressionContainer') {
@@ -50,7 +58,7 @@ for (const name of await readdir(root)) {
     TemplateLiteral(path) {
       if (!path.findParent(parent => parent.isJSXExpressionContainer())) return;
       const attribute = path.findParent(parent => parent.isJSXAttribute());
-      if (attribute && !['aria-label', 'placeholder', 'title', 'alt'].includes(attribute.node.name.name)) return;
+      if (attribute && !['aria-label', 'placeholder', 'title', 'alt'].includes(attribute.node.name.name) && !(attribute.parentPath.node.name?.name === 'MetricCard' && attribute.node.name.name === 'hint')) return;
       if (path.findParent(parent => parent.isCallExpression() && parent.node.callee.type === 'Identifier' && parent.node.callee.name === 'translate')) return;
       const literalCopy = path.node.quasis.map(quasi => quasi.value.cooked).join('');
       if (/[A-Za-z]{2}/.test(literalCopy) && !/^\s*(?:fa-|\/|#|:rate-limit)/.test(literalCopy)) bareCopy.push(`${name}:${path.node.loc.start.line}: template copy`);
@@ -66,7 +74,37 @@ for (const name of await readdir(apiRoot)) {
     const value = JSON.parse(match[1]);
     if (/[A-Za-z]{2}/.test(value)) found.add(value);
   }
+  for (const match of source.matchAll(/unavailableTelemetryForDevice\([^,\n]+,\s*"[^"]+",\s*("(?:\\.|[^"\\])*")/g)) {
+    found.add(JSON.parse(match[1]));
+  }
+  const telemetryErrors = source.match(/func telemetryUnavailableFromVideoCloudError\([^]*?(?=\nfunc |$)/)?.[0] || '';
+  for (const match of telemetryErrors.matchAll(/return\s+"[^"]+",\s*("(?:\\.|[^"\\])*")/g)) {
+    found.add(JSON.parse(match[1]));
+  }
 }
+
+const readinessFacts = await readFile(resolve(apiRoot, '../readinessfacts/facts.go'), 'utf8');
+for (const match of readinessFacts.matchAll(/(?:Detail:\s*|fact\.Detail\s*=\s*)("(?:\\.|[^"\\])*")/g)) {
+  if (readinessFacts.slice(match.index + match[0].length).trimStart().startsWith('+')) continue;
+  found.add(JSON.parse(match[1]));
+}
+
+const pricingSource = await readFile(resolve(root, 'service-pricing.mjs'), 'utf8');
+traverse(parse(pricingSource, { sourceType: 'module' }), {
+  VariableDeclarator(path) {
+    if (path.node.id.name === 'pricingGroups' && path.node.init?.type === 'ArrayExpression') {
+      for (const item of path.node.init.elements) if (item?.type === 'StringLiteral') found.add(item.value);
+    }
+    if (path.node.id.name === 'servicePricing' && path.node.init?.type === 'ArrayExpression') {
+      for (const row of path.node.init.elements) {
+        if (row?.type !== 'ObjectExpression') continue;
+        for (const field of row.properties) {
+          if (field.type === 'ObjectProperty' && ['name', 'unit', 'readiness', 'rule', 'benchmark', 'comparison'].includes(field.key.name) && field.value.type === 'StringLiteral') found.add(field.value.value);
+        }
+      }
+    }
+  },
+});
 
 const burnerRoot = resolve(root, 'pro2-firmware-burner');
 for (const name of await readdir(burnerRoot)) {

@@ -24,9 +24,6 @@ import { scopedCustomerAPI } from './cloud-scope.mjs';
 import { Pro2FirmwareBurner, PRO2_FIRMWARE_BURNER_PATH } from './Pro2FirmwareBurner.jsx';
 import { BrandCloudCreateDrawer } from './BrandCloudCreateDrawer.jsx';
 import { I18nextProvider } from 'react-i18next';
-import { feature } from 'topojson-client';
-import worldAtlas from 'world-atlas/countries-110m.json';
-import worldCountryCodes from './world-country-codes.json';
 import { createP256CSR, downloadExportableBundle } from './certificateBundle.mjs';
 import { firmwareArtifactMetadata, formatFirmwareSize } from './firmwareArtifact.mjs';
 import {
@@ -127,6 +124,7 @@ import {
   PAYMENT_METHOD_CONSENT_TEXT,
   autoTopUpAssessment,
   billingErrorMessage,
+  billingStatusLabel,
   formatMinorAmount,
   paymentIntentState,
   paymentMethodLabel,
@@ -2251,10 +2249,10 @@ function Overview({
       </div>
       {conceptGuideOpen && <Dialog variant="drawer" title={translate("Clouds, products & devices")} onClose={() => setConceptGuideOpen(false)}><CloudConceptGuide /></Dialog>}
       <section className="metrics overview-metrics">
-        <MetricCard icon="video" label="Online" value={Number.isFinite(onlineCount) ? `${onlineCount} / ${onlineTotal ?? onlineCount}` : 'Unknown'} hint={onlineUnknown > 0 ? `${onlineUnknown} devices have unknown presence` : 'Provisioned devices currently online'} tone="info" />
-        <MetricCard icon="chart-line" label="7-day Online Rate" value={onlineRate == null ? 'N/A' : formatPercent(onlineRate)} hint={coverageRate == null ? 'Historical presence is accumulating' : `${formatPercent(coverageRate)} data coverage`} tone="info" />
-        <MetricCard icon="triangle-exclamation" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? `${current.warning || 0} warning / ${current.critical || 0} critical` : 'Telemetry unavailable'} tone={needsAttention === 0 ? 'good' : 'warn'} />
-        <MetricCard icon="tower-broadcast" label="Active Sessions" value={activeStreams} hint={streamAvailable ? 'WebRTC sessions established and not closed or expired; playback is not confirmed' : 'Session data unavailable'} tone="info" />
+        <MetricCard icon="video" label="Online" value={Number.isFinite(onlineCount) ? `${onlineCount} / ${onlineTotal ?? onlineCount}` : translate('Unknown')} hint={onlineUnknown > 0 ? translate('{{count}} devices have unknown presence', { count: onlineUnknown }) : translate('Provisioned devices currently online')} tone="info" />
+        <MetricCard icon="chart-line" label="7-day Online Rate" value={onlineRate == null ? 'N/A' : formatPercent(onlineRate)} hint={coverageRate == null ? translate('Historical presence is accumulating') : translate('{{percent}} data coverage', { percent: formatPercent(coverageRate) })} tone="info" />
+        <MetricCard icon="triangle-exclamation" label="Needs Attention" value={needsAttention} hint={telemetryAvailable ? translate('{{warning}} warning / {{critical}} critical', { warning: current.warning || 0, critical: current.critical || 0 }) : translate('Telemetry unavailable')} tone={needsAttention === 0 ? 'good' : 'warn'} />
+        <MetricCard icon="tower-broadcast" label="Active Sessions" value={activeStreams} hint={streamAvailable ? translate('WebRTC sessions established and not closed or expired; playback is not confirmed') : translate('Session data unavailable')} tone="info" />
       </section>
 
 
@@ -2314,186 +2312,22 @@ function RegionFleetPanel({ summary, loading }) {
       <div className="panel-head">
         <div>
           <h2>{translate('Device Status by Region')}</h2>
-          <p>{translate('Use the map to locate regions and compare fleet size by device count.')}</p>
+          <p>{translate('Compare fleet size by region and device count.')}</p>
         </div>
       </div>
       {loading ? <p className="empty-state">{translate('Loading regional data.')}</p> : null}
       {!loading && unavailable ? <p className="empty-state">{translate('Regional data is temporarily unavailable.')}</p> : null}
       {!loading && !unavailable && !regions.length ? <p className="empty-state">{translate('No device locations have been reported yet.')}</p> : null}
       {!loading && !unavailable && regions.length ? (
-        <div className="region-fleet-grid">
-          <div className="region-bars">
-            {regions.slice(0, 8).map(([region, count]) => <div className="region-bar-row" key={region}>
-              <div><strong>{region}</strong><span>{translate('{{count}} devices', { count: formatNumber(count) })}</span></div>
-              <div className="region-bar-track"><span style={{ width: `${Math.max(4, count / max * 100)}%` }} /></div>
-            </div>)}
-          </div>
-          <div className="region-map-desktop"><RegionMap regions={regions} max={max} /></div>
-          <details className="region-map-mobile">
-            <summary>{translate("View map")}</summary>
-            <RegionMap regions={regions} max={max} />
-          </details>
+        <div className="region-bars">
+          {regions.slice(0, 8).map(([region, count]) => <div className="region-bar-row" key={region}>
+            <div><strong>{region}</strong><span>{translate('{{count}} devices', { count: formatNumber(count) })}</span></div>
+            <div className="region-bar-track"><span style={{ width: `${Math.max(4, count / max * 100)}%` }} /></div>
+          </div>)}
         </div>
       ) : null}
     </section>
   );
-}
-
-function RegionMap({ regions, max }) {
-  const locale = activeLocale();
-  const regionNames = useMemo(() => new Intl.DisplayNames(formatLocale(), { type: 'region' }), [locale]);
-  const [viewport, setViewport] = useState(WORLD_VIEWPORT);
-  const [hoveredRegion, setHoveredRegion] = useState(null);
-  const [dragging, setDragging] = useState(false);
-  const dragRef = useRef(null);
-  const zoom = 1000 / viewport.width;
-  const regionPoints = regions.slice(0, 8).map(([region, count]) => ({ region, count, point: regionMapPoint(region) })).filter(({ point }) => point);
-
-  function countryName(country) {
-    const code = worldCountryCodes[country.id];
-    return code ? regionNames.of(code) : translate(country.properties.name);
-  }
-
-  function regionName(region) {
-    const country = WORLD_COUNTRIES.find(item => item.properties.name.toLowerCase() === String(region).toLowerCase());
-    return country ? countryName(country) : translate(region);
-  }
-
-  function zoomBy(factor, anchorX = .5, anchorY = .5) {
-    setViewport((current) => {
-      const nextZoom = Math.max(1, Math.min(8, 1000 / current.width * factor));
-      const width = 1000 / nextZoom;
-      const height = 500 / nextZoom;
-      return clampWorldViewport({
-        x: current.x + (current.width - width) * anchorX,
-        y: current.y + (current.height - height) * anchorY,
-        width,
-        height,
-      });
-    });
-  }
-
-  function handleWheel(event) {
-    event.preventDefault();
-    const bounds = event.currentTarget.getBoundingClientRect();
-    zoomBy(event.deltaY < 0 ? 1.25 : .8, (event.clientX - bounds.left) / bounds.width, (event.clientY - bounds.top) / bounds.height);
-  }
-
-  function handlePointerDown(event) {
-    if (event.button !== 0) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { clientX: event.clientX, clientY: event.clientY, viewport };
-    setDragging(true);
-  }
-
-  function handlePointerMove(event) {
-    if (!dragRef.current) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const start = dragRef.current;
-    setViewport(clampWorldViewport({
-      ...start.viewport,
-      x: start.viewport.x - (event.clientX - start.clientX) / bounds.width * start.viewport.width,
-      y: start.viewport.y - (event.clientY - start.clientY) / bounds.height * start.viewport.height,
-    }));
-  }
-
-  function handlePointerUp(event) {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    dragRef.current = null;
-    setDragging(false);
-  }
-
-  function showCountry(event, country) {
-    if (dragRef.current) return;
-    const bounds = event.currentTarget.ownerSVGElement.getBoundingClientRect();
-    setHoveredRegion({ name: countryName(country), x: event.clientX - bounds.left, y: event.clientY - bounds.top });
-  }
-
-  return <div className="region-map-vector" aria-label={translate('Regional device distribution map')}>
-    <div className="region-map-toolbar" aria-label={translate('Map controls')}>
-      <button type="button" onClick={() => zoomBy(1.4)} aria-label={translate('Zoom in')}>＋</button>
-      <button type="button" onClick={() => zoomBy(1 / 1.4)} aria-label={translate('Zoom out')} disabled={zoom <= 1}>−</button>
-      <button type="button" onClick={() => setViewport(WORLD_VIEWPORT)} disabled={zoom <= 1}>{translate('Reset')}</button>
-      <span>{Math.round(zoom * 100)}%</span>
-    </div>
-    <div className="region-map-stage">
-      <svg
-        className={dragging ? 'is-dragging' : ''}
-        viewBox={`${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}`}
-        role="img"
-        aria-label={translate('Zoomable and draggable world device distribution map')}
-        onWheel={handleWheel}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onPointerLeave={() => setHoveredRegion(null)}
-      >
-        <g className="world-countries">
-          {WORLD_COUNTRIES.map((country, index) => <path
-            key={country.id || country.properties.name || index}
-            d={worldGeometryPath(country.geometry)}
-            onPointerEnter={(event) => showCountry(event, country)}
-            onPointerMove={(event) => showCountry(event, country)}
-            onPointerLeave={() => setHoveredRegion(null)}
-          ><title>{countryName(country)}</title></path>)}
-        </g>
-        <g className="region-map-markers">
-          {regionPoints.map(({ region, count, point: [x, y] }) => <g key={region}>
-            <circle cx={x} cy={y} r={Math.max(9, Math.min(22, 9 + count / max * 13)) / zoom} />
-            <text x={x + 18 / zoom} y={y + 5 / zoom} style={{ fontSize: `${12 / zoom}px` }}>{regionName(region)}</text>
-          </g>)}
-        </g>
-      </svg>
-      {hoveredRegion ? <div className="region-map-tooltip" style={{ left: hoveredRegion.x, top: hoveredRegion.y }}>{hoveredRegion.name}</div> : null}
-    </div>
-    <small>{regions.length ? translate('Drag to pan and scroll to zoom. Marker size represents device count.') : translate('Drag to pan and scroll to zoom. Hover over a country or region to view its name.')}</small>
-  </div>;
-}
-
-const WORLD_VIEWPORT = Object.freeze({ x: 0, y: 0, width: 1000, height: 500 });
-const WORLD_COUNTRIES = feature(worldAtlas, worldAtlas.objects.countries).features;
-const REGION_MAP_COORDINATES = {
-  na: [-105, 43], 'north america': [-105, 43], '北美': [-105, 43],
-  sa: [-60, -17], 'south america': [-60, -17], '南美': [-60, -17],
-  eu: [15, 51], europe: [15, 51], '歐洲': [15, 51],
-  africa: [20, 3], af: [20, 3], '非洲': [20, 3],
-  asia: [100, 36], apac: [112, 8], '亞洲': [100, 36], '亞太': [112, 8],
-  oceania: [135, -25], anz: [135, -25], '大洋洲': [135, -25], '澳紐': [135, -25],
-  taiwan: [121, 23.7], tw: [121, 23.7], twn: [121, 23.7], '台灣': [121, 23.7], '臺灣': [121, 23.7],
-};
-
-function projectWorldPoint([longitude, latitude]) {
-  return [(longitude + 180) / 360 * 1000, (90 - latitude) / 180 * 500];
-}
-
-function worldGeometryPath(geometry) {
-  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
-  return polygons.map((polygon) => polygon.map((ring) => ring.map((coordinate, index) => {
-    const [x, y] = projectWorldPoint(coordinate);
-    return `${index ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(' ') + 'Z').join(' ')).join(' ');
-}
-
-function clampWorldViewport(viewport) {
-  return {
-    ...viewport,
-    x: Math.max(0, Math.min(1000 - viewport.width, viewport.x)),
-    y: Math.max(0, Math.min(500 - viewport.height, viewport.y)),
-  };
-}
-
-function regionMapPoint(region) {
-  const normalized = String(region).trim().toLowerCase();
-  const knownCoordinates = REGION_MAP_COORDINATES[normalized];
-  if (knownCoordinates) return projectWorldPoint(knownCoordinates);
-  const country = WORLD_COUNTRIES.find((candidate) => candidate.properties.name.toLowerCase() === normalized);
-  if (!country) return null;
-  const coordinates = country.geometry.type === 'Polygon' ? country.geometry.coordinates.flat(1) : country.geometry.coordinates.flat(2);
-  return projectWorldPoint([
-    (Math.min(...coordinates.map(([longitude]) => longitude)) + Math.max(...coordinates.map(([longitude]) => longitude))) / 2,
-    (Math.min(...coordinates.map(([, latitude]) => latitude)) + Math.max(...coordinates.map(([, latitude]) => latitude))) / 2,
-  ]);
 }
 
 function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
@@ -2520,9 +2354,9 @@ function PlatformChipsetProviders({ data, loading, capabilities, onRefresh }) {
   return <section className="page-content chipset-provider-page" data-testid="chipset-provider-page">
     <div className="page-intro"><div><p className="eyebrow">{translate("Platform Catalog Management")}</p><h2 className="heading-with-icon"><Icon name="database" />{translate("ChipSet & SDK Providers")}</h2><p>{translate('Manage Information Provider sources, publication state, and synchronization health for the platform catalog.')}</p></div><div className="page-intro-actions"><button type="button" className="ghost-button icon-text" onClick={onRefresh}><Icon name="rotate" />{translate('Refresh Status')}</button>{canEdit ? <button type="button" className="primary-button icon-text" onClick={() => setDrawer({ mode: 'create', provider: null })}><Icon name="plus" />{translate('Add Provider')}</button> : null}</div></div>
     <section className="metrics chipset-provider-kpis" aria-label={translate("ChipSet provider summary")}>
-      <MetricCard icon="database" label="Providers" value={kpis.total} hint={`${kpis.published} published · ${kpis.total - kpis.published} not published`} tone="info" />
-      <MetricCard icon="microchip" label="Published ChipSets" value={kpis.publishedChipsets} hint={`${kpis.publishedSDKs} SDK releases`} tone="info" />
-      <MetricCard icon="clock-rotate-left" label="Last successful sync" value={kpis.lastSuccess ? formatRelativeTime(kpis.lastSuccess) : '—'} hint={kpis.lastSuccess ? 'background refresh healthy' : 'No successful sync'} tone="good" />
+      <MetricCard icon="database" label="Providers" value={kpis.total} hint={translate('{{published}} published · {{unpublished}} not published', { published: kpis.published, unpublished: kpis.total - kpis.published })} tone="info" />
+      <MetricCard icon="microchip" label="Published ChipSets" value={kpis.publishedChipsets} hint={translate('{{count}} SDK releases', { count: kpis.publishedSDKs })} tone="info" />
+      <MetricCard icon="clock-rotate-left" label="Last successful sync" value={kpis.lastSuccess ? formatRelativeTime(kpis.lastSuccess) : '—'} hint={kpis.lastSuccess ? translate('background refresh healthy') : translate('No successful sync')} tone="good" />
       <MetricCard icon="triangle-exclamation" label="Needs attention" value={kpis.needsAttention} hint="last-known-good remains available" tone={kpis.needsAttention ? 'warn' : 'good'} />
     </section>
     {staleProviders.length ? <div className="chipset-warning-banner" role="status"><Icon name="triangle-exclamation" /><div><strong>{translate('{{name}} manifest is delayed', { name: staleProviders[0].name })}</strong><span>{translate('The last valid data remains available to downstream consumers. Check the provider endpoint.')}</span></div><button type="button" className="link-button icon-text" onClick={() => setDrawer({ mode: 'preview', provider: staleProviders[0] })}><Icon name="magnifying-glass" />{translate('View Error')}</button></div> : null}
@@ -3276,10 +3110,10 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       </aside>
     </section></details>
     <div className="metric-grid billing-overview-metrics">
-      <MetricCard icon="wallet" label="Available Balance" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={summary.runway?.state === 'available' ? `Estimated availability ${summary.runway.projected_days} days` : 'Insufficient usage to estimate available days'} tone="info" />
-      <MetricCard icon="chart-column" label="Estimated Cost This Month" value={formatMinorAmount(usage.total_minor, usage.currency || account?.currency)} hint={`From ${formatProviderTimestamp(usage.period_start)} · Estimate`} tone="neutral" />
-      <MetricCard icon="chart-line" label="End-of-Month Forecast" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency || account?.currency) : 'Insufficient data'} hint={summary.forecast?.state === 'available' ? `${summary.forecast.confidence === 'medium' ? 'Medium' : 'Low'} confidence · ${summary.forecast.observation_days} observation days` : 'Available after at least one complete observation day'} tone="neutral" />
-      <MetricCard icon="credit-card" label="Payment method" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? 'Status is OK' : 'No payment method set'} tone={activeMethod?.status === 'active' ? 'good' : 'warning'} />
+      <MetricCard icon="wallet" label="Available Balance" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={summary.runway?.state === 'available' ? translate('Estimated availability {{days}} days', { days: summary.runway.projected_days }) : translate('Insufficient usage to estimate available days')} tone="info" />
+      <MetricCard icon="chart-column" label="Estimated Cost This Month" value={formatMinorAmount(usage.total_minor, usage.currency || account?.currency)} hint={translate('From {{date}} · Estimate', { date: formatProviderTimestamp(usage.period_start) })} tone="neutral" />
+      <MetricCard icon="chart-line" label="End-of-Month Forecast" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency || account?.currency) : translate('Insufficient data')} hint={summary.forecast?.state === 'available' ? translate('{{confidence}} confidence · {{days}} observation days', { confidence: summary.forecast.confidence === 'medium' ? translate('Medium') : translate('Low'), days: summary.forecast.observation_days }) : translate('Available after at least one complete observation day')} tone="neutral" />
+      <MetricCard icon="credit-card" label="Payment method" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? translate('Status is OK') : translate('No payment method set')} tone={activeMethod?.status === 'active' ? 'good' : 'warning'} />
     </div>
     <div className="billing-overview-grid">
       <section className="panel billing-auto-card"><div className="panel-head"><div><h3>{translate("Automatic Top-Up ·")} {policy?.enabled ? translate("Enabled") : translate("Disabled")}</h3><p>{policy ? translate("Top up {{value0}} when the balance falls below {{value1}}.", { value0: formatMinorAmount(policy.top_up_amount_minor, policy.currency), value1: formatMinorAmount(policy.threshold_minor, policy.currency) }) : translate("Set a threshold and payment method to enable automatic top-up.")}</p></div><span className={`status-badge ${policyState.tone}`}>{translate(policyState.label)}</span></div>{policy?.last_succeeded_at ? <p>{translate("Last top-up:")} {formatProviderTimestamp(policy.last_succeeded_at)}</p> : null}<button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>{translate("Manage Automatic Top-Up")}</button></section>
@@ -3295,11 +3129,11 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     <div className="page-intro"><div><h2>{translate("Usage and Forecast")}</h2><p>{translate("The Billing server estimates costs using the applicable pricing version. The end-of-month forecast is not a final invoice.")}</p></div><small>{translate("Data through")} {formatProviderTimestamp(usage.usage_through)}</small></div>
     {billingTabs}
     <div className="metric-grid billing-overview-metrics">
-      <MetricCard icon="chart-column" label="Month to Date" value={formatMinorAmount(usage.total_minor, usage.currency)} hint={`${formatNumber(usage.fact_count || 0)} usage records`} tone="info" />
-      <MetricCard icon="chart-line" label="End-of-Month Forecast" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency) : 'Insufficient data'} hint={summary.forecast?.state === 'available' ? `Approximately ${formatMinorAmount(summary.forecast.projected_remaining_minor, usage.currency)} remaining · ${summary.forecast.confidence === 'medium' ? 'Medium' : 'Low'} confidence` : 'At least one complete observation day is required'} tone="neutral" />
-      <MetricCard icon="wallet" label="Balance Runway" value={summary.runway?.state === 'available' ? `${summary.runway.projected_days} days` : 'Insufficient data'} hint={summary.runway?.state === 'available' ? `Average daily cost ${formatMinorAmount(summary.runway.average_daily_cost_minor, usage.currency)}` : 'Cannot be estimated yet'} tone="neutral" />
+      <MetricCard icon="chart-column" label="Month to Date" value={formatMinorAmount(usage.total_minor, usage.currency)} hint={translate('{{count}} usage records', { count: formatNumber(usage.fact_count || 0) })} tone="info" />
+      <MetricCard icon="chart-line" label="End-of-Month Forecast" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency) : translate('Insufficient data')} hint={summary.forecast?.state === 'available' ? translate('Approximately {{amount}} remaining · {{confidence}} confidence', { amount: formatMinorAmount(summary.forecast.projected_remaining_minor, usage.currency), confidence: summary.forecast.confidence === 'medium' ? translate('Medium') : translate('Low') }) : translate('At least one complete observation day is required')} tone="neutral" />
+      <MetricCard icon="wallet" label="Balance Runway" value={summary.runway?.state === 'available' ? translate('{{days}} days', { days: summary.runway.projected_days }) : translate('Insufficient data')} hint={summary.runway?.state === 'available' ? translate('Average daily cost {{amount}}', { amount: formatMinorAmount(summary.runway.average_daily_cost_minor, usage.currency) }) : translate('Cannot be estimated yet')} tone="neutral" />
     </div>
-    <section className="panel billing-usage-card"><div className="panel-head"><div><h3>{translate("Cost This Month by Service Category")}</h3><p>{formatProviderTimestamp(usage.period_start)} – {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{translate(line.description)} · {line.quantity} {line.unit}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>{translate("Month to Date")}</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
+    <section className="panel billing-usage-card"><div className="panel-head"><div><h3>{translate("Cost This Month by Service Category")}</h3><p>{formatProviderTimestamp(usage.period_start)} – {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{translate(line.description)} · {line.quantity} {translate(line.unit)}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>{translate("Month to Date")}</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
   </section>;
 
   if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page">
@@ -3317,13 +3151,13 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     <div className="page-intro"><div><p className="eyebrow">{translate("Commercial Settlement")}</p><h2>{translate("Payments and Automatic Top-Up")}</h2><p>{translate("A top-up intent is created only when the balance falls strictly below the threshold. The backend validates the amount, attempt limits, cooldown, and consent.")}</p></div></div>
     {billingTabs}
     <div className="metric-grid billing-metrics">
-      <MetricCard icon="wallet" label="Available Balance" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={`Account ${account?.state || 'unavailable'} · Last updated ${formatProviderTimestamp(account?.updated_at)}`} tone="info" />
+      <MetricCard icon="wallet" label="Available Balance" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={translate('Account {{status}} · Last updated {{date}}', { status: billingStatusLabel(account?.state || 'unavailable'), date: formatProviderTimestamp(account?.updated_at) })} tone="info" />
       <MetricCard icon="arrows-rotate" label="Automatic Top-Up" value={policyState.label} hint={policyState.detail} tone={policyState.tone} />
-      <MetricCard icon="credit-card" label="Payment method" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? `Status: ${activeMethod.status}` : 'Don’t enter a card number or CVV on this page'} tone={activeMethod?.status === 'active' ? 'good' : 'neutral'} />
-      <MetricCard icon="clock-rotate-left" label="Recent Intents" value={String(intents.length)} hint="Includes succeeded, failed, reconciliation-pending, and processing states" tone="neutral" />
+      <MetricCard icon="credit-card" label="Payment method" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? translate('Status: {{status}}', { status: billingStatusLabel(activeMethod.status) }) : translate('Don’t enter a card number or CVV on this page')} tone={activeMethod?.status === 'active' ? 'good' : 'neutral'} />
+      <MetricCard icon="clock-rotate-left" label="Recent Intents" value={String(intents.length)} hint={translate('Includes succeeded, failed, reconciliation-pending, and processing states')} tone="neutral" />
     </div>
 
-    <section className="panel billing-safety" data-testid="billing-provider-gate"><div className="panel-head"><div><h3>{translate("Payment Service Eligibility Status")}</h3><p>{setupProvider?.environment === 'simulated' ? translate("Currently using staging virtual cash flow; no real charge will be generated.") : translate("Verified hosted payment setup is not currently available.")}</p></div><span className={`status-badge ${setupProvider ? 'good' : 'warning'}`}>{setupProvider ? translate("READY") : translate("BLOCKED")}</span></div><p>{translate("Payment information is only processed on the provider hosted page; RTK Cloud does not receive card numbers or CVVs.")}</p><label className="billing-consent"><input type="checkbox" checked={paymentConsentAccepted} onChange={(event) => setPaymentConsentAccepted(event.target.checked)} />{PAYMENT_METHOD_CONSENT_TEXT}</label><button type="button" className="primary" disabled={busy || !canManageMethods || !setupProvider || !paymentConsentAccepted} onClick={setupPaymentMethod}>{busy ? translate("Preparing…") : translate("Add payment method")}</button></section>
+    <section className="panel billing-safety" data-testid="billing-provider-gate"><div className="panel-head"><div><h3>{translate("Payment Service Eligibility Status")}</h3><p>{setupProvider?.environment === 'simulated' ? translate("Currently using staging virtual cash flow; no real charge will be generated.") : translate("Verified hosted payment setup is not currently available.")}</p></div><span className={`status-badge ${setupProvider ? 'good' : 'warning'}`}>{setupProvider ? translate("READY") : translate("BLOCKED")}</span></div><p>{translate("Payment information is only processed on the provider hosted page; RTK Cloud does not receive card numbers or CVVs.")}</p><label className="billing-consent"><input type="checkbox" checked={paymentConsentAccepted} onChange={(event) => setPaymentConsentAccepted(event.target.checked)} />{translate(PAYMENT_METHOD_CONSENT_TEXT)}</label><button type="button" className="primary" disabled={busy || !canManageMethods || !setupProvider || !paymentConsentAccepted} onClick={setupPaymentMethod}>{busy ? translate("Preparing…") : translate("Add payment method")}</button></section>
 
     <div className="billing-columns">
       <section className="panel"><div className="panel-head"><div><h3>{translate("Automatic top-up policy")}</h3><p>{translate("Daily limits use")} {policy?.limit_timezone || translate("Asia/Taipei")}{translate(". Next reset:")} {policy?.limit_reset_at ? formatProviderTimestamp(policy.limit_reset_at) : '—'}</p></div><span className={`status-badge ${policyState.tone}`}>{translate(policyState.label)}</span></div>
@@ -3332,33 +3166,33 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
           <label>{translate("Top-up amount (TWD)")}<input type="number" min="1" step="1" value={topUpAmount} onChange={(event) => setTopUpAmount(event.target.value)} /></label>
           <label>{translate("Maximum Daily Value (TWD)")}<input type="number" min="1" step="1" value={dailyAmount} onChange={(event) => setDailyAmount(event.target.value)} /></label>
           <label>{translate("Maximum daily charges")}<input type="number" min="1" max="10" step="1" value={dailyAttempts} onChange={(event) => setDailyAttempts(event.target.value)} /></label>
-          <label className="billing-consent"><input type="checkbox" checked={autoConsentAccepted} onChange={(event) => setAutoConsentAccepted(event.target.checked)} />{AUTO_TOPUP_CONSENT_TEXT}</label>
+          <label className="billing-consent"><input type="checkbox" checked={autoConsentAccepted} onChange={(event) => setAutoConsentAccepted(event.target.checked)} />{translate(AUTO_TOPUP_CONSENT_TEXT)}</label>
           <div className="inline-actions"><button type="submit" className="primary" disabled={busy || !canManagePolicy || !chargeQualified || !autoConsentAccepted}>{busy ? translate("Updating…") : translate("Save and Enable")}</button>{policy?.enabled ? <button type="button" className="ghost-button" disabled={busy || !canManagePolicy} onClick={() => mutate('DELETE', '/api/billing/auto-topup', { reason: 'customer disabled automatic top-up' }, { 'If-Match': data?.policyEtag || `"${policy.version}"` })}>{translate("Disable Automatic Top-Up")}</button> : null}</div>
         </form>
         {!chargeQualified ? <p className="notice">{translate("The payment method does not yet have merchant-initiated charge capability; the save button remains disabled and no charge will be submitted.")}</p> : null}
-        {message ? <p className="notice" role="status">{message}</p> : null}
+        {message ? <p className="notice" role="status">{translate(message)}</p> : null}
       </section>
 
-      <section className="panel"><div className="panel-head"><div><h3>{translate("Payment Methods")}</h3><p>{translate("Only safe metadata such as provider, brand, last four digits, and expiration month is stored.")}</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : translate("Expiration date not provided")}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{method.status}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>{translate("Revoke")}</button> : null}</div>)}</div> : <p className="empty-state">{translate("No verified payment methods are available.")}</p>}
+      <section className="panel"><div className="panel-head"><div><h3>{translate("Payment Methods")}</h3><p>{translate("Only safe metadata such as provider, brand, last four digits, and expiration month is stored.")}</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : translate("Expiration date not provided")}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{billingStatusLabel(method.status)}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>{translate("Revoke")}</button> : null}</div>)}</div> : <p className="empty-state">{translate("No verified payment methods are available.")}</p>}
         <form className="inline-form" onSubmit={createManualTopUp}><label>{translate("Manual Top-Up Amount (TWD)")}<input type="number" min="1" step="1" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} /></label><button type="submit" className="ghost-button" disabled={busy || (!hostedChargeProvider && (!activeMethod || !chargeQualified)) || !capabilities.includes('payment_intent.create')}>{hostedChargeProvider ? translate("Continue to Card Top-Up") : translate("Top Up Now")}</button></form>
       </section>
     </div>
 
     <section className="panel"><div className="panel-head"><div><h3>{translate("Payment Intents")}</h3><p>{translate("Normalized states are shown for customer tracking. Provider transaction references and payloads are not displayed.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Created")}</th><th>{translate("Reason")}</th><th>{translate("Amount")}</th><th>{translate("Status")}</th></tr></thead><tbody>{intents.map((intent) => { const state = paymentIntentState(intent.state); return <tr key={intent.id}><td>{formatProviderTimestamp(intent.created_at)}</td><td>{intent.reason === 'auto_top_up' ? translate("Automatic Top-Up") : translate("Manual Top-Up")}</td><td>{formatMinorAmount(intent.amount_minor, intent.currency)}</td><td><span className={`status-badge ${state.tone}`}>{translate(state.label)}</span></td></tr>; })}</tbody></table>{!intents.length ? <p className="empty-state">{translate("No payment intents are available.")}</p> : null}</div></section>
 
-    <section className="panel"><div className="panel-head"><div><h3>{translate("Balance changes")}</h3><p>{translate("Non-overwritable ledger, only customer safety fields are displayed.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Time")}</th><th>{translate("Reason")}</th><th>{translate("Transfers")}</th><th>{translate("Balance after change")}</th></tr></thead><tbody>{ledger.map((entry) => <tr key={entry.id}><td>{formatProviderTimestamp(entry.created_at)}</td><td>{entry.reason}</td><td>{entry.direction === 'debit' ? '−' : '+'}{formatMinorAmount(entry.amount_minor, entry.currency)}</td><td>{formatMinorAmount(entry.balance_after_minor, entry.currency)}</td></tr>)}</tbody></table>{!ledger.length ? <p className="empty-state">{translate("There are currently no balance changes.")}</p> : null}</div></section>
+    <section className="panel"><div className="panel-head"><div><h3>{translate("Balance changes")}</h3><p>{translate("Non-overwritable ledger, only customer safety fields are displayed.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Time")}</th><th>{translate("Reason")}</th><th>{translate("Transfers")}</th><th>{translate("Balance after change")}</th></tr></thead><tbody>{ledger.map((entry) => <tr key={entry.id}><td>{formatProviderTimestamp(entry.created_at)}</td><td>{billingStatusLabel(entry.reason)}</td><td>{entry.direction === 'debit' ? '−' : '+'}{formatMinorAmount(entry.amount_minor, entry.currency)}</td><td>{formatMinorAmount(entry.balance_after_minor, entry.currency)}</td></tr>)}</tbody></table>{!ledger.length ? <p className="empty-state">{translate("There are currently no balance changes.")}</p> : null}</div></section>
   </section>;
 }
 
 function BillingInvoiceTable({ invoices, onSelect }) {
   const {cloudId,version,onAccessLost} = React.useContext(BillingScope);
   if (!invoices.length) return <p className="empty-state">{translate("There are currently no invoices.")}</p>;
-  return <div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Invoice number")}</th><th>{translate("Billing period")}</th><th>{translate("Amount")}</th><th>{translate("Status")}</th><th>{translate("File")}</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button type="button" className="link-button" onClick={() => onSelect(invoice)}>{invoice.invoice_number}</button></td><td>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</td><td>{formatMinorAmount(invoice.total_minor, invoice.currency)}</td><td><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{invoice.state === 'settled' ? translate("Paid") : invoice.state}</span></td><td>{invoice.document ? <a className="icon-download" aria-label={translate("Download {{value0}} PDF", { value0: invoice.invoice_number })} href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}><i className="fa-solid fa-download" /></a> : '—'}</td></tr>)}</tbody></table></div>;
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Invoice number")}</th><th>{translate("Billing period")}</th><th>{translate("Amount")}</th><th>{translate("Status")}</th><th>{translate("File")}</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><button type="button" className="link-button" onClick={() => onSelect(invoice)}>{invoice.invoice_number}</button></td><td>{formatProviderTimestamp(invoice.period_start)} – {formatProviderTimestamp(invoice.period_end)}</td><td>{formatMinorAmount(invoice.total_minor, invoice.currency)}</td><td><span className={`status-badge ${invoice.state === 'settled' ? 'good' : 'warning'}`}>{billingStatusLabel(invoice.state)}</span></td><td>{invoice.document ? <a className="icon-download" aria-label={translate("Download {{value0}} PDF", { value0: invoice.invoice_number })} href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}><i className="fa-solid fa-download" /></a> : '—'}</td></tr>)}</tbody></table></div>;
 }
 
 function BillingActivityTable({ activities, onSelect }) {
   if (!activities.length) return <p className="empty-state">{translate("There is currently no billing activity.")}</p>;
-  return <div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Time")}</th><th>{translate("Type")}</th><th>{translate("Reference")}</th><th>{translate("Amount")}</th><th>{translate("Status")}</th></tr></thead><tbody>{activities.map((activity) => <tr key={activity.id}><td>{formatProviderTimestamp(activity.occurred_at)}</td><td>{activity.type === 'invoice' ? translate("Invoice") : activity.type === 'auto_top_up' ? translate("Automatic Top-Up") : activity.type}</td><td><button type="button" className="link-button" onClick={() => onSelect(activity)}>{activity.customer_reference}</button></td><td className={activity.balance_effect === 'credit' ? 'money-credit' : ''}>{activity.balance_effect === 'credit' ? '+' : '−'}{formatMinorAmount(activity.amount_minor, activity.currency)}</td><td><span className={`status-badge ${activity.state === 'completed' ? 'good' : activity.state === 'failed' ? 'danger' : 'warning'}`}>{activity.state === 'completed' ? translate("Succeeded") : activity.state}</span></td></tr>)}</tbody></table></div>;
+  return <div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Time")}</th><th>{translate("Type")}</th><th>{translate("Reference")}</th><th>{translate("Amount")}</th><th>{translate("Status")}</th></tr></thead><tbody>{activities.map((activity) => <tr key={activity.id}><td>{formatProviderTimestamp(activity.occurred_at)}</td><td>{billingStatusLabel(activity.type)}</td><td><button type="button" className="link-button" onClick={() => onSelect(activity)}>{activity.customer_reference}</button></td><td className={activity.balance_effect === 'credit' ? 'money-credit' : ''}>{activity.balance_effect === 'credit' ? '+' : '−'}{formatMinorAmount(activity.amount_minor, activity.currency)}</td><td><span className={`status-badge ${activity.state === 'completed' ? 'good' : activity.state === 'failed' ? 'danger' : 'warning'}`}>{billingStatusLabel(activity.state)}</span></td></tr>)}</tbody></table></div>;
 }
 
 function BillingInvoiceDetail({ invoice, onBack }) {
@@ -3371,7 +3205,7 @@ function BillingInvoiceDetail({ invoice, onBack }) {
 }
 
 function BillingActivityDetail({ activity, onBack }) {
-  return <section className="page-content billing-page" data-testid="billing-activity-detail"><button type="button" className="link-button billing-back" onClick={onBack}>{translate("← Back to billing activity")}</button><div className="page-intro"><div><p className="eyebrow">{translate("Billing activity")}</p><h2>{activity.customer_reference}</h2><p>{activity.type === 'invoice' ? translate("Invoice charge") : translate("Automatic top-up")} · {formatMinorAmount(activity.amount_minor, activity.currency)}</p></div><span className={`status-badge ${activity.state === 'completed' ? 'good' : 'warning'}`}>{activity.state === 'completed' ? translate("Completed") : activity.state}</span></div><section className="panel"><h3>{translate("Processing timeline")}</h3><ol className="billing-timeline">{(activity.steps?.length ? activity.steps : [{ kind: activity.type, state: activity.state, occurred_at: activity.occurred_at, customer_reference: activity.customer_reference }]).map((step, index) => <li key={`${step.kind}-${index}`}><i className="fa-solid fa-circle-check" /><div><strong>{step.kind}</strong><p>{step.state} · {formatProviderTimestamp(step.occurred_at)}</p><small>{step.customer_reference}</small></div></li>)}</ol></section></section>;
+  return <section className="page-content billing-page" data-testid="billing-activity-detail"><button type="button" className="link-button billing-back" onClick={onBack}>{translate("← Back to billing activity")}</button><div className="page-intro"><div><p className="eyebrow">{translate("Billing activity")}</p><h2>{activity.customer_reference}</h2><p>{activity.type === 'invoice' ? translate("Invoice charge") : translate("Automatic top-up")} · {formatMinorAmount(activity.amount_minor, activity.currency)}</p></div><span className={`status-badge ${activity.state === 'completed' ? 'good' : 'warning'}`}>{billingStatusLabel(activity.state)}</span></div><section className="panel"><h3>{translate("Processing timeline")}</h3><ol className="billing-timeline">{(activity.steps?.length ? activity.steps : [{ kind: activity.type, state: activity.state, occurred_at: activity.occurred_at, customer_reference: activity.customer_reference }]).map((step, index) => <li key={`${step.kind}-${index}`}><i className="fa-solid fa-circle-check" /><div><strong>{billingStatusLabel(step.kind)}</strong><p>{billingStatusLabel(step.state)} · {formatProviderTimestamp(step.occurred_at)}</p><small>{step.customer_reference}</small></div></li>)}</ol></section></section>;
 }
 
 function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
@@ -3394,7 +3228,7 @@ function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {
     } catch (_) { if (profileAlive.current) setMessage('Update status is unknown. Refresh before retrying; no successful update has been confirmed.'); }
     finally { profileLocked.current=false; }
   }
-  return <section className="page-content billing-page" data-testid="billing-profile-page"><div className="page-intro"><div><h2>{translate("Billing information")}</h2><p>{translate("Each new invoice saves the current recipient details. Later changes do not overwrite existing invoice snapshots.")}</p></div></div>{tabs}<section className="panel"><form className="billing-profile-form" onSubmit={submit}><label>{translate("Company or legal name")}<input value={form.legal_name || ''} onChange={(event) => setForm({ ...form, legal_name: event.target.value })} required /></label><label>{translate("VAT number")}<input value={form.tax_identifier || ''} onChange={(event) => setForm({ ...form, tax_identifier: event.target.value })} /></label><label>{translate("Billing email")}<input type="email" value={form.contact_email || ''} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} /></label><label className="wide">{translate("Billing address")}<textarea value={form.billing_address || ''} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} /></label><label>{translate("Locale")}<input value={form.locale || 'en-US'} onChange={(event) => setForm({ ...form, locale: event.target.value })} /></label><label>{translate("Billing timezone")}<input value={form.timezone || 'Asia/Taipei'} onChange={(event) => setForm({ ...form, timezone: event.target.value })} /></label><label>{translate("Delivery method")}<select value={form.delivery_preference || 'portal'} onChange={(event) => setForm({ ...form, delivery_preference: event.target.value })}><option value="portal">{translate("Portal")}</option><option value="portal_and_email">{translate("Portal + Email")}</option></select></label><div className="wide"><button type="submit" className="primary" disabled={!canManage}>{translate("Save billing information")}</button>{message ? <p className="notice" role="status">{message}</p> : null}</div></form></section></section>;
+  return <section className="page-content billing-page" data-testid="billing-profile-page"><div className="page-intro"><div><h2>{translate("Billing information")}</h2><p>{translate("Each new invoice saves the current recipient details. Later changes do not overwrite existing invoice snapshots.")}</p></div></div>{tabs}<section className="panel"><form className="billing-profile-form" onSubmit={submit}><label>{translate("Company or legal name")}<input value={form.legal_name || ''} onChange={(event) => setForm({ ...form, legal_name: event.target.value })} required /></label><label>{translate("VAT number")}<input value={form.tax_identifier || ''} onChange={(event) => setForm({ ...form, tax_identifier: event.target.value })} /></label><label>{translate("Billing email")}<input type="email" value={form.contact_email || ''} onChange={(event) => setForm({ ...form, contact_email: event.target.value })} /></label><label className="wide">{translate("Billing address")}<textarea value={form.billing_address || ''} onChange={(event) => setForm({ ...form, billing_address: event.target.value })} /></label><label>{translate("Locale")}<input value={form.locale || 'en-US'} onChange={(event) => setForm({ ...form, locale: event.target.value })} /></label><label>{translate("Billing timezone")}<input value={form.timezone || 'Asia/Taipei'} onChange={(event) => setForm({ ...form, timezone: event.target.value })} /></label><label>{translate("Delivery method")}<select value={form.delivery_preference || 'portal'} onChange={(event) => setForm({ ...form, delivery_preference: event.target.value })}><option value="portal">{translate("Portal")}</option><option value="portal_and_email">{translate("Portal + Email")}</option></select></label><div className="wide"><button type="submit" className="primary" disabled={!canManage}>{translate("Save billing information")}</button>{message ? <p className="notice" role="status">{translate(message)}</p> : null}</div></form></section></section>;
 }
 function PKITestBundleTool({ activeCloudId, products = [], productsLoading, productsUnavailable }) {
   const [quantity, setQuantity] = useState(1);
@@ -3715,9 +3549,9 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
 
       {hasSelection && available ? <section className="metrics firmware-page-metrics">
         <MetricCard icon="microchip" label="Latest version" value={latestVersion} hint="Current target version" tone="info" />
-        <MetricCard icon="circle-check" label="Already up to date" value={currentDevices} hint={`of the selected Product ${formatPercent(latestVersionRow?.pct || 0)}`} tone="good" />
-        <MetricCard icon="cloud-arrow-up" label="Recent updates" value={primaryCampaign ? formatPercent(primaryProgress.pct) : '—'} hint={primaryCampaign ? `${formatNumber(primaryProgress.completed)} of ${formatNumber(primaryProgress.total)} devices processed` : 'No updates are currently running'} tone="info" />
-        <MetricCard icon="circle-exclamation" label="Update failed" value={failedRollout} hint={primaryCampaign ? `${formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0)} of target devices` : 'No updates are currently running'} tone={failedRollout ? 'danger' : 'good'} />
+        <MetricCard icon="circle-check" label="Already up to date" value={currentDevices} hint={translate('{{percent}} of the selected Product', { percent: formatPercent(latestVersionRow?.pct || 0) })} tone="good" />
+        <MetricCard icon="cloud-arrow-up" label="Recent updates" value={primaryCampaign ? formatPercent(primaryProgress.pct) : '—'} hint={primaryCampaign ? translate('{{completed}} of {{total}} devices processed', { completed: formatNumber(primaryProgress.completed), total: formatNumber(primaryProgress.total) }) : translate('No updates are currently running')} tone="info" />
+        <MetricCard icon="circle-exclamation" label="Update failed" value={failedRollout} hint={primaryCampaign ? translate('{{percent}} of target devices', { percent: formatPercent(primaryCampaign.total ? failedRollout / primaryCampaign.total * 100 : 0) }) : translate('No updates are currently running')} tone={failedRollout ? 'danger' : 'good'} />
       </section> : null}
 
       {hasSelection && distribution && available ? (
@@ -5811,7 +5645,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
       key: 'last_seen_at',
       label: 'Last seen',
       value: (device) => device.last_seen_at,
-      render: (device) => device.last_seen_at ? <time title={device.last_seen_at}>{formatRelativeTime(device.last_seen_at)}</time> : 'No transport evidence',
+      render: (device) => device.last_seen_at ? <time title={device.last_seen_at}>{formatRelativeTime(device.last_seen_at)}</time> : translate('No transport evidence'),
     },
     {
       key: 'actions',
@@ -6035,12 +5869,13 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
   const telemetryAvailable = telemetry?.telemetry_status === 'available';
   const telemetryState = telemetrySourceState({ telemetry, loading, error });
   const telemetryUnavailableText = telemetryState.message || 'Telemetry source is unavailable for this device.';
+  const localizedTelemetryUnavailableText = translate(telemetryUnavailableText);
   const streamStatus = deriveStreamStatus(telemetry);
   const actionContext = { readOnly, capabilities, telemetryStatus: telemetry?.telemetry_status };
   const deactivateState = deviceActionState(device, 'deactivate', actionContext);
   function runDrawerAction(action) {
-    const label = action === 'deactivate' ? 'deactivate this device' : 'provision this device';
-    if (!window.confirm(`Confirm you want to ${label}.`)) return;
+    const confirmation = action === 'deactivate' ? translate('Confirm you want to deactivate this device.') : translate('Confirm you want to provision this device.');
+    if (!window.confirm(confirmation)) return;
     onAction(device.id, action);
   }
   return (
@@ -6084,7 +5919,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             {!loading && (error || (telemetry && !telemetryAvailable)) ? (
               <section className="drawer-unavailable">
                 <strong>{translate(telemetryState.title)}</strong>
-                <p>{translate(telemetryUnavailableText)}</p>
+                <p>{localizedTelemetryUnavailableText}</p>
               </section>
             ) : null}
 
@@ -6092,7 +5927,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
               <div className="summary-card">
                 <span>{translate("Health")}</span>
                 <StatusBadge value={normalizeStatusKey(telemetry?.health || device.health || 'unknown')} label={toTitleCase(telemetry?.health || device.health || 'unknown')} />
-                <small>{telemetryAvailable ? translate("Signals: {{value0}}", { value0: telemetry.signals?.length ? telemetry.signals.map(formatTelemetrySignal).join(', ') : 'none reported' }) : telemetryUnavailableText}</small>
+                <small>{telemetryAvailable ? translate("Signals: {{value0}}", { value0: telemetry.signals?.length ? telemetry.signals.map(signal => translate(formatTelemetrySignal(signal))).join(', ') : translate('none reported') }) : localizedTelemetryUnavailableText}</small>
               </div>
               <div className="summary-card">
                 <span>{translate("Firmware")}</span>
@@ -6111,25 +5946,25 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
             {telemetryAvailable ? <section className="drawer-charts">
               <TelemetryChart
                 title={translate("RSSI history")}
-                subtitle="Daily average dBm and quality bucket"
+                subtitle={translate('Daily average dBm and quality bucket')}
                 samples={telemetry?.rssi_7d || []}
                 valueKey="avg_dbm"
                 valueFormatter={(value) => `${value} dBm`}
                 tone="brand"
-                ariaLabel="RSSI history sparkline"
-                emptyLabel="No RSSI samples available."
-                sampleLabel={(sample) => `${sample.date}: ${sample.avg_dbm} dBm (${toTitleCase(sample.quality)})`}
+                ariaLabel={translate('RSSI history sparkline')}
+                emptyLabel={translate('No RSSI samples available.')}
+                sampleLabel={(sample) => translate('{{date}}: {{value}} dBm ({{quality}})', { date: sample.date, value: sample.avg_dbm, quality: translate(toTitleCase(sample.quality)) })}
               />
               <TelemetryChart
                 title={translate("Uptime history")}
-                subtitle="Daily online percentage"
+                subtitle={translate('Daily online percentage')}
                 samples={telemetry?.uptime_7d || []}
                 valueKey="online_pct"
                 valueFormatter={(value) => `${value.toFixed(1)}%`}
                 tone="accent"
-                ariaLabel="Uptime history sparkline"
-                emptyLabel="No uptime samples available."
-                sampleLabel={(sample) => `${sample.date}: ${sample.online_pct.toFixed(1)}% online`}
+                ariaLabel={translate('Uptime history sparkline')}
+                emptyLabel={translate('No uptime samples available.')}
+                sampleLabel={(sample) => translate('{{date}}: {{percent}} online', { date: sample.date, percent: `${sample.online_pct.toFixed(1)}%` })}
               />
             </section> : null}
 
@@ -6145,7 +5980,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
                   {telemetry.recent_events.map((event) => (
                     <article className="event-row" key={`${event.occurred_at}:${event.event_type}`}>
                       <div>
-                        <strong>{formatTelemetryEventType(event.event_type)}</strong>
+                        <strong>{translate(formatTelemetryEventType(event.event_type))}</strong>
                         <span>{translate(event.summary)}</span>
                       </div>
                       <time title={event.occurred_at}>{formatRelativeTime(event.occurred_at)}</time>
@@ -6153,13 +5988,13 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
                   ))}
                 </div>
               ) : (
-                <p className="empty-state">{telemetryAvailable ? translate("No recent telemetry events available.") : telemetryUnavailableText}</p>
+                <p className="empty-state">{telemetryAvailable ? translate("No recent telemetry events available.") : localizedTelemetryUnavailableText}</p>
               )}
             </section>
 
             <div className="drawer-actions">
-              <button type="button" className="destructive" disabled={!deactivateState.enabled} title={deactivateState.reason} onClick={() => runDrawerAction('deactivate')}>{translate("Deactivate device")}</button>
-              <small>{!deactivateState.enabled ? deactivateState.reason : translate("Device setup and enrollment are handled by existing processes; only status and deactivation are shown here.")}</small>
+              <button type="button" className="destructive" disabled={!deactivateState.enabled} title={translate(deactivateState.reason)} onClick={() => runDrawerAction('deactivate')}>{translate("Deactivate device")}</button>
+              <small>{!deactivateState.enabled ? translate(deactivateState.reason) : translate("Device setup and enrollment are handled by existing processes; only status and deactivation are shown here.")}</small>
             </div>
           </>
         )}
@@ -6177,7 +6012,7 @@ function SourceFactsTimeline({ facts }) {
           <div>
             <strong>{sourceFactLayerLabel(fact.layer)}</strong>
             <span>{sourceFactStateLabel(fact.state)}</span>
-            <small>{translate(fact.detail)}</small>
+            <small>{sourceFactDetail(fact.detail)}</small>
           </div>
           <time>{fact.updated_at ? formatRelativeTime(fact.updated_at) : '—'}</time>
         </article>
@@ -6285,11 +6120,11 @@ function formatTelemetryChartValue(value, valueKey) {
 
 function formatTelemetrySignal(signal) {
   const map = {
-    low_rssi: 'Low RSSI',
-    recent_reboot: 'Recent reboot',
-    low_memory: 'Low memory',
-    recent_crash: 'Recent crash',
-    offline_risk: 'Offline risk',
+    low_rssi: translate('Low RSSI'),
+    recent_reboot: translate('Recent reboot'),
+    low_memory: translate('Low memory'),
+    recent_crash: translate('Recent crash'),
+    offline_risk: translate('Offline risk'),
   };
   return map[signal] || toTitleCase(signal);
 }
@@ -6297,26 +6132,26 @@ function formatTelemetrySignal(signal) {
 function deriveStreamStatus(telemetry) {
   switch (telemetry?.active_stream_status) {
     case 'active':
-      return { tone: 'healthy', label: 'Active', detail: 'Stream source reports an active session.' };
+      return { tone: 'healthy', label: 'Active', detail: translate('Stream source reports an active session.') };
     case 'inactive':
-      return { tone: 'inactive', label: 'Inactive', detail: 'Stream source reports no active session.' };
+      return { tone: 'inactive', label: 'Inactive', detail: translate('Stream source reports no active session.') };
     case 'unavailable':
-      return { tone: 'unknown', label: 'Unavailable', detail: telemetry?.unavailable_reason || 'Active stream status is unavailable.' };
+      return { tone: 'unknown', label: 'Unavailable', detail: telemetry?.unavailable_reason || translate('Active stream status is unavailable.') };
     case 'unknown':
     default:
-      return { tone: 'unknown', label: 'Unknown', detail: 'Active stream status is not provided by the source.' };
+      return { tone: 'unknown', label: 'Unknown', detail: translate('Active stream status is not provided by the source.') };
   }
 }
 
 function formatTelemetryEventType(eventType) {
   const map = {
-    'device.health.summary': 'Health summary',
-    'device.health.rssi_sample': 'RSSI sample',
-    'device.health.memory_sample': 'Memory sample',
-    'device.health.offline_risk': 'Offline risk',
-    'device.reboot.reported': 'Device reboot',
-    'device.crash.reported': 'Device crash',
-    'firmware.version.observed': 'Firmware observed',
+    'device.health.summary': translate('Health summary'),
+    'device.health.rssi_sample': translate('RSSI sample'),
+    'device.health.memory_sample': translate('Memory sample'),
+    'device.health.offline_risk': translate('Offline risk'),
+    'device.reboot.reported': translate('Device reboot'),
+    'device.crash.reported': translate('Device crash'),
+    'firmware.version.observed': translate('Firmware observed'),
   };
   if (map[eventType]) return map[eventType];
   return toTitleCase(String(eventType || '').replaceAll(/[._]/g, ' '));
@@ -6946,25 +6781,35 @@ function userRoleDetails(role) {
 
 function sourceFactLayerLabel(layer) {
   const map = {
-    account_registry: 'Account Registry',
-    cloud_activation: 'Cloud Activation',
-    transport_online: 'Transport Online',
-    device_facts: 'Device Facts',
+    account_registry: translate('Account Registry'),
+    cloud_activation: translate('Cloud Activation'),
+    transport_online: translate('Transport Online'),
+    device_facts: translate('Device Facts'),
   };
-  return map[layer] || toTitleCase(String(layer || 'unknown').replaceAll('_', ' '));
+  return map[layer] || translate(toTitleCase(String(layer || 'unknown').replaceAll('_', ' ')));
 }
 
 function sourceFactStateLabel(state) {
   const map = {
-    present: 'Registered',
-    activated: 'Activated',
-    online: 'Online',
-    failed: 'Failed',
-    missing: 'Missing',
-    pending: 'Pending',
-    stale: 'Stale',
+    present: translate('Registered'),
+    activated: translate('Activated'),
+    online: translate('Online'),
+    failed: translate('Failed'),
+    missing: translate('Missing'),
+    pending: translate('Pending'),
+    stale: translate('Stale'),
   };
-  return map[state] || toTitleCase(String(state || 'unknown').replaceAll('_', ' '));
+  return map[state] || translate(toTitleCase(String(state || 'unknown').replaceAll('_', ' ')));
+}
+
+function sourceFactDetail(detail) {
+  if (detail?.startsWith('Video Cloud transport: ') && detail.endsWith('.')) {
+    return translate('Video Cloud transport: {{value0}}.', { value0: detail.slice('Video Cloud transport: '.length, -1) });
+  }
+  if (detail?.startsWith('Last transport evidence at ') && detail.endsWith('.')) {
+    return translate('Last transport evidence at {{value0}}.', { value0: detail.slice('Last transport evidence at '.length, -1) });
+  }
+  return translate(detail);
 }
 
 function buildAttentionQueue(devices, alerts) {

@@ -4,9 +4,10 @@ import { login } from './fixtures/session.mjs';
 const cloudID = '33333333-3333-4333-8333-333333333333';
 const base = `/api/developer/brand-clouds/${cloudID}/webhook`;
 
-test('[UI-CA-WEBHOOK-001] owner can configure, inspect, and disable scoped webhook without exposing the secret @smoke', async ({ page }) => {
+test('[UI-CA-WEBHOOK-001] owner can configure, inspect, and disable scoped webhook without exposing the secret @smoke', async ({ page, isMobile }) => {
   await login(page, 'developer');
   let subscription = null;
+  let unavailable = false;
   const writes = [];
   await page.route(`**/api/developer/brand-clouds/${cloudID}`, async (route) => {
     const response = await route.fetch();
@@ -23,6 +24,7 @@ test('[UI-CA-WEBHOOK-001] owner can configure, inspect, and disable scoped webho
     const headers = { 'Content-Type': 'application/json', 'X-Cloud-Ownership-Version': '7' };
     if (path === `${base}/subscription`) {
       if (method === 'GET') {
+        if (unavailable) return route.fulfill({ status: 503, headers, body: '{}' });
         await route.fulfill(subscription
           ? { status: 200, headers, body: JSON.stringify(subscription) }
           : { status: 404, headers, body: '{}' });
@@ -65,4 +67,11 @@ test('[UI-CA-WEBHOOK-001] owner can configure, inspect, and disable scoped webho
   await expect(panel.getByRole('button', { name: 'Confirm disable' })).toBeVisible();
   await panel.getByRole('button', { name: 'Confirm disable' }).click();
   await expect(panel.getByText('Disabled', { exact: true })).toBeVisible();
+  unavailable = true;
+  await page.reload();
+  await expect(panel.getByRole('alert')).toContainText('Brand event delivery is not configured for this environment.');
+  if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  if (isMobile) await page.locator('.mobile-nav-close').click();
+  await expect(panel.getByRole('alert')).toContainText('此環境尚未設定品牌事件傳送服務。');
 });

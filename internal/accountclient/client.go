@@ -450,10 +450,12 @@ type Operation struct {
 }
 
 type Tokens struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	ExpiresIn    int    `json:"expires_in"`
-	ExpiresAt    string `json:"expires_at"`
+	AccessToken           string `json:"access_token"`
+	RefreshToken          string `json:"refresh_token"`
+	ExpiresIn             int    `json:"expires_in"`
+	ExpiresAt             string `json:"expires_at"`
+	AccessTokenExpiresAt  string `json:"access_token_expires_at"`
+	RefreshTokenExpiresAt string `json:"refresh_token_expires_at"`
 }
 
 type LoginResult struct {

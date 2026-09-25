@@ -12672,6 +12672,1559 @@
       "source": "waiting",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "1 million deliveries",
+      "source": "1 million deliveries",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million messages",
+      "source": "1 million messages",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million operation units",
+      "source": "1 million operation units",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million read operations",
+      "source": "1 million read operations",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million requests",
+      "source": "1 million requests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million write operations",
+      "source": "1 million write operations",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1,000 device tasks",
+      "source": "1,000 device tasks",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "AWS Device Jobs example, first 250,000 actions. US$3 / 1,000 actions.",
+      "source": "AWS Device Jobs example, first 250,000 actions. US$3 / 1,000 actions.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "AWS example, first 300 million monthly calls. Backend processing and data transfer may be additional on AWS.",
+      "source": "AWS example, first 300 million monthly calls. Backend processing and data transfer may be additional on AWS.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Account Manager records",
+      "source": "Account Manager records",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Account {{status}} · Last updated {{date}}",
+      "source": "Account {{status}} · Last updated {{date}}",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{date}}",
+        "{{status}}"
+      ]
+    },
+    {
+      "key": "Akamai lists US$0.02 / GB-month. Proposal includes service operations; provider minimums and free tiers differ.",
+      "source": "Akamai lists US$0.02 / GB-month. Proposal includes service operations; provider minimums and free tiers differ.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Already up to date",
+      "source": "Already up to date",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Application API requests",
+      "source": "Application API requests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Approximately {{amount}} remaining · {{confidence}} confidence",
+      "source": "Approximately {{amount}} remaining · {{confidence}} confidence",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{amount}}",
+        "{{confidence}}"
+      ]
+    },
+    {
+      "key": "At least one complete observation day is required",
+      "source": "At least one complete observation day is required",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Available Balance",
+      "source": "Available Balance",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Available after at least one complete observation day",
+      "source": "Available after at least one complete observation day",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Average daily cost {{amount}}",
+      "source": "Average daily cost {{amount}}",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{amount}}"
+      ]
+    },
+    {
+      "key": "Average stored bytes over time, prorated by retention. A 10 GiB object kept for 15 of 30 days uses 5 GiB-month. Logs use the separate retention rate.",
+      "source": "Average stored bytes over time, prorated by retention. A 10 GiB object kept for 15 of 30 days uses 5 GiB-month. Logs use the separate retention rate.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Balance Runway",
+      "source": "Balance Runway",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Billing Overview",
+      "source": "Billing Overview",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Billing Profile",
+      "source": "Billing Profile",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Bind {{deviceName}} ({{deviceId}}) to {{email}}?",
+      "source": "Bind {{deviceName}} ({{deviceId}}) to {{email}}?",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{deviceId}}",
+        "{{deviceName}}",
+        "{{email}}"
+      ]
+    },
+    {
+      "key": "Canada Central example. A 1.5 KiB state operation would use two proposed RTK units.",
+      "source": "Canada Central example. A 1.5 KiB state operation would use two proposed RTK units.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Canceled",
+      "source": "Canceled",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cannot be estimated yet",
+      "source": "Cannot be estimated yet",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Core regions; distributed regions list US$0.01 / GB. Object Storage includes 1 TB egress monthly. RTK price includes managed delivery overhead.",
+      "source": "Core regions; distributed regions list US$0.01 / GB. Object Storage includes 1 TB egress monthly. RTK price includes managed delivery overhead.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count bytes sent by TURN to recipients, including each viewer. Relay processing is included. No extra minute or download charge on these bytes. Direct P2P media is free.",
+      "source": "Count bytes sent by TURN to recipients, including each viewer. Relay processing is included. No extra minute or download charge on these bytes. Direct P2P media is free.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count each accepted publish once. Payload traffic is included; no separate MQTT bandwidth fee.",
+      "source": "Count each accepted publish once. Payload traffic is included; no separate MQTT bandwidth fee.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count outgoing file bytes once, including retries and multiple recipients. Excludes TURN and MQTT traffic. Inbound transfer is included.",
+      "source": "Count outgoing file bytes once, including retries and multiple recipients. Excludes TURN and MQTT traffic. Inbound transfer is included.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count successful data API requests only. Excludes Shadow, WebRTC signaling, OTA task dispatch and object operations already covered above. Console administration and authentication are included.",
+      "source": "Count successful data API requests only. Excludes Shadow, WebRTC signaling, OTA task dispatch and object operations already covered above. Console administration and authentication are included.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count successful object GET and HEAD requests; each range request is a read. Delivered bytes use the download rate below.",
+      "source": "Count successful object GET and HEAD requests; each range request is a read. Delivered bytes use the download rate below.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count successful object writes and multipart part writes. A multipart completion is one further write. Upload bandwidth is included.",
+      "source": "Count successful object writes and multipart part writes. A multipart completion is one further write. Upload bandwidth is included.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Create one test device and prepare its private key and certificate for download? Save the file using the download panel before leaving this page.",
+      "source": "Create one test device and prepare its private key and certificate for download? Save the file using the download panel before leaving this page.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Current target version",
+      "source": "Current target version",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Declined",
+      "source": "Declined",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device and application logs",
+      "source": "Device and application logs",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device operations",
+      "source": "Device operations",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Don’t enter a card number or CVV on this page",
+      "source": "Don’t enter a card number or CVV on this page",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Download help",
+      "source": "Download help",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "End-of-Month Forecast",
+      "source": "End-of-Month Forecast",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Estimated Cost This Month",
+      "source": "Estimated Cost This Month",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Estimated availability {{days}} days",
+      "source": "Estimated availability {{days}} days",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{days}}"
+      ]
+    },
+    {
+      "key": "Firmware OTA tasks",
+      "source": "Firmware OTA tasks",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "From {{date}} · Estimate",
+      "source": "From {{date}} · Estimate",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{date}}"
+      ]
+    },
+    {
+      "key": "GiB delivered",
+      "source": "GiB delivered",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "GiB ingested",
+      "source": "GiB ingested",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "GiB-month",
+      "source": "GiB-month",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Includes succeeded, failed, reconciliation-pending, and processing states",
+      "source": "Includes succeeded, failed, reconciliation-pending, and processing states",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Insufficient data",
+      "source": "Insufficient data",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Insufficient usage to estimate available days",
+      "source": "Insufficient usage to estimate available days",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "IoT Shadow",
+      "source": "IoT Shadow",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "IoT and messaging",
+      "source": "IoT and messaging",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Ireland, first billion units. AWS also charges publish and delivery separately.",
+      "source": "Ireland, first billion units. AWS also charges publish and delivery separately.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Ireland, first billion units. RTK proposes raw message counts, so large-payload prices are not directly equivalent.",
+      "source": "Ireland, first billion units. RTK proposes raw message counts, so large-payload prices are not directly equivalent.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Issued",
+      "source": "Issued",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Last successful sync",
+      "source": "Last successful sync",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Latest version",
+      "source": "Latest version",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Live video",
+      "source": "Live video",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Log retention",
+      "source": "Log retention",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Low",
+      "source": "Low",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "MQTT deliveries",
+      "source": "MQTT deliveries",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "MQTT publishes",
+      "source": "MQTT publishes",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Media and firmware downloads",
+      "source": "Media and firmware downloads",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Medium",
+      "source": "Medium",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Metering pending",
+      "source": "Metering pending",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Needs attention",
+      "source": "Needs attention",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No payment method set",
+      "source": "No payment method set",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Object reads",
+      "source": "Object reads",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Object writes",
+      "source": "Object writes",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "One campaign targeting 1,000 devices is 1,000 tasks. Count a device task when first dispatched; retries of that task add no task fee. Storage, object reads and file delivery are separate.",
+      "source": "One campaign targeting 1,000 devices is 1,000 tasks. Count a device task when first dispatched; retries of that task add no task fee. Storage, object reads and file delivery are separate.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "One publish to five subscribers counts as one publish plus five deliveries. Each broker delivery is counted.",
+      "source": "One publish to five subscribers counts as one publish plus five deliveries. Each broker delivery is counted.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Overdue",
+      "source": "Overdue",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Payment method",
+      "source": "Payment method",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Providers",
+      "source": "Providers",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Published ChipSets",
+      "source": "Published ChipSets",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Recent Intents",
+      "source": "Recent Intents",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Recent updates",
+      "source": "Recent updates",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Standard tier. R2 Class A covers more operations than uploads; this is a write-cost benchmark.",
+      "source": "Standard tier. R2 Class A covers more operations than uploads; this is a write-cost benchmark.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Standard tier. R2 internet egress is free; RTK proposes a separate managed delivery charge.",
+      "source": "Standard tier. R2 internet egress is free; RTK proposes a separate managed delivery charge.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Start cloud provisioning for this bound test device?",
+      "source": "Start cloud provisioning for this bound test device?",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Status is OK",
+      "source": "Status is OK",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Status: {{status}}",
+      "source": "Status: {{status}}",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{status}}"
+      ]
+    },
+    {
+      "key": "Storage and delivery",
+      "source": "Storage and delivery",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Successful operations, rounded up in 1 KiB record or response units. MQTT transport, when used, is counted separately.",
+      "source": "Successful operations, rounded up in 1 KiB record or response units. MQTT transport, when used, is counted separately.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Top-up",
+      "source": "Top-up",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US East example, Standard logs entry tier. RTK already records log ingestion totals; invoice integration remains to be qualified.",
+      "source": "US East example, Standard logs entry tier. RTK already records log ingestion totals; invoice integration remains to be qualified.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US East example. CloudWatch uses compressed archive bytes, so the byte basis differs from this RTK proposal.",
+      "source": "US East example. CloudWatch uses compressed archive bytes, so the byte basis differs from this RTK proposal.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US East. AWS also charges signaling channels and messages. Different unit: our proposal follows delivered bytes; Akamai transfer costs inform the rate.",
+      "source": "US East. AWS also charges signaling channels and messages. Different unit: our proposal follows delivered bytes; Akamai transfer costs inform the rate.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.003 / remote action",
+      "source": "US$0.003 / remote action",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.005 / GB egress over allowance",
+      "source": "US$0.005 / GB egress over allowance",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.015 / GB-month, Standard",
+      "source": "US$0.015 / GB-month, Standard",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.03 / GB-month archived",
+      "source": "US$0.03 / GB-month archived",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.12 / 1,000 TURN minutes + internet transfer",
+      "source": "US$0.12 / 1,000 TURN minutes + internet transfer",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.36 / million Class B operations",
+      "source": "US$0.36 / million Class B operations",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.50 / GB ingested",
+      "source": "US$0.50 / GB ingested",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$1 / million 5 KB message units",
+      "source": "US$1 / million 5 KB message units",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$1 / million HTTP API calls",
+      "source": "US$1 / million HTTP API calls",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$1.25 / million 1 KB operation units",
+      "source": "US$1.25 / million 1 KB operation units",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$4.50 / million Class A operations",
+      "source": "US$4.50 / million Class A operations",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unbind {{deviceName}} ({{deviceId}}) from {{email}}? This account loses test access. Device identity, certificates and other accounts are preserved.",
+      "source": "Unbind {{deviceName}} ({{deviceId}}) from {{email}}? This account loses test access. Device identity, certificates and other accounts are preserved.",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{deviceId}}",
+        "{{deviceName}}",
+        "{{email}}"
+      ]
+    },
+    {
+      "key": "Usage meter exists",
+      "source": "Usage meter exists",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Usage totals exist",
+      "source": "Usage totals exist",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Use accepted, uncompressed log bytes including metadata. Retention is charged separately. MQTT transport, when used, retains its message fee.",
+      "source": "Use accepted, uncompressed log bytes including metadata. Retention is charged separately. MQTT transport, when used, retains its message fee.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Use recorded log bytes × configured retention days / 30. This proposal follows the existing retention estimate, not compressed archive size.",
+      "source": "Use recorded log bytes × configured retention days / 30. This proposal follows the existing retention estimate, not compressed archive size.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video and firmware storage",
+      "source": "Video and firmware storage",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "WebRTC TURN relay",
+      "source": "WebRTC TURN relay",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "WebRTC sessions established and not closed or expired; playback is not confirmed",
+      "source": "WebRTC sessions established and not closed or expired; playback is not confirmed",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "last-known-good remains available",
+      "source": "last-known-good remains available",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "{{confidence}} confidence · {{days}} observation days",
+      "source": "{{confidence}} confidence · {{days}} observation days",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{confidence}}",
+        "{{days}}"
+      ]
+    },
+    {
+      "key": "{{count}} usage records",
+      "source": "{{count}} usage records",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{count}}"
+      ]
+    },
+    {
+      "key": "{{days}} days",
+      "source": "{{days}} days",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{days}}"
+      ]
+    },
+    {
+      "key": "Fleet presence data is partially unavailable.",
+      "source": "Fleet presence data is partially unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Fleet health data is partially unavailable.",
+      "source": "Fleet health data is partially unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "WebRTC session data is partially unavailable.",
+      "source": "WebRTC session data is partially unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Some fleet presence data is stale or partially available.",
+      "source": "Some fleet presence data is stale or partially available.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Some fleet health data is stale or partially available.",
+      "source": "Some fleet health data is stale or partially available.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "I agree that when the balance falls strictly below the configured threshold, the selected payment method may be used to add funds automatically, subject to the daily attempt, daily amount, and cooldown limits.",
+      "source": "I agree that when the balance falls strictly below the configured threshold, the selected payment method may be used to add funds automatically, subject to the daily attempt, daily amount, and cooldown limits.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "I agree that the payment service may store simulated payment-method identifiers for automatic top-up testing. Real card numbers and CVV values are never entered or stored.",
+      "source": "I agree that the payment service may store simulated payment-method identifiers for automatic top-up testing. Real card numbers and CVV values are never entered or stored.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "File saved. You can download the same file again while this page stays open.",
+      "source": "File saved. You can download the same file again while this page stays open.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Save cancelled. Your file is still available below.",
+      "source": "Save cancelled. Your file is still available below.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Could not save with the file picker. Use the download link below or try another browser.",
+      "source": "Could not save with the file picker. Use the download link below or try another browser.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Download requested. Check your browser downloads; this page cannot confirm that the file was saved. You can retry this link.",
+      "source": "Download requested. Check your browser downloads; this page cannot confirm that the file was saved. You can retry this link.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No successful sync",
+      "source": "No successful sync",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No updates are currently running",
+      "source": "No updates are currently running",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "background refresh healthy",
+      "source": "background refresh healthy",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "{{completed}} of {{total}} devices processed",
+      "source": "{{completed}} of {{total}} devices processed",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{completed}}",
+        "{{total}}"
+      ]
+    },
+    {
+      "key": "{{count}} SDK releases",
+      "source": "{{count}} SDK releases",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{count}}"
+      ]
+    },
+    {
+      "key": "{{count}} devices have unknown presence",
+      "source": "{{count}} devices have unknown presence",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{count}}"
+      ]
+    },
+    {
+      "key": "{{percent}} data coverage",
+      "source": "{{percent}} data coverage",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{percent}}"
+      ]
+    },
+    {
+      "key": "{{percent}} of target devices",
+      "source": "{{percent}} of target devices",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{percent}}"
+      ]
+    },
+    {
+      "key": "{{percent}} of the selected Product",
+      "source": "{{percent}} of the selected Product",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{percent}}"
+      ]
+    },
+    {
+      "key": "{{published}} published · {{unpublished}} not published",
+      "source": "{{published}} published · {{unpublished}} not published",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{published}}",
+        "{{unpublished}}"
+      ]
+    },
+    {
+      "key": "{{warning}} warning / {{critical}} critical",
+      "source": "{{warning}} warning / {{critical}} critical",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{critical}}",
+        "{{warning}}"
+      ]
+    },
+    {
+      "key": "Attention required",
+      "source": "Attention required",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Authorized",
+      "source": "Authorized",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Chargeback",
+      "source": "Chargeback",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Closed",
+      "source": "Closed",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Draft",
+      "source": "Draft",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Expired",
+      "source": "Expired",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Manual credit adjustment",
+      "source": "Manual credit adjustment",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Manual debit adjustment",
+      "source": "Manual debit adjustment",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Partially paid",
+      "source": "Partially paid",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Payment top-up",
+      "source": "Payment top-up",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Refund",
+      "source": "Refund",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Revoked",
+      "source": "Revoked",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Suspended",
+      "source": "Suspended",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Usage adjustment",
+      "source": "Usage adjustment",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Voided",
+      "source": "Voided",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "SSO start did not return a redirect URL",
+      "source": "SSO start did not return a redirect URL",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Some clouds could not be displayed because the service returned an invalid cloud ID.",
+      "source": "Some clouds could not be displayed because the service returned an invalid cloud ID.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The provider could not be published. Please try again.",
+      "source": "The provider could not be published. Please try again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The provider draft could not be saved. Please try again.",
+      "source": "The provider draft could not be saved. Please try again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The provider preview is temporarily unavailable.",
+      "source": "The provider preview is temporarily unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The provider validation preview could not be updated. Please try again.",
+      "source": "The provider validation preview could not be updated. Please try again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to load all authorized Products. Reload devices & access to retry.",
+      "source": "Unable to load all authorized Products. Reload devices & access to retry.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to load the selected Product name. Refresh your access.",
+      "source": "Unable to load the selected Product name. Refresh your access.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to use your Console account. Check access or sign in to Console again.",
+      "source": "Unable to use your Console account. Check access or sign in to Console again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to verify Console access. Reload the page or sign in to Console again.",
+      "source": "Unable to verify Console access. Reload the page or sign in to Console again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Account Registry",
+      "source": "Account Registry",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud Activation",
+      "source": "Cloud Activation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud activation failed.",
+      "source": "Cloud activation failed.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Confirm you want to deactivate this device.",
+      "source": "Confirm you want to deactivate this device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Confirm you want to provision this device.",
+      "source": "Confirm you want to provision this device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Deactivation is already pending.",
+      "source": "Deactivation is already pending.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device Facts",
+      "source": "Device Facts",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device exists in the registry projection.",
+      "source": "Device exists in the registry projection.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device is already activated.",
+      "source": "Device is already activated.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device is already deactivated.",
+      "source": "Device is already deactivated.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device is deactivated and cloud activation evidence is stale.",
+      "source": "Device is deactivated and cloud activation evidence is stale.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device is waiting for deactivation.",
+      "source": "Device is waiting for deactivation.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device telemetry source is unavailable.",
+      "source": "Device telemetry source is unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Executed by an operator in Fleet Management",
+      "source": "Executed by an operator in Fleet Management",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Last transport evidence at {{value0}}.",
+      "source": "Last transport evidence at {{value0}}.",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{value0}}"
+      ]
+    },
+    {
+      "key": "Missing",
+      "source": "Missing",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Missing video_cloud_devid from Account Manager metadata.",
+      "source": "Missing video_cloud_devid from Account Manager metadata.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No telemetry samples are available for this device.",
+      "source": "No telemetry samples are available for this device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No transport evidence.",
+      "source": "No transport evidence.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Read-only Observer cannot change device lifecycle.",
+      "source": "Read-only Observer cannot change device lifecycle.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Registered",
+      "source": "Registered",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Transport Online",
+      "source": "Transport Online",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video Cloud confirms device activation.",
+      "source": "Video Cloud confirms device activation.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video Cloud device identity is present.",
+      "source": "Video Cloud device identity is present.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video Cloud has no current transport evidence.",
+      "source": "Video Cloud has no current transport evidence.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video Cloud reports device is not activated.",
+      "source": "Video Cloud reports device is not activated.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video Cloud telemetry source is not configured.",
+      "source": "Video Cloud telemetry source is not configured.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video Cloud transport: {{value0}}.",
+      "source": "Video Cloud transport: {{value0}}.",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{value0}}"
+      ]
+    },
+    {
+      "key": "Waiting for cloud activation to complete.",
+      "source": "Waiting for cloud activation to complete.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Withdrawn by Brand Operator",
+      "source": "Withdrawn by Brand Operator",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Your session does not have permission for this lifecycle action.",
+      "source": "Your session does not have permission for this lifecycle action.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "customer disabled automatic top-up",
+      "source": "customer disabled automatic top-up",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "customer revoked payment method",
+      "source": "customer revoked payment method",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud ID stays the same when you rename the cloud.",
+      "source": "Cloud ID stays the same when you rename the cloud.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Compare fleet size by region and device count.",
+      "source": "Compare fleet size by region and device count.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "I own",
+      "source": "I own",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Telemetry source is unavailable for this device.",
+      "source": "Telemetry source is unavailable for this device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video Cloud telemetry is not authorized for this customer.",
+      "source": "Video Cloud telemetry is not authorized for this customer.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video Cloud telemetry is unavailable.",
+      "source": "Video Cloud telemetry is unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video Cloud telemetry returned an unexpected schema.",
+      "source": "Video Cloud telemetry returned an unexpected schema.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video Cloud telemetry source was not found for this device.",
+      "source": "Video Cloud telemetry source was not found for this device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Active stream status is unavailable.",
+      "source": "Active stream status is unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Daily average dBm and quality bucket",
+      "source": "Daily average dBm and quality bucket",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Daily online percentage",
+      "source": "Daily online percentage",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device crash",
+      "source": "Device crash",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device reboot",
+      "source": "Device reboot",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Firmware observed",
+      "source": "Firmware observed",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Health summary",
+      "source": "Health summary",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Low RSSI",
+      "source": "Low RSSI",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Low memory",
+      "source": "Low memory",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Memory sample",
+      "source": "Memory sample",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No RSSI samples available.",
+      "source": "No RSSI samples available.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No uptime samples available.",
+      "source": "No uptime samples available.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Offline risk",
+      "source": "Offline risk",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "RSSI history sparkline",
+      "source": "RSSI history sparkline",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "RSSI sample",
+      "source": "RSSI sample",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Recent crash",
+      "source": "Recent crash",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Recent reboot",
+      "source": "Recent reboot",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Uptime history sparkline",
+      "source": "Uptime history sparkline",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "none reported",
+      "source": "none reported",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "{{date}}: {{percent}} online",
+      "source": "{{date}}: {{percent}} online",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{date}}",
+        "{{percent}}"
+      ]
+    },
+    {
+      "key": "{{date}}: {{value}} dBm ({{quality}})",
+      "source": "{{date}}: {{value}} dBm ({{quality}})",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{date}}",
+        "{{quality}}",
+        "{{value}}"
+      ]
+    },
+    {
+      "key": "Fair",
+      "source": "Fair",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Poor",
+      "source": "Poor",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Brand display name is required.",
+      "source": "Brand display name is required.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Brand event delivery is not configured for this environment.",
+      "source": "Brand event delivery is not configured for this environment.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Certificate authority needs attention",
+      "source": "Certificate authority needs attention",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Certificate authority ready",
+      "source": "Certificate authority ready",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Certificate authority setup cancelled",
+      "source": "Certificate authority setup cancelled",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Check the HTTPS endpoint and signing secret. The endpoint must use public DNS and port 443.",
+      "source": "Check the HTTPS endpoint and signing secret. The endpoint must use public DNS and port 443.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud ownership changed. Refresh the cloud before trying again.",
+      "source": "Cloud ownership changed. Refresh the cloud before trying again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Connection interrupted. Retry the same invitation; access has not been confirmed.",
+      "source": "Connection interrupted. Retry the same invitation; access has not been confirmed.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Creating certificate authority…",
+      "source": "Creating certificate authority…",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Creating test devices and credentials on the server…",
+      "source": "Creating test devices and credentials on the server…",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Email is required.",
+      "source": "Email is required.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Initial owner email is required.",
+      "source": "Initial owner email is required.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Invitation canceled, expired, or membership already exists.",
+      "source": "Invitation canceled, expired, or membership already exists.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Membership removed.",
+      "source": "Membership removed.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Select the value to copy it.",
+      "source": "Select the value to copy it.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The invitation is invalid, expired, used, or the login account is not the invitee.",
+      "source": "The invitation is invalid, expired, used, or the login account is not the invitee.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The test bundle could not be created. Please try again.",
+      "source": "The test bundle could not be created. Please try again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The webhook service is temporarily unavailable. Please try again.",
+      "source": "The webhook service is temporarily unavailable. Please try again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to accept invitation at this time, please try again later.",
+      "source": "Unable to accept invitation at this time, please try again later.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Update status is unknown. Refresh before retrying; no successful update has been confirmed.",
+      "source": "Update status is unknown. Refresh before retrying; no successful update has been confirmed.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Verifying invitation…",
+      "source": "Verifying invitation…",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Webhook disabled. A delivery already in flight may still finish.",
+      "source": "Webhook disabled. A delivery already in flight may still finish.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Webhook enabled. The signing secret will not be shown again.",
+      "source": "Webhook enabled. The signing secret will not be shown again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "You no longer have permission to manage this cloud’s webhook.",
+      "source": "You no longer have permission to manage this cloud’s webhook.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Your test-device download has started. It contains server-generated private keys; keep it secure.",
+      "source": "Your test-device download has started. It contains server-generated private keys; keep it secure.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

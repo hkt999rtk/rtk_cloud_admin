@@ -36,6 +36,25 @@ test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and act
   await expect(page.getByTestId('billing-pricing-page')).toBeVisible();
 });
 
+test('[UI-CA-BILLING-010] billing labels, statuses and pricing follow locale changes @billing @smoke', async ({ page, isMobile }) => {
+  await login(page, 'billing_owner');
+  await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');
+  if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  if (isMobile) await page.locator('.mobile-nav-close').click();
+  await expect(page.getByTestId('billing-page')).toContainText('可用餘額');
+  await expect(page.getByTestId('billing-page')).toContainText('本月預估費用');
+  await expect(page.getByTestId('billing-page')).toContainText('月底費用預測');
+  await expect(page.getByTestId('billing-page')).not.toContainText('Available Balance');
+  await expect(page.getByTestId('billing-page')).toContainText('需要私有雲？');
+  await page.getByRole('button', { name: '服務定價' }).click();
+  await expect(page.getByTestId('billing-pricing-page')).toContainText('物聯網與訊息服務');
+  await expect(page.getByTestId('billing-pricing-page')).toContainText('MQTT 訊息發布');
+  await page.reload();
+  await expect(page.locator('[data-locale-selector]')).toHaveValue('zh-TW');
+  await expect(page.getByTestId('billing-pricing-page')).toContainText('MQTT 訊息發布');
+});
+
 test('[UI-CA-BILLING-002] simulator hosted setup and approved automatic top-up defaults are actionable @billing @smoke', async ({ page }, testInfo) => {
   await login(page, 'billing_owner');
   await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');

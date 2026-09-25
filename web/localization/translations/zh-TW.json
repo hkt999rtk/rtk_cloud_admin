@@ -563,7 +563,7 @@
     "Active stream": {
       "sourceHash": "87932b9a583b573fd5c54d27f102d66ba58063a87eb1c93fc996474de9257df9",
       "fingerprint": "0bbd9c175313094450c1570c6c41905f4f09eeab315f16d532124e8128bc616b",
-      "text": "活躍的流媒體",
+      "text": "使用中的串流",
       "status": "approved"
     },
     "Activity ID": {
@@ -1037,7 +1037,7 @@
     "Bind device": {
       "sourceHash": "d3fcb04552a65fade0ad2e8c386f1cdb33981adac9c52ee9ef9b0d04c763d9bd",
       "fingerprint": "621534b47415c806faef4b9adb3ce07e62e21f9764e0c38c7044b105fb17e93c",
-      "text": "繫結裝置",
+      "text": "綁定裝置",
       "status": "approved"
     },
     "Board": {
@@ -1751,7 +1751,7 @@
     "Confirm bind": {
       "sourceHash": "bcbfc2e96dceafa8dd7828f05916ac9490dc3970f5aa11863458978d5d7c9cbf",
       "fingerprint": "c95a9a51767c3ce303397f50f01ecd3dd33256bdb42020639392a2e1492371e9",
-      "text": "確認繫結",
+      "text": "確認綁定",
       "status": "approved"
     },
     "Confirm disable": {
@@ -1781,7 +1781,7 @@
     "Confirm test action": {
       "sourceHash": "a4ce1cbf3fa9b02282c8bc8c2b8287639cc938e5f60ede166868eb457a2b5a6b",
       "fingerprint": "eb348ecc7291522479dd07baa0e53d5a59d3d74459bd3f28b98057b098ce9500",
-      "text": "確認測試操作",
+      "text": "確認測試裝置操作",
       "status": "approved"
     },
     "Confirm webhook disable": {
@@ -1865,7 +1865,7 @@
     "Contains a private key. Save it securely before refreshing, leaving this page or changing Product. The server does not retain the private key. Retrying this download uses the same file and does not create another device or key.": {
       "sourceHash": "f13da2b1ff7c2864f16eec7256f2fd956c2c02c29aa947f75ac206079034768a",
       "fingerprint": "1f36c3aa617cc3b59bf517c9245234794e08cbaf4827b49c1feb987066ff8500",
-      "text": "包含一個私鑰。在重新整理、離開此頁面或更改產品之前，請安全地儲存它。伺服器不會保留私鑰。重試此下載使用相同的檔案，不會建立另一個裝置或密鑰。",
+      "text": "此檔案包含私鑰。重新整理、離開本頁或切換產品前，請妥善儲存。伺服器不會保留私鑰；重新下載會取得同一檔案，不會建立新裝置或新金鑰。",
       "status": "approved"
     },
     "Continue": {
@@ -2195,7 +2195,7 @@
     "Description": {
       "sourceHash": "a85bafeb569ea0f5f551b6c456efd17dd5dcce3d10c7cc998d56c9d406617c10",
       "fingerprint": "c47e9952da09800ba54883fa1d34ad1da2dff9f66c9c367201bd64c1f899a51a",
-      "text": "形容",
+      "text": "說明",
       "status": "approved"
     },
     "Description (optional)": {
@@ -2981,7 +2981,7 @@
     "Firmware": {
       "sourceHash": "ce6611e9a43d46a9eccbc9a93e9025486fa120e70eadeb0ca0a2733389b7a229",
       "fingerprint": "e0fe7e2f13f29c805b36ce87f46be9608d2deaadd9d5ac4230ed87b43b9fd564",
-      "text": "韌體中的程式）",
+      "text": "韌體",
       "status": "approved"
     },
     "Firmware Coverage": {
@@ -3293,7 +3293,7 @@
     "Health": {
       "sourceHash": "0ea048b73d5abea5585ad4087b3f3efe64025e862877bf2f5eaecda33b809af5",
       "fingerprint": "193f933990d731663294aecc5ba8b076a846c1953e9ca22d06bc03313ef1d0dc",
-      "text": "健康",
+      "text": "健康狀態",
       "status": "approved"
     },
     "Health details are temporarily unavailable.": {
@@ -3317,7 +3317,7 @@
     "Healthy": {
       "sourceHash": "e775b2bf03f13c48b2e565772122a057e29e86c9423684a272c78da9774e3b03",
       "fingerprint": "d9cde257721070f66fdd6882f7a97bf84bd0ae57a7bc40af83414aaf84ceea10",
-      "text": "健康的",
+      "text": "正常",
       "status": "approved"
     },
     "Here is an example of your invoice layout before tax. This preview does not reflect your account balance or payment history; tax is shown on an issued invoice.": {
@@ -3395,7 +3395,7 @@
     "I have saved this file securely": {
       "sourceHash": "494ebbc60748ff0d222d41e488b5b49c6f7be04bf284a95f3c86839dfa5b6641",
       "fingerprint": "8db70f91ddf26b8ffb2168c5882c098f6df7be93e3f9099449c10ed152610035",
-      "text": "我已安全地儲存了此檔案",
+      "text": "我已妥善儲存此檔案",
       "status": "approved"
     },
     "I understand the handoff and payment responsibilities.": {
@@ -3461,7 +3461,7 @@
     "If your browser shows only a blob: URL, the file has not necessarily been saved. Keep this page open and use Save file… if available. Do not create another device to retry a download.": {
       "sourceHash": "0f78fd50720ec03eea4f95bde4d30289071c51a76e5eea4f65ef656a5b48b83f",
       "fingerprint": "c4660bdc474dac208114a1d9ae1242cf656afb5c2887f7dddd6b577792c56da7",
-      "text": "如果您的瀏覽器只顯示一個塊：URL，則檔案可能尚未儲存。請保持此頁面開啟，並使用「儲存檔案」……如果可用。不要建立另一個裝置來重試下載。",
+      "text": "若瀏覽器只開啟 blob: 網址，請檢查檔案是否真的下載完成。保持本頁開啟；如有「儲存檔案」功能，也可用它儲存。請勿為了重試下載而另建裝置。",
       "status": "approved"
     },
     "Illustrative amounts only. Not a tax invoice or payment request. No charge is made by this preview.": {
@@ -3719,7 +3719,7 @@
     "Last 10 telemetry events from this device.": {
       "sourceHash": "3480874d4fae04ee7dc72007e101fa09cdc84fb1397f779c445b9d723ae9c4bb",
       "fingerprint": "455f5d5d08a09b77b100a912c1e7b903ee388cf263ba3724b4a062e651ca8398",
-      "text": "此裝置的最後10個遙測事件。",
+      "text": "此裝置最近 10 筆遙測事件。",
       "status": "approved"
     },
     "Last Stream": {
@@ -3731,7 +3731,7 @@
     "Last seen": {
       "sourceHash": "b017df4517a257fca7528e2794ad4772c67f976b3ebd7d20ce8379a842e5ab1b",
       "fingerprint": "da501321cbf18b5890a1b575307175835a674c1a52291238f8195c4c89fc34ae",
-      "text": "最後一次見面",
+      "text": "最後一次上線",
       "status": "approved"
     },
     "Last success": {
@@ -4379,7 +4379,7 @@
     "Need Private Cloud?": {
       "sourceHash": "f7abcbf959c8f089f95148fbfd555ebe5e86da2351d04cb594620a7a8cd4241a",
       "fingerprint": "2612c094a0b93b0bf29a4595dba65f4ff74d14ae4fb5a3ea3126a642aefb84d3",
-      "text": "需要私人雲？",
+      "text": "需要私有雲？",
       "status": "approved"
     },
     "Network": {
@@ -5639,7 +5639,7 @@
     "Provision": {
       "sourceHash": "164ea4cbe294764c2c9d7d8340593b92278306dce6801c086dc19809be593a87",
       "fingerprint": "67ef36c6eea639ad69b6391bd89ec225a0c8d0379d684a48e24b4ece3bd8c765",
-      "text": "供應",
+      "text": "佈建",
       "status": "approved"
     },
     "Provisioning and deactivation commands projected from account/video contracts.": {
@@ -5759,7 +5759,7 @@
     "Readiness / Source Facts": {
       "sourceHash": "73c28bb7afd0d09f431863b69c58352ea1fa4df011caf6a9ef9d0f2f107d6616",
       "fingerprint": "4ae6c5089d470587cda55de3cfa5e73d9b8957fada66047f82a77b4b6922bf21",
-      "text": "準備狀態/來源事實",
+      "text": "裝置準備狀態與資料來源",
       "status": "approved"
     },
     "Ready": {
@@ -6929,7 +6929,7 @@
     "Start provision": {
       "sourceHash": "ce7f9876d2d09f11cee4d141fa2bf1c8fba238150ca395139356d8b79de37973",
       "fingerprint": "549064a3fc787a26d3117e8547a8bc81ee8a3f7ebeac21dade315f5f8b4e96b7",
-      "text": "開始提供",
+      "text": "開始佈建",
       "status": "approved"
     },
     "Start with read-only access to selected Products. Choose entire-cloud access only when the collaborator should also see every current and future Product.": {
@@ -7145,7 +7145,7 @@
     "Tenant slug": {
       "sourceHash": "6a6562740951e6bd35cc6fd97bdc606ad10340859e941cec0719746a12fa91a5",
       "fingerprint": "945612955c53460bb43014a07885bd5f9337db2965c0def96595d733e015b94c",
-      "text": "租戶蟲子",
+      "text": "租戶代碼",
       "status": "approved"
     },
     "Terms": {
@@ -7643,13 +7643,13 @@
     "Unavailable": {
       "sourceHash": "187b5d02d6b6a813038d13a4b2e3488b8ee56bc18925d6c2dc94ccb9aba369ee",
       "fingerprint": "1a427cd7b7525633315b6c689e4f89fa3b4d51ca59bacbd5ab92943b263d6d44",
-      "text": "無用的",
+      "text": "無法取得",
       "status": "approved"
     },
     "Unbind": {
       "sourceHash": "6732c9d1490cc91cd33a49fef9073e6d9d70d74f89131a9c44899788c2fb9ed4",
       "fingerprint": "ef3891ac44446dc722cba994b63a0f5cb76b60529f1acc45674bcd2273cf1180",
-      "text": "解開",
+      "text": "解除綁定",
       "status": "approved"
     },
     "Unbound test device": {
@@ -8717,7 +8717,7 @@
     "Connected": {
       "sourceHash": "ec02787fb330ace08cd785b6fd0e4e718751bd506ed3839eda2a70f068a78656",
       "fingerprint": "611bcf213db17872cbc4da54ab5338a0ae261cc964e25b30803d6f151cd0371c",
-      "text": "連在一起的",
+      "text": "已連線",
       "status": "approved"
     },
     "Contact an administrator": {
@@ -8807,7 +8807,7 @@
     "Disconnected": {
       "sourceHash": "cb45f41449f4ad01d0ca4afd26e5513c0422fac7e730e444ac7dffe5241a7d5b",
       "fingerprint": "8d5d0b9102cbfcac51d828b33cd40a5f3ba2d4acd2ae90548b9a8d8dc15d7566",
-      "text": "無聯絡的",
+      "text": "未連線",
       "status": "approved"
     },
     "Enable webhook": {
@@ -9035,7 +9035,7 @@
     "No transport evidence": {
       "sourceHash": "5f8440d6595827e359754e0647eb2bf68b8a09e64adbb4af3a340a9db9582e34",
       "fingerprint": "fa79847fd393ee5db79d9e191b5535b5ced9bf749e67512261a59b1f32a30541",
-      "text": "沒有運輸證據",
+      "text": "尚無裝置連線紀錄",
       "status": "approved"
     },
     "No update time": {
@@ -9047,7 +9047,7 @@
     "No update timestamp available.": {
       "sourceHash": "1d5f84290dd62eeac0a76f94a25d75318585ff06e96ada4b81a9f2f54aed7d5d",
       "fingerprint": "9cc5a071266e0b540db73dbc265ba0917cbb474eaea9fbe23d5557942e6b0b3f",
-      "text": "沒有可用更新時間戳。",
+      "text": "尚無更新時間紀錄。",
       "status": "approved"
     },
     "None": {
@@ -9263,7 +9263,7 @@
     "Ready to download — not yet confirmed saved.": {
       "sourceHash": "7ef767fb375190637851a7bbefc922ca799edaf6ddda76c8c6d6b410f2cb8a38",
       "fingerprint": "80ebf5e7a7166811afd4404abba69f98300f6e355b59c2e580c77590a05382a8",
-      "text": "準備下載——尚未確認已儲存。",
+      "text": "檔案已備妥，尚未確認儲存。",
       "status": "approved"
     },
     "Recent audit": {
@@ -9353,7 +9353,7 @@
     "Saved — download remains available.": {
       "sourceHash": "eae600ef86986eeac68af8e1e2eb84a02d9ad6afb7304354fbe2cbb5a4214e41",
       "fingerprint": "a3bd3bce8edc5a311684911be1445e682992e0a9fdab313411110907136322d6",
-      "text": "已儲存——下載仍然可用。",
+      "text": "已確認儲存，仍可再次下載。",
       "status": "approved"
     },
     "Saving": {
@@ -9713,7 +9713,7 @@
     "device credentials": {
       "sourceHash": "de7596bdad67187638a1361892101a6c3e2cea72bd924ea953bd3e4a14ace8ac",
       "fingerprint": "69c5781902e4852eb23b8aa9f82b750c2387b9a98e8b7185152da62ec85bced9",
-      "text": "裝置憑據",
+      "text": "裝置憑證",
       "status": "approved"
     },
     "document": {
@@ -9743,7 +9743,7 @@
     "provision key": {
       "sourceHash": "afac025a85f2728e92cce2688744e35705cca1593304f6b91620b8cbdc07dd32",
       "fingerprint": "e40429d90cc6c3eba0e0ad411894850fdd109d37ed620bed0b7bb3e39c063631",
-      "text": "規劃金鑰",
+      "text": "佈建金鑰",
       "status": "approved"
     },
     "the Shadow name format is valid": {
@@ -10373,7 +10373,7 @@
     "Active stream status is not provided by the source.": {
       "sourceHash": "6963b96d23ffc6080f0dd2b2cd271cde6f27b06d98d2e4cc5c3f76d6117c0143",
       "fingerprint": "30999b31ecd402d9083e05ed974412f318d11ab0587bec36af9b804cfe9b4200",
-      "text": "源沒有提供活躍流狀態.",
+      "text": "資料來源未提供串流狀態。",
       "status": "approved"
     },
     "Actor": {
@@ -10451,7 +10451,7 @@
     "Device credentials ready": {
       "sourceHash": "7165f43601723d8524bbb327d1cd660b3f92974c5495fc6c324ad7b41c821df6",
       "fingerprint": "d9ff4ad4494551e05f2f9b78279e6eabccc6e6a7de679f8ce4abeef6fad6f63c",
-      "text": "裝置的身份證已準備",
+      "text": "裝置憑證已可下載",
       "status": "approved"
     },
     "Device operations manager": {
@@ -10619,7 +10619,7 @@
     "Provision key ready": {
       "sourceHash": "96779f19d9ffa483dcac486e80e39e42b62dc567fd2333e0530d6122e38ee490",
       "fingerprint": "60716e764edce0334b7861317669b86863afec5f3fa39b517903fe3db399a7a9",
-      "text": "預備鑰匙準備",
+      "text": "佈建金鑰已可下載",
       "status": "approved"
     },
     "Read media or firmware from storage.": {
@@ -10697,13 +10697,13 @@
     "Stream source reports an active session.": {
       "sourceHash": "0e1ecc366b790aeec98c95d043c0d90f6e36c7433e2a4407f67f7d2e3a55d441",
       "fingerprint": "73b8b189570046f6057fa66c29672b44917d03a4ba63c46d1d44aa16bb5ada84",
-      "text": "流源報告一個活躍的會議.",
+      "text": "串流來源顯示目前有進行中的工作階段。",
       "status": "approved"
     },
     "Stream source reports no active session.": {
       "sourceHash": "c46dbd5f821c2556336224e95b0a04402245cd1c495f8d3b9ea084f1a42dfa7f",
       "fingerprint": "170183cba543c5940491791ccfc38e806a87c351684173bfb1d696a9cef3108a",
-      "text": "流源報告沒有活動會議.",
+      "text": "串流來源顯示目前沒有進行中的工作階段。",
       "status": "approved"
     },
     "Targets Down": {
@@ -11723,7 +11723,7 @@
     "Last seen {{value0}}": {
       "sourceHash": "d0361e46f539d2af61ac8a63e7e6f53f0bf8aeac6c475a0e810f801c3d4a1289",
       "fingerprint": "32210b557a2c07cbed700a2547340fd47fc6523edb47241112f4627a31f3564e",
-      "text": "最後見過{{value0}}",
+      "text": "最後一次上線：{{value0}}",
       "status": "approved"
     },
     "Last updated {{value0}}": {
@@ -12528,6 +12528,1500 @@
       "sourceHash": "526ac5a16a318db17fc4aa9f91b10a16a1dd69b43fa89e2b86d2b1f4bab4bb1c",
       "fingerprint": "640afd2793a7d0217d9e35d3078f931eb30a2ee3cb1dd68b6015697eada48105",
       "text": "等待中",
+      "status": "approved"
+    },
+    "1 million deliveries": {
+      "sourceHash": "3ac2717ae9d7df6635940f0349f01a64fcddaa8734c766dfad2cf67383cc1897",
+      "fingerprint": "56a6944031f75575d2d26b01f02efd68612f020d87cbca42dc8107509606ec17",
+      "text": "100 萬次訊息投遞",
+      "status": "approved"
+    },
+    "1 million messages": {
+      "sourceHash": "66ec98d667f21ef2dcb7cee9e0a7279c650f526d10f3f00af84bbf3369afa118",
+      "fingerprint": "0826c8df79ed083c5cb16dd396c56a4c344da2453855395d0113276808388fa8",
+      "text": "100 萬則訊息",
+      "status": "approved"
+    },
+    "1 million operation units": {
+      "sourceHash": "90a6fb0d5322f210a716634d341d5550b8cc2cf3fa468b7d97908e4ccb92e656",
+      "fingerprint": "9b4ed4ed416dcc780ed599b9f3f970f74223f4bb3898b23c1e28a014b036f5f5",
+      "text": "100 萬個操作單位",
+      "status": "approved"
+    },
+    "1 million read operations": {
+      "sourceHash": "fb7b06c3bc9fce3dbba6cad2b448687ca229bc9bef419e8d2c9d5e9c325f3beb",
+      "fingerprint": "947bdf2d92dd031c74fe712adb2ff3300248268ff5be530ef6d7a2736848f673",
+      "text": "100 萬次讀取操作",
+      "status": "approved"
+    },
+    "1 million requests": {
+      "sourceHash": "3281720c00c6e2d9c2de58240e2150d9192b3eb3a11fdb6f9082b970029db71b",
+      "fingerprint": "dd2e5129c27962cf7c8397edb262e2f3cc9aa8c8613c71b19d83702919b57b5e",
+      "text": "100 萬次請求",
+      "status": "approved"
+    },
+    "1 million write operations": {
+      "sourceHash": "4d092f6ff48eae1ff9006db842ca118a4163a7bd640b22aa23d05087e1788655",
+      "fingerprint": "a7311e9a080b0184879955b4ae4de1a1ae6ce0b883b598140f9c5a8846b825e6",
+      "text": "100 萬次寫入操作",
+      "status": "approved"
+    },
+    "1,000 device tasks": {
+      "sourceHash": "1cbe2b35df8ebb1da2430db2cc6a82a62c7f54badd6599f8beef0f4b428fe4a9",
+      "fingerprint": "d2783b8071e3bc3afb9df16540d7ea95cf502bc7c2e0dfbb5b5e4276fea49083",
+      "text": "1,000 個裝置任務",
+      "status": "approved"
+    },
+    "AWS Device Jobs example, first 250,000 actions. US$3 / 1,000 actions.": {
+      "sourceHash": "38c01b5ed69051882077fdb9ae04a4d8f39d4657167fac1b485f24997544cd9a",
+      "fingerprint": "98b0bdce563213c6d6ce2160f53c3a63587ca78ebaf285a15ac1791ce1fa6fdf",
+      "text": "AWS Device Jobs 範例：前 25 萬次動作，每 1,000 次收費 3 美元。",
+      "status": "approved"
+    },
+    "AWS example, first 300 million monthly calls. Backend processing and data transfer may be additional on AWS.": {
+      "sourceHash": "c67024ac1fc2ef15a5c5f783802ec72b59ead58471fb0320cf87f16b95c2a132",
+      "fingerprint": "540f9bbe812ab31698c5116725ad81cb506f3c4f7fe2bf140dbc066df3a79fff",
+      "text": "AWS 範例：每月前 3 億次呼叫。後端處理和資料傳輸可能另行收費。",
+      "status": "approved"
+    },
+    "Account Manager records": {
+      "sourceHash": "7ee3f34dce1bd613561d66624350804f87437b67044d77875dbd32023972635e",
+      "fingerprint": "d9fbd1e294c300b1db9b6e07416cb0dc7656c0eb23d6a47056b25429ae2ad08c",
+      "text": "帳戶管理員紀錄",
+      "status": "approved"
+    },
+    "Account {{status}} · Last updated {{date}}": {
+      "sourceHash": "a4a19c25912aab4a9fcc9b28e658beae6101de1c86fcb706551a0fb7d2de978a",
+      "fingerprint": "2964ef3165d633b2d5dfd76e11d5f3cbe4d20d37bd99fdb34d23c0201422bd98",
+      "text": "帳戶狀態：{{status}} · 更新時間：{{date}}",
+      "status": "approved"
+    },
+    "Akamai lists US$0.02 / GB-month. Proposal includes service operations; provider minimums and free tiers differ.": {
+      "sourceHash": "b9a692b18c07f548f60cb8431f8d92cab03cab715e531b71eb9ec38e6ef9fbc2",
+      "fingerprint": "eface0fb1aa6ceb9359b7d4352251dbe3238a1e10341f0a80b7f10cade03638b",
+      "text": "Akamai 標價每 GB 月 0.02 美元。本提案包含服務操作；供應商的最低用量和免費額度不同。",
+      "status": "approved"
+    },
+    "Already up to date": {
+      "sourceHash": "c8861ba8d900e0a657ec2b96b2981ef70b299c4376e2f1748486d271235c7daf",
+      "fingerprint": "5b3a8e6e621ce88cf2997a77483ee752ea691638b4f7efe2a82a329a00259d09",
+      "text": "已是最新版本",
+      "status": "approved"
+    },
+    "Application API requests": {
+      "sourceHash": "d82fe97bd2e5054365790d7d94913a2391de4f24a1527ba31ea8243d12b13782",
+      "fingerprint": "a9fb13954024469dc036ca90610e0a64e7da76767e62f423d0727089f91e130f",
+      "text": "應用程式 API 請求",
+      "status": "approved"
+    },
+    "Approximately {{amount}} remaining · {{confidence}} confidence": {
+      "sourceHash": "f975978e0168e48a9ce92214ffe429765105852fda4d46083ab1f971b5c3d44a",
+      "fingerprint": "4c82bd7c0185ef23e96fae6747ba5fe117c7c8ee499b1dec9176368033e9ef81",
+      "text": "預估尚有 {{amount}} · 預測可信度：{{confidence}}",
+      "status": "approved"
+    },
+    "At least one complete observation day is required": {
+      "sourceHash": "ee1706d786e7b0a2bde27196c863f24f08bb5877e72d0df34183ced58ae9076f",
+      "fingerprint": "0ba60e1b7b8593a0461e48c213a5be13db4e9e83928510fff9370bc4c3b5fbd2",
+      "text": "至少需要一整天的觀測資料",
+      "status": "approved"
+    },
+    "Available Balance": {
+      "sourceHash": "ec75c242e84901dd4f0d9a3e3fa49cc09e5ea7bd37ba681b132d3cf4ff89ba40",
+      "fingerprint": "81affd28d5827f2185feb4a344af2c2d5a54c924617408bed27e984c839f756e",
+      "text": "可用餘額",
+      "status": "approved"
+    },
+    "Available after at least one complete observation day": {
+      "sourceHash": "b924fe34abf6827958b40fb1ae1f630bfa1585037646d6400c06b98e17dc969a",
+      "fingerprint": "e1b4c75531346065469d833df26543164e7d9dc8e296fab20ef5ee7a8611f0e6",
+      "text": "累積至少一整天的觀測資料後即可估算",
+      "status": "approved"
+    },
+    "Average daily cost {{amount}}": {
+      "sourceHash": "a18fccda88287ca69521a9d13fff9b45a6d8b5fa146cba0d7f09a326c50de2b9",
+      "fingerprint": "7670dfa1e97c811725e231a31b00ad884d156c4f91b7ff34d58b992e59313405",
+      "text": "平均每日費用：{{amount}}",
+      "status": "approved"
+    },
+    "Average stored bytes over time, prorated by retention. A 10 GiB object kept for 15 of 30 days uses 5 GiB-month. Logs use the separate retention rate.": {
+      "sourceHash": "693cea7fc32aaa147c61c8dbc70b72abf99635484a18203cc20250ef23889b86",
+      "fingerprint": "044c86d04787803334b60732e91bf19e767d09d612170453b628538f09b0feed",
+      "text": "依儲存容量與保留時間按比例計費。例如 10 GiB 物件在 30 天中保留 15 天，計為 5 GiB 月；日誌另依保留費率計算。",
+      "status": "approved"
+    },
+    "Balance Runway": {
+      "sourceHash": "880bd2796a4cf0cd6d8f130571fcde395982f9b02f9639e210763db5618de630",
+      "fingerprint": "3dc7bef3baa5c708dbb0752e9ba1fd70e1bf27ba2b359d4b5731c75c45895603",
+      "text": "餘額預估可用天數",
+      "status": "approved"
+    },
+    "Billing Overview": {
+      "sourceHash": "c10ae760308b609fa8879ba2abdb0e2ee96f494ac70ae1a3e35c295844e033f1",
+      "fingerprint": "858e65fa8dfa178dcb230f946ba6a0cbc5066710ad7c58e6150ae54bda66eaa5",
+      "text": "帳務總覽",
+      "status": "approved"
+    },
+    "Billing Profile": {
+      "sourceHash": "542529cff638edbfce69d3a2aec8d9f009732cb55e47b03d174b149425144a64",
+      "fingerprint": "cfd66a1fc4440ff06d77f298a6945487a169213967ae0af3551a249e989c15e5",
+      "text": "帳務資料",
+      "status": "approved"
+    },
+    "Bind {{deviceName}} ({{deviceId}}) to {{email}}?": {
+      "sourceHash": "495829d799c6068b9b880bd07c9341623e928cd9099d4ea9ca99b487f4d2900d",
+      "fingerprint": "612a76747fca0067c85061e4b9053b66a2df70cd4a46decf93a05208ca986f8b",
+      "text": "要將測試裝置 {{deviceName}}（{{deviceId}}）綁定至 {{email}} 嗎？",
+      "status": "approved"
+    },
+    "Canada Central example. A 1.5 KiB state operation would use two proposed RTK units.": {
+      "sourceHash": "47cefa734c2ec61c4f8f9983afd1eeb8b76d9ce2ec4d7980d4e084312cc6281a",
+      "fingerprint": "838b64c30f06bf5df85efeaac0cce3becc5cc9b3bffef61a46b2aec529eb34d8",
+      "text": "AWS 加拿大中部區域範例。一次 1.5 KiB 的狀態操作，依本提案計為兩個單位。",
+      "status": "approved"
+    },
+    "Canceled": {
+      "sourceHash": "3de5cef60f65ca56533698aa0063111656690a8d019f159b75821ba2f7f87b4e",
+      "fingerprint": "d74dd2d2d278eacb68da7ada4564165b28439ecd21f309be9d99ab010b7cf56b",
+      "text": "已取消",
+      "status": "approved"
+    },
+    "Cannot be estimated yet": {
+      "sourceHash": "c9399fdb1b4e85e249b49571fbe6ce928703abf328283526d6ee11e453797429",
+      "fingerprint": "420286609d210bf465ef0e59c722865f2ad5c7fe7766bf9280357c833b58519d",
+      "text": "目前無法估算",
+      "status": "approved"
+    },
+    "Core regions; distributed regions list US$0.01 / GB. Object Storage includes 1 TB egress monthly. RTK price includes managed delivery overhead.": {
+      "sourceHash": "d0a193b3d99484354cac606baafb7ad049153794e685def14ac3c7c19ad7739d",
+      "fingerprint": "cbbad95c1280981bea045cab27cdfb9ea71cfebe6bfe333c44a44960a6c994c2",
+      "text": "核心區域價格；分散式區域標價每 GB 0.01 美元。物件儲存每月含 1 TB 對外傳輸；RTK 費率含代管傳遞成本。",
+      "status": "approved"
+    },
+    "Count bytes sent by TURN to recipients, including each viewer. Relay processing is included. No extra minute or download charge on these bytes. Direct P2P media is free.": {
+      "sourceHash": "11452974f33c021e095c555b45a7d6ee184a7954c0dfae9a1fdd57a0d6ffd5de",
+      "fingerprint": "b4542635c8f278a25ca1bea13d64f8b0018a41f83dd692ebc24037ca551975c4",
+      "text": "計算 TURN 傳送給每位接收者的位元組數。費率已含中繼處理，這些流量不另計分鐘或下載費；直接 P2P 媒體傳輸免費。",
+      "status": "approved"
+    },
+    "Count each accepted publish once. Payload traffic is included; no separate MQTT bandwidth fee.": {
+      "sourceHash": "d0742a6687cfa79f45ad121e0432d37caa9bdb3d3591495b840267c197489e8b",
+      "fingerprint": "e490e5fb4bf40e7486997afe4c2c06018573f3d0b73d2268cd30906fc3c06532",
+      "text": "每次成功接收的發布計為一次。已含訊息內容流量，不另收 MQTT 頻寬費。",
+      "status": "approved"
+    },
+    "Count outgoing file bytes once, including retries and multiple recipients. Excludes TURN and MQTT traffic. Inbound transfer is included.": {
+      "sourceHash": "0b375fc7dd1f22d167364a752091efc03ebbafe50055d65f71b8867d819240fd",
+      "fingerprint": "3bbd2c6188e9cd8e013be863cf8139ec20aabec172aee29a9e664646d35a22aa",
+      "text": "依對外傳送的檔案位元組數計算，包含重試及不同接收者。不含 TURN 和 MQTT 流量；傳入流量已包含。",
+      "status": "approved"
+    },
+    "Count successful data API requests only. Excludes Shadow, WebRTC signaling, OTA task dispatch and object operations already covered above. Console administration and authentication are included.": {
+      "sourceHash": "9ca48be8887aebc0790a864899da2c46279f2966dd2ca2d7dda39a0c21d27dbf",
+      "fingerprint": "fdd2cfdaf0561f507a0bbf06129d92a6e9b375ae0354b5f029386981c287e3b0",
+      "text": "僅計算成功的資料 API 請求。不含已在其他項目計費的 Shadow、WebRTC 信令、OTA 任務派送和物件操作；主控台管理與驗證已包含。",
+      "status": "approved"
+    },
+    "Count successful object GET and HEAD requests; each range request is a read. Delivered bytes use the download rate below.": {
+      "sourceHash": "beabd762a0fdcd94a166e5190114e44ec770d3c62682f64ec15b2ff4889e2327",
+      "fingerprint": "4394bbe3e989c5bb87cfd724c89c298bbd33a274e6fcd5bdbac025c35997a094",
+      "text": "計算成功的物件 GET 和 HEAD 請求；每次範圍請求計為一次讀取。傳送位元組數另依下方下載費率計算。",
+      "status": "approved"
+    },
+    "Count successful object writes and multipart part writes. A multipart completion is one further write. Upload bandwidth is included.": {
+      "sourceHash": "6a7cc4c1eb331aecb79f802dbb433c5bcf9a515109c2eedfbd1a392e6cde5cef",
+      "fingerprint": "67f16e1642a666ffa6240e32f3245ae9ef4cf4a4e525df1da55024749a0a7d0e",
+      "text": "計算成功的物件寫入及分段上傳；完成分段上傳另計一次寫入。已含上傳頻寬。",
+      "status": "approved"
+    },
+    "Create one test device and prepare its private key and certificate for download? Save the file using the download panel before leaving this page.": {
+      "sourceHash": "63325bdebcd72c1e0ef3d9c951f0039711338378c6df7c3851f371ad02af9edd",
+      "fingerprint": "14d93234e1872c69a059228b9a4c59de9ebd7e5f60d74b48303cb8cf63e566e1",
+      "text": "要建立一個測試裝置並產生可下載的私鑰與憑證嗎？離開本頁前，請先在下載區儲存檔案。",
+      "status": "approved"
+    },
+    "Current target version": {
+      "sourceHash": "b134de467e20e1cf99a34342a898575615ba678b1da5f3fb01f9a79b13eeadd7",
+      "fingerprint": "47b1dbf56404375a10fb2d256824921c76d868795bb4159bcdf330500c32c2d1",
+      "text": "目前目標版本",
+      "status": "approved"
+    },
+    "Declined": {
+      "sourceHash": "c468da1b687078a762852fd8f0096bb7b37904ea301cdb6df5221ab85d03f155",
+      "fingerprint": "af8d534a0eb622050f31ba2beb05102302a77f8d4d913af4e6075e56cb37449c",
+      "text": "已拒絕",
+      "status": "approved"
+    },
+    "Device and application logs": {
+      "sourceHash": "526dd2d6a7ec40d07e9fbc10ca2b0b0c5437e3e654f498ff517aa0b6af1b9d72",
+      "fingerprint": "2aca5dfad9186b6c51c602d63e33b5700c09a8c3c257bacd0561f92b5f3578a6",
+      "text": "裝置與應用程式日誌",
+      "status": "approved"
+    },
+    "Device operations": {
+      "sourceHash": "d6e7b82dd592771afcb96663955cfbdfc180e819a196e84fa9d88b4ac31cc4e1",
+      "fingerprint": "0d6197c50dae6179893fe1d0a0f23f1c31cf0a7b92fc57d8381e0c3cb163e332",
+      "text": "裝置操作",
+      "status": "approved"
+    },
+    "Don’t enter a card number or CVV on this page": {
+      "sourceHash": "4eeb8266959668d06b51e30df8ade22b5a342ec792cc3638e76740fd8b6572a5",
+      "fingerprint": "b36b84ec78a057075ef94c9059605953df188e04fb708f7e93af7bf2129e2925",
+      "text": "請勿在此頁輸入卡號或安全碼",
+      "status": "approved"
+    },
+    "Download help": {
+      "sourceHash": "1013d3bec2772a4447074944fea504f244d28c329e5646a83e4077130d03769d",
+      "fingerprint": "77de7ceb451f5d5b71dc227bcdac2bd3ff3c8eccf78ed75d57ed018e955d827f",
+      "text": "下載說明",
+      "status": "approved"
+    },
+    "End-of-Month Forecast": {
+      "sourceHash": "0edd9e4f252aa5c90658b61332fc02cce45993253b874cea02fac607200726da",
+      "fingerprint": "3a0688acdbbec412114dce2ad88b6612ef1195514a938ae10791c9c82f5e9eb3",
+      "text": "月底費用預測",
+      "status": "approved"
+    },
+    "Estimated Cost This Month": {
+      "sourceHash": "7bad06d6de0b09cf66eb2f0ce406a8c1572148f4a364eabdc5eee9abb4a2ecee",
+      "fingerprint": "e9bbf785105878b253b609f5e933745f046a72ddf17cb3a287fcc2953113f478",
+      "text": "本月預估費用",
+      "status": "approved"
+    },
+    "Estimated availability {{days}} days": {
+      "sourceHash": "73b6b57e7d03b9fc9d5c9020ac29e455f45e9b55a922b18452f9ddce958029f0",
+      "fingerprint": "50fc7d47cfeb81359b0fb7973a11a90dc7dad9cb0e3ef9004a543e9caca3253c",
+      "text": "預估餘額可用 {{days}} 天",
+      "status": "approved"
+    },
+    "Firmware OTA tasks": {
+      "sourceHash": "5c0414d1cf2bbcaadb43b9cbd216ed2318738f6decb6b281c3a00769f26f2dce",
+      "fingerprint": "c31b4727fdd431312663f503ab54e5ca6e929d248993776f0a11b3d02fd65d9d",
+      "text": "韌體 OTA 任務",
+      "status": "approved"
+    },
+    "From {{date}} · Estimate": {
+      "sourceHash": "1ae4335f170cf09fb484e7500b46c6294c448686683a8491b430fbc790663432",
+      "fingerprint": "118473c0e19f2e4aa4d4772e51cd4f120e4302caac762b55f616885acb40649c",
+      "text": "自 {{date}} 起 · 預估值",
+      "status": "approved"
+    },
+    "GiB delivered": {
+      "sourceHash": "e785c389cda287d972280bbccb26164b81dca1ece6dc1185395522bb6c59548f",
+      "fingerprint": "17461acd286603ecf4a4a10ca134140c743f2fac1950ee4b286c3cb47df5f60f",
+      "text": "GiB 傳送量",
+      "status": "approved"
+    },
+    "GiB ingested": {
+      "sourceHash": "4dd4dc4a7718df3e78c12b0bfbc6a325a4009a8dbd71bb27191485a9ac6bc50c",
+      "fingerprint": "03a2662d044830a19e4004144995436abe1cd30bdba5206db5e78e2363cf97b0",
+      "text": "GiB 收錄量",
+      "status": "approved"
+    },
+    "GiB-month": {
+      "sourceHash": "e20a2395a71e42b66bd0e82be97b98effddd448186ad9299067a737cfc6abbf8",
+      "fingerprint": "83119bafe81291998f82ff7ec897c74c8b0fc2683a205487234e7b7432f0ab7b",
+      "text": "GiB 月",
+      "status": "approved"
+    },
+    "Includes succeeded, failed, reconciliation-pending, and processing states": {
+      "sourceHash": "b2fdd1bfaf1e364c56ba0c3d22e919c87ad169ae967cba56673b7813871dbfe7",
+      "fingerprint": "0c3befec8998fbabd34915b70fb866c47fdeaffc6853962789a81ced08789850",
+      "text": "包含成功、失敗、待對帳和處理中狀態",
+      "status": "approved"
+    },
+    "Insufficient data": {
+      "sourceHash": "a929af2616ba935a9ef6f5aae37e4a525bc0898d3399333b5e68e74c3a683385",
+      "fingerprint": "223b7da84acb4112d91d720a24fd22281937b30730626e9d2ac0260a6271c518",
+      "text": "資料不足",
+      "status": "approved"
+    },
+    "Insufficient usage to estimate available days": {
+      "sourceHash": "8bdc2bb8de1d46573e4a54f56c252650e28efba3145a03a5a4f12bbfff91c072",
+      "fingerprint": "c0f96ba457c165c74b50bfa5b70434a3d53b31eb5d8978a1b51e3d210c7fc8fb",
+      "text": "用量不足，無法預估可用天數",
+      "status": "approved"
+    },
+    "IoT Shadow": {
+      "sourceHash": "f7acd6c879e74bd2128a1dcdf17eef3a9c4dc03eb9a2a1881f27b0db256bca9d",
+      "fingerprint": "c51f7cbd74820b7706b3bcb120be709d63d84a2fb8e11bb1ef8a628332dee473",
+      "text": "IoT 裝置影子",
+      "status": "approved"
+    },
+    "IoT and messaging": {
+      "sourceHash": "385e6d6c3a0c78fcd385347f72ab61dfd196ebb761896e4ba9e58503945e3cef",
+      "fingerprint": "be41594ed33d3b6bc708ec253713e2db7a712fb9876ca5669a7fad1321c92b84",
+      "text": "物聯網與訊息服務",
+      "status": "approved"
+    },
+    "Ireland, first billion units. AWS also charges publish and delivery separately.": {
+      "sourceHash": "9ad0d9c6860b8939407b211a2337d870714533b3894e2d977522dbb23d8317fa",
+      "fingerprint": "ab78766a8e1cdc5e8ec4f5fd19fe2b3303d7b328a84bc14f694f4f0d051b00e0",
+      "text": "AWS 愛爾蘭區域，前 10 億個單位；發布與投遞分別計費。",
+      "status": "approved"
+    },
+    "Ireland, first billion units. RTK proposes raw message counts, so large-payload prices are not directly equivalent.": {
+      "sourceHash": "f657e8b0b0d0c205b46351c73a6392b43f1e60a34838caf2c9c63ce424033df8",
+      "fingerprint": "abdf3f1a1c3a82b94c0bdb595c13be1ca64a7311ea6c1fa391633da310dadcdb",
+      "text": "AWS 愛爾蘭區域，前 10 億個單位。RTK 提案按訊息則數計算，大型訊息的價格無法直接比較。",
+      "status": "approved"
+    },
+    "Issued": {
+      "sourceHash": "9822c1635d335de4cea3887efc5072f86eb9431e3b8efc95a952a3d5a8cfeda4",
+      "fingerprint": "f3039242d325fe4c0e93fb3be3d4e77577a12895054ca0893d51e126ddcad9b2",
+      "text": "已開立",
+      "status": "approved"
+    },
+    "Last successful sync": {
+      "sourceHash": "2f443894664540eb2d432f50d7e551965725b81a961d2dc55a3b22b8d28da375",
+      "fingerprint": "1786b40a54cee023e3221b129c449918dd1b281171933db087813a52bc46e4dd",
+      "text": "上次成功同步",
+      "status": "approved"
+    },
+    "Latest version": {
+      "sourceHash": "a36e3b9908ee545247277de5a5b2ef67b3a4e5fa6a9c3b83ebc87ae64cb66995",
+      "fingerprint": "6f697bea03505465982a7922c6cd33fb63cc101e0c082b5792fab7a7b754840f",
+      "text": "最新版本",
+      "status": "approved"
+    },
+    "Live video": {
+      "sourceHash": "d0c052bdf8ce9eaf7486294a50b9912e65cfaee3416bddf533716e6d1cc2729b",
+      "fingerprint": "e4439fcf069f38663b6e4ec67cd0ddf00ead3949a17ba2492f382aab669cab61",
+      "text": "即時影像",
+      "status": "approved"
+    },
+    "Log retention": {
+      "sourceHash": "40650cfb57a5e92f5d2fb8b73692018cd4cc09d06c1e78b9f449ca5ea9e6738f",
+      "fingerprint": "37f9eb34330b17b924f1a86ea429bbdba0c76caac4a76d81530b432da4988627",
+      "text": "日誌保留",
+      "status": "approved"
+    },
+    "Low": {
+      "sourceHash": "9eb010edba5be507395a4617c52a0afe7f232bbaa1e133d7111d72fc39313f1b",
+      "fingerprint": "d7a394f52f0672ca9309555d1fdc3f97c1dbc500048ffe6148b20f2d5206fa08",
+      "text": "低",
+      "status": "approved"
+    },
+    "MQTT deliveries": {
+      "sourceHash": "71ba313605bf7777c2ea8c56a6382425bbfe233839186ed2aa21891363bc06f8",
+      "fingerprint": "36149a7e6b245f2ff8b4301118a3bbe9d2b4897436e8174e1a727eb91b6ac492",
+      "text": "MQTT 訊息投遞",
+      "status": "approved"
+    },
+    "MQTT publishes": {
+      "sourceHash": "b6f23ffff5f00577a6684d39ee5639f9a089938d88ee17364e0e6e49b2bd51bb",
+      "fingerprint": "3ceaad896899a01b02a7600623aaeead9d916caaeafcfdbdca8d348ef98bcfdf",
+      "text": "MQTT 訊息發布",
+      "status": "approved"
+    },
+    "Media and firmware downloads": {
+      "sourceHash": "6903802c50f206a5d8b6fbd3ed92fc87420961b91f88932bd1634b2374c5d723",
+      "fingerprint": "68fac94846871a312031224f29c7101bd786db6118cc1c321b1de529ee8ece04",
+      "text": "媒體與韌體下載",
+      "status": "approved"
+    },
+    "Medium": {
+      "sourceHash": "f4cfc8581fc00b677af3059adb548526d0dddca6516fcafbf17115ad4e75e4b5",
+      "fingerprint": "64f530305ff3762616a7a20a32516940134cd0dc676fb0a32ea279e8b1988d1c",
+      "text": "中",
+      "status": "approved"
+    },
+    "Metering pending": {
+      "sourceHash": "06546d7f88ceea721664ef8b8632ff33c9ca90d627a5126df32617db90696a36",
+      "fingerprint": "e867246a2e30b1c3ddcb3b9371aad8f43d325a0bf0d112109bfaf32a2663e461",
+      "text": "待建立計量",
+      "status": "approved"
+    },
+    "Needs attention": {
+      "sourceHash": "6916a9914aca62529063ded9cbd70c45ee734a2bf95f70987f9cd0738fcd2c5a",
+      "fingerprint": "badf5057010b40162c2941c3af493ad38da4e43715f5de5bdd6785c0a6a79f06",
+      "text": "需要處理",
+      "status": "approved"
+    },
+    "No payment method set": {
+      "sourceHash": "fd11a013fa31728a56026ab89ee079cd0ceaec65d6665ab3ed594988d1eee4c8",
+      "fingerprint": "c3fd5577a87a452867e162c6a2492f5c2e6d9e66eb80858fae40fcf7238502ae",
+      "text": "尚未設定付款方式",
+      "status": "approved"
+    },
+    "Object reads": {
+      "sourceHash": "3f4ff4ae38ebc89e970b8b41d444ddc89db5168aabfe2687c79864189817ca99",
+      "fingerprint": "882cf05f1c24c8c01d3e665275039bbe2e400db4122b151d0391583a51e5c771",
+      "text": "物件讀取",
+      "status": "approved"
+    },
+    "Object writes": {
+      "sourceHash": "cb0ed2ca51279f09de3759f4ba17d4bbdfef656911ad711a96ae086dbc0f7c96",
+      "fingerprint": "08627a89fffa8548ab5ce6a10caa3b310555a1cfcc1bd9f0d3d02dbe8193c0ca",
+      "text": "物件寫入",
+      "status": "approved"
+    },
+    "One campaign targeting 1,000 devices is 1,000 tasks. Count a device task when first dispatched; retries of that task add no task fee. Storage, object reads and file delivery are separate.": {
+      "sourceHash": "a089437a23a72b28fe5960a9d706aa31349a3b4e1f5226eebda783e7a41bb719",
+      "fingerprint": "010d7b3f9c0da31806040a8630527891fc35603c5ed6c426e7667921bcc9c4d8",
+      "text": "一次更新活動若指定 1,000 台裝置，即為 1,000 個任務。首次派送時計費，重試不另計任務費；儲存、物件讀取和檔案傳遞另計。",
+      "status": "approved"
+    },
+    "One publish to five subscribers counts as one publish plus five deliveries. Each broker delivery is counted.": {
+      "sourceHash": "135e755738dcaed2ae163c10f1d484ea15523c4bb949d148787b41a784224ca5",
+      "fingerprint": "ddac3410ccc8c921336bf4170ae8267cac227caded3c2a60023056f38dd4e31d",
+      "text": "一則訊息發布給五位訂閱者，計為一次發布及五次投遞。每次由訊息代理程式投遞皆計費。",
+      "status": "approved"
+    },
+    "Overdue": {
+      "sourceHash": "cef96ed3fc31b61b9001016170757505120af9e03b1e1dcbaa595f6ab8190824",
+      "fingerprint": "cc1186d37d228ae8ae4bb219e5b32ce880c08c7358082efbb1a440f534e31592",
+      "text": "已逾期",
+      "status": "approved"
+    },
+    "Payment method": {
+      "sourceHash": "1ab393e84b748d943f7a31b2164da8d4ae83669b9537dc79dead3a3dfb50513d",
+      "fingerprint": "de9b4b9811f81f4ea781d65f0e2d003d5f5a72e330ef9c39b5801f0f3ad0e14a",
+      "text": "付款方式",
+      "status": "approved"
+    },
+    "Providers": {
+      "sourceHash": "8c082712581502a39a6cacb58d50ca5d2cffb6ef9683e87fdcadc51f90a6b1b6",
+      "fingerprint": "c22b32810069176b76410b0347c489c928dc5958e912271c2dcfdd6f93700d83",
+      "text": "供應商",
+      "status": "approved"
+    },
+    "Published ChipSets": {
+      "sourceHash": "94e63c2e1ca4d65e592b1829bdf9eaa8da54219a8acf950dbc67a8032b665bba",
+      "fingerprint": "079c5d84c71293d8bbc6b90768c2b1085cd00d360e4b9209d6812ff39079c12c",
+      "text": "已發布的晶片組",
+      "status": "approved"
+    },
+    "Recent Intents": {
+      "sourceHash": "6257ec0d43195013cc45e0a0a129cba2fc76b0b25abeacfdf25f7d50dd98fefe",
+      "fingerprint": "8d433da09ffd38f6117aa7d5434380e981cb89e96fb3a43620205d5469767fb1",
+      "text": "近期付款請求",
+      "status": "approved"
+    },
+    "Recent updates": {
+      "sourceHash": "aab3051c2b499b80a56da3aa8018dd5cb6f51a3bb35b5b090916b25e7789161a",
+      "fingerprint": "918652fca84c10a0fd5c94eeaf50d1ed3bbb72cfcce11fb90f58a527ef20b4c7",
+      "text": "近期更新",
+      "status": "approved"
+    },
+    "Standard tier. R2 Class A covers more operations than uploads; this is a write-cost benchmark.": {
+      "sourceHash": "fb739bc51bc250c869901fa3a95076f972352da29f6b769a2d7e9c703f291981",
+      "fingerprint": "14769dd05eb2aab48d40ad9487205aa060c26094f0949cfc5e4ad723fd5b9913",
+      "text": "R2 標準方案。Class A 涵蓋的操作比上傳更多，此處僅作為寫入成本參考。",
+      "status": "approved"
+    },
+    "Standard tier. R2 internet egress is free; RTK proposes a separate managed delivery charge.": {
+      "sourceHash": "c4c5844105a798146fd714991f85b9b01f63f5afe4f927d62d7e944ac66c90b8",
+      "fingerprint": "d2304e7a46c6fa81994b65b99ce250fede25aa3ed48f4a2aa097f5eb1a56541b",
+      "text": "R2 標準方案的對外傳輸免費；RTK 提案另收代管傳遞費。",
+      "status": "approved"
+    },
+    "Start cloud provisioning for this bound test device?": {
+      "sourceHash": "7d74040d8a42e3bca52d8994a3635e0bb3130d991087d300c984f33d1324a269",
+      "fingerprint": "1f497748148c691a6740c7b47deb573d8dc5b4b30ed83d304937a96b24ea5367",
+      "text": "要開始為這台已綁定的測試裝置進行雲端佈建嗎？",
+      "status": "approved"
+    },
+    "Status is OK": {
+      "sourceHash": "d7c55af84740051a0269ffc7e8f89916e4baa9939086d21e6a3f97ab621fb51e",
+      "fingerprint": "d7b047856241d1cd55e8654b2b1869d0720188b4719c823fcc2b471e2122e9bc",
+      "text": "狀態正常",
+      "status": "approved"
+    },
+    "Status: {{status}}": {
+      "sourceHash": "289d7d22eb7b75e1d936b205c60fd0b1eadb30da7ded8f9dce52960b60b1b8fa",
+      "fingerprint": "d64b9c8c29fd3dd4409e83500ba1f17fd24df81a097d23c0964a681a96648284",
+      "text": "狀態：{{status}}",
+      "status": "approved"
+    },
+    "Storage and delivery": {
+      "sourceHash": "5f12433a48efe56c4b246830822e9f63de94879845ee4810927b419fa34eb474",
+      "fingerprint": "9e373783f65409cbf106e50efdfe31984d940e09741b115c9d5c33c349a136ff",
+      "text": "儲存與傳遞",
+      "status": "approved"
+    },
+    "Successful operations, rounded up in 1 KiB record or response units. MQTT transport, when used, is counted separately.": {
+      "sourceHash": "d4d73a8c1a8f2e594a550b39348ee89a5c23c2009400929a1b97be5c4c72ce5b",
+      "fingerprint": "0fa25f34395c59138a80834d40de985cf0aacbae17e0a2afd83a45823084b893",
+      "text": "成功操作依紀錄或回應大小，以 1 KiB 為單位無條件進位；若使用 MQTT 傳輸，另行計費。",
+      "status": "approved"
+    },
+    "Top-up": {
+      "sourceHash": "7d1dc56c972f588ebba0db1d407de1de51fa070791e51afb233c94406e7e37e4",
+      "fingerprint": "dbf8a3445310f7b99f7482e2c5ac40b94429f0d76e31d9966c52d635b31e25b0",
+      "text": "儲值",
+      "status": "approved"
+    },
+    "US East example, Standard logs entry tier. RTK already records log ingestion totals; invoice integration remains to be qualified.": {
+      "sourceHash": "ba117c996d959071455387ab7c808e785bd578f1ea39af88af0d516f23971250",
+      "fingerprint": "aa365e9b4c2fa305db30e9568674a78fa533ab194fcaaed5f6610b95aeb5545f",
+      "text": "AWS 美國東部區域標準日誌入門級價格。RTK 已記錄日誌收錄總量，仍須驗證發票整合。",
+      "status": "approved"
+    },
+    "US East example. CloudWatch uses compressed archive bytes, so the byte basis differs from this RTK proposal.": {
+      "sourceHash": "2483001bb44506b3124d3610543349a54092a335521a35cb94c26d35afae7cfa",
+      "fingerprint": "99296e40ca784f2d311579b7f656a39d3b6834104e7f054c8568bf63bccef59c",
+      "text": "AWS 美國東部區域範例。CloudWatch 依壓縮後封存容量計費，與本提案的位元組基準不同。",
+      "status": "approved"
+    },
+    "US East. AWS also charges signaling channels and messages. Different unit: our proposal follows delivered bytes; Akamai transfer costs inform the rate.": {
+      "sourceHash": "d8c823f443db0ba806ee5046536e581df84986c0cbd7660df0d79f27fbadabba",
+      "fingerprint": "ca22f8be6192ff74cea22e36f292b369853081b675cf21ce4785ff81c44c84bf",
+      "text": "AWS 美國東部區域亦對信令通道和訊息收費。本提案按傳送位元組數計費，費率參考 Akamai 傳輸成本，計價單位不同。",
+      "status": "approved"
+    },
+    "US$0.003 / remote action": {
+      "sourceHash": "ace02ae4822502a80e37c339f64947e7be9fefa95b5718b152822f33c06446ac",
+      "fingerprint": "45be8dd3f43e79a45ef2bbe935004d12b252bd99a5fd836f07680f711ecbfc1a",
+      "text": "每次遠端動作 0.003 美元",
+      "status": "approved"
+    },
+    "US$0.005 / GB egress over allowance": {
+      "sourceHash": "2eb2d0ee5f18ac8007fdfe8347d473bbfff4afca062820568a6fb2bd07a44b0c",
+      "fingerprint": "3c128efa137643e4f5e895f58d0be517a6d49c176e74c9dcc00fd08fac2889eb",
+      "text": "超出額度的對外傳輸：每 GB 0.005 美元",
+      "status": "approved"
+    },
+    "US$0.015 / GB-month, Standard": {
+      "sourceHash": "a2a4685bb00f72805c593dd9a347813d7c23f50f047098beabaaaa0c803126b6",
+      "fingerprint": "111be13c9b1924d89ba31f2a108229f7db272b119a15c90ecccedcbf738f09f2",
+      "text": "標準方案：每 GB 月 0.015 美元",
+      "status": "approved"
+    },
+    "US$0.03 / GB-month archived": {
+      "sourceHash": "577b1fab408c91ec8ae0610f89b3e0e4f06d4601504c72531eb531590d3b7a68",
+      "fingerprint": "ffdf8a2b31cfd9c12fc41f3f714260d290b81115d3770a715bede2c6924689e1",
+      "text": "封存容量：每 GB 月 0.03 美元",
+      "status": "approved"
+    },
+    "US$0.12 / 1,000 TURN minutes + internet transfer": {
+      "sourceHash": "6cd0187478a7f4d41cc164281549bec0d489b5ff2259a46bb5264ae9b2ca167c",
+      "fingerprint": "fdecacfa485c296de93adb112b732d6056fac8dcbeb97b74726668b62274ba10",
+      "text": "每 1,000 分鐘 TURN 使用 0.12 美元，另加網路傳輸費",
+      "status": "approved"
+    },
+    "US$0.36 / million Class B operations": {
+      "sourceHash": "f6a5f3c5c85b8a1e45f635a8c74edf9a969618cc751a2dbe467da8eede10cbf5",
+      "fingerprint": "fa70fc11e457a8754bc18f5ecc111985427f34325749a0963c1c05cc113aa10f",
+      "text": "每 100 萬次 Class B 操作 0.36 美元",
+      "status": "approved"
+    },
+    "US$0.50 / GB ingested": {
+      "sourceHash": "9ab3a4a4f32f8040b61185290b2d6fb7704c78060337876c5fdc03c4dce2076f",
+      "fingerprint": "73739b924da7741b0280b9e1f92b8167eae2253d84c8567ff9b42bca5d8de681",
+      "text": "每 GB 收錄量 0.50 美元",
+      "status": "approved"
+    },
+    "US$1 / million 5 KB message units": {
+      "sourceHash": "e814f1b6d794f11a1178cc4720f93f7c77f4f5452e0a4ff5609da2225d755f76",
+      "fingerprint": "eff2e2aeaaa749322d271b9ccfff58229be4dfa4905ef61a4efa8933d2a3d2e5",
+      "text": "每 100 萬個 5 KB 訊息單位 1 美元",
+      "status": "approved"
+    },
+    "US$1 / million HTTP API calls": {
+      "sourceHash": "34c5bd9900b81df933082800ae14042a46c7f100431ebc74fd569448b9914151",
+      "fingerprint": "bcbd90b1dc4b99a0c16a13449e0d16bd9ba1965858c1aa5d5aa2f6bdb86491bb",
+      "text": "每 100 萬次 HTTP API 呼叫 1 美元",
+      "status": "approved"
+    },
+    "US$1.25 / million 1 KB operation units": {
+      "sourceHash": "c2a6c26d4ed503c8166ba4fae656fda70af0c5d0db89a03ab2b24f169d618812",
+      "fingerprint": "5019ff1af6750788ad46411291440941eec61296de34bc321279443cb3bf65bd",
+      "text": "每 100 萬個 1 KB 操作單位 1.25 美元",
+      "status": "approved"
+    },
+    "US$4.50 / million Class A operations": {
+      "sourceHash": "b77614ee69f02a52bde4da032a6eae8f7177b3b98c565b6e7a5fd639bb1b1c2f",
+      "fingerprint": "bd6a97cc0bfe7f03637040c9a73fd9786463e851e56d1fa438f579838459e536",
+      "text": "每 100 萬次 Class A 操作 4.50 美元",
+      "status": "approved"
+    },
+    "Unbind {{deviceName}} ({{deviceId}}) from {{email}}? This account loses test access. Device identity, certificates and other accounts are preserved.": {
+      "sourceHash": "01ea0785c99505279c4c7f2d5e3e8d4a7acf17a7c3be677638d23d818b447149",
+      "fingerprint": "ba0dd34c8885b8ddf3da364c9e9c7517c96a52a6f971e25861d4a8fc34abac7e",
+      "text": "要解除測試裝置 {{deviceName}}（{{deviceId}}）與 {{email}} 的綁定嗎？該帳戶將失去測試存取權；裝置身分、憑證及其他帳戶的綁定不受影響。",
+      "status": "approved"
+    },
+    "Usage meter exists": {
+      "sourceHash": "4c12dd10b4ce14fd66d169801319053541abf52e1ffa932345ac722a8aa8bc3b",
+      "fingerprint": "5b84525b78868c5edb426a5ee19565fea4eaa25e5b63092ec7e263aa03988d5e",
+      "text": "已具備用量計量",
+      "status": "approved"
+    },
+    "Usage totals exist": {
+      "sourceHash": "d61069f861c67ffa298b5aab9601b9d7640b06a61fd1c23798e4f770ad8e5e69",
+      "fingerprint": "ea4394045d5cd4959641187ba299aae15364030650b77bf5ebf92f1a2782e8ee",
+      "text": "已具備用量統計",
+      "status": "approved"
+    },
+    "Use accepted, uncompressed log bytes including metadata. Retention is charged separately. MQTT transport, when used, retains its message fee.": {
+      "sourceHash": "a0ac584ea4768f70e9302c349057820c7ba40ca216001a7fde6268749ce543c4",
+      "fingerprint": "0696d9ff666d6fe446ea6594c5c0dc96437b5fa564a68f0bfd205282190a3241",
+      "text": "依成功收錄、未壓縮的日誌位元組數計算，包含中繼資料；保留費另計。若使用 MQTT 傳輸，訊息費仍適用。",
+      "status": "approved"
+    },
+    "Use recorded log bytes × configured retention days / 30. This proposal follows the existing retention estimate, not compressed archive size.": {
+      "sourceHash": "e1a84ca63a6e8fd77b34ab83e2f7b03ed7bb33e7771e189b4dda62c84c38f915",
+      "fingerprint": "be1661a56cf00225b78a961a3d75caf36a26e798480a4f0ceed599477405ef7e",
+      "text": "以記錄的日誌位元組數乘以設定保留天數，再除以 30。本提案沿用現有保留量估算，不依壓縮封存容量計算。",
+      "status": "approved"
+    },
+    "Video and firmware storage": {
+      "sourceHash": "3a84e875c113ec24fa252e095c75d3cdbcc5b3fcb8b23c63aafaebcc855397c9",
+      "fingerprint": "b05fbed08ba0656cb00d079cc403ecf3bff27dec4f73ba120c0074300c99d118",
+      "text": "影片與韌體儲存",
+      "status": "approved"
+    },
+    "WebRTC TURN relay": {
+      "sourceHash": "c992fe1aec8e44d28738d5b5e91a5b15ab41397d326c38a19085e970f0509d2b",
+      "fingerprint": "5ab38f865a8802e9f63cfaad0fc7765c794a6c568b4564524e3a75b5688d699d",
+      "text": "WebRTC TURN 中繼",
+      "status": "approved"
+    },
+    "WebRTC sessions established and not closed or expired; playback is not confirmed": {
+      "sourceHash": "e69027d197ed2ccc9a16240e011cdcfc0bcb1992658388bc89127549dc7c6bda",
+      "fingerprint": "0884bc7bfe7e3a0111247e09c543609cedf30e918fdd19e719a7af81af8b1b1d",
+      "text": "已建立且尚未關閉或逾期的 WebRTC 工作階段；不代表已成功播放。",
+      "status": "approved"
+    },
+    "last-known-good remains available": {
+      "sourceHash": "e2c7fc2fa5733cc6d210f721ae2cc07a0c635371dab3e80f147b41ef120024bb",
+      "fingerprint": "8b3368b28fdc1ee5fba3a6906b1edf843ffe15bfcce5c670a109493937be06f7",
+      "text": "仍可使用上次確認正常的資料",
+      "status": "approved"
+    },
+    "{{confidence}} confidence · {{days}} observation days": {
+      "sourceHash": "ad23cc3f04e17d4fd49bdd886e7354c233b2f791b2b126a16e4121901f27c820",
+      "fingerprint": "040e43425df9582802023b788de0a809749759fa7420aa332fc936c818b3dad9",
+      "text": "預測可信度：{{confidence}} · 觀測 {{days}} 天",
+      "status": "approved"
+    },
+    "{{count}} usage records": {
+      "sourceHash": "fbde7b0d03c14532f63850b3699f214a696209f7afdd247f45e89790123b6b1b",
+      "fingerprint": "10d1422252e26af035b7e1b2bd471c266ac87792bfcc7eb6a0a817c2497c5b07",
+      "text": "{{count}} 筆用量紀錄",
+      "status": "approved"
+    },
+    "{{days}} days": {
+      "sourceHash": "10d03391936e7c248b330203bf0f03ac2e52d0330b2d323273d327cf8990249d",
+      "fingerprint": "873cc46e51d3a06953ecc4a6c604590179e0e58dbcb929d3bb4967345766edd9",
+      "text": "{{days}} 天",
+      "status": "approved"
+    },
+    "Fleet presence data is partially unavailable.": {
+      "sourceHash": "0f28405eccee2e2b5313f06bc66ccd12bf97eff3ef11ad6e612896c7cda08454",
+      "fingerprint": "6e73f685c300ee88610f4b2c35ef9de92fd40adc2ac23a708ed249794b14d893",
+      "text": "部分裝置連線狀態資料暫時無法取得。",
+      "status": "approved"
+    },
+    "Fleet health data is partially unavailable.": {
+      "sourceHash": "bf011073c6ee7ae9635241df3a6d59c83220b680730d4e7b832c19ab2bc54586",
+      "fingerprint": "5f07718bec38d509664d29bd21d695c947a4782912dc04d1e66e7f72ec760274",
+      "text": "部分裝置健康狀態資料暫時無法取得。",
+      "status": "approved"
+    },
+    "WebRTC session data is partially unavailable.": {
+      "sourceHash": "7c779a26c08328c94fc781ab47b72d0cdfdff4be94ff9fa6f0ae15397b9ada94",
+      "fingerprint": "a7a9b22fee8dafeadded964c1252e5204a3824ccef317e4ac690165d3dee97c7",
+      "text": "部分 WebRTC 工作階段資料暫時無法取得。",
+      "status": "approved"
+    },
+    "Some fleet presence data is stale or partially available.": {
+      "sourceHash": "f5a8b631de219791a8adca1e938b133db54094d2474562bc0845e261c3b21ad2",
+      "fingerprint": "e6cba966df2c0933ba96c41fe6f76d8e45008d6a041da1928673fc39a2bb2300",
+      "text": "部分裝置連線狀態資料已過期或暫時不完整。",
+      "status": "approved"
+    },
+    "Some fleet health data is stale or partially available.": {
+      "sourceHash": "2d8534050a59796921dad0662e98752e5f3e844bef961be8725924c021a80d19",
+      "fingerprint": "7eda449effe31fc842fd1c913c010fe287862f5bfb457d1d74362b4964cc6c7f",
+      "text": "部分裝置健康狀態資料已過期或暫時不完整。",
+      "status": "approved"
+    },
+    "I agree that when the balance falls strictly below the configured threshold, the selected payment method may be used to add funds automatically, subject to the daily attempt, daily amount, and cooldown limits.": {
+      "sourceHash": "db8da6077e5aa0716a0fae34ecf78bab62fa0f674a76e6ff9ee2d9b1f5dd737e",
+      "fingerprint": "a3e7a2e4faa8db9fdd0a35ee62054637d8adf9f16c9f0a87ae761bcf495fb854",
+      "text": "我同意當餘額低於設定門檻時，系統可使用所選付款方式自動儲值，並遵守每日嘗試次數、每日儲值金額及冷卻時間限制。",
+      "status": "approved"
+    },
+    "I agree that the payment service may store simulated payment-method identifiers for automatic top-up testing. Real card numbers and CVV values are never entered or stored.": {
+      "sourceHash": "14b463670e7fc033394d645322ffe0594a960b7b4cf27c61eff644249d90a227",
+      "fingerprint": "377343fea8220f082b8eefe6470c06c5e3c95cb4d0edf84a285117aea22e52e3",
+      "text": "我同意付款服務儲存模擬付款方式的識別資料，以測試自動儲值。系統不會輸入或儲存真實卡號與安全碼。",
+      "status": "approved"
+    },
+    "File saved. You can download the same file again while this page stays open.": {
+      "sourceHash": "f1d76abb65612290165593921233da88b6988aec27f3d902a2addb8f0403d97e",
+      "fingerprint": "de3c3e421b3242f8d3a6ea79d7f5d10f6ff7b21d2cbff2e933535d3969cc601e",
+      "text": "檔案已儲存。只要保持此頁開啟，仍可再次下載同一檔案。",
+      "status": "approved"
+    },
+    "Save cancelled. Your file is still available below.": {
+      "sourceHash": "2d4525c62edaed09bcfdffe64c9dd0ebfe940bb7af181cc8a383c540a9b4f47a",
+      "fingerprint": "f5cdb34d38fefa35d4431c83ecf4328838b695044d2e910f78823a84228220fe",
+      "text": "已取消儲存；仍可從下方下載檔案。",
+      "status": "approved"
+    },
+    "Could not save with the file picker. Use the download link below or try another browser.": {
+      "sourceHash": "68ca47b54e4185cbbd94bcb0aa516eaedad31546e2f0ecc51a0adfa3d1969f2e",
+      "fingerprint": "7763cb9f0667b2e947300c14e90b2ffd29f653a8c13435b6b25d3b3391c17c1e",
+      "text": "無法透過檔案選擇器儲存。請使用下方下載連結，或改用其他瀏覽器。",
+      "status": "approved"
+    },
+    "Download requested. Check your browser downloads; this page cannot confirm that the file was saved. You can retry this link.": {
+      "sourceHash": "d0dbea1a802e67cf1a4c6e3bb28508f2d15af90dbcdcf798ca37041c5a7b8452",
+      "fingerprint": "437c1465d54a75a13c83ed38ac1a9e2709ff876d34c72babe9855ef8185e3179",
+      "text": "已開始下載。請確認瀏覽器的下載紀錄；此頁無法確認檔案是否已儲存。可再次點選連結重試。",
+      "status": "approved"
+    },
+    "No successful sync": {
+      "sourceHash": "e936268e58dc72c64e687de2e9dd0aa471743e1b6f4026cdc98f81aa4911a2b4",
+      "fingerprint": "bf01b3ac219516e1cf57c06f1a531676216713d2253cfb5a5df128cb288ef2dd",
+      "text": "尚未成功同步",
+      "status": "approved"
+    },
+    "No updates are currently running": {
+      "sourceHash": "9cd841fe83fd925d1e07c72e481d29c126c93662816b9c518c0c8f3aca033abb",
+      "fingerprint": "f7620d009b59c1406d8410246cd9cc559f649d95919ca00c2c1f4697f2457da0",
+      "text": "目前沒有進行中的更新",
+      "status": "approved"
+    },
+    "background refresh healthy": {
+      "sourceHash": "110a19b05cf17b87ddc9909bd0d84f65f46f8c6d3b53c2c7fc26a1c12b2043ed",
+      "fingerprint": "9c74529cc3980c106932da64bf4267684942c2542dc5c37beee78020e3ac883c",
+      "text": "背景更新正常",
+      "status": "approved"
+    },
+    "{{completed}} of {{total}} devices processed": {
+      "sourceHash": "36106706f1c5a38fa30ce5dc67cee564708630433e632fc2525c5bee5140e91d",
+      "fingerprint": "ea62d07c5049c0988d42e0571760dccf674759c7ef1b7a95e3f8ef0d35587578",
+      "text": "已處理 {{completed}}／{{total}} 台裝置",
+      "status": "approved"
+    },
+    "{{count}} SDK releases": {
+      "sourceHash": "ebe06ba841f81ca6cf198532e730f65b2ca52551e0e4ec0c7f8371122006d064",
+      "fingerprint": "255ba458a43e741b51bd6ae8f66d06f06a5ed57102f237f6c6422d952aa5cf11",
+      "text": "{{count}} 個 SDK 版本",
+      "status": "approved"
+    },
+    "{{count}} devices have unknown presence": {
+      "sourceHash": "407532acb5a3bd0837d42434c1358b362a25b7aa519c5dd82512d7e9edb48659",
+      "fingerprint": "b5f4ea082a602488b825a9cefe3846d099d028055578ca428016dadd5c049065",
+      "text": "{{count}} 台裝置的連線狀態不明",
+      "status": "approved"
+    },
+    "{{percent}} data coverage": {
+      "sourceHash": "184aa70edf97030e130926a5190d4e46614c538ed2a9ffc25f962cf046c0a101",
+      "fingerprint": "61de3d111db125d0af730a8aa499a89944cf74f8a4139a41d0a6d8a277a65c0a",
+      "text": "資料涵蓋率 {{percent}}",
+      "status": "approved"
+    },
+    "{{percent}} of target devices": {
+      "sourceHash": "915ce5bffb5688621a305bdb4976468b6b1e422754f4071d15045df58574ba63",
+      "fingerprint": "2aa10ee9300b307018878df2b112e7224e1a5d468e337d0ccc78a8b70bd67c23",
+      "text": "占目標裝置的 {{percent}}",
+      "status": "approved"
+    },
+    "{{percent}} of the selected Product": {
+      "sourceHash": "72eef2a45edc0b1f5d38e9a4b0fe0154d4a244673e8340f545cef30e2abc4393",
+      "fingerprint": "999ae717534674e7b4b7182df60f8c5bb8363f2a773a0f7e820478830188ba82",
+      "text": "所選產品的 {{percent}}",
+      "status": "approved"
+    },
+    "{{published}} published · {{unpublished}} not published": {
+      "sourceHash": "9a75a54718abf212cbb5ae31712bd9fd76341cad50a619c7eac4da7431bb72cf",
+      "fingerprint": "72cf11dce2a67c378020566a16684a9a4011afb9ab796c30daf12363d9b537d4",
+      "text": "已發布 {{published}} 個 · 未發布 {{unpublished}} 個",
+      "status": "approved"
+    },
+    "{{warning}} warning / {{critical}} critical": {
+      "sourceHash": "13663de4d65ed6992212569b0429ad94d73d739abfe9f1e3411e91c45856eaef",
+      "fingerprint": "d2a31c2226f5937917b7575f0be9970fe88353496d20e9ea48cb3dd465de0974",
+      "text": "{{warning}} 個警告／{{critical}} 個嚴重",
+      "status": "approved"
+    },
+    "Attention required": {
+      "sourceHash": "09285fd34103bde1aa4049d7c45bb86303167d1016a53d7a73c20c262d56a37e",
+      "fingerprint": "f6ad0daace49b6167932fa43d69e9d638c41725686782dd683d51ac62ce4d99b",
+      "text": "需要處理",
+      "status": "approved"
+    },
+    "Authorized": {
+      "sourceHash": "884f3ce5ee18ad33335c3b9fa7f5c5b04f0bc3013c897bba78d00899c02dd7d1",
+      "fingerprint": "caa8fe7453ae7c3db3ebb9e89e349ec9ab053e4e18701d2b99344ae010d68082",
+      "text": "已授權",
+      "status": "approved"
+    },
+    "Chargeback": {
+      "sourceHash": "ebcd03d8cf662e8080abe6e988b35de541c7bb97caabb481dbc2b873fc101373",
+      "fingerprint": "8435671662df13c60cae99f8ed94a7e404b8553f2bb856399522ebf1ee8c9815",
+      "text": "拒付扣款",
+      "status": "approved"
+    },
+    "Closed": {
+      "sourceHash": "f9c93a1a7d7c0371e7bdcb5ff3549568645aa7475312cb6ab3806fc7aa646948",
+      "fingerprint": "a15af4444d49ea08cbe152fd9654534e478da81fe60f3f3b8a9bf2ba86bd0277",
+      "text": "已關閉",
+      "status": "approved"
+    },
+    "Draft": {
+      "sourceHash": "09f4cc5c3509def5a34228daaec3324f8ca0cc3f04c3622bf11405b8a54377e1",
+      "fingerprint": "c1b2c9cb7a8e24e77d5fdafc29f749aefeb7d85a05cdf2705838488216c82d31",
+      "text": "草稿",
+      "status": "approved"
+    },
+    "Expired": {
+      "sourceHash": "ff47220b29fa52d376c7f58e9a23127fa40200c1c236433c8c74c307a94cd495",
+      "fingerprint": "3517e44fa77f28a35849e7641ba3d3eb9ad4272abf70a3d32f3073eae3b56336",
+      "text": "已過期",
+      "status": "approved"
+    },
+    "Manual credit adjustment": {
+      "sourceHash": "2697d70348b5dace85155447e142e7bca8c19fbce4a6d4279114bf6508957379",
+      "fingerprint": "2a3bb92a40f38438d0c21a8ba59761cba30400301c801db2ee445d05623fc45e",
+      "text": "手動調增餘額",
+      "status": "approved"
+    },
+    "Manual debit adjustment": {
+      "sourceHash": "ef651d5a1c754c0bf92e7c7314c10007cb72ac2c5f06b4681bfcd58e100cdbf1",
+      "fingerprint": "17e332fe6ce6dbaeec19d9848e51923e0a05d03cef37b8c6e0305aaf16ba0584",
+      "text": "手動調減餘額",
+      "status": "approved"
+    },
+    "Partially paid": {
+      "sourceHash": "ca64c41b8172240a21897f5577f672cc03cfb0ccc92dd58568997086c9f0631a",
+      "fingerprint": "9590e91eae75a5015cbe0b4a432f18f8f7e17d0dd02d1972e981887cacace249",
+      "text": "部分結清",
+      "status": "approved"
+    },
+    "Payment top-up": {
+      "sourceHash": "75ced095c45e11952edd2b9fc6b42d8639f170f649917325fac548a7572291e5",
+      "fingerprint": "eef43798ac4d0ff99f86e3a65ff1086f0fc21e0082a8e336a2129cfb093c7ca2",
+      "text": "付款儲值",
+      "status": "approved"
+    },
+    "Refund": {
+      "sourceHash": "4028334804a2e4722f0f2bfac9963c8114145a4a4ba84e081240bf71a45cda91",
+      "fingerprint": "3ce873a4c331472d804d6d71683aabb68ddd4f9cd4644fda456f11d089a819ee",
+      "text": "退款",
+      "status": "approved"
+    },
+    "Revoked": {
+      "sourceHash": "e10cfbc562a1e3d85a1689f48cfd1efc4eebaf718b4f089b9bc8929b7d1bb682",
+      "fingerprint": "f14bae2d38e4ba3feadbe8fddb0943ef35e722072cb0f09f8ffe4b984d5cf095",
+      "text": "已撤銷",
+      "status": "approved"
+    },
+    "Suspended": {
+      "sourceHash": "33c563fde1fd093add82126985cda5b61a84f54b96d02c9cfe9dffb3c852749d",
+      "fingerprint": "3179811f02dbaeafe7c79ceb803ba15c5f4532959a07f8928aabefcb0d60e395",
+      "text": "已暫停",
+      "status": "approved"
+    },
+    "Usage adjustment": {
+      "sourceHash": "dba81876d66064f5fe8341b0bec0f7dee8a8d30a815545bbf58e7f11d972ffcb",
+      "fingerprint": "9885a248a5347e9748e2202fca5c2d81849e1956fcea5ef11a6e93a6bda5818c",
+      "text": "用量調整扣款",
+      "status": "approved"
+    },
+    "Voided": {
+      "sourceHash": "72b7ea5419bb19bf5b13e86a69b921a74a33e273352a40533d420b49a2c31392",
+      "fingerprint": "f617d18a373f2cb3b72599b15dcc9c67e5d2da7f824015569c05e16d32925388",
+      "text": "已作廢",
+      "status": "approved"
+    },
+    "SSO start did not return a redirect URL": {
+      "sourceHash": "2dafeec15209ca046b1821cc81cdb180e25d70bdbece009e27e492e587add33b",
+      "fingerprint": "0757feaeeea59347d140933d8263e30b1409d224b0e1dd2724baef4d37899f6e",
+      "text": "無法啟動單一登入：服務未提供重新導向網址。",
+      "status": "approved"
+    },
+    "Some clouds could not be displayed because the service returned an invalid cloud ID.": {
+      "sourceHash": "57f00db3599bf287e1431a74b9d4161c6d380c0479369253291e8a187e74f757",
+      "fingerprint": "2388e7095e5240f1408109119b8bb30c7e7c7ec1dfbad238aed71772c6396590",
+      "text": "部分雲端無法顯示，因為服務傳回了無效的雲端 ID。",
+      "status": "approved"
+    },
+    "The provider could not be published. Please try again.": {
+      "sourceHash": "4bb59d1af54f233996e0d44de793a65e087b280caeac86ae68ee99b4fe82b822",
+      "fingerprint": "c57909c5480273d3dbedc76a0f91e4f28e57ab2f73ed33bfffd071ae81d73f73",
+      "text": "無法發布供應商，請再試一次。",
+      "status": "approved"
+    },
+    "The provider draft could not be saved. Please try again.": {
+      "sourceHash": "580608fb685aed45a57f1f4a31e230e492ec078709c5b100f64d5ce182949815",
+      "fingerprint": "82938e0781323046b0cf6671fe1c8d85cbad857ca49ca6557936771d2e520402",
+      "text": "無法儲存供應商草稿，請再試一次。",
+      "status": "approved"
+    },
+    "The provider preview is temporarily unavailable.": {
+      "sourceHash": "12ee1834feb376a085a922ee099c9f76bd46e8096fa697ff5e44ebc70778e176",
+      "fingerprint": "85b4287e140ab9aed133ce5c80b44466b67a69eae10ab8aa023b28eaf8eac144",
+      "text": "供應商預覽暫時無法使用。",
+      "status": "approved"
+    },
+    "The provider validation preview could not be updated. Please try again.": {
+      "sourceHash": "1f71832db93921953c0be2c7a394a55676a0cf2aaaa5791b909ac8d4d152b860",
+      "fingerprint": "a9f0fafde068a7a6a5c3cddebb35fd769be01d16708ac6e9c43a61deda84e7cc",
+      "text": "無法更新供應商驗證預覽，請再試一次。",
+      "status": "approved"
+    },
+    "Unable to load all authorized Products. Reload devices & access to retry.": {
+      "sourceHash": "567f5433b0d99d3da3a6cb65c144e6c6ea7b3d36bb2228e827a1a69672b9a7d1",
+      "fingerprint": "269b75bbc8ede7eb9ae1df2b7e394de8ec76c0bc3bdc7b27e071201b48e980c5",
+      "text": "無法載入所有可存取的產品。請重新載入裝置與存取權限後再試。",
+      "status": "approved"
+    },
+    "Unable to load the selected Product name. Refresh your access.": {
+      "sourceHash": "76a7ecd615a7213297c81f3b73082b8fcd027a6c911301ecba221b81c4e29aed",
+      "fingerprint": "1f9946327f0470e6973fc2b09bb6847be1adae53b83a6cb75a166dfcf95343f3",
+      "text": "無法載入所選產品名稱。請重新整理存取權限後再試。",
+      "status": "approved"
+    },
+    "Unable to use your Console account. Check access or sign in to Console again.": {
+      "sourceHash": "ce60ed35000266cbe0a34e23e3d3b42a60bc1f778107a8661081ba783511a46b",
+      "fingerprint": "edb4ee67e28173b889fc556c068f4e02573f8fac775d6d0ca62d5fc1097f65f4",
+      "text": "無法使用您的主控台帳戶。請檢查存取權限，或重新登入主控台。",
+      "status": "approved"
+    },
+    "Unable to verify Console access. Reload the page or sign in to Console again.": {
+      "sourceHash": "a310345d324d19a4c2e25a6c91a5d82f75971d7e703b34b7231d4730555c2d38",
+      "fingerprint": "4a654adce6bc8602d70f74d617ebfa47c870a8e6954f3446df9f5e98e3d4e1c7",
+      "text": "無法確認主控台存取權限。請重新整理頁面，或重新登入主控台。",
+      "status": "approved"
+    },
+    "Account Registry": {
+      "sourceHash": "ad7f254d93d5f17636999fe291ccce2defa5cf294fde9de357c1eee95e64422b",
+      "fingerprint": "723b4aa4e123f2bb31ef689804b3f151295233a85741d5c664f56ebcff3df689",
+      "text": "帳戶登錄資料",
+      "status": "approved"
+    },
+    "Cloud Activation": {
+      "sourceHash": "8cdb500e54ac356a1d99c5b22cd97a4dce92af990a28db3cae8d8ddc778e7ed5",
+      "fingerprint": "021c607aa9f9be9f91057eff7ebae4c354d328dc4516d6642190263dfb0bcd04",
+      "text": "雲端啟用",
+      "status": "approved"
+    },
+    "Cloud activation failed.": {
+      "sourceHash": "38f4f9294b2a36296651ef9ace1c6645e3986e5750f922d244d6c3440a0b0cf9",
+      "fingerprint": "ac7715a0c18fad05be352c9bcc54bb6d6132e5f9f4086943d3aa17b24d8994af",
+      "text": "雲端啟用失敗。",
+      "status": "approved"
+    },
+    "Confirm you want to deactivate this device.": {
+      "sourceHash": "7932b48f88613578b9cdd0b4cfc868b149d7df2ca732644cb197fa4c720fc98e",
+      "fingerprint": "81b3570aa0dd13a98e150b656452af580ad721686170187b75cc4bf31eb59f2f",
+      "text": "確定要停用此裝置嗎？",
+      "status": "approved"
+    },
+    "Confirm you want to provision this device.": {
+      "sourceHash": "3b74a273c84a6168b5b9ea438542021323be7bf61b2b6ecdd042ba473a06ee70",
+      "fingerprint": "4026b796a70a76f2af94434490fe10927b40bfe5973b77862f7911fc0e3e20a5",
+      "text": "確定要佈建此裝置嗎？",
+      "status": "approved"
+    },
+    "Deactivation is already pending.": {
+      "sourceHash": "c58ec84966b363c27b4585f24c30b8f1c5f852a34ce3fc314427a5aea4e61f21",
+      "fingerprint": "78f5d4064181ffb4806272136ea5a9218b18e624eef97c22efcbdd9e7af2d0f9",
+      "text": "裝置停用作業正在處理中。",
+      "status": "approved"
+    },
+    "Device Facts": {
+      "sourceHash": "2a60490ddd779ad626b14970c3395ddf6bc2a3152a37320b530f1a467d2746d8",
+      "fingerprint": "66f6d5059950352a16151db42590d758ae5a914cc96adb6bc2f85378cb78adff",
+      "text": "裝置資料",
+      "status": "approved"
+    },
+    "Device exists in the registry projection.": {
+      "sourceHash": "ceecd424a967ba16e68e207f70593d15d4289ac6e61d54007cc69ff99d6c2868",
+      "fingerprint": "08f5723275a1226ab1849796fbe9a17924a58418c111b6d130548bec03908af3",
+      "text": "裝置已記錄於帳戶資料中。",
+      "status": "approved"
+    },
+    "Device is already activated.": {
+      "sourceHash": "476de5a65e8ca0f62003c0ab4e746c4152d15992460e87d1b63ad0682c059161",
+      "fingerprint": "7ea5a8b92aaa032553a13935a2141a9754b7aefb69866f122b451ed45a7929fd",
+      "text": "裝置已啟用。",
+      "status": "approved"
+    },
+    "Device is already deactivated.": {
+      "sourceHash": "54e22c2b7c67d48ef95cf83f6717d5140dda8d1e068006b488f64ace7c2f5d75",
+      "fingerprint": "80888e97b58661ba5f6d42d661fbaba965cfbcac86440a263fbc1f0a2f9baf81",
+      "text": "裝置已停用。",
+      "status": "approved"
+    },
+    "Device is deactivated and cloud activation evidence is stale.": {
+      "sourceHash": "70c74f40d09dfc7083efb3cfac9ef0b46d6da0e882763961ceae784ae27e85c5",
+      "fingerprint": "31cb2c3f7880ead7d923f75237c618f6bccc4572f943c76043a338f22d1f9014",
+      "text": "裝置已停用，雲端啟用紀錄可能已過時。",
+      "status": "approved"
+    },
+    "Device is waiting for deactivation.": {
+      "sourceHash": "d841db4d7cc72fc1d3c2c82206663a50f5df29c4e7b6e7677446f9fbfcd87271",
+      "fingerprint": "63e5f0f010e7340f91861f319dbaf9db7c278f8c6ec4e2458e49a9cf1052ed50",
+      "text": "裝置正在等待停用。",
+      "status": "approved"
+    },
+    "Device telemetry source is unavailable.": {
+      "sourceHash": "f18dd728e6d02bca31e40bcaa209ba574f887d35e7f39a5c245487237a1ad48f",
+      "fingerprint": "c48aae65146d7b293404ac586afad39eac6ad76b1150e962f189e45a346e0098",
+      "text": "裝置遙測來源無法使用。",
+      "status": "approved"
+    },
+    "Last transport evidence at {{value0}}.": {
+      "sourceHash": "328976b5143daa4b91bea2be5022a59176726825956d89ff701dfee8775a9c55",
+      "fingerprint": "a267b15b8d3d604158dd712141be68c1c8f17e6628b09808368b5a76a76a7b28",
+      "text": "上次連線紀錄時間：{{value0}}。",
+      "status": "approved"
+    },
+    "Missing": {
+      "sourceHash": "90393c2f48d73659fd73c7c3a39c583c186560cc7061c8f540d48380eb73c205",
+      "fingerprint": "fc11730726438de0e268b649e92a3d513ad357b4e80894b36fc416d15ac947b0",
+      "text": "未取得",
+      "status": "approved"
+    },
+    "Missing video_cloud_devid from Account Manager metadata.": {
+      "sourceHash": "9a66d5676d69cdd9d1685d35510b245d87bed4c32f01c17e02971a28e8c9b504",
+      "fingerprint": "77aa606b959f133f97081a40f1675526c35a78bf0119aec0b102cdde95e23962",
+      "text": "帳戶管理資料缺少 Video Cloud 裝置識別碼。",
+      "status": "approved"
+    },
+    "No telemetry samples are available for this device.": {
+      "sourceHash": "90be70901f0201494033cae7ad17035845caf4472550cffb02c4fada1950c838",
+      "fingerprint": "c7a91292992420d1a136db4d36a7b82c9c00967a6bb2bfa1a021a1168d4f797c",
+      "text": "此裝置目前沒有遙測資料。",
+      "status": "approved"
+    },
+    "No transport evidence.": {
+      "sourceHash": "ccc7494ed111482235442fbdd83d0657d0180b499814b19b814acf810b648688",
+      "fingerprint": "5d27a7fc40f0dae34b2a254ae00465690b973e102bda61c6392741c2aff5c61a",
+      "text": "尚無裝置連線紀錄。",
+      "status": "approved"
+    },
+    "Read-only Observer cannot change device lifecycle.": {
+      "sourceHash": "0afcf533b25a053b7e19c583c8016e69183d4cb9f0c089d64778f7e23afe86aa",
+      "fingerprint": "a5111526fc6875cc359c6e931d61faa074f7d5d8114ada7c496c7492278ab5e4",
+      "text": "唯讀使用者無法變更裝置狀態。",
+      "status": "approved"
+    },
+    "Registered": {
+      "sourceHash": "c09cb1acceb545dd97950799d7097a6eb69839ae6473391fa7e289ef3430533c",
+      "fingerprint": "f3e0c4df758135f4a4bcb5b61f9c689f3a1ff856957c71e831cbf99e46e19720",
+      "text": "已註冊",
+      "status": "approved"
+    },
+    "Transport Online": {
+      "sourceHash": "674d735b073a38c60578a500ed6ad8e5963c5949dee90d8b42fbc90a56e13963",
+      "fingerprint": "a790d14dff2c50f42abe777cb8cbbdfdb112d133c4e84e2f1dbc6ce0fce4c175",
+      "text": "連線狀態",
+      "status": "approved"
+    },
+    "Video Cloud confirms device activation.": {
+      "sourceHash": "b33960b106e5682ac73424e38ddda09c328021efa703381a59bdc25a0f70b160",
+      "fingerprint": "1fad0b47fbba2fb7d09572f28f77cce877c1756a2bec3d43166b4f717985c590",
+      "text": "Video Cloud 已確認裝置啟用。",
+      "status": "approved"
+    },
+    "Video Cloud device identity is present.": {
+      "sourceHash": "eae231630a06d3548759395a35eb27577916c01170a3c78e4f56a983eab693b0",
+      "fingerprint": "62484165f4f8043ac8cff3996bbd0dc5cabbc85a25f87491c05abca40a4a6055",
+      "text": "Video Cloud 已建立裝置識別資料。",
+      "status": "approved"
+    },
+    "Video Cloud has no current transport evidence.": {
+      "sourceHash": "e2b7a1cda3b4f60045eeb397d92c204f28fab78c7618dee169a4a5938fa04edc",
+      "fingerprint": "8ddfc22acd67ebe2d5befc139216d228d135c490e2ca59c03ff8e8f10a32ccd6",
+      "text": "Video Cloud 目前沒有裝置連線紀錄。",
+      "status": "approved"
+    },
+    "Video Cloud reports device is not activated.": {
+      "sourceHash": "d3cbca518cc1756c5acf1bc4536b762eeef49983625439b32fe6c4ed08c66ca5",
+      "fingerprint": "81b0ec0e0f1aa4012789f7c0e6d802de7c51a6e579fdbfe103972ddeddd0bc0a",
+      "text": "Video Cloud 顯示裝置尚未啟用。",
+      "status": "approved"
+    },
+    "Video Cloud telemetry source is not configured.": {
+      "sourceHash": "7a57c52a87f2daa4d6d9230739de7d5ab050f2ea4ff6b03f89603f3cc8069f85",
+      "fingerprint": "6ed846080bb3e2821123a959e6850b50951db2bec14181ec609b3fbccca51aaf",
+      "text": "尚未設定 Video Cloud 遙測來源。",
+      "status": "approved"
+    },
+    "Video Cloud transport: {{value0}}.": {
+      "sourceHash": "dd47a831a6df391d5fce7d08fd76f01d313776353153ea70b00344a7382af4f5",
+      "fingerprint": "2c17e3ae42f70a3b1970338774b945278866d4d25608a8ca52638f30664c5a46",
+      "text": "Video Cloud 連線方式：{{value0}}。",
+      "status": "approved"
+    },
+    "Waiting for cloud activation to complete.": {
+      "sourceHash": "a691864aa252c8e91b0eafc4c5e4e777da31ab779edac51b10b6308242291b9d",
+      "fingerprint": "aba8ba4c6d5a65fb2442107548b824259e15dd862c25192d265cc04c6cd30ccf",
+      "text": "正在等待雲端啟用完成。",
+      "status": "approved"
+    },
+    "Your session does not have permission for this lifecycle action.": {
+      "sourceHash": "cd765ec1ed4652eb2111ed50456cba61880464b509a7b0978d38fc75c1d557c9",
+      "fingerprint": "d76e70880fe18a1f41a82d139228d859d5f7131d0929884d6619bd7cdd289fa8",
+      "text": "您目前沒有執行此裝置操作的權限。",
+      "status": "approved"
+    },
+    "Cloud ID stays the same when you rename the cloud.": {
+      "sourceHash": "e09aefeddf6524c3db7ec04d0b0a6b80870a7717f96a47ec245ff6e9f15b91f6",
+      "fingerprint": "1332be90e4f4a933238a6ad63c5f2d69f16c07831fe745224719f422e4502677",
+      "text": "更改雲端名稱不會改變雲端 ID。",
+      "status": "approved"
+    },
+    "Compare fleet size by region and device count.": {
+      "sourceHash": "1d3968ca78a9a486f13626438d015e6979e5b2a0779181ae51637eaf5640d0ee",
+      "fingerprint": "73c81a74d982a1e68832e8a5e70a25a9d79536d4037426e1c6cdde9aad951bcb",
+      "text": "依區域比較裝置數量。",
+      "status": "approved"
+    },
+    "I own": {
+      "sourceHash": "5a2ac9548d140c4e667becbfdb8bb2af631a1bbd31438622fda07a9ee09a8b6f",
+      "fingerprint": "6fcbdfe446bb723dde312e970936403912006601d60742f65973852d7faf35fa",
+      "text": "我擁有的",
+      "status": "approved"
+    },
+    "Telemetry source is unavailable for this device.": {
+      "sourceHash": "7375324ed607a4f6b4a97c67b6cbd7a2e6c96564857e5063af55cfc7257506c1",
+      "fingerprint": "b5587d88c4a97afaf02a48cab026ac45c9da27c7e47bc6911c1547beb528fa9d",
+      "text": "無法取得此裝置的遙測資料。",
+      "status": "approved"
+    },
+    "Executed by an operator in Fleet Management": {
+      "sourceHash": "d4527f58b6bd1bd293ba12ffa0e249316ecfe3483c64f74e4fd7f4ea131936cf",
+      "fingerprint": "68db8bbc8d781825b131e0241828edc4f9bd2204383ada0fdbd114afc761e0fc",
+      "text": "由管理員在裝置管理中執行",
+      "status": "approved"
+    },
+    "Withdrawn by Brand Operator": {
+      "sourceHash": "4a72f74e012a0174875735366a5a688fac250b80c7385d3ac2b177f62c2055bf",
+      "fingerprint": "a09a855dd37c6690da9cad5bca4767102cbff1c33d762a5d956e1b3153aa0e36",
+      "text": "由品牌管理員撤回",
+      "status": "approved"
+    },
+    "customer disabled automatic top-up": {
+      "sourceHash": "15de3e0bd6a2cf9ce436cc258f297bdba7e1be0394079de926e9e42051aa4478",
+      "fingerprint": "3634badf487e5e79cbe9e349aada9069ed1349ce24195a3331dbb6c1cdb2da43",
+      "text": "客戶已停用自動儲值",
+      "status": "approved"
+    },
+    "customer revoked payment method": {
+      "sourceHash": "c2578d6674341a4832060893bf492f7321323d569c496bd7f7eab0915d9e28b5",
+      "fingerprint": "9779c7bdc772411963b6bbeaf2f188e02ec208445b57514557f465ddd53d260b",
+      "text": "客戶已撤銷付款方式",
+      "status": "approved"
+    },
+    "Video Cloud telemetry is not authorized for this customer.": {
+      "sourceHash": "680bd8a15dc3c1062023a9a8b04e3b550775ec561f1eb7144a6a20a3f912348c",
+      "fingerprint": "5295e333fea277846b38c938a4500c55f904e6e167d31c87d5fb0e80d2ec5271",
+      "text": "此客戶沒有存取 Video Cloud 遙測資料的權限。",
+      "status": "approved"
+    },
+    "Video Cloud telemetry is unavailable.": {
+      "sourceHash": "7ad3a5a2ea293eb2229c952fa7d2a1347ea7f815ff923d0659c733362aeb5cfb",
+      "fingerprint": "e86c46e0e4665f51fedd2ef2e8a3311b503cccbf5958de33d5c635accf6d06b3",
+      "text": "Video Cloud 遙測資料暫時無法取得。",
+      "status": "approved"
+    },
+    "Video Cloud telemetry returned an unexpected schema.": {
+      "sourceHash": "6153b63b36330b9d0c007ddaa8b8b8a752b692c4c19d3fa9801b680e952c40ac",
+      "fingerprint": "55a1e6c7191a4bc36bf0607d8213cdcc89edd5c9f2a98f2016f53419b40277e9",
+      "text": "Video Cloud 遙測資料格式不正確。",
+      "status": "approved"
+    },
+    "Video Cloud telemetry source was not found for this device.": {
+      "sourceHash": "66fd93532f2a71d2a137ccabfed71ce72c009b295a0f13d40cfe659d22f55ad7",
+      "fingerprint": "aca737b39d5f6576162d7e6afa85d642005ca8e1ad488aad7232a87eab85c93d",
+      "text": "找不到此裝置的 Video Cloud 遙測來源。",
+      "status": "approved"
+    },
+    "Active stream status is unavailable.": {
+      "sourceHash": "f226efe8317b170121a924f43ca6375981df18097bc721e89347da77ed2998d0",
+      "fingerprint": "91c5926559c13c7b2d2c25a324c82f958dc236d50a8ee8f59c62334a5b267cac",
+      "text": "目前無法取得串流狀態。",
+      "status": "approved"
+    },
+    "Daily average dBm and quality bucket": {
+      "sourceHash": "88d3a6ee95ee68cc5cef39a4efe2b09373d305f589f7aafcbda526a285a0a64d",
+      "fingerprint": "ae6810bba5ec6a56f6d0aaae4eac9d5c3c3bade486ef1e18493455c7996d6f16",
+      "text": "每日平均訊號強度與品質分級",
+      "status": "approved"
+    },
+    "Daily online percentage": {
+      "sourceHash": "6e2548816898a09bbc12044817bc29bfc4d160b8e4381f86a84c39122e1e61fe",
+      "fingerprint": "2dec9bdafbeefa164b319574d68d04be310b7ad2aabcd2e0099ebc061e77e802",
+      "text": "每日上線比例",
+      "status": "approved"
+    },
+    "Device crash": {
+      "sourceHash": "c614f4217dcf0f663fc058dd5dd757bbfa7c856cf9bf36f84eecf0550260152d",
+      "fingerprint": "ffa60f40a5cd0742e20ef993fa4443ea10363b85247de1b09bb9d9d78d2a4b2a",
+      "text": "裝置異常終止",
+      "status": "approved"
+    },
+    "Device reboot": {
+      "sourceHash": "e2b71af6708388168f9a2dfbb18d6b0d1ea8988c2cf16eb831e007e3f6de5baf",
+      "fingerprint": "b7848f3d86f415ece0b7ebc9c1702cf130fa142c3428373984fa968ee4593426",
+      "text": "裝置重新啟動",
+      "status": "approved"
+    },
+    "Firmware observed": {
+      "sourceHash": "9394efadea86aef0facdab3b022c286058547f330654a8f49867ca48acba49f4",
+      "fingerprint": "15e323af2ca1cc432fdf37ae929c55eff10a15faf6f5c3e727f77bcc8a641717",
+      "text": "偵測到韌體版本",
+      "status": "approved"
+    },
+    "Health summary": {
+      "sourceHash": "13e25218e4ba6690e4c91420b61e0276fa42724a5913f5b6f3498858224a61e1",
+      "fingerprint": "404e33118c91fb79ef3c2125f50e079af224a98a71d9990db8d02a5922d61f56",
+      "text": "健康狀態摘要",
+      "status": "approved"
+    },
+    "Low RSSI": {
+      "sourceHash": "fb6daf692d16960b4c89b2bb57dae265d5d63e68366a0512dd636446bf4b0e9a",
+      "fingerprint": "309c23575015f84376d4f04bb51f295c56bdeaa802901900b540e3e6a387ac61",
+      "text": "訊號強度偏低",
+      "status": "approved"
+    },
+    "Low memory": {
+      "sourceHash": "a8e26cae7adc1fd0c47e40db8662f407743bdd9744e1edd3b3435481e382d6aa",
+      "fingerprint": "e02fbebda1ea8c8f9dbe09f673d93dcb5b08e5a8e4a01efb9a10aa9f46f5ab8e",
+      "text": "記憶體不足",
+      "status": "approved"
+    },
+    "Memory sample": {
+      "sourceHash": "d4a8b74d70da0e897aaab9080b139d646f67f7064dd55ca0c2dde38b8c847ab4",
+      "fingerprint": "c6c04a13e6ca1a7e10b63129b01b8d0425071db9d8f1b1dcb93bf1cf27d7a915",
+      "text": "記憶體取樣",
+      "status": "approved"
+    },
+    "No RSSI samples available.": {
+      "sourceHash": "6d333e8d51e9169d08329fa8dca6ef6644f3371b3c685c9a0df660c5ea76d000",
+      "fingerprint": "dc172bb9747f174c05e145e43f8cb4123296419a1103e753e5f29c7aa4b78a2f",
+      "text": "尚無 RSSI 資料。",
+      "status": "approved"
+    },
+    "No uptime samples available.": {
+      "sourceHash": "78a8a29f00f8c73507ee812f4fefe61f607fa313bf221e93770b6d84a774a166",
+      "fingerprint": "13abf63671a50bf4962cca037fad36af817facddd0e0421f71e0e4d270229a21",
+      "text": "尚無上線時間資料。",
+      "status": "approved"
+    },
+    "Offline risk": {
+      "sourceHash": "c30c2ba497090056026da08cbcd3da73647b344f4286cff25dc5f055aad77ae7",
+      "fingerprint": "9c1c127cf25e2301ef51cdabf752117cbf93c198b41df48806743c25fac9fcce",
+      "text": "離線風險",
+      "status": "approved"
+    },
+    "RSSI history sparkline": {
+      "sourceHash": "c08c3b0763ce53f03432fdfc1cc471a245bbf300dff3d2577efbcfd2e4373aba",
+      "fingerprint": "b62fcb5e30234bd38af8f0139d10905a89498e8c46b5efa7246a98005b4e5473",
+      "text": "RSSI 歷史趨勢圖",
+      "status": "approved"
+    },
+    "RSSI sample": {
+      "sourceHash": "ba5874ffc75f775583bb899400559c3dfb342f4a7834b94403037de75da6e70b",
+      "fingerprint": "9c7fa0c6d076bdd5d2d46bc99ffead4861477dc2867aca0369173b32a12d2769",
+      "text": "RSSI 取樣",
+      "status": "approved"
+    },
+    "Recent crash": {
+      "sourceHash": "608412d525c7666a8602a926c30f582f051369047263c086fdba2249acc268b0",
+      "fingerprint": "ed60d7bdd6946a16033078a8dbf5ed380b0344df78a93a7c36bbcd1997084f41",
+      "text": "近期曾異常終止",
+      "status": "approved"
+    },
+    "Recent reboot": {
+      "sourceHash": "272042def1b2f82218ecb50f80f62e38652f330d4049c0db4f8daf3d340b5715",
+      "fingerprint": "f0bc2c1217a42869c6cff4a83e2e48837e3d559bcb3f01ed91c5e5b9e3e3286c",
+      "text": "近期曾重新啟動",
+      "status": "approved"
+    },
+    "Uptime history sparkline": {
+      "sourceHash": "5a47d561fa5c6dcb0aee547fa018ba0f9f23019d8d98a52ebc4a802728ff9fd7",
+      "fingerprint": "145428cca3d88db5f86941ed6f0f43e079758dc32d8b23607d60afb6962f4e48",
+      "text": "上線時間歷史趨勢圖",
+      "status": "approved"
+    },
+    "none reported": {
+      "sourceHash": "38f95a936a6164cfe6bccd96d2672443002885777166efd755e13ba7a1f738f6",
+      "fingerprint": "421e76cb8f69a4d1f4c18b4452cb79a0e80fa05479b7983f5a78637e80c14cb3",
+      "text": "尚無回報",
+      "status": "approved"
+    },
+    "{{date}}: {{percent}} online": {
+      "sourceHash": "d6c7807622adbda8ae1951e1ef0ba5b6137b440c4092987806194276c4985aaf",
+      "fingerprint": "4d24570b8f6c71af8be2630a6655bece88cdb84654d3b61a8e7543354a33b9af",
+      "text": "{{date}}：上線比例 {{percent}}",
+      "status": "approved"
+    },
+    "{{date}}: {{value}} dBm ({{quality}})": {
+      "sourceHash": "dcb5113acc82e7e63422f9ed4ef3fbd338cbee724b9baf098e7aec782258505a",
+      "fingerprint": "9d698c116e714d74575ddfae8a472cebfa7ff09a2f16eb031e52594eb22af713",
+      "text": "{{date}}：{{value}} dBm（{{quality}}）",
+      "status": "approved"
+    },
+    "Fair": {
+      "sourceHash": "6bf87326d74050fdb5a158989688937f0422408375b7b4ec7ef96558b800e48b",
+      "fingerprint": "ecc838cdd28cd5897102daa9e8d5e00ad9d31bb279a73a182ee97033524d2be9",
+      "text": "普通",
+      "status": "approved"
+    },
+    "Poor": {
+      "sourceHash": "74e31996c6377d703ab4aa09b85c38842306760511567ff7d0ba4e76fb925917",
+      "fingerprint": "45037701eebdf8cacce81a2d2161c99c0d8203338f7b814e11aa971b9f43b06a",
+      "text": "不佳",
+      "status": "approved"
+    },
+    "Brand display name is required.": {
+      "sourceHash": "d4e9c984a6c976b27a24fabc926a575488999df54057ff1bf024868dc668692c",
+      "fingerprint": "a0ea349f36d6e655b32fd0ab2a6836e2a7338c0742dd4cf21609321909869faa",
+      "text": "請輸入品牌顯示名稱。",
+      "status": "approved"
+    },
+    "Brand event delivery is not configured for this environment.": {
+      "sourceHash": "5027ea0786eff86bc6bc89b0a83ff466804b0cd320d90d6988af9b264ff86ee9",
+      "fingerprint": "f46d0b32f8f867156f7fdf7239a1976f29fffe0d40ccc39c183ff404d4306d21",
+      "text": "此環境尚未設定品牌事件傳送服務。",
+      "status": "approved"
+    },
+    "Certificate authority needs attention": {
+      "sourceHash": "38274045c9748e23c5de407ba3d3a413c9d7359d1c89932776df846ba13082b1",
+      "fingerprint": "59b047540ef6baa9dc84d13c23171e3eb816b6b8d48d68691be9558b0c922f0d",
+      "text": "憑證授權中心需要處理",
+      "status": "approved"
+    },
+    "Certificate authority ready": {
+      "sourceHash": "f22fe27bea5621fedde82827767bbc924609aaba8c1ff416295e85a4b5c37d5d",
+      "fingerprint": "3850516385e2c9cfab7150c44eb473a9fca98d91e68204fedae4c75e2d766e8b",
+      "text": "憑證授權中心已就緒",
+      "status": "approved"
+    },
+    "Certificate authority setup cancelled": {
+      "sourceHash": "e5888db931562fb5bab178e126df5691b883f949cd5b183fe14203c11f107715",
+      "fingerprint": "5b0bc6a4ae704de42448ab65b1ad479b64711ea94c100c64ce61c752c4377b81",
+      "text": "憑證授權中心設定已取消",
+      "status": "approved"
+    },
+    "Check the HTTPS endpoint and signing secret. The endpoint must use public DNS and port 443.": {
+      "sourceHash": "8746529b89c7efc8b3e4cc4b8c2e82b8c6786b60a10f20bc7e4fb0b100e68f74",
+      "fingerprint": "b4f9b8509ce947e79adfa675372fa944e5ebdef3641046cadcc542491207b70c",
+      "text": "請檢查 HTTPS 端點與簽章密鑰。端點必須使用公開 DNS 與 443 連接埠。",
+      "status": "approved"
+    },
+    "Cloud ownership changed. Refresh the cloud before trying again.": {
+      "sourceHash": "6ad2e6434492edf73a7519567ed5bdb61e063c0eb868a66d9a2d61cde2280249",
+      "fingerprint": "024360cb95a32834cb4f03e063404de12483cb3687017e5ca5ca1face137021a",
+      "text": "雲端擁有權已變更。請重新整理雲端後再試。",
+      "status": "approved"
+    },
+    "Connection interrupted. Retry the same invitation; access has not been confirmed.": {
+      "sourceHash": "0265a9b45782aa7bc379722cb1ee1b6b79b10287f41b5c225bf8462a2ac1fbe3",
+      "fingerprint": "405fb0866f514ca2fba5bea8b0ca69b2634267ef2d3803166ab55be0cfa613ab",
+      "text": "連線中斷。請使用同一份邀請重試；目前尚未確認存取權限。",
+      "status": "approved"
+    },
+    "Creating certificate authority…": {
+      "sourceHash": "b50efc23c1f7a2aa47f0f0fc091ea3f13a5c72527ad4edfafb1c5442800bfcfb",
+      "fingerprint": "23f6c8ac036a47d76685d2f1942931a1998674b868ec381fe54bf35529ab2787",
+      "text": "正在建立憑證授權中心…",
+      "status": "approved"
+    },
+    "Creating test devices and credentials on the server…": {
+      "sourceHash": "642f1c4fa8146ad94233afcf23eb6c95ebd28136808fb56506c805716a2d3473",
+      "fingerprint": "28dfc6eae3694039a3ac2d7109a88afa93f73fb23f42d223b862f7df0615f853",
+      "text": "正在伺服器上建立測試裝置與憑證…",
+      "status": "approved"
+    },
+    "Email is required.": {
+      "sourceHash": "eb3217f554c129f5bc8f4383aaf937335b8eb4eae48f61ee30f1abd89768c247",
+      "fingerprint": "08081107f4712696b3a89f6167e830db033140e69965c9b45b1014ce97f3b212",
+      "text": "請輸入電子郵件地址。",
+      "status": "approved"
+    },
+    "Initial owner email is required.": {
+      "sourceHash": "f0098b2be2f4d75de192e79ed79852c1b03084f8931a5309a95d873dba8b88c9",
+      "fingerprint": "b88903b17f4f081b0c7380eb39eaab2045e631f4ba69b5e4623bd0ed06f91961",
+      "text": "請輸入初始擁有者的電子郵件地址。",
+      "status": "approved"
+    },
+    "Invitation canceled, expired, or membership already exists.": {
+      "sourceHash": "916b064212f8a2c7aa48f25aea7434fe1562c2fc6c982280922f0b0dd9217bc1",
+      "fingerprint": "0a2e65ba409c05e447df13a4b6345448fe468600d10ee57fe6ea836b6e1aec9e",
+      "text": "邀請已取消、過期，或此帳戶已是成員。",
+      "status": "approved"
+    },
+    "Membership removed.": {
+      "sourceHash": "0bfbe7ed96b8d1e0acf1250bc6cf9db1de7f1e0bf8546944184fcc6abf570b51",
+      "fingerprint": "f404dab996b4025a640e2ab318a14ba3004f7cc73af957d936786e6d18d0a9d0",
+      "text": "已移除成員。",
+      "status": "approved"
+    },
+    "Select the value to copy it.": {
+      "sourceHash": "bd3f40a0b3e00cc44e3b2261f6e0011995965f94ff0b3bc6a0ced41503e794d4",
+      "fingerprint": "310b86be06d3a7189a16b96414b53e6e4491247862d479b8122351fa1dc3f7fb",
+      "text": "選取內容即可複製。",
+      "status": "approved"
+    },
+    "The invitation is invalid, expired, used, or the login account is not the invitee.": {
+      "sourceHash": "ca0cde3baf26aba1871e20c6db06a940e7ebe1ef859d4520393f1c60f427a489",
+      "fingerprint": "80239e4c24c4645f219cc33f2278dd5a92dd0de0732fb20a26fc53fc7a66b774",
+      "text": "邀請無效、已過期、已使用，或目前登入的帳戶不是受邀者。",
+      "status": "approved"
+    },
+    "The test bundle could not be created. Please try again.": {
+      "sourceHash": "546ae204fbc8aa1c310218fcc89ecd49c320c75862a25da00e5b90836bbe9bf7",
+      "fingerprint": "f84cd561a45b4be6ad5b1d0026d499cb090a2b91becd1c1ef236ad1d62206d78",
+      "text": "無法建立測試裝置憑證套件，請再試一次。",
+      "status": "approved"
+    },
+    "The webhook service is temporarily unavailable. Please try again.": {
+      "sourceHash": "4e3fdd117a7b8200984a9a4dc5d4bd1ecd609c58ce5d3671ecb0c234e1e34aa1",
+      "fingerprint": "1c7629b3902e7046d9b99f9706c75d8707c556a6659d82ba542219b821d5160c",
+      "text": "Webhook 服務暫時無法使用，請稍後再試。",
+      "status": "approved"
+    },
+    "Unable to accept invitation at this time, please try again later.": {
+      "sourceHash": "17c8f3565d2f30943216b895b9278d60e0a4e73515b55d7562fe9f53b578bf80",
+      "fingerprint": "78c86051c9c0aa3997c6a020f0ea9c433e1b219d7ce994324608b19f9bb6fe8f",
+      "text": "目前無法接受邀請，請稍後再試。",
+      "status": "approved"
+    },
+    "Update status is unknown. Refresh before retrying; no successful update has been confirmed.": {
+      "sourceHash": "af5ca2ca283fd76fe743ff61d488831a2aeb3c921f2df83274a404598b929f1b",
+      "fingerprint": "6f2e25740605e2d3311914b562c93ec1090a96e075cb0a9f3003c0ce5fba058e",
+      "text": "更新狀態不明。請先重新整理再重試；目前尚未確認更新成功。",
+      "status": "approved"
+    },
+    "Verifying invitation…": {
+      "sourceHash": "3892d79b857d72b897491c38c9f622ea7e7cbd22039796ee645687f9a6a426c5",
+      "fingerprint": "fbd4cd0d67aa8512f517108a9e2c952f64c01595149de39c10cb03b00525a23f",
+      "text": "正在驗證邀請…",
+      "status": "approved"
+    },
+    "Webhook disabled. A delivery already in flight may still finish.": {
+      "sourceHash": "afb135547253bd810cd71a6d1cd478ceb1d443462dd46f082d268341ab32ce15",
+      "fingerprint": "66f5b41e75c8da21a69102dd8a98d2a231eae5dc74d4a22d216daeb0e40ceb33",
+      "text": "已停用 Webhook。進行中的傳送仍可能完成。",
+      "status": "approved"
+    },
+    "Webhook enabled. The signing secret will not be shown again.": {
+      "sourceHash": "5541fe000a0ac42c30b63c5569e291a206b368190e731f613d8cd85ce0468b01",
+      "fingerprint": "eacef57878d27216870a0c4a4f02eea7e365789847316aca18a0bfe032d91798",
+      "text": "已啟用 Webhook。簽章密鑰不會再次顯示。",
+      "status": "approved"
+    },
+    "You no longer have permission to manage this cloud’s webhook.": {
+      "sourceHash": "23521762c143447acc0a4888ddf83c72851a9ba75705964fa7fb44529a6bae89",
+      "fingerprint": "0191201b7b99dcc09d162faf6e9c826847ef4ba72ef2ab587ef16ef79d5adf01",
+      "text": "您已沒有權限管理此雲端的 Webhook。",
+      "status": "approved"
+    },
+    "Your test-device download has started. It contains server-generated private keys; keep it secure.": {
+      "sourceHash": "b72a4e23da45b930e096317f149a8f4e125347b6430fbf4dbc6812bfdcba434d",
+      "fingerprint": "b6868645001c1164e39897fc3bbb04d06351883d13082999058f5cbbbe589fc0",
+      "text": "測試裝置憑證檔已開始下載，其中包含伺服器產生的私鑰，請妥善保管。",
       "status": "approved"
     }
   }

@@ -143,7 +143,7 @@ test('[UI-CA-MULTICLOUD-ANALYTICS-001] unavailable Overview and Stream Health va
   await expect(cards.getByText('Unavailable', { exact: true })).toHaveCount(0);
 });
 
-test('[UI-CA-MULTICLOUD-REGIONS-001] zero-count regions use an empty state instead of a misleading map', async ({ page }) => {
+test('[UI-CA-MULTICLOUD-REGIONS-001] zero-count regions show an empty state without a map', async ({ page }) => {
   await login(page, 'billing_owner');
   await page.goto(`/console/clouds/${cloudA}`);
 

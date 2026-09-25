@@ -5,6 +5,7 @@ COPY web/package*.json web/
 RUN cd web && npm ci
 COPY web web
 COPY internal/app internal/app
+COPY internal/readinessfacts internal/readinessfacts
 RUN cd web && npm run build
 
 FROM golang:1.26-bookworm AS builder

@@ -32,8 +32,8 @@ export function TestLabDownload({ file, onSaved }) {
     <p>{translate("Contains a private key. Save it securely before refreshing, leaving this page or changing Product. The server does not retain the private key. Retrying this download uses the same file and does not create another device or key.")}</p>
     {typeof window.showSaveFilePicker === 'function' && <button type="button" onClick={saveAs}>{translate("Save file…")}</button>}
     {url && <a className="test-lab-download-link" href={url} download={file.name} onClick={() => setMessage('Download requested. Check your browser downloads; this page cannot confirm that the file was saved. You can retry this link.')}>{translate("Download")} {file.kind === 'device' ? translate("device credentials") : translate("provision key")}</a>}
-    <p>{translate("If your browser shows only a blob: URL, the file has not necessarily been saved. Keep this page open and use Save file… if available. Do not create another device to retry a download.")}</p>
-    <label><input type="checkbox" checked={file.saved} onChange={e => onSaved(e.target.checked)} /> {translate("I have saved this file securely")}</label>
-    {message && <p role="status">{message}</p>}
+    <details className="test-lab-download-help"><summary>{translate("Download help")}</summary><p>{translate("If your browser shows only a blob: URL, the file has not necessarily been saved. Keep this page open and use Save file… if available. Do not create another device to retry a download.")}</p></details>
+    <label className="test-lab-download-ack"><input type="checkbox" checked={file.saved} onChange={e => onSaved(e.target.checked)} /> {translate("I have saved this file securely")}</label>
+    {message && <p role="status">{translate(message)}</p>}
   </section>;
 }

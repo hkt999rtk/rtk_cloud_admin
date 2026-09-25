@@ -22,7 +22,7 @@ export function TestLabDevices({ cloudId, product, onScope }) {
   const [confirmation, setConfirmation] = useState(null);
   const pendingConfirmation = useRef(null);
   const confirmationTrigger = useRef(null);
-  const ask = message => new Promise(resolve => { confirmationTrigger.current = document.activeElement; pendingConfirmation.current?.(false); pendingConfirmation.current = resolve; setConfirmation(message); });
+  const ask = (key, values) => new Promise(resolve => { confirmationTrigger.current = document.activeElement; pendingConfirmation.current?.(false); pendingConfirmation.current = resolve; setConfirmation({ key, values }); });
   const answer = accepted => { const resolve = pendingConfirmation.current; pendingConfirmation.current = null; setConfirmation(null); resolve?.(accepted); };
   useEffect(() => () => { pendingConfirmation.current?.(false); }, []);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [version, setVersion] = useState(0);
@@ -90,11 +90,11 @@ export function TestLabDevices({ cloudId, product, onScope }) {
   }
   function action(d, name, extra = {}) { return managedCloudRequest(`${base}/devices/${d.id}/${name}`, { method: 'POST', body: { product_id: product, account_id: account.id, ...extra } }); }
   async function bind() {
-    const d = devices.find(d => d.id === candidate && d.bindable); if (!d || !await ask(`Bind ${d.name} (${d.id}) to ${account.email}?`)) return;
+    const d = devices.find(d => d.id === candidate && d.bindable); if (!d || !await ask('Bind {{deviceName}} ({{deviceId}}) to {{email}}?', { deviceName: d.name, deviceId: d.id, email: account.email })) return;
     await perform(async () => { const grant = await action(d, 'grant'); await action(d, 'bind', { claim_token: grant.claim_token }); setShowBind(false); setSelected(d.id); });
   }
   async function unbind(d) {
-    if (!await ask(`Unbind ${d.name} (${d.id}) from ${account.email}? This account loses test access. Device identity, certificates and other accounts are preserved.`)) return;
+    if (!await ask('Unbind {{deviceName}} ({{deviceId}}) from {{email}}? This account loses test access. Device identity, certificates and other accounts are preserved.', { deviceName: d.name, deviceId: d.id, email: account.email })) return;
     // Clear this page's active transports before changing authorization.
     if (selected === d.id) setSelected('');
     await perform(() => action(d, 'unbind'));
@@ -112,7 +112,7 @@ export function TestLabDevices({ cloudId, product, onScope }) {
     });
   }
   return <section className="test-lab-device-manager" aria-label={translate("Test account and device bindings")}>
-    {confirmation && <Dialog role="alertdialog" title={translate("Confirm test action")} returnFocus={confirmationTrigger.current} onClose={() => answer(false)}><p id="test-lab-confirmation-message">{confirmation}</p><button autoFocus onClick={() => answer(false)}>{translate("Cancel action")}</button><button onClick={() => answer(true)}>{translate("Continue")}</button></Dialog>}
+    {confirmation && <Dialog role="alertdialog" title={translate("Confirm test action")} returnFocus={confirmationTrigger.current} onClose={() => answer(false)}><p id="test-lab-confirmation-message">{translate(confirmation.key, confirmation.values)}</p><button autoFocus onClick={() => answer(false)}>{translate("Cancel action")}</button><button onClick={() => answer(true)}>{translate("Continue")}</button></Dialog>}
     <fieldset disabled={busy || !!confirmation} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
     <p>{icon('user-check')}{account ? translate("Testing as {{value0}} — using your Console login.", { value0: account.email }) : product ? translate("Loading your Console test access…") : translate("Select a Product to begin.")}</p>
     {error && <p role="alert" className="test-lab-warning">{translate(error)}</p>}

@@ -103,7 +103,7 @@ export function BrandWebhookSettings({ cloudId, onAccessLost = () => {} }) {
     <p>{translate("RTK sends signed event metadata to your HTTPS endpoint. Your brand decides which app users to notify and owns APNs/FCM delivery.")}</p>
     {loading ? <p role="status">{translate("Loading webhook settings…")}</p> : <>
       {error && <p role="alert" className="brand-webhook-error">{translate(error)} <button type="button" onClick={() => setReload((value) => value + 1)}>{translate("Refresh")}</button></p>}
-      {message && <p role="status">{message}</p>}
+      {message && <p role="status">{translate(message)}</p>}
       {version && <>
         <p role="status">{translate("Status:")} <strong>{subscription?.enabled ? translate("Enabled") : subscription ? translate("Disabled") : translate("Not configured")}</strong></p>
         <form onSubmit={save} autoComplete="off">
@@ -121,7 +121,7 @@ export function BrandWebhookSettings({ cloudId, onAccessLost = () => {} }) {
         {confirmDisable && <div className="brand-webhook-confirm" role="group" aria-label={translate("Confirm webhook disable")}><p>{translate("Stop new webhook deliveries for this cloud? An in-flight request may still finish.")}</p><div className="my-clouds-actions"><button type="button" className="my-clouds-danger" disabled={busy} onClick={disable}>{translate("Confirm disable")}</button><button type="button" disabled={busy} onClick={() => setConfirmDisable(false)}>{translate("Cancel")}</button></div></div>}
         <div className="brand-webhook-receipts"><h3>{translate("Delivery receipts")}</h3><p>{translate("Look up an event ID received by your backend to see RTK delivery attempts, identified by device when an ID is reused. This does not confirm a mobile push was delivered.")}</p>
           <form onSubmit={inspect}><label>{translate("Event ID")}<input value={eventId} required maxLength={128} onChange={(event) => setEventId(event.target.value)} disabled={receiptBusy} /></label><button type="submit" disabled={receiptBusy}>{receiptBusy ? translate("Checking…") : translate("Check receipts")}</button></form>
-          {receiptError && <p role="alert">{receiptError}</p>}
+          {receiptError && <p role="alert">{translate(receiptError)}</p>}
           {receipts && (receipts.length ? <div className="brand-webhook-receipt-list"><table><thead><tr><th>{translate("Device")}</th><th>{translate("Attempt")}</th><th>{translate("Outcome")}</th><th>{translate("HTTP")}</th><th>{translate("Observed at")}</th></tr></thead><tbody>{receipts.map((receipt) => <tr key={`${receipt.device_id}-${receipt.event_id}-${receipt.attempt}`}><td>{receipt.device_id}</td><td>{receipt.attempt}</td><td>{receipt.outcome}</td><td>{receipt.status_code || '—'}</td><td>{receipt.observed_at || '—'}</td></tr>)}</tbody></table></div> : <p role="status">{translate("No delivery attempts recorded for this event.")}</p>)}
         </div>
       </>}
