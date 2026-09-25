@@ -725,6 +725,9 @@ func (s *Server) assets(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if r.URL.Path == "/assets/developer-docs/index.en.json" || r.URL.Path == "/assets/developer-docs/index.zh-TW.json" || r.URL.Path == "/assets/developer-docs/index.zh-CN.json" {
+		w.Header().Set("Cache-Control", "public, max-age=86400, must-revalidate")
+	}
 	http.ServeFile(w, r, path)
 }
 
