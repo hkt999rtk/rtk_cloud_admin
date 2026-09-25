@@ -29,3 +29,29 @@ test('[UI-CA-FACTORY-001] Product creates and stops a formal factory run @smoke'
   await expect(runs.getByRole('row',{name:/batch-a/})).toContainText('Disabled');
   await expect(runs.getByRole('button',{name:'Stop signing'})).toHaveCount(0);
 });
+
+test('[UI-CA-FACTORY-002] Retrying an uncertain creation reuses its authorization intent @smoke',async({page,request})=>{
+  expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
+  const keys=[];
+  let loseFirst=true;
+  await page.route('**/api/developer/brand-clouds/*/products/*/production-runs',async route=>{
+    if(route.request().method()!=='POST') return route.continue();
+    keys.push(route.request().headers()['idempotency-key']);
+    if(loseFirst){loseFirst=false;await route.fetch();return route.abort();}
+    return route.continue();
+  });
+  await page.goto(`/console/clouds/${cloud}/products/${product}`);
+  const runs=page.getByRole('region',{name:'Factory production runs'});
+  await runs.getByRole('textbox',{name:'Factory ID'}).fill('line-a');
+  await runs.getByRole('textbox',{name:'Batch ID'}).fill('batch-retry');
+  await runs.getByRole('button',{name:'Create production run'}).click();
+  await expect(runs.getByRole('alert')).toContainText('Unable to create');
+  await page.reload();
+  await runs.getByRole('textbox',{name:'Factory ID'}).fill('line-a');
+  await runs.getByRole('textbox',{name:'Batch ID'}).fill('batch-retry');
+  await runs.getByRole('button',{name:'Create production run'}).click();
+  await expect(runs.getByRole('textbox',{name:'Production-run JWT'})).toHaveValue('fixture-secret-shown-once');
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBeTruthy();
+  expect(keys[1]).toBe(keys[0]);
+});

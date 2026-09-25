@@ -116,6 +116,7 @@ func newScopedProductsFixture(t *testing.T) (*httptest.Server, *scopedProductsFi
 				return
 			}
 			if r.Method == http.MethodPost && len(parts) == 6 {
+				f.keys = append(f.keys, r.Header.Get("Idempotency-Key"))
 				var input productionRunInput
 				if json.NewDecoder(r.Body).Decode(&input) != nil {
 					http.Error(w, "bad run", 400)

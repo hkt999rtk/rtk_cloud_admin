@@ -72,10 +72,6 @@ func (s *Server) apiProductProductionRuns(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"production_runs": runs, "enrollment_url": endpoint})
 		return
 	}
-	if endpoint == "" {
-		http.Error(w, "factory enrollment is not publicly configured", http.StatusServiceUnavailable)
-		return
-	}
 	if runID != "" {
 		run, err := s.accountClient.StopFactoryProductionRun(ctx, session.AccessToken, cloudID, productID, runID)
 		if err != nil {
@@ -85,6 +81,10 @@ func (s *Server) apiProductProductionRuns(w http.ResponseWriter, r *http.Request
 		writeJSON(w, map[string]any{"production_run": run})
 		return
 	}
+	if endpoint == "" {
+		http.Error(w, "factory enrollment is not publicly configured", http.StatusServiceUnavailable)
+		return
+	}
 	var input productionRunInput
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
 	decoder.DisallowUnknownFields()
@@ -92,8 +92,13 @@ func (s *Server) apiProductProductionRuns(w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid production run", http.StatusBadRequest)
 		return
 	}
+	key := r.Header.Get("Idempotency-Key")
+	if len(r.Header.Values("Idempotency-Key")) != 1 || key == "" || len(key) > 200 || strings.IndexFunc(key, func(ch rune) bool { return ch < 33 || ch > 126 }) >= 0 {
+		http.Error(w, "valid Idempotency-Key required", http.StatusBadRequest)
+		return
+	}
 	now := time.Now().UTC()
-	issued, err := s.accountClient.CreateFactoryProductionRun(ctx, session.AccessToken, cloudID, productID, input.FactoryID, input.BatchID, input.AllowedQuantity, now, now.Add(time.Duration(input.ValidHours)*time.Hour))
+	issued, err := s.accountClient.CreateFactoryProductionRun(ctx, session.AccessToken, cloudID, productID, key, input.FactoryID, input.BatchID, input.AllowedQuantity, now, now.Add(time.Duration(input.ValidHours)*time.Hour))
 	if err != nil {
 		s.managedCloudError(w, session.ID, err)
 		return

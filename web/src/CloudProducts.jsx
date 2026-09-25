@@ -13,10 +13,23 @@ function ProductionRuns({cloudId, product}) {
   const [runs,setRuns]=useState([]),[endpoint,setEndpoint]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[credential,setCredential]=useState('');
   const [factoryId,setFactoryId]=useState(''),[batchId,setBatchId]=useState(''),[quantity,setQuantity]=useState(1),[hours,setHours]=useState(24);
   const writing=useRef(false);
+  const createIntent=useRef(null);
   const load=async()=>{try{const result=await managedCloudRequest(path);setRuns(result.production_runs||[]);setEndpoint(result.enrollment_url||'');setError('');}catch{setError('Unable to load production runs. Retry.');}};
   useEffect(()=>{let active=true;managedCloudRequest(path).then(result=>{if(active){setRuns(result.production_runs||[]);setEndpoint(result.enrollment_url||'');}}).catch(()=>{if(active)setError('Unable to load production runs. Retry.');});return()=>{active=false;};},[path]);
   async function create(event){event.preventDefault();if(writing.current)return;writing.current=true;setBusy(true);setError('');
-    try{const result=await managedCloudRequest(path,{method:'POST',body:{factory_id:factoryId,batch_id:batchId,allowed_quantity:Number(quantity),valid_hours:Number(hours)}});setCredential(result.factory_jwt||'');setRuns(current=>[result.production_run,...current]);setBatchId('');}
+    try{
+      const body={factory_id:factoryId,batch_id:batchId,allowed_quantity:Number(quantity),valid_hours:Number(hours)};
+      const storageKey=`factory-run-intent:${cloudId}:${product.id}`;
+      let saved=null;
+      try{saved=JSON.parse(sessionStorage.getItem(storageKey)||'null');}catch{}
+      const intent=cloudWriteIntent(createIntent.current||saved,'POST',path,body);
+      createIntent.current=intent;
+      try{sessionStorage.setItem(storageKey,JSON.stringify(intent));}catch{}
+      const result=await managedCloudRequest(path,{method:'POST',body,key:intent.key});
+      createIntent.current=null;
+      try{sessionStorage.removeItem(storageKey);}catch{}
+      setCredential(result.factory_jwt||'');setRuns(current=>[result.production_run,...current.filter(item=>item.id!==result.production_run.id)]);setBatchId('');
+    }
     catch{setError('Unable to create a production run. Check your permissions and Product status.');}
     finally{writing.current=false;setBusy(false);}
   }

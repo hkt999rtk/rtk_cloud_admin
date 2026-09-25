@@ -1456,10 +1456,10 @@ func (c *Client) ProductionRuns(ctx context.Context, accessToken, orgID, profile
 	return body.Runs, nil
 }
 
-func (c *Client) CreateFactoryProductionRun(ctx context.Context, accessToken, orgID, profileID, factoryID, batchID string, quantity int, validFrom, validUntil time.Time) (ProductionRunIssueResponse, error) {
+func (c *Client) CreateFactoryProductionRun(ctx context.Context, accessToken, orgID, profileID, idempotencyKey, factoryID, batchID string, quantity int, validFrom, validUntil time.Time) (ProductionRunIssueResponse, error) {
 	var body ProductionRunIssueResponse
 	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-item-profiles/" + url.PathEscape(profileID) + "/production-runs"
-	err := c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]any{"factory_id": factoryID, "batch_id": batchID, "allowed_quantity": quantity, "valid_from": validFrom, "valid_until": validUntil}, &body)
+	err := c.doJSONWithIdempotency(ctx, http.MethodPost, path, accessToken, idempotencyKey, map[string]any{"factory_id": factoryID, "batch_id": batchID, "allowed_quantity": quantity, "valid_from": validFrom, "valid_until": validUntil}, &body)
 	return body, err
 }
 

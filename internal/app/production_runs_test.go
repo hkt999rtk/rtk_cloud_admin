@@ -11,7 +11,7 @@ import (
 )
 
 func TestProductProductionRunBoundary(t *testing.T) {
-	upstream, _ := newScopedProductsFixture(t)
+	upstream, fixture := newScopedProductsFixture(t)
 	st := mustOpenStore(t)
 	session, err := st.CreateSession("account", "owner-1", "owner@example.test", "global", "", cloudA, time.Hour)
 	if err != nil {
@@ -22,6 +22,7 @@ func TestProductProductionRunBoundary(t *testing.T) {
 	request := func(method, path, body, origin string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(method, path, strings.NewReader(body))
 		r.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+		r.Header.Set("Idempotency-Key", "factory-intent-a")
 		if origin != "" {
 			r.Header.Set("Origin", origin)
 		}
@@ -37,6 +38,13 @@ func TestProductProductionRunBoundary(t *testing.T) {
 		t.Fatalf("unconfigured endpoint: %d %s", got.Code, got.Body)
 	}
 	s.cfg.FactoryEnrollPublicBaseURL = "https://factory-enroll.example.test"
+	missingKey := httptest.NewRequest(http.MethodPost, root, strings.NewReader(valid))
+	missingKey.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: session.ID})
+	missingKeyResult := httptest.NewRecorder()
+	s.ServeHTTP(missingKeyResult, missingKey)
+	if missingKeyResult.Code != http.StatusBadRequest {
+		t.Fatalf("missing creation key: %d", missingKeyResult.Code)
+	}
 	for _, tc := range []struct {
 		method, path, body, origin string
 		want                       int
@@ -56,10 +64,16 @@ func TestProductProductionRunBoundary(t *testing.T) {
 	if created.Code != 201 || !strings.Contains(created.Body.String(), "fixture-secret-shown-once") {
 		t.Fatalf("create: %d %s", created.Code, created.Body)
 	}
+	fixture.mu.Lock()
+	if len(fixture.keys) != 1 || fixture.keys[0] != "factory-intent-a" {
+		t.Errorf("creation key not forwarded: %v", fixture.keys)
+	}
+	fixture.mu.Unlock()
 	listed := request("GET", root, "", "")
 	if listed.Code != 200 || !strings.Contains(listed.Body.String(), "batch-a") || strings.Contains(listed.Body.String(), "fixture-secret-shown-once") {
 		t.Fatalf("list redaction: %d %s", listed.Code, listed.Body)
 	}
+	s.cfg.FactoryEnrollPublicBaseURL = ""
 	stopped := request("POST", root+"/"+fixtureProductionRunID+"/stop", "", "")
 	if stopped.Code != 200 || !strings.Contains(stopped.Body.String(), `"status":"disabled"`) {
 		t.Fatalf("stop: %d %s", stopped.Code, stopped.Body)
