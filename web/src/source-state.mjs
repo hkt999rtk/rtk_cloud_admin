@@ -22,7 +22,11 @@ export function sourceAvailable(source) {
 
 export function sourceMessage(source, fallback) {
   if (!source) return fallback;
-  if (source.source_message) return translate(sanitizeSourceMessage(source.source_message, fallback));
+  if (source.source_message) {
+    const message = sanitizeSourceMessage(source.source_message, fallback);
+    if (message === 'Stream source is unavailable.') return translate('Stream source unavailable');
+    return translate(message);
+  }
   switch (source.source_status) {
     case 'not_configured':
       return fallback;
