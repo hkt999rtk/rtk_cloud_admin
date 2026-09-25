@@ -1,4 +1,7 @@
 .pro2-examples-page .panel { min-width: 0; overflow-wrap: anywhere; }
+.pro2-examples-back { display: inline-flex; align-items: center; gap: 8px; width: fit-content; margin: 0 0 24px; color: var(--brand, #0068b7); text-decoration: none; font-weight: 600; }
+.pro2-examples-back:hover { text-decoration: underline; }
+.pro2-examples-page > .page-intro { margin-top: 0; }
 .pro2-examples-page details pre { max-height: 24rem; overflow: auto; white-space: pre-wrap; }
 .pro2-examples-page .cloud-sdk-actions { flex-wrap: wrap; }
 
@@ -32,6 +35,12 @@
 .pro2-release-terms summary::marker { color: var(--muted, #576576); }
 .pro2-release-terms-version { margin-left: 12px; color: var(--muted, #576576); font-size: 11px; font-weight: 400; }
 .pro2-release-terms pre { margin: 0 28px 24px; padding: 20px; border: 1px solid var(--line, #e0e5eb); border-radius: 6px; background: #f8fafc; font-size: 12px; line-height: 1.7; }
+.pro2-terms-body { max-height: 28rem; overflow: auto; margin: 0 28px 24px; padding: 24px; border: 1px solid var(--line, #e0e5eb); border-radius: 6px; background: #f8fafc; font-size: 14px; line-height: 1.75; }
+.pro2-terms-body h1 { font-size: 24px; }
+.pro2-terms-body h2 { margin-top: 28px; font-size: 18px; }
+.pro2-terms-body p,.pro2-terms-body li { max-width: 85ch; }
+.pro2-terms-body blockquote { margin-left: 0; padding-left: 18px; border-left: 3px solid var(--brand, #0068b7); }
+.pro2-terms-fallback { margin: 8px 28px; color: var(--muted, #576576); }
 @media (max-width: 1000px) {
   .pro2-examples-page .pro2-release { grid-template-columns: minmax(0, 1fr); }
   .pro2-release-download { border-left: 0; border-top: 1px solid var(--line, #e0e5eb); }
@@ -42,6 +51,8 @@
   .pro2-release-terms summary { padding: 16px 20px; }
   .pro2-release-terms-version { display: block; margin: 6px 0 0 14px; }
   .pro2-release-terms pre { margin: 0 20px 20px; padding: 14px; }
+  .pro2-terms-body { margin: 0 20px 20px; padding: 16px; }
+  .pro2-terms-fallback { margin: 8px 20px; }
 }
 
 .pro2-icon-heading { display: flex; align-items: center; gap: 10px; }

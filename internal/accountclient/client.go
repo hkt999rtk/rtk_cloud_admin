@@ -408,6 +408,8 @@ type ProductionRun struct {
 	Status              string `json:"status"`
 	AllowedQuantity     int    `json:"allowed_quantity"`
 	IssuedQuantity      int    `json:"issued_quantity"`
+	ValidFrom           string `json:"valid_from"`
+	ValidUntil          string `json:"valid_until"`
 }
 
 type ProductionRunIssueResponse struct {
@@ -1452,6 +1454,22 @@ func (c *Client) ProductionRuns(ctx context.Context, accessToken, orgID, profile
 		return nil, err
 	}
 	return body.Runs, nil
+}
+
+func (c *Client) CreateFactoryProductionRun(ctx context.Context, accessToken, orgID, profileID, idempotencyKey, factoryID, batchID string, quantity int, validFrom, validUntil time.Time) (ProductionRunIssueResponse, error) {
+	var body ProductionRunIssueResponse
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-item-profiles/" + url.PathEscape(profileID) + "/production-runs"
+	err := c.doJSONWithIdempotency(ctx, http.MethodPost, path, accessToken, idempotencyKey, map[string]any{"factory_id": factoryID, "batch_id": batchID, "allowed_quantity": quantity, "valid_from": validFrom, "valid_until": validUntil}, &body)
+	return body, err
+}
+
+func (c *Client) StopFactoryProductionRun(ctx context.Context, accessToken, orgID, profileID, runID string) (ProductionRun, error) {
+	var body struct {
+		Run ProductionRun `json:"production_run"`
+	}
+	path := "/v1/orgs/" + url.PathEscape(orgID) + "/device-item-profiles/" + url.PathEscape(profileID) + "/production-runs/" + url.PathEscape(runID) + "/stop"
+	err := c.doJSON(ctx, http.MethodPost, path, accessToken, nil, &body)
+	return body.Run, err
 }
 
 func (c *Client) AddDeviceToGroup(ctx context.Context, accessToken, orgID, groupID, deviceID string) error {

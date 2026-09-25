@@ -34,7 +34,7 @@ func (s *Server) apiTestLabManage(w http.ResponseWriter, r *http.Request) {
 		valid = managedCloudUUID.MatchString(parts[1]) && ((parts[0] == "accounts" && r.Method == "DELETE") || (parts[0] == "devices" && r.Method == "GET"))
 	}
 	if len(parts) == 3 {
-		valid = parts[0] == "devices" && managedCloudUUID.MatchString(parts[1]) && r.Method == "POST" && (parts[2] == "grant" || parts[2] == "bind" || parts[2] == "unbind" || parts[2] == "provision")
+		valid = parts[0] == "devices" && managedCloudUUID.MatchString(parts[1]) && r.Method == "POST" && (parts[2] == "grant" || parts[2] == "bind" || parts[2] == "unbind" || parts[2] == "provision" || parts[2] == "retire")
 	}
 	if !managedCloudUUID.MatchString(cloud) || !valid {
 		http.NotFound(w, r)

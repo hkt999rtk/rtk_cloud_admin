@@ -3,6 +3,12 @@
 .test-lab label { display: grid; gap: .4rem; margin-bottom: .8rem; }
 .test-lab textarea { width: 100%; font-family: monospace; }
 .test-lab-device-manager { border: 1px solid #dce3ec; border-radius: .6rem; padding: 1rem; min-width: 0; }
+.test-lab-device-picker { display: grid; gap: .4rem; max-width: 540px; margin: 1rem 0 .25rem; }
+.test-lab-device-picker-help { margin: 0 0 1rem; color: #536477; }
+.test-lab-current-device { padding: .8rem 1rem; background: #eef6ff; border: 1px solid #c5def8; border-radius: .5rem; }
+.test-lab-credential-download { border: 2px solid #3182ce; scroll-margin-top: 2rem; }
+.test-lab-credential-download:focus { outline: 3px solid #86bdf4; outline-offset: 2px; }
+.test-lab-download-jump { display: block; margin-top: .4rem; }
 .test-lab-device-manager table { width: 100%; text-align: left; border-collapse: collapse; }
 .test-lab-device-manager td, .test-lab-device-manager th { padding: .6rem; border-bottom: 1px solid #dce3ec; vertical-align: top; }
 .test-lab-device-id { display: block; overflow-wrap: anywhere; color: #526077; }

@@ -1,10 +1,12 @@
 import { translate } from './i18n/index.mjs';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // Credential material stays in this mounted page only, never persistent storage.
 export function TestLabDownload({ file, onSaved }) {
   const [url, setURL] = useState('');
   const [message, setMessage] = useState('');
+  const card = useRef(null);
+  useEffect(() => { card.current?.focus(); }, []);
   useEffect(() => {
     const next = URL.createObjectURL(file.blob);
     setURL(next);
@@ -15,7 +17,8 @@ export function TestLabDownload({ file, onSaved }) {
     setMessage('');
     try {
       // Called directly by a user gesture; no asynchronous issuance before picker.
-      const handle = await window.showSaveFilePicker({ suggestedName: file.name, types: [{ description: 'JSON credentials', accept: { 'application/json': ['.json'] } }] });
+      const zip = file.name.endsWith('.zip');
+      const handle = await window.showSaveFilePicker({ suggestedName: file.name, types: [{ description: zip ? 'Device credentials ZIP' : 'JSON credentials', accept: zip ? { 'application/zip': ['.zip'] } : { 'application/json': ['.json'] } }] });
       const writer = await handle.createWritable();
       await writer.write(file.blob);
       await writer.close();
@@ -26,12 +29,12 @@ export function TestLabDownload({ file, onSaved }) {
     }
   }
 
-  return <section className="test-lab-binding-form" aria-label={file.label}>
+  return <section ref={card} id={`test-lab-download-${file.deviceId || file.id}`} tabIndex={-1} className="test-lab-binding-form test-lab-credential-download" aria-label={translate(file.label)}>
     <h4><i className="fa-solid fa-file-arrow-down test-lab-icon" aria-hidden="true" />{translate(file.label)}</h4>
     <p><strong>{file.saved ? translate("Saved — download remains available.") : translate("Ready to download — not yet confirmed saved.")}</strong> {file.name}</p>
-    <p>{translate("Contains a private key. Save it securely before refreshing, leaving this page or changing Product. The server does not retain the private key. Retrying this download uses the same file and does not create another device or key.")}</p>
+    <p>{file.kind === 'device' ? translate("This ZIP contains device.key, device.crt, certificate-chain.pem, the original JSON bundle and setup notes. The private key is available only now. Save it before leaving this page.") : translate("This cloud activation key is separate from the device certificate and private key. Save it before leaving this page.")}</p>
     {typeof window.showSaveFilePicker === 'function' && <button type="button" onClick={saveAs}>{translate("Save file…")}</button>}
-    {url && <a className="test-lab-download-link" href={url} download={file.name} onClick={() => setMessage('Download requested. Check your browser downloads; this page cannot confirm that the file was saved. You can retry this link.')}>{translate("Download")} {file.kind === 'device' ? translate("device credentials") : translate("provision key")}</a>}
+    {url && <a className="test-lab-download-link" href={url} download={file.name} onClick={() => setMessage('Download requested. Check your browser downloads; this page cannot confirm that the file was saved. You can retry this link.')}>{file.kind === 'device' ? translate("Download device credential ZIP") : translate("Download cloud activation key")}</a>}
     <details className="test-lab-download-help"><summary>{translate("Download help")}</summary><p>{translate("If your browser shows only a blob: URL, the file has not necessarily been saved. Keep this page open and use Save file… if available. Do not create another device to retry a download.")}</p></details>
     <label className="test-lab-download-ack"><input type="checkbox" checked={file.saved} onChange={e => onSaved(e.target.checked)} /> {translate("I have saved this file securely")}</label>
     {message && <p role="status">{translate(message)}</p>}

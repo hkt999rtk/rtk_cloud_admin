@@ -1,9 +1,13 @@
 import {test,expect} from '@playwright/test';
 import {createHash} from 'node:crypto';
+import {readFile} from 'node:fs/promises';
 import {login} from './fixtures/session.mjs';
+const terms=await readFile(new URL('../src/legal/sdk_terms.en.md',import.meta.url),'utf8');
 const data=Buffer.from('isolated firmware');
 const artifact={id:'mqtt',filename:'amebapro2_mqtt_flash_ntz.bin',size_bytes:data.length,sha256:createHash('sha256').update(data).digest('hex'),kind:'firmware'};
-const catalog={schema:'rtk-pro2-examples/v1',test_only:true,version:'v1',source_commit:'a'.repeat(40),terms_version:'eval-v1',terms:'Evaluation only.',dependencies:{sdk:'9.6e'},artifacts:[{...artifact,id:'source',kind:'source'},...['mqtt','webrtc_test_video','webrtc_camera'].flatMap(id=>[{...artifact,id},{...artifact,id:id+'-sha',kind:'checksum'}])],examples:['mqtt','webrtc_test_video','webrtc_camera'].map(id=>({id,title:id,description:'Evaluation example',board:'PRO2',sensor:'GC2053',image_type:'full-flash-ntz',flash_offset:0,firmware_id:id,checksum_id:id+'-sha',validation:{build:'PASS',hardware:'NOT_RUN'}}))};
+const exampleCopy={mqtt:['MQTT','Cloud Token, MQTTS commands, presence and reconnect.'],webrtc_test_video:['H.264 test video','Looping synthetic H.264 over WebRTC, direct or TURN.'],webrtc_camera:['Live camera','MMFv2 camera encoding and H.264 WebRTC streaming.']};
+const catalog={schema:'rtk-pro2-examples/v1',test_only:true,version:'v1',source_commit:'a'.repeat(40),terms_version:'eval-v1',terms,dependencies:{sdk:'9.6e'},artifacts:[{...artifact,id:'source',kind:'source'},...['mqtt','webrtc_test_video','webrtc_camera'].flatMap(id=>[{...artifact,id},{...artifact,id:id+'-sha',kind:'checksum'}])],examples:['mqtt','webrtc_test_video','webrtc_camera'].map(id=>({id,title:exampleCopy[id][0],description:exampleCopy[id][1],board:'AmebaPro2 SDK 9.6e compatible board; physical validation pending',sensor:id==='webrtc_camera'?'GC2053':'Not required',image_type:'full-flash-ntz',flash_offset:0,firmware_id:id,checksum_id:id+'-sha',validation:{build:'PASS',hardware:'NOT_RUN'}}))};
+async function setLocale(page,code){await page.locator('[data-locale-selector]').selectOption(code);await page.keyboard.press('Escape')}
 test('[UI-CA-PRO2-001] PRO2 official URL firmware and local selection @smoke',async({page},testInfo)=>{
  await page.addInitScript(()=>{let reader;const port={async open(){this.readable=new ReadableStream({start(c){reader=c}});this.writable=new WritableStream({write(){}})},async close(){try{reader.close()}catch{}},async setSignals(){}};Object.defineProperty(navigator,'serial',{value:{addEventListener(){},removeEventListener(){},requestPort:async()=>port},configurable:true})});
  await login(page,'developer');
@@ -13,8 +17,22 @@ test('[UI-CA-PRO2-001] PRO2 official URL firmware and local selection @smoke',as
  await page.route('**/api/developer/pro2-examples/catalog?*',r=>r.fulfill({json:{version:'v1'}}),{times:1});
  await page.goto('/console/chipset-sdk/pro2/cloud-examples');
  await expect(page.getByRole('alert')).toContainText('unavailable');
- await page.getByRole('button',{name:'Reload release'}).click();
+ await setLocale(page,'zh-TW');
+ await expect(page.getByRole('alert')).toContainText('目前無法載入 PRO2 範例');
+ await expect(page.getByRole('link',{name:'返回晶片組與 SDK'})).toBeVisible();
+ await page.getByRole('button',{name:'重新載入範例'}).click();
+ await expect(page.getByRole('heading',{name:'雲端範例',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'H.264 測試影片',exact:true})).toBeVisible();
+ await page.locator('.pro2-release-terms summary').click();
+ await expect(page.locator('.pro2-terms-body')).toContainText('有限評估授權');
+ const back=await page.locator('.pro2-examples-back').boundingBox(),intro=await page.locator('.pro2-examples-page > .page-intro').boundingBox();
+ expect(back.y+back.height).toBeLessThan(intro.y);
+ await setLocale(page,'zh-CN');
+ await expect(page.getByRole('heading',{name:'H.264 测试视频',exact:true})).toBeVisible();
+ await expect(page.locator('.pro2-terms-body')).toContainText('有限评估授权');
+ await setLocale(page,'en');
  await expect(page.getByRole('heading',{name:'Cloud Examples',exact:true})).toBeVisible();
+ await expect(page.locator('.pro2-terms-body')).toContainText('Limited evaluation license');
  await expect(page.getByRole('link',{name:'Burn this example'})).toHaveCount(3);
  await page.screenshot({path:`/tmp/pro2-examples-${testInfo.project.name}.png`,fullPage:true});
  await page.getByRole('link',{name:'Burn this example'}).first().click();

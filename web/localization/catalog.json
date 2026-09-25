@@ -14225,6 +14225,507 @@
       "source": "Your test-device download has started. It contains server-generated private keys; keep it secure.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Bind",
+      "source": "Bind",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Binding",
+      "source": "Binding",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Choose a device for the tests below",
+      "source": "Choose a device for the tests below",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Choose a test device above before using the tests below.",
+      "source": "Choose a test device above before using the tests below.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Current test device:",
+      "source": "Current test device:",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device private keys are available only when a test device is created. If the file is lost, safely retire that device and create a replacement.",
+      "source": "Device private keys are available only when a test device is created. If the file is lost, safely retire that device and create a replacement.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device retirement is incomplete. Test access is blocked; retry the retirement action.",
+      "source": "Device retirement is incomplete. Test access is blocked; retry the retirement action.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Go to credential download",
+      "source": "Go to credential download",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No test devices in this Product. Create a test device to begin.",
+      "source": "No test devices in this Product. Create a test device to begin.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Safely retire {{deviceName}} ({{deviceId}})? All test bindings and sessions will end, and its certificate can no longer connect. This cannot be undone.",
+      "source": "Safely retire {{deviceName}} ({{deviceId}})? All test bindings and sessions will end, and its certificate can no longer connect. This cannot be undone.",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{deviceId}}",
+        "{{deviceName}}"
+      ]
+    },
+    {
+      "key": "Test device",
+      "source": "Test device",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Test devices",
+      "source": "Test devices",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The MQTT, Device Shadow and WebRTC tests below use the selected device.",
+      "source": "The MQTT, Device Shadow and WebRTC tests below use the selected device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Your test devices will appear automatically.",
+      "source": "Your test devices will appear automatically.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Activation failed",
+      "source": "Activation failed",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Activation pending",
+      "source": "Activation pending",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Bound to another account",
+      "source": "Bound to another account",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Bound to your test account",
+      "source": "Bound to your test account",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Deactivated",
+      "source": "Deactivated",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Download cloud activation key",
+      "source": "Download cloud activation key",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Download device credential ZIP",
+      "source": "Download device credential ZIP",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Not bound",
+      "source": "Not bound",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Not provisioned",
+      "source": "Not provisioned",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retired",
+      "source": "Retired",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retirement in progress",
+      "source": "Retirement in progress",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retirement needs retry",
+      "source": "Retirement needs retry",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retry retirement",
+      "source": "Retry retirement",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Safely retire",
+      "source": "Safely retire",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This ZIP contains device.key, device.crt, certificate-chain.pem, the original JSON bundle and setup notes. The private key is available only now. Save it before leaving this page.",
+      "source": "This ZIP contains device.key, device.crt, certificate-chain.pem, the original JSON bundle and setup notes. The private key is available only now. Save it before leaving this page.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This cloud activation key is separate from the device certificate and private key. Save it before leaving this page.",
+      "source": "This cloud activation key is separate from the device certificate and private key. Save it before leaving this page.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "AmebaPro2 SDK 9.6e compatible board; physical validation pending",
+      "source": "AmebaPro2 SDK 9.6e compatible board; physical validation pending",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud Token, MQTTS commands, presence and reconnect.",
+      "source": "Cloud Token, MQTTS commands, presence and reconnect.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "H.264 test video",
+      "source": "H.264 test video",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Live camera",
+      "source": "Live camera",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Looping synthetic H.264 over WebRTC, direct or TURN.",
+      "source": "Looping synthetic H.264 over WebRTC, direct or TURN.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "MMFv2 camera encoding and H.264 WebRTC streaming.",
+      "source": "MMFv2 camera encoding and H.264 WebRTC streaming.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Not required",
+      "source": "Not required",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "PRO2 examples are unavailable. Retry later.",
+      "source": "PRO2 examples are unavailable. Retry later.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Passed",
+      "source": "Passed",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Passed (protocol baseline; see report)",
+      "source": "Passed (protocol baseline; see report)",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Build validation",
+      "source": "Build validation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud validation",
+      "source": "Cloud validation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Hardware validation",
+      "source": "Hardware validation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Host tests",
+      "source": "Host tests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This release has no matching translated terms; showing the original text.",
+      "source": "This release has no matching translated terms; showing the original text.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.",
+      "source": "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Certificate signing requires an active Product and a ready certificate authority.",
+      "source": "Certificate signing requires an active Product and a ready certificate authority.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.",
+      "source": "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Enrollment API",
+      "source": "Enrollment API",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.",
+      "source": "Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.",
+      "source": "Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product ID",
+      "source": "Product ID",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Read device credential setup",
+      "source": "Read device credential setup",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Sign a device certificate",
+      "source": "Sign a device certificate",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.",
+      "source": "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.",
+      "source": "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "An authorized user with device-management permission creates a production run for this Cloud and Product, then securely delivers its short-lived authorization to the approved factory gateway.",
+      "source": "An authorized user with device-management permission creates a production run for this Cloud and Product, then securely delivers its short-lived authorization to the approved factory gateway.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "A device private key stays on the device. Send its CSR, device ID and a production-run JWT from the authorized factory gateway using mTLS.",
+      "source": "A device private key stays on the device. Send its CSR, device ID and a production-run JWT from the authorized factory gateway using mTLS.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Authorization duration in hours (1–168)",
+      "source": "Authorization duration in hours (1–168)",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Batch ID",
+      "source": "Batch ID",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Create production run",
+      "source": "Create production run",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Factory ID",
+      "source": "Factory ID",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Factory enrollment URL",
+      "source": "Factory enrollment URL",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Factory enrollment URL:",
+      "source": "Factory enrollment URL:",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Factory production runs",
+      "source": "Factory production runs",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "I have saved this authorization",
+      "source": "I have saved this authorization",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Issued / maximum",
+      "source": "Issued / maximum",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Maximum devices",
+      "source": "Maximum devices",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No production runs yet.",
+      "source": "No production runs yet.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Production runs",
+      "source": "Production runs",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Production-run JWT",
+      "source": "Production-run JWT",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retry",
+      "source": "Retry",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Save this production-run JWT now. It is shown only once.",
+      "source": "Save this production-run JWT now. It is shown only once.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Stop signing",
+      "source": "Stop signing",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The factory enrollment URL and production runs are shown below when the public gateway is ready.",
+      "source": "The factory enrollment URL and production runs are shown below when the public gateway is ready.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The platform issues a separate factory client certificate for each factory and Cloud. Send a factory-generated CSR to the platform operator; keep its private key at the factory.",
+      "source": "The platform issues a separate factory client certificate for each factory and Cloud. Send a factory-generated CSR to the platform operator; keep its private key at the factory.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The public factory enrollment URL is not configured yet.",
+      "source": "The public factory enrollment URL is not configured yet.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to create a production run. Check your permissions and Product status.",
+      "source": "Unable to create a production run. Check your permissions and Product status.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to load production runs. Retry.",
+      "source": "Unable to load production runs. Retry.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to stop the production run. Retry.",
+      "source": "Unable to stop the production run. Retry.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud Test Lab is a simplified development test and must not be used for mass production.",
+      "source": "Cloud Test Lab is a simplified development test and must not be used for mass production.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Formal mass-production flow",
+      "source": "Formal mass-production flow",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "View the factory enrollment sequence diagram",
+      "source": "View the factory enrollment sequence diagram",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

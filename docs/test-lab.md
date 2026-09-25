@@ -1,7 +1,7 @@
 # Developer Console Cloud Test Lab
 
 This feature belongs to the authenticated Developer Console, not the documentation
-site. Select a Brand Cloud and Product, then a bound test device using your current
+site. Select a Brand Cloud and Product, then a test device using your current
 Console login. No second account/password is needed. Device identity is unchanged.
 
 ## Test account, Bind and Unbind
@@ -11,23 +11,30 @@ Console login. No second account/password is needed. Device identity is unchange
    used. The browser renews cloud-scoped access automatically while open; every
    operation still checks current developer permissions. Existing ordinary App
    accounts and their bindings are not adopted or changed.
-2. Create test device prepares a JSON credential file in an explicit download
-   panel. Use the persistent download link, or Save file… in supporting browsers.
-   Links remain usable while this Product page stays open; retrying does not issue
-   another device or key. Save the private key and certificate and install them on
+2. Creating one test device requests a ZIP credential bundle. It contains
+   `device.key`, `device.crt`, `certificate-chain.pem`, the original
+   `certificate-bundle.json`, and an installation note. The existing API defaults
+   to JSON unless the caller requests ZIP. The download card receives focus after
+   creation; the device row links back to it. Repeating the download from this
+   card does not issue another device or key. Save the private key and certificate and install them on
    the test board/client. Browser download requests are not proof of a saved file;
    confirm the file yourself (the file picker can confirm a completed write).
    Pending files live only in page memory, not localStorage or backend storage,
-   and are cleared on Product change or unmount. Refresh/close warns about files
+   and survive Product and language changes while this page remains mounted. Refresh/close warns about files
    not confirmed saved. After leaving, there is no server-side private-key
-   retention or re-download. Existing eligible
+   retention or re-download. If the file is lost, safely retire the old device
+   and create a new one. Existing eligible
    test devices can also be bound without uploading their private keys.
 3. Bind device lists only unbound devices with a completed Developer Console test
    factory issuance record for this Product. A short-lived, one-use grant records
    the developer's approval. This dev test flow does not override production claim
    tokens or adopt arbitrary registry devices. Devices bound to another user
    cannot be taken over.
-4. Bound devices distinguishes binding, cloud provisioning and connection state.
+4. The device list includes every test-issued device in this Product, including
+   unbound and retired devices. It distinguishes binding, cloud provisioning,
+   connection and retirement state. The selected device is shown immediately above
+   the MQTT, Shadow and WebRTC tools. Changing selection stops old connections and
+   clears old test results.
    Provision queues the existing lifecycle operation. It requires an activity ID
    and RSA clip-encryption public key, separate from the device TLS key. Browser
    key generation downloads the private key locally; only the public key is sent.
@@ -37,6 +44,13 @@ Console login. No second account/password is needed. Device identity is unchange
    does not delete or deactivate the device, revoke certificates, or remove other
    users. It is blocked while provisioning is pending. Rebind requires a fresh
    grant; a retained activated device does not need provisioning again.
+6. Safe retirement requires product/device management authority and an operation
+   ID. Account Manager immediately blocks new Test Lab operations, revokes every
+   test binding and lease, and records an audit event. Video Cloud then revokes
+   the device entitlement and certificate and evicts its connection. A failed
+   cross-service step remains visible and can be retried with the same operation
+   ID. Completed retirement cannot be reversed by binding again. The row remains
+   as a read-only record; audit history is retained.
 
 The bound list is refreshed every 10 seconds; each runtime request independently
 rechecks authorization. Other tabs stop on their next check. Unbind clears this
@@ -104,6 +118,8 @@ All paths below are under `/api/developer`. Responses use `Cache-Control: no-sto
 - `POST /brand-clouds/{cloud}/test-lab/sessions` with `product_id`, `device_id`, `account_id`
 - `/brand-clouds/{cloud}/test-lab/manage/...` proxies the documented Account
   Manager test-account and device-binding routes; all mutations are same-origin.
+- `POST /brand-clouds/{cloud}/test-lab/manage/devices/{device}/retire` accepts
+  `{account_id,product_id,operation_id}` and returns the retirement status.
 - `POST /brand-clouds/{cloud}/test-lab/sessions/{session}/{action}`
   where action is `credentials`, `shadow`, `ice`, `offer`, `answer`, `stop`, `close`.
   Shadow body: `{name, operation, payload?}`; offer body: `{offer:{type,sdp}}`;
