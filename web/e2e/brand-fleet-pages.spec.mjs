@@ -111,6 +111,36 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
   const paginationBox = await topPagination.locator('.pagination-page-list').boundingBox();
   expect(paginationBox.width).toBeLessThan(320);
 
+  await page.route(`**/api/developer/brand-clouds/${cloud}/devices/*/telemetry`, route => route.fulfill({ json: {
+    telemetry_status: 'unavailable', unavailable_reason: 'Video Cloud telemetry source is not configured.',
+    health: 'warning', firmware_version: 'v1.2.4', active_stream_status: 'unavailable', recent_events: [],
+  } }));
+  if (testInfo.project.name === 'mobile') await page.locator('.mobile-device-row').first().click();
+  else await page.locator('.device-table tbody tr').first().click();
+  const drawer = page.locator('.drawer-panel').filter({ has: page.locator('.source-facts') });
+  await expect(drawer).toContainText('Video Cloud telemetry source is not configured.');
+  if (testInfo.project.name === 'mobile') {
+    await drawer.locator('.drawer-close').click();
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+  }
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  if (testInfo.project.name === 'mobile') {
+    await page.locator('.mobile-nav-close').click();
+    await page.locator('.mobile-device-row').first().click();
+  }
+  await expect(drawer).toContainText('帳戶登錄資料');
+  await expect(drawer).toContainText('雲端啟用');
+  await expect(drawer).toContainText('連線狀態');
+  await expect(drawer).toContainText('尚未設定 Video Cloud 遙測來源。');
+  await expect(drawer).toContainText('使用中的串流');
+  await expect(drawer).toContainText('最後一次上線');
+  await expect(drawer).toContainText('您目前沒有執行此裝置操作的權限。');
+  await expect(drawer).not.toContainText('韌體中的程式）');
+  await drawer.locator('.drawer-close').click();
+  if (testInfo.project.name === 'mobile') await page.getByRole('button', { name: '開啟導覽' }).click();
+  await page.locator('[data-locale-selector]').selectOption('en');
+  if (testInfo.project.name === 'mobile') await page.locator('.mobile-nav-close').click();
+
   if (testInfo.project.name === 'mobile') {
     const mobileRow = await page.locator('.mobile-device-row').first().boundingBox();
     expect(mobileRow.height).toBeLessThan(75);
@@ -183,23 +213,14 @@ test('[UI-CA-FLEETPAGE-007] firmware status loads only after selecting a Product
   await expect(productSelector).toHaveValue(product);
 });
 
-test('[UI-CA-FLEETPAGE-004] overview world map supports country hover zoom and pan @brand-fleet', async ({ page }) => {
+test('[UI-CA-FLEETPAGE-004] overview compares regional device counts without a map @brand-fleet', async ({ page }) => {
   await login(page, 'developer');
   await page.goto(`/console/clouds/${cloud}`);
-  const map = page.getByRole('img', { name: 'Zoomable and draggable world device distribution map' });
-  await expect(map).toBeVisible();
-  await expect(map.locator('.world-countries path')).toHaveCount(177);
-  await map.locator('.world-countries path').nth(10).hover();
-  await expect(page.locator('.region-map-tooltip')).toBeVisible();
-  await page.getByRole('button', { name: 'Zoom in' }).click();
-  await expect(page.getByText('140%', { exact: true })).toBeVisible();
-  const beforePan = await map.getAttribute('viewBox');
-  const bounds = await map.boundingBox();
-  await page.mouse.move(bounds.x + bounds.width * .65, bounds.y + bounds.height * .5);
-  await page.mouse.down();
-  await page.mouse.move(bounds.x + bounds.width * .45, bounds.y + bounds.height * .5);
-  await page.mouse.up();
-  await expect.poll(() => map.getAttribute('viewBox')).not.toBe(beforePan);
+  const regionPanel = page.locator('.region-fleet-panel');
+  await expect(regionPanel.getByRole('heading', { name: 'Device Status by Region' })).toBeVisible();
+  await expect(regionPanel.locator('.region-bar-row')).not.toHaveCount(0);
+  await expect(regionPanel.getByText('Compare fleet size by region and device count.')).toBeVisible();
+  await expect(regionPanel.locator('.region-map-vector')).toHaveCount(0);
 });
 
 test('[UI-CA-FLEETPAGE-008] Product form uses styled buttons, checkboxes, and select controls @brand-fleet', async ({ page }) => {

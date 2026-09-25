@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -42,6 +43,7 @@ import (
 
 type Server struct {
 	testLabSessions     sync.Map
+	sessionRefreshMu    [64]sync.Mutex
 	sessions            sessionStore
 	audit               auditStore
 	projections         projectionStore
@@ -6283,7 +6285,58 @@ func (s *Server) requestSession(r *http.Request) (store.Session, bool) {
 		return store.Session{}, false
 	}
 	session, err := s.sessions.GetSession(cookie.Value)
-	return session, err == nil
+	if err != nil || s.accountClient == nil || !s.accountClient.Enabled() || session.RefreshToken == "" || !accessTokenNearExpiry(session.AccessToken) {
+		return session, err == nil
+	}
+	// Refresh tokens rotate. Serialize the refresh, then re-read the session so
+	// concurrent page requests use the token already rotated by the first one.
+	hash := sha256.Sum256([]byte(session.ID))
+	refreshMu := &s.sessionRefreshMu[int(hash[0])%len(s.sessionRefreshMu)]
+	refreshMu.Lock()
+	defer refreshMu.Unlock()
+	session, err = s.sessions.GetSession(cookie.Value)
+	if err != nil || !accessTokenNearExpiry(session.AccessToken) {
+		return session, err == nil
+	}
+	refreshed, err := s.accountClient.Refresh(r.Context(), session.RefreshToken)
+	if err != nil {
+		if status, ok := customerUpstreamStatus(err); ok && status == http.StatusUnauthorized {
+			_ = s.sessions.DeleteSession(session.ID)
+			return store.Session{}, false
+		}
+		// A temporary upstream failure must not discard a still-valid session.
+		return session, true
+	}
+	if refreshed.Tokens.AccessToken == "" || refreshed.Tokens.RefreshToken == "" {
+		_ = s.sessions.DeleteSession(session.ID)
+		return store.Session{}, false
+	}
+	if err := s.sessions.UpdateSessionTokens(session.ID, refreshed.Tokens.AccessToken, refreshed.Tokens.RefreshToken, tokenTTL(refreshed.Tokens)); err != nil {
+		return store.Session{}, false
+	}
+	session.AccessToken = refreshed.Tokens.AccessToken
+	session.RefreshToken = refreshed.Tokens.RefreshToken
+	return session, true
+}
+
+// The unverified exp is only a refresh hint; Account Manager validates both
+// the refresh grant and every access token on the actual upstream request.
+func accessTokenNearExpiry(token string) bool {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 || len(parts[1]) > 8192 {
+		return false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false
+	}
+	var claims struct {
+		Exp int64 `json:"exp"`
+	}
+	if json.Unmarshal(payload, &claims) != nil || claims.Exp <= 0 {
+		return false
+	}
+	return time.Unix(claims.Exp, 0).Before(time.Now().Add(time.Minute))
 }
 
 func setSessionCookie(w http.ResponseWriter, value string) {
@@ -6291,6 +6344,16 @@ func setSessionCookie(w http.ResponseWriter, value string) {
 }
 
 func tokenTTL(tokens accountclient.Tokens) time.Duration {
+	if tokens.RefreshToken != "" && tokens.RefreshTokenExpiresAt != "" {
+		if expiresAt, err := time.Parse(time.RFC3339Nano, tokens.RefreshTokenExpiresAt); err == nil {
+			return time.Until(expiresAt)
+		}
+	}
+	if tokens.AccessTokenExpiresAt != "" {
+		if expiresAt, err := time.Parse(time.RFC3339Nano, tokens.AccessTokenExpiresAt); err == nil {
+			return time.Until(expiresAt)
+		}
+	}
 	if tokens.ExpiresIn > 0 {
 		return time.Duration(tokens.ExpiresIn) * time.Second
 	}

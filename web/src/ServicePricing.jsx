@@ -5,7 +5,7 @@ import './service-pricing.css';
 
 export function BillingTabs({ active, onSelect }) {
   return <nav className="billing-tabs" aria-label={translate("Billing Pages")}>
-    {[['overview', 'Billing Overview'], ['pricing', 'Service Pricing'], ['usage', 'Usage and Forecast'], ['invoices', 'Invoices'], ['activity', 'Billing Activity'], ['settings', 'Payments and Automatic Top-Up'], ['profile', 'Billing Profile']].map(([id, label]) => <button key={id} type="button" className={active === id ? 'active' : ''} aria-current={active === id ? 'page' : undefined} onClick={() => onSelect(id)}>{label}</button>)}
+    {[{ id: 'overview', label: 'Billing Overview' }, { id: 'pricing', label: 'Service Pricing' }, { id: 'usage', label: 'Usage and Forecast' }, { id: 'invoices', label: 'Invoices' }, { id: 'activity', label: 'Billing Activity' }, { id: 'settings', label: 'Payments and Automatic Top-Up' }, { id: 'profile', label: 'Billing Profile' }].map(({ id, label }) => <button key={id} type="button" className={active === id ? 'active' : ''} aria-current={active === id ? 'page' : undefined} onClick={() => onSelect(id)}>{translate(label)}</button>)}
   </nav>;
 }
 
@@ -26,15 +26,15 @@ export function ServicePricing({ tabs }) {
       <div><h3>{translate("Service rates & billing basis")}</h3><p>{translate("Explore the unit prices and counting rules below. These TWD rates are proposals for review, before tax.")}</p></div>
       <dl><div><dt>{translate("Currency")}</dt><dd>{pricingCurrency} {translate("· NT$")}</dd></div><div><dt>{translate("Basis")}</dt><dd>{translate("Monthly usage")}</dd></div><div><dt>{translate("Proposal date")}</dt><dd><time dateTime={pricingProposalDate}>{translate("24 Sep 2026")}</time></dd></div></dl>
     </section>
-    <div className="pricing-filter" role="group" aria-label={translate("Filter service prices")}>{pricingGroups.map(item => <button type="button" key={item} aria-pressed={group === item} onClick={() => setGroup(item)}>{item}<span>{item === 'All services' ? servicePricing.length : servicePricing.filter(row => row.group === item).length}</span></button>)}</div>
+    <div className="pricing-filter" role="group" aria-label={translate("Filter service prices")}>{pricingGroups.map(item => <button type="button" key={item} aria-pressed={group === item} onClick={() => setGroup(item)}>{translate(item)}<span>{item === 'All services' ? servicePricing.length : servicePricing.filter(row => row.group === item).length}</span></button>)}</div>
     <div className="pricing-table-wrap"><table className="pricing-table">
-      <caption>{group} · {rows.length} {translate("proposed rates")}</caption>
+      <caption>{translate(group)} · {rows.length} {translate("proposed rates")}</caption>
       <thead><tr><th scope="col">{translate("Service")}</th><th scope="col">{translate("Proposed price")}</th><th scope="col">{translate("How usage is counted")}</th><th scope="col">{translate("Public price reference")}</th></tr></thead>
       <tbody>{rows.map(row => <tr key={row.id}>
-        <th scope="row"><strong>{row.name}</strong><p>{translate(row.description)}</p><span className={`pricing-readiness ${row.readiness === 'Metering pending' ? 'pending' : ''}`}>{row.readiness}</span></th>
-        <td data-label="Proposed price" className="pricing-rate"><strong>{translate("NT$")}{row.price.toLocaleString('en-US', { maximumFractionDigits: 2 })}</strong><span>/ {row.unit}</span></td>
-        <td data-label="How usage is counted">{row.rule}</td>
-        <td data-label="Public price reference"><a href={pricingSources[row.source].url} target="_blank" rel="noopener noreferrer">{pricingSources[row.source].name} ↗</a><strong>{row.benchmark}</strong><p>{row.comparison}</p></td>
+        <th scope="row"><strong>{translate(row.name)}</strong><p>{translate(row.description)}</p><span className={`pricing-readiness ${row.readiness === 'Metering pending' ? 'pending' : ''}`}>{translate(row.readiness)}</span></th>
+        <td data-label={translate("Proposed price")} className="pricing-rate"><strong>{translate("NT$")}{row.price.toLocaleString('en-US', { maximumFractionDigits: 2 })}</strong><span>/ {translate(row.unit)}</span></td>
+        <td data-label={translate("How usage is counted")}>{translate(row.rule)}</td>
+        <td data-label={translate("Public price reference")}><a href={pricingSources[row.source].url} target="_blank" rel="noopener noreferrer">{pricingSources[row.source].name} ↗</a><strong>{translate(row.benchmark)}</strong><p>{translate(row.comparison)}</p></td>
       </tr>)}</tbody>
     </table></div>
     <section className="panel pricing-included"><p className="eyebrow">{translate("Included in the proposal")}</p><h3>{translate("Start without a platform fee")}</h3><p>{translate("Cloud and product setup, team access, device enrollment, MQTT connections and keep-alives, SDK documentation and console administration carry no separate fee.")}</p><p>{translate("WebRTC signaling has no extra channel or signaling surcharge. Its MQTT messages follow the MQTT rates; direct P2P media has no cloud transfer fee.")}</p></section>

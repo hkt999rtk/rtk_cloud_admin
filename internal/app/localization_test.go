@@ -18,10 +18,14 @@ func TestAPILocalizationKeepsEnglishAndUserCopy(t *testing.T) {
 	w := httptest.NewRecorder()
 	w.Header().Set("Content-Language", locale)
 	message := "The device query service is not configured."
+	telemetryReason := "Video Cloud telemetry source is not configured."
+	registryDetail := "Device exists in the registry projection."
 	userDescription := "The device query service is not configured."
 	if err := writeLocalizedJSON(w, map[string]any{
-		"source_message": message,
-		"item":           map[string]any{"description": userDescription},
+		"source_message":     message,
+		"unavailable_reason": telemetryReason,
+		"source_facts":       []any{map[string]any{"detail": registryDetail}},
+		"item":               map[string]any{"description": userDescription},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -31,6 +35,13 @@ func TestAPILocalizationKeepsEnglishAndUserCopy(t *testing.T) {
 	}
 	if body["source_message"] != message || body["source_message_localized"] == nil {
 		t.Fatalf("system message was not kept and localized: %#v", body)
+	}
+	if body["unavailable_reason"] != telemetryReason || body["unavailable_reason_localized"] != "尚未設定 Video Cloud 遙測來源。" {
+		t.Fatalf("telemetry reason was not kept and localized: %#v", body)
+	}
+	fact := body["source_facts"].([]any)[0].(map[string]any)
+	if fact["detail"] != registryDetail || fact["detail_localized"] != "裝置已記錄於帳戶資料中。" {
+		t.Fatalf("registry fact was not kept and localized: %#v", fact)
 	}
 	item := body["item"].(map[string]any)
 	if item["description"] != userDescription {

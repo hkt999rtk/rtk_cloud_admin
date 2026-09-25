@@ -1,12 +1,12 @@
 import { translate } from './i18n/index.mjs';
 import React from 'react';
-import { formatMinorAmount } from './billing.mjs';
+import { billingStatusLabel, formatMinorAmount } from './billing.mjs';
 import { formatProviderTimestamp } from './chipset-sdk.mjs';
 import { invoiceQuantity, SAMPLE_INVOICE } from './invoice-document.mjs';
 import './billing-invoice.css';
 
 export function BillingInvoiceDocument({ invoice = SAMPLE_INVOICE, preview = false }) {
-  const money = (value) => value == null ? 'Not available' : formatMinorAmount(value, invoice.currency);
+  const money = (value) => value == null ? translate('Not available') : formatMinorAmount(value, invoice.currency);
   const recipient = invoice.recipient || {};
   return <article className="billing-invoice-document" aria-label={preview ? translate('Sample invoice') : translate('Invoice document')} data-testid={preview ? 'invoice-preview' : 'invoice-document'}>
     {preview && <div className="invoice-sample-banner"><strong>{translate("Sample / Not issued")}</strong><span>{translate("Illustrative amounts only. Not a tax invoice or payment request. No charge is made by this preview.")}</span></div>}
@@ -16,12 +16,12 @@ export function BillingInvoiceDocument({ invoice = SAMPLE_INVOICE, preview = fal
     </header>
     <div className="invoice-document-meta">
       <section><h4>{translate("Bill to")}</h4><strong>{recipient.legal_name || translate("Not provided")}</strong><p>{translate("Tax ID:")} {recipient.tax_identifier || (preview ? translate("Your company tax ID") : translate("Not provided"))}</p><p>{recipient.billing_address || translate("Address not provided")}</p>{recipient.contact_email && <p>{recipient.contact_email}</p>}</section>
-      <dl><div><dt>{translate("Invoice number")}</dt><dd>{preview ? translate("Not issued (sample)") : invoice.invoice_number}</dd></div><div><dt>{translate("Billing period")}</dt><dd>{preview ? translate("Example monthly period") : `${formatProviderTimestamp(invoice.period_start)} - ${formatProviderTimestamp(invoice.period_end)}`}</dd></div><div><dt>{translate("Issue date")}</dt><dd>{preview ? translate("Shown when issued") : formatProviderTimestamp(invoice.issued_at)}</dd></div><div><dt>{translate("Status")}</dt><dd>{preview ? translate("Sample only") : invoice.state === 'settled' ? translate("Paid") : invoice.state}</dd></div></dl>
+      <dl><div><dt>{translate("Invoice number")}</dt><dd>{preview ? translate("Not issued (sample)") : invoice.invoice_number}</dd></div><div><dt>{translate("Billing period")}</dt><dd>{preview ? translate("Example monthly period") : `${formatProviderTimestamp(invoice.period_start)} - ${formatProviderTimestamp(invoice.period_end)}`}</dd></div><div><dt>{translate("Issue date")}</dt><dd>{preview ? translate("Shown when issued") : formatProviderTimestamp(invoice.issued_at)}</dd></div><div><dt>{translate("Status")}</dt><dd>{preview ? translate("Sample only") : billingStatusLabel(invoice.state)}</dd></div></dl>
     </div>
     <table className="invoice-document-lines">
       <caption>{translate("Service breakdown")} <span>{translate("Amounts in")} {invoice.currency}{translate(", before tax")}</span></caption>
       <thead><tr><th scope="col">{translate("Service / Description")}</th><th scope="col">{translate("Usage")}</th><th scope="col">{translate("Subtotal")}</th></tr></thead>
-      <tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td><strong>{line.service_code}</strong><span>{translate(line.description)}</span>{line.product_id && <span>{translate("Product:")} {line.product_id}</span>}</td><td>{invoiceQuantity(line)}<span>{line.unit}</span></td><td>{money(line.subtotal_minor)}</td></tr>)}</tbody>
+      <tbody>{(invoice.lines || []).map((line) => <tr key={line.id}><td><strong>{line.service_code}</strong><span>{translate(line.description)}</span>{line.product_id && <span>{translate("Product:")} {line.product_id}</span>}</td><td>{invoiceQuantity(line)}<span>{translate(line.unit)}</span></td><td>{money(line.subtotal_minor)}</td></tr>)}</tbody>
     </table>
     {!invoice.lines?.length && <p className="notice">{translate("No line items are available for this invoice.")}</p>}
     <div className="invoice-document-summary">

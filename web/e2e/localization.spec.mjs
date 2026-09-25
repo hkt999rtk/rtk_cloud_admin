@@ -126,3 +126,18 @@ test('[UI-CA-I18N-005] public account pages and scoped subpages retain locale @s
   }
   expect(errors).toEqual([]);
 });
+
+test('[UI-CA-I18N-006] partial fleet messages and active sessions follow the selected language @smoke', async ({ page, isMobile }) => {
+  await login(page, 'developer');
+  await page.route('**/fleet/overview', route => route.fulfill({ json: {
+    presence: { source: { status: 'available' }, current: { online: 2, total: 3, unknown: 1 } },
+    health: { source: { status: 'partial', message: 'Fleet health data is partially unavailable.' }, current: { warning: 1, critical: 0 } },
+    sessions: { source: { status: 'available' }, active_sessions: 2 },
+  } }));
+  await page.goto('/console/clouds/33333333-3333-4333-8333-333333333333');
+  if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  if (isMobile) await page.locator('.mobile-nav-close').click();
+  await expect(page.getByText('部分裝置健康狀態資料暫時無法取得。').first()).toBeVisible();
+  await expect(page.getByText('已建立且尚未關閉或逾期的 WebRTC 工作階段；不代表已成功播放。')).toBeVisible();
+});

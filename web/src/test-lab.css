@@ -7,6 +7,10 @@
 .test-lab-device-manager td, .test-lab-device-manager th { padding: .6rem; border-bottom: 1px solid #dce3ec; vertical-align: top; }
 .test-lab-device-id { display: block; overflow-wrap: anywhere; color: #526077; }
 .test-lab-binding-form { padding: 1rem; border-left: 3px solid #4263a9; background: #f8fafc; margin: 1rem 0; }
+.test-lab .test-lab-download-ack { display: flex; align-items: center; gap: .5rem; margin: .75rem 0 0; }
+.test-lab-download-ack input { flex: 0 0 auto; }
+.test-lab-download-help { margin: .75rem 0; }
+.test-lab-download-help p { margin-bottom: 0; }
 .test-lab-validation { display: flex; align-items: flex-start; flex-wrap: wrap; gap: .75rem 1rem; }
 .test-lab .test-lab-validation button { margin: 0; }
 .test-lab-validation p { flex: 1 1 22rem; margin: 0; color: #526077; font-size: .85rem; line-height: 1.6; }

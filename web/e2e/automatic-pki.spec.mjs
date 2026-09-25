@@ -2,7 +2,7 @@ import { test, expect } from './fixtures/scoped-products.mjs';
 
 const cloudID = '11111111-1111-4111-8111-111111111111';
 
-test('[UI-CA-PKI-001] Cloud and Product show independent automatically refreshed CA readiness @smoke', async ({ page, request, baseURL }) => {
+test('[UI-CA-PKI-001] Cloud and Product show independent automatically refreshed CA readiness @smoke', async ({ page, request, baseURL, isMobile }) => {
   expect(new URL(baseURL).hostname).toBe('127.0.0.1');
   expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
   let pkiStatus = 'pending';
@@ -45,5 +45,9 @@ test('[UI-CA-PKI-001] Cloud and Product show independent automatically refreshed
   pkiStatus = 'ready';
   await page.clock.fastForward(11000);
   await expect(products.getByTestId('pki-status').first()).toHaveText('Certificate authority ready');
+  if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  if (isMobile) await page.locator('.mobile-nav-close').click();
+  await expect(products.getByTestId('pki-status').first()).toHaveText('憑證授權中心已就緒');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });

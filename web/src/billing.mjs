@@ -45,6 +45,51 @@ export function paymentMethodLabel(method) {
   return `${brand}${lastFour}`;
 }
 
+export function billingStatusLabel(value) {
+  switch (String(value || '').toLowerCase()) {
+    case 'active': return translate('Active');
+    case 'inactive': return translate('Inactive');
+    case 'unavailable': return translate('Unavailable');
+    case 'attention_required': return translate('Attention required');
+    case 'suspended': return translate('Suspended');
+    case 'closed': return translate('Closed');
+    case 'settled': return translate('Paid');
+    case 'partially_settled': return translate('Partially paid');
+    case 'draft': return translate('Draft');
+    case 'void': return translate('Voided');
+    case 'issued': return translate('Issued');
+    case 'open': return translate('Open');
+    case 'overdue': return translate('Overdue');
+    case 'completed': return translate('Completed');
+    case 'succeeded': return translate('Succeeded');
+    case 'failed': return translate('Failed');
+    case 'processing': return translate('Processing');
+    case 'pending': return translate('Pending');
+    case 'created': return translate('Created');
+    case 'authorized': return translate('Authorized');
+    case 'unknown': return translate('Unknown');
+    case 'expired': return translate('Expired');
+    case 'revoked': return translate('Revoked');
+    case 'canceled': return translate('Canceled');
+    case 'declined': return translate('Declined');
+    case 'requires_action': return translate('Action required');
+    case 'reconciliation_pending': return translate('Reconciliation pending');
+    case 'auto_top_up': return translate('Automatic Top-Up');
+    case 'manual_top_up': return translate('Manual Top-Up');
+    case 'top_up': return translate('Top-up');
+    case 'invoice': return translate('Invoice');
+    case 'invoice_charge': return translate('Invoice charge');
+    case 'invoice_debit': return translate('Invoice charge');
+    case 'usage_adjustment_debit': return translate('Usage adjustment');
+    case 'manual_adjustment_debit': return translate('Manual debit adjustment');
+    case 'payment_top_up_credit': return translate('Payment top-up');
+    case 'manual_adjustment_credit': return translate('Manual credit adjustment');
+    case 'refund_debit': return translate('Refund');
+    case 'chargeback_debit': return translate('Chargeback');
+    default: return String(value || '');
+  }
+}
+
 export function autoTopUpAssessment(policy) {
   if (!policy) return { tone: 'neutral', label: translate('Not configured'), detail: translate('Configure a payment method before enabling automatic top-up.') };
   if (!policy.enabled) return { tone: 'neutral', label: translate('Disabled'), detail: translate('A low balance will not trigger a charge.') };
@@ -56,7 +101,7 @@ export function autoTopUpAssessment(policy) {
 export function paymentIntentState(state) {
   const normalized = String(state || '').toLowerCase();
   if (normalized === 'succeeded') return { tone: 'good', label: translate('Succeeded') };
-  if (['failed', 'declined', 'canceled'].includes(normalized)) return { tone: 'danger', label: translate('Failed') };
+  if (['failed', 'declined', 'canceled'].includes(normalized)) return { tone: 'danger', label: billingStatusLabel(normalized) };
   if (['unknown', 'requires_action'].includes(normalized)) return { tone: 'warning', label: normalized === 'unknown' ? translate('Reconciliation pending') : translate('Action required') };
   return { tone: 'neutral', label: normalized === 'processing' ? translate('Processing') : translate('Pending') };
 }
@@ -64,13 +109,13 @@ export function paymentIntentState(state) {
 export function billingErrorMessage(error) {
   const code = String(error?.code || '');
   const known = {
-    PAYMENT_CURRENCY_UNSUPPORTED: translate('The account currency is not supported for payment.'),
-    PAYMENT_CAPABILITY_UNSUPPORTED: translate('The payment service has not completed automatic-charge eligibility verification, so no charge was submitted.'),
-    PAYMENT_PROVIDER_NOT_CONFIGURED: translate('The payment service is not configured.'),
-    PAYMENT_PROVIDER_UNAVAILABLE: translate('The payment service is temporarily unavailable. Please try again later.'),
-    PAYMENT_METHOD_INACTIVE: translate('The selected payment method is inactive.'),
-    AUTO_TOPUP_POLICY_CONFLICT: translate('The settings were changed by another operation. Refresh and try again.'),
-    PAYMENT_AMOUNT_INVALID: translate('The top-up amount does not meet the configured rules.'),
+    PAYMENT_CURRENCY_UNSUPPORTED: 'The account currency is not supported for payment.',
+    PAYMENT_CAPABILITY_UNSUPPORTED: 'The payment service has not completed automatic-charge eligibility verification, so no charge was submitted.',
+    PAYMENT_PROVIDER_NOT_CONFIGURED: 'The payment service is not configured.',
+    PAYMENT_PROVIDER_UNAVAILABLE: 'The payment service is temporarily unavailable. Please try again later.',
+    PAYMENT_METHOD_INACTIVE: 'The selected payment method is inactive.',
+    AUTO_TOPUP_POLICY_CONFLICT: 'The settings were changed by another operation. Refresh and try again.',
+    PAYMENT_AMOUNT_INVALID: 'The top-up amount does not meet the configured rules.',
   };
-  return known[code] || translate('The billing operation did not complete. No charge was submitted or repeated.');
+  return known[code] || 'The billing operation did not complete. No charge was submitted or repeated.';
 }

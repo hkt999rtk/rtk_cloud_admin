@@ -127,7 +127,7 @@ test('[UI-CA-CLOUD-GUIDE-001] Cloud guide stays expanded on My Clouds with and w
   await expect(page.getByRole('button', { name: 'Create cloud', exact: true })).toBeFocused();
 });
 
-test('[UI-CA-CLOUD-GUIDE-002] Empty My Clouds retains its guide and the edit dialog keeps its default layout @smoke', async ({ page }) => {
+test('[UI-CA-CLOUD-GUIDE-002] Empty My Clouds retains its guide and the edit dialog keeps its default layout @smoke', async ({ page, isMobile }) => {
   await login(page, 'billing_owner');
   let empty = false;
   await page.route('**/api/developer/console/clouds-context?*', async route => {
@@ -146,7 +146,21 @@ test('[UI-CA-CLOUD-GUIDE-002] Empty My Clouds retains its guide and the edit dia
   await expect(editDialog).toBeVisible();
   await expect(editDialog).not.toHaveClass(/ui-dialog-drawer/);
   await expect(editDialog.getByRole('textbox', { name: 'Name', exact: true })).not.toHaveValue('');
+  await expect(editDialog).toContainText('Cloud ID stays the same when you rename the cloud.');
   await editDialog.getByRole('button', { name: 'Close dialog' }).click();
+  if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  if (isMobile) await page.locator('.mobile-nav-close').click();
+  await expect(page.getByRole('button', { name: '我擁有的', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '編輯', exact: true }).first().click();
+  const translatedDialog = page.getByRole('dialog', { name: '編輯雲', exact: true });
+  await expect(translatedDialog.getByRole('textbox', { name: '說明', exact: true })).toBeVisible();
+  await expect(translatedDialog).toContainText('更改雲端名稱不會改變雲端 ID。');
+  await expect(translatedDialog).not.toContainText('slug');
+  await translatedDialog.getByRole('button', { name: '關閉對話方塊' }).click();
+  if (isMobile) await page.getByRole('button', { name: '開啟導覽' }).click();
+  await page.locator('[data-locale-selector]').selectOption('en');
+  if (isMobile) await page.locator('.mobile-nav-close').click();
   empty = true;
   await page.reload();
   await expect(page.getByRole('heading', { name: 'No clouds in this view' })).toBeVisible();

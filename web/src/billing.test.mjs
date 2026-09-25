@@ -6,6 +6,7 @@ import {
   PAYMENT_METHOD_CONSENT,
   autoTopUpAssessment,
   billingErrorMessage,
+  billingStatusLabel,
   formatMinorAmount,
   paymentIntentState,
   paymentMethodLabel,
@@ -33,6 +34,14 @@ test('intent states and payment failures are normalized for customers', () => {
   assert.equal(paymentIntentState('unknown').label, 'Reconciliation pending');
   assert.match(billingErrorMessage({ code: 'PAYMENT_CAPABILITY_UNSUPPORTED' }), /no charge was submitted/i);
   assert.doesNotMatch(billingErrorMessage({ code: 'RAW_PROVIDER_SECRET', message: 'secret' }), /secret/);
+});
+
+test('billing states and ledger reasons use customer-facing labels', () => {
+  assert.equal(billingStatusLabel('partially_settled'), 'Partially paid');
+  assert.equal(billingStatusLabel('invoice_debit'), 'Invoice charge');
+  assert.equal(billingStatusLabel('payment_top_up_credit'), 'Payment top-up');
+  assert.equal(billingStatusLabel('revoked'), 'Revoked');
+  assert.equal(paymentIntentState('canceled').label, 'Canceled');
 });
 
 test('consent evidence is versioned and digest-shaped', () => {
