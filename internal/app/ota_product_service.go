@@ -3,10 +3,13 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
+
+	"rtk_cloud_admin/internal/accountclient"
 )
 
 // The Product service selection is the authority for customer OTA access.
@@ -16,7 +19,16 @@ func (s *Server) requireOTAProduct(w http.ResponseWriter, ctx context.Context, a
 	}
 	productID = strings.TrimSpace(productID)
 	profile, err := s.accountClient.DeviceItemProfile(ctx, accessToken, cloudID, productID)
-	if err != nil || profile.ID != productID || profile.BrandCloudID != cloudID {
+	if err != nil {
+		var upstream *accountclient.HTTPError
+		if errors.As(err, &upstream) && upstream.StatusCode == http.StatusNotFound {
+			writeJSONStatus(w, http.StatusNotFound, map[string]any{"code": "PRODUCT_NOT_FOUND", "message": "Product not found."})
+			return false
+		}
+		s.writeCustomerError(w, err)
+		return false
+	}
+	if profile.ID != productID || profile.BrandCloudID != cloudID {
 		writeJSONStatus(w, http.StatusNotFound, map[string]any{"code": "PRODUCT_NOT_FOUND", "message": "Product not found."})
 		return false
 	}
