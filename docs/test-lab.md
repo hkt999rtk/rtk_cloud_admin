@@ -24,8 +24,11 @@ credential files held only in page memory. The Devices & credentials tab flags
 unconfirmed files until they are explicitly marked saved; switching tabs does not
 mark them saved. Leaving an active Run tests connection asks for confirmation.
 Confirming closes local MQTT and WebRTC connections and invalidates pending live
-actions; cancelling stays in Run tests. Changing Product, unbinding, or retiring
-the selected device clears its test scope and closes those connections. A link
+actions; cancelling stays in Run tests. Changing Product during an active
+connection asks for confirmation too; cancelling keeps the Product and session.
+Confirming a Product change, unbinding, or retiring the selected device clears its
+test scope and closes those connections. **Reload devices & access** remains
+available during device setup, including when the Product list initially fails. A link
 with `product_id` and `device_id` selects that device and opens Run tests only if
 it is eligible, bound, and activated. Otherwise it opens Devices & credentials
 and explains the next required step.

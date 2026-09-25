@@ -843,7 +843,10 @@ devices; no selection or unavailable authorization disables live actions, while
 offline status is shown separately. Pending credentials remain in page memory
 across tab changes and remain flagged until confirmed saved. Leaving active tests
 requires confirmation and closes local MQTT/WebRTC connections and pending actions;
-changing Product or losing device access clears the test scope. A `product_id` and
+changing Product during an active test asks the same confirmation before clearing
+the test scope, while cancellation preserves the Product and session. Reloading
+Products and access is available in Devices & credentials even when the initial
+Product list fails. Losing device access clears the test scope. A `product_id` and
 `device_id` deep link starts tests only for an eligible, bound, activated device;
 otherwise it leads to the preparation step with an explanation. Local validation
 sends no runtime request and must not report a successful live connection or decoded

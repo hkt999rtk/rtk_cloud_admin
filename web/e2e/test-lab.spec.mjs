@@ -314,6 +314,7 @@ test('[UI-CA-TESTLAB-003] leaving active WebRTC or MQTT requires confirmation an
   expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
   const account='88888888-8888-4888-8888-888888888888';
   const session='99999999-9999-4999-8999-999999999999';
+  const otherProduct='33333333-3333-4333-8333-000000000001';
   let closes=0;
   await page.addInitScript(()=>{
     window.__closedTestPeers=0;
@@ -360,11 +361,20 @@ test('[UI-CA-TESTLAB-003] leaving active WebRTC or MQTT requires confirmation an
   const panel=page.getByTestId('test-lab');
   const devicesTab=panel.locator('#stage-tab-devices');
   const testsTab=panel.locator('#stage-tab-tests');
+  const productPicker=panel.getByRole('combobox',{name:'Product',exact:true});
   await expect(testsTab).toHaveAttribute('aria-selected','true');
   await panel.getByRole('tab',{name:'WebRTC',exact:true}).click();
   await panel.getByRole('button',{name:'Start playback',exact:true}).click();
   await panel.getByRole('alertdialog',{name:'Confirm live test action'}).getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel.getByRole('button',{name:'Stop playback',exact:true})).toBeEnabled();
+  let productLeaveMessage='';
+  page.once('dialog',async dialog=>{productLeaveMessage=dialog.message();await dialog.dismiss();});
+  await productPicker.selectOption(otherProduct);
+  expect(productLeaveMessage).toContain('Leaving Run tests ends the active MQTT and WebRTC connections. Continue?');
+  await expect(productPicker).toHaveValue(product);
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(panel.getByRole('button',{name:'Stop playback',exact:true})).toBeEnabled();
+  expect(closes).toBe(0);
   let leaveMessage='';
   page.once('dialog',async dialog=>{leaveMessage=dialog.message();await dialog.dismiss();});
   await devicesTab.click();
@@ -382,11 +392,40 @@ test('[UI-CA-TESTLAB-003] leaving active WebRTC or MQTT requires confirmation an
   await panel.getByRole('tab',{name:'MQTT',exact:true}).click();
   await panel.getByRole('button',{name:'Connect',exact:true}).click();
   await expect(panel.getByRole('button',{name:'Disconnect',exact:true})).toBeEnabled();
+  page.once('dialog',async dialog=>{expect(dialog.message()).toContain('Leaving Run tests ends the active MQTT and WebRTC connections. Continue?');await dialog.dismiss();});
+  await productPicker.selectOption(otherProduct);
+  await expect(productPicker).toHaveValue(product);
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(panel.getByRole('button',{name:'Disconnect',exact:true})).toBeEnabled();
+  expect(closes).toBe(closedAfterVideo);
   page.once('dialog',async dialog=>{expect(dialog.message()).toContain('Leaving Run tests ends the active MQTT and WebRTC connections. Continue?');await dialog.accept();});
-  await devicesTab.click();
+  await productPicker.selectOption(otherProduct);
+  await expect(productPicker).toHaveValue(otherProduct);
   await expect(devicesTab).toHaveAttribute('aria-selected','true');
   await expect.poll(()=>closes).toBeGreaterThan(closedAfterVideo);
   await expect.poll(()=>page.evaluate(()=>window.__closedTestSockets)).toBeGreaterThan(0);
+});
+
+test('[UI-CA-TESTLAB-005] device setup can reload Product access after a list failure @smoke',async({page,request})=>{
+  expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
+  let productLoads=0;
+  await page.route(`**/api/developer/brand-clouds/${cloud}/products?**`,route=>{
+    productLoads++;
+    return productLoads===1 ? route.fulfill({status:503,json:{error:'temporarily unavailable'}}) : route.fallback();
+  });
+  await page.goto(`/console/clouds/${cloud}/test-lab`);
+  const panel=page.getByTestId('test-lab');
+  const devicesPanel=panel.locator('#stage-panel-devices');
+  await expect(panel.locator('#stage-tab-devices')).toHaveAttribute('aria-selected','true');
+  await expect(devicesPanel).toBeVisible();
+  await expect(devicesPanel).toContainText('Select a Product to begin.');
+  await expect(panel.getByRole('alert')).toContainText('Unable to load all authorized Products. Reload devices & access to retry.');
+  const reload=panel.getByRole('button',{name:'Reload devices & access',exact:true});
+  await expect(reload).toBeVisible();
+  await reload.click();
+  await expect.poll(()=>productLoads).toBeGreaterThan(1);
+  await expect(panel.getByRole('alert').filter({hasText:'Unable to load all authorized Products'})).toHaveCount(0);
+  await expect(panel.getByRole('combobox',{name:'Product',exact:true}).locator(`option[value="${product}"]`)).toHaveText('Camera 00');
 });
 
 test('[UI-CA-TESTLAB-004] choosing another activated row opens tests with a clean device scope @smoke',async({page,request})=>{
