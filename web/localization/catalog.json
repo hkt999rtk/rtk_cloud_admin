@@ -15095,6 +15095,156 @@
       "source": "Video object writes",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Devices & credentials",
+      "source": "Devices & credentials",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Run tests",
+      "source": "Run tests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Test this device",
+      "source": "Test this device",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Change device",
+      "source": "Change device",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Save pending credential files before leaving this page.",
+      "source": "Save pending credential files before leaving this page.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Choose and activate a test device in Devices & credentials before running live tests.",
+      "source": "Choose and activate a test device in Devices & credentials before running live tests.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This device must be bound to your test account before testing.",
+      "source": "This device must be bound to your test account before testing.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Activate this device before testing.",
+      "source": "Activate this device before testing.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This device is offline. Live responses may be unavailable.",
+      "source": "This device is offline. Live responses may be unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Leaving Run tests ends the active MQTT and WebRTC connections. Continue?",
+      "source": "Leaving Run tests ends the active MQTT and WebRTC connections. Continue?",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The linked test device is not eligible for this Product.",
+      "source": "The linked test device is not eligible for this Product.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This linked device needs to be bound before testing.",
+      "source": "This linked device needs to be bound before testing.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This linked device needs cloud activation before testing.",
+      "source": "This linked device needs cloud activation before testing.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Reloading ends the current test connection. Continue?",
+      "source": "Reloading ends the current test connection. Continue?",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Test readiness:",
+      "source": "Test readiness:",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Ready for live tests",
+      "source": "Ready for live tests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Live tests unavailable",
+      "source": "Live tests unavailable",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Loading test access from your Console login. Reload if it is unavailable.",
+      "source": "Loading test access from your Console login. Reload if it is unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Bind this test device to the authorized User Account before testing.",
+      "source": "Bind this test device to the authorized User Account before testing.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This device is bound but cloud provisioning is not complete. Start or retry Provision in Devices & credentials.",
+      "source": "This device is bound but cloud provisioning is not complete. Start or retry Provision in Devices & credentials.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Live tests are unavailable: the device-scoped credential exchange and broker revocation integration are not ready. No live connection has been made.",
+      "source": "Live tests are unavailable: the device-scoped credential exchange and broker revocation integration are not ready. No live connection has been made.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Your read-only role does not grant device control or media playback.",
+      "source": "Your read-only role does not grant device control or media playback.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This registry device has no valid Video Cloud identity mapping.",
+      "source": "This registry device has no valid Video Cloud identity mapping.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This device is disabled.",
+      "source": "This device is disabled.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Live testing is unavailable for this device.",
+      "source": "Live testing is unavailable for this device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

@@ -13,14 +13,26 @@ function LabIcon({ name }) {
   return <i className={`fa-solid fa-${name} test-lab-icon`} aria-hidden="true" />;
 }
 const protocolIcons = { mqtt: 'comments', shadow: 'layer-group', webrtc: 'video' };
+const stages = ['devices', 'tests'];
+const linkedMessages = {
+  ineligible: 'The linked test device is not eligible for this Product.',
+  unbound: 'This linked device needs to be bound before testing.',
+  needs_activation: 'This linked device needs cloud activation before testing.',
+};
 
 export function TestLab({ cloudId }) {
   const query = new URLSearchParams(window.location.search);
-  const [product, setProduct] = useState(isCloudID(query.get('product_id')) ? query.get('product_id') : '');
+  const initialProduct = isCloudID(query.get('product_id')) ? query.get('product_id') : '';
+  const [product, setProduct] = useState(initialProduct);
+  const [requestedDevice, setRequestedDevice] = useState(initialProduct && isCloudID(query.get('device_id')) ? query.get('device_id') : '');
+  const [stage, setStage] = useState('devices'), [linkedNotice, setLinkedNotice] = useState('');
+  const [pendingDownloads, setPendingDownloads] = useState(false);
   const [device, setDevice] = useState(''), [deviceName, setDeviceName] = useState(''), [account, setAccount] = useState(''), [provisionState,setProvisionState]=useState('');
+  const [connectionStatus, setConnectionStatus] = useState('');
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productNameError, setProductNameError] = useState('');
+  const [productListError, setProductListError] = useState('');
   const [productsLoading, setProductsLoading] = useState(false);
   const [context, setContext] = useState(null), [error, setError] = useState('');
   const [tab, setTab] = useState('mqtt'), [events, setEvents] = useState([]);
@@ -28,6 +40,7 @@ export function TestLab({ cloudId }) {
   const [shadowName, setShadowName] = useState(''), [transport, setTransport] = useState('http');
   const [reload, setReload] = useState(0), [loading, setLoading] = useState(false);
   const generation = useRef(0);
+  const startTarget = useRef('');
   const runtime = useRef(null), video = useRef(null), audio = useRef(null);
   const [busy, setBusy] = useState(false), [connected, setConnected] = useState(false), [playing, setPlaying] = useState(false);
   const [microphone, setMicrophone] = useState(false), [micStatus, setMicStatus] = useState('off');
@@ -40,7 +53,7 @@ export function TestLab({ cloudId }) {
   useEffect(() => {
     setPendingAction(null);
     setConnected(false); setPlaying(false); setMicrophone(false); setMicStatus('off'); setDeviceAudio('waiting'); setSpeaker('off'); setMessages([]); setShadow(null); setShadowNotFound(false); setStats(null);
-    if (!context?.runtime_ready) return undefined;
+    if (stage !== 'tests' || !context?.runtime_ready || context.device_id !== device || context.product_id !== product || (context.account_id && context.account_id !== account)) return undefined;
     let active = true;
     const lab = new LabRuntime(context,
       (operation, outcome, status) => { if (!active) return; record(operation, outcome, status); if (operation === 'mqtt') setConnected(outcome === 'connected'); if (operation === 'device_audio') setDeviceAudio(outcome); if (operation === 'speaker') setSpeaker(outcome); if (operation === 'microphone') { setMicrophone(outcome === 'enabled'); setMicStatus(outcome); } if (operation === 'webrtc' && outcome === 'stopped') { setPlaying(false); setMicrophone(false); setMicStatus('off'); setDeviceAudio('waiting'); setSpeaker('off'); } if (operation === 'session' && outcome === 'closed') { setConnected(false); setPlaying(false); setMicrophone(false); setMicStatus('off'); setSpeaker('off'); } },
@@ -49,10 +62,10 @@ export function TestLab({ cloudId }) {
     runtime.current = lab; setSubscription(`devices/${context.devid}/up/messages`);
     const dispose = () => lab.dispose(); window.addEventListener('pagehide', dispose);
     return () => { active = false; window.removeEventListener('pagehide', dispose); lab.dispose(); if (runtime.current === lab) runtime.current = null; };
-  }, [context]);
+  }, [context, stage, device, product, account]);
 
   async function run(operation, work, confirmation = '') {
-    if (busy || !runtime.current) return;
+    if (busy || !runtime.current || runtime.current.context.device_id !== device || runtime.current.context.product_id !== product || (runtime.current.context.account_id && runtime.current.context.account_id !== account)) return;
     if (confirmation) { setPendingAction({ operation, work, confirmation, lab: runtime.current }); return; }
     const lab = runtime.current; setBusy(true); setError('');
     try { await work(lab); if (runtime.current === lab) record(operation, 'completed'); }
@@ -72,9 +85,9 @@ export function TestLab({ cloudId }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    setProducts([]); setProductsLoading(true);
+    setProducts([]); setProductsLoading(true); setProductListError('');
     loadLabOptions(offset => fetchCloudProducts(cloudId, '', { offset, signal: controller.signal }), 'products', controller.signal, setProducts)
-      .catch(() => { if (!controller.signal.aborted) setError('Unable to load all authorized Products. Reload devices & access to retry.'); })
+      .catch(() => { if (!controller.signal.aborted) setProductListError('Unable to load all authorized Products. Reload devices & access to retry.'); })
       .finally(() => { if (!controller.signal.aborted) setProductsLoading(false); });
     return () => controller.abort();
   }, [cloudId, reload]);
@@ -113,6 +126,33 @@ export function TestLab({ cloudId }) {
     }
     setTab(id);
   }
+  function closeLiveTests() {
+    setPendingAction(null);
+    runtime.current?.dispose(); runtime.current = null;
+    setConnected(false); setPlaying(false); setMicrophone(false); setMicStatus('off');
+    setDeviceAudio('waiting'); setSpeaker('off'); setStats(null);
+  }
+  function showDevices() {
+    closeLiveTests();
+    setStage('devices');
+  }
+  function selectStage(id) {
+    if (stage === id) return true;
+    if (id === 'devices') {
+      if ((connected || playing) && !window.confirm(translate('Leaving Run tests ends the active MQTT and WebRTC connections. Continue?'))) return false;
+      showDevices();
+    } else setStage('tests');
+    return true;
+  }
+  function stageKey(event) {
+    const current = stages.indexOf(stage);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1
+      : event.key === 'ArrowRight' ? (current + 1) % 2
+      : event.key === 'ArrowLeft' ? (current + 1) % 2 : -1;
+    if (next < 0 || busy) return;
+    event.preventDefault();
+    if (selectStage(stages[next])) event.currentTarget.parentElement.querySelector(`#stage-tab-${stages[next]}`)?.focus();
+  }
   function protocolKey(event) {
     const protocols = ['mqtt', 'shadow', 'webrtc'];
     const current = protocols.indexOf(tab);
@@ -139,19 +179,33 @@ export function TestLab({ cloudId }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <section className="my-clouds-panel test-lab" data-testid="test-lab">
-    <h2><LabIcon name="flask" />{translate("Device test workspace")}</h2><details className="test-lab-intro"><summary>{translate("About the test workflows")}</summary><p>{translate("Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and test live video and two-way audio over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.")}</p></details>
+    <h2 id="test-lab-title"><LabIcon name="flask" />{translate("Device test workspace")}</h2><details className="test-lab-intro"><summary>{translate("About the test workflows")}</summary><p>{translate("Test and debug your device directly in the Developer Console — without first building an App, MQTT client or WebRTC Viewer. Select a Product and device to send and receive MQTT messages, read or update Device Shadow state, and test live video and two-way audio over WebRTC. Use these tools to check device behavior and troubleshoot cloud integration before writing your own application. Available tests depend on your permissions and the services enabled for the selected device.")}</p></details>
     <p className="test-lab-warning" role="note">{translate("Cloud Test Lab is a simplified development test and must not be used for mass production.")}</p>
     <div className="test-lab-selectors">
-      <div><label><span><LabIcon name="boxes-stacked" />{translate("Product")}</span><select value={product} aria-describedby={product ? 'test-lab-product-id' : undefined} onChange={e => { setProduct(e.target.value); setDevice(''); setDeviceName(''); setContext(null); setEvents([]); }}><option value="">{translate("Select Product")}</option>{product && !products.some(p => p.id === product) && <option value={product}>{selectedProduct?.id === product ? selectedProduct.name || translate("Unnamed Product") : translate("Loading selected Product…")}</option>}{products.map(p => <option key={p.id} value={p.id}>{p.name || translate("Unnamed Product")}</option>)}</select></label>{product && <p id="test-lab-product-id" className="test-lab-product-id"><LabIcon name="fingerprint" />{translate("Product ID:")} <code>{product}</code></p>}</div>
+      <div><label><span><LabIcon name="boxes-stacked" />{translate("Product")}</span><select value={product} aria-describedby={product ? 'test-lab-product-id' : undefined} onChange={e => { if ((connected || playing) && !window.confirm(translate('Leaving Run tests ends the active MQTT and WebRTC connections. Continue?'))) { e.target.value = product; return; } showDevices(); setProduct(e.target.value); setRequestedDevice(''); setLinkedNotice(''); setDevice(''); setDeviceName(''); setConnectionStatus(''); setContext(null); setEvents([]); }}><option value="">{translate("Select Product")}</option>{product && !products.some(p => p.id === product) && <option value={product}>{selectedProduct?.id === product ? selectedProduct.name || translate("Unnamed Product") : translate("Loading selected Product…")}</option>}{products.map(p => <option key={p.id} value={p.id}>{p.name || translate("Unnamed Product")}</option>)}</select></label>{product && <p id="test-lab-product-id" className="test-lab-product-id"><LabIcon name="fingerprint" />{translate("Product ID:")} <code>{product}</code></p>}</div>
     </div>
     {productsLoading && <p role="status">{translate("Loading Products…")}</p>}
     {productNameError && <p role="alert" className="test-lab-warning"><LabIcon name="triangle-exclamation" />{translate(productNameError)}</p>}
-    <TestLabDevices cloudId={cloudId} product={product} onScope={(a,d,state,name)=>{if (device !== d) { setEvents([]); setTopic(''); } setAccount(a);setDevice(d);setDeviceName(name);setProvisionState(state);}} />
-    <div className="test-lab-actions"><button disabled={busy} aria-describedby="test-lab-reload-help" onClick={() => { if ((connected || playing) && !window.confirm('Reloading ends the current test connection. Continue?')) return; setReload(v => v + 1); }}><LabIcon name="arrows-rotate" />{translate("Reload devices & access")}</button><small id="test-lab-reload-help">{translate("Reload lists and permissions. Ends the current test connection.")}</small></div>
+    {productListError && <p role="alert" className="test-lab-warning"><LabIcon name="triangle-exclamation" />{translate(productListError)}</p>}
+    <div className="test-lab-actions"><button disabled={busy} aria-describedby="test-lab-reload-help" onClick={() => { if ((connected || playing) && !window.confirm(translate('Reloading ends the current test connection. Continue?'))) return; setReload(v => v + 1); }}><LabIcon name="arrows-rotate" />{translate("Reload devices & access")}</button><small id="test-lab-reload-help">{translate("Reload lists and permissions. Ends the current test connection.")}</small></div>
+    <div className="test-lab-stage-tabs" role="tablist" aria-labelledby="test-lab-title">
+      <button id="stage-tab-devices" role="tab" tabIndex={stage === 'devices' ? 0 : -1} aria-selected={stage === 'devices'} aria-controls="stage-panel-devices" aria-describedby={pendingDownloads ? 'test-lab-pending-downloads' : undefined} onKeyDown={stageKey} onClick={() => selectStage('devices')}><LabIcon name="microchip" />{translate('Devices & credentials')}{pendingDownloads && <span className="test-lab-unsaved-badge" aria-hidden="true">!</span>}</button>
+      <button id="stage-tab-tests" role="tab" tabIndex={stage === 'tests' ? 0 : -1} aria-selected={stage === 'tests'} aria-controls="stage-panel-tests" onKeyDown={stageKey} onClick={() => selectStage('tests')}><LabIcon name="flask" />{translate('Run tests')}</button>
+    </div>
+    {pendingDownloads && <span id="test-lab-pending-downloads" className="test-lab-sr-only">{translate('Save pending credential files before leaving this page.')}</span>}
+    <div id="stage-panel-devices" className="test-lab-stage-panel" role="tabpanel" aria-labelledby="stage-tab-devices" hidden={stage !== 'devices'}>
+      {linkedNotice && <p role="status" className="test-lab-info"><LabIcon name="circle-info" />{translate(linkedMessages[linkedNotice])}</p>}
+      <TestLabDevices cloudId={cloudId} product={product} requestedDevice={requestedDevice} onLinkedDevice={result => { setLinkedNotice(result === 'ready' ? '' : result); if (result === 'ready') setStage('tests'); else setStage('devices'); }} onPendingDownloads={setPendingDownloads} onStartTest={id => { startTarget.current = id; setLinkedNotice(''); document.getElementById('stage-tab-tests')?.focus(); if (device === id) setStage('tests'); else showDevices(); }} onScope={(a,d,state,name,connection)=>{if (device !== d) { setContext(null); if (device) { closeLiveTests(); setStage(d && d === startTarget.current ? 'tests' : 'devices'); } else if (d && d === startTarget.current) setStage('tests'); startTarget.current = ''; setEvents([]); setTopic(''); } setAccount(a);setDevice(d);setDeviceName(name);setProvisionState(state);setConnectionStatus(connection);}} />
+    </div>
+    <div id="stage-panel-tests" className="test-lab-stage-panel" role="tabpanel" aria-labelledby="stage-tab-tests" hidden={stage !== 'tests'}>
+    {!device && <div className="test-lab-empty-state" role="status"><p>{translate('Choose and activate a test device in Devices & credentials before running live tests.')}</p><button onClick={() => { showDevices(); document.getElementById('stage-tab-devices')?.focus(); }}>{translate('Devices & credentials')}</button></div>}
+    {device && <>
+    <div className="test-lab-test-heading"><p className="test-lab-current-device" role="status"><LabIcon name="microchip" />{translate("Current test device:")} <strong>{deviceName || device}</strong></p><button onClick={() => { if (selectStage('devices')) document.getElementById('stage-tab-devices')?.focus(); }}><LabIcon name="arrow-left" />{translate('Change device')}</button></div>
+    {connectionStatus === 'offline' && <p role="status" className="test-lab-info"><LabIcon name="plug-circle-xmark" />{translate('This device is offline. Live responses may be unavailable.')}</p>}
+    {pendingDownloads && <p role="status" className="test-lab-warning"><LabIcon name="file-arrow-down" />{translate('Save pending credential files before leaving this page.')}</p>}
     {loading && <p role="status"><LabIcon name="hourglass-half" />{translate("Checking device scope…")}</p>}
     {error && <p role="alert" className="test-lab-warning"><LabIcon name="triangle-exclamation" />{translate(error)}</p>}
-    {context && <><p className="test-lab-context"><LabIcon name="cloud" />{translate("Environment:")} <strong>{context.environment}</strong> {translate("· Device:")} {context.device_status || translate("unknown")} · <LabIcon name={connected ? 'plug' : 'plug-circle-xmark'} />{translate("MQTT:")} {connected ? 'Connected' : 'Disconnected'}</p>{!context.runtime_ready ? <p role="status" className="test-lab-warning"><LabIcon name="triangle-exclamation" />{labBlockedMessage(context.blocked_reason)}</p> : <p><LabIcon name="circle-info" />{translate("Test authorization lasts 11 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. WebRTC playback runs for up to 10 minutes and may briefly reconnect as media sessions renew. Operations affect your real device.")}</p>}</>}
-    <p className="test-lab-current-device" role="status"><LabIcon name={device ? 'microchip' : 'circle-info'} />{device ? <>{translate("Current test device:")} <strong>{deviceName || device}</strong></> : translate("Choose a test device above before using the tests below.")}</p>
+    {context && <><p className="test-lab-context"><LabIcon name="cloud" />{translate("Environment:")} <strong>{context.environment}</strong> {translate("· Device:")} {context.device_status || translate("unknown")} · {translate('Test readiness:')} <strong>{context.runtime_ready ? translate('Ready for live tests') : translate('Live tests unavailable')}</strong> · <LabIcon name={connected ? 'plug' : 'plug-circle-xmark'} />{translate("MQTT:")} {translate(connected ? 'Connected' : 'Disconnected')}</p>{!context.runtime_ready ? <p role="status" className="test-lab-warning"><LabIcon name="triangle-exclamation" />{translate(labBlockedMessage(context.blocked_reason))}</p> : <p><LabIcon name="circle-info" />{translate("Test authorization lasts 11 minutes. MQTT credentials renew through a fresh connection; messages during renewal may be missed. WebRTC playback runs for up to 10 minutes and may briefly reconnect as media sessions renew. Operations affect your real device.")}</p>}</>}
     <div role="tablist" aria-label={translate("Test protocol")}>{['mqtt', 'shadow', 'webrtc'].map(id => <button key={id} id={`tab-${id}`} role="tab" tabIndex={tab === id ? 0 : -1} disabled={busy} aria-selected={tab === id} aria-controls={`panel-${id}`} onKeyDown={protocolKey} onClick={() => selectProtocol(id)}><LabIcon name={protocolIcons[id]} />{id === 'webrtc' ? translate("WebRTC") : id === 'mqtt' ? translate("MQTT") : translate("Shadow")}</button>)}</div>
     <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
       {tab === 'mqtt' && <><h3><LabIcon name="comments" />{translate("MQTT messages")}</h3><p>{translate("Broker acceptance and device response are reported separately. Test ACLs allow this device’s commands and reports only.")}</p><label><span><LabIcon name="arrow-up-from-bracket" />{translate("Publish topic")}</span><input value={topic} maxLength={256} onChange={e => setTopic(e.target.value)} /></label><label><span><LabIcon name="inbox" />{translate("Subscription topic")}</span><input value={subscription} maxLength={256} onChange={e => setSubscription(e.target.value)} /></label><button disabled={busy || connected || !context?.runtime_ready || !context?.capabilities?.mqtt} onClick={() => run('mqtt_connect', lab => lab.connect())}><LabIcon name="plug" />{translate("Connect")}</button><button disabled={!connected || busy} onClick={() => { runtime.current?.disconnect(); setConnected(false); }}><LabIcon name="plug-circle-xmark" />{translate("Disconnect")}</button><button disabled={!connected || busy} onClick={() => run('mqtt_subscribe', lab => lab.subscribe(subscription))}><LabIcon name="bell" />{translate("Subscribe")}</button><button disabled={!connected || busy} onClick={() => run('mqtt_unsubscribe', lab => lab.unsubscribe(subscription))}><LabIcon name="bell-slash" />{translate("Unsubscribe")}</button><button disabled={!connected || busy} onClick={() => run('mqtt_publish', lab => lab.publish(validatePublishTopic(topic), parseTestPayload(payload)), `Publish a command to this real device in ${context.environment}?`)}><LabIcon name="paper-plane" />{translate("Publish")}</button><p><LabIcon name="inbox" />{translate("Recent messages (memory only, not exported)")}</p><pre>{messages.map(m => `${m.topic}\n${m.text}`).join('\n\n')}</pre></>}
@@ -204,5 +258,7 @@ export function TestLab({ cloudId }) {
     </div>
     <ol className="test-lab-events">{events.map((event, index) => <li key={index}><time>{event.time}</time> {event.operation}: {event.outcome}</li>)}</ol>
     {pendingAction && <Dialog role="alertdialog" title={translate("Confirm live test action")} onClose={() => setPendingAction(null)}><p>{pendingAction.confirmation}</p><p>{translate("Device:")} <code>{context?.devid}</code></p><button onClick={() => { const action = pendingAction; setPendingAction(null); if (runtime.current === action.lab) run(action.operation, action.work); }}>{translate("Continue")}</button><button onClick={() => setPendingAction(null)}>{translate("Cancel action")}</button></Dialog>}
+    </>}
+    </div>
   </section>;
 }

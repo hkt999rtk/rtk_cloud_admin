@@ -4,6 +4,35 @@ This feature belongs to the authenticated Developer Console, not the documentati
 site. Select a Brand Cloud and Product, then a test device using your current
 Console login. No second account/password is needed. Device identity is unchanged.
 
+## Page workflow
+
+Brand Cloud and Product selectors stay above two top-level tabs. **Devices &
+credentials** opens by default and contains device issuance, credential downloads,
+binding, provisioning/activation, unbinding, and retirement. Each row shows the
+next required step when its test device is not ready. A bound, activated device
+offers **Test this device**, which selects it and opens **Run tests**. The Run tests
+tab is always available, but without a selected device it shows guidance to choose
+and activate one; it does not request live runtime credentials. Its header shows
+the selected device, environment, and readiness below the Cloud and Product scope,
+with **Change device** returning
+to Devices & credentials. MQTT, Shadow, and WebRTC are second-level tabs inside Run
+tests; diagnostic history and report download also live there. An offline device
+has its own status because being offline does not mean its authorization failed.
+
+Switching top-level tabs keeps the device-management state mounted, including
+credential files held only in page memory. The Devices & credentials tab flags
+unconfirmed files until they are explicitly marked saved; switching tabs does not
+mark them saved. Leaving an active Run tests connection asks for confirmation.
+Confirming closes local MQTT and WebRTC connections and invalidates pending live
+actions; cancelling stays in Run tests. Changing Product during an active
+connection asks for confirmation too; cancelling keeps the Product and session.
+Confirming a Product change, unbinding, or retiring the selected device clears its
+test scope and closes those connections. **Reload devices & access** remains
+available during device setup, including when the Product list initially fails. A link
+with `product_id` and `device_id` selects that device and opens Run tests only if
+it is eligible, bound, and activated. Otherwise it opens Devices & credentials
+and explains the next required step.
+
 ## Test account, Bind and Unbind
 
 1. Console login automatically resolves a stable internal App test identity by
@@ -20,8 +49,8 @@ Console login. No second account/password is needed. Device identity is unchange
    the test board/client. Browser download requests are not proof of a saved file;
    confirm the file yourself (the file picker can confirm a completed write).
    Pending files live only in page memory, not localStorage or backend storage,
-   and survive Product and language changes while this page remains mounted. Refresh/close warns about files
-   not confirmed saved. After leaving, there is no server-side private-key
+   and survive tab, Product, and language changes while this page remains mounted.
+   Refresh/close warns about files not confirmed saved. After leaving, there is no server-side private-key
    retention or re-download. If the file is lost, safely retire the old device
    and create a new one. Existing eligible
    test devices can also be bound without uploading their private keys.
@@ -32,9 +61,9 @@ Console login. No second account/password is needed. Device identity is unchange
    cannot be taken over.
 4. The device list includes every test-issued device in this Product, including
    unbound and retired devices. It distinguishes binding, cloud provisioning,
-   connection and retirement state. The selected device is shown immediately above
-   the MQTT, Shadow and WebRTC tools. Changing selection stops old connections and
-   clears old test results.
+   connection and retirement state. The selected device appears in the Run tests
+   header above the MQTT, Shadow and WebRTC tools. Changing selection stops old
+   connections and clears old test results.
    Provision queues the existing lifecycle operation. It requires an activity ID
    and RSA clip-encryption public key, separate from the device TLS key. Browser
    key generation downloads the private key locally; only the public key is sent.
@@ -53,8 +82,8 @@ Console login. No second account/password is needed. Device identity is unchange
    as a read-only record; audit history is retained.
 
 The bound list is refreshed every 10 seconds; each runtime request independently
-rechecks authorization. Other tabs stop on their next check. Unbind clears this
-page's selected device and local transports. MQTT Unsubscribe and WebRTC Stop
+rechecks authorization. If access changes, live actions become unavailable on the
+next check. Unbind clears this page's selected device and local transports. MQTT Unsubscribe and WebRTC Stop
 playback retain their separate meanings; there is no global test-session button.
 Certificate expiry remains in the downloaded certificate, not an inferred UI date.
 
@@ -132,10 +161,12 @@ load testing are not included.
 
 ## Verification
 
-Run Go app/config/accountclient tests, `npm test`, `npm run build`, and the isolated
-Chromium `web/e2e/test-lab.spec.mjs` test. The browser fixture verifies scope/UI and
-disabled-runtime behavior; it is not evidence of live MQTT, decoded camera video,
-or physical two-way audio.
+Run Go app/config/accountclient tests, `npm test`, `npm run localization:check`,
+`npm run build`, and the isolated Chromium `web/e2e/test-lab.spec.mjs` test. The
+browser fixture verifies both tab levels, keyboard and mobile navigation, device
+readiness and deep links, credential persistence across tabs, and disabled-runtime
+behavior; it is not evidence of live MQTT, decoded camera video, or physical
+two-way audio.
 Live dev acceptance must separately cover login, a permitted device, MQTT roundtrip,
 Shadow accepted/rejected responses, WebRTC first decoded frame, Opus in both
 directions, speaker/AEC behavior, 10-minute playback and cleanup.

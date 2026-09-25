@@ -7613,7 +7613,7 @@
     "Transport": {
       "sourceHash": "89d37e9d7140e39ca294ffd773188bd662eec253fac54fb8f45493cce8726867",
       "fingerprint": "8d7dc1be6c54511b82e5647835f1824faf39b95ea99899dfdc3a4966f5853715",
-      "text": "运输",
+      "text": "传输协议",
       "status": "approved"
     },
     "Type": {
@@ -14880,6 +14880,156 @@
       "sourceHash": "473dd66897845d92d6204d6595d1428ef7ebf2218e6ebc12f91a33ddb40886df",
       "fingerprint": "d29daa7e65d24b6890ef094a39ff622436ed71a46c4e043ddba0fa1e6dbfa9c3",
       "text": "视频对象写入",
+      "status": "approved"
+    },
+    "Devices & credentials": {
+      "sourceHash": "5d63f61ed990ad403776ebaff9652a7ddfeb7d9583f027209d6e5c5e8ab3999a",
+      "fingerprint": "f6a1f2ae048ffd8e815c526294e0f24107598f740fbe8c6c01a6862919b3b3f0",
+      "text": "设备与凭证",
+      "status": "approved"
+    },
+    "Run tests": {
+      "sourceHash": "bcab69c7924a1a19daaf053ed08a82f77c9e982e6e0833fb8c7df0b28025ff62",
+      "fingerprint": "55e3d597480c5d3e9cf7a698aa0fd5f519941f7b85c28ba060385a85faadd93e",
+      "text": "执行测试",
+      "status": "approved"
+    },
+    "Test this device": {
+      "sourceHash": "e5d968dec0ac0bfc583907b580bd0b85326a23cce6c565b483ee2929fcb43fb6",
+      "fingerprint": "2fe516317c4fe7b8fb9ecba2b2042b1ff7de3fd2e87bc90713d2dc020723eeb4",
+      "text": "使用此设备开始测试",
+      "status": "approved"
+    },
+    "Change device": {
+      "sourceHash": "ab10818873e7702cc016ab87e526338af3eb8d986256b591f8c7760ab0799f04",
+      "fingerprint": "cf29272697e5390237cb5202ecb92d6763ed890852773206766d2fdecba15aa8",
+      "text": "更换设备",
+      "status": "approved"
+    },
+    "Save pending credential files before leaving this page.": {
+      "sourceHash": "fcbfe50e047dbc688a35095b52d26fb4a8a6e13c4ead17bb311d0a153100f36c",
+      "fingerprint": "a4e0e9baecc899ad6a6e22394491a87b9d02ca4001a784192009166bf8a9da48",
+      "text": "离开此页面前，请确认已保存所有待处理的凭证文件。",
+      "status": "approved"
+    },
+    "Choose and activate a test device in Devices & credentials before running live tests.": {
+      "sourceHash": "18479546e08184e9ea9d027fd8251d014de7a64429051db4e245defa51c42a7f",
+      "fingerprint": "1efe9be6c4e8b6b5cdd29772f32844dea83fc441c653df7730ceb8b9cc3800ca",
+      "text": "请先在“设备与凭证”中选择并激活测试设备，再执行实时测试。",
+      "status": "approved"
+    },
+    "This device must be bound to your test account before testing.": {
+      "sourceHash": "eb20047302a112fffa1ed8223414ad2d903907d4665002e9423d7f2aa9ee6b76",
+      "fingerprint": "b35a4ce27436150a0656f15b6848d393a091e7a67371a84c13effc6e19f0bff0",
+      "text": "测试前，请先将此设备绑定到您的测试账号。",
+      "status": "approved"
+    },
+    "Activate this device before testing.": {
+      "sourceHash": "14c27b2144653058f49b29a07e8f0526b81974f27a9eab2af515f8451bd2f6f2",
+      "fingerprint": "3c4c14f2610c6f5e8b9b6c4e992c8e3b3b6feedeb52131fac94f9735533c7063",
+      "text": "测试前，请先激活此设备。",
+      "status": "approved"
+    },
+    "This device is offline. Live responses may be unavailable.": {
+      "sourceHash": "c74dda1e8c73d96ee6bbfb09a4a24207f5afa5cd26376f05bbb172d5f31a5dca",
+      "fingerprint": "920312a6bdc53489066a3ac760cf59204dc4fc39ba889a23c0c8730916c90598",
+      "text": "此设备目前离线，可能无法收到实时响应。",
+      "status": "approved"
+    },
+    "Leaving Run tests ends the active MQTT and WebRTC connections. Continue?": {
+      "sourceHash": "5af9c11394b5c70d80b4ef081d7f907165ea959e1de8b3fa006903379fab9a55",
+      "fingerprint": "ed22cda7538d23ba3f64d1d5d9b344e1327d1c9959dc3a630f685df2e2d8da51",
+      "text": "离开“执行测试”将断开当前的 MQTT 和 WebRTC 连接。是否继续？",
+      "status": "approved"
+    },
+    "The linked test device is not eligible for this Product.": {
+      "sourceHash": "e0d1de71cd12c6c30f27ce12e87f7647b16feb58a6073b5662814a1d66f01f45",
+      "fingerprint": "f38f6635729f8f33bed1654df2dfde9c2079ee92467aded97e4f097265b0025b",
+      "text": "此链接指定的测试设备不符合此产品的测试资格。",
+      "status": "approved"
+    },
+    "This linked device needs to be bound before testing.": {
+      "sourceHash": "4982179c39cdaae3c99f89811ed853259b2c5e458440aa75f2f63f3a45d1e4fc",
+      "fingerprint": "6ce51b4753d65c86c7bf1c316d64e2d83a3d5a856a65240639852847bc409fc9",
+      "text": "此链接指定的设备需先绑定，才能执行测试。",
+      "status": "approved"
+    },
+    "This linked device needs cloud activation before testing.": {
+      "sourceHash": "4223075e00f7a16faf60ee3752b4d8ad9a4a8d9bc183d11932d7e754225e0ba2",
+      "fingerprint": "f1b357b1a9ed5aee06cb3400204df8be3c77acfbf41ffa69051c78c986dcd99e",
+      "text": "此链接指定的设备需先在云端激活，才能执行测试。",
+      "status": "approved"
+    },
+    "Reloading ends the current test connection. Continue?": {
+      "sourceHash": "219a2a2e22f3907f2e0466b19aa54b20b539c7bd0780fe5938e17c9c73eb97af",
+      "fingerprint": "9225877fb6dfce3e43cc31ab61a215ff864bf13aeff56a161df22a3b0d1360ab",
+      "text": "重新加载将断开当前的测试连接。是否继续？",
+      "status": "approved"
+    },
+    "Test readiness:": {
+      "sourceHash": "a0d7668eac6bbfe520529d166e31bcbfc24816c71b7198220199eb73eb97a83e",
+      "fingerprint": "9f22e79f68363dc8d044b16fc18018401d0fbc3827f94518d77e6e3d57b9cbdb",
+      "text": "测试就绪状态：",
+      "status": "approved"
+    },
+    "Ready for live tests": {
+      "sourceHash": "f8b9ead71c437b23dfc13d31881ee7b98bd811621f87a4e301c8438d964bba7c",
+      "fingerprint": "204c5dbd29f23b01bff08a4b64541d0a6b3ef05f03b3debb497a0bbbd31bae10",
+      "text": "可执行实时测试",
+      "status": "approved"
+    },
+    "Live tests unavailable": {
+      "sourceHash": "6d540acac6e008a31ea0eac779a50f5ef1a8dbba67c584764cd0f17a942df095",
+      "fingerprint": "397fdf1554076f1a646105ec8e33a929e96d274995c21ab6f8f4d8e84072e471",
+      "text": "无法执行实时测试",
+      "status": "approved"
+    },
+    "Loading test access from your Console login. Reload if it is unavailable.": {
+      "sourceHash": "f999a861cccbbe1023140258a96140b9f8abe9cab71b5a5f596a5e0abb1c68fb",
+      "fingerprint": "9904062e7fcdf9edfce88dad3d69b290d7fe11e75b5e2b5c690993da38b03c52",
+      "text": "正在通过您的 Console 登录信息加载测试权限；如果仍无法使用，请重新加载。",
+      "status": "approved"
+    },
+    "Bind this test device to the authorized User Account before testing.": {
+      "sourceHash": "9a34d6bc3851e368f101005fac535273c24780ffb8d090f0b29cf6834fa3b37e",
+      "fingerprint": "661f2170e6bcef4ade87b01088137582f2a505def5347d4453d1b58176930300",
+      "text": "测试前，请先将此测试设备绑定到已授权的用户账号。",
+      "status": "approved"
+    },
+    "This device is bound but cloud provisioning is not complete. Start or retry Provision in Devices & credentials.": {
+      "sourceHash": "f9e1a5b3c305d1d122a10d71aa0751e9d3c0b5c4f1a3dcb9fd29ebde7e32284e",
+      "fingerprint": "870c325ef1971497908365ac7184c057dc47b07167108dc28c738af7c630c9a9",
+      "text": "此设备已绑定，但尚未完成云端预配。请在“设备与凭证”中开始或重试预配。",
+      "status": "approved"
+    },
+    "Live tests are unavailable: the device-scoped credential exchange and broker revocation integration are not ready. No live connection has been made.": {
+      "sourceHash": "ad8ff66832fb3c267e541b87af09cf21452dcd3f8032f88ddf9ea7b3f42cf4a3",
+      "fingerprint": "1660852350e85f543ab01d0083f5f67c6bd8dc9f67d77a574ed06b8ee4191f15",
+      "text": "实时测试无法使用：设备专属凭证交换与 Broker 权限撤销集成尚未就绪。尚未建立实时连接。",
+      "status": "approved"
+    },
+    "Your read-only role does not grant device control or media playback.": {
+      "sourceHash": "05bdff116db20ceb4dd44cf311bcb806332be63f6afbbad9f756c5f3cd6688a7",
+      "fingerprint": "44cf25d939504797c52b25c700af96d267de4a6b06ffd3df4e3678ef4c3e300b",
+      "text": "您的只读角色没有设备控制或媒体播放权限。",
+      "status": "approved"
+    },
+    "This registry device has no valid Video Cloud identity mapping.": {
+      "sourceHash": "3410bc4ac2901b232041bd09cec93a17d2e14db48ad7a3e84b12b757c984ac70",
+      "fingerprint": "10dbcaa5eba441030acdeae3f360e7d668c9aaded3799216246ba90abbcf026c",
+      "text": "此注册设备没有有效的 Video Cloud 身份映射。",
+      "status": "approved"
+    },
+    "This device is disabled.": {
+      "sourceHash": "0f56e9c9394e0585efae879d1f0b517ab3fac6f66deb3c37df2f20675fc1a756",
+      "fingerprint": "aa66a05f58b95c2828b228cd0bfc05cc723ba1f53ac05e2f9471dd33596fc5b8",
+      "text": "此设备已停用。",
+      "status": "approved"
+    },
+    "Live testing is unavailable for this device.": {
+      "sourceHash": "c7154b54c1f9a117d0f911e75729348682a8c25ffd0bdde1038025ad660600e3",
+      "fingerprint": "a8fcbd51726e026e1cc00485ca2065576cfa5eba0c56a20e5672186cdd150884",
+      "text": "此设备无法执行实时测试。",
       "status": "approved"
     }
   }

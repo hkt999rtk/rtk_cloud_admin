@@ -43,6 +43,22 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await expect(productOption).toHaveText('Camera 00');
   await page.goto(`/console/clouds/${cloud}/test-lab?product_id=${product}&device_id=${device}`);
   const panel=page.getByTestId('test-lab');
+  const devicesTab=panel.locator('#stage-tab-devices');
+  const testsTab=panel.locator('#stage-tab-tests');
+  const devicesPanel=panel.locator('#stage-panel-devices');
+  const testsPanel=panel.locator('#stage-panel-tests');
+  await expect(devicesTab).toContainText('Devices & credentials');
+  await expect(testsTab).toContainText('Run tests');
+  await expect(devicesTab).toHaveAttribute('aria-selected','true');
+  await expect(devicesPanel).toBeVisible();
+  await expect(testsPanel).toBeHidden();
+  await expect(panel.getByRole('tablist',{name:'Test protocol'})).toHaveCount(0);
+  await testsTab.click();
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(testsPanel).toContainText('Choose and activate a test device in Devices & credentials before running live tests.');
+  await expect(devicesPanel).toBeHidden();
+  await expect(testsPanel.getByRole('tablist',{name:'Test protocol'})).toHaveCount(0);
+  await devicesTab.click();
   await expect(panel.getByRole('button',{name:'Authorize account',exact:true})).toHaveCount(0);
   await expect(panel.getByRole('textbox',{name:'Test account password'})).toHaveCount(0);
   await expect(panel).toContainText('using your Console login');
@@ -66,6 +82,13 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   const credentialLink=credentials.getByRole('link',{name:'Download device credential ZIP',exact:true});
   await expect(credentialLink).toBeVisible();
   const credentialURL=await credentialLink.getAttribute('href');
+  await testsTab.click();
+  await expect(devicesTab).toHaveAttribute('aria-describedby','test-lab-pending-downloads');
+  await expect(panel.locator('#test-lab-pending-downloads')).toContainText('Save pending credential files before leaving this page.');
+  await expect(devicesPanel).toBeHidden();
+  await expect(devicesPanel.locator('.test-lab-credential-download')).toHaveCount(1);
+  await devicesTab.click();
+  await expect(credentialLink).toHaveAttribute('href',credentialURL);
   // The old implementation revoked this URL after one second.
   await page.waitForTimeout(1500);
   for(let attempt=0;attempt<2;attempt++) {
@@ -99,8 +122,6 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await panel.getByRole('button',{name:'Bind',exact:true}).click();
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel.getByRole('button',{name:'Unbind',exact:true})).toBeVisible();
-  await expect(panel.getByRole('combobox',{name:'Test device'})).toHaveValue(device);
-  await expect(panel.locator('.test-lab-current-device')).toContainText('Test camera');
   await panel.getByRole('button',{name:'Provision',exact:true}).click();
   await panel.getByRole('button',{name:'Generate and download test key',exact:true}).click();
   const provisionDownload=panel.getByRole('region',{name:'Provision key ready'});
@@ -116,12 +137,18 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await panel.getByRole('button',{name:'Start provision',exact:true}).click();
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel.getByRole('table')).toContainText('Activated');
+  await expect(devicesPanel.getByRole('button',{name:'Test this device',exact:true})).toBeVisible();
+  await devicesPanel.getByRole('button',{name:'Test this device',exact:true}).click();
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(devicesPanel).toBeHidden();
+  await expect(testsPanel).toBeVisible();
+  await expect(testsPanel.locator('.test-lab-current-device')).toContainText('Test camera');
   await expect(panel).toContainText('without first building an App, MQTT client or WebRTC Viewer');
   await expect(panel.getByRole('button',{name:/End test session|Stop session|Disconnect all/i})).toHaveCount(0);
   await expect(panel.getByRole('button',{name:'Unsubscribe',exact:true})).toBeVisible();
   await expect(panel.getByRole('button',{name:'Disconnect',exact:true})).toBeVisible();
   await expect(panel.locator('#test-lab-product-id')).toContainText(product);
-  await expect(panel.locator('[role="tab"] i[aria-hidden="true"]')).toHaveCount(3);
+  await expect(testsPanel.locator('[role="tab"] i[aria-hidden="true"]')).toHaveCount(3);
   await expect(panel.getByRole('heading',{name:'Device test workspace',exact:true})).toBeVisible();
   await expect(panel.getByRole('status').filter({hasText:'No live connection has been made'})).toHaveCount(1);
   await expect(panel.getByRole('button',{name:'Connect',exact:true})).toBeDisabled();
@@ -153,6 +180,7 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   if (await menu.isVisible()) await menu.click();
   await page.locator('[data-locale-selector]').selectOption('zh-TW');
   if (await page.locator('.mobile-nav-close').isVisible()) await page.locator('.mobile-nav-close').click();
+  await devicesTab.click();
   await panel.getByRole('button',{name:'解除綁定',exact:true}).click();
   const localizedUnbind = panel.getByRole('alertdialog',{name:'確認測試裝置操作'});
   await expect(localizedUnbind).toContainText('要解除測試裝置');
@@ -166,9 +194,11 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await expect(panel.getByRole('button',{name:'Unbind',exact:true})).toBeVisible();
   await panel.getByRole('button',{name:'Unbind',exact:true}).click();
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
-  await expect(panel.getByRole('combobox',{name:'Test device'})).toHaveValue('');
   await expect(panel.getByRole('table')).toContainText('Not bound');
-  await expect(panel.getByRole('button',{name:'Start playback',exact:true})).toBeDisabled();
+  await testsTab.click();
+  await expect(testsPanel).toContainText('Choose and activate a test device in Devices & credentials before running live tests.');
+  await expect(testsPanel.getByRole('button',{name:'Start playback',exact:true})).toHaveCount(0);
+  await devicesTab.click();
   await panel.getByRole('button',{name:'Bind',exact:true}).click();
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel.getByRole('button',{name:'Unbind',exact:true})).toBeVisible();
@@ -176,12 +206,13 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await page.route('**/test-lab/sessions',route=>route.fulfill({json:{id:'99999999-9999-4999-8999-999999999999',expires_at:new Date(Date.now()+11*60*1000).toISOString()}}));
   await page.route('**/test-lab/sessions/*/shadow',route=>route.fulfill({status:404}));
   runtimeReady=true;
+  await devicesPanel.getByRole('button',{name:'Test this device',exact:true}).click();
   await panel.getByRole('button',{name:'Reload devices & access',exact:true}).click();
   await expect(panel.locator('.test-lab-context')).toContainText(/MQTT[:：] Disconnected/);
   if (await menu.isVisible()) await menu.click();
   await page.locator('[data-locale-selector]').selectOption('zh-TW');
   if (await page.locator('.mobile-nav-close').isVisible()) await page.locator('.mobile-nav-close').click();
-  await expect(panel.locator('.test-lab-context')).toContainText(/MQTT[:：] Disconnected/);
+  await expect(panel.locator('.test-lab-context')).toContainText(/MQTT[:：]\s*未連線/);
   if (await page.getByRole('button', { name: '開啟導覽' }).isVisible()) await page.getByRole('button', { name: '開啟導覽' }).click();
   await page.locator('[data-locale-selector]').selectOption('en');
   if (await page.locator('.mobile-nav-close').isVisible()) await page.locator('.mobile-nav-close').click();
@@ -204,11 +235,15 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await liveConfirm.getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel).toContainText('webrtc_start: failed');
   expect(liveWrites).toBe(1);
+  await devicesTab.click();
   await panel.getByRole('button',{name:'Safely retire',exact:true}).click();
   await expect(panel.getByRole('alertdialog',{name:'Confirm test action'})).toContainText('cannot be undone');
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel.getByRole('table')).toContainText('Retirement needs retry');
-  await expect(panel.getByRole('combobox',{name:'Test device'})).toHaveValue('');
+  await testsTab.click();
+  await expect(testsPanel).toContainText('Choose and activate a test device in Devices & credentials before running live tests.');
+  await expect(testsPanel).not.toContainText('webrtc_start: failed');
+  await devicesTab.click();
   await panel.getByRole('button',{name:'Retry retirement',exact:true}).click();
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel.getByRole('table')).toContainText('Retired');
@@ -228,4 +263,210 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await page.locator('[data-locale-selector]').selectOption('zh-CN');
   if (await page.locator('.mobile-nav-close').isVisible()) await page.locator('.mobile-nav-close').click();
   await expect(panel.getByRole('alert')).toContainText('无法加载所选产品名称。请刷新访问权限后重试。');
+});
+
+test('[UI-CA-TESTLAB-002] deep links, stage keyboard controls and mobile layout @smoke',async({page,request,isMobile})=>{
+  expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
+  const account='88888888-8888-4888-8888-888888888888';
+  let activated=true;
+  await page.route('**/test-lab/manage/**',route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.endsWith('/accounts'))return route.fulfill({json:{id:account,email:'lab@example.test'}});
+    if(route.request().method()==='GET')return route.fulfill({json:{devices:[{id:device,name:'Linked camera',bound:true,bindable:false,provision_status:activated?'activated':'not_provisioned',connection_status:'offline'}],has_more:false,next_offset:1}});
+    return route.fulfill({status:500});
+  });
+  await page.route('**/test-lab/context?**',route=>route.fulfill({json:{environment:'dev',brand_cloud_id:cloud,product_id:product,device_id:device,devid:'camera-1',device_status:'registered',runtime_ready:false,blocked_reason:'runtime_authorization_unavailable',capabilities:{mqtt:true,shadow_http:true,shadow_mqtt:true,webrtc:true}}}));
+  const url=`/console/clouds/${cloud}/test-lab?product_id=${product}&device_id=${device}`;
+  await page.goto(url);
+  const panel=page.getByTestId('test-lab');
+  const devicesTab=panel.locator('#stage-tab-devices');
+  const testsTab=panel.locator('#stage-tab-tests');
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(panel.locator('#stage-panel-tests')).toBeVisible();
+  await expect(panel.locator('.test-lab-current-device')).toContainText('Linked camera');
+  await expect(panel.locator('#stage-panel-tests')).toContainText('This device is offline. Live responses may be unavailable.');
+  await expect(panel.getByRole('button',{name:'Connect',exact:true})).toBeDisabled();
+  await devicesTab.click();
+  await expect(panel.locator('#stage-panel-devices')).toBeVisible();
+  await expect(panel.locator('#stage-panel-tests')).toBeHidden();
+  await devicesTab.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(testsTab).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(devicesTab).toHaveAttribute('aria-selected','true');
+  await expect(devicesTab).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  if(isMobile){
+    const dimensions=await panel.evaluate(element=>({content:element.scrollWidth,viewport:element.clientWidth}));
+    expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport+1);
+  }
+  activated=false;
+  await page.goto(url);
+  await expect(devicesTab).toHaveAttribute('aria-selected','true');
+  await expect(panel.locator('#stage-panel-devices')).toContainText('This linked device needs cloud activation before testing.');
+  await expect(panel.locator('#stage-panel-devices')).toContainText('Activate this device before testing.');
+  await expect(panel.locator('#stage-panel-devices').getByRole('button',{name:'Test this device',exact:true})).toHaveCount(0);
+});
+
+test('[UI-CA-TESTLAB-003] leaving active WebRTC or MQTT requires confirmation and closes its session @smoke',async({page,request})=>{
+  expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
+  const account='88888888-8888-4888-8888-888888888888';
+  const session='99999999-9999-4999-8999-999999999999';
+  const otherProduct='33333333-3333-4333-8333-000000000001';
+  let closes=0;
+  await page.addInitScript(()=>{
+    window.__closedTestPeers=0;
+    window.__closedTestSockets=0;
+    window.RTCPeerConnection=class {
+      constructor(){this.iceGatheringState='complete';this.connectionState='new';this.localDescription=null;}
+      addTransceiver(kind){return {currentDirection:kind==='audio'?'sendrecv':'recvonly',sender:{replaceTrack:async()=>{}}};}
+      async createOffer(){return {type:'offer',sdp:'v=0\r\n'};}
+      async setLocalDescription(offer){this.localDescription=offer;}
+      async setRemoteDescription(){this.connectionState='connected';this.onconnectionstatechange?.();}
+      async getStats(){return new Map();}
+      close(){window.__closedTestPeers++;this.connectionState='closed';}
+    };
+    window.WebSocket=class extends EventTarget {
+      static CONNECTING=0;static OPEN=1;static CLOSING=2;static CLOSED=3;
+      constructor(){super();this.readyState=0;this.binaryType='arraybuffer';queueMicrotask(()=>{this.readyState=1;this.emit('open',new Event('open'));});}
+      emit(name,event){this[`on${name}`]?.(event);this.dispatchEvent(event);}
+      send(data){
+        const reply=bytes=>{if((bytes[0]>>4)===1)queueMicrotask(()=>this.emit('message',new MessageEvent('message',{data:new Uint8Array([0x20,0x03,0,0,0]).buffer})));};
+        if(data instanceof Blob)data.arrayBuffer().then(bytes=>reply(new Uint8Array(bytes)));
+        else reply(new Uint8Array(data));
+      }
+      close(){if(this.readyState===3)return;this.readyState=3;window.__closedTestSockets++;this.emit('close',new CloseEvent('close'));}
+    };
+  });
+  await page.route('**/test-lab/manage/**',route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.endsWith('/accounts'))return route.fulfill({json:{id:account,email:'lab@example.test'}});
+    if(route.request().method()==='GET')return route.fulfill({json:{devices:[{id:device,name:'Streaming camera',bound:true,bindable:false,provision_status:'activated',connection_status:'online'}],has_more:false,next_offset:1}});
+    return route.fulfill({status:500});
+  });
+  await page.route('**/test-lab/context?**',route=>route.fulfill({json:{environment:'dev',brand_cloud_id:cloud,product_id:product,device_id:device,account_id:account,devid:'camera-1',device_status:'registered',runtime_ready:true,capabilities:{mqtt:true,shadow_http:true,shadow_mqtt:true,webrtc:true}}}));
+  await page.route('**/test-lab/sessions**',route=>{
+    const path=new URL(route.request().url()).pathname;
+    if(path.endsWith('/sessions'))return route.fulfill({json:{id:session,expires_at:new Date(Date.now()+12*60*1000).toISOString()}});
+    if(path.endsWith('/ice'))return route.fulfill({json:{ice_policy:'all',ice_servers:[]}});
+    if(path.endsWith('/credentials'))return route.fulfill({json:{url:'ws://mqtt.invalid/mqtt',username:'test',password:'test',client_id:'lab-e2e',expires_at:new Date(Date.now()+11*60*1000).toISOString()}});
+    if(path.endsWith('/offer'))return route.fulfill({json:{expires_at:new Date(Date.now()+5*60*1000).toISOString()}});
+    if(path.endsWith('/answer'))return route.fulfill({json:{answer:{type:'answer',sdp:'v=0\r\n'}}});
+    if(path.endsWith('/close')){closes++;return route.fulfill({json:{}});}
+    return route.fulfill({json:{}});
+  });
+  await page.goto(`/console/clouds/${cloud}/test-lab?product_id=${product}&device_id=${device}`);
+  const panel=page.getByTestId('test-lab');
+  const devicesTab=panel.locator('#stage-tab-devices');
+  const testsTab=panel.locator('#stage-tab-tests');
+  const productPicker=panel.getByRole('combobox',{name:'Product',exact:true});
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await panel.getByRole('tab',{name:'WebRTC',exact:true}).click();
+  await panel.getByRole('button',{name:'Start playback',exact:true}).click();
+  await panel.getByRole('alertdialog',{name:'Confirm live test action'}).getByRole('button',{name:'Continue',exact:true}).click();
+  await expect(panel.getByRole('button',{name:'Stop playback',exact:true})).toBeEnabled();
+  let productLeaveMessage='';
+  page.once('dialog',async dialog=>{productLeaveMessage=dialog.message();await dialog.dismiss();});
+  await productPicker.selectOption(otherProduct);
+  expect(productLeaveMessage).toContain('Leaving Run tests ends the active MQTT and WebRTC connections. Continue?');
+  await expect(productPicker).toHaveValue(product);
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(panel.getByRole('button',{name:'Stop playback',exact:true})).toBeEnabled();
+  expect(closes).toBe(0);
+  let leaveMessage='';
+  page.once('dialog',async dialog=>{leaveMessage=dialog.message();await dialog.dismiss();});
+  await devicesTab.click();
+  expect(leaveMessage).toContain('Leaving Run tests ends the active MQTT and WebRTC connections. Continue?');
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(panel.getByRole('button',{name:'Stop playback',exact:true})).toBeEnabled();
+  expect(closes).toBe(0);
+  page.once('dialog',async dialog=>{expect(dialog.message()).toContain('Leaving Run tests ends the active MQTT and WebRTC connections. Continue?');await dialog.accept();});
+  await devicesTab.click();
+  await expect(devicesTab).toHaveAttribute('aria-selected','true');
+  await expect.poll(()=>closes).toBeGreaterThan(0);
+  await expect.poll(()=>page.evaluate(()=>window.__closedTestPeers)).toBeGreaterThan(0);
+  const closedAfterVideo=closes;
+  await testsTab.click();
+  await panel.getByRole('tab',{name:'MQTT',exact:true}).click();
+  await panel.getByRole('button',{name:'Connect',exact:true}).click();
+  await expect(panel.getByRole('button',{name:'Disconnect',exact:true})).toBeEnabled();
+  page.once('dialog',async dialog=>{expect(dialog.message()).toContain('Leaving Run tests ends the active MQTT and WebRTC connections. Continue?');await dialog.dismiss();});
+  await productPicker.selectOption(otherProduct);
+  await expect(productPicker).toHaveValue(product);
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(panel.getByRole('button',{name:'Disconnect',exact:true})).toBeEnabled();
+  expect(closes).toBe(closedAfterVideo);
+  page.once('dialog',async dialog=>{expect(dialog.message()).toContain('Leaving Run tests ends the active MQTT and WebRTC connections. Continue?');await dialog.accept();});
+  await productPicker.selectOption(otherProduct);
+  await expect(productPicker).toHaveValue(otherProduct);
+  await expect(devicesTab).toHaveAttribute('aria-selected','true');
+  await expect.poll(()=>closes).toBeGreaterThan(closedAfterVideo);
+  await expect.poll(()=>page.evaluate(()=>window.__closedTestSockets)).toBeGreaterThan(0);
+});
+
+test('[UI-CA-TESTLAB-005] device setup can reload Product access after a list failure @smoke',async({page,request})=>{
+  expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
+  let productLoads=0;
+  await page.route(`**/api/developer/brand-clouds/${cloud}/products?**`,route=>{
+    productLoads++;
+    return productLoads===1 ? route.fulfill({status:503,json:{error:'temporarily unavailable'}}) : route.fallback();
+  });
+  await page.goto(`/console/clouds/${cloud}/test-lab`);
+  const panel=page.getByTestId('test-lab');
+  const devicesPanel=panel.locator('#stage-panel-devices');
+  await expect(panel.locator('#stage-tab-devices')).toHaveAttribute('aria-selected','true');
+  await expect(devicesPanel).toBeVisible();
+  await expect(devicesPanel).toContainText('Select a Product to begin.');
+  await expect(panel.getByRole('alert')).toContainText('Unable to load all authorized Products. Reload devices & access to retry.');
+  const reload=panel.getByRole('button',{name:'Reload devices & access',exact:true});
+  await expect(reload).toBeVisible();
+  await reload.click();
+  await expect.poll(()=>productLoads).toBeGreaterThan(1);
+  await expect(panel.getByRole('alert').filter({hasText:'Unable to load all authorized Products'})).toHaveCount(0);
+  await expect(panel.getByRole('combobox',{name:'Product',exact:true}).locator(`option[value="${product}"]`)).toHaveText('Camera 00');
+});
+
+test('[UI-CA-TESTLAB-004] choosing another activated row opens tests with a clean device scope @smoke',async({page,request})=>{
+  expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
+  const account='88888888-8888-4888-8888-888888888888';
+  const otherDevice='77777777-7777-4777-8777-000000000001';
+  let releaseSecondContext;
+  const secondContextGate=new Promise(resolve=>{releaseSecondContext=resolve;});
+  await page.route('**/test-lab/manage/**',route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.endsWith('/accounts'))return route.fulfill({json:{id:account,email:'lab@example.test'}});
+    if(route.request().method()==='GET')return route.fulfill({json:{devices:[
+      {id:device,name:'First camera',bound:true,bindable:false,provision_status:'activated',connection_status:'online'},
+      {id:otherDevice,name:'Second camera',bound:true,bindable:false,provision_status:'activated',connection_status:'online'},
+    ],has_more:false,next_offset:2}});
+    return route.fulfill({status:500});
+  });
+  await page.route('**/test-lab/context?**',async route=>{
+    const id=new URL(route.request().url()).searchParams.get('device_id');
+    if(id===otherDevice)await secondContextGate;
+    return route.fulfill({json:{environment:'dev',brand_cloud_id:cloud,product_id:product,device_id:id,account_id:account,devid:id===device?'camera-1':'camera-2',device_status:'registered',runtime_ready:true,capabilities:{mqtt:true,shadow_http:true,shadow_mqtt:true,webrtc:true}}});
+  });
+  await page.goto(`/console/clouds/${cloud}/test-lab?product_id=${product}&device_id=${device}`);
+  const panel=page.getByTestId('test-lab');
+  const devicesTab=panel.locator('#stage-tab-devices');
+  const testsTab=panel.locator('#stage-tab-tests');
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(panel.locator('.test-lab-current-device')).toContainText('First camera');
+  await panel.getByRole('button',{name:'Validate locally — no request sent'}).click();
+  await expect(panel.locator('.test-lab-events')).toContainText('local_validation: passed');
+  await devicesTab.click();
+  await panel.getByRole('row').filter({hasText:'Second camera'}).getByRole('button',{name:'Test this device',exact:true}).click();
+  await expect(testsTab).toHaveAttribute('aria-selected','true');
+  await expect(testsTab).toBeFocused();
+  await expect(panel.locator('.test-lab-current-device')).toContainText('Second camera');
+  await expect(panel.locator('.test-lab-context')).toHaveCount(0);
+  await expect(panel.getByRole('button',{name:'Connect',exact:true})).toBeDisabled();
+  await expect(panel.locator('.test-lab-events')).not.toContainText('local_validation: passed');
+  releaseSecondContext();
+  await expect(panel.getByRole('textbox',{name:'Publish topic'})).toHaveValue('devices/camera-2/down/commands');
+  await panel.getByRole('button',{name:'Change device',exact:true}).click();
+  await expect(devicesTab).toHaveAttribute('aria-selected','true');
+  await expect(devicesTab).toBeFocused();
 });
