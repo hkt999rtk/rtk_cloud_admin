@@ -93,6 +93,15 @@ Account Manager calls `POST /v1/certificates/app/issue` internally over service 
 
 Use the device certificate and matching private key already provisioned by the approved factory workflow, or an authorized short-lived test device bundle for a development exercise. A fresh hardware device generates/retains its key and supplies a CSR through the authenticated factory boundary `POST /v1/factory/enroll`. Factory authorization, production context and entitlement checks belong to that workflow; there is no unauthenticated developer certificate-minting endpoint.
 
+For a factory device:
+
+1. Ask the platform operator to create a production run bound to the target Cloud and Product. The resulting short-lived production-run JWT is a factory credential; keep it on the approved factory gateway, never in device firmware.
+2. Generate a private key and CSR on the device. Keep the private key there. The CSR subject CN must equal the device's `devid`.
+3. From the approved gateway, send `POST {FACTORY_ENROLL_URL}/v1/factory/enroll` with `Authorization: Bearer <production-run JWT>` and JSON containing `request_id`, `devid`, and `csr_pem`. If included, `service_options` must match the production run. The service URL is shared across Products; the JWT binds the request to one Cloud and Product and selects that Product's certificate issuer. Obtain the full HTTPS URL from the platform operator; the Admin Console URL is not the enrollment service.
+4. Install the returned device certificate and certificate chain with the matching private key. Device activation and account binding are separate steps.
+
+The successful response contains the signed certificate and certificate bundle; verify the returned device identity and certificate chain before installation. A CSR alone is not authorization to sign a device certificate. For a development-only device, use Cloud Test Lab instead of the factory flow.
+
 [Open redesigned sequence diagram](assets/device-enrollment.html)
 
 Set `DEVICE_CERT` and `DEVICE_KEY` to the supplied test PEM paths. Validate their matching public keys using the same OpenSSL comparison as above, and verify the certificate-derived identity matches `DEVICE_ID`. Do not make a self-signed certificate and assume the cloud trusts it. Do not copy a production device private key to an app or backend.

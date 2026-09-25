@@ -2381,7 +2381,19 @@ export const en = Object.freeze({ translation: Object.freeze({
   "Cloud validation": "Cloud validation",
   "Hardware validation": "Hardware validation",
   "Host tests": "Host tests",
-  "This release has no matching translated terms; showing the original text.": "This release has no matching translated terms; showing the original text."
+  "This release has no matching translated terms; showing the original text.": "This release has no matching translated terms; showing the original text.",
+  "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.": "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.",
+  "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.": "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.",
+  "Certificate signing requires an active Product and a ready certificate authority.": "Certificate signing requires an active Product and a ready certificate authority.",
+  "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.": "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.",
+  "Enrollment API": "Enrollment API",
+  "Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.": "Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.",
+  "Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.": "Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.",
+  "Product ID": "Product ID",
+  "Read device credential setup": "Read device credential setup",
+  "Sign a device certificate": "Sign a device certificate",
+  "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.": "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.",
+  "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.": "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run."
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -4766,7 +4778,19 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "Cloud validation": "雲端驗證",
   "Hardware validation": "實機驗證",
   "Host tests": "主機端測試",
-  "This release has no matching translated terms; showing the original text.": "這個版本尚無對應的條款譯本；以下顯示原文。"
+  "This release has no matching translated terms; showing the original text.": "這個版本尚無對應的條款譯本；以下顯示原文。",
+  "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.": "僅有 CSR 不足以取得憑證簽發授權。開發測試裝置請使用 Cloud Test Lab，不需呼叫工廠註冊服務。",
+  "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.": "請平台管理員為此雲端與產品建立生產批次，並提供有期限的工廠授權。",
+  "Certificate signing requires an active Product and a ready certificate authority.": "簽發憑證前，產品必須啟用，且憑證簽發者已準備就緒。",
+  "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.": "每個準備就緒的產品都有自己的憑證簽發者。工廠裝置共用註冊服務入口，生產批次授權會指定雲端與產品。",
+  "Enrollment API": "工廠註冊 API",
+  "Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.": "在裝置上產生私鑰與 CSR，並將私鑰留在裝置內；CSR 的主體必須與裝置 ID 相符。",
+  "Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.": "將回傳的裝置憑證與憑證鏈安裝到持有對應私鑰的裝置。裝置啟用與帳戶綁定仍須另外完成。",
+  "Product ID": "產品 ID",
+  "Read device credential setup": "查看裝置憑證設定說明",
+  "Sign a device certificate": "簽發裝置憑證",
+  "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.": "完整的 HTTPS 服務網址由平台提供給核准的工廠閘道。管理後台網址不能用來簽發憑證；目前此處尚無對外簽發網址。",
+  "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.": "由核准的工廠閘道送出 request_id、devid 與 csr_pem，並以生產批次 JWT 作為 Bearer 權杖。若另提供 service_options，其內容必須與生產批次相符。"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -7151,7 +7175,19 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "Cloud validation": "云端验证",
   "Hardware validation": "实机验证",
   "Host tests": "主机端测试",
-  "This release has no matching translated terms; showing the original text.": "此版本暂无对应的条款译本；以下显示原文。"
+  "This release has no matching translated terms; showing the original text.": "此版本暂无对应的条款译本；以下显示原文。",
+  "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.": "仅有 CSR 不足以取得证书签发授权。开发测试设备请使用 Cloud Test Lab，无须调用工厂注册服务。",
+  "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.": "请平台管理员为此云和产品创建生产批次，并提供有期限的工厂授权。",
+  "Certificate signing requires an active Product and a ready certificate authority.": "签发证书前，产品必须启用，且证书签发机构已准备就绪。",
+  "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.": "每个准备就绪的产品都有自己的证书签发机构。工厂设备共用注册服务入口，生产批次授权会指定云和产品。",
+  "Enrollment API": "工厂注册 API",
+  "Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.": "在设备上生成私钥与 CSR，并将私钥保留在设备内；CSR 的主体必须与设备 ID 一致。",
+  "Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.": "将返回的设备证书与证书链安装到持有对应私钥的设备。设备激活与账户绑定仍须另外完成。",
+  "Product ID": "产品 ID",
+  "Read device credential setup": "查看设备证书设置说明",
+  "Sign a device certificate": "签发设备证书",
+  "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.": "完整的 HTTPS 服务网址由平台提供给获准的工厂网关。管理后台网址不能用于签发证书；目前此处尚无对外签发网址。",
+  "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.": "由获准的工厂网关提交 request_id、devid 与 csr_pem，并以生产批次 JWT 作为 Bearer 令牌。若另提供 service_options，其内容必须与生产批次一致。"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });

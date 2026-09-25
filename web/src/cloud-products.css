@@ -10,7 +10,16 @@
 .cloud-products fieldset{border:1px solid #dce3ec;border-radius:8px;padding:16px;margin:20px 0}
 .cloud-products fieldset label{display:flex;align-items:center;gap:8px;margin:10px 0}
 .cloud-products input[type=checkbox]{display:inline-block;width:auto;margin:0;padding:0}
+.cloud-product-enrollment{margin:20px 0;padding:clamp(18px,3vw,28px);border:1px solid #d4e1ed;border-radius:12px;background:#f8fbfe}
+.cloud-product-enrollment h3{display:flex;align-items:center;gap:9px;margin:0 0 12px}
+.cloud-product-enrollment h3 .fa-solid{color:var(--brand)}
+.cloud-product-enrollment dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:10px 16px;margin:16px 0}
+.cloud-product-enrollment dt{font-weight:700}
+.cloud-product-enrollment dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.cloud-product-enrollment code{overflow-wrap:anywhere}
+.cloud-product-enrollment ol{padding-left:24px}
+.cloud-product-enrollment li{margin:8px 0}
 .cloud-product-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:20px}
 .cloud-product-items .my-clouds-panel{margin:0}
 .cloud-product-items h3{overflow-wrap:anywhere;margin-top:0}
-@media(max-width:600px){.cloud-product-items{grid-template-columns:minmax(0,1fr)}.cloud-products .my-clouds-card-head{flex-wrap:wrap}}
+@media(max-width:600px){.cloud-product-items{grid-template-columns:minmax(0,1fr)}.cloud-products .my-clouds-card-head{flex-wrap:wrap}.cloud-product-enrollment dl{grid-template-columns:minmax(0,1fr);gap:3px}.cloud-product-enrollment dd{margin-bottom:10px}}

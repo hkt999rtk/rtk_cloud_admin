@@ -8,6 +8,28 @@ import { Dialog, StatusBadge, CopyValue, displayLabel } from './ConsoleUI.jsx';
 
 function Icon({name}) { return <i className={`fa-solid fa-${name}`} aria-hidden="true" />; }
 
+function DeviceEnrollmentGuide({cloudId, product}) {
+  return <section className="cloud-product-enrollment" aria-labelledby="device-enrollment-heading">
+    <h3 id="device-enrollment-heading"><Icon name="certificate" />{translate("Sign a device certificate")}</h3>
+    <p>{translate("Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.")}</p>
+    {(product.status !== 'active' || product.pki_status !== 'ready') && <p role="status">{translate("Certificate signing requires an active Product and a ready certificate authority.")}</p>}
+    <dl>
+      <dt>{translate("Cloud ID")}</dt><dd><CopyValue value={cloudId} label="Cloud ID"/></dd>
+      <dt>{translate("Product ID")}</dt><dd><CopyValue value={product.id} label="Product ID"/></dd>
+      <dt>{translate("Enrollment API")}</dt><dd><code>POST /v1/factory/enroll</code></dd>
+    </dl>
+    <p>{translate("The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.")}</p>
+    <ol>
+      <li>{translate("Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.")}</li>
+      <li>{translate("Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.")}</li>
+      <li>{translate("From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.")}</li>
+      <li>{translate("Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.")}</li>
+    </ol>
+    <p>{translate("A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.")}</p>
+    <a href={`/console/developer-docs/credential-setup?cloudId=${encodeURIComponent(cloudId)}`}>{translate("Read device credential setup")}</a>
+  </section>;
+}
+
 export function CloudProducts({cloudId,productId='',onAccessLost}) {
   const [data,setData]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
   const [offset,setOffset]=useState(0),[status,setStatus]=useState(''),[reload,setReload]=useState(0);
@@ -83,6 +105,7 @@ export function CloudProducts({cloudId,productId='',onAccessLost}) {
     </form></Dialog>}
     {disable && <form onSubmit={write} role="group" aria-label={translate("Confirm Product disable")}><h3>{translate("Disable")} {disable.name}?</h3><p>{translate("This disables the Product; it does not delete its devices, firmware or history, and does not make the cloud empty.")}</p><button disabled={busy} type="submit">{translate("Confirm Product disable")}</button><button disabled={busy} type="button" onClick={()=>setDisable(null)}>{translate("Cancel")}</button></form>}
     {data?.products.length===0 && <p>{translate("No Products in your authorized scope.")}</p>}
+    {productId && data?.products[0] && <DeviceEnrollmentGuide cloudId={cloudId} product={data.products[0]}/>}
     {data?.products.length > 0 && <div className="ui-table-scroll"><table><caption>{productId ? translate("Product configuration") : translate("Products in your authorized scope")}</caption><thead><tr><th>{translate("Product")}</th><th>{translate("Status")}</th><th>{translate("Model / category")}</th><th>{translate("Services")}</th><th>{translate("Access")}</th><th>{translate("Actions")}</th></tr></thead><tbody>{data.products.map(p=><tr key={p.id}><td><a href={productURL(cloudId,p.id)}>{p.name}</a><small>{productId ? <CopyValue value={p.profile_key} label="product key"/> : p.profile_key}</small></td><td><StatusBadge value={p.status}/><PKIStatus value={p.pki_status}/></td><td>{p.product_model||translate("Not specified")}<small>{displayLabel(p.category)}</small></td><td>{p.service_options.map(displayLabel).join(', ')||translate("None")}{p.log_retention_days&&<small>{translate("Logs:")} {p.log_retention_days} {translate("days")}</small>}</td><td>{displayLabel(p.my_role||'Cloud-scoped access')}</td><td><div className="my-clouds-actions">{p.allowed_actions?.includes('edit') && <button disabled={busy} onClick={()=>edit(p)}>{translate("Edit Product")}</button>}{p.status==='active' && p.allowed_actions?.includes('disable') && <button disabled={busy} onClick={()=>{intent.current=null;setForm(null);setDisable(p);}}>{translate("Disable Product")}</button>}</div></td></tr>)}</tbody></table></div>}
     {!productId && data?.pagination && <nav className="my-clouds-pagination" aria-label={translate("Product pages")}><button disabled={busy||offset===0} onClick={()=>{setOffset(Math.max(0,offset-25));setForm(null);setDisable(null);}}>{translate("Previous Products")}</button><span>{data.pagination.total} {translate("authorized Products · Page")} {Math.floor(offset/25)+1}</span><button disabled={busy||offset+25>=data.pagination.total} onClick={()=>{setOffset(offset+25);setForm(null);setDisable(null);}}>{translate("Next Products")}</button></nav>}
   </section>;

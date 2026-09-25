@@ -14293,6 +14293,78 @@
       "fingerprint": "b43436706c1274ec421f2592ac6fc7af754a32fdb15df0fe31cacd2dfbf30429",
       "text": "這個版本尚無對應的條款譯本；以下顯示原文。",
       "status": "approved"
+    },
+    "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.": {
+      "sourceHash": "63c4ae35352f3c8b0e8649752f93faf8438156e8c8ba785473ab959de13ed80c",
+      "fingerprint": "077556279c1815e58981fbd52a2af1e4f9be4ef255f1eec4a773ed4ad79be04e",
+      "text": "僅有 CSR 不足以取得憑證簽發授權。開發測試裝置請使用 Cloud Test Lab，不需呼叫工廠註冊服務。",
+      "status": "approved"
+    },
+    "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.": {
+      "sourceHash": "9f30cbe3d6050fe87227a162b9e120dcee341561033f57761c6a39bf20f876ec",
+      "fingerprint": "1b378433ac8cfc9413d91d37f9d9efaa8f6c1aebcf02da4081897b9665031629",
+      "text": "請平台管理員為此雲端與產品建立生產批次，並提供有期限的工廠授權。",
+      "status": "approved"
+    },
+    "Certificate signing requires an active Product and a ready certificate authority.": {
+      "sourceHash": "19bdd69b2c12ab269493835128565b9bab6de8daaf1e561a181c4516af409f3f",
+      "fingerprint": "a773cccdeba6cd86199c90a0e0b7613e93ac31cef536d3a4c947b15d99ef3d53",
+      "text": "簽發憑證前，產品必須啟用，且憑證簽發者已準備就緒。",
+      "status": "approved"
+    },
+    "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.": {
+      "sourceHash": "ea81598ab9e7dc4270caf099d5a8d9f5be3ab2bf21b71495395f388e4133fcbf",
+      "fingerprint": "f114f97ef469e38f7d95269fa4cfc344a9c849d80d2d883fee55d715d2fab3dc",
+      "text": "每個準備就緒的產品都有自己的憑證簽發者。工廠裝置共用註冊服務入口，生產批次授權會指定雲端與產品。",
+      "status": "approved"
+    },
+    "Enrollment API": {
+      "sourceHash": "6a99cfd857ff5dfd77de43e0c66e3aede0bc4f473c38afdd232302018eb0a372",
+      "fingerprint": "727343e687779038bc895b35544dd65097f7a6d639d854659958d78d5f8846b6",
+      "text": "工廠註冊 API",
+      "status": "approved"
+    },
+    "Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.": {
+      "sourceHash": "930d2b5c225990a1a312974a19e0e10030c61987fc7935d527f29e695e40f439",
+      "fingerprint": "9327f4d0699ee7b1bc0a9d9a2651074bfb6ccda5f3a16787f2f9b2c652a70838",
+      "text": "在裝置上產生私鑰與 CSR，並將私鑰留在裝置內；CSR 的主體必須與裝置 ID 相符。",
+      "status": "approved"
+    },
+    "Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.": {
+      "sourceHash": "0441c911e4638ecc42d9d800f0ec103cbd78b84b3d49d36c39861072bdfedf3f",
+      "fingerprint": "0d1b450b1865d4cb9201f74d7e3f3c831cab4a9c85ac738e17c491ad092d37de",
+      "text": "將回傳的裝置憑證與憑證鏈安裝到持有對應私鑰的裝置。裝置啟用與帳戶綁定仍須另外完成。",
+      "status": "approved"
+    },
+    "Product ID": {
+      "sourceHash": "b5a181b5720c43d425c2b8b835691af3f7ca65783267f0f085608efc32aba689",
+      "fingerprint": "4515de5244b677fdc839b555ff2a32a657a357fe38f6de30e1fef31d2972ba47",
+      "text": "產品 ID",
+      "status": "approved"
+    },
+    "Read device credential setup": {
+      "sourceHash": "8f546016c95c23ee0fad81390dacb9dc81ad3d090c7d7b085925118f2994e032",
+      "fingerprint": "4cde0b023fe114386b2d97c9e062eac58f25700f64ab4d21057ab22e4235074d",
+      "text": "查看裝置憑證設定說明",
+      "status": "approved"
+    },
+    "Sign a device certificate": {
+      "sourceHash": "8965631ff829571d3dfe0477c2167d33973526c0ccf29d2495b8db13896de1be",
+      "fingerprint": "34701e305c8b2691896811d9c13b32ac4a86b73e3a2a54ddab652982382d1c45",
+      "text": "簽發裝置憑證",
+      "status": "approved"
+    },
+    "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.": {
+      "sourceHash": "660c46f094dd6f683d883ffb9324dea324f61241a69ffb75d6bd032821881e8b",
+      "fingerprint": "43a953ff7ea8cd08b0ca2915ee4ec347f28d266d5de70399636c8d1dcacf8f61",
+      "text": "完整的 HTTPS 服務網址由平台提供給核准的工廠閘道。管理後台網址不能用來簽發憑證；目前此處尚無對外簽發網址。",
+      "status": "approved"
+    },
+    "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.": {
+      "sourceHash": "13949ab67750b6ea5619f76339aff05d046ba4c8b50f4d96e7f3f22e7b56d954",
+      "fingerprint": "32113373567ee9cb61619ac99ffb5d4773681895b020528cb0c75703e2d339bc",
+      "text": "由核准的工廠閘道送出 request_id、devid 與 csr_pem，並以生產批次 JWT 作為 Bearer 權杖。若另提供 service_options，其內容必須與生產批次相符。",
+      "status": "approved"
     }
   }
 }

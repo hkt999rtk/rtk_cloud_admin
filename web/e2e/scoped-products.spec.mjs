@@ -30,6 +30,16 @@ test('[UI-CA-PRODUCTS-101] scoped Product CRUD pagination viewer and revocation 
  await expect(panel.getByRole('navigation',{name:'Product pages'})).toContainText('28 authorized Products');
  await panel.getByRole('link',{name:'Qualified Camera',exact:true}).click();
  await expect(page).toHaveURL(new RegExp('/console/clouds/'+cloudA+'/products/66666666'));
+ const enrollment=panel.getByRole('region',{name:'Sign a device certificate'});
+ await expect(enrollment).toContainText('POST /v1/factory/enroll');
+ await expect(enrollment).toContainText('production-run JWT');
+ await expect(enrollment).toContainText('no public signing URL is configured here');
+ await expect(enrollment.getByRole('link',{name:'Read device credential setup'})).toHaveAttribute('href',`/console/developer-docs/credential-setup?cloudId=${cloudA}`);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+ await testInfo.attach('product-enrollment-guide',{body:await enrollment.screenshot(),contentType:'image/png'});
+ await page.locator('[data-locale-selector]').selectOption('zh-TW');
+ await expect(panel.getByRole('region',{name:'簽發裝置憑證'})).toContainText('工廠註冊 API');
+ await page.locator('[data-locale-selector]').selectOption('en');
  await panel.getByRole('button',{name:'Edit Product',exact:true}).click();
  await expect(page.getByRole('textbox',{name:'Product key',exact:true})).toBeDisabled();
  await page.getByRole('textbox',{name:'Product name',exact:true}).fill('Qualified Camera updated');

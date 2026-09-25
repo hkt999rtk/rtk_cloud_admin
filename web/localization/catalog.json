@@ -14498,6 +14498,78 @@
       "source": "This release has no matching translated terms; showing the original text.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.",
+      "source": "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.",
+      "source": "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Certificate signing requires an active Product and a ready certificate authority.",
+      "source": "Certificate signing requires an active Product and a ready certificate authority.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.",
+      "source": "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Enrollment API",
+      "source": "Enrollment API",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.",
+      "source": "Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.",
+      "source": "Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product ID",
+      "source": "Product ID",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Read device credential setup",
+      "source": "Read device credential setup",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Sign a device certificate",
+      "source": "Sign a device certificate",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.",
+      "source": "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.",
+      "source": "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }
