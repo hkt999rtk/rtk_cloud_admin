@@ -20,6 +20,11 @@ const campaignStatusLabels = {
   canceled: 'Canceled',
 };
 
+export function productHasOTA(product) {
+  const services = product?.service_capabilities ?? product?.service_options;
+  return product?.status === 'active' && Array.isArray(services) && services.includes('ota');
+}
+
 const rolloutStatusLabels = {
   pending: 'Waiting for update',
   eligible: 'Eligible for update',

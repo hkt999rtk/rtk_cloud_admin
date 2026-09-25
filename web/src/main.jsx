@@ -92,6 +92,7 @@ import {
   firmwareCampaignStatusLabel,
   firmwareDashboardAction,
   firmwarePolicyLabel,
+  productHasOTA,
   firmwareRiskRows,
   firmwareRolloutStatusLabel,
   firmwareVersionFilterValue,
@@ -586,18 +587,6 @@ function App() {
         } else {
           setChipsetProviders(null);
         }
-        if (active === 'firmware-ota' && nextMe.kind !== 'platform_admin' && firmwareProductId) {
-          const nextFirmwareDistribution = await fetchJSON(apiPath(`/api/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`))
-            .catch((err) => {
-              if (err.isAuthError) throw err;
-              return sourceUnavailableFromError('firmware', err);
-            });
-          if (!alive) return;
-          setFirmwareDistribution(nextFirmwareDistribution);
-        } else {
-          setFirmwareDistribution(null);
-        }
-
         if (['product-services', 'firmware-ota', 'reports', 'settings'].includes(active) && nextMe.kind !== 'platform_admin') {
           const nextProducts = await fetchJSON(apiPath('/api/products')).catch((err) => {
             if (err.isAuthError) throw err;
@@ -605,8 +594,16 @@ function App() {
           });
           if (!alive) return;
           setProducts(nextProducts);
-          if (active === 'firmware-ota' && firmwareProductId && nextProducts?.products?.some((product) => product.id === firmwareProductId)) {
-            const selectedProduct = nextProducts.products.find((product) => product.id === firmwareProductId);
+          const selectedProduct = active === 'firmware-ota' && firmwareProductId
+            ? nextProducts?.products?.find((product) => product.id === firmwareProductId) : null;
+          if (productHasOTA(selectedProduct)) {
+            const nextFirmwareDistribution = await fetchJSON(apiPath(`/api/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`))
+              .catch((err) => {
+                if (err.isAuthError) throw err;
+                return sourceUnavailableFromError('firmware', err);
+              });
+            if (!alive) return;
+            setFirmwareDistribution(nextFirmwareDistribution);
             const releaseResult = await fetchJSON(apiPath(`/api/products/${encodeURIComponent(firmwareProductId)}/releases`)).catch((err) => {
               if (err.isAuthError) throw err;
               return { items: [], releases: [] };
@@ -614,10 +611,12 @@ function App() {
             if (!alive) return;
             setReleases((releaseResult?.items || releaseResult?.releases || []).map((release) => ({ ...release, product_id: selectedProduct.id, product_name: selectedProduct.name })));
           } else {
+            setFirmwareDistribution(null);
             setReleases([]);
           }
         } else {
           setProducts(null);
+          setFirmwareDistribution(null);
           setReleases([]);
         }
         if (['reports', 'groups'].includes(active) && nextMe.kind !== 'platform_admin') {
@@ -770,6 +769,8 @@ function App() {
     const onPopState = () => {
       const nextRoute = routeFromLocation();
       setActive(nextRoute);
+      setFirmwareDistribution(null);
+      setReleases([]);
       setFirmwareProductId(nextRoute === 'firmware-ota' ? new URLSearchParams(window.location.search).get('product_id') || '' : '');
       const deviceId = deviceIdFromLocation();
       setSelectedDeviceId(deviceId);
@@ -822,6 +823,7 @@ function App() {
     if (productID) params.set('product_id', productID);
     window.history.pushState({}, '', `${path}${params.size ? `?${params.toString()}` : ''}`);
     setFirmwareDistribution(null);
+    setReleases([]);
     setFirmwareProductId(productID);
   }
 
@@ -857,10 +859,11 @@ function App() {
   }
 
   const refreshFirmwareStatus = useCallback(async () => {
-    const next = await fetchJSON(apiPath('/api/fleet/firmware-distribution')).catch((err) => sourceUnavailableFromError('firmware', err));
+    if (!firmwareProductId) return null;
+    const next = await fetchJSON(apiPath(`/api/fleet/firmware-distribution?product_id=${encodeURIComponent(firmwareProductId)}`)).catch((err) => sourceUnavailableFromError('firmware', err));
     setFirmwareDistribution(next);
     return next;
-  }, [apiPath]);
+  }, [apiPath, firmwareProductId]);
 
   async function runDeviceAction(deviceId, action) {
     setError('');
@@ -3358,7 +3361,7 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
   const versions = distribution?.versions || [];
   const campaigns = sortFirmwareCampaignsByStartTime(distribution?.campaigns || []);
   const selectedProduct = products.find((product) => product.id === selectedProductId) || null;
-  const hasSelection = Boolean(selectedProductId && selectedProduct);
+  const hasSelection = Boolean(selectedProductId && productHasOTA(selectedProduct));
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [releaseVersion, setReleaseVersion] = useState('');
   const [releaseHardware, setReleaseHardware] = useState('');
@@ -3543,10 +3546,11 @@ function FirmwareOTAPage({ loading, distribution, selectedProductId, products, r
             {products.map((product) => <option value={product.id} key={product.id}>{product.name}</option>)}
           </select>
         </label>
-        <p>{selectedProduct ? translate("Showing firmware versions, device distribution, and OTA update status for {{value0}}.", { value0: selectedProduct.name }) : translate("Select a Product to load its firmware and OTA status.")}</p>
+        <p>{selectedProduct ? hasSelection ? translate("Showing firmware versions, device distribution, and OTA update status for {{value0}}.", { value0: selectedProduct.name }) : translate("OTA is not enabled for this Product") : translate("Select a Product to load its firmware and OTA status.")}</p>
       </section>
 
-      {!hasSelection ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3>{translate("Please select Product first")}</h3><p>{translate("Different Product hardware models, firmware versions and update plans are independent of each other.")}</p></div></section> : null}
+      {selectedProduct && !hasSelection ? <section className="firmware-selection-empty" role="status"><Icon name="microchip" /><div><h3>{translate("OTA is not enabled for this Product")}</h3><p>{translate("Enable the Firmware OTA service in this Product's service options to use the OTA dashboard.")}</p></div></section> : null}
+      {!selectedProduct ? <section className="firmware-selection-empty"><Icon name="microchip" /><div><h3>{translate("Please select Product first")}</h3><p>{translate("Different Product hardware models, firmware versions and update plans are independent of each other.")}</p></div></section> : null}
 
       {hasSelection && available ? <section className="metrics firmware-page-metrics">
         <MetricCard icon="microchip" label="Latest version" value={latestVersion} hint="Current target version" tone="info" />

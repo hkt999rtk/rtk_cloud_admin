@@ -3454,7 +3454,7 @@ func customerProductWithActionsAndSummary(profile accountclient.DeviceItemProfil
 			services = append(services, "video_storage")
 		case "telemetry", "device_health", "mqtt":
 			services = append(services, "mqtt")
-		case "firmware", "ota":
+		case "ota":
 			services = append(services, "ota")
 			hasOTA = true
 		default:
@@ -3651,7 +3651,7 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-	org, _, err := s.activeCustomerOrg(r.Context(), session)
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -3660,14 +3660,21 @@ func (s *Server) apiFleetFirmwareDistribution(w http.ResponseWriter, r *http.Req
 		return
 	}
 	orgID := org.ID
-	devices, err := s.firmwareDistributionDevices(r.Context(), session, orgID)
-	if err != nil {
-		s.writeCustomerErrorForSession(w, session.ID, err)
-		return
-	}
 	productID := strings.TrimSpace(r.URL.Query().Get("product_id"))
 	if len(productID) > 200 {
 		http.Error(w, "product_id is too long", http.StatusBadRequest)
+		return
+	}
+	if s.accountClient.Enabled() && productID == "" {
+		http.Error(w, "Select a Product first.", http.StatusBadRequest)
+		return
+	}
+	if productID != "" && !s.requireOTAProduct(w, r.Context(), tokens.AccessToken, orgID, productID) {
+		return
+	}
+	devices, err := s.firmwareDistributionDevices(r.Context(), session, orgID)
+	if err != nil {
+		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
 	devices = filterDevicesByProduct(devices, productID)
@@ -3694,6 +3701,7 @@ func (s *Server) apiProductOTA(w http.ResponseWriter, r *http.Request) {
 	}
 	orgID := strings.TrimSpace(session.ActiveOrgID)
 	capabilities := fleetManagerCapabilities()
+	otaAccessToken := ""
 	if s.accountClient.Enabled() {
 		org, tokens, err := s.activeCustomerOrg(r.Context(), session)
 		if err != nil {
@@ -3701,6 +3709,7 @@ func (s *Server) apiProductOTA(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		orgID = org.ID
+		otaAccessToken = tokens.AccessToken
 		capabilities = capabilitiesForOrganization(org)
 		otaParts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/ota/"), "/"), "/")
 		if len(otaParts) >= 2 && otaParts[0] == "products" && strings.TrimSpace(otaParts[1]) != "" {
@@ -3747,6 +3756,13 @@ func (s *Server) apiProductOTA(w http.ResponseWriter, r *http.Request) {
 	}
 	if !s.videoClient.Enabled() || s.videoCloudOTAToken() == "" {
 		writeJSONStatus(w, http.StatusServiceUnavailable, map[string]any{"status": "fail", "code": "OTA_UNAVAILABLE", "reason": "Video Cloud OTA source is unavailable."})
+		return
+	}
+	otaParts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/ota/"), "/"), "/")
+	if len(otaParts) >= 2 && otaParts[0] == "products" && !s.requireOTAProduct(w, r.Context(), otaAccessToken, orgID, otaParts[1]) {
+		return
+	}
+	if len(otaParts) >= 2 && otaParts[0] == "campaigns" && !s.requireOTACampaignProduct(w, r, otaAccessToken, orgID, strings.SplitN(otaParts[1], ":", 2)[0]) {
 		return
 	}
 	upstreamPath := "/v1/ota/" + strings.TrimPrefix(r.URL.Path, "/api/ota/")
@@ -4053,6 +4069,9 @@ func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Reques
 		product, productErr := s.accountClient.DeviceItemProfile(r.Context(), tokens.AccessToken, org.ID, strings.TrimSpace(request.Product))
 		if productErr != nil || product.ID != strings.TrimSpace(request.Product) || product.BrandCloudID != org.ID {
 			http.Error(w, "Product is unavailable in this cloud", http.StatusUnprocessableEntity)
+			return
+		}
+		if !s.requireOTAProduct(w, r.Context(), tokens.AccessToken, org.ID, request.Product) {
 			return
 		}
 	}
