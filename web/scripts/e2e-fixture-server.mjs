@@ -235,7 +235,8 @@ function cloudDevices(orgID) {
 }
 
 function profileFor(orgID, id = orgID === developerCloudIDs[1] ? developerProductIDs[1] : developerProductIDs[0]) {
-  return { id, brand_cloud_id: orgID, profile_key: id, display_name: `E2E ${id} Camera`, status: 'active', category: 'camera', model: 'RTK-CAM-A', service_options: ['stream', 'record'], claim_policy: {}, provisioning_policy: {}, metadata_defaults: {}, metadata_schema: {}, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+  const serviceOptions = orgID === developerCloudIDs[0] && id === developerProductIDs[0] ? ['stream', 'record', 'ota'] : ['stream', 'record'];
+  return { id, brand_cloud_id: orgID, profile_key: id, display_name: `E2E ${id} Camera`, status: 'active', category: 'camera', model: 'RTK-CAM-A', service_options: serviceOptions, claim_policy: {}, provisioning_policy: {}, metadata_defaults: {}, metadata_schema: {}, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
 }
 
 async function handleChipsetProviders(req, res) {
