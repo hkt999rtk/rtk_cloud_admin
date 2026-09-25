@@ -60,7 +60,7 @@ test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and 
     if (label === 'Service Pricing') {
       await expect(page.locator('.pricing-cost-value')).toHaveText('NT$232');
       await expect(page.locator('.pricing-cost-value')).toBeInViewport();
-      await expect(page.locator('.pricing-table tbody tr')).toHaveCount(12);
+      await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
       await expect(page.getByTestId('billing-pricing-page')).toContainText('not your Cloud’s actual spend');
       const summary = await page.locator('.pricing-cost-summary').boundingBox();
       const rates = await page.locator('.pricing-intro').boundingBox();
@@ -68,7 +68,7 @@ test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and 
       await page.getByRole('button', { name: 'IoT and messaging 3', exact: true }).click();
       await expect(page.locator('.pricing-table tbody tr')).toHaveCount(3);
       await page.reload();
-      await expect(page.locator('.pricing-table tbody tr')).toHaveCount(12);
+      await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
     }
     await testInfo.attach(label, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
   }

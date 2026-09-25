@@ -14665,6 +14665,222 @@
       "fingerprint": "126872cacf175deec6c42b28e4692c683164ca5ec488bb41ed950e39f0bf2951",
       "text": "已使用：{{used}} · 剩余：{{remaining}}",
       "status": "approved"
+    },
+    "Enable the Firmware OTA service in this Product's service options to use the OTA dashboard.": {
+      "sourceHash": "8e62b20004b1df24587472deabb022da5d99e4348a1a6071232fa057a8ab748b",
+      "fingerprint": "90b39a3d2acdf86c8aac03806b83e140b7afbef4c19c41b9607e5fa5d3acb340",
+      "text": "请在此产品的服务选项中启用固件 OTA，才能使用 OTA 仪表板。",
+      "status": "approved"
+    },
+    "OTA campaign has no Product.": {
+      "sourceHash": "2dea79b173e3377727fb8a3482ec75a6cfeec00b65558e9e8484a2eda7daac10",
+      "fingerprint": "eb4f513ad10722b373cbdee132004fc94807fe3fa0fad22156d11f1cb89367f7",
+      "text": "OTA 活动没有对应的产品。",
+      "status": "approved"
+    },
+    "OTA campaign unavailable.": {
+      "sourceHash": "d70fa5c73a48c6cefdcf6391a49dfdf4abebddf303219e7db4ec8059882eaa37",
+      "fingerprint": "2e349405e97e33bf5345d6df0ba47a88a0593020e5393a1be236c396dcb95afa",
+      "text": "无法获取 OTA 活动。",
+      "status": "approved"
+    },
+    "OTA is not enabled for this Product": {
+      "sourceHash": "b8c3b0073bc2e080796f9058e034a2c4181e5ae1b2b4a5a2058b48b3151236c2",
+      "fingerprint": "157da62b23b32ae9e5d31e41c00bfcdfdd8d71159df7ad81ffd36d530e8b9d5d",
+      "text": "此产品未启用 OTA 服务",
+      "status": "approved"
+    },
+    "OTA is not enabled for this Product.": {
+      "sourceHash": "cf41c3dd705cc6ceab0792b109164cf056077121f8123760b18a7a130e3ef516",
+      "fingerprint": "1f2af571ccca8a8648b4a9c0ecb9a693cedd321b4a5601aaa28d2b1bba01b20b",
+      "text": "此产品未启用 OTA 服务。",
+      "status": "approved"
+    },
+    "OTA service unavailable.": {
+      "sourceHash": "0ec77a0f816da3098a56e7f0bd5f750e5aea18342d6dfb1860c36275a437e9d6",
+      "fingerprint": "94f8d22e1e4349adaf219e222cff5a910a04ac31099b71b21bd725ba299f8677",
+      "text": "OTA 服务目前无法使用。",
+      "status": "approved"
+    },
+    "Metering available when registered": {
+      "sourceHash": "952ad4f6db51da26e3337963e15b4fbf6f1f083574b9cc0175dcd7bf47075657",
+      "fingerprint": "5904e0526452436fa8596cfdacad33b22338f75449046acf8976a757613b899f",
+      "text": "注册后可计量",
+      "status": "approved"
+    },
+    "1 million writes": {
+      "sourceHash": "d7b38bfd1f076155c91875a7dbdd147e5c15d3ad705121e1c5699433042b0ac7",
+      "fingerprint": "4ea058109409957cc826718c91b834cab2227ea850ce6cd3f969b21a2631e9b0",
+      "text": "100 万次写入",
+      "status": "approved"
+    },
+    "Akamai Object Storage lists US$0.02 / GB-month; public GB and RTK GiB differ.": {
+      "sourceHash": "6c754ab794f2033ec5bab2ec49183ec9abe660b3af59958a9bc7527d0a9c066b",
+      "fingerprint": "09e9930b9ee662de9269fb7e7331665fe336c0f8b9b2dc4407bfbe425dc73ef3",
+      "text": "Akamai 对象存储标示每 GB 月 US$0.02；其 GB 与 RTK 的 GiB 单位不同。",
+      "status": "approved"
+    },
+    "Assign an update task to a target device.": {
+      "sourceHash": "cd73c78fd9082c4aefd071837b7b0aecef5c785f6242e95f5945c5de06a72fe3",
+      "fingerprint": "1e79d5baf1a3a6aa96ecee66aa633137094ad2585ffcd243ff7a47e67955f406",
+      "text": "将更新任务分配给目标设备。",
+      "status": "approved"
+    },
+    "Average stored video bytes over time, prorated by retention. OTA artifacts and logs have separate meters.": {
+      "sourceHash": "6cf65a9ec5240651c2daa05249db96ff8ef54f70ef0de79de9cccb22a27335a1",
+      "fingerprint": "ffc5335c3ec825d45c9e0349798110301966a2806fd7fcd158a98f9c7952438a",
+      "text": "按保存时间按比例计算视频的平均存储字节数。OTA 文件与日志另行计量。",
+      "status": "approved"
+    },
+    "Cloud-to-app video file delivery.": {
+      "sourceHash": "df062238ca1d5c879c2b12844ea35cde3c886f56289e90ee6c6d0e9c56bed852",
+      "fingerprint": "c1444a00d8534ec6a49200c1d02eec75b695a1c3b5dba14822dfa3af6ed98340",
+      "text": "从云端传送视频文件至应用程序。",
+      "status": "approved"
+    },
+    "Count one committed object creation by immutable object key or version. Failed PUTs and retries without a new object are excluded.": {
+      "sourceHash": "18e2439cf04d25cbf6c1cdea14e8d37269815359caaa1798a4c42be443ff8f0c",
+      "fingerprint": "b8ac4a0ad3344a8a768691db6fee5b8cfc19f9adcbfb515d96acc92c7fb1704f",
+      "text": "每个已完成创建的对象按不可变键或版本计一次；失败的 PUT 与未创建新对象的重试不计。",
+      "status": "approved"
+    },
+    "Count outgoing video media bytes, including retries. OTA uses its separate successful-download meter.": {
+      "sourceHash": "a50532f3f7348df3329bece5fafdd18143a7d6069df6fb8e113598394e5ba8f1",
+      "fingerprint": "0049bb757e9985afb7b15d8291673be4ff31556d6cafd3c927e89bc6d932b5d2",
+      "text": "计算传出的视频媒体字节数，包含重试。OTA 另按成功下载项目计量。",
+      "status": "approved"
+    },
+    "Count successful video object GET and HEAD requests. OTA origin reads and CDN requests are internal costs, not customer read fees.": {
+      "sourceHash": "d7d1c6ae17eb8ddc493f517a7a28b9c2c0aa2368b3b918376c463f2480f1559a",
+      "fingerprint": "23ab0b12537e73efbf4fdb6f06fe29bec5ed1f983520477173ca7a1d43106796",
+      "text": "计算成功的视频对象 GET 与 HEAD 请求。OTA 源站读取及 CDN 请求属于内部成本，不向客户收取读取费。",
+      "status": "approved"
+    },
+    "Count successful video object writes. OTA artifact writes have a separate meter; upload bandwidth is included.": {
+      "sourceHash": "d3352575b637064c563e641bbb84f56b6b7f563316ba57c52cdc00767c40d7eb",
+      "fingerprint": "899ce7ced1d3efa35fb9f5f5d386d3e5194a72ac59c485dba40bd711e99d6052",
+      "text": "计算成功的视频对象写入。OTA 文件写入另行计量；上传流量已包含。",
+      "status": "approved"
+    },
+    "Count the first durable assignment per campaign and device, whether it starts from a notification or device poll. Retries add no task fee.": {
+      "sourceHash": "367a8887e0621c03bd537160cb5c000c237516807358512ca64d39018c485260",
+      "fingerprint": "dc3701b6df2ef77bca2dc035b12671e2feb47ce44b74d7d1a2cd0a4f1cb43fe3",
+      "text": "每个活动与设备组合只计首次持久化的任务分配，无论由通知或设备轮询触发；重试不增加任务费。",
+      "status": "approved"
+    },
+    "Count the release artifact size once on the first authenticated downloaded report for each deployment and exact artifact. Failed transfers, URL grants and Range retries add no customer bytes.": {
+      "sourceHash": "005721b63de26eb258c209a423655617c4e222b2298d36be772bd42b35b552d4",
+      "fingerprint": "81d3b26bade4ac0754258b76363d48eba4baf5c6d010a4eddd1a95ca05ab8ec2",
+      "text": "每次部署及确切文件以首次通过验证的 downloaded 回报，按发布文件大小计一次。失败传输、URL 授权及 Range 重试不增加客户计费字节。",
+      "status": "approved"
+    },
+    "Firmware artifact verified by a target device.": {
+      "sourceHash": "772063047cc69ef0f9ec39b0fe89420aa10f0bd6dfc89e504529a8485f063a4f",
+      "fingerprint": "609eabd829f434da693ec740b4dd8169990f724d2b596988ece09b2a2f29367e",
+      "text": "目标设备已验证的固件文件。",
+      "status": "approved"
+    },
+    "Firmware objects retained in private storage.": {
+      "sourceHash": "5c392c8006afe3bfcf0be1fb33bb240476a8ca2e297b430ace018c1dfcba5d66",
+      "fingerprint": "7044767d3886108fb6ba11234d9238c69f575bae3b90f2c52729b27108d91450",
+      "text": "保存在私有存储空间的固件对象。",
+      "status": "approved"
+    },
+    "GiB verified": {
+      "sourceHash": "0d9b6ee4e81121534ea0cbf7fb4c73ef877046fa7debc87fca143df676832861",
+      "fingerprint": "7c328deef487b51ad6e271f732f69d1a06b2e663ff14ca32d79f23882ef3deaa",
+      "text": "已验证 GiB",
+      "status": "approved"
+    },
+    "Integrate actual object bytes over UTC time until physical deletion, including revoked or disabled artifacts. Release metadata alone is insufficient.": {
+      "sourceHash": "c262a76242bd8a6a19940710c630fad87d8340e13cfa839eb44ac5f107b05cef",
+      "fingerprint": "cb228d1622324e2c03379a0b2cc07428e7ca2f6055a9533cd40ce874271a78da",
+      "text": "按 UTC 时间累计实际对象字节数，直到物理删除；撤销或停用的文件仍计入。仅凭发布元数据不足以计量。",
+      "status": "approved"
+    },
+    "OTA artifact storage": {
+      "sourceHash": "f87022634395de931cd1297616fbd333885a296f5ba6fdccbfc5b2116f521e7f",
+      "fingerprint": "7129ba2dd9fbfaa2d8c41848e06e0aabf7102959f9bb577cbc85e0de7db18f58",
+      "text": "OTA 文件存储",
+      "status": "approved"
+    },
+    "OTA artifact writes": {
+      "sourceHash": "b625211f971a2d6551148d18f86c6e0b3993e5d4798821cec264e69000e5452b",
+      "fingerprint": "7617a4059d34fb069917182c712c9cb6627edf618620fd6e82a29484af708ae3",
+      "text": "OTA 文件写入",
+      "status": "approved"
+    },
+    "OTA successful downloads": {
+      "sourceHash": "d0da483358aaf9a6327f1a252d455bff1e9197b3c8566b75e09046e0a35927c5",
+      "fingerprint": "57a630a23d4baf7e1a87baa774dd8b50cc1e4f856207df302e81b217a6a92ef8",
+      "text": "OTA 成功下载",
+      "status": "approved"
+    },
+    "Provider egress is a cost reference only. Device completion and raw CDN bytes are different measurements.": {
+      "sourceHash": "ed53c40367313dd150168a67cc6bfcd8c21520765ff8d7147c63b6d6a5c71aa2",
+      "fingerprint": "7fce0b1ac94a5206f92a5f8fda7bc4ff1b89a420d32ca7d5d14ba2e4ee51ebd9",
+      "text": "供应商传出流量仅供成本参考。设备完成量与 CDN 原始字节数是不同的测量值。",
+      "status": "approved"
+    },
+    "Qualification pending": {
+      "sourceHash": "8ce0075ba83033bf348509810cd32eccbda25dbe21f6824f1c3f612dd15a7cac",
+      "fingerprint": "45587d32a9462ad9c7fcd5bc4304eb670d8731461cda418816a82bcfb8d1f523",
+      "text": "待验证",
+      "status": "approved"
+    },
+    "Read video media from storage.": {
+      "sourceHash": "567e7c22cc388c3144d3497c9456ab3f16f7bd41186abda892cb2337bbf2600d",
+      "fingerprint": "9c7d18bc7cb19c5f632e448c76e63b1e83cbf0a70282c79a9790c1fcd5158d8f",
+      "text": "从存储空间读取视频媒体。",
+      "status": "approved"
+    },
+    "Stored clips and snapshots.": {
+      "sourceHash": "281d41fc35f327953e01729169dc4ec515828c2d13f53e7f929cacf7edac3013",
+      "fingerprint": "6f0e4c93534300fe2fdc097232941edfff7f36c731ed2465713ce5146e223633",
+      "text": "已存储的片段与快照。",
+      "status": "approved"
+    },
+    "Successful creation of firmware objects.": {
+      "sourceHash": "6bdec9b1d87a4fa1f5907c3a841e017bec7dfb4ba9416b61cb10f229627c0066",
+      "fingerprint": "d976ebe68834c58855cc925e5c7468b63596c8cd2b3bebe63c682ba5d85acac8",
+      "text": "成功创建的固件对象。",
+      "status": "approved"
+    },
+    "The provider Class A category includes operations beyond OTA artifact writes.": {
+      "sourceHash": "fb47f4dad7504eb78b0501a63c37606b1552345e104d2dbfe1832454f96d37fc",
+      "fingerprint": "f70a8d05c32b06d333492715a122a71d4d048680b06139997be007b6b20ffdb9",
+      "text": "供应商的 Class A 类别还包含 OTA 文件写入以外的操作。",
+      "status": "approved"
+    },
+    "US$0.005 / GB origin egress over allowance": {
+      "sourceHash": "b380f294a4b58d1166ffed2f636e23d9867a4601ce6a08f7611fbb796bb51c73",
+      "fingerprint": "f7b0ff5bf3fc3d69bc56083b0eb71d25395d8c64484119e44a5a26c02f679cbf",
+      "text": "超出额度的源站传出流量每 GB US$0.005",
+      "status": "approved"
+    },
+    "Upload clips and snapshots.": {
+      "sourceHash": "1a69b158c284e6855489aef4583f2ce4a78e79c6fcc2f23248c93a15f71856c7",
+      "fingerprint": "44a238f5e9b31c42df6ac8ac386941abe69761a9d493a4a6412d9d8d8414e5a4",
+      "text": "上传片段与快照。",
+      "status": "approved"
+    },
+    "Video media downloads": {
+      "sourceHash": "f4639c461f7b9bd48d17da6a3e21b9eda49f690d2f3b70d2ed6e6976857887d2",
+      "fingerprint": "7c7bc3700416a795973efb10768c07acad1e268a198e520b0e781b3eb500dc68",
+      "text": "视频媒体下载",
+      "status": "approved"
+    },
+    "Video object reads": {
+      "sourceHash": "901ce01cbcea0a544892abeca3661e86db8353ae8ffb3c51c7afed097b851b23",
+      "fingerprint": "bfbe32d5e3d25184ee2a702654a7f221d6c27e3b6aa288e16f5e6d1702d706a8",
+      "text": "视频对象读取",
+      "status": "approved"
+    },
+    "Video object writes": {
+      "sourceHash": "473dd66897845d92d6204d6595d1428ef7ebf2218e6ebc12f91a33ddb40886df",
+      "fingerprint": "d29daa7e65d24b6890ef094a39ff622436ed71a46c4e043ddba0fa1e6dbfa9c3",
+      "text": "视频对象写入",
+      "status": "approved"
     }
   }
 }

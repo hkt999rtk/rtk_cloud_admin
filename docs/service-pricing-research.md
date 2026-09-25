@@ -1,6 +1,6 @@
 # Managed Cloud service pricing proposal
 
-Research date: 2026-09-06. TWD proposal date: 2026-09-24. Status: draft for review; no active pricing plan,
+Research date: 2026-09-06. TWD proposal updated: 2026-09-25. Status: draft for review; no active pricing plan,
 database migration, charging policy or payment configuration is created by this
 page. Customer UI: Billing > Service Pricing, `/console/clouds/{id}/billing/pricing`.
 
@@ -32,11 +32,14 @@ scope, validated metering and margin review belong in an approved Billing plan.
 | MQTT deliveries | US$1.00 / million | NT$32 / million deliveries | Same registry: `mqtt.delivery_count`; bytes are also measured | Same as publishes; fan-out counts each delivery |
 | IoT Shadow | US$1.25 / million | NT$40 / million 1 KiB operation units | `rtk_cloud_contracts_doc/device_shadow.md`; `rtk_video_cloud/internal/deviceshadow/`, `internal/httpapi/device_shadow.go` | Service exists; no Shadow metric in the generic Billing registry |
 | TURN relay | US$0.03 / GiB | NT$0.96 / GiB delivered | `rtk_cloud_contracts_doc/streaming.md`; `rtk_video_cloud/internal/turnregistry/` and coturn deployment | Need authoritative per-Cloud relay-byte facts; operational counters alone are insufficient |
-| Video / firmware storage | US$0.03 / GiB-month | NT$0.96 / GiB-month | Clip metadata/blob storage and Product OTA artifacts; `rtk_video_cloud/internal/clip/`, `internal/productota/` | Need time-weighted per-Cloud object-byte facts |
-| Object writes | US$4.50 / million | NT$144 / million operations | Clip and Product OTA upload/storage flows | Need successful object and multipart-operation facts |
-| Object reads | US$0.40 / million | NT$12.8 / million operations | Clip retrieval and Product OTA download flows | Need per-Cloud origin read facts, including range requests |
-| Media / firmware downloads | US$0.03 / GiB | NT$0.96 / GiB delivered | Clip retrieval, Product OTA download URLs, blob storage | Need delivery evidence at the actual data path, not URL issuance counts |
-| Firmware OTA tasks | US$3.00 / 1,000 | NT$96 / 1,000 device tasks | `rtk_video_cloud/internal/productota/`, `internal/httpapi/product_ota.go`, `rtk_cloud_contracts_doc/product_ota_migration.md` | Campaign/device state exists; dispatched task deduplication and Billing integration still needed |
+| Video clip storage | US$0.03 / GiB-month | NT$0.96 / GiB-month | Clip metadata/blob storage, `rtk_video_cloud/internal/clip/` | Need time-weighted per-Cloud object-byte facts |
+| Clip object writes | US$4.50 / million | NT$144 / million operations | Clip upload/storage flow | Need successful clip object-operation facts |
+| Clip object reads | US$0.40 / million | NT$12.8 / million operations | Clip retrieval flow | Need per-Cloud clip origin-read facts |
+| Clip media downloads | US$0.03 / GiB | NT$0.96 / GiB delivered | Clip retrieval and blob storage | Need clip delivery evidence at the actual data path |
+| OTA device tasks | [AWS Jobs benchmark](https://aws.amazon.com/iot-device-management/pricing/) US$3.00 / 1,000 | NT$96 / 1,000 first assignments | `rtk_video_cloud/internal/productota/`; canonical [OTA contract](../../rtk_cloud_contracts_doc/ota_delivery_and_billing.md) | Local durable first-assignment receipt and outbox are implemented; staging qualification and rate activation remain |
+| OTA successful downloads | Provider delivery cost is not an equivalent device-completion price | NT$0.96 / GiB of verified logical artifact length | Authenticated `downloaded` event tied to deployment and exact artifact SHA/size | Local receipt and outbox are implemented; staging CDN reconciliation remains; no charge for URL issuance, failed transfer or Range retry |
+| OTA artifact storage | Akamai Object Storage infrastructure anchor, not a managed-service retail quote | NT$0.96 / GiB-month | Physical object byte-time through confirmed deletion, including revoked or disabled Products | Local object ledger, inventory and sealed monthly fact are implemented; staging qualification remains |
+| OTA artifact writes | Object-store operation anchor, not a managed-service retail quote | NT$144 / million successful object creations | Confirmed private-origin object creation | Local receipt, outbox and crash reconciliation are implemented; staging qualification remains |
 | Device / application log ingestion | US$0.30 / GiB | NT$9.6 / GiB | `rtk_video_cloud/internal/logusage/usage.go`, `internal/devicelog/billing.go` | Per-Cloud byte/event totals exist; generic invoicing integration must be qualified |
 | Log retention | US$0.03 / GiB-month | NT$0.96 / GiB-month | `logusage.RetentionGBMonth`: ingested bytes × retention days / 30 | Existing retention estimate, not measurement of compressed bytes physically retained |
 | Other application data APIs | US$1.00 / million | NT$32 / million requests | `rtk_video_cloud/internal/httpapi/` | Requires explicit route classification and success-based per-Cloud usage facts |
@@ -79,8 +82,18 @@ proposal must not imply otherwise or pretend to reflect that Cloud's usage.
 - [AWS IoT Device Management](https://aws.amazon.com/iot-device-management/pricing/):
   Device Jobs' first 250,000 remote actions cost USD 0.003 each in its example.
   For 1,000 actions the benchmark is USD 3; propose NT$96. Count
-  the first dispatch of each device task, not repeated retry attempts. Charge
-  firmware storage, reads and actual delivery bytes separately.
+  the first durable assignment for each campaign/device, not repeated
+  notification attempts or polling. OTA customer charges add verified logical
+  downloads, physical artifact storage and successful object creations; OTA
+  object GETs and raw CDN egress remain internal provider costs.
+- [Akamai Object Storage pricing](https://techdocs.akamai.com/cloud-computing/docs/object-storage-pricing)
+  informs infrastructure cost only. Its
+  [object access logs](https://techdocs.akamai.com/cloud-computing/docs/logs-for-object-storage)
+  do not cover reads, so they cannot prove device downloads. CDN
+  [DataStream fields](https://techdocs.akamai.com/datastream2/reference/data-set-parameters-api)
+  support cost and anomaly reconciliation, but their request/Range records
+  are not the customer successful-download meter. The customer meter uses
+  an authenticated exact-artifact `downloaded` event.
 - [CloudWatch](https://aws.amazon.com/cloudwatch/pricing/): US East examples
   use USD 0.50/GB log ingestion and USD 0.03/GB-month archived. Propose NT$9.6
   ingestion and NT$0.96 retention for the more focused device/app log service.
@@ -106,6 +119,10 @@ proposal must not imply otherwise or pretend to reflect that Cloud's usage.
    operations. Console administration and authentication remain included.
 6. Example on the page uses 1M publishes + 5M deliveries + 1M HTTP Shadow units:
    32 + 160 + 40 = NT$232 before tax. It is illustrative, not fetched usage.
+7. OTA uses four customer meters: first device assignment, first verified
+   artifact download, stored OTA byte-time, and successful OTA object creation.
+   Do not apply clip object-read or clip delivery rates to OTA; Akamai CDN
+   edge bytes, cache status and Range requests serve internal cost review.
 
 ## UI verification
 

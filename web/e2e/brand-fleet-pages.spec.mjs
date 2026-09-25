@@ -241,6 +241,21 @@ test('[UI-CA-FLEETPAGE-007] firmware status loads only after selecting a Product
   await expect(productSelector).toHaveValue(product);
 });
 
+test('[UI-CA-FLEETPAGE-010] Product without OTA shows service-disabled state @brand-fleet @smoke', async ({ page }) => {
+  const cloudWithoutOTA = '44444444-4444-4444-8444-444444444444';
+  const productWithoutOTA = '66666666-6666-4666-8666-666666666666';
+  await login(page, 'developer');
+  const distributionRequests = [];
+  page.on('request', (request) => {
+    if (request.url().includes(`/api/developer/brand-clouds/${cloudWithoutOTA}/fleet/firmware-distribution`)) distributionRequests.push(request.url());
+  });
+  await page.goto(`/console/clouds/${cloudWithoutOTA}/firmware-ota?product_id=${productWithoutOTA}`);
+  await expect(page.getByRole('heading', { name: 'OTA is not enabled for this Product' })).toBeVisible();
+  await expect(page.getByText("Enable the Firmware OTA service in this Product's service options to use the OTA dashboard.")).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'OTA Dashboard' })).toHaveCount(0);
+  expect(distributionRequests).toHaveLength(0);
+});
+
 test('[UI-CA-FLEETPAGE-004] overview compares regional device counts without a map @brand-fleet', async ({ page }) => {
   await login(page, 'developer');
   await page.goto(`/console/clouds/${cloud}`);

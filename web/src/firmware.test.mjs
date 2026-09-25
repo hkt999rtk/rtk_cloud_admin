@@ -9,11 +9,20 @@ import {
   firmwareCampaignStatusLabel,
   firmwareDashboardAction,
   firmwarePolicyLabel,
+  productHasOTA,
   firmwareRiskRows,
   firmwareRolloutStatusLabel,
   firmwareVersionFilterValue,
   sortFirmwareCampaignsByStartTime,
 } from './firmware.mjs';
+
+test('OTA dashboard eligibility follows the selected Product service', () => {
+  assert.equal(productHasOTA({ status: 'active', service_capabilities: ['mqtt', 'ota'] }), true);
+  assert.equal(productHasOTA({ service_capabilities: ['mqtt', 'iot_shadow'] }), false);
+  assert.equal(productHasOTA({ status: 'active', service_options: ['mqtt', 'ota'] }), true);
+  assert.equal(productHasOTA({ status: 'disabled', service_options: ['mqtt', 'ota'] }), false);
+  assert.equal(productHasOTA(null), false);
+});
 
 const campaign = {
   campaign_id: 'campaign-1',

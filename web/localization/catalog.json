@@ -14879,6 +14879,222 @@
         "{{remaining}}",
         "{{used}}"
       ]
+    },
+    {
+      "key": "Enable the Firmware OTA service in this Product's service options to use the OTA dashboard.",
+      "source": "Enable the Firmware OTA service in this Product's service options to use the OTA dashboard.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA campaign has no Product.",
+      "source": "OTA campaign has no Product.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA campaign unavailable.",
+      "source": "OTA campaign unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA is not enabled for this Product",
+      "source": "OTA is not enabled for this Product",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA is not enabled for this Product.",
+      "source": "OTA is not enabled for this Product.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA service unavailable.",
+      "source": "OTA service unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Metering available when registered",
+      "source": "Metering available when registered",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million writes",
+      "source": "1 million writes",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Akamai Object Storage lists US$0.02 / GB-month; public GB and RTK GiB differ.",
+      "source": "Akamai Object Storage lists US$0.02 / GB-month; public GB and RTK GiB differ.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Assign an update task to a target device.",
+      "source": "Assign an update task to a target device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Average stored video bytes over time, prorated by retention. OTA artifacts and logs have separate meters.",
+      "source": "Average stored video bytes over time, prorated by retention. OTA artifacts and logs have separate meters.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud-to-app video file delivery.",
+      "source": "Cloud-to-app video file delivery.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count one committed object creation by immutable object key or version. Failed PUTs and retries without a new object are excluded.",
+      "source": "Count one committed object creation by immutable object key or version. Failed PUTs and retries without a new object are excluded.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count outgoing video media bytes, including retries. OTA uses its separate successful-download meter.",
+      "source": "Count outgoing video media bytes, including retries. OTA uses its separate successful-download meter.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count successful video object GET and HEAD requests. OTA origin reads and CDN requests are internal costs, not customer read fees.",
+      "source": "Count successful video object GET and HEAD requests. OTA origin reads and CDN requests are internal costs, not customer read fees.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count successful video object writes. OTA artifact writes have a separate meter; upload bandwidth is included.",
+      "source": "Count successful video object writes. OTA artifact writes have a separate meter; upload bandwidth is included.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count the first durable assignment per campaign and device, whether it starts from a notification or device poll. Retries add no task fee.",
+      "source": "Count the first durable assignment per campaign and device, whether it starts from a notification or device poll. Retries add no task fee.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count the release artifact size once on the first authenticated downloaded report for each deployment and exact artifact. Failed transfers, URL grants and Range retries add no customer bytes.",
+      "source": "Count the release artifact size once on the first authenticated downloaded report for each deployment and exact artifact. Failed transfers, URL grants and Range retries add no customer bytes.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Firmware artifact verified by a target device.",
+      "source": "Firmware artifact verified by a target device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Firmware objects retained in private storage.",
+      "source": "Firmware objects retained in private storage.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "GiB verified",
+      "source": "GiB verified",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Integrate actual object bytes over UTC time until physical deletion, including revoked or disabled artifacts. Release metadata alone is insufficient.",
+      "source": "Integrate actual object bytes over UTC time until physical deletion, including revoked or disabled artifacts. Release metadata alone is insufficient.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA artifact storage",
+      "source": "OTA artifact storage",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA artifact writes",
+      "source": "OTA artifact writes",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA successful downloads",
+      "source": "OTA successful downloads",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Provider egress is a cost reference only. Device completion and raw CDN bytes are different measurements.",
+      "source": "Provider egress is a cost reference only. Device completion and raw CDN bytes are different measurements.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Qualification pending",
+      "source": "Qualification pending",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Read video media from storage.",
+      "source": "Read video media from storage.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Stored clips and snapshots.",
+      "source": "Stored clips and snapshots.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Successful creation of firmware objects.",
+      "source": "Successful creation of firmware objects.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The provider Class A category includes operations beyond OTA artifact writes.",
+      "source": "The provider Class A category includes operations beyond OTA artifact writes.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.005 / GB origin egress over allowance",
+      "source": "US$0.005 / GB origin egress over allowance",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Upload clips and snapshots.",
+      "source": "Upload clips and snapshots.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video media downloads",
+      "source": "Video media downloads",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video object reads",
+      "source": "Video object reads",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Video object writes",
+      "source": "Video object writes",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }
