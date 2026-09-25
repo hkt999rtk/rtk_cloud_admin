@@ -2382,7 +2382,6 @@
       "Host tests": "主機端測試",
       "This release has no matching translated terms; showing the original text.": "這個版本尚無對應的條款譯本；以下顯示原文。",
       "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.": "僅有 CSR 不足以取得憑證簽發授權。開發測試裝置請使用 Cloud Test Lab，不需呼叫工廠註冊服務。",
-      "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.": "請平台管理員為此雲端與產品建立生產批次，並提供有期限的工廠授權。",
       "Certificate signing requires an active Product and a ready certificate authority.": "簽發憑證前，產品必須啟用，且憑證簽發者已準備就緒。",
       "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.": "每個準備就緒的產品都有自己的憑證簽發者。工廠裝置共用註冊服務入口，生產批次授權會指定雲端與產品。",
       "Enrollment API": "工廠註冊 API",
@@ -2392,7 +2391,8 @@
       "Read device credential setup": "查看裝置憑證設定說明",
       "Sign a device certificate": "簽發裝置憑證",
       "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.": "完整的 HTTPS 服務網址由平台提供給核准的工廠閘道。管理後台網址不能用來簽發憑證；目前此處尚無對外簽發網址。",
-      "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.": "由核准的工廠閘道送出 request_id、devid 與 csr_pem，並以生產批次 JWT 作為 Bearer 權杖。若另提供 service_options，其內容必須與生產批次相符。"
+      "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.": "由核准的工廠閘道送出 request_id、devid 與 csr_pem，並以生產批次 JWT 作為 Bearer 權杖。若另提供 service_options，其內容必須與生產批次相符。",
+      "An authorized user with device-management permission creates a production run for this Cloud and Product, then securely delivers its short-lived authorization to the approved factory gateway.": "由具備此雲端與產品裝置管理權限的使用者建立生產批次，再將有期限的授權安全地交給核准的工廠閘道。"
     },
     "service": {
       "Cloud-to-device or cloud-to-app file delivery.": "雲端到裝置或雲端到應用程式檔案交付.",
@@ -4796,7 +4796,6 @@
       "Host tests": "主机端测试",
       "This release has no matching translated terms; showing the original text.": "此版本暂无对应的条款译本；以下显示原文。",
       "A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.": "仅有 CSR 不足以取得证书签发授权。开发测试设备请使用 Cloud Test Lab，无须调用工厂注册服务。",
-      "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.": "请平台管理员为此云和产品创建生产批次，并提供有期限的工厂授权。",
       "Certificate signing requires an active Product and a ready certificate authority.": "签发证书前，产品必须启用，且证书签发机构已准备就绪。",
       "Each ready Product uses its own certificate issuer. Factory devices use a shared enrollment service; the production-run authorization selects this Cloud and Product.": "每个准备就绪的产品都有自己的证书签发机构。工厂设备共用注册服务入口，生产批次授权会指定云和产品。",
       "Enrollment API": "工厂注册 API",
@@ -4806,7 +4805,8 @@
       "Read device credential setup": "查看设备证书设置说明",
       "Sign a device certificate": "签发设备证书",
       "The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.": "完整的 HTTPS 服务网址由平台提供给获准的工厂网关。管理后台网址不能用于签发证书；目前此处尚无对外签发网址。",
-      "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.": "由获准的工厂网关提交 request_id、devid 与 csr_pem，并以生产批次 JWT 作为 Bearer 令牌。若另提供 service_options，其内容必须与生产批次一致。"
+      "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.": "由获准的工厂网关提交 request_id、devid 与 csr_pem，并以生产批次 JWT 作为 Bearer 令牌。若另提供 service_options，其内容必须与生产批次一致。",
+      "An authorized user with device-management permission creates a production run for this Cloud and Product, then securely delivers its short-lived authorization to the approved factory gateway.": "由具备此云和产品设备管理权限的用户创建生产批次，再将有期限的授权安全地交给获准的工厂网关。"
     },
     "service": {
       "Cloud-to-device or cloud-to-app file delivery.": "云端到设备或云端到应用程式档案交付.",

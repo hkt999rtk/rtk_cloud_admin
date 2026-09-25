@@ -98,7 +98,7 @@ openssl x509 -in "$APP_CERT" -pubkey -noout | openssl pkey -pubin -outform DER |
 
 工廠裝置的簽發流程：
 
-1. 請平台管理員為目標雲端與產品建立生產批次，取得有期限的生產批次授權 JWT。這是工廠憑證，只能交給核准的工廠閘道，不可寫入裝置韌體。
+1. 由對目標雲端與產品具有裝置管理權限的使用者，透過 Account Manager 建立生產批次。取得有期限的生產批次授權 JWT 後，應安全地交給核准的工廠閘道，不可寫入裝置韌體。
 2. 在裝置上產生私鑰與 CSR，私鑰留在裝置內。CSR 的主體 CN 必須與裝置 ID（`devid`）相同。
 3. 由核准的工廠閘道呼叫 `POST {FACTORY_ENROLL_URL}/v1/factory/enroll`，以 `Authorization: Bearer <生產批次 JWT>` 傳入授權，並在 JSON 中提供 `request_id`、`devid` 與 `csr_pem`。若另提供 `service_options`，其內容必須與生產批次相符。各產品共用服務入口；JWT 將請求綁定到特定雲端與產品，由該產品的憑證簽發者處理。完整的 HTTPS 網址須向平台管理員取得；管理後台的網址不是此服務入口。
 4. 將回傳的裝置憑證和憑證鏈安裝到持有對應私鑰的裝置。裝置啟用與帳戶綁定仍須另外完成。

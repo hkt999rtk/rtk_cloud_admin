@@ -95,7 +95,7 @@ Use the device certificate and matching private key already provisioned by the a
 
 For a factory device:
 
-1. Ask the platform operator to create a production run bound to the target Cloud and Product. The resulting short-lived production-run JWT is a factory credential; keep it on the approved factory gateway, never in device firmware.
+1. A user with device-management permission for the target Cloud and Product creates a production run through Account Manager. The resulting short-lived production-run JWT is a factory credential; deliver it securely to the approved factory gateway, never to device firmware.
 2. Generate a private key and CSR on the device. Keep the private key there. The CSR subject CN must equal the device's `devid`.
 3. From the approved gateway, send `POST {FACTORY_ENROLL_URL}/v1/factory/enroll` with `Authorization: Bearer <production-run JWT>` and JSON containing `request_id`, `devid`, and `csr_pem`. If included, `service_options` must match the production run. The service URL is shared across Products; the JWT binds the request to one Cloud and Product and selects that Product's certificate issuer. Obtain the full HTTPS URL from the platform operator; the Admin Console URL is not the enrollment service.
 4. Install the returned device certificate and certificate chain with the matching private key. Device activation and account binding are separate steps.

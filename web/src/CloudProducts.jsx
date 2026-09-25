@@ -20,7 +20,7 @@ function DeviceEnrollmentGuide({cloudId, product}) {
     </dl>
     <p>{translate("The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.")}</p>
     <ol>
-      <li>{translate("Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.")}</li>
+      <li>{translate("An authorized user with device-management permission creates a production run for this Cloud and Product, then securely delivers its short-lived authorization to the approved factory gateway.")}</li>
       <li>{translate("Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.")}</li>
       <li>{translate("From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.")}</li>
       <li>{translate("Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.")}</li>

@@ -14300,12 +14300,6 @@
       "text": "僅有 CSR 不足以取得憑證簽發授權。開發測試裝置請使用 Cloud Test Lab，不需呼叫工廠註冊服務。",
       "status": "approved"
     },
-    "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.": {
-      "sourceHash": "9f30cbe3d6050fe87227a162b9e120dcee341561033f57761c6a39bf20f876ec",
-      "fingerprint": "1b378433ac8cfc9413d91d37f9d9efaa8f6c1aebcf02da4081897b9665031629",
-      "text": "請平台管理員為此雲端與產品建立生產批次，並提供有期限的工廠授權。",
-      "status": "approved"
-    },
     "Certificate signing requires an active Product and a ready certificate authority.": {
       "sourceHash": "19bdd69b2c12ab269493835128565b9bab6de8daaf1e561a181c4516af409f3f",
       "fingerprint": "a773cccdeba6cd86199c90a0e0b7613e93ac31cef536d3a4c947b15d99ef3d53",
@@ -14364,6 +14358,12 @@
       "sourceHash": "13949ab67750b6ea5619f76339aff05d046ba4c8b50f4d96e7f3f22e7b56d954",
       "fingerprint": "32113373567ee9cb61619ac99ffb5d4773681895b020528cb0c75703e2d339bc",
       "text": "由核准的工廠閘道送出 request_id、devid 與 csr_pem，並以生產批次 JWT 作為 Bearer 權杖。若另提供 service_options，其內容必須與生產批次相符。",
+      "status": "approved"
+    },
+    "An authorized user with device-management permission creates a production run for this Cloud and Product, then securely delivers its short-lived authorization to the approved factory gateway.": {
+      "sourceHash": "54d0c7e8bd23c907a1bcdec2ca6c3af9f8817b56e031d48532be747f03330280",
+      "fingerprint": "e5f54df2d578322d6fe0265cccd4622bf30079db9f139106b099077908ecd5c6",
+      "text": "由具備此雲端與產品裝置管理權限的使用者建立生產批次，再將有期限的授權安全地交給核准的工廠閘道。",
       "status": "approved"
     }
   }

@@ -14506,12 +14506,6 @@
       "placeholders": []
     },
     {
-      "key": "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.",
-      "source": "Ask the platform operator to create a production run for this Cloud and Product and provide its short-lived factory authorization.",
-      "context": "Admin Console interface message",
-      "placeholders": []
-    },
-    {
       "key": "Certificate signing requires an active Product and a ready certificate authority.",
       "source": "Certificate signing requires an active Product and a ready certificate authority.",
       "context": "Admin Console interface message",
@@ -14568,6 +14562,12 @@
     {
       "key": "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.",
       "source": "From the authorized factory gateway, submit request_id, devid and csr_pem with the production-run JWT as a Bearer token. If sent, service_options must match the production run.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "An authorized user with device-management permission creates a production run for this Cloud and Product, then securely delivers its short-lived authorization to the approved factory gateway.",
+      "source": "An authorized user with device-management permission creates a production run for this Cloud and Product, then securely delivers its short-lived authorization to the approved factory gateway.",
       "context": "Admin Console interface message",
       "placeholders": []
     }

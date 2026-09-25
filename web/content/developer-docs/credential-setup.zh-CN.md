@@ -98,7 +98,7 @@ openssl x509 -in "$APP_CERT" -pubkey -noout | openssl pkey -pubin -outform DER |
 
 工厂设备的签发流程：
 
-1. 请平台管理员为目标云和产品创建生产批次，取得有期限的生产批次授权 JWT。这是工厂凭证，只能交给获准的工厂网关，不可写入设备固件。
+1. 由对目标云和产品具有设备管理权限的用户，通过 Account Manager 创建生产批次。取得有期限的生产批次授权 JWT 后，应安全地交给获准的工厂网关，不可写入设备固件。
 2. 在设备上生成私钥与 CSR，私钥保留在设备内。CSR 的主体 CN 必须与设备 ID（`devid`）相同。
 3. 由获准的工厂网关调用 `POST {FACTORY_ENROLL_URL}/v1/factory/enroll`，以 `Authorization: Bearer <生产批次 JWT>` 传入授权，并在 JSON 中提供 `request_id`、`devid` 与 `csr_pem`。若另提供 `service_options`，其内容必须与生产批次一致。各产品共用服务入口；JWT 将请求绑定到特定云和产品，由该产品的证书签发者处理。完整的 HTTPS 网址须向平台管理员取得；管理后台的网址不是此服务入口。
 4. 将返回的设备证书和证书链安装到持有对应私钥的设备。设备激活与账户绑定仍须另外完成。
