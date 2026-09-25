@@ -1,6 +1,7 @@
 import { translate } from './i18n/index.mjs';
 import React,{useEffect,useRef,useState} from 'react';
 import {examplesCatalog,exampleDownload,fetchExampleFirmware} from './pro2-examples.mjs';
+import {pro2Copy,pro2Error} from './pro2-copy.mjs';
 export function Pro2RemoteFirmware({rootRef}){
  const params=new URLSearchParams(location.search),id=params.get('example'),version=params.get('version');
  const [catalog,setCatalog]=useState(null),[error,setError]=useState(''),[accepted,setAccepted]=useState(false),[progress,setProgress]=useState(''),[busy,setBusy]=useState(false),[attempt,setAttempt]=useState(0);
@@ -25,8 +26,8 @@ export function Pro2RemoteFirmware({rootRef}){
   finally{if(active.current===c){active.current=null;setBusy(false)}}
  }
  if(!id||!version)return null;
- return <section className="panel" aria-label={translate("Website firmware")}><h3>{translate("Website firmware ·")} {example?.title||id} · {version}</h3><p>{translate("Isolated test firmware: cannot connect to your Cloud. Use a locally rebuilt image for your own device credentials.")}</p>
- {error&&<p role="alert">{translate(error)} <button onClick={()=>setAttempt(n=>n+1)}>{translate("Reload release")}</button></p>}
+ return <section className="panel" aria-label={translate("Website firmware")}><h3>{translate("Website firmware ·")} {example ? pro2Copy(example.title) : id} · {version}</h3><p>{translate("Isolated test firmware: cannot connect to your Cloud. Use a locally rebuilt image for your own device credentials.")}</p>
+ {error&&<p role="alert">{pro2Error(error)} <button onClick={()=>setAttempt(n=>n+1)}>{translate("Reload release")}</button></p>}
  {catalog&&!example&&<p role="alert">{translate("This example is not in the selected release.")}</p>}
  {example&&<><details><summary>{translate("Evaluation terms ·")} {catalog.terms_version}</summary><pre style={{whiteSpace:'pre-wrap'}}>{catalog.terms}</pre></details><label><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> {translate("I accept these evaluation terms.")}</label><p><button disabled={!accepted||busy||uartBusy||!runtimeReady} onClick={download}>{translate("Download / retry firmware")}</button> <button disabled={!busy} onClick={()=>active.current?.abort()}>{translate("Cancel download")}</button></p></>}
  <p role="status">{progress}</p><p>{translate("You can also choose a local file in the firmware panel below.")}</p></section>

@@ -183,12 +183,84 @@ func (s *Server) apiDeveloperPKITestDeviceBundle(w http.ResponseWriter, r *http.
 	}
 	if len(results) == 1 {
 		if b, ok := results[0]["certificate_bundle"].(map[string]any); ok {
+			if strings.Contains(r.Header.Get("Accept"), "application/zip") {
+				if err := writeSingleTestDeviceZIP(w, results[0]["device_id"].(string), b); err != nil {
+					http.Error(w, "test device bundle is incomplete", http.StatusBadGateway)
+				}
+				return
+			}
 			writeCertificateBundleJSON(w, b)
 			return
 		}
 	}
 	http.Error(w, "test device provisioning failed", http.StatusBadGateway)
 	return
+}
+
+func writeSingleTestDeviceZIP(w http.ResponseWriter, deviceID string, bundle map[string]any) error {
+	certificate, ok := bundle["certificate"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("missing certificate")
+	}
+	chain, ok := certificate["chain_pem"].([]any)
+	if !ok || len(chain) == 0 {
+		return fmt.Errorf("missing certificate chain")
+	}
+	parts := make([]string, 0, len(chain))
+	for _, item := range chain {
+		pem, ok := item.(string)
+		if !ok || !strings.Contains(pem, "-----BEGIN CERTIFICATE-----") {
+			return fmt.Errorf("invalid certificate chain")
+		}
+		parts = append(parts, strings.TrimSpace(pem)+"\n")
+	}
+	key, ok := bundle["key"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("missing key")
+	}
+	material, ok := key["material"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("missing key material")
+	}
+	privateKey, ok := material["private_key_pem"].(string)
+	if !ok || !strings.Contains(privateKey, "-----BEGIN PRIVATE KEY-----") {
+		return fmt.Errorf("invalid private key")
+	}
+	var buf bytes.Buffer
+	archive := zip.NewWriter(&buf)
+	add := func(name string, contents []byte) error {
+		entry, err := archive.Create(name)
+		if err != nil {
+			return err
+		}
+		_, err = entry.Write(contents)
+		return err
+	}
+	jsonBundle, err := json.MarshalIndent(bundle, "", "  ")
+	if err != nil {
+		return err
+	}
+	files := []struct{ name, text string }{
+		{"device.key", privateKey},
+		{"device.crt", parts[0]},
+		{"certificate-chain.pem", strings.Join(parts, "")},
+		{"certificate-bundle.json", string(jsonBundle) + "\n"},
+		{"README.txt", "Test device credentials / 測試裝置憑證 / 测试设备凭证\n\nDevice ID: " + deviceID + "\n\ndevice.key: private key; keep it secret.\ndevice.crt: device certificate.\ncertificate-chain.pem: full certificate chain.\ncertificate-bundle.json: original credential bundle.\n\nInstall the key and certificate on the matching test device. The private key is provided only now and cannot be downloaded again after leaving this page.\n請將私鑰及憑證安裝至對應測試裝置；離開本頁後無法重新下載私鑰。\n请将私钥和证书安装到对应测试设备；离开本页后无法重新下载私钥。\n"},
+	}
+	for _, file := range files {
+		if err = add(file.name, []byte(file.text)); err != nil {
+			return err
+		}
+	}
+	if err = archive.Close(); err != nil {
+		return err
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", `attachment; filename="rtk-test-device-`+deviceID+`.zip"`)
+	w.Header().Set("X-RTK-Test-Device-ID", deviceID)
+	_, err = w.Write(buf.Bytes())
+	return err
 }
 
 func writeTestDeviceBatchZIP(w http.ResponseWriter, batchID string, items []map[string]any) {

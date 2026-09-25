@@ -24,9 +24,11 @@ func TestServerGeneratedTestDeviceDownloads(t *testing.T) {
 		name                                           string
 		quantity, allocationFailure, enrollmentFailure int
 		inactive, runFailure                           bool
+		zipDownload                                    bool
 		want                                           int
 	}{
 		{name: "single", quantity: 1, want: 200},
+		{name: "single ZIP", quantity: 1, zipDownload: true, want: 200},
 		{name: "default quantity", want: 200},
 		{name: "partial batch", quantity: 3, allocationFailure: 2, enrollmentFailure: 3, want: 200},
 		{name: "quantity limit", quantity: 11, want: 400},
@@ -130,7 +132,11 @@ func TestServerGeneratedTestDeviceDownloads(t *testing.T) {
 			srv, session := newDeveloperPKITestServer(t, account.URL, factory.URL)
 			body := fmt.Sprintf(`{"brand_cloud_id":"brand-1","device_item_profile_id":"profile-1","quantity":%d}`, tc.quantity)
 			rec := httptest.NewRecorder()
-			srv.ServeHTTP(rec, developerPKIRequest(t, session, "/api/developer/test-device-batches", "new-request", body))
+			request := developerPKIRequest(t, session, "/api/developer/test-device-batches", "new-request", body)
+			if tc.zipDownload {
+				request.Header.Set("Accept", "application/zip")
+			}
+			srv.ServeHTTP(rec, request)
 			if rec.Code != tc.want {
 				t.Fatalf("status %d, want %d", rec.Code, tc.want)
 			}
@@ -146,7 +152,7 @@ func TestServerGeneratedTestDeviceDownloads(t *testing.T) {
 				t.Fatal("download is cacheable")
 			}
 			var bundle map[string]any
-			if tc.quantity <= 1 {
+			if tc.quantity <= 1 && !tc.zipDownload {
 				if rec.Header().Get("Content-Type") != certificateBundleMIME {
 					t.Fatal("expected JSON bundle")
 				}
@@ -173,23 +179,35 @@ func TestServerGeneratedTestDeviceDownloads(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				if len(files) != 4 {
-					t.Fatalf("expected only successful device files and index, got %d", len(files))
-				}
-				if len(files["devices/allocated-1/device.crt"]) == 0 || len(files["devices/allocated-1/device.key"]) == 0 {
-					t.Fatal("missing PEM files")
-				}
-				if err := json.Unmarshal(files["devices/allocated-1/certificate-bundle.json"], &bundle); err != nil {
-					t.Fatal(err)
-				}
-				var index struct {
-					Items []struct{ Status, Error string }
-				}
-				if err := json.Unmarshal(files["index.json"], &index); err != nil {
-					t.Fatal(err)
-				}
-				if len(index.Items) != 3 || index.Items[0].Status != "ready" || index.Items[1].Error != "device allocation failed" || index.Items[2].Error != "certificate issuance failed" {
-					t.Fatal("incorrect partial failure index")
+				if tc.zipDownload {
+					if rec.Header().Get("X-RTK-Test-Device-ID") != "allocated-1" || len(files) != 5 {
+						t.Fatal("single-device ZIP has incorrect metadata or files")
+					}
+					if string(files["device.crt"]) != string(files["certificate-chain.pem"]) || len(files["device.key"]) == 0 || len(files["README.txt"]) == 0 {
+						t.Fatal("single-device ZIP is missing credentials or instructions")
+					}
+					if err := json.Unmarshal(files["certificate-bundle.json"], &bundle); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					if len(files) != 4 {
+						t.Fatalf("expected only successful device files and index, got %d", len(files))
+					}
+					if len(files["devices/allocated-1/device.crt"]) == 0 || len(files["devices/allocated-1/device.key"]) == 0 {
+						t.Fatal("missing PEM files")
+					}
+					if err := json.Unmarshal(files["devices/allocated-1/certificate-bundle.json"], &bundle); err != nil {
+						t.Fatal(err)
+					}
+					var index struct {
+						Items []struct{ Status, Error string }
+					}
+					if err := json.Unmarshal(files["index.json"], &index); err != nil {
+						t.Fatal(err)
+					}
+					if len(index.Items) != 3 || index.Items[0].Status != "ready" || index.Items[1].Error != "device allocation failed" || index.Items[2].Error != "certificate issuance failed" {
+						t.Fatal("incorrect partial failure index")
+					}
 				}
 			}
 			keyPEM := bundle["key"].(map[string]any)["material"].(map[string]any)["private_key_pem"].(string)

@@ -551,7 +551,7 @@
     "Actions": {
       "sourceHash": "096a36b85bbd4340bdc5e3cda505da6e259a53f7c38a26f6e407879b6c8b90e3",
       "fingerprint": "7ab5ac7a07ed2e5760e5413e5db751b18e77c24f0eff0c9fe8971b06e1129c8a",
-      "text": "行动",
+      "text": "操作",
       "status": "approved"
     },
     "Active": {
@@ -899,7 +899,7 @@
     "Back to ChipSet & SDK": {
       "sourceHash": "77e3109d2244d8ae4c2fa01093e753891235edbf6ab8ec9365cb0448d8229e32",
       "fingerprint": "17451b33bda2b85a17d8e2a38dc1eac0a53a456b3868dded7690616a216feea7",
-      "text": "返回晶片组和SDK",
+      "text": "返回芯片组与 SDK",
       "status": "approved"
     },
     "Back to Login": {
@@ -1211,7 +1211,7 @@
     "Build, burn and test MQTT messaging, synthetic H.264 video, or a live camera.": {
       "sourceHash": "a0564dad8eb3c64a948528a0a5afb4f55df4bab494bf230276a96d989f692fb3",
       "fingerprint": "c7ddcabbabf1f03a3aae41226e16c7d16341589436d684eae81d772007fd888a",
-      "text": "构建、烧制和测试MQTT讯息传递、合成H.264影片或实时摄像头。",
+      "text": "构建、烧录并测试 MQTT 消息、合成 H.264 视频或实时摄像头串流。",
       "status": "approved"
     },
     "Burn firmware": {
@@ -1565,7 +1565,7 @@
     "Cloud Examples": {
       "sourceHash": "bcd2ac4231b6cb56f29cf5bf72168faf9e8f4143224684c53d04138b343a3cf5",
       "fingerprint": "4e2c8da83b2a93a5c8e71f9a4d33438134f35cf06ecd3f6b06723d5508e133f9",
-      "text": "云示例",
+      "text": "云端示例",
       "status": "approved"
     },
     "Cloud ID": {
@@ -2237,7 +2237,7 @@
     "Developer evaluation release": {
       "sourceHash": "d8ab6a3eb2ea44577bcb379c858ca0807e23b3f5672e9bee839cf2a045427766",
       "fingerprint": "036e5b3e75eaa50b57588d49b52b9112e57539eecd6bbcb471afb90377be4b18",
-      "text": "开发人员评估释出",
+      "text": "开发者评估版",
       "status": "approved"
     },
     "Developer preview": {
@@ -3929,7 +3929,7 @@
     "Loading examples…": {
       "sourceHash": "fda39322e6e02703fe6b67b099e81e5c3a7645b751d535f088aa3a032c36b41c",
       "fingerprint": "e95f44a0c78de17890a382ba0f98fa07a0aff9b108f1a646aee4b4bb4ef7de3b",
-      "text": "载入示例...",
+      "text": "正在加载示例…",
       "status": "approved"
     },
     "Loading fleet health distribution.": {
@@ -4877,7 +4877,7 @@
     "One release. Three ready-to-build cloud examples.": {
       "sourceHash": "d7a8a2e37fa6b2a2fb0963abf9e166fa618937633bfe286a423148eb76324b80",
       "fingerprint": "944e0c476925b733c8f753ee2c2065bd4d4065f98f95cbe3b44e7b0bdd7099bd",
-      "text": "一个版本。三个即将构建的云例项。",
+      "text": "单一版本，提供三个可直接构建的云端示例。",
       "status": "approved"
     },
     "Online": {
@@ -5135,7 +5135,7 @@
     "PRO2 Cloud Examples": {
       "sourceHash": "df56c4b65fcf94d7f6584e76218920cebfd5740bdff3ff4353d629a59097523b",
       "fingerprint": "6ad5b315a7499361db0b6a3bcbbc279e2ec27d135f99eda42d528202e40ddafc",
-      "text": "PRO2云示例",
+      "text": "PRO2 云端示例",
       "status": "approved"
     },
     "Packets lost": {
@@ -5279,7 +5279,7 @@
     "Plaintext filesystem keys and embedded key arrays are for development only. Production private keys must use the PRO2 protected zone; that integration is not implemented here.": {
       "sourceHash": "b170b91b5fd464603135fb1a42e292e8f8e65b167fb79592d00b048a870314e5",
       "fingerprint": "329c15630b576c2dd082afa384091604421f331bb594b90e8f67dbbabdac0bcf",
-      "text": "纯文字档案系统键和嵌入式键阵列仅用于开发。生产私钥必须使用PRO2受保护区域；此处未实现此整合。",
+      "text": "文件系统中的明文密钥与程序内嵌密钥仅供开发测试。正式产品的私钥必须存放在 PRO2 受保护区域；此版本尚未集成该功能。",
       "status": "approved"
     },
     "Plan name (optional)": {
@@ -5999,7 +5999,7 @@
     "Reload release": {
       "sourceHash": "fb88a49abfb795bd081412d337ebfb3983e07295cce8949e5eb7afc9468b8500",
       "fingerprint": "dd1a1aba9d812ca2a37f19468b0c0336173d9e81e991b3354712c28be9a83a2d",
-      "text": "重新载入释出",
+      "text": "重新加载示例",
       "status": "approved"
     },
     "Remove": {
@@ -7979,7 +7979,7 @@
     "Website firmware contains isolated test settings and cannot connect to your Cloud. To test your Cloud, download your device certificate in Developer UI and rebuild locally with your own settings.": {
       "sourceHash": "0732cde847599a5f9a17a90fb580936aeea39e865c6b28bb86cf8477e7471c39",
       "fingerprint": "bcc5c4c5d04c7f814f5cfc73b661139b444e391dd472b582662e3ecac7f2112c",
-      "text": "网站固件包含孤立的测试设定，无法连接到您的云端。要测试您的云端，请在开发者使用者介面下下载您的设备证书，然后使用您自己的设定本地重新构建。",
+      "text": "网站提供的固件使用独立测试设置，无法连接到您的云端。若要测试自己的云端，请先在开发者后台下载设备证书，再使用自己的设置在本地重新构建固件。",
       "status": "approved"
     },
     "Website firmware ·": {
@@ -14022,6 +14022,276 @@
       "sourceHash": "b72a4e23da45b930e096317f149a8f4e125347b6430fbf4dbc6812bfdcba434d",
       "fingerprint": "10c2738ae4f5fcf4144cd446d6838399b4cca2ee8e00c3d34e560dbb17e6a5ea",
       "text": "测试设备凭证文件已开始下载，其中包含服务器生成的私钥，请妥善保管。",
+      "status": "approved"
+    },
+    "Bind": {
+      "sourceHash": "a93296d6e3ced114e2c48db7f7c59ef089957ca29b04f83740e3f140946b2e23",
+      "fingerprint": "bb47c38976f70f44799fbe05faef763d5cd2fdb3ea89fa3e2cf2af7c7711892c",
+      "text": "绑定",
+      "status": "approved"
+    },
+    "Binding": {
+      "sourceHash": "0f672a44d168f82c7f3dba770271924dd085e8706ed5e3412a8a5e8e5fe2533f",
+      "fingerprint": "48ed285c833ef8cfa716b21d9533cc5182ef2696f60cc1b45dfd12a2f66a8311",
+      "text": "绑定状态",
+      "status": "approved"
+    },
+    "Choose a device for the tests below": {
+      "sourceHash": "e280f9905c4120ce144ae7f43607f414e83a16212eedb4cb61527660353b7128",
+      "fingerprint": "a20c741da7e6abed8b40bad0730604d72f1f914f91eda061d7736a659dfc9d3f",
+      "text": "选择下方测试要使用的设备",
+      "status": "approved"
+    },
+    "Choose a test device above before using the tests below.": {
+      "sourceHash": "e60a1b25e6ba23d41e09e603afe1740734c7e2cad549225585d13ab3d34777dd",
+      "fingerprint": "176ab555f28ea39d8c4b3126dbacd6840851b20487c7bf260c1b31a93e20bbb3",
+      "text": "请先在上方选择测试设备，再使用下方测试功能。",
+      "status": "approved"
+    },
+    "Current test device:": {
+      "sourceHash": "ec1465a9dae8bcc3fe396075641f7962156a5584f0b280f9882d8b0154b6c1a2",
+      "fingerprint": "e31d2e786c20588f51c1e18636c77f4848a25e1384e3a92c46a6b47e544adea0",
+      "text": "当前测试设备：",
+      "status": "approved"
+    },
+    "Device private keys are available only when a test device is created. If the file is lost, safely retire that device and create a replacement.": {
+      "sourceHash": "8217f74dbea65a551f91bae92a651a7af736fc73840770274d4619ea88829755",
+      "fingerprint": "34acbaad9b167d1fb1d90a569cf1b3f3a49fd090a74cf131a012a8c921853af0",
+      "text": "设备私钥只在创建测试设备时提供。如果文件丢失，请安全退役该设备并创建新设备。",
+      "status": "approved"
+    },
+    "Device retirement is incomplete. Test access is blocked; retry the retirement action.": {
+      "sourceHash": "b6f538f8febe58c8bdd0be06dded524116abf11e44fbe3b5803b706a7a5cca57",
+      "fingerprint": "b2f0cd1e02f6a201b4f0544d2dc001f4115abe89dd1d31fc9f426c22e9898ee3",
+      "text": "设备退役尚未完成。测试访问已被阻止，请重试退役操作。",
+      "status": "approved"
+    },
+    "Go to credential download": {
+      "sourceHash": "88c8f7288e305a659cf96c96f650eb6a1d88e7ff0d530aae3f6d29860acbc423",
+      "fingerprint": "ecba20681faf272502b4c694d3344d3c9d1c189ec094231421fc8309282b9ff9",
+      "text": "前往凭证下载区",
+      "status": "approved"
+    },
+    "No test devices in this Product. Create a test device to begin.": {
+      "sourceHash": "f57c48ef117e5feeb93b8eac94720321454a042c58d2d1826a1bcd8a457895f3",
+      "fingerprint": "2ec9878bf867aa118bb5b6b9c7045701b3fb69bfc3449925a116187a540bf283",
+      "text": "此产品没有测试设备。请先创建测试设备。",
+      "status": "approved"
+    },
+    "Safely retire {{deviceName}} ({{deviceId}})? All test bindings and sessions will end, and its certificate can no longer connect. This cannot be undone.": {
+      "sourceHash": "d8933a2aa07e27287e82354ba1ae10dcc421fb81b437cb81b6678fe4dd5e18e8",
+      "fingerprint": "b40c130cff10b637d707c413657969801b1d2f7167ebd4f34ee0ec311ac96a9a",
+      "text": "确定要安全退役 {{deviceName}}（{{deviceId}}）吗？所有测试绑定和会话都将结束，该设备的证书也将无法再连接。此操作无法撤销。",
+      "status": "approved"
+    },
+    "Test device": {
+      "sourceHash": "bff0e0ed64e039ffe4109ebb3cd166ce59f38aa0593d1f6f73ab7e0b91042481",
+      "fingerprint": "e2108bb70e19713ba84e9b7fe77d97cc4601d6cddbe705cea2c395ad88fac5f4",
+      "text": "测试设备",
+      "status": "approved"
+    },
+    "Test devices": {
+      "sourceHash": "f41b8c080a6fc9efda7c2f91f7f26db09a0a5bfb5bb49dfc60ee548673048888",
+      "fingerprint": "e1138b82138e789ebb9457009ade3df268e60215d52ab53473e6b1d429683cc8",
+      "text": "测试设备",
+      "status": "approved"
+    },
+    "The MQTT, Device Shadow and WebRTC tests below use the selected device.": {
+      "sourceHash": "7855bca5a5c04f020f7ff3192b7be85199a0cce0bf81e29a0aa31a2d51bdccc5",
+      "fingerprint": "9d58d55f3ea0abfd6c3277c44dc751291a34d0b70330035ca134d99e1fffec66",
+      "text": "下方的 MQTT、设备影子和 WebRTC 测试都会针对所选设备执行。",
+      "status": "approved"
+    },
+    "Your test devices will appear automatically.": {
+      "sourceHash": "ed33fcc734f2760bf41d5474ff2315c1b768f7fb701ee548c60ab69331348701",
+      "fingerprint": "ec7632d9ef5a7c04b4a1fd19e02e1a7f2321b3dc2e1319e62f4528a9596acbbe",
+      "text": "你的测试设备会自动显示在这里。",
+      "status": "approved"
+    },
+    "Activation failed": {
+      "sourceHash": "1e5d4bf6aab83d039a6aa78e1173f2bffa6d682b3418125482a4c879b3ef2834",
+      "fingerprint": "18ab59a92ccef0f190d9636995186b54f011fafac16684606a61181cc2f4a81e",
+      "text": "激活失败",
+      "status": "approved"
+    },
+    "Activation pending": {
+      "sourceHash": "64b1ea7b5cb6b358d9176beb1b6c30676320b01339497f4c26827483dada727b",
+      "fingerprint": "7beb76b5c746c91bc3d0971a030bff320e054cde5bb02286d92ee8017477473b",
+      "text": "激活中",
+      "status": "approved"
+    },
+    "Bound to another account": {
+      "sourceHash": "a026f4c60dbc658201201471de5738c44e923b41af23eda4efcd1664f410e331",
+      "fingerprint": "dca989ca923e9222f07632712441bb289ce32a853a0b6cc2fbda895c874540c5",
+      "text": "已绑定其他账户",
+      "status": "approved"
+    },
+    "Bound to your test account": {
+      "sourceHash": "e89fd73ae87a278be6e2b9368a1b761daba48697327ac7938123a13b626dc603",
+      "fingerprint": "f540d13e3e92429aef66ef98bfb2740ed1971a905ef0aca71d2a72482a4358f4",
+      "text": "已绑定你的测试账户",
+      "status": "approved"
+    },
+    "Deactivated": {
+      "sourceHash": "24e2cd9c7c555f00afe0c34efaf45d74ccc1a8ecf2b7547992ae42bc73dcc4db",
+      "fingerprint": "34ae9ef62d9797e194dcc6c50602bec87768c43fdd7dee49c1254851e75fa0b5",
+      "text": "已停用",
+      "status": "approved"
+    },
+    "Download cloud activation key": {
+      "sourceHash": "84a0ec28239d3a032a6ec09fc9bc396c6bf41adc11ca738586b778e97dab4875",
+      "fingerprint": "f7ad01e938aacb9acad6950d43943818815d9b20c0ada6a3da47131195f85f83",
+      "text": "下载云端激活密钥",
+      "status": "approved"
+    },
+    "Download device credential ZIP": {
+      "sourceHash": "b440d467704fc5ae4353c07b870a914c5dae02f8f1b74496211ecb18abb6977e",
+      "fingerprint": "8654d3a7f7ec8b8161df8946e0b22082a60beff3604bb01df7bb7f4cc54fb7f9",
+      "text": "下载设备凭证 ZIP",
+      "status": "approved"
+    },
+    "Not bound": {
+      "sourceHash": "217e0d9f314892c924b97c065e0ffbbf1e938100d45b20363419b732dfc73b02",
+      "fingerprint": "225677ecd481c5519c3beba4e80b79ebc4c9ff36c9ae09a04efdc104fa8556ec",
+      "text": "未绑定",
+      "status": "approved"
+    },
+    "Not provisioned": {
+      "sourceHash": "74f842fb7f70610864e8bdcbdba45e420e56ac1af35c45320160ddf96a3d1e91",
+      "fingerprint": "994524001731726acc6780567103e743d2072c4d79d0e5a122d6f76d4d10166e",
+      "text": "尚未激活",
+      "status": "approved"
+    },
+    "Retired": {
+      "sourceHash": "c4dbb8b18465f542a2760a19127d05dedaa9a3fb4d0e1b698ed4e6fbe19b6c93",
+      "fingerprint": "31c0e6797d2a3bd6dc76a7875986089b5a71a77f1782e1e7f1ad4ed68f451a21",
+      "text": "已退役",
+      "status": "approved"
+    },
+    "Retirement in progress": {
+      "sourceHash": "3be69e7ea7c0ddfe9d27266e31d9d4967ec9d15ddb5e49640a8654fc03c9404b",
+      "fingerprint": "f392dc36fe17c799e224bd04ace044de4cbfe9ec5b1f8489b1bcede4dc9c9ff0",
+      "text": "退役处理中",
+      "status": "approved"
+    },
+    "Retirement needs retry": {
+      "sourceHash": "e457a29fd5abbb7fb0f449702ab73ad16591d54d4aef8851aa48a03c78563891",
+      "fingerprint": "b79d5d2d554851035df1886867d7ad2174a8fd4755a2d268a84efaa1e2d26a34",
+      "text": "退役未完成，需重试",
+      "status": "approved"
+    },
+    "Retry retirement": {
+      "sourceHash": "51af32e06c44b57e4be092573cd33b56d9e16ab5d036f69bba0ef6ac73e86566",
+      "fingerprint": "04eee057a6ee6be65d762aa8b97278baec4f85593e3b20a52ddb1a3f34af77f7",
+      "text": "重试退役",
+      "status": "approved"
+    },
+    "Safely retire": {
+      "sourceHash": "781d420822044c4ed9a26a2aa04e3d0f29420e5b4a55e2b05075b8f250279257",
+      "fingerprint": "3f83f4bd792240a20898ab46615e9540fc2060ffd24b549bb0b892811591376c",
+      "text": "安全退役",
+      "status": "approved"
+    },
+    "This ZIP contains device.key, device.crt, certificate-chain.pem, the original JSON bundle and setup notes. The private key is available only now. Save it before leaving this page.": {
+      "sourceHash": "a6bd980d11bb6d2f3f3e3f92305362256c65eb986a5cbaefa3cff19d6d54f81f",
+      "fingerprint": "79c11c55bad1f2e38dc20d7bfaf12a289f27f568e8f371ef95c7222448582543",
+      "text": "此 ZIP 包含 device.key、device.crt、certificate-chain.pem、原始 JSON 凭证包和安装说明。私钥只在此时提供，请在离开页面前保存。",
+      "status": "approved"
+    },
+    "This cloud activation key is separate from the device certificate and private key. Save it before leaving this page.": {
+      "sourceHash": "a2de8a91a801b27f32afbb2f9f1cde243f4c4aeb4f120e14d9956eb63498c7b4",
+      "fingerprint": "876ba69bf3b5417aa7a656a904a40aaf6cfdfa0fdf02a1fec6a3b1699c253683",
+      "text": "这是云端激活密钥，与设备证书和私钥不同。请在离开页面前保存。",
+      "status": "approved"
+    },
+    "AmebaPro2 SDK 9.6e compatible board; physical validation pending": {
+      "sourceHash": "210efe69c98405f7dae4699d3a0699f7ab16a9d2f3dc89f44a90811374f1aae7",
+      "fingerprint": "fac396d7ac222eafd52e105dd919d03d0c59e33369ea418b38f4fb2c44249bda",
+      "text": "兼容 AmebaPro2 SDK 9.6e 的开发板；尚待实机验证",
+      "status": "approved"
+    },
+    "Cloud Token, MQTTS commands, presence and reconnect.": {
+      "sourceHash": "1b147ac1238796e72ad159ffb5b367143877684a981d2384e18d39208eda1738",
+      "fingerprint": "41a88494e295f7844b02525babea113d77af3dd578bf7300861dd576b5f091ed",
+      "text": "云端令牌、MQTTS 指令、在线状态与重新连接。",
+      "status": "approved"
+    },
+    "H.264 test video": {
+      "sourceHash": "c7eef0c681fd30a79ed196daf1dcfce2087b266c0f09f3e00970515c148b01b1",
+      "fingerprint": "e37df93b719dfcecf1ee4c208080ca2c2c3f239da2b5b6fd9ad3b513c9939a10",
+      "text": "H.264 测试视频",
+      "status": "approved"
+    },
+    "Live camera": {
+      "sourceHash": "1ecec8b908be81a3c14a798edc4f0dace35f84e3c3cbbd2361143e70b4a3bc8a",
+      "fingerprint": "f8dfc5c2d13b656561c9443a99b4b049d7abcd1eb58cbebd2f148dd3286a5af4",
+      "text": "实时摄像头",
+      "status": "approved"
+    },
+    "Looping synthetic H.264 over WebRTC, direct or TURN.": {
+      "sourceHash": "6943616cfa43e4a80de5657af2371b51e87c1952a8188fc4677aa1460ae56b9c",
+      "fingerprint": "2a79be200a54e35a687dc85699f574b2b1d30446d8df555d37f0dadd6f66f339",
+      "text": "通过 WebRTC 直接连接或 TURN 转发，循环播放合成的 H.264 视频。",
+      "status": "approved"
+    },
+    "MMFv2 camera encoding and H.264 WebRTC streaming.": {
+      "sourceHash": "23ad54f0572fa0b8788878a454ce04c45644f21f67264966a46544351e42b18a",
+      "fingerprint": "69caa1b8aba8b11ce7d9a657b8456696fda2f80492d2116b83001f529c2e8e65",
+      "text": "使用 MMFv2 编码摄像头画面，并通过 WebRTC 串流传送 H.264 视频。",
+      "status": "approved"
+    },
+    "Not required": {
+      "sourceHash": "8824f07e27efd2d1ba1f408d5482322b53ef95652852c923eeb4161c1bf4b593",
+      "fingerprint": "7253a67b6eaf3d135d91e9d102a855833985d1ce84cff1e5228c9e30bfef0f1c",
+      "text": "不需要",
+      "status": "approved"
+    },
+    "PRO2 examples are unavailable. Retry later.": {
+      "sourceHash": "00ad0e81724becec0963a8dc2fdc80f267504811428bd8b1443cbbb9355b8493",
+      "fingerprint": "6afd9592052541cbdb0b34ad292b0d58d3bcf09634934873772b62893cd81296",
+      "text": "目前无法加载 PRO2 示例，请稍后重试。",
+      "status": "approved"
+    },
+    "Passed": {
+      "sourceHash": "539d302cddc4d8c42e42abb38bbd4d136f8fcb816b415d8f6c9628935935e8ba",
+      "fingerprint": "4b3d6d772459f7c364bcb598c50bb17a44a5f066dedac46675c5badec4c84628",
+      "text": "通过",
+      "status": "approved"
+    },
+    "Passed (protocol baseline; see report)": {
+      "sourceHash": "7feec8a748006b6e58ae725ed8bd7a1a1512adaf11ea1b2792ec4d1c2a2188f8",
+      "fingerprint": "0c7d57f7053027e0b11825cadea7244ab70ab9b4cf2560db1b84d3612ae5889e",
+      "text": "通过（协议基础测试；详见报告）",
+      "status": "approved"
+    },
+    "Build validation": {
+      "sourceHash": "6c4cc343dba68e73313545e6b06bcdde455b5187e4e49669f0a222aaa4f645f7",
+      "fingerprint": "06d1577a8590ad1029ddc2ccb1fdf05d179b9985de837d25e9a9f139db68a129",
+      "text": "构建验证",
+      "status": "approved"
+    },
+    "Host tests": {
+      "sourceHash": "ec38fbb001f651b39fa532ba73fa42a269b43c9ce3623c70affdffa368ade592",
+      "fingerprint": "96148a974e5f98a57351276c57967d687570acf816fea88479c8d5b7e03981ea",
+      "text": "主机端测试",
+      "status": "approved"
+    },
+    "Hardware validation": {
+      "sourceHash": "f064ca37aad2b41eedd18caeac640e106dff2b5e8c33ffc722e2ea948c817448",
+      "fingerprint": "1f667aeab16341ef8ad9ab062865d634c08d60c058e3835ccc3a00724cbfe4fe",
+      "text": "实机验证",
+      "status": "approved"
+    },
+    "Cloud validation": {
+      "sourceHash": "df99be1bcd1d6610df872f72a791f81b7af51eb0b51fdac0384f2483902f7615",
+      "fingerprint": "d6af1c808f0d8d050d41bfcac90550ea04c202c5e73f584c4445c68e896ee36e",
+      "text": "云端验证",
+      "status": "approved"
+    },
+    "This release has no matching translated terms; showing the original text.": {
+      "sourceHash": "1513c28ccb62896a9542d83e737194ff7a7eef01433dc40a041ba218e4130fe8",
+      "fingerprint": "8fba884b50bfcec033a022ed148c88afcb216e6cbd8d3f0c508ec25e566c6973",
+      "text": "此版本暂无对应的条款译本；以下显示原文。",
       "status": "approved"
     }
   }

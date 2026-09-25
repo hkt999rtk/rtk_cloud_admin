@@ -3,21 +3,23 @@ import { readFile } from 'node:fs/promises';
 
 const cloud='11111111-1111-4111-8111-111111111111', product='33333333-3333-4333-8333-333333333333', device='77777777-7777-4777-8777-000000000000';
 test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local checks from live tests @smoke',async({page,request},info)=>{
+  test.setTimeout(90000);
   expect((await request.post('/__fixture__/reset')).ok()).toBeTruthy();
   let liveWrites=0, creations=0, runtimeReady=false;
-  const bundle={identity:{id:device},key:{material:{private_key_pem:'fixture-private-key'}},certificate:{chain_pem:['fixture-certificate']}};
-  await page.route('**/api/developer/test-device-batches',route=>{creations++;return route.fulfill({contentType:'application/vnd.realtek.rtk-certificate-bundle+json',body:JSON.stringify(bundle)});});
-  const account='88888888-8888-4888-8888-888888888888';let bound=false, provisioned=false, claims=0;
+  const archive=Buffer.alloc(256,1);
+  await page.route('**/api/developer/test-device-batches',route=>{creations++;expect(route.request().headers().accept).toBe('application/zip');return route.fulfill({contentType:'application/zip',headers:{'X-RTK-Test-Device-ID':device},body:archive});});
+  const account='88888888-8888-4888-8888-888888888888';let bound=false, provisioned=false, claims=0, retireCalls=0, retirementStatus='', retirementOperation='';
   page.on('dialog',dialog=>dialog.accept());
   await page.route('**/test-lab/manage/**',async route=>{
     const req=route.request(), url=new URL(req.url());
     if(url.pathname.endsWith('/accounts'))return route.fulfill({json:{id:account,email:'lab@example.test'}});
-    if(req.method()==='GET')return route.fulfill({json:{devices:[{id:device,name:'Test camera',bound,bindable:!bound,provision_status:provisioned?'activated':'not_provisioned',connection_status:'offline'}],has_more:false,next_offset:1}});
+    if(req.method()==='GET')return route.fulfill({json:{devices:creations?[{id:device,name:'Test camera',bound,bindable:!bound,provision_status:provisioned?'activated':'not_provisioned',connection_status:'offline',retirement_status:retirementStatus,retirement_operation_id:retirementOperation}]:[],has_more:false,next_offset:creations?1:0}});
     const body=req.postDataJSON();expect(body.account_id).toBe(account);expect(body.product_id).toBe(product);
     if(url.pathname.endsWith('/grant')){claims++;return route.fulfill({json:{claim_token:'f'.repeat(64)}});}
     if(url.pathname.endsWith('/bind')){expect(body.claim_token).toBe('f'.repeat(64));bound=true;}
     if(url.pathname.endsWith('/unbind'))bound=false;
     if(url.pathname.endsWith('/provision')){expect(body.clip_public_key).toContain('BEGIN PUBLIC KEY');provisioned=true;}
+    if(url.pathname.endsWith('/retire')){retireCalls++;if(retirementOperation)expect(body.operation_id).toBe(retirementOperation);else retirementOperation=body.operation_id;retirementStatus=retireCalls===1?'failed':'completed';bound=false;return route.fulfill({status:retireCalls===1?202:200,json:{status:retirementStatus,operation_id:body.operation_id}});}
     return route.fulfill({json:{status:'completed'}});
   });
   // The Product fixture does not implement legacy fleet telemetry. Stub only
@@ -44,7 +46,7 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await expect(panel.getByRole('button',{name:'Authorize account',exact:true})).toHaveCount(0);
   await expect(panel.getByRole('textbox',{name:'Test account password'})).toHaveCount(0);
   await expect(panel).toContainText('using your Console login');
-  await expect(panel).toContainText('No bound test devices');
+  await expect(panel).toContainText('No test devices in this Product');
   const createTrigger = panel.getByRole('button',{name:'Create test device',exact:true});
   await createTrigger.click();
   const confirmation = panel.getByRole('alertdialog',{name:'Confirm test action'});
@@ -59,18 +61,18 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   expect(creations).toBe(0);
   await panel.getByRole('button',{name:'Create test device',exact:true}).click();
   await panel.getByRole('button',{name:'Continue',exact:true}).click();
-  const credentials=panel.getByRole('region',{name:'Device credentials ready'});
+  const credentials=panel.locator('.test-lab-credential-download').first();
   await expect(credentials).toContainText('not yet confirmed saved');
-  const credentialLink=credentials.getByRole('link',{name:'Download device credentials',exact:true});
+  const credentialLink=credentials.getByRole('link',{name:'Download device credential ZIP',exact:true});
   await expect(credentialLink).toBeVisible();
   const credentialURL=await credentialLink.getAttribute('href');
   // The old implementation revoked this URL after one second.
   await page.waitForTimeout(1500);
   for(let attempt=0;attempt<2;attempt++) {
     const pending=page.waitForEvent('download');await credentialLink.click();const downloaded=await pending;
-    expect(downloaded.suggestedFilename()).toBe(`rtk-test-device-${device}.json`);
+    expect(downloaded.suggestedFilename()).toBe(`rtk-test-device-${device}.zip`);
     expect(await downloaded.failure()).toBeNull();
-    expect(JSON.parse(await readFile(await downloaded.path(),'utf8'))).toEqual(bundle);
+    expect(await readFile(await downloaded.path())).toEqual(archive);
     expect(await credentialLink.getAttribute('href')).toBe(credentialURL);
   }
   expect(creations).toBe(1);
@@ -79,7 +81,7 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await page.locator('[data-locale-selector]').selectOption('zh-TW');
   if (await page.locator('.mobile-nav-close').isVisible()) await page.locator('.mobile-nav-close').click();
   await expect(credentials).toContainText('裝置憑證已可下載');
-  await expect(credentials).toContainText('此檔案包含私鑰');
+  await expect(credentials).toContainText('device.key');
   await expect(credentials.getByText('下載說明')).toBeVisible();
   await expect(credentials.getByText('blob: 網址')).toBeHidden();
   await credentials.getByText('下載說明').click();
@@ -93,16 +95,17 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await page.locator('[data-locale-selector]').selectOption('en');
   if (await page.locator('.mobile-nav-close').isVisible()) await page.locator('.mobile-nav-close').click();
   await credentials.getByRole('checkbox',{name:'I have saved this file securely'}).check();
-  await panel.getByRole('button',{name:'Bind device',exact:true}).click();
-  await panel.getByRole('combobox',{name:'Unbound test device'}).selectOption(device);
-  await panel.getByRole('button',{name:'Confirm bind',exact:true}).click();
+  await expect(panel.getByRole('button',{name:'Go to credential download'})).toBeVisible();
+  await panel.getByRole('button',{name:'Bind',exact:true}).click();
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel.getByRole('button',{name:'Unbind',exact:true})).toBeVisible();
+  await expect(panel.getByRole('combobox',{name:'Test device'})).toHaveValue(device);
+  await expect(panel.locator('.test-lab-current-device')).toContainText('Test camera');
   await panel.getByRole('button',{name:'Provision',exact:true}).click();
   await panel.getByRole('button',{name:'Generate and download test key',exact:true}).click();
   const provisionDownload=panel.getByRole('region',{name:'Provision key ready'});
   const keyDownload=page.waitForEvent('download');
-  await provisionDownload.getByRole('link',{name:'Download provision key',exact:true}).click();
+  await provisionDownload.getByRole('link',{name:'Download cloud activation key',exact:true}).click();
   const keyFile=await keyDownload;
   expect(keyFile.suggestedFilename()).toContain(`test-provision-${device}-`);
   const keyBundle=JSON.parse(await readFile(await keyFile.path(),'utf8'));
@@ -112,7 +115,7 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await provisionDownload.getByRole('checkbox',{name:'I have saved this file securely'}).check();
   await panel.getByRole('button',{name:'Start provision',exact:true}).click();
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
-  await expect(panel.getByRole('table')).toContainText('activated');
+  await expect(panel.getByRole('table')).toContainText('Activated');
   await expect(panel).toContainText('without first building an App, MQTT client or WebRTC Viewer');
   await expect(panel.getByRole('button',{name:/End test session|Stop session|Disconnect all/i})).toHaveCount(0);
   await expect(panel.getByRole('button',{name:'Unsubscribe',exact:true})).toBeVisible();
@@ -163,11 +166,10 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await expect(panel.getByRole('button',{name:'Unbind',exact:true})).toBeVisible();
   await panel.getByRole('button',{name:'Unbind',exact:true}).click();
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
-  await expect(panel).toContainText('No bound test devices');
+  await expect(panel.getByRole('combobox',{name:'Test device'})).toHaveValue('');
+  await expect(panel.getByRole('table')).toContainText('Not bound');
   await expect(panel.getByRole('button',{name:'Start playback',exact:true})).toBeDisabled();
-  await panel.getByRole('button',{name:'Bind device',exact:true}).click();
-  await panel.getByRole('combobox',{name:'Unbound test device'}).selectOption(device);
-  await panel.getByRole('button',{name:'Confirm bind',exact:true}).click();
+  await panel.getByRole('button',{name:'Bind',exact:true}).click();
   await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel.getByRole('button',{name:'Unbind',exact:true})).toBeVisible();
   expect(claims).toBe(2);
@@ -202,10 +204,19 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   await liveConfirm.getByRole('button',{name:'Continue',exact:true}).click();
   await expect(panel).toContainText('webrtc_start: failed');
   expect(liveWrites).toBe(1);
-  // Product changes clear sensitive in-memory downloads instead of persisting them.
+  await panel.getByRole('button',{name:'Safely retire',exact:true}).click();
+  await expect(panel.getByRole('alertdialog',{name:'Confirm test action'})).toContainText('cannot be undone');
+  await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
+  await expect(panel.getByRole('table')).toContainText('Retirement needs retry');
+  await expect(panel.getByRole('combobox',{name:'Test device'})).toHaveValue('');
+  await panel.getByRole('button',{name:'Retry retirement',exact:true}).click();
+  await panel.getByRole('alertdialog',{name:'Confirm test action'}).getByRole('button',{name:'Continue',exact:true}).click();
+  await expect(panel.getByRole('table')).toContainText('Retired');
+  await expect(panel.getByRole('button',{name:'Retry retirement',exact:true})).toHaveCount(0);
+  // Product changes preserve the current page's in-memory credentials.
   await panel.getByRole('combobox',{name:'Product',exact:true}).selectOption('');
-  await expect(panel.getByRole('region',{name:'Device credentials ready'})).toHaveCount(0);
-  await expect(panel.getByRole('region',{name:'Provision key ready'})).toHaveCount(0);
+  await expect(panel.getByRole('region',{name:'Device credentials ready'})).toBeVisible();
+  await expect(panel.getByRole('region',{name:'Provision key ready'})).toBeVisible();
   await page.route(`**/api/developer/brand-clouds/${cloud}/products/${product}`, route => route.fulfill({ status: 503, json: { error: 'unavailable' } }));
   await page.goto(`/console/clouds/${cloud}/test-lab?product_id=${product}`);
   await expect(panel.getByRole('alert')).toContainText('Unable to load the selected Product name. Refresh your access.');

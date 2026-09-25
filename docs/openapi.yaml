@@ -143,7 +143,7 @@ paths:
     parameters:
       - {name: brandCloudID, in: path, required: true, schema: {type: string, format: uuid}}
       - {name: deviceId, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: action, in: path, required: true, schema: {type: string, enum: [grant, bind, unbind, provision]}}
+      - {name: action, in: path, required: true, schema: {type: string, enum: [grant, bind, unbind, provision, retire]}}
     post:
       operationId: consoleTestLabpostdevicesdeviceIdaction
       x-rtk-feature-id: FEAT-CA-AUTHZ-001

@@ -14225,6 +14225,279 @@
       "source": "Your test-device download has started. It contains server-generated private keys; keep it secure.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Bind",
+      "source": "Bind",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Binding",
+      "source": "Binding",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Choose a device for the tests below",
+      "source": "Choose a device for the tests below",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Choose a test device above before using the tests below.",
+      "source": "Choose a test device above before using the tests below.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Current test device:",
+      "source": "Current test device:",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device private keys are available only when a test device is created. If the file is lost, safely retire that device and create a replacement.",
+      "source": "Device private keys are available only when a test device is created. If the file is lost, safely retire that device and create a replacement.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Device retirement is incomplete. Test access is blocked; retry the retirement action.",
+      "source": "Device retirement is incomplete. Test access is blocked; retry the retirement action.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Go to credential download",
+      "source": "Go to credential download",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No test devices in this Product. Create a test device to begin.",
+      "source": "No test devices in this Product. Create a test device to begin.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Safely retire {{deviceName}} ({{deviceId}})? All test bindings and sessions will end, and its certificate can no longer connect. This cannot be undone.",
+      "source": "Safely retire {{deviceName}} ({{deviceId}})? All test bindings and sessions will end, and its certificate can no longer connect. This cannot be undone.",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{deviceId}}",
+        "{{deviceName}}"
+      ]
+    },
+    {
+      "key": "Test device",
+      "source": "Test device",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Test devices",
+      "source": "Test devices",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The MQTT, Device Shadow and WebRTC tests below use the selected device.",
+      "source": "The MQTT, Device Shadow and WebRTC tests below use the selected device.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Your test devices will appear automatically.",
+      "source": "Your test devices will appear automatically.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Activation failed",
+      "source": "Activation failed",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Activation pending",
+      "source": "Activation pending",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Bound to another account",
+      "source": "Bound to another account",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Bound to your test account",
+      "source": "Bound to your test account",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Deactivated",
+      "source": "Deactivated",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Download cloud activation key",
+      "source": "Download cloud activation key",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Download device credential ZIP",
+      "source": "Download device credential ZIP",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Not bound",
+      "source": "Not bound",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Not provisioned",
+      "source": "Not provisioned",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retired",
+      "source": "Retired",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retirement in progress",
+      "source": "Retirement in progress",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retirement needs retry",
+      "source": "Retirement needs retry",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retry retirement",
+      "source": "Retry retirement",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Safely retire",
+      "source": "Safely retire",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This ZIP contains device.key, device.crt, certificate-chain.pem, the original JSON bundle and setup notes. The private key is available only now. Save it before leaving this page.",
+      "source": "This ZIP contains device.key, device.crt, certificate-chain.pem, the original JSON bundle and setup notes. The private key is available only now. Save it before leaving this page.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This cloud activation key is separate from the device certificate and private key. Save it before leaving this page.",
+      "source": "This cloud activation key is separate from the device certificate and private key. Save it before leaving this page.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "AmebaPro2 SDK 9.6e compatible board; physical validation pending",
+      "source": "AmebaPro2 SDK 9.6e compatible board; physical validation pending",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud Token, MQTTS commands, presence and reconnect.",
+      "source": "Cloud Token, MQTTS commands, presence and reconnect.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "H.264 test video",
+      "source": "H.264 test video",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Live camera",
+      "source": "Live camera",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Looping synthetic H.264 over WebRTC, direct or TURN.",
+      "source": "Looping synthetic H.264 over WebRTC, direct or TURN.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "MMFv2 camera encoding and H.264 WebRTC streaming.",
+      "source": "MMFv2 camera encoding and H.264 WebRTC streaming.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Not required",
+      "source": "Not required",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "PRO2 examples are unavailable. Retry later.",
+      "source": "PRO2 examples are unavailable. Retry later.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Passed",
+      "source": "Passed",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Passed (protocol baseline; see report)",
+      "source": "Passed (protocol baseline; see report)",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Build validation",
+      "source": "Build validation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud validation",
+      "source": "Cloud validation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Hardware validation",
+      "source": "Hardware validation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Host tests",
+      "source": "Host tests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This release has no matching translated terms; showing the original text.",
+      "source": "This release has no matching translated terms; showing the original text.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }
