@@ -14726,6 +14726,74 @@
       "source": "View the factory enrollment sequence diagram",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "No services are registered in this environment.",
+      "source": "No services are registered in this environment.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Registered features",
+      "source": "Registered features",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Registry selection is not enabled yet. Product writes use legacy service choices.",
+      "source": "Registry selection is not enabled yet. Product writes use legacy service choices.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Selectable features can be added to a Product.",
+      "source": "Selectable features can be added to a Product.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "{{count}} of 64 selected",
+      "source": "{{count}} of 64 selected",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{count}}"
+      ]
+    },
+    {
+      "key": "Available",
+      "source": "Available",
+      "context": "Registered Product feature availability",
+      "placeholders": []
+    },
+    {
+      "key": "Service suspended",
+      "source": "Service suspended",
+      "context": "Registered Product feature availability",
+      "placeholders": []
+    },
+    {
+      "key": "Service not ready",
+      "source": "Service not ready",
+      "context": "Registered Product feature availability",
+      "placeholders": []
+    },
+    {
+      "key": "Required service unavailable",
+      "source": "Required service unavailable",
+      "context": "Registered Product feature availability",
+      "placeholders": []
+    },
+    {
+      "key": "Product feature selection is disabled",
+      "source": "Product feature selection is disabled",
+      "context": "Registered Product feature availability",
+      "placeholders": []
+    },
+    {
+      "key": "No longer registered",
+      "source": "No longer registered",
+      "context": "Registered Product feature availability",
+      "placeholders": []
     }
   ]
 }

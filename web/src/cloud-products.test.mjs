@@ -46,8 +46,10 @@ test('catalog fetch preserves scoped registered options and rejects malformed da
  await assert.rejects(fetchCloudServiceCatalog(a),e=>e.status===502);
 });
 test('disabled Product write gate keeps the previous service choices',async(t)=>{
- t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({catalog_revision:1,product_writes_enabled:false,options:[]})}));
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>({catalog_revision:1,product_writes_enabled:false,options:[{code:'device_logging',display_name:'Device logging',selectable:false,unavailable_reason:'service_unavailable'}]})}));
  const catalog=await fetchCloudServiceCatalog(a);
  assert.equal(catalog.product_writes_enabled,false);
- assert.deepEqual(catalog.options.map(option=>option.code),['mqtt','video_streaming','video_storage']);
+ assert.deepEqual(catalog.options.map(option=>option.code),['device_logging']);
+ assert.equal(catalog.options[0].unavailable_reason,'service_unavailable');
+ assert.deepEqual(catalog.legacy_options.map(option=>option.code),['mqtt','video_streaming','video_storage']);
 });

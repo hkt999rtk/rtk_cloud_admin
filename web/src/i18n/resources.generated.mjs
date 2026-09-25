@@ -2419,7 +2419,18 @@ export const en = Object.freeze({ translation: Object.freeze({
   "Unable to stop the production run. Retry.": "Unable to stop the production run. Retry.",
   "Cloud Test Lab is a simplified development test and must not be used for mass production.": "Cloud Test Lab is a simplified development test and must not be used for mass production.",
   "Formal mass-production flow": "Formal mass-production flow",
-  "View the factory enrollment sequence diagram": "View the factory enrollment sequence diagram"
+  "View the factory enrollment sequence diagram": "View the factory enrollment sequence diagram",
+  "No services are registered in this environment.": "No services are registered in this environment.",
+  "Registered features": "Registered features",
+  "Registry selection is not enabled yet. Product writes use legacy service choices.": "Registry selection is not enabled yet. Product writes use legacy service choices.",
+  "Selectable features can be added to a Product.": "Selectable features can be added to a Product.",
+  "{{count}} of 64 selected": "{{count}} of 64 selected",
+  "Available": "Available",
+  "Service suspended": "Service suspended",
+  "Service not ready": "Service not ready",
+  "Required service unavailable": "Required service unavailable",
+  "Product feature selection is disabled": "Product feature selection is disabled",
+  "No longer registered": "No longer registered"
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -4842,7 +4853,18 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "Unable to stop the production run. Retry.": "無法停止生產批次，請重試。",
   "Cloud Test Lab is a simplified development test and must not be used for mass production.": "Cloud Test Lab 是簡化的開發測試流程，不可用於量產。",
   "Formal mass-production flow": "正式量產流程",
-  "View the factory enrollment sequence diagram": "查看工廠簽發時序圖"
+  "View the factory enrollment sequence diagram": "查看工廠簽發時序圖",
+  "No services are registered in this environment.": "此環境尚未登錄任何服務。",
+  "Registered features": "已登錄功能",
+  "Registry selection is not enabled yet. Product writes use legacy service choices.": "登錄功能選擇尚未啟用；產品設定仍使用舊版服務選項。",
+  "Selectable features can be added to a Product.": "可用的功能可以加入產品。",
+  "{{count}} of 64 selected": "已選 {{count}} 項，最多 64 項",
+  "Available": "可用",
+  "Service suspended": "服務已暫停",
+  "Service not ready": "服務尚未就緒",
+  "Required service unavailable": "必要服務無法使用",
+  "Product feature selection is disabled": "產品功能選擇尚未啟用",
+  "No longer registered": "已取消登錄"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -7265,7 +7287,18 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "Unable to stop the production run. Retry.": "无法停止生产批次，请重试。",
   "Cloud Test Lab is a simplified development test and must not be used for mass production.": "Cloud Test Lab 是简化的开发测试流程，不可用于量产。",
   "Formal mass-production flow": "正式量产流程",
-  "View the factory enrollment sequence diagram": "查看工厂签发时序图"
+  "View the factory enrollment sequence diagram": "查看工厂签发时序图",
+  "No services are registered in this environment.": "此环境尚未注册任何服务。",
+  "Registered features": "已注册功能",
+  "Registry selection is not enabled yet. Product writes use legacy service choices.": "注册功能选择尚未启用；产品设置仍使用旧版服务选项。",
+  "Selectable features can be added to a Product.": "可用的功能可以添加到产品。",
+  "{{count}} of 64 selected": "已选 {{count}} 项，最多 64 项",
+  "Available": "可用",
+  "Service suspended": "服务已暂停",
+  "Service not ready": "服务尚未就绪",
+  "Required service unavailable": "必需服务不可用",
+  "Product feature selection is disabled": "产品功能选择尚未启用",
+  "No longer registered": "已取消注册"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });

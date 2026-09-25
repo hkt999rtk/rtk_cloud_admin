@@ -12,7 +12,7 @@ import { CloudConceptGuide } from './CloudConceptGuide.jsx';
 import { Dialog } from './ConsoleUI.jsx';
 import { sdkJSON, useSDKSection, sdkNavigationTarget } from './sdk-page.mjs';
 import { productInvitationDestination } from './cloud-products.mjs';
-import { normalizeProductServiceCapability, productServiceCapabilityLabel, productServiceChoices, productServiceWritePayload } from './product-service-catalog.mjs';
+import { normalizeProductServiceCapability, productServiceAvailability, productServiceCapabilityLabel, productServiceChoices, productServiceWritePayload } from './product-service-catalog.mjs';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
 import { handoffRoute } from './owner-handoff.mjs';
 import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
@@ -2618,13 +2618,14 @@ function ProductsPage({ loading, data, onRefresh }) {
       </div>
       {message ? <div className="notice">{message}</div> : null}
       {catalogError ? <div className="notice">{catalogError} <button type="button" className="link-button" onClick={() => setCatalogReload((value) => value + 1)}>{translate("Refresh service catalog")}</button></div> : null}
+      {catalog ? <section className="panel" aria-label={translate("Registered features")}><h3>{translate("Registered features")} ({catalog.options.length})</h3><p>{catalog.product_writes_enabled ? translate("Selectable features can be added to a Product.") : translate("Registry selection is not enabled yet. Product writes use legacy service choices.")}</p>{catalog.options.length ? <ul>{catalog.options.map((option) => <li key={option.code}>{translate(option.display_name)} ({option.code}) — {translate(productServiceAvailability(option))}{option.requires?.length ? translate(" — requires {{value0}}", { value0: option.requires.join(', ') }) : ''}</li>)}</ul> : <p>{translate("No services are registered in this environment.")}</p>}</section> : null}
       {showCreate ? <section className="panel"><form className="product-create-form" onSubmit={createProduct}>
         <input required placeholder={translate("Product Name")} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
         <input required placeholder={translate("Product Model")} value={form.product_model} onChange={(event) => setForm({ ...form, product_model: event.target.value })} />
         <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="ip_camera">{translate("Imaging Device")}</option><option value="mqtt_device">{translate("Telemetry Device")}</option><option value="generic">{translate("General Device")}</option></select>
-        <div className="service-checks">{serviceChoices.map((service) => <label key={service.code}>
-          <input type="checkbox" checked={form.service_capabilities.includes(service.code)} disabled={!catalog || (!service.selectable && !form.service_capabilities.includes(service.code)) || (catalog.product_writes_enabled && service.code === 'mqtt' && form.service_capabilities.includes('mqtt'))} onChange={(event) => setForm({ ...form, service_capabilities: event.target.checked ? [...form.service_capabilities, service.code] : form.service_capabilities.filter((item) => item !== service.code) })} />
-          {translate(service.display_name || service.code)}{!service.selectable ? ` (${service.unavailable_reason || 'unavailable'})` : ''}{service.requires?.length ? translate(" — requires {{value0}}", { value0: service.requires.join(', ') }) : ''}
+        <div className="service-checks"><p>{translate("{{count}} of 64 selected",{count:form.service_capabilities.length})}</p>{serviceChoices.map((service) => <label key={service.code}>
+          <input type="checkbox" checked={form.service_capabilities.includes(service.code)} disabled={!catalog || (!service.selectable && !form.service_capabilities.includes(service.code)) || (catalog.product_writes_enabled && service.code === 'mqtt' && form.service_capabilities.includes('mqtt')) || (!form.service_capabilities.includes(service.code) && form.service_capabilities.length >= 64)} onChange={(event) => setForm({ ...form, service_capabilities: event.target.checked ? [...form.service_capabilities, service.code] : form.service_capabilities.filter((item) => item !== service.code) })} />
+          {translate(service.display_name || service.code)}{!service.selectable ? ` (${translate(productServiceAvailability(service))})` : ''}{service.requires?.length ? translate(" — requires {{value0}}", { value0: service.requires.join(', ') }) : ''}
         </label>)}</div>
         {form.service_capabilities.includes('device_logging') ? <label>{translate("Device log retention")} <select value={form.log_retention_days} onChange={(event) => setForm({ ...form, log_retention_days: Number(event.target.value) })}>{(catalog?.options.find((option) => option.code === 'device_logging')?.log_retention_days || [7, 30, 90]).map((days) => <option key={days} value={days}>{days} {translate("days")}</option>)}</select><small>{translate("Changes apply to newly accepted logs.")}</small></label> : null}
         {editingProduct ? <button type="button" className="ghost-button" onClick={previewProduct}>{translate('Preview Change Impact')}</button> : null}
