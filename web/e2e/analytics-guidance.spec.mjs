@@ -44,13 +44,17 @@ test('[UI-CA-ANALYTICS-GUIDE-002] Stream guidance explains metric scope and dist
 
   stats = { source_status: 'unavailable', source_message: 'Stream source is unavailable.' };
   await page.reload();
-  await expect(section.locator('.metric-card').getByText('N/A', { exact: true })).toHaveCount(4);
-  await expect(section.getByText('N/A means stream metrics are currently unavailable. It does not mean there were no failures or that all streams succeeded.', { exact: true })).toBeVisible();
+  await expect(section.locator('.metric-card').getByText('Unavailable', { exact: true })).toHaveCount(4);
+  await expect(section.getByText('Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.', { exact: true })).toBeVisible();
   await expect(section.getByRole('heading', { name: 'Stream source unavailable', exact: true })).toBeVisible();
   await section.screenshot({ path: testInfo.outputPath('stream-unavailable.png') });
 
   stats = { source_status: 'available', success_rate_pct: 0, active_sessions: 0, never_streamed_count: 3, trend: [], by_mode: {}, worst_devices: [] };
   await page.reload();
   await expect(section.getByText('No stream requests in selected window.', { exact: true }).first()).toBeVisible();
-  await expect(section.getByText(/N\/A means stream metrics/)).toHaveCount(0);
+  await expect(section.getByText(/Unavailable means stream metrics/)).toHaveCount(0);
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  await expect(section.getByRole('heading', { name: '串流健康狀態' })).toBeVisible();
+  await expect(section.getByText('平均串流時長', { exact: true })).toBeVisible();
+  await expect(section.getByText('目前進行中的串流', { exact: true })).toBeVisible();
 });

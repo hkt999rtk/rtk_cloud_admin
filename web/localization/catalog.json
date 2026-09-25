@@ -14794,6 +14794,26 @@
       "source": "No longer registered",
       "context": "Registered Product feature availability",
       "placeholders": []
+    },
+    {
+      "key": "Search device ID",
+      "source": "Search device ID",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Devices with no successful stream request recorded in the selected {{window}} window; not a lifetime count.",
+      "source": "Devices with no successful stream request recorded in the selected {{window}} window; not a lifetime count.",
+      "context": "Admin Console interface message",
+      "placeholders": [
+        "{{window}}"
+      ]
+    },
+    {
+      "key": "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.",
+      "source": "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

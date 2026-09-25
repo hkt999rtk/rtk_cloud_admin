@@ -157,6 +157,34 @@ test('[UI-CA-FLEETPAGE-002] devices remains server paginated instead of loading 
   await expect(topPagination).toContainText('Page 6 of 10');
 });
 
+test('[UI-CA-FLEETPAGE-009] device ID search keeps its input mounted and shows IDs @brand-fleet', async ({ page }) => {
+  await login(page, 'developer');
+  const fleetAPI = `/api/developer/brand-clouds/${cloud}/fleet/devices`;
+  await page.route(`**${fleetAPI}**`, route => route.fulfill({ json: {
+    devices: [{ id: 'dev-search-001', name: 'Test device', organization: 'E2E Alpha Cloud', model: 'TEST', serial_number: 'SERIAL-001', firmware_version: 'v1.2.4', health: 'warning', readiness: 'registered', source_facts: [] }],
+    pagination: { limit: 100, offset: 0, total: 1 },
+    source_status: 'available',
+  } }));
+  await page.goto(`/console/clouds/${cloud}/fleet`);
+  const search = page.getByRole('textbox', { name: 'Search device ID' });
+  await expect(search).toBeVisible();
+  await expect(page.locator('.device-table tbody tr').first()).toContainText('dev-search-001');
+  await expect(page.locator('.device-table tbody tr').first()).toContainText('Test device');
+  await search.evaluate(element => { element.dataset.preserved = 'yes'; });
+  await search.fill('dev-search');
+  await expect(page).toHaveURL(/q=dev-search/);
+  await expect(search).toHaveAttribute('data-preserved', 'yes');
+  await expect(search).toBeFocused();
+  await page.locator('.device-table tbody tr').first().click();
+  await expect(page.locator('.drawer-header h2')).toHaveText('dev-search-001');
+  const badgeColors = await page.locator('.drawer-summary .status').evaluateAll(elements => elements.map(element => getComputedStyle(element).color));
+  expect(badgeColors).toEqual(['rgb(255, 255, 255)', 'rgb(255, 255, 255)']);
+  await page.locator('.drawer-close').click();
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  await expect(page.getByRole('button', { name: '檢視', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('textbox', { name: '搜尋裝置 ID' })).toBeVisible();
+});
+
 test('[UI-CA-FLEETPAGE-006] report builder uses shared form controls @brand-fleet @smoke', async ({ page }) => {
   await login(page, 'developer');
   await page.goto(`/console/clouds/${cloud}/analytics`);

@@ -142,7 +142,7 @@ import {
   providerValidationErrorMessage,
   vendorInitials,
 } from './chipset-sdk.mjs';
-import { formatSDKBytes, sdkArtifactFormat, sdkArtifacts, sdkDocumentationURL } from './sdk-catalog.mjs';
+import { formatSDKBytes, sdkArtifactFormat, sdkArtifacts, sdkDocumentationURL, sdkDownloadURL } from './sdk-catalog.mjs';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import '@fontsource-variable/noto-sans-tc';
 import './styles.css';
@@ -2419,7 +2419,7 @@ function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading =
 }
 
 function CloudSDKCard({ artifact, release }) {
-  const docsURL = sdkDocumentationURL(release?.portal_url, artifact.slug);
+  const docsURL = sdkDocumentationURL(release?.portal_url, artifact.slug, activeLocale());
   const isPreview = Boolean(release?.local_preview);
   return <article className={`panel cloud-sdk-card${artifact.slug === 'all' ? ' complete-bundle' : ''}`}>
     <div className="cloud-sdk-card-heading"><div><p className="sdk-format"><i className={`${['android', 'javascript', 'ios'].includes(artifact.slug) ? 'fa-brands' : 'fa-solid'} fa-${sdkFormatIcon(artifact.slug)}`} aria-hidden="true" />{sdkArtifactFormat(artifact.slug)}</p><h3>{translate(artifact.title)}</h3></div><span className="status-badge good"><Icon name="circle-check" />{translate(artifact.validation_status)}</span></div>
@@ -2427,7 +2427,7 @@ function CloudSDKCard({ artifact, release }) {
     <dl className="cloud-sdk-metadata"><div><dt>{translate("Version")}</dt><dd>{release.catalog.version}</dd></div><div><dt>{translate("Size")}</dt><dd>{formatSDKBytes(artifact.size_bytes)}</dd></div><div className="checksum-row"><dt>{translate("SHA-256")}</dt><dd><code>{artifact.sha256}</code></dd></div></dl>
     <div className="sdk-capability-list" aria-label={translate("{{value0}} capabilities", { value0: artifact.title })}>{artifact.capabilities.map((capability) => <span key={capability}>{translate(capability)}</span>)}</div>
     <ul className="sdk-limitations">{artifact.limitations.map((limitation) => <li key={limitation}>{translate(limitation)}</li>)}</ul>
-    <div className="cloud-sdk-actions">{isPreview ? <button type="button" className="ghost-button" disabled title={translate("Documentation links are enabled with a published Portal release")}>{translate("Documentation preview")}</button> : docsURL ? <a className="ghost-button" href={docsURL} target="_blank" rel="noreferrer noopener">{translate("Documentation")} <Icon name="arrow-up-right-from-square" /></a> : null}{isPreview ? <button type="button" className="primary-button" disabled title={translate("Local preview does not create downloadable artifacts")}>{translate("Local preview")}</button> : <a className="primary-button" href={`${release.portal_url}#downloads`} target="_blank" rel="noreferrer noopener">{translate("Review terms & download")} <Icon name="arrow-up-right-from-square" /></a>}</div>
+    <div className="cloud-sdk-actions">{isPreview ? <button type="button" className="ghost-button" disabled title={translate("Documentation links are enabled with a published Portal release")}>{translate("Documentation preview")}</button> : docsURL ? <a className="ghost-button" href={docsURL} target="_blank" rel="noreferrer noopener">{translate("Documentation")} <Icon name="arrow-up-right-from-square" /></a> : null}{isPreview ? <button type="button" className="primary-button" disabled title={translate("Local preview does not create downloadable artifacts")}>{translate("Local preview")}</button> : <a className="primary-button" href={sdkDownloadURL(release.portal_url, activeLocale())} target="_blank" rel="noreferrer noopener">{translate("Review terms & download")} <Icon name="arrow-up-right-from-square" /></a>}</div>
   </article>;
 }
 
@@ -3880,29 +3880,29 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
       key: 'success-rate',
       icon: 'signal',
       label: translate('Stream Success Rate ({{window}})', { window: windowLabel }),
-      value: available ? formatPercent(stats?.success_rate_pct ?? 0) : 'N/A',
+      value: available ? formatPercent(stats?.success_rate_pct ?? 0) : translate('Unavailable'),
       hint: available ? 'Percent of stream requests that succeeded in the selected window' : unavailableText,
     },
     {
       key: 'avg-duration',
       icon: 'clock',
       label: 'Avg Stream Duration',
-      value: available ? formatDurationMinutes(stats.avg_duration_seconds) : 'N/A',
+      value: available ? formatDurationMinutes(stats.avg_duration_seconds) : translate('Unavailable'),
       hint: available ? 'Average duration of successful sessions with a recorded end event.' : unavailableText,
     },
     {
       key: 'active-sessions',
       icon: 'tower-broadcast',
       label: 'Active Sessions Now',
-      value: available ? (stats?.active_sessions ?? 0) : 'N/A',
+      value: available ? (stats?.active_sessions ?? 0) : translate('Unavailable'),
       hint: available ? 'Count of currently open stream sessions' : unavailableText,
     },
     {
       key: 'never-streamed',
       icon: 'circle-question',
       label: 'Devices Without Successful Streams',
-      value: available ? (stats?.never_streamed_count ?? 0) : 'N/A',
-      hint: available ? `Devices with no successful stream request recorded in the selected ${windowLabel} window; not a lifetime count.` : unavailableText,
+      value: available ? (stats?.never_streamed_count ?? 0) : translate('Unavailable'),
+      hint: available ? translate('Devices with no successful stream request recorded in the selected {{window}} window; not a lifetime count.', { window: windowLabel }) : unavailableText,
     },
   ];
 
@@ -3930,7 +3930,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
         ))}
       </section>
 
-      {!available && stats ? <><SourceBlockedState title={pageState.title} message={unavailableText} /><p className="stream-metrics-note">{translate("N/A means stream metrics are currently unavailable. It does not mean there were no failures or that all streams succeeded.")}</p></> : null}
+      {!available && stats ? <><SourceBlockedState title={pageState.title} message={unavailableText} /><p className="stream-metrics-note">{translate("Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.")}</p></> : null}
 
       {loading && !stats ? (
         <p className="empty-state">{translate("Loading stream health data.")}</p>
@@ -4034,7 +4034,7 @@ function StreamHealthPage({ devices, loading, stats, streamWindow, setWindow, on
                 </div>
                 {worstDevices.map((device) => (
                   <button key={device.device_id} type="button" className="stream-device-table__row" onClick={() => onOpenDevice(device.device_id)}>
-                    <strong>{device.device_name || device.device_id}</strong>
+                    <strong>{device.device_id}</strong>
                     <span>{streamModeLabel(device.mode_used)}</span>
                     <span>{formatPercent(device.success_rate_pct ?? 0)}</span>
                     <span>{device.requests ?? 0}</span>
@@ -5613,13 +5613,14 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
 
   const columns = useMemo(() => [
     {
-      key: 'name',
-      label: 'Device',
-      value: (device) => device.name,
+      key: 'id',
+      label: 'Device ID',
+      sortable: false,
+      value: (device) => device.id,
       render: (device) => (
         <>
-          <strong title={device.name}>{device.name}</strong>
-          <small title={device.serial_number}>{device.serial_number}</small>
+          <strong title={device.id}>{device.id}</strong>
+          {device.name && device.name !== device.id ? <small title={device.name}>{device.name}</small> : null}
         </>
       ),
     },
@@ -5764,7 +5765,7 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
           rows={tableRows}
           rowKey={(device) => device.id}
           initialSortKey="name"
-          searchPlaceholder="Search devices"
+          searchPlaceholder={translate("Search device ID")}
           emptyLabel="No devices match the current filter."
           tableClassName="device-table"
           rowClassName={(device) => deviceDrawerOpen && selectedDevice?.id === device.id ? 'selected-row' : ''}
@@ -5782,8 +5783,8 @@ function Devices({ active, devices, serverPage, serverSource, selectedDevice, de
               {tableRows.map((device) => (
                 <button key={device.id} type="button" className="mobile-device-row" onClick={() => setSelectedDeviceId(device.id)}>
                   <span>
-                    <strong>{device.name}</strong>
-                    <small>{device.product_id || translate("Product not set")} · {device.serial_number}</small>
+                    <strong>{device.id}</strong>
+                    <small>{device.name && device.name !== device.id ? `${device.name} · ` : ''}{device.product_id || translate("Product not set")}</small>
                   </span>
                   <span>
                     <StatusBadge value={normalizeStatusKey(device.health_display)} label={device.health_display} />
@@ -5861,7 +5862,7 @@ function Customers({ customers }) {
 }
 
 function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilities, onClose, onAction }) {
-  const drawerName = telemetry?.device_name || device?.name || 'Device selected';
+  const drawerName = device?.id || 'Device selected';
   const drawerOrganization = telemetry?.organization || device?.organization || '—';
   const drawerModel = telemetry?.model || device?.model || '—';
   const drawerSerial = telemetry?.serial_number || device?.serial_number || '—';
@@ -5899,7 +5900,7 @@ function DeviceDrawer({ device, telemetry, loading, error, readOnly, capabilitie
           <>
             <section className="drawer-identity">
               <div>
-                <span>{translate("Device")}</span>
+                <span>{translate("Device ID")}</span>
                 <strong>{drawerName}</strong>
               </div>
               <div>
@@ -6320,7 +6321,9 @@ function DataTable({
   paginationLabel = 'List',
   mobileContent = null,
 }) {
-  const [serverFilter, setServerFilter] = useState('');
+  const [serverFilter, setServerFilter] = useState(() => new URLSearchParams(window.location.search).get('q') || '');
+  const serverSearchTimer = useRef(null);
+  useEffect(() => () => clearTimeout(serverSearchTimer.current), []);
   const {
     filter,
     setFilter,
@@ -6343,7 +6346,9 @@ function DataTable({
         <input aria-label={searchPlaceholder || translate("Search table")} value={serverMode ? serverFilter : filter} onChange={(event) => {
           if (serverMode) {
             setServerFilter(event.target.value);
-            onServerSearch?.(event.target.value);
+            clearTimeout(serverSearchTimer.current);
+            const value = event.target.value;
+            serverSearchTimer.current = setTimeout(() => onServerSearch?.(value), 350);
           } else {
             setFilter(event.target.value);
           }
@@ -7238,7 +7243,7 @@ function ConsoleEntry() {
   const managed = route && (!route.cloudId || ['products','members','settings','test-lab'].includes(route.section));
   const sdk = window.location.pathname === '/console/chipset-sdk' || window.location.pathname.startsWith('/console/chipset-sdk/');
   const docs = window.location.pathname === '/console/developer-docs' || window.location.pathname.startsWith('/console/developer-docs/');
-  return <React.Fragment key={location}>{sdk || docs ? <SDKPage docs={docs} /> : handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : managed ? <MyCloudsApp /> : <App />}</React.Fragment>;
+  return <React.Fragment key={routeFromLocation() === 'devices' ? window.location.pathname : location}>{sdk || docs ? <SDKPage docs={docs} /> : handoffRoute(window.location.pathname) ? <OwnerHandoffPage /> : cloudBillingRoute(window.location.pathname) ? <CloudBillingApp /> : managed ? <MyCloudsApp /> : <App />}</React.Fragment>;
 }
 
 createRoot(document.getElementById('root')).render(

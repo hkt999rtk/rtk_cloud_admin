@@ -55,6 +55,33 @@ test('[UI-CA-DOCS-002] direct chapter links require the regular console sign-in 
   expect(new URL(page.url()).searchParams.get('next')).toBe('/console/developer-docs/shadow-quickstart');
 });
 
+test('[UI-CA-DOCS-004] language and chapter changes reuse the loaded catalog @smoke', async ({ page }) => {
+  await login(page, 'developer');
+  await page.goto('/console/developer-docs');
+  await page.locator('[data-locale-selector]').selectOption('en');
+  await expect(page.locator('.developer-docs[lang="en"]')).toBeVisible();
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
+  await page.waitForLoadState('networkidle');
+  const catalogRequests = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/assets/developer-docs/index.')) catalogRequests.push(request.url());
+  });
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  await expect(page.locator('.developer-docs[lang="zh-TW"]')).toBeVisible();
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
+  expect(catalogRequests).toHaveLength(0);
+  await page.locator('[data-locale-selector]').selectOption('en');
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
+  await page.locator('.docs-results a[href$="/overview"]').click();
+  await expect(page.locator('.docs-article header h2')).toBeVisible();
+  await page.locator('.docs-breadcrumb a').first().click();
+  await expect(page.locator('.docs-results article')).toHaveCount(27);
+  await expect(page.locator('.developer-docs[lang="zh-TW"]')).toBeVisible();
+  expect(catalogRequests).toHaveLength(0);
+});
+
 test('[UI-CA-DOCS-003] every chapter and in-document link works @smoke', async ({ page, isMobile }, testInfo) => {
   test.setTimeout(180_000);
   await login(page, 'developer');

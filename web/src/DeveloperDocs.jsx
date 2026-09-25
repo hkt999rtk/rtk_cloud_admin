@@ -1,6 +1,7 @@
-import { activeLocale, translate } from './i18n/index.mjs';
+import { activeLocale, SUPPORTED_LOCALES, translate } from './i18n/index.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { developerDocsURL, searchDeveloperDocs, documentationSnippet } from './developer-docs.mjs';
+import { loadDeveloperDocsCatalog, peekDeveloperDocsCatalog } from './developer-docs-cache.mjs';
 import './developer-docs.css';
 import './developer-docs-ui.css';
 
@@ -24,24 +25,26 @@ function SearchHighlight({ text, query }) {
 export function DeveloperDocs() {
   const locale = activeLocale();
   const [category, setCategory] = useState('');
-  const [catalog, setCatalog] = useState(null);
-  const [error, setError] = useState('');
+  const [, refreshCatalog] = useState(0);
+  const [failure, setFailure] = useState({ locale: '', message: '' });
   const [copyStatus, setCopyStatus] = useState('');
   const contentRef = useRef(null);
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('q') || '');
+  const catalog = peekDeveloperDocsCatalog(locale);
+  const error = failure.locale === locale ? failure.message : '';
   const slug = window.location.pathname.replace(/^\/console\/developer-docs\/?/, '').replace(/\/$/, '');
   const page = catalog?.pages.find((item) => item.slug === slug);
   const browsing = !slug || Boolean(query);
   const href = (value = '') => developerDocsURL(value, window.location.search);
   useEffect(() => {
-    const controller = new AbortController();
-    setCatalog(null);
-    setError('');
-    // The catalog URL is stable across releases; always read the deployed revision.
-    fetch(`/assets/developer-docs/index.${locale}.json`, { signal: controller.signal, cache: 'no-store' })
-      .then((response) => { if (!response.ok) throw new Error(translate('Documents are temporarily unavailable. Please reload the page.')); return response.json(); })
-      .then(setCatalog).catch((err) => { if (err.name !== 'AbortError') setError(err.message); });
-    return () => controller.abort();
+    let active = true;
+    loadDeveloperDocsCatalog(locale)
+      .then(() => { if (active) { setFailure({ locale, message: '' }); refreshCatalog((value) => value + 1); } })
+      .catch((err) => { if (active && !peekDeveloperDocsCatalog(locale)) setFailure({ locale, message: err.message }); });
+    for (const other of SUPPORTED_LOCALES) {
+      if (other !== locale) loadDeveloperDocsCatalog(other).catch(() => {});
+    }
+    return () => { active = false; };
   }, [locale]);
   useEffect(() => {
     if (!page) return;

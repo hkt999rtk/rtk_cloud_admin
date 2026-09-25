@@ -947,7 +947,7 @@
     "Bars show WebRTC request volume; lines show the overall and WebRTC success rate for the selected window.": {
       "sourceHash": "38384fc9bf882a95694e2eba76f4c934c026ac29b8f26293edbbc5072bb078df",
       "fingerprint": "a5351c6ed4909a7424326de96c87a5d0d44f56fe00fb10e83d402286b910f9ca",
-      "text": "條形表示WebRTC請求量；線條表示所選視窗的總體和WebRTC成功率。",
+      "text": "長條表示 WebRTC 請求量；折線表示所選期間的整體與 WebRTC 成功率。",
       "status": "approved"
     },
     "Basis": {
@@ -1847,7 +1847,7 @@
     "Console": {
       "sourceHash": "3021420568cfc7a90334000f4a19dc3b183c260e7995207178b5634302a6b822",
       "fingerprint": "632b6b82dc86f8313087c437f18418e72461f8cb6fd73bc1dd4786f542cf7dd9",
-      "text": "安慰",
+      "text": "UART 主控台",
       "status": "approved"
     },
     "Contact email": {
@@ -2087,7 +2087,7 @@
     "Daily WebRTC request volume and success-rate lines.": {
       "sourceHash": "7e24c78ca151f3d42a59b7b5bbd82c991a65ae2344ef02baa3cf8bc481bbf1a0",
       "fingerprint": "7b5072902210be83cca0b22ee4fd3ab7ce64ca101549d8ff3633e4cc43062a77",
-      "text": "每日WebRTC請求量和成功率線。",
+      "text": "每日 WebRTC 請求量與成功率。",
       "status": "approved"
     },
     "Daily limits use": {
@@ -2399,7 +2399,7 @@
     "Devices ordered by failure rate, worst first.": {
       "sourceHash": "cfc46718004f7998ddbb1089401755bd175b42c10098f978bf0c130cca1c1c6c",
       "fingerprint": "aa91f96fe9e7c35580f4ddbb780e8e311dc3c6f1ecb67846e86d84705819e194",
-      "text": "按故障率排序的裝置，從最差的排到最好的。",
+      "text": "依串流失敗率由高至低排序。",
       "status": "approved"
     },
     "Devices that need attention": {
@@ -3089,7 +3089,7 @@
     "Fleet Insights": {
       "sourceHash": "ce6de6604b55d2137b78bfb48f517d5bda028ee11b795e1067e6e53ef0285fce",
       "fingerprint": "35deb01e09f11ab3c3774df4606567bb6584d72f7d99a480699f92e36d5795da",
-      "text": "裝置群見解",
+      "text": "裝置群分析",
       "status": "approved"
     },
     "Fleet Organization": {
@@ -4307,7 +4307,7 @@
     "Monitor stream connection reliability and identify devices that need investigation.": {
       "sourceHash": "80a769109bc3b3de0f8366a7614e9919e7d75bea61c78c8a2b96cc760d475f45",
       "fingerprint": "50d779f58388f2c296ce35f034674a52637d425ad157584009485b11ebafeede",
-      "text": "監控流連線的可靠性，並識別需要調查的裝置。",
+      "text": "監測串流連線的穩定性，找出需要檢查的裝置。",
       "status": "approved"
     },
     "Monitoring": {
@@ -4349,7 +4349,7 @@
     "N/A means stream metrics are currently unavailable. It does not mean there were no failures or that all streams succeeded.": {
       "sourceHash": "6174d4501b74b7a7ca5cb9e5503fe6813748a5d89dccbc4a18947b4f508d3845",
       "fingerprint": "0db17f9ecdda52474c23e7ec1fe70e04d5aeec1e382a888255b61ccc0ade5327",
-      "text": "N/A表示流指標目前不可用。這並不意味著沒有失敗或所有流都成功。",
+      "text": "「無法取得」表示目前無法讀取串流指標，並不代表沒有失敗，或所有串流都成功。",
       "status": "approved"
     },
     "NOR / UART flow": {
@@ -4739,7 +4739,7 @@
     "No source-backed stream mode data in selected window.": {
       "sourceHash": "bb1bc4f2e374bb5ae2c1b8d9102b9c414f9e217eac1fa36a07f363b565ba3556",
       "fingerprint": "885b6dd105061d5e36c39fd82f1a83ea9ef939a9a1c592ea24dee580efdb29ff",
-      "text": "所選視窗中沒有源支援的流模式資料。",
+      "text": "所選期間沒有可用的串流模式資料。",
       "status": "approved"
     },
     "No stream attention items.": {
@@ -4751,7 +4751,7 @@
     "No stream requests in selected window.": {
       "sourceHash": "200cd95074631d19f96471d6f7e1c1eb2db88de44926042994cc4707f8a4bc85",
       "fingerprint": "b3e8497666dac2391affc06e52092a374c63c5e671b6e3079ea6043094354b21",
-      "text": "所選視窗中沒有流請求。",
+      "text": "所選期間沒有串流請求。",
       "status": "approved"
     },
     "No tags yet.": {
@@ -6281,7 +6281,7 @@
     "Review request success rates, daily request volume, average session duration and active sessions to spot changes in streaming behavior. Start with the devices with the highest failure rates, check their request counts, and open device details to investigate.": {
       "sourceHash": "40c832aef098168eb1ea9010d74271003d20599f33a39a5b373778c9923f3a9d",
       "fingerprint": "1a3d116b90e6c24b8319df0ee3acec2c1e7f5a198f9060756ff2dee55f6578c7",
-      "text": "檢視請求成功率、每日請求量、平均會話持續時間和活躍會話，以發現流媒體行為的變化。從故障率最高的裝置開始，檢查它們的請求數量，並開啟裝置詳細資訊進行調查。",
+      "text": "檢視請求成功率、每日請求量、平均串流時長與目前串流數，掌握串流狀況的變化。請先查看失敗率最高的裝置，確認其請求數，再開啟裝置詳情調查。",
       "status": "approved"
     },
     "Review selected Product IDs": {
@@ -6761,7 +6761,7 @@
     "Session metrics reflect recorded stream events; they do not confirm that video was successfully decoded or displayed in the app.": {
       "sourceHash": "ed71f89c8dfee3a61090907377990ecf41be0a872a3d02297222fbfa91f6eb79",
       "fingerprint": "cd42284506b4984883efe678ae98879beab763c3ada96fde5ad547c3d91f51b9",
-      "text": "會話指標反映了記錄的流事件；它們不能證實影片是否成功解碼或在應用程式中顯示。",
+      "text": "串流工作階段指標來自已記錄的串流事件，無法證明影片已在應用程式中成功解碼或顯示。",
       "status": "approved"
     },
     "Settled balance snapshot": {
@@ -6983,7 +6983,7 @@
     "Stream Health": {
       "sourceHash": "1263649b770532e84b6b43809289568ecf3f08c2f6187414355b377f280dcd1a",
       "fingerprint": "f2861e63e91a3ae10213ef0e5f19b12d04f501d41f8d14a72878a0c3d1668aa8",
-      "text": "流動健康",
+      "text": "串流健康狀態",
       "status": "approved"
     },
     "Stream success trend chart": {
@@ -7031,7 +7031,7 @@
     "Success trend": {
       "sourceHash": "de78c7fdc8aa5f0fa2cd19fc5b342c2d99bf4bb56523660b205f9a944b6026d9",
       "fingerprint": "c85cd84e07512f22cb813fc919d5c451455d0419dce803e8ab203cbfadb95cd9",
-      "text": "成功趨勢",
+      "text": "串流成功率趨勢",
       "status": "approved"
     },
     "Switch to Brand Cloud view before opening My Clouds or a cloud-scoped feature.": {
@@ -7565,7 +7565,7 @@
     "Transfer": {
       "sourceHash": "c5a4f2856d8ca44ab17fe8d53aac984ad037aa1cb125e88eebc7ec7957621fba",
       "fingerprint": "603ad722e59b9e2039db2ca1a7e89fbeccc9ec6b6aa03be44ff41c8db386d6b4",
-      "text": "轉移",
+      "text": "傳輸",
       "status": "approved"
     },
     "Transfer Owner": {
@@ -7805,7 +7805,7 @@
     "Verify": {
       "sourceHash": "34a10f58b42b63c33349737376d57e7c7b93ce92a6353390c538b63b895db927",
       "fingerprint": "7876686325e59f150447a4fe34e6d3337b2248ddd4f366426187d64f1de02b17",
-      "text": "證實",
+      "text": "驗證",
       "status": "approved"
     },
     "Verify your email and create the password you will use to log in.": {
@@ -7841,7 +7841,7 @@
     "View": {
       "sourceHash": "f9910e0dde98d51783529d68037522326b407cc4aa9a802b346acc7bab9aa0bd",
       "fingerprint": "722dba982729aa2c3ab531b2cef09edd3275d685c78adda856c2cce4be5cbfdf",
-      "text": "觀點",
+      "text": "檢視",
       "status": "approved"
     },
     "View Error": {
@@ -8021,7 +8021,7 @@
     "Worst devices": {
       "sourceHash": "be03702a1105922308e40f9a6ae751182692ee16855b2e72ba52c72b85989019",
       "fingerprint": "df3d175eacb952c65422a26a117a597916273d8458ef99c039033aff9a65221a",
-      "text": "最糟糕的裝置",
+      "text": "失敗率最高的裝置",
       "status": "approved"
     },
     "Write at 0x0": {
@@ -10235,7 +10235,7 @@
     "Stream source unavailable": {
       "sourceHash": "d75c588a87744e6e2acbaedcf11810d74ec11e36f0707e35446382f46229ad1e",
       "fingerprint": "1d16a9aa1afea981322120e5c62b825823f0c022d54d2ba5974c1f827e405b5b",
-      "text": "流源不可用",
+      "text": "串流來源無法使用",
       "status": "approved"
     },
     "Stream gateway error": {
@@ -10367,7 +10367,7 @@
     "Active Sessions Now": {
       "sourceHash": "1b8d53b822e94ee026ea4031347d2369d669c85f0a13a83b568feb3a813a1d9d",
       "fingerprint": "e2cfe93e10fb3a82b52769a60a330da18b3ca809070c4fee955bcb831d4ae8eb",
-      "text": "現在的活動",
+      "text": "目前進行中的串流",
       "status": "approved"
     },
     "Active stream status is not provided by the source.": {
@@ -10391,7 +10391,7 @@
     "Avg Stream Duration": {
       "sourceHash": "ddd6e752beafc1ae9e417767d2942a2fbdb2d6eb5ffceb781356f0e3a0f11abf",
       "fingerprint": "836aab31f5e6c61b08ba125fedef3dea5e4840303a4a43af40cee498f32cda53",
-      "text": "Avg 流程的持續時間",
+      "text": "平均串流時長",
       "status": "approved"
     },
     "Brand Clouds requires Account Manager Platform Admin login.": {
@@ -10463,7 +10463,7 @@
     "Devices Without Successful Streams": {
       "sourceHash": "e302c63a254450516fdc102c3c3bb5945687c17587bc289d2b13e082f13f0e81",
       "fingerprint": "57d2202e1b2cbc82babbb7c7e3ad899fa8023444f6451ecb1ec38616e6cf6b40",
-      "text": "沒有成功的流程的裝置",
+      "text": "沒有成功串流紀錄的裝置",
       "status": "approved"
     },
     "Example message delivery": {
@@ -11975,7 +11975,7 @@
     "Average duration of successful sessions with a recorded end event.": {
       "sourceHash": "7cb71bbf6d695831240952d5dbaf3c76def5ac14c948f0fc85b01b3381982b8a",
       "fingerprint": "f6c3155b050eb69ed2db1f5c8c45d8bc4965f3e85419f88e30eb4fa13d585d0f",
-      "text": "已記錄結束事件的成功工作階段平均時長。",
+      "text": "有記錄結束事件的成功串流工作階段平均時長。",
       "status": "approved"
     },
     "Billing access is unavailable. Only the current owner of this cloud can view its account.": {
@@ -12041,7 +12041,7 @@
     "Count of currently open stream sessions": {
       "sourceHash": "542fc9b4d2090b783b0be1d67130a5c8b8318c07275a0573af732426dba1cadf",
       "fingerprint": "846365392f44ad7839eceba14ab061a5b4c1948f140eee4e3688a59ffcb0439f",
-      "text": "目前開啟的串流工作階段數",
+      "text": "目前進行中的串流工作階段數。",
       "status": "approved"
     },
     "Deactivation failed": {
@@ -14586,6 +14586,24 @@
       "sourceHash": "9d8f28d59763e1909f84fef693bf251b11035fd5dc31fe3357d15cd849ef5693",
       "fingerprint": "f0d806d1016da94b160178756eeb171237162b0b5482b81bd540b19618ce7b8c",
       "text": "已取消登錄",
+      "status": "approved"
+    },
+    "Search device ID": {
+      "sourceHash": "f7e57b0540a53750833b1fc83426712410e58a35fdeab5c26525e0b74f4a463f",
+      "fingerprint": "b125e5703559741884252ddd82636b3d8742a2d70ea7ee9100159ba257e3490d",
+      "text": "搜尋裝置 ID",
+      "status": "approved"
+    },
+    "Devices with no successful stream request recorded in the selected {{window}} window; not a lifetime count.": {
+      "sourceHash": "03d8436df156e5cf5feab324a46ccab290affc7303936ebd6abd11695f7d9e4d",
+      "fingerprint": "e808c291b5a2a08c6cecb0ac1aa06795aadc2f268f5a6d8d1e86995b60c00616",
+      "text": "所選 {{window}} 期間內沒有成功串流請求紀錄的裝置；這不是裝置的歷史總計。",
+      "status": "approved"
+    },
+    "Unavailable means stream metrics cannot be read right now. It does not mean there were no failures or that all streams succeeded.": {
+      "sourceHash": "a708563aeafccf3dfe94bb0dc3a351b0d4ced92b7e606768671ae0f455e77331",
+      "fingerprint": "fc98930844159c7198384a84e1e2cabdc97e270aa73cf9101f0dfee594e9395c",
+      "text": "「無法取得」表示目前無法讀取串流指標，並不代表沒有失敗，或所有串流都成功。",
       "status": "approved"
     }
   }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatSDKBytes, sdkArtifactFormat, sdkArtifacts, sdkDocumentationURL } from './sdk-catalog.mjs';
+import { formatSDKBytes, sdkArtifactFormat, sdkArtifacts, sdkDocumentationURL, sdkDownloadURL } from './sdk-catalog.mjs';
 
 test('SDK artifact presentation keeps the five package formats distinct', () => {
   assert.equal(sdkArtifactFormat('android'), 'Android AAR package');
@@ -15,4 +15,7 @@ test('SDK catalog appends the complete bundle and builds same-Portal docs links'
   assert.deepEqual(artifacts.map(({ slug }) => slug), ['android', 'all']);
   assert.equal(sdkDocumentationURL('https://portal.example/manual/sdk', 'android'), 'https://portal.example/manual/sdk/packages/android');
   assert.equal(sdkDocumentationURL('https://portal.example/manual/sdk', 'all'), 'https://portal.example/manual/sdk');
+  assert.equal(sdkDocumentationURL('https://portal.example/manual/sdk', 'android', 'zh-TW'), 'https://portal.example/zh-tw/manual/sdk/packages/android');
+  assert.equal(sdkDownloadURL('https://portal.example/manual/sdk', 'zh-TW'), 'https://portal.example/zh-tw/manual/sdk#downloads');
+  assert.equal(sdkDownloadURL('https://portal.example/manual/sdk', 'zh-CN'), 'https://portal.example/zh-cn/manual/sdk#downloads');
 });

@@ -31,8 +31,22 @@ export function sdkArtifacts(catalog) {
   return [...(catalog.packages || []), ...(catalog.complete_bundle ? [catalog.complete_bundle] : [])];
 }
 
-export function sdkDocumentationURL(portalURL, slug) {
+export function localizedSDKPortalURL(portalURL, locale = 'en') {
   const root = String(portalURL || '').replace(/\/$/, '');
+  const prefix = { 'zh-TW': '/zh-tw', 'zh-CN': '/zh-cn' }[locale] || '';
+  if (!root || !prefix) return root;
+  const url = new URL(root);
+  if (!url.pathname.startsWith(`${prefix}/`)) url.pathname = `${prefix}${url.pathname}`;
+  return url.toString();
+}
+
+export function sdkDocumentationURL(portalURL, slug, locale = 'en') {
+  const root = localizedSDKPortalURL(portalURL, locale);
   if (!root) return '';
   return slug === 'all' ? root : `${root}/packages/${encodeURIComponent(slug)}`;
+}
+
+export function sdkDownloadURL(portalURL, locale = 'en') {
+  const root = localizedSDKPortalURL(portalURL, locale);
+  return root ? `${root}#downloads` : '';
 }
