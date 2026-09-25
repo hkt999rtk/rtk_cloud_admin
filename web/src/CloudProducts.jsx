@@ -1,4 +1,4 @@
-import { translate } from './i18n/index.mjs';
+import { translate, formatLocale, activeLocale } from './i18n/index.mjs';
 import React, {useEffect,useRef,useState} from 'react';
 import { PKIStatus } from './PKIStatus.jsx';
 import {cloudURL,cloudWriteIntent,managedCloudRequest} from './managed-clouds.mjs';
@@ -7,6 +7,42 @@ import './cloud-products.css';
 import { Dialog, StatusBadge, CopyValue, displayLabel } from './ConsoleUI.jsx';
 
 function Icon({name}) { return <i className={`fa-solid fa-${name}`} aria-hidden="true" />; }
+
+function ProductionRuns({cloudId, product}) {
+  const path=productAPI(cloudId,product.id)+'/production-runs';
+  const [runs,setRuns]=useState([]),[endpoint,setEndpoint]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[credential,setCredential]=useState('');
+  const [factoryId,setFactoryId]=useState(''),[batchId,setBatchId]=useState(''),[quantity,setQuantity]=useState(1),[hours,setHours]=useState(24);
+  const writing=useRef(false);
+  const load=async()=>{try{const result=await managedCloudRequest(path);setRuns(result.production_runs||[]);setEndpoint(result.enrollment_url||'');setError('');}catch{setError('Unable to load production runs. Retry.');}};
+  useEffect(()=>{let active=true;managedCloudRequest(path).then(result=>{if(active){setRuns(result.production_runs||[]);setEndpoint(result.enrollment_url||'');}}).catch(()=>{if(active)setError('Unable to load production runs. Retry.');});return()=>{active=false;};},[path]);
+  async function create(event){event.preventDefault();if(writing.current)return;writing.current=true;setBusy(true);setError('');
+    try{const result=await managedCloudRequest(path,{method:'POST',body:{factory_id:factoryId,batch_id:batchId,allowed_quantity:Number(quantity),valid_hours:Number(hours)}});setCredential(result.factory_jwt||'');setRuns(current=>[result.production_run,...current]);setBatchId('');}
+    catch{setError('Unable to create a production run. Check your permissions and Product status.');}
+    finally{writing.current=false;setBusy(false);}
+  }
+  async function stop(run){if(writing.current)return;writing.current=true;setBusy(true);setError('');
+    try{const result=await managedCloudRequest(path+'/'+run.id+'/stop',{method:'POST'});setRuns(current=>current.map(item=>item.id===run.id?result.production_run:item));}
+    catch{setError('Unable to stop the production run. Retry.');}
+    finally{writing.current=false;setBusy(false);}
+  }
+  return <section className="cloud-product-enrollment" aria-labelledby="production-runs-heading">
+    <h3 id="production-runs-heading">{translate('Factory production runs')}</h3>
+    {endpoint?<p>{translate('Factory enrollment URL:')} <CopyValue value={endpoint} label={translate('Factory enrollment URL')}/></p>:<p role="status">{translate('The public factory enrollment URL is not configured yet.')}</p>}
+    <p>{translate('The platform issues a separate factory client certificate for each factory and Cloud. Send a factory-generated CSR to the platform operator; keep its private key at the factory.')}</p>
+    <p>{translate('A device private key stays on the device. Send its CSR, device ID and a production-run JWT from the authorized factory gateway using mTLS.')}</p>
+    {error&&<p role="alert">{translate(error)} <button type="button" onClick={load}>{translate('Retry')}</button></p>}
+    {credential&&<div className="factory-token" role="status"><strong>{translate('Save this production-run JWT now. It is shown only once.')}</strong><textarea readOnly value={credential} aria-label={translate('Production-run JWT')}/><button type="button" onClick={()=>setCredential('')}>{translate('I have saved this authorization')}</button></div>}
+    {endpoint&&product.status==='active'&&product.pki_status==='ready'&&<form className="factory-run-form" onSubmit={create}>
+      <label>{translate('Factory ID')}<input required pattern="[a-z0-9][a-z0-9-]{0,63}" value={factoryId} onChange={e=>setFactoryId(e.target.value)} disabled={busy}/></label>
+      <label>{translate('Batch ID')}<input required pattern="[a-z0-9][a-z0-9-]{0,63}" value={batchId} onChange={e=>setBatchId(e.target.value)} disabled={busy}/></label>
+      <label>{translate('Maximum devices')}<input required type="number" min="1" value={quantity} onChange={e=>setQuantity(e.target.value)} disabled={busy}/></label>
+      <label>{translate('Authorization duration in hours (1–168)')}<input required type="number" min="1" max="168" value={hours} onChange={e=>setHours(e.target.value)} disabled={busy}/></label>
+      <button type="submit" disabled={busy}>{translate('Create production run')}</button>
+    </form>}
+    <h4>{translate('Production runs')}</h4>
+    {!runs.length?<p>{translate('No production runs yet.')}</p>:<div className="ui-table-scroll"><table><thead><tr><th>{translate('Batch ID')}</th><th>{translate('Factory ID')}</th><th>{translate('Status')}</th><th>{translate('Issued / maximum')}</th><th>{translate('Expires')}</th><th>{translate('Actions')}</th></tr></thead><tbody>{runs.map(run=><tr key={run.id}><td>{run.batch_id}</td><td>{run.factory_id}</td><td>{translate(run.status==='active'?'Active':run.status==='disabled'?'Disabled':run.status)}</td><td>{run.issued_quantity} / {run.allowed_quantity}</td><td>{run.valid_until?new Date(run.valid_until).toLocaleString(formatLocale()):'—'}</td><td>{run.status==='active'&&<button type="button" disabled={busy} onClick={()=>stop(run)}>{translate('Stop signing')}</button>}</td></tr>)}</tbody></table></div>}
+  </section>;
+}
 
 function DeviceEnrollmentGuide({cloudId, product}) {
   return <section className="cloud-product-enrollment" aria-labelledby="device-enrollment-heading">
@@ -18,7 +54,7 @@ function DeviceEnrollmentGuide({cloudId, product}) {
       <dt>{translate("Product ID")}</dt><dd><CopyValue value={product.id} label="Product ID"/></dd>
       <dt>{translate("Enrollment API")}</dt><dd><code>POST /v1/factory/enroll</code></dd>
     </dl>
-    <p>{translate("The full HTTPS service URL is provided to approved factory gateways. It is not the Admin Console URL, and no public signing URL is configured here.")}</p>
+    <p>{translate("The factory enrollment URL and production runs are shown below when the public gateway is ready.")}</p>
     <ol>
       <li>{translate("An authorized user with device-management permission creates a production run for this Cloud and Product, then securely delivers its short-lived authorization to the approved factory gateway.")}</li>
       <li>{translate("Generate the private key and CSR on the device. Keep the private key on the device; the CSR subject must match its Device ID.")}</li>
@@ -26,6 +62,8 @@ function DeviceEnrollmentGuide({cloudId, product}) {
       <li>{translate("Install the returned device certificate and chain with the matching private key. Device activation and account binding are separate steps.")}</li>
     </ol>
     <p>{translate("A CSR alone cannot authorize certificate issuance. For development devices, use Cloud Test Lab instead of the factory endpoint.")}</p>
+    <p><strong>{translate("Formal mass-production flow")}</strong> — {translate("Cloud Test Lab is a simplified development test and must not be used for mass production.")}</p>
+    <a href={`/assets/developer-docs/assets/factory-enrollment-formal${activeLocale()==='en'?'':'.'+activeLocale()}.html`}>{translate("View the factory enrollment sequence diagram")}</a>
     <a href={`/console/developer-docs/credential-setup?cloudId=${encodeURIComponent(cloudId)}`}>{translate("Read device credential setup")}</a>
   </section>;
 }
@@ -105,7 +143,7 @@ export function CloudProducts({cloudId,productId='',onAccessLost}) {
     </form></Dialog>}
     {disable && <form onSubmit={write} role="group" aria-label={translate("Confirm Product disable")}><h3>{translate("Disable")} {disable.name}?</h3><p>{translate("This disables the Product; it does not delete its devices, firmware or history, and does not make the cloud empty.")}</p><button disabled={busy} type="submit">{translate("Confirm Product disable")}</button><button disabled={busy} type="button" onClick={()=>setDisable(null)}>{translate("Cancel")}</button></form>}
     {data?.products.length===0 && <p>{translate("No Products in your authorized scope.")}</p>}
-    {productId && data?.products[0] && <DeviceEnrollmentGuide cloudId={cloudId} product={data.products[0]}/>}
+    {productId && data?.products[0] && <><DeviceEnrollmentGuide cloudId={cloudId} product={data.products[0]}/><ProductionRuns cloudId={cloudId} product={data.products[0]}/></>}
     {data?.products.length > 0 && <div className="ui-table-scroll"><table><caption>{productId ? translate("Product configuration") : translate("Products in your authorized scope")}</caption><thead><tr><th>{translate("Product")}</th><th>{translate("Status")}</th><th>{translate("Model / category")}</th><th>{translate("Services")}</th><th>{translate("Access")}</th><th>{translate("Actions")}</th></tr></thead><tbody>{data.products.map(p=><tr key={p.id}><td><a href={productURL(cloudId,p.id)}>{p.name}</a><small>{productId ? <CopyValue value={p.profile_key} label="product key"/> : p.profile_key}</small></td><td><StatusBadge value={p.status}/><PKIStatus value={p.pki_status}/></td><td>{p.product_model||translate("Not specified")}<small>{displayLabel(p.category)}</small></td><td>{p.service_options.map(displayLabel).join(', ')||translate("None")}{p.log_retention_days&&<small>{translate("Logs:")} {p.log_retention_days} {translate("days")}</small>}</td><td>{displayLabel(p.my_role||'Cloud-scoped access')}</td><td><div className="my-clouds-actions">{p.allowed_actions?.includes('edit') && <button disabled={busy} onClick={()=>edit(p)}>{translate("Edit Product")}</button>}{p.status==='active' && p.allowed_actions?.includes('disable') && <button disabled={busy} onClick={()=>{intent.current=null;setForm(null);setDisable(p);}}>{translate("Disable Product")}</button>}</div></td></tr>)}</tbody></table></div>}
     {!productId && data?.pagination && <nav className="my-clouds-pagination" aria-label={translate("Product pages")}><button disabled={busy||offset===0} onClick={()=>{setOffset(Math.max(0,offset-25));setForm(null);setDisable(null);}}>{translate("Previous Products")}</button><span>{data.pagination.total} {translate("authorized Products · Page")} {Math.floor(offset/25)+1}</span><button disabled={busy||offset+25>=data.pagination.total} onClick={()=>{setOffset(offset+25);setForm(null);setDisable(null);}}>{translate("Next Products")}</button></nav>}
   </section>;

@@ -91,16 +91,33 @@ Account Manager calls `POST /v1/certificates/app/issue` internally over service 
 
 ## 3. Obtain the device credential through enrollment
 
+**Formal mass-production flow:** [View the factory enrollment sequence diagram](assets/factory-enrollment-formal.html). It shows the separate factory mTLS certificate, Product production-run JWT, device CSR, quota check and Product-specific issuer. Cloud Test Lab is a simplified development test flow and **must not be used for mass production**.
+
+![Formal factory enrollment sequence](assets/factory-enrollment-formal.svg)
+
 Use the device certificate and matching private key already provisioned by the approved factory workflow, or an authorized short-lived test device bundle for a development exercise. A fresh hardware device generates/retains its key and supplies a CSR through the authenticated factory boundary `POST /v1/factory/enroll`. Factory authorization, production context and entitlement checks belong to that workflow; there is no unauthenticated developer certificate-minting endpoint.
 
 For a factory device:
 
 1. A user with device-management permission for the target Cloud and Product creates a production run through Account Manager. The resulting short-lived production-run JWT is a factory credential; deliver it securely to the approved factory gateway, never to device firmware.
 2. Generate a private key and CSR on the device. Keep the private key there. The CSR subject CN must equal the device's `devid`.
-3. From the approved gateway, send `POST {FACTORY_ENROLL_URL}/v1/factory/enroll` with `Authorization: Bearer <production-run JWT>` and JSON containing `request_id`, `devid`, and `csr_pem`. If included, `service_options` must match the production run. The service URL is shared across Products; the JWT binds the request to one Cloud and Product and selects that Product's certificate issuer. Obtain the full HTTPS URL from the platform operator; the Admin Console URL is not the enrollment service.
+3. From the approved gateway, use its platform-issued client certificate and key to send `POST {FACTORY_ENROLL_URL}/v1/factory/enroll` with `Authorization: Bearer <production-run JWT>` and JSON containing `request_id`, `devid`, and `csr_pem`. If included, `service_options` must match the production run. The service URL is shared across Products; the JWT binds the request to one Cloud and Product and selects that Product's certificate issuer. Find the full HTTPS URL on the Product page when the public gateway is enabled; the Admin Console URL is not the enrollment service.
 4. Install the returned device certificate and certificate chain with the matching private key. Device activation and account binding are separate steps.
 
 The successful response contains the signed certificate and certificate bundle; verify the returned device identity and certificate chain before installation. A CSR alone is not authorization to sign a device certificate. For a development-only device, use Cloud Test Lab instead of the factory flow.
+
+The authorized factory gateway can submit one device CSR as follows. Set `FACTORY_ENROLL_ENDPOINT` to the complete URL shown on the Product page. Keep the factory client key and batch JWT on the gateway, and reuse the same `request_id` when retrying this device request.
+
+```bash
+jq -n --arg request_id "$REQUEST_ID" --arg devid "$DEVICE_ID" \
+  --rawfile csr_pem "$DEVICE_CSR" \
+  '{request_id:$request_id,devid:$devid,csr_pem:$csr_pem}' > "$REQUEST_JSON"
+curl --fail-with-body --silent --show-error \
+  --cacert "$SERVER_CA" --cert "$FACTORY_CERT" --key "$FACTORY_KEY" \
+  -H "Authorization: Bearer $PRODUCTION_RUN_JWT" \
+  -H 'Content-Type: application/json' --data-binary @"$REQUEST_JSON" \
+  "$FACTORY_ENROLL_ENDPOINT" > "$CERTIFICATE_RESPONSE"
+```
 
 [Open redesigned sequence diagram](assets/device-enrollment.html)
 

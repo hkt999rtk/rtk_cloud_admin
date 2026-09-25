@@ -22,6 +22,7 @@ import (
 
 const sharedProductID = "55555555-5555-4555-8555-555555555555"
 const createdProductID = "66666666-6666-4666-8666-666666666666"
+const fixtureProductionRunID = "77777777-7777-4777-8777-777777777777"
 
 type scopedProductsFixture struct {
 	mu             sync.Mutex
@@ -33,6 +34,7 @@ type scopedProductsFixture struct {
 	revoked        bool
 	clouds         *managedCloudFixture
 	devices        map[string]accountclient.Device
+	runs           map[string]accountclient.ProductionRun
 	badDeviceScope bool
 }
 
@@ -44,14 +46,18 @@ func newScopedProductsFixture(t *testing.T) (*httptest.Server, *scopedProductsFi
 	owner.Capabilities = append(owner.Capabilities, "product.manage")
 	clouds.clouds[cloudA] = owner
 	clouds.mu.Unlock()
-	f := &scopedProductsFixture{products: map[string]accountclient.DeviceItemProfile{}, allowed: true, clouds: clouds}
+	f := &scopedProductsFixture{products: map[string]accountclient.DeviceItemProfile{}, runs: map[string]accountclient.ProductionRun{}, allowed: true, clouds: clouds}
 	f.resetDevices()
 	for i := 0; i < 27; i++ {
 		id := fmt.Sprintf("33333333-3333-4333-8333-%012d", i)
 		if i == 0 {
 			id = productA
 		}
-		f.products[id] = accountclient.DeviceItemProfile{ID: id, BrandCloudID: cloudA, ProfileKey: fmt.Sprintf("camera-%02d", i), DisplayName: fmt.Sprintf("Camera %02d", i), Status: "active", Category: "ip_camera", Model: "R1", ServiceOptions: []string{"mqtt"}, CurrentUserRole: "product_owner"}
+		pkiStatus := ""
+		if i == 0 {
+			pkiStatus = "ready"
+		}
+		f.products[id] = accountclient.DeviceItemProfile{ID: id, BrandCloudID: cloudA, ProfileKey: fmt.Sprintf("camera-%02d", i), DisplayName: fmt.Sprintf("Camera %02d", i), Status: "active", PKIStatus: pkiStatus, Category: "ip_camera", Model: "R1", ServiceOptions: []string{"mqtt"}, CurrentUserRole: "product_owner"}
 	}
 	f.products[sharedProductID] = accountclient.DeviceItemProfile{ID: sharedProductID, BrandCloudID: cloudB, ProfileKey: "shared-product", DisplayName: "Shared sensor", Status: "active", Category: "mqtt_device", ServiceOptions: []string{"mqtt"}, CurrentUserRole: "product_owner", MetadataDefaults: map[string]any{"private_key": "never-project-this"}}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -82,6 +88,47 @@ func newScopedProductsFixture(t *testing.T) (*httptest.Server, *scopedProductsFi
 			return
 		}
 		cloud := parts[2]
+		if len(parts) >= 6 && parts[3] == "device-item-profiles" && parts[5] == "production-runs" {
+			product, ok := f.products[parts[4]]
+			if !ok || product.BrandCloudID != cloud {
+				http.NotFound(w, r)
+				return
+			}
+			if r.Method == http.MethodGet && len(parts) == 6 {
+				runs := []accountclient.ProductionRun{}
+				for _, run := range f.runs {
+					if run.DeviceItemProfileID == product.ID {
+						runs = append(runs, run)
+					}
+				}
+				writeJSON(w, map[string]any{"production_runs": runs})
+				return
+			}
+			if r.Method == http.MethodPost && len(parts) == 8 && parts[7] == "stop" {
+				run, ok := f.runs[parts[6]]
+				if !ok {
+					http.NotFound(w, r)
+					return
+				}
+				run.Status = "disabled"
+				f.runs[run.ID] = run
+				writeJSON(w, map[string]any{"production_run": run})
+				return
+			}
+			if r.Method == http.MethodPost && len(parts) == 6 {
+				var input productionRunInput
+				if json.NewDecoder(r.Body).Decode(&input) != nil {
+					http.Error(w, "bad run", 400)
+					return
+				}
+				run := accountclient.ProductionRun{ID: fixtureProductionRunID, DeviceItemProfileID: product.ID, FactoryID: input.FactoryID, BatchID: input.BatchID, Status: "active", AllowedQuantity: input.AllowedQuantity, ValidUntil: time.Now().Add(time.Duration(input.ValidHours) * time.Hour).Format(time.RFC3339)}
+				f.runs[run.ID] = run
+				writeJSONStatus(w, http.StatusCreated, map[string]any{"production_run": run, "factory_jwt": "fixture-secret-shown-once", "expires_at": run.ValidUntil})
+				return
+			}
+			http.NotFound(w, r)
+			return
+		}
 		if f.serveProductDevices(w, r, parts) {
 			return
 		}
@@ -354,6 +401,7 @@ func TestScopedProductBrowserFixture(t *testing.T) {
 	}
 	s := NewWithOptions(st, Options{AccountClient: accountclient.New(upstream.URL)})
 	port := os.Getenv("SCOPED_PRODUCT_UI_PORT")
+	s.cfg.FactoryEnrollPublicBaseURL = "https://factory-enroll.video-cloud-dev.example.test"
 	if port == "" {
 		port = "18197"
 	}
@@ -370,6 +418,7 @@ func TestScopedProductBrowserFixture(t *testing.T) {
 			f.badScope = r.URL.Path == "/__fixture__/invalid-products"
 			if r.URL.Path == "/__fixture__/reset" {
 				delete(f.products, createdProductID)
+				clear(f.runs)
 				f.resetDevices()
 				f.clouds.mu.Lock()
 				clear(f.clouds.sharingInvites)

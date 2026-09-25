@@ -14570,6 +14570,162 @@
       "source": "An authorized user with device-management permission creates a production run for this Cloud and Product, then securely delivers its short-lived authorization to the approved factory gateway.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "A device private key stays on the device. Send its CSR, device ID and a production-run JWT from the authorized factory gateway using mTLS.",
+      "source": "A device private key stays on the device. Send its CSR, device ID and a production-run JWT from the authorized factory gateway using mTLS.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Authorization duration in hours (1–168)",
+      "source": "Authorization duration in hours (1–168)",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Batch ID",
+      "source": "Batch ID",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Create production run",
+      "source": "Create production run",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Factory ID",
+      "source": "Factory ID",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Factory enrollment URL",
+      "source": "Factory enrollment URL",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Factory enrollment URL:",
+      "source": "Factory enrollment URL:",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Factory production runs",
+      "source": "Factory production runs",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "I have saved this authorization",
+      "source": "I have saved this authorization",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Issued / maximum",
+      "source": "Issued / maximum",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Maximum devices",
+      "source": "Maximum devices",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No production runs yet.",
+      "source": "No production runs yet.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Production runs",
+      "source": "Production runs",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Production-run JWT",
+      "source": "Production-run JWT",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retry",
+      "source": "Retry",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Save this production-run JWT now. It is shown only once.",
+      "source": "Save this production-run JWT now. It is shown only once.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Stop signing",
+      "source": "Stop signing",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The factory enrollment URL and production runs are shown below when the public gateway is ready.",
+      "source": "The factory enrollment URL and production runs are shown below when the public gateway is ready.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The platform issues a separate factory client certificate for each factory and Cloud. Send a factory-generated CSR to the platform operator; keep its private key at the factory.",
+      "source": "The platform issues a separate factory client certificate for each factory and Cloud. Send a factory-generated CSR to the platform operator; keep its private key at the factory.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The public factory enrollment URL is not configured yet.",
+      "source": "The public factory enrollment URL is not configured yet.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to create a production run. Check your permissions and Product status.",
+      "source": "Unable to create a production run. Check your permissions and Product status.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to load production runs. Retry.",
+      "source": "Unable to load production runs. Retry.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to stop the production run. Retry.",
+      "source": "Unable to stop the production run. Retry.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud Test Lab is a simplified development test and must not be used for mass production.",
+      "source": "Cloud Test Lab is a simplified development test and must not be used for mass production.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Formal mass-production flow",
+      "source": "Formal mass-production flow",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "View the factory enrollment sequence diagram",
+      "source": "View the factory enrollment sequence diagram",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

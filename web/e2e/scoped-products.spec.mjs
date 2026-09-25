@@ -33,7 +33,9 @@ test('[UI-CA-PRODUCTS-101] scoped Product CRUD pagination viewer and revocation 
  const enrollment=panel.getByRole('region',{name:'Sign a device certificate'});
  await expect(enrollment).toContainText('POST /v1/factory/enroll');
  await expect(enrollment).toContainText('production-run JWT');
- await expect(enrollment).toContainText('no public signing URL is configured here');
+ await expect(enrollment).toContainText('Formal mass-production flow');
+ await expect(enrollment).toContainText('must not be used for mass production');
+ await expect(enrollment.getByRole('link',{name:'View the factory enrollment sequence diagram'})).toHaveAttribute('href','/assets/developer-docs/assets/factory-enrollment-formal.html');
  await expect(enrollment.getByRole('link',{name:'Read device credential setup'})).toHaveAttribute('href',`/console/developer-docs/credential-setup?cloudId=${cloudA}`);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
  await testInfo.attach('product-enrollment-guide',{body:await enrollment.screenshot(),contentType:'image/png'});

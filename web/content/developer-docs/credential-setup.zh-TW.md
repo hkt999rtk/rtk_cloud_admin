@@ -94,16 +94,33 @@ openssl x509 -in "$APP_CERT" -pubkey -noout | openssl pkey -pubin -outform DER |
 
 ## 3.透過註冊獲得裝置憑證
 
+**正式量產流程：**[查看工廠簽發時序圖](assets/factory-enrollment-formal.zh-TW.html)。圖中分別標示工廠 mTLS 憑證、產品生產批次 JWT、裝置 CSR、配額檢查及產品專屬簽發者。Cloud Test Lab 是簡化的開發測試流程，**不可用於量產**。
+
+![正式工廠簽發時序圖](assets/factory-enrollment-formal.zh-TW.svg)
+
 正式裝置應使用經授權工廠流程簽發的裝置憑證與對應私鑰。開發測試則可使用短期測試裝置憑證。新裝置透過受保護的工廠註冊服務提交 CSR；單憑 CSR 不能取得憑證。
 
 工廠裝置的簽發流程：
 
 1. 由對目標雲端與產品具有裝置管理權限的使用者，透過 Account Manager 建立生產批次。取得有期限的生產批次授權 JWT 後，應安全地交給核准的工廠閘道，不可寫入裝置韌體。
 2. 在裝置上產生私鑰與 CSR，私鑰留在裝置內。CSR 的主體 CN 必須與裝置 ID（`devid`）相同。
-3. 由核准的工廠閘道呼叫 `POST {FACTORY_ENROLL_URL}/v1/factory/enroll`，以 `Authorization: Bearer <生產批次 JWT>` 傳入授權，並在 JSON 中提供 `request_id`、`devid` 與 `csr_pem`。若另提供 `service_options`，其內容必須與生產批次相符。各產品共用服務入口；JWT 將請求綁定到特定雲端與產品，由該產品的憑證簽發者處理。完整的 HTTPS 網址須向平台管理員取得；管理後台的網址不是此服務入口。
+3. 核准的工廠閘道須使用平台簽發的工廠用戶端憑證及私鑰，呼叫 `POST {FACTORY_ENROLL_URL}/v1/factory/enroll`，以 `Authorization: Bearer <生產批次 JWT>` 傳入授權，並在 JSON 中提供 `request_id`、`devid` 與 `csr_pem`。若另提供 `service_options`，其內容必須與生產批次相符。各產品共用服務入口；JWT 將請求綁定到特定雲端與產品，由該產品的憑證簽發者處理。公開入口啟用後，可在產品頁面取得完整 HTTPS 網址；管理後台網址不是簽發入口。
 4. 將回傳的裝置憑證和憑證鏈安裝到持有對應私鑰的裝置。裝置啟用與帳戶綁定仍須另外完成。
 
 成功時，服務會回傳已簽發的憑證與憑證組合；安裝前請核對裝置身分及憑證鏈。開發測試裝置請使用 Cloud Test Lab，不需走工廠生產流程。
+
+經授權的工廠閘道可依下例提交單一裝置 CSR。`FACTORY_ENROLL_ENDPOINT` 應填入產品頁面顯示的完整網址。工廠用戶端私鑰與批次 JWT 應留在閘道；重試同一裝置請沿用相同的 `request_id`。
+
+```bash
+jq -n --arg request_id "$REQUEST_ID" --arg devid "$DEVICE_ID" \
+  --rawfile csr_pem "$DEVICE_CSR" \
+  '{request_id:$request_id,devid:$devid,csr_pem:$csr_pem}' > "$REQUEST_JSON"
+curl --fail-with-body --silent --show-error \
+  --cacert "$SERVER_CA" --cert "$FACTORY_CERT" --key "$FACTORY_KEY" \
+  -H "Authorization: Bearer $PRODUCTION_RUN_JWT" \
+  -H 'Content-Type: application/json' --data-binary @"$REQUEST_JSON" \
+  "$FACTORY_ENROLL_ENDPOINT" > "$CERTIFICATE_RESPONSE"
+```
 
 [開啟重新設計的序列圖](assets/device-enrollment.zh-TW.html)
 

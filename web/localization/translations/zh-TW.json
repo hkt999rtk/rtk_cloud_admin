@@ -14365,6 +14365,162 @@
       "fingerprint": "e5f54df2d578322d6fe0265cccd4622bf30079db9f139106b099077908ecd5c6",
       "text": "由具備此雲端與產品裝置管理權限的使用者建立生產批次，再將有期限的授權安全地交給核准的工廠閘道。",
       "status": "approved"
+    },
+    "A device private key stays on the device. Send its CSR, device ID and a production-run JWT from the authorized factory gateway using mTLS.": {
+      "sourceHash": "64d8d6da1382be6545835b7d6f78550c6ed2f22829fb50bccf3091e3b7ba8b10",
+      "fingerprint": "1c795fd4a94b93ae064133a228ed4dacad5695e8b240f61d05647fec318ae3ca",
+      "text": "裝置私鑰保留在裝置上。由已授權的工廠閘道使用 mTLS，送出裝置 CSR、裝置 ID 和生產批次 JWT。",
+      "status": "approved"
+    },
+    "Authorization duration in hours (1–168)": {
+      "sourceHash": "f0758304bea71432a95873815afd7d69b4a8f7c4e2f73cc1f3a80f3c894aa904",
+      "fingerprint": "1437b8000ffa7bcf54f24ed11403264d6fc6a5d3da451646e17fa4ebc5d8cddd",
+      "text": "授權時效（小時，1–168）",
+      "status": "approved"
+    },
+    "Batch ID": {
+      "sourceHash": "c612797f988c0a99a740fa0409a9f787f6eb6722d272ace03048b0b037e2da8f",
+      "fingerprint": "97b0f4f699edfb0757fb3e973b67058a8a420b6c2d7d30001b1f4a3a5eef148e",
+      "text": "批次 ID",
+      "status": "approved"
+    },
+    "Create production run": {
+      "sourceHash": "a0545bfa7b9f4f3d38101a5cb3bee1007de25454db8e4c1463a8b198daf9f7c0",
+      "fingerprint": "27062c529aa9ee0ce1872a218b4c0f0a41801d47108733a45cc03830759263b4",
+      "text": "建立生產批次",
+      "status": "approved"
+    },
+    "Factory ID": {
+      "sourceHash": "3ceb603038b22bd19478f171f1f8a10fa92fcc12aa59c7412f266b9d99d8ca06",
+      "fingerprint": "5f6b9bae2eb4e32f15071340a8f794082423c1d5042027f468ec762754346e05",
+      "text": "工廠 ID",
+      "status": "approved"
+    },
+    "Factory enrollment URL": {
+      "sourceHash": "461e46bd9fb8bd4cfd5a8d6088c3fc154b3402a9a547329e58b3849d50696805",
+      "fingerprint": "4136a045267f421c9515e8c2ab78ad096ff3feb91d76555d0c57a65fb5fd25d3",
+      "text": "工廠簽發網址",
+      "status": "approved"
+    },
+    "Factory enrollment URL:": {
+      "sourceHash": "416a4d547e4dcb56a7f218af56a592a9993171d1af32205745447bd364a40f5d",
+      "fingerprint": "d3ccf292b8aa7ece84f976161d478715bf234bbcff1dbe78a2ec61b2058d9cbc",
+      "text": "工廠簽發網址：",
+      "status": "approved"
+    },
+    "Factory production runs": {
+      "sourceHash": "a37d2c30c87f261f2ba98995280c0380db85f229e195ba38f988e5779407d5b5",
+      "fingerprint": "d4b1650739ee1f94246c2f2f09bbe4e25b4253ac58e1f57d191450dd224772e2",
+      "text": "工廠生產批次",
+      "status": "approved"
+    },
+    "I have saved this authorization": {
+      "sourceHash": "dd0fb587182ca4156dda4163a3a2848f382256c4866bc45fc50bc8d16b768435",
+      "fingerprint": "67a0107bf8111a85dbb54d672c2181a81c690889f3ab13ece1db099f1679f088",
+      "text": "我已儲存這份授權",
+      "status": "approved"
+    },
+    "Issued / maximum": {
+      "sourceHash": "de5dd389080b41647bdefb1c73c9a563e52fcd1735fa90ecd0f671173fd6974b",
+      "fingerprint": "f8018b44b4850b741feeb08f4b68614430117258b73c48b03aff3f21ef18d5ed",
+      "text": "已簽發／上限",
+      "status": "approved"
+    },
+    "Maximum devices": {
+      "sourceHash": "2f791c381c8598539da9672cd4dad9e1b61d5fe7b53ec903379ddddb12979a84",
+      "fingerprint": "0f2187a00c3c82e233ba916f801e1ed54b54bb6ee193b723ea41f30c925f9bb3",
+      "text": "裝置數量上限",
+      "status": "approved"
+    },
+    "No production runs yet.": {
+      "sourceHash": "00d36ba73bf08f934f93afbc476a31f66832876590b88b9800926a730face2e6",
+      "fingerprint": "c51991a5276450a3cd4be59855780de36f853758fafac06d7eb79d4d4dfb757b",
+      "text": "尚無生產批次。",
+      "status": "approved"
+    },
+    "Production runs": {
+      "sourceHash": "a09494d81c9a5e5cd0ed75f606f934512b021796798dbe3d24c6ec848a3975ad",
+      "fingerprint": "9d73442893a4331aa9fe6756f05aead7235ae0760d2a27a38bbd7fedcb35a942",
+      "text": "生產批次",
+      "status": "approved"
+    },
+    "Production-run JWT": {
+      "sourceHash": "b45c75931c80aa1f26106504e2364ad766c21971c578751724f4852fb87c8458",
+      "fingerprint": "426fdb6b1cc59b0efa7a7a141525aefe8490c06b3e0bc46a668614108366f621",
+      "text": "生產批次 JWT",
+      "status": "approved"
+    },
+    "Retry": {
+      "sourceHash": "fc24d180866818b46238e77fdcb114585fb3808d91f5af2765b87f681571f83e",
+      "fingerprint": "7e98b70547d239ff0cc80283e3c1ee28cad9aa63052b4d22520ebc9ce36df4aa",
+      "text": "重試",
+      "status": "approved"
+    },
+    "Save this production-run JWT now. It is shown only once.": {
+      "sourceHash": "8eda40f3f773ce4606b05254cfbab6954fe3a603f80930b17d0081969b38c225",
+      "fingerprint": "986393d735ed3e462bf4d5c834885ad404504fc2df55d9ada589c2aa4ea5dd11",
+      "text": "請立即安全儲存此生產批次 JWT；它只會顯示一次。",
+      "status": "approved"
+    },
+    "Stop signing": {
+      "sourceHash": "0f7aed9b09c6d1c30ad0953ba01ef4dfcae3a60cb50078eb2be9c14695f4ee44",
+      "fingerprint": "3acf28a9991c8e9eb765f0c854c7de563f2c8e802a65fd1e47d093c31c989faf",
+      "text": "停止簽發",
+      "status": "approved"
+    },
+    "The factory enrollment URL and production runs are shown below when the public gateway is ready.": {
+      "sourceHash": "0854ea5cdcd464977d59d40f3e1aa5bc0e74e328f7cf2cdb020a9249402e9ed4",
+      "fingerprint": "a0dca96d96f49b60a9bec9b110b2874de6bc23c3f8e252c42622b61225cdb69d",
+      "text": "公開工廠入口啟用後，下方會顯示簽發網址與生產批次。",
+      "status": "approved"
+    },
+    "The platform issues a separate factory client certificate for each factory and Cloud. Send a factory-generated CSR to the platform operator; keep its private key at the factory.": {
+      "sourceHash": "e1f966459a67b043d44bf2ca0109a67bae986b2bc67c1f124111184839d5fe3c",
+      "fingerprint": "bac2a0ded21771ec31b6b030e1820c4a35de780d05a4f3aa013dd282ce9906bc",
+      "text": "每個工廠與雲端組合都需要獨立的工廠用戶端憑證。請將工廠產生的 CSR 交給平台管理員簽發，並將私鑰留在工廠。",
+      "status": "approved"
+    },
+    "The public factory enrollment URL is not configured yet.": {
+      "sourceHash": "3560ead22de2892053d6961a0431482615a6fafa2c9e29e22ff324d3dac5b34e",
+      "fingerprint": "9635994c3ba146114d78d7f09ed332c712d10a24ea0c7683c8898c1709f567fd",
+      "text": "尚未設定公開的工廠簽發網址。",
+      "status": "approved"
+    },
+    "Unable to create a production run. Check your permissions and Product status.": {
+      "sourceHash": "123c5eec5559ad59e6cea463cb2b4faa47de12d37cf54e916d60cb420a215557",
+      "fingerprint": "a0d0160fe1ff900430dd537aca24e903ad865a8ee91673f5de82f4cf6dfb6704",
+      "text": "無法建立生產批次。請檢查權限與產品狀態。",
+      "status": "approved"
+    },
+    "Unable to load production runs. Retry.": {
+      "sourceHash": "9f27f109d019a3cfe63b016a69d0ec021e0d71914085ebe7e2d68615a74a9eed",
+      "fingerprint": "fd059d6d46c59f9c5b4a7ced9050c985256ae011b4c4b5517d9558085dd440f8",
+      "text": "無法載入生產批次，請重試。",
+      "status": "approved"
+    },
+    "Unable to stop the production run. Retry.": {
+      "sourceHash": "192b8c9da5df5814504c7280b71f060614fa95e784aed1a80adfd9574bdf6796",
+      "fingerprint": "f811ec9144922609383d954e41f224fe43bd3fa3a3665d90b1d6b5ba13bedc61",
+      "text": "無法停止生產批次，請重試。",
+      "status": "approved"
+    },
+    "Cloud Test Lab is a simplified development test and must not be used for mass production.": {
+      "sourceHash": "2d1591f7f315a0a91fe8d50e94e9e00e3941bff6142919818b1c922dcc34742a",
+      "fingerprint": "72839caa0e5e6a153b1408e2acc3d02470b4118465cdcc42c7cb0928c62995aa",
+      "text": "Cloud Test Lab 是簡化的開發測試流程，不可用於量產。",
+      "status": "approved"
+    },
+    "Formal mass-production flow": {
+      "sourceHash": "0f7a8e08fed0d8544f309d810e71c526ef3b349249bd08da683a9a81346f47b7",
+      "fingerprint": "d0a8d4c34e5bf2b19390185ed978e8c706045cdb88e3e2b635724dce7511d7c4",
+      "text": "正式量產流程",
+      "status": "approved"
+    },
+    "View the factory enrollment sequence diagram": {
+      "sourceHash": "cb0eea544ab52667d91acb1adee7d94d3e03c6a174eaf9899ec5f40d7b52242f",
+      "fingerprint": "7301ac06cec9bcd7ecf3414dec045cb87283e8a80ea78fea1c9461b867791b57",
+      "text": "查看工廠簽發時序圖",
+      "status": "approved"
     }
   }
 }

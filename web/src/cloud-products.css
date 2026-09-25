@@ -22,4 +22,9 @@
 .cloud-product-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:20px}
 .cloud-product-items .my-clouds-panel{margin:0}
 .cloud-product-items h3{overflow-wrap:anywhere;margin-top:0}
+.factory-run-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;margin:18px 0}
+.factory-run-form label{display:grid;gap:6px}
+.factory-run-form input,.factory-run-form select{width:100%;box-sizing:border-box}
+.factory-token{display:grid;gap:10px;padding:16px;border:2px solid var(--brand);border-radius:8px;background:#fff}
+.factory-token textarea{width:100%;min-height:90px;box-sizing:border-box;overflow-wrap:anywhere}
 @media(max-width:600px){.cloud-product-items{grid-template-columns:minmax(0,1fr)}.cloud-products .my-clouds-card-head{flex-wrap:wrap}.cloud-product-enrollment dl{grid-template-columns:minmax(0,1fr);gap:3px}.cloud-product-enrollment dd{margin-bottom:10px}}
