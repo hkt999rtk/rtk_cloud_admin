@@ -111,7 +111,7 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
   await other.close();
 });
 
-test('[UI-CA-MULTICLOUD-ANALYTICS-001] unavailable Overview and Stream Health values use compact N/A labels', async ({ page }) => {
+test('[UI-CA-MULTICLOUD-ANALYTICS-001] unavailable Overview and Stream Health values use their page labels', async ({ page }) => {
   await login(page, 'billing_owner');
   await page.route(`**/api/developer/brand-clouds/${cloudA}/fleet/health-summary*`, (route) => route.fulfill({
     status: 200,
@@ -139,8 +139,8 @@ test('[UI-CA-MULTICLOUD-ANALYTICS-001] unavailable Overview and Stream Health va
 
   const cards = page.locator('.stream-health-metrics .metric-card');
   await expect(cards).toHaveCount(4);
-  await expect(cards.getByText('N/A', { exact: true })).toHaveCount(4);
-  await expect(cards.getByText('Unavailable', { exact: true })).toHaveCount(0);
+  await expect(cards.getByText('Unavailable', { exact: true })).toHaveCount(4);
+  await expect(cards.getByText('N/A', { exact: true })).toHaveCount(0);
 });
 
 test('[UI-CA-MULTICLOUD-REGIONS-001] zero-count regions show an empty state without a map', async ({ page }) => {
