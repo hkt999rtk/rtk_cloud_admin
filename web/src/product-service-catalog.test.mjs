@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { productServiceCapabilityLabel, productServiceChoices, productServiceWritePayload } from './product-service-catalog.mjs';
+import { productServiceAvailability, productServiceCapabilityLabel, productServiceChoices, productServiceWritePayload } from './product-service-catalog.mjs';
 
 const catalog = {
   catalog_revision: 7,
@@ -16,6 +16,7 @@ test('registered service choices include plugin codes and preserve unavailable e
   assert.deepEqual(choices.map((option) => option.code), ['mqtt', 'iot_shadow', 'custom_retired']);
   assert.equal(choices[2].selectable, false);
   assert.equal(productServiceCapabilityLabel('iot_shadow', catalog), 'IoT Shadow');
+  assert.equal(productServiceAvailability({ selectable: false, unavailable_reason: 'service_unavailable' }), 'Service not ready');
 });
 
 test('new Product sends observed catalog revision and exact plugin codes', () => {

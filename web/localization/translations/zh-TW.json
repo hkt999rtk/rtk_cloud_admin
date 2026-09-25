@@ -14521,6 +14521,72 @@
       "fingerprint": "7301ac06cec9bcd7ecf3414dec045cb87283e8a80ea78fea1c9461b867791b57",
       "text": "查看工廠簽發時序圖",
       "status": "approved"
+    },
+    "No services are registered in this environment.": {
+      "sourceHash": "1406e1e8835170c140db7767ac5a3cf1e729be7aa506f9a86722f81044bf507e",
+      "fingerprint": "b5a07413ee32fd3be3d22bae615e4cee541a2853dab41d72bd163b42bb2beaf7",
+      "text": "此環境尚未登錄任何服務。",
+      "status": "approved"
+    },
+    "Registered features": {
+      "sourceHash": "cfc4f29ef9ba97bb21dac08a9a409982881a4c4f9e6221930a78ae78a1811e4c",
+      "fingerprint": "02124a242f2e1c1cd2267c3c5bfaad410e6ce2bbb4b4f3e97d63dead1e86e20e",
+      "text": "已登錄功能",
+      "status": "approved"
+    },
+    "Registry selection is not enabled yet. Product writes use legacy service choices.": {
+      "sourceHash": "1c49246d8b80cc0aff77a0afc73d32cb734d13d577a60b1740cb17f29d62825c",
+      "fingerprint": "49bf353f0066de8b0529905a46303a6f20c48513eb9c457c3ff2fd397a2f0175",
+      "text": "登錄功能選擇尚未啟用；產品設定仍使用舊版服務選項。",
+      "status": "approved"
+    },
+    "Selectable features can be added to a Product.": {
+      "sourceHash": "f9cf24a43e73ea2186b96f98aa1169d0cf5669cf07bf0bacf928d76df9615d39",
+      "fingerprint": "68c82063bba99a3d32dec42f38e1f2d3c954351c6e978d0aac3f87b53d70ca33",
+      "text": "可用的功能可以加入產品。",
+      "status": "approved"
+    },
+    "{{count}} of 64 selected": {
+      "sourceHash": "ce57f7fd71d0fbce55d8d1db203dc9c4074e5b48a28ff3c849a13b8d5abd6c22",
+      "fingerprint": "e61ac9acc56a5176a964361c9cfcdc801ff41ead265c75a586e7f1c8b0b14eb7",
+      "text": "已選 {{count}} 項，最多 64 項",
+      "status": "approved"
+    },
+    "Available": {
+      "sourceHash": "8f37969baea98a2153c9fea8b7ace07c80158b9536e9bda37294bcccfcd2dff2",
+      "fingerprint": "61842e4572f0bf52875bd99b49d605d96b4b4a48af550103c4676f10726f9584",
+      "text": "可用",
+      "status": "approved"
+    },
+    "Service suspended": {
+      "sourceHash": "959c9839f2ba727e57fd7995c7e1a369644a08cf77e86b226e6c50d44252ddd4",
+      "fingerprint": "47d4bd3a75515aa2cd0b6d8ed2240fb94eb37f2bf52d7b75b4022de93382f49e",
+      "text": "服務已暫停",
+      "status": "approved"
+    },
+    "Service not ready": {
+      "sourceHash": "e0d6dab372161889f7a734ed61c7900b932166fd99b5ed62dee27e11d4634685",
+      "fingerprint": "9af1b10649aeaef786aa5f8ddcd6bf334ee491ca349cdf92cebe0d88943e6094",
+      "text": "服務尚未就緒",
+      "status": "approved"
+    },
+    "Required service unavailable": {
+      "sourceHash": "968390de546127838592d2505dbd04fddb3f419d63f398b8895bfabf7be1c001",
+      "fingerprint": "17fdf97859380bb8b834dcc6000bd7f063d32ad2db16e64e50b33b59eafa64e9",
+      "text": "必要服務無法使用",
+      "status": "approved"
+    },
+    "Product feature selection is disabled": {
+      "sourceHash": "cd05425dcd06782f4d22af9980420b97964212179c512b00478906f298c31537",
+      "fingerprint": "0b5f17b897236068ccced41d17442c3cefb98ec7627fe9636c4f2451c2cd9d3c",
+      "text": "產品功能選擇尚未啟用",
+      "status": "approved"
+    },
+    "No longer registered": {
+      "sourceHash": "9d8f28d59763e1909f84fef693bf251b11035fd5dc31fe3357d15cd849ef5693",
+      "fingerprint": "f0d806d1016da94b160178756eeb171237162b0b5482b81bd540b19618ce7b8c",
+      "text": "已取消登錄",
+      "status": "approved"
     }
   }
 }

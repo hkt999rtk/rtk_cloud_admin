@@ -22,9 +22,14 @@ export function productServiceCapabilityLabel(value, catalog) {
     || (code === 'ota' ? 'Firmware OTA' : code === 'device_logging' ? 'Device Logs' : code);
 }
 
+export function productServiceAvailability(option) {
+  if (option.selectable) return 'Available';
+  return ({ service_suspended: 'Service suspended', service_unavailable: 'Service not ready', dependency_unavailable: 'Required service unavailable', product_writes_disabled: 'Product feature selection is disabled', not_registered: 'No longer registered' })[option.unavailable_reason] || option.unavailable_reason || 'Unavailable';
+}
+
 export function productServiceChoices(catalog, selected = []) {
   if (!catalog) return [];
-  const available = catalog.product_writes_enabled ? catalog.options : LEGACY_PRODUCT_SERVICE_CAPABILITIES;
+  const available = catalog.product_writes_enabled ? catalog.options : (catalog.legacy_options || LEGACY_PRODUCT_SERVICE_CAPABILITIES);
   return [
     ...available,
     ...selected.filter((code) => !available.some((option) => option.code === code))
