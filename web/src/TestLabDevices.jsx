@@ -26,11 +26,14 @@ function connectionLabel(value) {
   return translate('Unknown');
 }
 
-export function TestLabDevices({ cloudId, product, onScope }) {
+export function TestLabDevices({ cloudId, product, onScope, onStartTest, requestedDevice, onLinkedDevice, onPendingDownloads }) {
   const [account, setAccount] = useState(null);
   const [downloads, setDownloads] = useState([]);
   const downloadScope = useRef(0);
+  const linkedDecision = useRef(false);
   useEffect(() => { setDownloads([]); const epoch = ++downloadScope.current; return () => { if (downloadScope.current === epoch) ++downloadScope.current; }; }, [cloudId]);
+  useEffect(() => { onPendingDownloads(downloads.some(file => !file.saved)); }, [downloads, onPendingDownloads]);
+  useEffect(() => { linkedDecision.current = false; }, [cloudId, product, requestedDevice]);
   useEffect(() => {
     if (!downloads.some(file => !file.saved)) return;
     const warn = event => { event.preventDefault(); event.returnValue = ''; };
@@ -56,7 +59,7 @@ export function TestLabDevices({ cloudId, product, onScope }) {
   useEffect(() => { setSelected(''); setDevices([]); setProvision(null); setError(''); }, [cloudId, product, account?.id]);
   const selectedDevice = devices.find(d => d.id === selected && d.bound && !d.retirement_status);
   const selectedState = selectedDevice?.provision_status || '';
-  useEffect(() => { onScope(account?.id || '', selected, selectedState, selectedDevice?.name || ''); }, [account?.id, selected, selectedState, selectedDevice?.name]);
+  useEffect(() => { onScope(account?.id || '', selected, selectedState, selectedDevice?.name || '', selectedDevice?.connection_status || ''); }, [account?.id, selected, selectedState, selectedDevice?.name, selectedDevice?.connection_status]);
   useEffect(() => {
     if (!account || !product) return;
     const controller = new AbortController(); let running = false;
@@ -70,12 +73,22 @@ export function TestLabDevices({ cloudId, product, onScope }) {
         } while (more && !controller.signal.aborted);
         if (controller.signal.aborted) return;
         setDevices(rows); setSelected(value => rows.some(d => d.id === value && d.bound && !d.retirement_status) ? value : '');
+        if (requestedDevice && !linkedDecision.current) {
+          linkedDecision.current = true;
+          const linked = rows.find(row => row.id === requestedDevice);
+          if (!linked || linked.retirement_status || (!linked.bound && !linked.bindable)) onLinkedDevice('ineligible');
+          else if (!linked.bound) onLinkedDevice('unbound');
+          else {
+            setSelected(linked.id);
+            onLinkedDevice(linked.provision_status === 'activated' ? 'ready' : 'needs_activation');
+          }
+        }
       } catch (e) { if (!controller.signal.aborted) { setDevices([]); setSelected(''); setError('Unable to verify Console access. Reload the page or sign in to Console again.'); } }
       finally { running = false; }
     }
     refresh(); const timer = setInterval(refresh, 10000);
     return () => { controller.abort(); clearInterval(timer); };
-  }, [base, product, account?.id, version]);
+  }, [base, product, account?.id, version, requestedDevice]);
   async function perform(work) {
     if (busy) return; setBusy(true); setError(''); const origin = { ...current.current };
     try { await work(); if (origin.cloudId === current.current.cloudId && origin.product === current.current.product) setVersion(v => v + 1); }
@@ -147,12 +160,10 @@ export function TestLabDevices({ cloudId, product, onScope }) {
     <fieldset disabled={busy || !!confirmation} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
     <p>{icon('user-check')}{account ? translate("Testing as {{value0}} — using your Console login.", { value0: account.email }) : product ? translate("Loading your Console test access…") : translate("Select a Product to begin.")}</p>
     {error && <p role="alert" className="test-lab-warning">{translate(error)}</p>}
-    <label className="test-lab-device-picker"><strong>{translate("Test device")}</strong><select value={selected} disabled={!account || busy} onChange={event => setSelected(event.target.value)}><option value="">{translate("Choose a device for the tests below")}</option>{devices.filter(d => d.bound && !d.retirement_status).map(d => <option key={d.id} value={d.id}>{d.name} — {connectionLabel(d.connection_status)}</option>)}</select></label>
-    <p className="test-lab-device-picker-help">{translate("The MQTT, Device Shadow and WebRTC tests below use the selected device.")}</p>
     {downloads.map(file => <TestLabDownload key={file.id} file={file} onSaved={(saved = true) => setDownloads(files => files.map(item => item.id === file.id ? { ...item, saved } : item))} />)}
     <div className="test-lab-actions"><button disabled={busy || !product} onClick={createDevice}>{icon('plus')}{translate("Create test device")}</button></div>
     <h3>{icon('microchip')}{translate("Test devices")}</h3><p>{translate("Device private keys are available only when a test device is created. If the file is lost, safely retire that device and create a replacement.")}</p>
-    {!account ? <p>{translate("Your test devices will appear automatically.")}</p> : !devices.length ? <p>{translate("No test devices in this Product. Create a test device to begin.")}</p> : <div className="table-wrap"><table><thead><tr><th>{translate("Device")}</th><th>{translate("Binding")}</th><th>{translate("Provision")}</th><th>{translate("Connection")}</th><th>{translate("Actions")}</th></tr></thead><tbody>{devices.map(d => <tr key={d.id}><td>{d.name}<small className="test-lab-device-id">{d.id}</small>{downloads.some(file => file.deviceId === d.id) && <button type="button" className="test-lab-download-jump" onClick={() => document.getElementById(`test-lab-download-${d.id}`)?.focus()}>{translate("Go to credential download")}</button>}</td><td>{bindingLabel(d)}</td><td>{provisionLabel(d.provision_status)}</td><td>{connectionLabel(d.connection_status)}</td><td>{!d.retirement_status && d.bindable && !d.bound && <button disabled={busy} onClick={() => bind(d)}>{translate("Bind")}</button>}{!d.retirement_status && d.bound && !['activated', 'pending'].includes(d.provision_status) && <button disabled={busy} onClick={() => { setProvision({ ...d, operation: crypto.randomUUID(), activity: crypto.randomUUID() }); setPublicKey(''); }}>{translate("Provision")}</button>}{!d.retirement_status && d.bound && <button disabled={busy || d.provision_status === 'pending'} onClick={() => unbind(d)}>{icon('link-slash')}{translate("Unbind")}</button>}{d.retirement_status !== 'completed' && <button className="destructive" disabled={busy || d.provision_status === 'pending'} onClick={() => retire(d)}>{d.retirement_status ? translate('Retry retirement') : translate('Safely retire')}</button>}</td></tr>)}</tbody></table></div>}
+    {!account ? <p>{translate("Your test devices will appear automatically.")}</p> : !devices.length ? <p>{translate("No test devices in this Product. Create a test device to begin.")}</p> : <div className="table-wrap"><table><thead><tr><th>{translate("Device")}</th><th>{translate("Binding")}</th><th>{translate("Provision")}</th><th>{translate("Connection")}</th><th>{translate("Actions")}</th></tr></thead><tbody>{devices.map(d => <tr key={d.id}><td>{d.name}<small className="test-lab-device-id">{d.id}</small>{downloads.some(file => file.deviceId === d.id) && <button type="button" className="test-lab-download-jump" onClick={() => document.getElementById(`test-lab-download-${d.id}`)?.focus()}>{translate("Go to credential download")}</button>}</td><td>{bindingLabel(d)}</td><td>{provisionLabel(d.provision_status)}</td><td>{connectionLabel(d.connection_status)}</td><td>{!d.retirement_status && d.bound && d.provision_status === 'activated' && <button disabled={busy} onClick={() => { setSelected(d.id); onStartTest(d.id); }}>{icon('flask')}{translate("Test this device")}</button>}{!d.retirement_status && !d.bound && <small className="test-lab-next-step">{translate("This device must be bound to your test account before testing.")}</small>}{!d.retirement_status && d.bound && d.provision_status !== 'activated' && <small className="test-lab-next-step">{translate("Activate this device before testing.")}</small>}{!d.retirement_status && d.bindable && !d.bound && <button disabled={busy} onClick={() => bind(d)}>{translate("Bind")}</button>}{!d.retirement_status && d.bound && !['activated', 'pending'].includes(d.provision_status) && <button disabled={busy} onClick={() => { setProvision({ ...d, operation: crypto.randomUUID(), activity: crypto.randomUUID() }); setPublicKey(''); }}>{translate("Provision")}</button>}{!d.retirement_status && d.bound && <button disabled={busy || d.provision_status === 'pending'} onClick={() => unbind(d)}>{icon('link-slash')}{translate("Unbind")}</button>}{d.retirement_status !== 'completed' && <button className="destructive" disabled={busy || d.provision_status === 'pending'} onClick={() => retire(d)}>{d.retirement_status ? translate('Retry retirement') : translate('Safely retire')}</button>}</td></tr>)}</tbody></table></div>}
     {provision && <div className="test-lab-binding-form"><h4>{translate("Provision")} {provision.name}</h4><p>{translate("Cloud activation uses a separate clip-encryption key, not the device certificate key. Generate and save a test key, or paste your existing RSA public key. For retries, reuse the original key and activity ID. Private keys never leave this browser.")}</p><label>{translate("Activity ID")}<input value={provision.activity} onChange={e => setProvision({ ...provision, activity: e.target.value })} /></label><label>{translate("Clip public key")}<textarea rows={5} value={publicKey} onChange={e => setPublicKey(e.target.value)} /></label><button disabled={busy} onClick={generateProvisionKey}>{translate("Generate and download test key")}</button><button disabled={busy || !publicKey || !provision.activity} onClick={async () => { if (await ask('Start cloud provisioning for this bound test device?')) perform(async () => { await action(provision, 'provision', { operation_id: provision.operation, activity_id: provision.activity, clip_public_key: publicKey }); setProvision(null); }); }}>{translate("Start provision")}</button><button disabled={busy} onClick={() => setProvision(null)}>{translate("Cancel")}</button></div>}
     </fieldset>
   </section>;

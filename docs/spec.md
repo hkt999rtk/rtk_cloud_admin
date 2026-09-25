@@ -834,10 +834,20 @@ Acceptance: Developer team management uses its namespace and is replay-safe.
 {"acceptance_layer":"ui","operation_model":"independent","gate":"pr","environments":["local"],"targets":["desktop"],"evidence":["screenshot"],"required":true,"status":"active"}
 -->
 
-Acceptance: The Cloud Test Lab retains the selected cloud/product/device, exposes
-MQTT, Shadow and WebRTC tabs, and disables live actions when runtime authorization
-is unavailable. Local validation sends no runtime request and must not report a
-successful live connection or decoded video. See [Test Lab](test-lab.md).
+Acceptance: Brand Cloud and Product selectors precede two top-level tabs, Devices &
+credentials and Run tests. The first tab contains device issuance, credential
+download, binding, activation, unbinding and retirement; eligible bound and
+activated rows open Run tests for that device. The second tab shows the selected
+device and readiness above MQTT, Shadow and WebRTC tabs, with a way to change
+devices; no selection or unavailable authorization disables live actions, while
+offline status is shown separately. Pending credentials remain in page memory
+across tab changes and remain flagged until confirmed saved. Leaving active tests
+requires confirmation and closes local MQTT/WebRTC connections and pending actions;
+changing Product or losing device access clears the test scope. A `product_id` and
+`device_id` deep link starts tests only for an eligible, bound, activated device;
+otherwise it leads to the preparation step with an explanation. Local validation
+sends no runtime request and must not report a successful live connection or decoded
+video. The two tab levels work by keyboard and at mobile width. See [Test Lab](test-lab.md).
 
 ### Brand Cloud requirement source
 

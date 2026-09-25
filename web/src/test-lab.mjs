@@ -86,7 +86,7 @@ export function labBlockedMessage(reason) {
   return {
     test_account_required: 'Loading test access from your Console login. Reload if it is unavailable.',
     binding_required: 'Bind this test device to the authorized User Account before testing.',
-    provision_required: 'This device is bound but cloud provisioning is not complete. Start or retry Provision from Bound devices.',
+    provision_required: 'This device is bound but cloud provisioning is not complete. Start or retry Provision in Devices & credentials.',
     runtime_authorization_unavailable: 'Live tests are unavailable: the device-scoped credential exchange and broker revocation integration are not ready. No live connection has been made.',
     read_only_role: 'Your read-only role does not grant device control or media playback.',
     device_mapping_missing: 'This registry device has no valid Video Cloud identity mapping.',
