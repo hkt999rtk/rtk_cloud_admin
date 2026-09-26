@@ -3958,17 +3958,10 @@ func (s *Server) validateImmutableOTAScope(ctx context.Context, accessToken, org
 
 func scopeStringSlice(value any) []string {
 	var values []string
-	switch typed := value.(type) {
-	case []any:
+	if typed, ok := value.([]any); ok {
 		for _, item := range typed {
 			if text, ok := item.(string); ok && strings.TrimSpace(text) != "" {
 				values = append(values, strings.TrimSpace(text))
-			}
-		}
-	case []string:
-		for _, item := range typed {
-			if strings.TrimSpace(item) != "" {
-				values = append(values, strings.TrimSpace(item))
 			}
 		}
 	}
@@ -3986,55 +3979,6 @@ func (s *Server) validateExcludedOTADevices(ctx context.Context, accessToken, or
 		}
 	}
 	return nil
-}
-
-func deviceMatchesScopeQuery(device accountclient.Device, query map[string]any) bool {
-	for key, value := range query {
-		values := scopeStringSlice(value)
-		if len(values) == 0 {
-			if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
-				values = []string{strings.TrimSpace(text)}
-			}
-		}
-		if len(values) == 0 {
-			continue
-		}
-		actual := ""
-		switch key {
-		case "product_id":
-			actual = device.DeviceItemProfileID
-		case "region", "firmware", "group_id", "category", "model", "status", "readiness":
-			if device.Metadata != nil {
-				actual, _ = device.Metadata[key].(string)
-			}
-			if actual == "" {
-				switch key {
-				case "category":
-					actual = device.Category
-				case "model":
-					actual = device.Model
-				case "status":
-					actual = device.Status
-				case "readiness":
-					actual = device.Readiness
-				}
-			}
-		}
-		if actual == "" {
-			return false
-		}
-		matched := false
-		for _, expected := range values {
-			if actual == expected {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	return true
 }
 
 func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Request) {
@@ -4171,20 +4115,13 @@ func (s *Server) apiUpdatePlanScopePreview(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) firmwareDistributionDevices(ctx context.Context, session store.Session, orgID string) ([]contracts.Device, error) {
+	var devices []contracts.Device
+	var err error
 	if s.accountClient.Enabled() {
-		devices, err := s.customerDevices(ctx, session)
-		if err != nil {
-			return nil, err
-		}
-		filtered := make([]contracts.Device, 0, len(devices))
-		for _, device := range devices {
-			if device.OrganizationID == orgID {
-				filtered = append(filtered, device)
-			}
-		}
-		return filtered, nil
+		devices, err = s.customerDevices(ctx, session)
+	} else {
+		devices, err = s.projections.ListDevices()
 	}
-	devices, err := s.projections.ListDevices()
 	if err != nil {
 		return nil, err
 	}
@@ -4449,12 +4386,11 @@ func parseFirmwareTimestamp(raw string) time.Time {
 	if raw == "" {
 		return time.Time{}
 	}
-	for _, layout := range []string{time.RFC3339Nano, time.RFC3339} {
-		if parsed, err := time.Parse(layout, raw); err == nil {
-			return parsed.UTC()
-		}
+	parsed, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}
 	}
-	return time.Time{}
+	return parsed.UTC()
 }
 
 func firmwareDistributionDeviceKey(device contracts.Device) string {

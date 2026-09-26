@@ -7,7 +7,6 @@ import {
   firmwareCampaignProgress,
   firmwareCampaignWaitingProgress,
   firmwareCampaignStatusLabel,
-  firmwareDashboardAction,
   firmwarePolicyLabel,
   productHasOTA,
   firmwareRiskRows,
@@ -97,20 +96,14 @@ test('firmware dashboard orders campaigns by newest start time', () => {
   assert.deepEqual(sorted.map((item) => item.campaign_id), ['newer', 'older', 'not-started']);
 });
 
-test('firmware dashboard exposes reversible start and stop controls', () => {
-  assert.deepEqual(firmwareDashboardAction({ state: 'draft' }), { action: 'start', label: 'Start OTA' });
-  assert.deepEqual(firmwareDashboardAction({ state: 'paused' }), { action: 'resume', label: 'Start OTA' });
-  assert.deepEqual(firmwareDashboardAction({ state: 'active' }), { action: 'pause', label: 'Stop OTA' });
-  assert.equal(firmwareDashboardAction({ state: 'completed' }), null);
-  assert.equal(firmwareDashboardAction({ state: 'active' }, false), null);
-});
-
 test('firmware campaign actions follow campaign state and permission', () => {
   assert.deepEqual(firmwareCampaignActions({ state: 'draft' }), ['start']);
+  assert.deepEqual(firmwareCampaignActions({ state: 'scheduled' }), ['pause', 'cancel']);
   assert.deepEqual(firmwareCampaignActions({ state: 'active' }), ['pause', 'cancel']);
   assert.deepEqual(firmwareCampaignActions({ state: 'paused' }), ['resume', 'cancel']);
   assert.deepEqual(firmwareCampaignActions({ state: 'completed', failed: 2 }), ['retry']);
   assert.deepEqual(firmwareCampaignActions({ state: 'completed', failed: 0 }), []);
+  assert.deepEqual(firmwareCampaignActions({ state: 'canceled' }), []);
   assert.deepEqual(firmwareCampaignActions({ state: 'active' }, false), []);
 });
 

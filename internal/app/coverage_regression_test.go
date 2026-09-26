@@ -256,28 +256,6 @@ func TestCoverageGovernancePureHelpers(t *testing.T) {
 	if got := scopeStringSlice([]any{" a ", 1, "", "b"}); strings.Join(got, ",") != "a,b" {
 		t.Fatalf("scopeStringSlice([]any) = %#v", got)
 	}
-	if got := scopeStringSlice([]string{" a ", "", "b"}); strings.Join(got, ",") != "a,b" {
-		t.Fatalf("scopeStringSlice([]string) = %#v", got)
-	}
-	device := accountclient.Device{
-		DeviceItemProfileID: "product-1",
-		Category:            "camera",
-		Model:               "RTK-CAM",
-		Status:              "online",
-		Readiness:           "ready",
-		Metadata:            map[string]any{"region": "ap-northeast", "firmware": "1.0.0"},
-	}
-	if !deviceMatchesScopeQuery(device, map[string]any{
-		"product_id": "product-1", "region": []string{"ap-northeast"}, "status": "online",
-	}) {
-		t.Fatal("deviceMatchesScopeQuery rejected matching device")
-	}
-	if deviceMatchesScopeQuery(device, map[string]any{"model": "other"}) {
-		t.Fatal("deviceMatchesScopeQuery accepted mismatching device")
-	}
-	if deviceMatchesScopeQuery(accountclient.Device{}, map[string]any{"region": "ap-northeast"}) {
-		t.Fatal("deviceMatchesScopeQuery accepted missing device field")
-	}
 
 	orgs := []accountclient.Organization{{ID: "org-1", Role: "owner"}}
 	if role, ok := organizationRole(orgs, "org-1"); !ok || role != "owner" {
@@ -806,6 +784,9 @@ func TestFirmwareReadModelHelpers(t *testing.T) {
 	campaign := contracts.FirmwareDistributionCampaign{CampaignID: "canonical"}
 	if !parseFirmwareTimestamp("not-a-time").IsZero() {
 		t.Fatalf("invalid timestamp should parse to zero")
+	}
+	if got := parseFirmwareTimestamp("2026-01-02T09:04:05.123+08:00"); !got.Equal(time.Date(2026, 1, 2, 1, 4, 5, 123000000, time.UTC)) || got.Location() != time.UTC {
+		t.Fatalf("fractional timestamp should parse to UTC, got %v", got)
 	}
 
 	devices := []contracts.Device{
