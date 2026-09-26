@@ -15635,6 +15635,30 @@
       "source": "The other 11 services have no newly approved RTK price in this review. All 15 rows show a separate highest eligible public reference. Existing customer charges follow the active rate card, contract and invoice.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; the approved OTA price stays separate from this reference.",
+      "source": "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; the approved OTA price stays separate from this reference.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Compare approved OTA unit prices with public references selected from the official sources inspected for this review.",
+      "source": "Compare approved OTA unit prices with public references selected from the official sources inspected for this review.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Highest inspected public reference",
+      "source": "Highest inspected public reference",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.",
+      "source": "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

@@ -4,6 +4,16 @@ Research date: 2026-09-06. Highest-reference review: 2026-09-26. Status: referen
 database migration, charging policy or payment configuration is created by this
 page. Customer UI: Billing > Service Pricing, `/console/clouds/{id}/billing/pricing`.
 
+The numeric research catalog is embedded in the Cloud Admin BFF at
+`internal/app/service-pricing-reference.json` and exposed only through
+`GET /api/developer/brand-clouds/{id}/billing/pricing-references`. Every request
+rechecks the logged-in Cloud owner and `billing_account.read` capability, returns
+the ownership version and `Cache-Control: no-store`, and does not require the
+accounting service to be available. The four OTA values in this response are
+**approved but inactive**; this endpoint is not an effective Billing rate card.
+The client verifies the ownership version and complete meter set before showing
+any amounts, and shows no price table if the request fails.
+
 ## Pricing basis
 
 This is reference research, not a measured profitability claim or an effective
@@ -150,7 +160,15 @@ approved/upcoming, and research reference amounts separately. It must not show
 a made-up monthly total as the Cloud's spend.
 
 Check tab navigation, direct `/billing/pricing` loading, browser history, group
-filters, reference links and mobile overflow. The current static research page
-uses the same Cloud owner authorization as Billing but does not establish an
-effective price. The target effective-rate page fails closed when its Billing
-rate API is unavailable; reference values cannot replace an active tariff.
+filters, reference links and mobile overflow. Anonymous users receive 401 and
+non-owner Cloud members receive 403 from the pricing API. The current research
+page uses the same Cloud owner authorization as Billing and fails closed if its
+pricing response is missing, stale, malformed or unavailable. Accounting
+outages do not block the separate research endpoint. The build removes numeric
+benchmark translations from public JavaScript and scans all generated
+`web/dist` text assets for protected price strings and the server-only catalog.
+Approved and reference
+amounts cannot be recovered from anonymous app or localization assets. This
+research endpoint never establishes an effective price; the later effective-rate
+page must read the Cloud's active Billing rate version and cannot substitute
+reference values for an active tariff.

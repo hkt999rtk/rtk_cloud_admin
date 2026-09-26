@@ -60,7 +60,7 @@ test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and 
     if (label === 'Service Pricing') {
       await expect(page.locator('.pricing-status-summary')).toContainText('OTA prices approved');
       await expect(page.locator('.pricing-status-summary')).toContainText('Services with reference prices only');
-      await expect(page.locator('.pricing-status-summary')).toContainText('All 15 rows show a separate highest eligible public reference');
+      await expect(page.locator('.pricing-status-summary')).toContainText('highest eligible public reference among the official sources inspected');
       await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
       await expect(page.locator('.pricing-table tbody tr[data-price-status="approved-pending"]')).toHaveCount(4);
       await expect(page.locator('.pricing-table tbody tr[data-price-status="research"]')).toHaveCount(11);

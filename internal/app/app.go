@@ -404,6 +404,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/logout", s.apiLogout)
 	s.mux.HandleFunc("POST /api/orgs/{orgId}/quota-raise-requests", s.apiQuotaRaiseRequest)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/account", s.apiBillingAccount)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/pricing-references", s.apiBillingPricingReferences)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/summary", s.apiBillingSummary)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/usage", s.apiBillingUsage)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/invoices", s.apiBillingInvoices)

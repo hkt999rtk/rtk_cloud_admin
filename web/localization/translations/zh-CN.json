@@ -15421,6 +15421,30 @@
       "fingerprint": "1c204bdaa7b8d1ad31db8970a65bc8b08fbf78398f81e5161d545f80600b25aa",
       "text": "其余 11 项服务在本次审查中没有新核准的 RTK 单价。全部 15 行都另列符合条件的最高公开参考价。现有客户费用仍依据生效价卡、合同与发票计算。",
       "status": "approved"
+    },
+    "Compare approved OTA unit prices with public references selected from the official sources inspected for this review.": {
+      "sourceHash": "89184478a6774a4394bb6bd17f67cd84ef159ab5daf1a4e1bc0341add3f3357e",
+      "fingerprint": "ba2a2eba4608d7f135a84df171a98aafc4b69ab44db3dcbe54932202d45a3e6e",
+      "text": "比较已核准的 OTA 单价与本次审查的官方来源中选出的公开参考价。",
+      "status": "approved"
+    },
+    "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.": {
+      "sourceHash": "7ae66c6f468dd20369075633d7d17556b3391bc01e6a586e2673382eb75db374",
+      "fingerprint": "88c16f5ec80be98f0ac94251e3e41dd3fbb2648d2ef7829dddc30a17f9eeae50",
+      "text": "其余 11 项服务在本次审查中没有新核准的 RTK 单价。全部 15 行均显示已审查官方来源中符合条件的最高公开参考价。现有客户费用仍依生效价卡、合同与发票计算。",
+      "status": "approved"
+    },
+    "Highest inspected public reference": {
+      "sourceHash": "c55a6e312bb27d0cc4778ca6bd60bc24fa6e79144b1f3658d7ba087f5e28d969",
+      "fingerprint": "5e45452e1e679468e0735585eb941114593809f952e025db179129d0d9fb0924",
+      "text": "已审查来源中的最高公开参考价",
+      "status": "approved"
+    },
+    "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; the approved OTA price stays separate from this reference.": {
+      "sourceHash": "62c28e9651d6caffb0d74889a4e2a468a95ffb2f076508e5adff4cf1d26c4bfe",
+      "fingerprint": "0be3ad3f6b5c1a5e48c60e7b1815316f532db716385acf019909031243a51564",
+      "text": "AWS Device Jobs 圣保罗区域的首个付费级距。RTK 计量首次持久化的装置指派；已核准的 OTA 单价与此参考价分开。",
+      "status": "approved"
     }
   }
 }
