@@ -366,8 +366,8 @@
       "placeholders": []
     },
     {
-      "key": ". Runs only in your browser — no messages are published and no Shadow data is changed. Passing does not confirm device connectivity or whether the device accepts the payload. Results appear in the evidence timeline; errors appear above.",
-      "source": ". Runs only in your browser — no messages are published and no Shadow data is changed. Passing does not confirm device connectivity or whether the device accepts the payload. Results appear in the evidence timeline; errors appear above.",
+      "key": ". Runs only in your browser — no messages are published and no Shadow data is changed. Passing does not confirm device connectivity or whether the device accepts the payload. Results appear in the timeline; errors appear above.",
+      "source": ". Runs only in your browser — no messages are published and no Shadow data is changed. Passing does not confirm device connectivity or whether the device accepts the payload. Results appear in the timeline; errors appear above.",
       "context": "Admin Console interface message",
       "placeholders": []
     },
@@ -2814,8 +2814,8 @@
       "placeholders": []
     },
     {
-      "key": "Evidence timeline",
-      "source": "Evidence timeline",
+      "key": "Timeline",
+      "source": "Timeline",
       "context": "Admin Console interface message",
       "placeholders": []
     },
