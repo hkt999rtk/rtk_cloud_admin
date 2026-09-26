@@ -350,10 +350,10 @@
       "text": "。只有被邀請的全球帳戶才能接受。接受始於結算；各方必須稍後確認相同的精確餘額。",
       "status": "approved"
     },
-    ". Runs only in your browser — no messages are published and no Shadow data is changed. Passing does not confirm device connectivity or whether the device accepts the payload. Results appear in the evidence timeline; errors appear above.": {
-      "sourceHash": "aa3e2cb6e1dfa4074e9ad5576d634e8bb024a914e998048e2c499276dd006657",
-      "fingerprint": "d5ee1fd63f8c0a56dc807e628cfb03b578012d0c40873fef9cb6b56665653c66",
-      "text": "。僅在瀏覽器中執行——不會釋出訊息，也不會更改影子資料。透過不確定裝置連線性或裝置是否接受有效載荷。結果會出現在證據時間線中；錯誤會出現在上方。",
+    ". Runs only in your browser — no messages are published and no Shadow data is changed. Passing does not confirm device connectivity or whether the device accepts the payload. Results appear in the timeline; errors appear above.": {
+      "sourceHash": "8d94253a19a54201dfa375e3e1a1ba25110542350120ec9ae9ca4be15fe7fcf4",
+      "fingerprint": "d850ea72a355661b8b76d82e7842feb792d569cc4b9bc35e7c71cd5fd0eeaa3d",
+      "text": "。僅在瀏覽器中執行，不會發布訊息或變更 Shadow 資料。通過驗證不代表裝置已連線或接受資料。結果會顯示在時間線中；錯誤會顯示在上方。",
       "status": "approved"
     },
     ". Selections are kept across pages and revalidated when saved.": {
@@ -1487,7 +1487,7 @@
     "Clear timeline": {
       "sourceHash": "c4f4ab4931283d7d70dc53d96e1ae73e0395f94db8cdce8c0f53f133d134c919",
       "fingerprint": "1dc859efffc1da76023d00412c47f26cf1216cfbe2dbeb2a2d088bdff824034c",
-      "text": "清晰的時間線",
+      "text": "清除時間線",
       "status": "approved"
     },
     "Client ID": {
@@ -2798,10 +2798,10 @@
       "text": "事件ID",
       "status": "approved"
     },
-    "Evidence timeline": {
-      "sourceHash": "c2428b8c073e6e06af5e7dc0f89d346b39d4d7f4d1e61aac20238def7df8a121",
-      "fingerprint": "f6fc3995e1df74f914d96dc4993f1a3170a9f04535e4a5dc6d13d1d5307f0000",
-      "text": "證據時間線",
+    "Timeline": {
+      "sourceHash": "5760b5af3e15402dfa2ed751b2a69e69d1d153dcef00122fea5e72b700c9c5c6",
+      "fingerprint": "62a9571c758c506edf47065a2655fa112b1f3e1f8d926f3e99bb31d0854f3c2d",
+      "text": "時間線",
       "status": "approved"
     },
     "Example": {
