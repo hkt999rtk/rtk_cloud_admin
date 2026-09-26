@@ -2,6 +2,32 @@ import { expect, test } from '@playwright/test';
 
 import { expectNoCJKText, login } from './fixtures/session.mjs';
 
+test('[UI-CA-BILLING-011] held OTA estimate excludes OTA from displayed totals @billing @smoke', async ({ page, isMobile }) => {
+  await login(page, 'billing_owner');
+  await page.route('**/billing/usage', async route => {
+    const response = await route.fetch();
+    const usage = await response.json();
+    usage.ota_estimate_status = 'held_for_review';
+    usage.ota_estimate_reason = 'owner_month_incomplete';
+    await route.fulfill({ response, json: usage });
+  });
+  await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');
+
+  await expect(page.getByTestId('billing-ota-estimate-hold')).toContainText('The current owner did not cover the complete UTC month');
+  await expect(page.getByTestId('billing-page')).toContainText('Estimated cost excluding OTA');
+  await expect(page.getByTestId('billing-page')).toContainText('Subtotal excluding OTA');
+  await expect(page.getByTestId('billing-page')).toContainText('Pending OTA review');
+
+  await page.getByRole('button', { name: 'Usage and Forecast' }).click();
+  await expect(page.getByTestId('billing-usage-page')).toContainText('Subtotal excluding OTA');
+  await expect(page.getByTestId('billing-usage-page')).toContainText('Pending OTA review');
+  if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  if (isMobile) await page.locator('.mobile-nav-close').click();
+  await expect(page.getByTestId('billing-usage-page')).toContainText('OTA');
+  await expect(page.getByTestId('billing-usage-page')).not.toContainText('Subtotal excluding OTA');
+});
+
 test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and activity evidence @billing @smoke', async ({ page }, testInfo) => {
   await login(page, 'billing_owner');
   await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');

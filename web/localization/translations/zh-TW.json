@@ -15607,6 +15607,54 @@
       "fingerprint": "747b3b7ae931c005b3768c14dc926b025555ec2dd4f467a2743616626ee2cf3a",
       "text": "無法完成工作操作，請重試。",
       "status": "approved"
+    },
+    "Estimated cost excluding OTA": {
+      "sourceHash": "3189d4ffe2a9250b3b90828b1fbfbf527941b49041533072d42c736abf6c9733",
+      "fingerprint": "04d98e0c4edc094a42d0f9f3f15cd31508def19688d8410de6cb6131d20cfc7f",
+      "text": "不含 OTA 的預估費用",
+      "status": "approved"
+    },
+    "OTA estimate pending review": {
+      "sourceHash": "3c90f7438a01a20c4b4d6082daadab1b68f00f8cd0e48f06e87cbcadcdfb7637",
+      "fingerprint": "9bad8c27319a07ab0074d902e5e57bb26d75946c50070aa6466fe2c8dc7545ed",
+      "text": "OTA 費用預估待審核",
+      "status": "approved"
+    },
+    "Pending OTA review": {
+      "sourceHash": "f136d204cd30e708d789d52c1ee16f500de0cc9996cb564beac3356c446d5ef9",
+      "fingerprint": "23b028af0709c72f85fedb737a80557e720fd0b6ec91f0712992a2e84563c41a",
+      "text": "等待 OTA 審核",
+      "status": "approved"
+    },
+    "Subtotal excluding OTA": {
+      "sourceHash": "bc912ab4ba3c68f28ee0ad0f668243b89b855e5a4f4a5cd1b0a72ba35ac40fc7",
+      "fingerprint": "963930445ee364134cfe6580134930e36b1b62c7499f647e50f2f929d0bc0f70",
+      "text": "不含 OTA 小計",
+      "status": "approved"
+    },
+    "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.": {
+      "sourceHash": "c3d34ecf7ac836eaac7047db804648ab77bf0e882e2d1ec000eb3eb06327c066",
+      "fingerprint": "59eef931dc3228a3e889238bf4cc2e647a2f197b37cb679362438e4b1ef0d024",
+      "text": "目前顯示的是其他已定價服務的金額。OTA 費用會在每月證據完成審核後再計入；此金額不是最終發票總額。",
+      "status": "approved"
+    },
+    "The current owner did not cover the complete UTC month. OTA charges require manual review.": {
+      "sourceHash": "3c52a67b18d4a2b7652c95f4b61397d436b9975a96f5abfccd51b19b7539670f",
+      "fingerprint": "68e2bf7faab8b8dcc05bcb252f9c9cd5139781f9226be0fe9d2c0be0098414c2",
+      "text": "目前擁有者的責任期間未涵蓋完整 UTC 月份。OTA 費用須經人工審核。",
+      "status": "approved"
+    },
+    "The full-month forecast is unavailable while OTA charges are held.": {
+      "sourceHash": "48d4cf98ca53f3959c0b3ddd7563dbbad743e5cef0d73f5a61a24773ae8df4b5",
+      "fingerprint": "ed816ceab71fe925e99ab5776ff97461c83d3be3c7d88fd2231b56e6b82fcdb9",
+      "text": "OTA 費用暫緩期間，無法提供整月費用預測。",
+      "status": "approved"
+    },
+    "This period is not a complete UTC month. OTA charges require a complete UTC month.": {
+      "sourceHash": "9ca822e302f2c0f9e16d0baa4257dd47fb940932c754e622a19c5b19c147f160",
+      "fingerprint": "71ebd4f1796f47272dce911f89fc05a4dfcea60bd41851dbec80f7ee607460c9",
+      "text": "此期間不是完整的 UTC 月份。OTA 費用須以完整 UTC 月份計算。",
+      "status": "approved"
     }
   }
 }

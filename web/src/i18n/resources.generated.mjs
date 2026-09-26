@@ -2570,7 +2570,15 @@ export const en = Object.freeze({ translation: Object.freeze({
   "Product apply preview is unavailable.": "Product apply preview is unavailable.",
   "Product or device grants changed. Refresh the preview.": "Product or device grants changed. Refresh the preview.",
   "Product or device set changed. Refresh the preview.": "Product or device set changed. Refresh the preview.",
-  "The job action could not be completed. Retry.": "The job action could not be completed. Retry."
+  "The job action could not be completed. Retry.": "The job action could not be completed. Retry.",
+  "Estimated cost excluding OTA": "Estimated cost excluding OTA",
+  "OTA estimate pending review": "OTA estimate pending review",
+  "Pending OTA review": "Pending OTA review",
+  "Subtotal excluding OTA": "Subtotal excluding OTA",
+  "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.": "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.",
+  "The current owner did not cover the complete UTC month. OTA charges require manual review.": "The current owner did not cover the complete UTC month. OTA charges require manual review.",
+  "The full-month forecast is unavailable while OTA charges are held.": "The full-month forecast is unavailable while OTA charges are held.",
+  "This period is not a complete UTC month. OTA charges require a complete UTC month.": "This period is not a complete UTC month. OTA charges require a complete UTC month."
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -5144,7 +5152,15 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "Product apply preview is unavailable.": "暫時無法預覽 Product 套用影響。",
   "Product or device grants changed. Refresh the preview.": "Product 或裝置授權已變更，請重新預覽。",
   "Product or device set changed. Refresh the preview.": "Product 或裝置集合已變更，請重新預覽。",
-  "The job action could not be completed. Retry.": "無法完成工作操作，請重試。"
+  "The job action could not be completed. Retry.": "無法完成工作操作，請重試。",
+  "Estimated cost excluding OTA": "不含 OTA 的預估費用",
+  "OTA estimate pending review": "OTA 費用預估待審核",
+  "Pending OTA review": "等待 OTA 審核",
+  "Subtotal excluding OTA": "不含 OTA 小計",
+  "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.": "目前顯示的是其他已定價服務的金額。OTA 費用會在每月證據完成審核後再計入；此金額不是最終發票總額。",
+  "The current owner did not cover the complete UTC month. OTA charges require manual review.": "目前擁有者的責任期間未涵蓋完整 UTC 月份。OTA 費用須經人工審核。",
+  "The full-month forecast is unavailable while OTA charges are held.": "OTA 費用暫緩期間，無法提供整月費用預測。",
+  "This period is not a complete UTC month. OTA charges require a complete UTC month.": "此期間不是完整的 UTC 月份。OTA 費用須以完整 UTC 月份計算。"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -7718,7 +7734,15 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "Product apply preview is unavailable.": "暂时无法预览 Product 应用影响。",
   "Product or device grants changed. Refresh the preview.": "Product 或设备授权已变化，请重新预览。",
   "Product or device set changed. Refresh the preview.": "Product 或设备集合已变化，请重新预览。",
-  "The job action could not be completed. Retry.": "无法完成任务操作，请重试。"
+  "The job action could not be completed. Retry.": "无法完成任务操作，请重试。",
+  "Estimated cost excluding OTA": "不含 OTA 的预估费用",
+  "OTA estimate pending review": "OTA 费用预估待审核",
+  "Pending OTA review": "等待 OTA 审核",
+  "Subtotal excluding OTA": "不含 OTA 小计",
+  "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.": "目前显示的是其他已定价服务的金额。OTA 费用会在每月证据完成审核后再计入；此金额不是最终发票总额。",
+  "The current owner did not cover the complete UTC month. OTA charges require manual review.": "当前拥有者的责任期间未覆盖完整 UTC 月份。OTA 费用须经人工审核。",
+  "The full-month forecast is unavailable while OTA charges are held.": "OTA 费用暂缓期间，无法提供整月费用预测。",
+  "This period is not a complete UTC month. OTA charges require a complete UTC month.": "此期间不是完整的 UTC 月份。OTA 费用须按完整 UTC 月份计算。"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });
