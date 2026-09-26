@@ -1,0 +1,285 @@
+package app
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"rtk_cloud_admin/internal/accountclient"
+	"rtk_cloud_admin/internal/contracts"
+)
+
+func TestProductServiceApplyWaitsForAppliedRevision(t *testing.T) {
+	accepted, applied, dispatches, completions := false, false, 0, 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/items"):
+			status, revision := "pending", 0
+			if accepted {
+				status = "accepted"
+			}
+			if applied {
+				status, revision = "applied", 2
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"total": 1, "items": []map[string]any{{"device_id": "device-1", "operation_id": "operation-1", "status": status, "applied_revision": revision}}})
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/dispatch"):
+			dispatches++
+			accepted = true
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"item":{"status":"accepted"}}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/complete"):
+			completions++
+			_, _ = w.Write([]byte(`{"job":{"status":"completed"}}`))
+		default:
+			_ = json.NewEncoder(w).Encode(map[string]any{"job": map[string]any{"id": "job-a", "target_revision": 2, "target_digest": "digest-2", "total_devices": 1, "status": "active"}})
+		}
+	}))
+	defer upstream.Close()
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{AccountClient: accountclient.New(upstream.URL)})
+	job, err := st.CreateBatchJob(contracts.BatchJob{ID: "job-a", OrganizationID: "cloud-1", Type: "product_services_apply", Scope: map[string]any{"product_id": "product-1", "target_revision": int64(2), "target_digest": "digest-2"}, Total: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.runDurableProductServiceApplyJob(context.Background(), job, "delegated-token", "worker-1", time.Minute)
+	first, err := st.GetBatchJob(job.OrganizationID, job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Completed != 0 || first.State != "queued" || dispatches != 1 || completions != 0 {
+		t.Fatalf("202 counted as applied: job=%+v dispatches=%d completions=%d", first, dispatches, completions)
+	}
+	applied = true
+	srv.runDurableProductServiceApplyJob(context.Background(), first, "delegated-token", "worker-1", time.Minute)
+	final, err := st.GetBatchJob(job.OrganizationID, job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.State != "completed" || final.Completed != 1 || dispatches != 1 || completions != 1 {
+		t.Fatalf("matching applied revision not completed: %+v", final)
+	}
+}
+
+func TestProductServiceApplyPaginatesBeyond250AndDownloadsAllResults(t *testing.T) {
+	const total = 301
+	completed, retries := 0, 0
+	retryAvailable, retryDispatched := false, false
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/items"):
+			offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+			status, revision, retryable := "applied", 5, false
+			if offset == total-1 && !retryDispatched {
+				status, revision, retryable = "failed", 0, true
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"total": total, "items": []map[string]any{{"device_id": fmt.Sprintf("device-%03d", offset), "operation_id": fmt.Sprintf("operation-%03d", offset), "status": status, "applied_revision": revision, "retryable": retryable, "error_code": "TEMPORARY_UNAVAILABLE"}}})
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/dispatch"):
+			if !strings.Contains(r.URL.Path, "/device-300/") {
+				t.Errorf("unexpected retry target: %s", r.URL.Path)
+			}
+			retries++
+			if retryAvailable {
+				retryDispatched = true
+			}
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"item":{"status":"accepted"}}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/complete"):
+			completed++
+			_, _ = w.Write([]byte(`{"job":{"status":"completed"}}`))
+		default:
+			_ = json.NewEncoder(w).Encode(map[string]any{"job": map[string]any{"id": "job-many", "target_revision": 5, "target_digest": "digest-5", "total_devices": total, "status": "active"}})
+		}
+	}))
+	defer upstream.Close()
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{AccountClient: accountclient.New(upstream.URL)})
+	job, err := st.CreateBatchJob(contracts.BatchJob{ID: "job-many", OrganizationID: "cloud-1", Type: "product_services_apply", Scope: map[string]any{"product_id": "product-1", "target_revision": int64(5), "target_digest": "digest-5"}, Total: total})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ {
+		srv.runDurableProductServiceApplyJob(context.Background(), job, "delegated-token", "worker-1", time.Minute)
+		job, err = st.GetBatchJob(job.OrganizationID, job.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if job.State == "partial_failed" {
+			break
+		}
+	}
+	if job.State != "partial_failed" || job.Completed != total-1 || job.Failed != 1 || !job.Retryable || retries != 1 || completed != 0 {
+		t.Fatalf("late transient failure not retained for retry: %+v, retries=%d", job, retries)
+	}
+	retryAvailable = true
+	job, _, _, err = st.ActBatchJob(job.OrganizationID, job.ID, "retry", "retry-after-page-250")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ {
+		srv.runDurableProductServiceApplyJob(context.Background(), job, "delegated-token", "worker-1", time.Minute)
+		job, err = st.GetBatchJob(job.OrganizationID, job.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if job.State == "completed" {
+			break
+		}
+	}
+	if job.ID != "job-many" || job.State != "completed" || job.Completed != total || retries != 2 || completed != 1 {
+		t.Fatalf("retry changed identity or skipped late item: %+v retries=%d completions=%d", job, retries, completed)
+	}
+	page, err := st.ListBatchJobItems(job.OrganizationID, job.ID, "", nil, 250, 250)
+	if err != nil || page.Total != total || len(page.Items) != 51 {
+		t.Fatalf("second result page: %+v, %v", page, err)
+	}
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/result?format=csv", nil)
+	srv.writeProductApplyResult(recorder, req, job, "")
+	if lines := strings.Count(recorder.Body.String(), "\n"); lines != total+1 {
+		t.Fatalf("CSV has %d lines, want %d", lines, total+1)
+	}
+}
+
+func TestProductServiceApplyRetryKeepsJobAndOperationIdentity(t *testing.T) {
+	st := mustOpenStore(t)
+	job, err := st.CreateBatchJob(contracts.BatchJob{ID: "job-retry", OrganizationID: "cloud-1", Type: "product_services_apply", Scope: map[string]any{"product_id": "product-1"}, State: "partial_failed", Total: 1, Failed: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := contracts.BatchJobItem{JobID: job.ID, ItemKey: "device-1", Position: 0, State: "failed", Retryable: true, UpstreamOperationID: "operation-stable"}
+	if err := st.UpsertBatchJobItem(item); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"retry-1", "retry-2"} {
+		job, _, _, err = st.ActBatchJob(job.OrganizationID, job.ID, "retry", key)
+		if err != nil || job.ID != "job-retry" || job.State != "queued" {
+			t.Fatalf("retry did not reuse job: %+v, %v", job, err)
+		}
+		stored, err := st.ListBatchJobItems(job.OrganizationID, job.ID, "", nil, 1, 0)
+		if err != nil || stored.Items[0].UpstreamOperationID != "operation-stable" {
+			t.Fatalf("operation changed: %+v, %v", stored, err)
+		}
+		job, err = st.UpdateBatchJobWorkerProgress(job.OrganizationID, job.ID, "partial_failed", 0, 1, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestProductServiceApplyCancelStopsDispatchAndShowsAcceptedCompletion(t *testing.T) {
+	st := mustOpenStore(t)
+	accepted, applied, dispatches := false, false, 0
+	var cancelErr error
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/items"):
+			offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+			limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+			items := []map[string]any{}
+			for i := offset; i < min(offset+limit, 2); i++ {
+				status, revision := "pending", 0
+				if i == 0 && accepted {
+					status = "accepted"
+				}
+				if i == 0 && applied {
+					status, revision = "applied", 3
+				}
+				items = append(items, map[string]any{"device_id": fmt.Sprintf("device-%d", i), "operation_id": fmt.Sprintf("operation-%d", i), "status": status, "applied_revision": revision})
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"total": 2, "items": items})
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/dispatch"):
+			dispatches++
+			accepted = true
+			_, _, _, cancelErr = st.ActBatchJob("cloud-1", "job-cancel", "cancel", "cancel-in-flight")
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"item":{"status":"accepted"}}`))
+		default:
+			_ = json.NewEncoder(w).Encode(map[string]any{"job": map[string]any{"id": "job-cancel", "target_revision": 3, "target_digest": "digest-3", "total_devices": 2, "status": "active"}})
+		}
+	}))
+	defer upstream.Close()
+	srv := NewWithOptions(st, Options{AccountClient: accountclient.New(upstream.URL)})
+	_, err := st.CreateBatchJob(contracts.BatchJob{ID: "job-cancel", OrganizationID: "cloud-1", Type: "product_services_apply", Scope: map[string]any{"product_id": "product-1", "target_revision": int64(3), "target_digest": "digest-3"}, Total: 2, AuthorizationID: "authorization-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := st.AcquireBatchJob("worker-1", time.Now().UTC(), time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.runDurableProductServiceApplyJob(context.Background(), job, "user-token", "worker-1", time.Minute)
+	if cancelErr != nil {
+		t.Fatal(cancelErr)
+	}
+	job, err = st.CompleteBatchJobBoundary(job.OrganizationID, job.ID, "worker-1")
+	if err != nil || job.State != "cancelled" || dispatches != 1 {
+		t.Fatalf("cancel boundary: %+v, dispatches=%d, err=%v", job, dispatches, err)
+	}
+	applied = true // Video Cloud may finish an already accepted operation after cancel.
+	srv.runDurableProductServiceApplyJob(context.Background(), job, "user-token", "worker-1", time.Minute)
+	if dispatches != 1 {
+		t.Fatalf("dispatched after cancellation: %d", dispatches)
+	}
+	response := httptest.NewRecorder()
+	srv.writeProductApplyItems(response, httptest.NewRequest(http.MethodGet, "/items?limit=2&offset=0", nil), job, "user-token")
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"state":"completed"`) || !strings.Contains(response.Body.String(), `"state":"queued"`) {
+		t.Fatalf("accepted completion not visible after cancel: %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestProductServiceApplyPauseStopsDispatchUntilResume(t *testing.T) {
+	dispatches := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/items") {
+			_, _ = w.Write([]byte(`{"total":1,"items":[{"device_id":"device-1","operation_id":"operation-1","status":"pending"}]}`))
+			return
+		}
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/dispatch") {
+			dispatches++
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"item":{"status":"accepted"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"job":{"id":"job-pause","target_revision":4,"target_digest":"digest-4","total_devices":1,"status":"active"}}`))
+	}))
+	defer upstream.Close()
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{AccountClient: accountclient.New(upstream.URL)})
+	_, err := st.CreateBatchJob(contracts.BatchJob{ID: "job-pause", OrganizationID: "cloud-1", Type: "product_services_apply", Scope: map[string]any{"product_id": "product-1", "target_revision": int64(4), "target_digest": "digest-4"}, Total: 1, AuthorizationID: "authorization-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := st.AcquireBatchJob("worker-1", time.Now().UTC(), time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err = st.ActBatchJob(job.OrganizationID, job.ID, "pause", "pause-before-dispatch"); err != nil {
+		t.Fatal(err)
+	}
+	srv.runDurableProductServiceApplyJob(context.Background(), job, "user-token", "worker-1", time.Minute)
+	job, err = st.CompleteBatchJobBoundary(job.OrganizationID, job.ID, "worker-1")
+	if err != nil || job.State != "paused" || dispatches != 0 {
+		t.Fatalf("pause dispatched: %+v dispatches=%d err=%v", job, dispatches, err)
+	}
+	if _, _, _, err = st.ActBatchJob(job.OrganizationID, job.ID, "resume", "resume-after-pause"); err != nil {
+		t.Fatal(err)
+	}
+	job, err = st.AcquireBatchJob("worker-1", time.Now().UTC(), time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.runDurableProductServiceApplyJob(context.Background(), job, "user-token", "worker-1", time.Minute)
+	if dispatches != 1 {
+		t.Fatalf("resume did not dispatch: %d", dispatches)
+	}
+}

@@ -15653,6 +15653,174 @@
       "source": "Reference review",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Apply Product services to existing devices",
+      "source": "Apply Product services to existing devices",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Apply to all existing devices",
+      "source": "Apply to all existing devices",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Apply to existing devices",
+      "source": "Apply to existing devices",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Authorization version",
+      "source": "Authorization version",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cancel job",
+      "source": "Cancel job",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Download results",
+      "source": "Download results",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Impact preview",
+      "source": "Impact preview",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Pause",
+      "source": "Pause",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Permissions to add",
+      "source": "Permissions to add",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Permissions to remove",
+      "source": "Permissions to remove",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Preview all existing devices",
+      "source": "Preview all existing devices",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product apply job",
+      "source": "Product apply job",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product apply progress is temporarily unavailable.",
+      "source": "Product apply progress is temporarily unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Resolve all blockers before starting the job.",
+      "source": "Resolve all blockers before starting the job.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Result pages",
+      "source": "Result pages",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Resume",
+      "source": "Resume",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Retry failed devices",
+      "source": "Retry failed devices",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Saving Product services creates a new authorization version. Existing devices keep their applied version until you explicitly apply it.",
+      "source": "Saving Product services creates a new authorization version. Existing devices keep their applied version until you explicitly apply it.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Target authorization version",
+      "source": "Target authorization version",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unable to load Product apply jobs.",
+      "source": "Unable to load Product apply jobs.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "applied",
+      "source": "applied",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "failed",
+      "source": "failed",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Job state changed. Refresh its progress.",
+      "source": "Job state changed. Refresh its progress.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product apply job could not be started. Retry this confirmation.",
+      "source": "Product apply job could not be started. Retry this confirmation.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product apply preview is unavailable.",
+      "source": "Product apply preview is unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product or device grants changed. Refresh the preview.",
+      "source": "Product or device grants changed. Refresh the preview.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product or device set changed. Refresh the preview.",
+      "source": "Product or device set changed. Refresh the preview.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The job action could not be completed. Retry.",
+      "source": "The job action could not be completed. Retry.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

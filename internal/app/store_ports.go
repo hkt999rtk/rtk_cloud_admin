@@ -46,6 +46,7 @@ type batchJobStore interface {
 	CreateBatchJob(job contracts.BatchJob) (contracts.BatchJob, error)
 	GetBatchJobByIdempotency(organizationID, key string) (contracts.BatchJob, error)
 	ListBatchJobs(organizationID string, limit int) ([]contracts.BatchJob, error)
+	ListProductApplyJobs(organizationID, productID string, limit int) ([]contracts.BatchJob, error)
 	ListBatchJobsPage(organizationID string, query contracts.BatchJobQuery) (contracts.BatchJobPage, error)
 	GetBatchJob(organizationID, id string) (contracts.BatchJob, error)
 	UpdateBatchJobState(organizationID, id, state string) (contracts.BatchJob, error)
@@ -65,6 +66,7 @@ type batchJobStore interface {
 	UpdateBatchJobCheckpoint(organizationID, id string, checkpoint map[string]any) error
 	UpdateBatchJobAuthorizationStatus(organizationID, id, status string) error
 	ListPendingBatchJobRevocations(limit int) ([]contracts.BatchJob, error)
+	ListPendingProductApplyCancels(limit int) ([]contracts.BatchJob, error)
 	FailBatchJobAuthorization(organizationID, id string) error
 }
 

@@ -66,12 +66,15 @@ type CustomerDevice struct {
 
 type Product struct {
 	ID                   string         `json:"id"`
+	BrandCloudID         string         `json:"brand_cloud_id,omitempty"`
 	Name                 string         `json:"name"`
 	ProductModel         string         `json:"product_model,omitempty"`
 	Category             string         `json:"category,omitempty"`
 	Status               string         `json:"status"`
 	ServiceCapabilities  []string       `json:"service_capabilities"`
 	LogRetentionDays     *int           `json:"log_retention_days,omitempty"`
+	GrantRevision        int64          `json:"grant_revision,omitempty"`
+	GrantDigest          string         `json:"grant_digest,omitempty"`
 	DevicePolicy         map[string]any `json:"device_policy,omitempty"`
 	FirmwarePolicy       map[string]any `json:"firmware_policy,omitempty"`
 	AllowedActions       []string       `json:"allowed_actions"`
@@ -163,13 +166,15 @@ type ProvisioningSource struct {
 }
 
 type BatchJobQuery struct {
-	Limit     int
-	Offset    int
-	State     string
-	Type      string
-	CreatedBy string
-	From      string
-	To        string
+	Limit               int
+	Offset              int
+	State               string
+	Type                string
+	ProductID           string
+	ExcludeProductApply bool
+	CreatedBy           string
+	From                string
+	To                  string
 }
 
 type BatchJobPage struct {

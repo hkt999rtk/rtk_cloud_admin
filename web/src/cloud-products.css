@@ -28,3 +28,6 @@
 .factory-token{display:grid;gap:10px;padding:16px;border:2px solid var(--brand);border-radius:8px;background:#fff}
 .factory-token textarea{width:100%;min-height:90px;box-sizing:border-box;overflow-wrap:anywhere}
 @media(max-width:600px){.cloud-product-items{grid-template-columns:minmax(0,1fr)}.cloud-products .my-clouds-card-head{flex-wrap:wrap}.cloud-product-enrollment dl{grid-template-columns:minmax(0,1fr);gap:3px}.cloud-product-enrollment dd{margin-bottom:10px}}
+.product-service-apply { border: 1px solid var(--border-color, #d9e2ed); border-radius: 12px; padding: 1rem; margin: 1rem 0; }
+.product-service-apply-preview, .product-service-apply-progress { border-top: 1px solid var(--border-color, #d9e2ed); margin-top: 1rem; padding-top: 1rem; }
+.product-service-apply-preview ul { max-height: 12rem; overflow: auto; }

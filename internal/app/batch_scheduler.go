@@ -36,11 +36,39 @@ func (s *Server) StartBatchScheduler(ctx context.Context) <-chan struct{} {
 				return
 			case <-ticker.C:
 				s.retryPendingBatchJobRevocations()
+				s.retryPendingProductApplyCancels(ctx)
 				s.runNextDurableBatchJob(ctx, owner)
 			}
 		}
 	}()
 	return done
+}
+
+func (s *Server) retryPendingProductApplyCancels(ctx context.Context) {
+	if s.accountClient == nil || !s.accountClient.Enabled() || strings.TrimSpace(s.cfg.AccountManagerJobAuthorizationToken) == "" {
+		return
+	}
+	jobs, err := s.jobs.ListPendingProductApplyCancels(25)
+	if err != nil {
+		return
+	}
+	for _, job := range jobs {
+		if s.cancelProductApplyUpstream(ctx, job) {
+			s.revokeBatchJobAuthorization(job.OrganizationID, job.ID, job.AuthorizationID)
+		}
+	}
+}
+
+func (s *Server) cancelProductApplyUpstream(ctx context.Context, job contracts.BatchJob) bool {
+	product, _ := job.Scope["product_id"].(string)
+	if product == "" {
+		return false
+	}
+	token, err := s.accountClient.ExchangeJobAuthorization(ctx, s.cfg.AccountManagerJobAuthorizationToken, job.AuthorizationID, job.ID, batchScopeHash(job.Scope))
+	if err != nil {
+		return false
+	}
+	return s.accountClient.CancelServiceApplyJob(ctx, token.AccessToken, job.OrganizationID, product, job.ID) == nil
 }
 
 func (s *Server) retryPendingBatchJobRevocations() {
@@ -75,9 +103,20 @@ func (s *Server) runNextDurableBatchJob(ctx context.Context, owner string) {
 		_ = s.jobs.FailBatchJobAuthorization(job.OrganizationID, job.ID)
 		return
 	}
-	s.runDurableProvisioningJob(ctx, job, token.AccessToken, owner, lease)
+	if job.Type == "product_services_apply" {
+		s.runDurableProductServiceApplyJob(ctx, job, token.AccessToken, owner, lease)
+	} else {
+		s.runDurableProvisioningJob(ctx, job, token.AccessToken, owner, lease)
+	}
+	// A pause or cancellation can arrive while an upstream request is in flight.
+	// Finish that state boundary even when the worker yields for an accepted item.
+	_, _ = s.jobs.CompleteBatchJobBoundary(job.OrganizationID, job.ID, owner)
 	terminal, _ := s.jobs.GetBatchJob(job.OrganizationID, job.ID)
-	if terminal.State == "completed" || terminal.State == "partial_failed" || terminal.State == "failed" || terminal.State == "cancelled" || terminal.State == "expired" {
+	if (terminal.State == "cancelled" || terminal.State == "failed") && job.Type == "product_services_apply" {
+		if s.cancelProductApplyUpstream(ctx, terminal) {
+			s.revokeBatchJobAuthorization(job.OrganizationID, job.ID, job.AuthorizationID)
+		}
+	} else if terminal.State == "completed" || terminal.State == "cancelled" || terminal.State == "expired" || (job.Type != "product_services_apply" && (terminal.State == "partial_failed" || terminal.State == "failed")) {
 		s.revokeBatchJobAuthorization(job.OrganizationID, job.ID, job.AuthorizationID)
 	}
 }

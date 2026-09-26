@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {productAPI,productURL,fetchCloudProducts,fetchCloudServiceCatalog,productError,productInvitationDestination} from './cloud-products.mjs';
+import {productAPI,productURL,productServiceApplyAPI,fetchProductServiceApplyPreview,fetchProductServiceApplyItems,fetchCloudProducts,fetchCloudServiceCatalog,productError,productInvitationDestination} from './cloud-products.mjs';
 const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',p='33333333-3333-4333-8333-333333333333';
 test('accepted invitations use a validated explicit cloud and Product destination',()=>{
  assert.equal(productInvitationDestination({invitation:{brand_cloud_id:b,product_id:p}}),productURL(b,p));
@@ -52,4 +52,16 @@ test('disabled Product write gate keeps the previous service choices',async(t)=>
  assert.deepEqual(catalog.options.map(option=>option.code),['device_logging']);
  assert.equal(catalog.options[0].unavailable_reason,'service_unavailable');
  assert.deepEqual(catalog.legacy_options.map(option=>option.code),['mqtt','video_streaming','video_storage']);
+});
+test('Product apply paths and preview stay bound to Product, version and full device count',async(t)=>{
+ const job='job-0123456789abcdef01234567';
+ assert.equal(productServiceApplyAPI(a,p,job),productAPI(a,p)+'/service-apply-jobs/'+job);
+ assert.throws(()=>productServiceApplyAPI(a,p,'../jobs'));
+ let response={preview_token:'proof',target_revision:4,total_devices:301,blockers:[],added_options:['ota'],removed_options:[]};
+ t.mock.method(globalThis,'fetch',async()=>({ok:true,json:async()=>response}));
+ assert.equal((await fetchProductServiceApplyPreview(a,p)).total_devices,301);
+ response={...response,target_revision:0};
+ await assert.rejects(fetchProductServiceApplyPreview(a,p),e=>e.status===502);
+ response={items:[],pagination:{limit:25,offset:250,total:301}};
+ assert.equal((await fetchProductServiceApplyItems(a,p,job,{offset:250})).pagination.total,301);
 });

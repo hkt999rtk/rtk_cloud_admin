@@ -334,6 +334,13 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products", s.apiManagedCloudProducts)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/service-options", s.apiManagedCloudServiceOptions)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}", s.apiManagedCloudProducts)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}/service-apply-preview", s.apiManagedProductServiceApply)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/products/{productID}/service-apply-jobs", s.apiManagedProductServiceApply)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}/service-apply-jobs", s.apiManagedProductServiceApply)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}/service-apply-jobs/{jobID}", s.apiManagedProductServiceApply)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}/service-apply-jobs/{jobID}/items", s.apiManagedProductServiceApply)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/products/{productID}/service-apply-jobs/{jobID}/result", s.apiManagedProductServiceApply)
+	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/products/{productID}/service-apply-jobs/{jobID}/{action}", s.apiManagedProductServiceApply)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/webhook/subscription", s.apiBrandWebhookSubscription)
 	s.mux.HandleFunc("PUT /api/developer/brand-clouds/{brandCloudID}/webhook/subscription", s.apiBrandWebhookSubscription)
 	s.mux.HandleFunc("DELETE /api/developer/brand-clouds/{brandCloudID}/webhook/subscription", s.apiBrandWebhookSubscription)
@@ -1928,14 +1935,32 @@ func (s *Server) apiJobs(w http.ResponseWriter, r *http.Request) {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
 	}
-	if r.Method != http.MethodGet && !requireCustomerCapability(w, org, capabilityFleetBatchManage) {
-		return
-	}
-	if r.Method == http.MethodGet && !requireCustomerCapability(w, org, capabilityFleetRead, "fleet.batch.read", "customer.devices.read") {
-		return
-	}
 	if r.Method == http.MethodGet {
-		page, err := s.jobs.ListBatchJobsPage(org.ID, batchJobQueryFromRequest(r))
+		query := batchJobQueryFromRequest(r)
+		if query.Type == "product_services_apply" {
+			if !requireCustomerCapability(w, org, capabilityProductManage) {
+				return
+			}
+			query.ProductID = r.URL.Query().Get("product_id")
+			if !managedCloudUUID.MatchString(query.ProductID) {
+				http.Error(w, "A Product ID is required for Product apply jobs.", http.StatusBadRequest)
+				return
+			}
+			allowed, accessErr := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, "registry_device.manage", "product", query.ProductID)
+			if accessErr != nil {
+				s.writeCustomerErrorForSession(w, session.ID, accessErr)
+				return
+			}
+			if !allowed {
+				http.Error(w, "Product apply forbidden", http.StatusForbidden)
+				return
+			}
+		} else if !requireCustomerCapability(w, org, capabilityFleetRead, "fleet.batch.read", "customer.devices.read") {
+			return
+		} else {
+			query.ExcludeProductApply = true
+		}
+		page, err := s.jobs.ListBatchJobsPage(org.ID, query)
 		if err != nil {
 			http.Error(w, "Batch jobs are temporarily unavailable.", http.StatusServiceUnavailable)
 			return
@@ -1950,6 +1975,39 @@ func (s *Server) apiJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
 		http.Error(w, "Batch job data is malformed.", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(request.Type) == "product_services_apply" {
+		if !requireCustomerCapability(w, org, capabilityProductManage) {
+			return
+		}
+		if s.accountClient == nil || !s.accountClient.Enabled() {
+			http.Error(w, "Product apply is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		product, _ := request.Scope["product_id"].(string)
+		previewToken, _ := request.Scope["preview_token"].(string)
+		if !managedCloudUUID.MatchString(product) {
+			http.Error(w, "invalid Product scope", http.StatusBadRequest)
+			return
+		}
+		key, ok := requireIdempotencyKey(w, r)
+		if !ok {
+			return
+		}
+		allowed, err := s.accountClient.CheckAccess(r.Context(), tokens.AccessToken, org.ID, "registry_device.manage", "product", product)
+		if err != nil {
+			s.writeCustomerErrorForSession(w, session.ID, err)
+			return
+		}
+		if !allowed {
+			http.Error(w, "Product apply forbidden", http.StatusForbidden)
+			return
+		}
+		s.createProductApplyJob(w, r, session, org.ID, product, tokens.AccessToken, previewToken, key)
+		return
+	}
+	if !requireCustomerCapability(w, org, capabilityFleetBatchManage) {
 		return
 	}
 	allowed := map[string]bool{"device_settings": true, "device_provision": true, "device_deactivation": true, "tag_update": true, "group_update": true, "firmware_retry": true, "report_export": true}
@@ -2069,7 +2127,7 @@ func (s *Server) apiJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-	org, _, err := s.activeCustomerOrg(r.Context(), session)
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -2083,7 +2141,11 @@ func (s *Server) apiJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Batch jobs are temporarily unavailable.", http.StatusServiceUnavailable)
 		return
 	}
-	if job.Type == "provisioning_validation" || job.Type == "device_provision" {
+	if job.Type == "product_services_apply" {
+		if !requireCustomerCapability(w, org, capabilityProductRead) || !s.authorizeCustomerProductApplyJob(w, r, session, org.ID, tokens.AccessToken, job, false) {
+			return
+		}
+	} else if job.Type == "provisioning_validation" || job.Type == "device_provision" {
 		if !requireCustomerCapability(w, org, capabilityProvisioningRead, capabilityProvisioningCreate) {
 			return
 		}
@@ -2108,6 +2170,8 @@ func (s *Server) apiJobRetry(w http.ResponseWriter, r *http.Request) {
 	job, jobErr := s.jobs.GetBatchJob(org.ID, r.PathValue("id"))
 	if jobErr == nil && (job.Type == "provisioning_validation" || job.Type == "device_provision") {
 		retryCapability = capabilityProvisioningCreate
+	} else if jobErr == nil && job.Type == "product_services_apply" {
+		retryCapability = capabilityProductManage
 	}
 	if !requireCustomerCapability(w, org, retryCapability) {
 		return
@@ -2125,8 +2189,18 @@ func (s *Server) apiJobRetry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Batch jobs are temporarily unavailable.", http.StatusServiceUnavailable)
 		return
 	}
-	items, itemsErr := s.jobs.ListBatchJobItems(org.ID, job.ID, "", nil, 250, 0)
-	if job.Failed == 0 || itemsErr != nil {
+	if job.Type == "product_services_apply" {
+		if !s.authorizeCustomerProductApplyJob(w, r, session, org.ID, tokens.AccessToken, job, true) {
+			return
+		}
+		if !job.Retryable {
+			http.Error(w, "There are no retryable failed items.", http.StatusConflict)
+			return
+		}
+		s.actProductApplyJob(w, r, session, job, "retry", key)
+		return
+	}
+	if job.Failed == 0 {
 		http.Error(w, "There are no failed items to retry at this time.", http.StatusConflict)
 		return
 	}
@@ -2139,13 +2213,23 @@ func (s *Server) apiJobRetry(w http.ResponseWriter, r *http.Request) {
 		retryScope[key] = value
 	}
 	retryScope["retry_of"] = job.ID
-	retryIDs := make([]any, 0, len(items.Items))
+	retryIDs := make([]any, 0, job.Failed)
 	permanentFailed := 0
-	for _, item := range items.Items {
-		if item.State == "failed" && item.Retryable {
-			retryIDs = append(retryIDs, item.ItemKey)
-		} else if item.State == "failed" {
-			permanentFailed++
+	for offset := 0; ; offset += 250 {
+		items, itemsErr := s.jobs.ListBatchJobItems(org.ID, job.ID, "failed", nil, 250, offset)
+		if itemsErr != nil {
+			http.Error(w, "Batch job items are unavailable.", http.StatusServiceUnavailable)
+			return
+		}
+		for _, item := range items.Items {
+			if item.Retryable {
+				retryIDs = append(retryIDs, item.ItemKey)
+			} else {
+				permanentFailed++
+			}
+		}
+		if offset+len(items.Items) >= items.Total {
+			break
 		}
 	}
 	if len(retryIDs) == 0 {
@@ -2190,7 +2274,7 @@ func (s *Server) apiJobAction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-	org, _, err := s.activeCustomerOrg(r.Context(), session)
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -2199,6 +2283,8 @@ func (s *Server) apiJobAction(w http.ResponseWriter, r *http.Request) {
 	actionCapability := capabilityFleetBatchManage
 	if jobErr == nil && (job.Type == "provisioning_validation" || job.Type == "device_provision") {
 		actionCapability = capabilityProvisioningCreate
+	} else if jobErr == nil && job.Type == "product_services_apply" {
+		actionCapability = capabilityProductManage
 	}
 	if !requireCustomerCapability(w, org, actionCapability) {
 		return
@@ -2216,9 +2302,16 @@ func (s *Server) apiJobAction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Batch jobs are temporarily unavailable.", http.StatusServiceUnavailable)
 		return
 	}
+	if job.Type == "product_services_apply" && !s.authorizeCustomerProductApplyJob(w, r, session, org.ID, tokens.AccessToken, job, true) {
+		return
+	}
 	action := r.PathValue("action")
 	if action != "pause" && action != "resume" && action != "cancel" {
 		http.Error(w, "Unsupported batch job operation.", http.StatusBadRequest)
+		return
+	}
+	if job.Type == "product_services_apply" {
+		s.actProductApplyJob(w, r, session, job, action, actionKey)
 		return
 	}
 	if action == "resume" {
@@ -2252,7 +2345,7 @@ func (s *Server) apiJobItems(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-	org, _, err := s.activeCustomerOrg(r.Context(), session)
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -2266,10 +2359,18 @@ func (s *Server) apiJobItems(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Batch jobs are temporarily unavailable.", http.StatusServiceUnavailable)
 		return
 	}
-	if job.Type == "provisioning_validation" || job.Type == "device_provision" {
+	if job.Type == "product_services_apply" {
+		if !requireCustomerCapability(w, org, capabilityProductRead) || !s.authorizeCustomerProductApplyJob(w, r, session, org.ID, tokens.AccessToken, job, false) {
+			return
+		}
+		s.writeProductApplyItems(w, r, job, tokens.AccessToken)
+		return
+	} else if job.Type == "provisioning_validation" || job.Type == "device_provision" {
 		if !requireCustomerCapability(w, org, capabilityProvisioningRead, capabilityProvisioningCreate) {
 			return
 		}
+	} else if !requireCustomerCapability(w, org, capabilityFleetRead, "fleet.batch.read", "customer.devices.read") {
+		return
 	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -2301,7 +2402,7 @@ func (s *Server) apiJobResult(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "customer authentication required", http.StatusUnauthorized)
 		return
 	}
-	org, _, err := s.activeCustomerOrg(r.Context(), session)
+	org, tokens, err := s.activeCustomerOrg(r.Context(), session)
 	if err != nil {
 		s.writeCustomerErrorForSession(w, session.ID, err)
 		return
@@ -2315,7 +2416,17 @@ func (s *Server) apiJobResult(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Batch results are temporarily unavailable.", http.StatusServiceUnavailable)
 		return
 	}
-	if job.Type == "provisioning_validation" || job.Type == "device_provision" {
+	if job.Type == "product_services_apply" {
+		if !requireCustomerCapability(w, org, capabilityProductRead) || !s.authorizeCustomerProductApplyJob(w, r, session, org.ID, tokens.AccessToken, job, false) {
+			return
+		}
+		if r.URL.Query().Get("format") == "csv" {
+			s.writeProductApplyResult(w, r, job, tokens.AccessToken)
+		} else {
+			s.writeProductApplyItems(w, r, job, tokens.AccessToken)
+		}
+		return
+	} else if job.Type == "provisioning_validation" || job.Type == "device_provision" {
 		if !requireCustomerCapability(w, org, capabilityProvisioningRead, capabilityProvisioningCreate) {
 			return
 		}
@@ -3470,12 +3581,15 @@ func customerProductWithActionsAndSummary(profile accountclient.DeviceItemProfil
 	}
 	return contracts.Product{
 		ID:                  profile.ID,
+		BrandCloudID:        profile.BrandCloudID,
 		Name:                profile.DisplayName,
 		ProductModel:        profile.Model,
 		Category:            profile.Category,
 		Status:              profile.Status,
 		ServiceCapabilities: normalizeCapabilities(services),
 		LogRetentionDays:    profile.LogRetentionDays,
+		GrantRevision:       profile.GrantRevision,
+		GrantDigest:         profile.GrantDigest,
 		DevicePolicy: map[string]any{
 			"setup_available":   len(profile.ProvisioningPolicy) > 0,
 			"binding_available": len(profile.ClaimPolicy) > 0,

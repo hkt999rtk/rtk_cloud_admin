@@ -15439,6 +15439,174 @@
       "fingerprint": "a4e5e8a0102795608d25713dca093e4e7ec5941f875d7048b5b8cf0a5b981d85",
       "text": "参考价核查",
       "status": "approved"
+    },
+    "Apply Product services to existing devices": {
+      "sourceHash": "3a5debc0041d0c21c41c3a8ddb165f5e830ddd4f6e32dedc1f0114d678f579b2",
+      "fingerprint": "741d89ff0a519b9d3980d12c332b0cb3dfec15c53b99c497f629e05269778e9c",
+      "text": "将 Product 服务应用至现有设备",
+      "status": "approved"
+    },
+    "Apply to all existing devices": {
+      "sourceHash": "24a1cf9590034f1837ddfd442bc4cabcf567060e5ad7148daeb2362058cf9459",
+      "fingerprint": "a43509ad7c9bcbf3103d7ccbc90107dd858e6263df20849aadd574e2402533fb",
+      "text": "应用至全部现有设备",
+      "status": "approved"
+    },
+    "Apply to existing devices": {
+      "sourceHash": "a146ffb0bc05eb6a06d25f03b958aff8aeb408d60e4b35af8a62188581d34696",
+      "fingerprint": "33683657743ea1bf6f817680e948cca7aa3beaf8014d9627618cec965a0e2b13",
+      "text": "应用至现有设备",
+      "status": "approved"
+    },
+    "Authorization version": {
+      "sourceHash": "f9a1b348c4ddcb86a78b6792f016447bbf9fa60973639ea511151be2b1070b97",
+      "fingerprint": "21cd5a5b6da14cce75ea3f8c67b78a2474644a9c154384617937bc991723deaf",
+      "text": "授权版本",
+      "status": "approved"
+    },
+    "Cancel job": {
+      "sourceHash": "50496647ebf6a79e1b33a886f7699daf77f9372b145f4b18095dfaeb303d65c9",
+      "fingerprint": "12995f20dfc62c9a6174c22b8961710d19e2f1fadda5bbfdb0225afecde0d320",
+      "text": "取消任务",
+      "status": "approved"
+    },
+    "Download results": {
+      "sourceHash": "10b9dd498fc8824131f4dae60c067f1914f5ba7e1da397c9e149765874d4d064",
+      "fingerprint": "c1bb47c74a6fcc48d0ef17f71f26ed45770342c5d1fb35d5b0e816d5b023df3f",
+      "text": "下载结果",
+      "status": "approved"
+    },
+    "Impact preview": {
+      "sourceHash": "407c29a593d773ae3849ce018040d6a9fa3b15af3cc6d8b856ff17c6ba3a96f8",
+      "fingerprint": "23878d59c2122d03cb90aaf6bf2719bc77c9602ca6ce428d28aa25984b298e09",
+      "text": "影响预览",
+      "status": "approved"
+    },
+    "Pause": {
+      "sourceHash": "53d6bdbce683daa37bc31a23b47531aff6d5dfaa9434c8b5af1d3c59ab999b84",
+      "fingerprint": "4da3347c455b2d99699784ced8d6b7ce6b7f266a68044092dd19a061b7860891",
+      "text": "暂停",
+      "status": "approved"
+    },
+    "Permissions to add": {
+      "sourceHash": "5d593938e2db402beeaef621811eb5d2a48fdc5ab7af0f127ee3de2c05a32d1c",
+      "fingerprint": "949371eab239044645f3721b40821d512876975ac46baa447f3a2c3021b4688b",
+      "text": "新增权限",
+      "status": "approved"
+    },
+    "Permissions to remove": {
+      "sourceHash": "4e971d272cd70a398bc261357a003d71aaef0736f40b806e837bd7e987241ebe",
+      "fingerprint": "2b68b41cb3e3a910998015a20440d3cd5b09b056ce90e05a28b19fd26fbabcd5",
+      "text": "移除权限",
+      "status": "approved"
+    },
+    "Preview all existing devices": {
+      "sourceHash": "7156f81c0db6d48ac6cbee8fd498adc2a2e959852dab932b71022f0a285af80e",
+      "fingerprint": "08c32faa8a34d6d885cd38d40a0aaf57471e533786065006c9e1c2c7aa3f6227",
+      "text": "预览全部现有设备",
+      "status": "approved"
+    },
+    "Product apply job": {
+      "sourceHash": "59c78704d0aec2022813a7bcdf77c06a84f944f9e6c734321029eadcdb85e3ec",
+      "fingerprint": "646db0adfdc18665392edb84ed3bf9928c85d5461e1facaf263ca267887c43a4",
+      "text": "Product 应用任务",
+      "status": "approved"
+    },
+    "Product apply progress is temporarily unavailable.": {
+      "sourceHash": "211c57b49a12e17ca9c6d1dfcf7c1797d8f63b7109636ed7306c431e3555c395",
+      "fingerprint": "90a80a26b2b65940022adc3d7a91c37b5a721002ae98d7c064af99dbb938a99e",
+      "text": "暂时无法获取 Product 应用进度。",
+      "status": "approved"
+    },
+    "Resolve all blockers before starting the job.": {
+      "sourceHash": "14ef7777f75c42e329b274492ef19c1498d60abfd8481b94122ef8ae8103b806",
+      "fingerprint": "ed6fc0805754b8318839ce2c86535ac7f9fc5e147d42559c7391a343bd570534",
+      "text": "请先排除所有阻止原因，再启动任务。",
+      "status": "approved"
+    },
+    "Result pages": {
+      "sourceHash": "10c01ce94051f462740dd5504122a1ee00fdb38e6248d2dae68f5d735db8b224",
+      "fingerprint": "393ae9e1a37a2caa6a55e2027b5576419779e089b47bcf967ce5010429b3bb8f",
+      "text": "结果分页",
+      "status": "approved"
+    },
+    "Resume": {
+      "sourceHash": "fe6c48371cd02b5ae7708d7401aae33812ec15634149a8801599cd62fe029545",
+      "fingerprint": "ad9990ed322398ab871b9969ca8b4efc84b6d778ee8d22eb92283a541915e326",
+      "text": "继续",
+      "status": "approved"
+    },
+    "Retry failed devices": {
+      "sourceHash": "deb0d2fb53d110c543ade81cea73ed0552be53c789d22be883f698e3a6777ce5",
+      "fingerprint": "783c75fbec919635ccf7ca784c727063d7af00f2a09e74c167defaa6cb9db2b0",
+      "text": "重试失败设备",
+      "status": "approved"
+    },
+    "Saving Product services creates a new authorization version. Existing devices keep their applied version until you explicitly apply it.": {
+      "sourceHash": "6df8da9256ee231a8003ed1ae3553ddf7cea01eef5ffe07ca3d1fffeb520967f",
+      "fingerprint": "13df60b2a5b46cf02f8032d6736fa6f542ad03db1617923bd7f5a5f9b93cb275",
+      "text": "保存 Product 服务会生成新的授权版本。现有设备会保留已应用版本，直到你明确应用新版本。",
+      "status": "approved"
+    },
+    "Target authorization version": {
+      "sourceHash": "e30331f17aa33c9ef24194a208758e38862966c3054f6235c8ba42ef71e071a7",
+      "fingerprint": "a0f13fe4d4632602f968ab92bf4431a4efe777aa69306074972f7322a94c6cbc",
+      "text": "目标授权版本",
+      "status": "approved"
+    },
+    "Unable to load Product apply jobs.": {
+      "sourceHash": "b7144fa044a203ded4bd74ced25f850dd1c5ab7644449e4de3d33c1da83826e9",
+      "fingerprint": "0c0415caa8f765f83e9ed651a0aa88fbde154ffb79551a5dd2d067306f78a503",
+      "text": "无法加载 Product 应用任务。",
+      "status": "approved"
+    },
+    "applied": {
+      "sourceHash": "f5294d134063402c63b15b7f8ae1b1518c303b13df8fea6f3dce88a3d7a530cc",
+      "fingerprint": "b6690986d1d9e4361664ece8868eb7b95cdf82d2a3cd49b3a3a2005404099b35",
+      "text": "已应用",
+      "status": "approved"
+    },
+    "failed": {
+      "sourceHash": "05c26988b42c8a64807195c272f762e8c040466a9094eae586a2417625fc3341",
+      "fingerprint": "1ea62a19daf9d8a8572ddcf7ed594dff2aa2f4ae194c51192c480775e1bde98e",
+      "text": "失败",
+      "status": "approved"
+    },
+    "Job state changed. Refresh its progress.": {
+      "sourceHash": "18f0f88f1d81be52a477bf84e737ba8e581a431dc945241bf0654369d3e612c1",
+      "fingerprint": "07c3aaba102226a923380def35a85d3e86a73643b0f4d669f07c6e6808c9fb73",
+      "text": "任务状态已变化，请刷新进度。",
+      "status": "approved"
+    },
+    "Product apply job could not be started. Retry this confirmation.": {
+      "sourceHash": "0738826f2f490b632056ecbc6f4050661cab32952334f291b447ea45e25ce5e0",
+      "fingerprint": "89acbb7e259d594db817efb226cf2d5a812215a43dcf080b37264658938160b1",
+      "text": "无法启动 Product 应用任务，请重试确认。",
+      "status": "approved"
+    },
+    "Product apply preview is unavailable.": {
+      "sourceHash": "2e168d13c74fb9e9698f3c3b4cec73739aa731cc52d7cd418f3a08f61027f549",
+      "fingerprint": "5161857a723b13523d4e4482d4285e1d254aefe3852ef1568636deb96b8e3134",
+      "text": "暂时无法预览 Product 应用影响。",
+      "status": "approved"
+    },
+    "Product or device grants changed. Refresh the preview.": {
+      "sourceHash": "ea97d141399b03c45f60b52e39b60769b63de5e47c08aeef16c4caf9bc4d0481",
+      "fingerprint": "f02f89b93fc6f8525feb80fce9676ee2df91d4c1409e54a72ceb9336941f0ea6",
+      "text": "Product 或设备授权已变化，请重新预览。",
+      "status": "approved"
+    },
+    "Product or device set changed. Refresh the preview.": {
+      "sourceHash": "e98c815b4e501e2858228d64a4d601338ff411802eceacfff7e66c7f9d3ab337",
+      "fingerprint": "7fb145f68cfddb672fe809776543ead42565f4de8f4aba6a2c0e129c47cb0fe1",
+      "text": "Product 或设备集合已变化，请重新预览。",
+      "status": "approved"
+    },
+    "The job action could not be completed. Retry.": {
+      "sourceHash": "e22f63d7ac4366fd1aa71070f39dbd772063725efd077e7d7d156c477ea2f3e6",
+      "fingerprint": "be5b0845154405e78999dd469566e66b4409ac08e1ae55ac22644eebd2e0a8a8",
+      "text": "无法完成任务操作，请重试。",
+      "status": "approved"
     }
   }
 }
