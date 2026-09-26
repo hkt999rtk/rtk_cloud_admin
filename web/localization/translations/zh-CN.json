@@ -15409,6 +15409,18 @@
       "fingerprint": "33be4e2cf3995f4360fd894d72cba5d3a04da0f25a5eb944227aeac43a96e20b",
       "text": "圣保罗区域参考价。AWS 标示为 1 KB 单位；是否等同 RTK 的 1 KiB 单位仍待确认。",
       "status": "approved"
+    },
+    "Services with reference prices only": {
+      "sourceHash": "e4b9e44c5fc20e76e36bf0bb5f4302eb0f93473dfeedee779cdc22d71de7e9ff",
+      "fingerprint": "ab5adf2312573f505a7e0679afe694fc0ff3228544955507daa5ee77f5401878",
+      "text": "仅有参考价的服务",
+      "status": "approved"
+    },
+    "The other 11 services have no newly approved RTK price in this review. All 15 rows show a separate highest eligible public reference. Existing customer charges follow the active rate card, contract and invoice.": {
+      "sourceHash": "9f56f601b627b1fe86dcbfabf8d916decd491bd586d3ac7e71fa0b6449c9800b",
+      "fingerprint": "1c204bdaa7b8d1ad31db8970a65bc8b08fbf78398f81e5161d545f80600b25aa",
+      "text": "其余 11 项服务在本次审查中没有新核准的 RTK 单价。全部 15 行都另列符合条件的最高公开参考价。现有客户费用仍依据生效价卡、合同与发票计算。",
+      "status": "approved"
     }
   }
 }

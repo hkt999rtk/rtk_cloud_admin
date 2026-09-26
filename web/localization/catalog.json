@@ -15623,6 +15623,18 @@
       "source": "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Services with reference prices only",
+      "source": "Services with reference prices only",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The other 11 services have no newly approved RTK price in this review. All 15 rows show a separate highest eligible public reference. Existing customer charges follow the active rate card, contract and invoice.",
+      "source": "The other 11 services have no newly approved RTK price in this review. All 15 rows show a separate highest eligible public reference. Existing customer charges follow the active rate card, contract and invoice.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

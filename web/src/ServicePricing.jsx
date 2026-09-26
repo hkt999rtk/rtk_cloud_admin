@@ -19,7 +19,7 @@ export function ServicePricing({ tabs }) {
     {tabs}
     <section className="pricing-status-summary" aria-label={translate('Price status')}>
       <div><strong>4</strong><h3>{translate('OTA prices approved')}</h3><p>{translate('The four OTA customer unit prices are approved but have no effective date yet. OTA is not charged at these prices until an active Billing rate card includes them.')}</p></div>
-      <div><strong>11</strong><h3>{translate('Research reference prices')}</h3><p>{translate('The other prices use the highest eligible public benchmark found in the reviewed sources. They are planning references, not a change to your active rate card.')}</p></div>
+      <div><strong>11</strong><h3>{translate('Services with reference prices only')}</h3><p>{translate('The other 11 services have no newly approved RTK price in this review. All 15 rows show a separate highest eligible public reference. Existing customer charges follow the active rate card, contract and invoice.')}</p></div>
     </section>
     <section className="pricing-intro" aria-label={translate('Service rates and billing basis')}>
       <div><h3>{translate('How these prices work')}</h3><p>{translate('This page does not verify your Cloud’s effective Billing rates. Your contract, active rate card and invoice determine actual charges; these references are not an invoice or spend forecast.')}</p><p>{translate('Monthly subtotal = measured usage × unit price ÷ the displayed unit size. Usage is aggregated by service and meter before the TWD amount is rounded; tax is handled by the effective Billing plan.')}</p></div>

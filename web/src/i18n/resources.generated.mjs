@@ -2567,7 +2567,9 @@ export const en = Object.freeze({ translation: Object.freeze({
   "Research reference only": "Research reference only",
   "Your effective customer rate is not verified on this page. Check your active rate card, contract or invoice.": "Your effective customer rate is not verified on this page. Check your active rate card, contract or invoice.",
   "Selected CloudFront Asian delivery regions outside China. Raw CDN bytes and retries differ from RTK first verified logical download.": "Selected CloudFront Asian delivery regions outside China. Raw CDN bytes and retries differ from RTK first verified logical download.",
-  "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.": "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified."
+  "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.": "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.",
+  "Services with reference prices only": "Services with reference prices only",
+  "The other 11 services have no newly approved RTK price in this review. All 15 rows show a separate highest eligible public reference. Existing customer charges follow the active rate card, contract and invoice.": "The other 11 services have no newly approved RTK price in this review. All 15 rows show a separate highest eligible public reference. Existing customer charges follow the active rate card, contract and invoice."
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -5138,7 +5140,9 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "Research reference only": "僅供研究參考",
   "Your effective customer rate is not verified on this page. Check your active rate card, contract or invoice.": "本頁未驗證您目前適用的正式費率。請查閱生效中的價卡、合約或發票。",
   "Selected CloudFront Asian delivery regions outside China. Raw CDN bytes and retries differ from RTK first verified logical download.": "CloudFront 指定的中國以外亞洲交付區域。原始 CDN 位元組數與重試流量，和 RTK 首次驗證的邏輯下載量不同。",
-  "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.": "聖保羅區域參考價。AWS 標示為 1 KB 單位；是否等同 RTK 的 1 KiB 單位仍待確認。"
+  "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.": "聖保羅區域參考價。AWS 標示為 1 KB 單位；是否等同 RTK 的 1 KiB 單位仍待確認。",
+  "Services with reference prices only": "僅有參考價的服務",
+  "The other 11 services have no newly approved RTK price in this review. All 15 rows show a separate highest eligible public reference. Existing customer charges follow the active rate card, contract and invoice.": "其餘 11 項服務在本次審查中沒有新核准的 RTK 單價。全部 15 列都另列符合條件的最高公開參考價。現有客戶費用仍依生效價卡、合約與發票計算。"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -7709,7 +7713,9 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "Research reference only": "仅供研究参考",
   "Your effective customer rate is not verified on this page. Check your active rate card, contract or invoice.": "本页未验证您目前适用的正式费率。请查阅生效中的价卡、合约或发票。",
   "Selected CloudFront Asian delivery regions outside China. Raw CDN bytes and retries differ from RTK first verified logical download.": "CloudFront 指定的中国以外亚洲交付区域。原始 CDN 位元组数与重试流量，和 RTK 首次验证的逻辑下载量不同。",
-  "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.": "圣保罗区域参考价。AWS 标示为 1 KB 单位；是否等同 RTK 的 1 KiB 单位仍待确认。"
+  "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.": "圣保罗区域参考价。AWS 标示为 1 KB 单位；是否等同 RTK 的 1 KiB 单位仍待确认。",
+  "Services with reference prices only": "仅有参考价的服务",
+  "The other 11 services have no newly approved RTK price in this review. All 15 rows show a separate highest eligible public reference. Existing customer charges follow the active rate card, contract and invoice.": "其余 11 项服务在本次审查中没有新核准的 RTK 单价。全部 15 行都另列符合条件的最高公开参考价。现有客户费用仍依据生效价卡、合同与发票计算。"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });
