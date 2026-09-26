@@ -15821,6 +15821,54 @@
       "source": "The job action could not be completed. Retry.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Estimated cost excluding OTA",
+      "source": "Estimated cost excluding OTA",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA estimate pending review",
+      "source": "OTA estimate pending review",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Pending OTA review",
+      "source": "Pending OTA review",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Subtotal excluding OTA",
+      "source": "Subtotal excluding OTA",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.",
+      "source": "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The current owner did not cover the complete UTC month. OTA charges require manual review.",
+      "source": "The current owner did not cover the complete UTC month. OTA charges require manual review.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The full-month forecast is unavailable while OTA charges are held.",
+      "source": "The full-month forecast is unavailable while OTA charges are held.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This period is not a complete UTC month. OTA charges require a complete UTC month.",
+      "source": "This period is not a complete UTC month. OTA charges require a complete UTC month.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

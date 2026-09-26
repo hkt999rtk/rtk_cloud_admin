@@ -1083,6 +1083,9 @@ main {
   padding: 10px 12px;
 }
 
+.billing-ota-hold strong { display: block; }
+.billing-ota-hold p { margin: 5px 0 0; }
+
 .danger-button {
   background: #fff1f0;
   border: 1px solid #e5a6a2;
