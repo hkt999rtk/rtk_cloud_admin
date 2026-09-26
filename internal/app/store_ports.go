@@ -62,6 +62,9 @@ type batchJobStore interface {
 	ActBatchJob(organizationID, id, action, key string) (contracts.BatchJob, store.BatchJobActionReceipt, bool, error)
 	CompleteBatchJobBoundary(organizationID, id, owner string) (contracts.BatchJob, error)
 	UpsertBatchJobItem(item contracts.BatchJobItem) error
+	ReconcileProductApplyProgress(organizationID, jobID string) (contracts.BatchJob, error)
+	CommitProductApplyResult(organizationID, jobID string, item contracts.BatchJobItem) (contracts.BatchJob, error)
+	YieldProductApplyJob(organizationID, jobID string) error
 	ListBatchJobItems(organizationID, id, state string, retryable *bool, limit, offset int) (contracts.BatchJobItemPage, error)
 	UpdateBatchJobCheckpoint(organizationID, id string, checkpoint map[string]any) error
 	UpdateBatchJobAuthorizationStatus(organizationID, id, status string) error

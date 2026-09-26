@@ -105,6 +105,31 @@ func TestProductApplyJobListingAndCancelCleanupStayScoped(t *testing.T) {
 	}
 }
 
+func TestProductApplyYieldDoesNotResumeCancelledWork(t *testing.T) {
+	st, err := Open(t.TempDir() + "/product-apply-yield.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, state := range []string{"paused", "cancelled", "cancelling"} {
+		job, err := st.CreateBatchJob(contracts.BatchJob{OrganizationID: "cloud-a", Type: "product_services_apply",
+			State: state, Scope: map[string]any{"product_id": "product-a"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.YieldProductApplyJob(job.OrganizationID, job.ID); err != nil {
+			t.Fatal(err)
+		}
+		current, err := st.GetBatchJob(job.OrganizationID, job.ID)
+		if err != nil || current.State != state {
+			t.Fatalf("late yield changed %s to %+v: %v", state, current, err)
+		}
+	}
+}
+
 func TestProductApplyRetryResetsProgressAndPaginatesAllResults(t *testing.T) {
 	st, err := Open(t.TempDir() + "/product-apply-retry.db")
 	if err != nil {

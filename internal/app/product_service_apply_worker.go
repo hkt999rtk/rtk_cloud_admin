@@ -23,6 +23,11 @@ func (s *Server) runDurableProductServiceApplyJob(ctx context.Context, job contr
 		s.failProductApplyJob(job)
 		return
 	}
+	job, err := s.jobs.ReconcileProductApplyProgress(job.OrganizationID, job.ID)
+	if err != nil {
+		s.failProductApplyJob(job)
+		return
+	}
 	upstream, err := s.accountClient.ServiceApplyJob(ctx, token, job.OrganizationID, product, job.ID)
 	if err != nil {
 		s.yieldProductApplyJob(job)
@@ -73,15 +78,13 @@ func (s *Server) runDurableProductServiceApplyJob(ctx context.Context, job contr
 				s.failProductApplyJob(job)
 				return
 			}
-			completed++
-			_ = s.jobs.UpsertBatchJobItem(contracts.BatchJobItem{JobID: job.ID, ItemKey: item.DeviceID, Position: position, State: "completed", Attempt: attempt, UpstreamOperationID: item.OperationID})
+			job, err = s.jobs.CommitProductApplyResult(job.OrganizationID, job.ID, contracts.BatchJobItem{JobID: job.ID, ItemKey: item.DeviceID, Position: position, State: "completed", Attempt: attempt, UpstreamOperationID: item.OperationID})
 		case "failed":
-			failed++
 			code := item.FailureCode
 			if code == "" {
 				code = "UPSTREAM_APPLY_FAILED"
 			}
-			_ = s.jobs.UpsertBatchJobItem(contracts.BatchJobItem{JobID: job.ID, ItemKey: item.DeviceID, Position: position, State: "failed", Attempt: attempt, FailureCode: code, FailureReason: "Product authorization was not applied", Retryable: item.Retryable, UpstreamOperationID: item.OperationID})
+			job, err = s.jobs.CommitProductApplyResult(job.OrganizationID, job.ID, contracts.BatchJobItem{JobID: job.ID, ItemKey: item.DeviceID, Position: position, State: "failed", Attempt: attempt, FailureCode: code, FailureReason: "Product authorization was not applied", Retryable: item.Retryable, UpstreamOperationID: item.OperationID})
 		case "accepted", "pending", "running":
 			s.recordProductApplyWaiting(job, item, position, attempt)
 			s.yieldProductApplyJob(job)
@@ -90,8 +93,11 @@ func (s *Server) runDurableProductServiceApplyJob(ctx context.Context, job contr
 			s.failProductApplyJob(job)
 			return
 		}
-		_ = s.jobs.UpdateBatchJobCheckpoint(job.OrganizationID, job.ID, map[string]any{"next_position": position + 1})
-		_, _ = s.jobs.UpdateBatchJobWorkerProgress(job.OrganizationID, job.ID, "running", completed, failed, 0)
+		if err != nil {
+			s.yieldProductApplyJob(job)
+			return
+		}
+		completed, failed = job.Completed, job.Failed
 	}
 	if completed+failed < job.Total {
 		s.yieldProductApplyJob(job)
@@ -131,11 +137,7 @@ func (s *Server) recordProductApplyWaiting(job contracts.BatchJob, item accountc
 }
 
 func (s *Server) yieldProductApplyJob(job contracts.BatchJob) {
-	current, err := s.jobs.GetBatchJob(job.OrganizationID, job.ID)
-	if err != nil {
-		return
-	}
-	_, _ = s.jobs.UpdateBatchJobWorkerProgress(job.OrganizationID, job.ID, "queued", current.Completed, current.Failed, current.Skipped)
+	_ = s.jobs.YieldProductApplyJob(job.OrganizationID, job.ID)
 }
 
 func (s *Server) failProductApplyJob(job contracts.BatchJob) {

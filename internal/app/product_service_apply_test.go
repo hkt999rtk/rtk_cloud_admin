@@ -130,6 +130,60 @@ func TestProductServiceApplyWaitsForAppliedRevision(t *testing.T) {
 	}
 }
 
+func TestProductServiceApplyRestartRecoversInterruptedProgress(t *testing.T) {
+	const total = 2
+	dispatches, completions := 0, 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/items"):
+			offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+			_ = json.NewEncoder(w).Encode(map[string]any{"total": total, "items": []map[string]any{{
+				"device_id": fmt.Sprintf("device-%d", offset), "operation_id": fmt.Sprintf("operation-%d", offset),
+				"status": "applied", "applied_revision": 2,
+			}}})
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/dispatch"):
+			dispatches++
+			w.WriteHeader(http.StatusAccepted)
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/complete"):
+			completions++
+			_, _ = w.Write([]byte(`{"job":{"status":"completed"}}`))
+		default:
+			_, _ = w.Write([]byte(`{"job":{"id":"job-restart","target_revision":2,"target_digest":"digest-2","total_devices":2,"status":"active"}}`))
+		}
+	}))
+	defer upstream.Close()
+	st := mustOpenStore(t)
+	job, err := st.CreateBatchJob(contracts.BatchJob{ID: "job-restart", OrganizationID: "cloud-1", Type: "product_services_apply",
+		Scope: map[string]any{"product_id": "product-1", "target_revision": int64(2), "target_digest": "digest-2"}, Total: total})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate the old worker crashing after advancing the cursor but before
+	// persisting counters. A second completed row simulates an interrupted item
+	// write before its cursor moved; replay must count each device once.
+	for position := 0; position < total; position++ {
+		if err := st.UpsertBatchJobItem(contracts.BatchJobItem{JobID: job.ID, ItemKey: fmt.Sprintf("device-%d", position),
+			Position: position, State: "completed", Attempt: 1, UpstreamOperationID: fmt.Sprintf("operation-%d", position)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := st.UpdateBatchJobCheckpoint(job.OrganizationID, job.ID, map[string]any{"next_position": 1}); err != nil {
+		t.Fatal(err)
+	}
+	job, err = st.GetBatchJob(job.OrganizationID, job.ID)
+	if err != nil || job.Completed != 0 {
+		t.Fatalf("invalid restart fixture: %+v, %v", job, err)
+	}
+	srv := NewWithOptions(st, Options{AccountClient: accountclient.New(upstream.URL)})
+	srv.runDurableProductServiceApplyJob(context.Background(), job, "delegated-token", "worker-1", time.Minute)
+	job, err = st.GetBatchJob(job.OrganizationID, job.ID)
+	if err != nil || job.State != "completed" || job.Completed != total || job.Failed != 0 ||
+		job.Checkpoint["next_position"] != float64(total) || dispatches != 0 || completions != 1 {
+		t.Fatalf("interrupted apply was not recovered once: job=%+v dispatches=%d completions=%d err=%v", job, dispatches, completions, err)
+	}
+}
+
 func TestProductServiceApplyPaginatesBeyond250AndDownloadsAllResults(t *testing.T) {
 	const total = 301
 	completed, retries := 0, 0
