@@ -43,6 +43,7 @@ test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and act
   await page.reload();
   await expect(page.getByRole('alert')).toContainText('Billing information temporarily unavailable');
   await expect(page.locator('.pricing-table tbody tr')).toHaveCount(0);
+  await expect(page.locator('.pricing-draft time, .pricing-intro time')).toHaveCount(0);
 });
 
 test('[UI-CA-BILLING-010] billing labels, statuses and pricing follow locale changes @billing @smoke', async ({ page, isMobile }) => {
@@ -56,10 +57,19 @@ test('[UI-CA-BILLING-010] billing labels, statuses and pricing follow locale cha
   await expect(page.getByTestId('billing-page')).toContainText('月底費用預測');
   await expect(page.getByTestId('billing-page')).not.toContainText('Available Balance');
   await expect(page.getByTestId('billing-page')).toContainText('需要私有雲？');
+  await page.route('**/billing/pricing-references', async route => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.catalog.reference_date = '2026-10-01';
+    await route.fulfill({ response, json: body });
+  });
   await page.getByRole('button', { name: '服務定價' }).click();
   await expect(page.getByTestId('billing-pricing-page')).toContainText('物聯網與訊息服務');
   await expect(page.getByTestId('billing-pricing-page')).toContainText('MQTT 訊息發布');
   await expect(page.getByTestId('billing-pricing-page')).toContainText('US$1.50／百萬個 5 KB 訊息單位');
+  await expect(page.locator('.pricing-draft time')).toHaveAttribute('datetime', '2026-10-01');
+  await expect(page.locator('.pricing-draft time')).toHaveText('2026年10月1日');
+  await expect(page.locator('.pricing-intro time')).toHaveText('2026年10月1日');
   await page.reload();
   await expect(page.locator('[data-locale-selector]')).toHaveValue('zh-TW');
   await expect(page.getByTestId('billing-pricing-page')).toContainText('MQTT 訊息發布');

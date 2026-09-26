@@ -36,7 +36,9 @@ const invalidCatalog = () => Object.assign(new Error('Invalid service pricing re
 
 export function mergeServicePricingCatalog(payload, cloudId, locale = 'en') {
   const catalog = payload?.catalog;
-  if (payload?.cloud_id !== cloudId || catalog?.currency !== 'TWD' || !/^\d{4}-\d{2}-\d{2}$/.test(catalog.reference_date || '') || !Array.isArray(catalog.rows) || catalog.rows.length !== servicePricing.length) throw invalidCatalog();
+  const referenceDate = catalog?.reference_date;
+  const parsedDate = /^\d{4}-\d{2}-\d{2}$/.test(referenceDate || '') ? new Date(`${referenceDate}T00:00:00Z`) : null;
+  if (payload?.cloud_id !== cloudId || catalog?.currency !== 'TWD' || !parsedDate || !Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== referenceDate || !Array.isArray(catalog.rows) || catalog.rows.length !== servicePricing.length) throw invalidCatalog();
   const rates = new Map();
   for (const rate of catalog.rows) {
     if (rates.has(rate.id) || !servicePricing.some(row => row.id === rate.id) || !Number.isFinite(rate.reference_price) || rate.reference_price <= 0 || (rate.price !== null && (!Number.isFinite(rate.price) || rate.price <= 0)) || typeof rate.benchmark !== 'string' || !rate.benchmark.trim() || (locale !== 'en' && (typeof rate.benchmark_localized !== 'string' || !rate.benchmark_localized.trim()))) throw invalidCatalog();

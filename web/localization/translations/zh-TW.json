@@ -15032,12 +15032,6 @@
       "text": "此設備無法執行即時測試。",
       "status": "approved"
     },
-    "26 Sep 2026": {
-      "sourceHash": "7ca1652768d87b1f777c0ee846c864b42f9052483ecceba64ac856afe0a41285",
-      "fingerprint": "104bcc48a925c9b6c8ffce84af5f0f58447ebe459b9e5c39f2632748b958d3fe",
-      "text": "2026 年 9 月 26 日",
-      "status": "approved"
-    },
     "API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.": {
       "sourceHash": "dd360d11aa5e1dd76adec9071125782982a78eea0d3eaf41c34f4a889b06926a",
       "fingerprint": "57c217ae6a49b193b2086df085b1d0e32e9ecd7387b0de1f8b18f8186d416266",
@@ -15144,12 +15138,6 @@
       "sourceHash": "f7f3500338afe4093fe5f120047f474dc8b2821b409d4dd229d70c2ca71d2ccb",
       "fingerprint": "c9d9c9426bae579063e6c8d9c2aee599abb3cd39ce3bf59de4b75496b118bf58",
       "text": "參考價核對日期",
-      "status": "approved"
-    },
-    "Reference review · 26 Sep 2026": {
-      "sourceHash": "be52cf6d819e67424d5ec892a51e50f5ff54b687431e1255fc978f58550344b9",
-      "fingerprint": "cd32f5b73b9825e5e7aed1ced96d10fa28c6f52eac21a766c61065f234600626",
-      "text": "參考價核對 · 2026 年 9 月 26 日",
       "status": "approved"
     },
     "Research reference prices": {
@@ -15444,6 +15432,12 @@
       "sourceHash": "62c28e9651d6caffb0d74889a4e2a468a95ffb2f076508e5adff4cf1d26c4bfe",
       "fingerprint": "007fc4041b8f4925cff97e5b78d0b9e527bb7d52b9b940e18130ebf35f04fb8e",
       "text": "AWS Device Jobs 聖保羅區域的首個付費級距。RTK 計量首次持久化的裝置指派；已核准的 OTA 單價與此參考價分開。",
+      "status": "approved"
+    },
+    "Reference review": {
+      "sourceHash": "8807517f00505a8fd4ee6a8a791f8a66452d6e81b1e27d257d184a0433e897ad",
+      "fingerprint": "8a02d909ed6e5e2bc047092a0c6e40f3a40b42902b2a63c2bb06addce3bcc6d0",
+      "text": "參考價查核",
       "status": "approved"
     }
   }

@@ -167,8 +167,9 @@ pricing response is missing, stale, malformed or unavailable. Accounting
 outages do not block the separate research endpoint. The build removes numeric
 benchmark translations from public JavaScript and scans all generated
 `web/dist` text assets for protected price strings and the server-only catalog.
-Approved and reference
-amounts cannot be recovered from anonymous app or localization assets. This
+Both visible reference-check dates come from the authorized catalog response;
+no date or amount is shown while that response is unavailable. Approved and
+reference amounts cannot be recovered from anonymous app or localization assets. This
 research endpoint never establishes an effective price; the later effective-rate
 page must read the Cloud's active Billing rate version and cannot substitute
 reference values for an active tariff.

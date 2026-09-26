@@ -15247,12 +15247,6 @@
       "placeholders": []
     },
     {
-      "key": "26 Sep 2026",
-      "source": "26 Sep 2026",
-      "context": "Admin Console interface message",
-      "placeholders": []
-    },
-    {
       "key": "API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.",
       "source": "API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.",
       "context": "Admin Console interface message",
@@ -15357,12 +15351,6 @@
     {
       "key": "Reference checked",
       "source": "Reference checked",
-      "context": "Admin Console interface message",
-      "placeholders": []
-    },
-    {
-      "key": "Reference review · 26 Sep 2026",
-      "source": "Reference review · 26 Sep 2026",
       "context": "Admin Console interface message",
       "placeholders": []
     },
@@ -15657,6 +15645,12 @@
     {
       "key": "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.",
       "source": "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Reference review",
+      "source": "Reference review",
       "context": "Admin Console interface message",
       "placeholders": []
     }

@@ -21,6 +21,7 @@ test('price amounts and provider benchmarks stay out of public client data and t
 test('owner-scoped catalog is complete and keeps approved OTA prices separate from research references', () => {
   const merged = mergeServicePricingCatalog(payload, cloud);
   assert.equal(merged.currency, 'TWD');
+  assert.equal(merged.referenceDate, catalog.reference_date);
   assert.equal(merged.rows.length, 15);
   assert.deepEqual(merged.rows.filter(row => row.price !== null).map(row => row.id), [
     'ota', 'ota-successful-download', 'ota-artifact-storage', 'ota-artifact-write',
@@ -31,6 +32,7 @@ test('owner-scoped catalog is complete and keeps approved OTA prices separate fr
   assert.equal(merged.rows.find(row => row.id === 'shadow').referencePrice, 60);
   assert.throws(() => mergeServicePricingCatalog({ ...payload, cloud_id: '33333333-3333-4333-8333-333333333333' }, cloud), /Invalid service pricing/);
   assert.throws(() => mergeServicePricingCatalog({ ...payload, catalog: { ...catalog, rows: catalog.rows.slice(1) } }, cloud), /Invalid service pricing/);
+  assert.throws(() => mergeServicePricingCatalog({ ...payload, catalog: { ...catalog, reference_date: '2026-13-01' } }, cloud), /Invalid service pricing/);
 });
 
 test('pricing fetch requires the current ownership version and fails closed on API errors', async () => {

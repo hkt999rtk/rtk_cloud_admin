@@ -2488,7 +2488,6 @@ export const en = Object.freeze({ translation: Object.freeze({
   "This registry device has no valid Video Cloud identity mapping.": "This registry device has no valid Video Cloud identity mapping.",
   "This device is disabled.": "This device is disabled.",
   "Live testing is unavailable for this device.": "Live testing is unavailable for this device.",
-  "26 Sep 2026": "26 Sep 2026",
   "API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.": "API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.",
   "CloudFront Asian edge proxy. Raw CDN traffic, retries and cache behavior differ from RTK first verified logical download.": "CloudFront Asian edge proxy. Raw CDN traffic, retries and cache behavior differ from RTK first verified logical download.",
   "CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.": "CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.",
@@ -2506,7 +2505,6 @@ export const en = Object.freeze({ translation: Object.freeze({
   "RTK price status": "RTK price status",
   "RTK storage and traffic use GiB (1,073,741,824 bytes); Shadow uses KiB (1,024 bytes). Provider byte units and counted events may differ, as noted in each row.": "RTK storage and traffic use GiB (1,073,741,824 bytes); Shadow uses KiB (1,024 bytes). Provider byte units and counted events may differ, as noted in each row.",
   "Reference checked": "Reference checked",
-  "Reference review · 26 Sep 2026": "Reference review · 26 Sep 2026",
   "Research reference prices": "Research reference prices",
   "Research references are not approved customer charges. OTA has four approved unit prices, but they are not effective yet. An existing meter does not mean charging is enabled.": "Research references are not approved customer charges. OTA has four approved unit prices, but they are not effective yet. An existing meter does not mean charging is enabled.",
   "São Paulo GET reference. RTK includes successful clip HEAD operations, so counted operations differ.": "São Paulo GET reference. RTK includes successful clip HEAD operations, so counted operations differ.",
@@ -2543,7 +2541,8 @@ export const en = Object.freeze({ translation: Object.freeze({
   "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; the approved OTA price stays separate from this reference.": "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; the approved OTA price stays separate from this reference.",
   "Compare approved OTA unit prices with public references selected from the official sources inspected for this review.": "Compare approved OTA unit prices with public references selected from the official sources inspected for this review.",
   "Highest inspected public reference": "Highest inspected public reference",
-  "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.": "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice."
+  "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.": "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.",
+  "Reference review": "Reference review"
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -5035,7 +5034,6 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "This registry device has no valid Video Cloud identity mapping.": "此登錄設備沒有有效的 Video Cloud 身分對應。",
   "This device is disabled.": "此設備已停用。",
   "Live testing is unavailable for this device.": "此設備無法執行即時測試。",
-  "26 Sep 2026": "2026 年 9 月 26 日",
   "API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.": "API Gateway 聖保羅區域的首個付費級距。RTK 僅計入已分類資料路由的成功請求。",
   "CloudFront Asian edge proxy. Raw CDN traffic, retries and cache behavior differ from RTK first verified logical download.": "CloudFront 亞洲邊緣傳輸參考值。原始 CDN 流量、重試和快取行為與 RTK 首次驗證的邏輯下載量不同。",
   "CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.": "CloudWatch 聖保羅區域的替代參考值。RTK 使用接收的未壓縮位元組數 × 設定保留天數／30，因此計費量不同。",
@@ -5053,7 +5051,6 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "RTK price status": "RTK 費率狀態",
   "RTK storage and traffic use GiB (1,073,741,824 bytes); Shadow uses KiB (1,024 bytes). Provider byte units and counted events may differ, as noted in each row.": "RTK 儲存與傳輸量使用 GiB（1,073,741,824 位元組）；Shadow 使用 KiB（1,024 位元組）。供應商的位元組單位與計量事件可能不同，詳見各列說明。",
   "Reference checked": "參考價核對日期",
-  "Reference review · 26 Sep 2026": "參考價核對 · 2026 年 9 月 26 日",
   "Research reference prices": "研究參考價",
   "Research references are not approved customer charges. OTA has four approved unit prices, but they are not effective yet. An existing meter does not mean charging is enabled.": "研究參考價並非已核准的客戶收費。OTA 四項單價雖已核准，但尚未生效；已有計量資料也不代表已啟用收費。",
   "São Paulo GET reference. RTK includes successful clip HEAD operations, so counted operations differ.": "聖保羅區域 GET 參考價。RTK 也計入成功的影片片段 HEAD 操作，因此計量事件不同。",
@@ -5090,7 +5087,8 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; the approved OTA price stays separate from this reference.": "AWS Device Jobs 聖保羅區域的首個付費級距。RTK 計量首次持久化的裝置指派；已核准的 OTA 單價與此參考價分開。",
   "Compare approved OTA unit prices with public references selected from the official sources inspected for this review.": "比較已核准的 OTA 單價與本次審查之官方來源中選出的公開參考價。",
   "Highest inspected public reference": "已審查來源中的最高公開參考價",
-  "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.": "其餘 11 項服務在本次審查中沒有新核准的 RTK 單價。全部 15 列均顯示已審查官方來源中符合條件的最高公開參考價。現有客戶費用仍依生效價卡、合約與發票計算。"
+  "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.": "其餘 11 項服務在本次審查中沒有新核准的 RTK 單價。全部 15 列均顯示已審查官方來源中符合條件的最高公開參考價。現有客戶費用仍依生效價卡、合約與發票計算。",
+  "Reference review": "參考價查核"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -7582,7 +7580,6 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "This registry device has no valid Video Cloud identity mapping.": "此注册设备没有有效的 Video Cloud 身份映射。",
   "This device is disabled.": "此设备已停用。",
   "Live testing is unavailable for this device.": "此设备无法执行实时测试。",
-  "26 Sep 2026": "2026 年 9 月 26 日",
   "API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.": "API Gateway 圣保罗区域的首个付费级距。RTK 仅计入已分类资料路由的成功请求。",
   "CloudFront Asian edge proxy. Raw CDN traffic, retries and cache behavior differ from RTK first verified logical download.": "CloudFront 亚洲边缘传输参考值。原始 CDN 流量、重试和快取行为与 RTK 首次验证的逻辑下载量不同。",
   "CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.": "CloudWatch 圣保罗区域的替代参考值。RTK 使用接收的未压缩位元组数 × 设定保留天数／30，因此计费量不同。",
@@ -7600,7 +7597,6 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "RTK price status": "RTK 费率状态",
   "RTK storage and traffic use GiB (1,073,741,824 bytes); Shadow uses KiB (1,024 bytes). Provider byte units and counted events may differ, as noted in each row.": "RTK 储存与传输量使用 GiB（1,073,741,824 位元组）；Shadow 使用 KiB（1,024 位元组）。供应商的位元组单位与计量事件可能不同，详见各列说明。",
   "Reference checked": "参考价核对日期",
-  "Reference review · 26 Sep 2026": "参考价核对 · 2026 年 9 月 26 日",
   "Research reference prices": "研究参考价",
   "Research references are not approved customer charges. OTA has four approved unit prices, but they are not effective yet. An existing meter does not mean charging is enabled.": "研究参考价并非已核准的客户收费。OTA 四项单价虽已核准，但尚未生效；已有计量资料也不代表已启用收费。",
   "São Paulo GET reference. RTK includes successful clip HEAD operations, so counted operations differ.": "圣保罗区域 GET 参考价。RTK 也计入成功的影片片段 HEAD 操作，因此计量事件不同。",
@@ -7637,7 +7633,8 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; the approved OTA price stays separate from this reference.": "AWS Device Jobs 圣保罗区域的首个付费级距。RTK 计量首次持久化的装置指派；已核准的 OTA 单价与此参考价分开。",
   "Compare approved OTA unit prices with public references selected from the official sources inspected for this review.": "比较已核准的 OTA 单价与本次审查的官方来源中选出的公开参考价。",
   "Highest inspected public reference": "已审查来源中的最高公开参考价",
-  "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.": "其余 11 项服务在本次审查中没有新核准的 RTK 单价。全部 15 行均显示已审查官方来源中符合条件的最高公开参考价。现有客户费用仍依生效价卡、合同与发票计算。"
+  "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.": "其余 11 项服务在本次审查中没有新核准的 RTK 单价。全部 15 行均显示已审查官方来源中符合条件的最高公开参考价。现有客户费用仍依生效价卡、合同与发票计算。",
+  "Reference review": "参考价核查"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });

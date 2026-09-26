@@ -1,4 +1,4 @@
-import { activeLocale, translate } from './i18n/index.mjs';
+import { activeLocale, formatDateTime, translate } from './i18n/index.mjs';
 import React, { useEffect, useState } from 'react';
 import { fetchServicePricing, pricingGroups, pricingSources } from './service-pricing.mjs';
 import './service-pricing.css';
@@ -32,8 +32,9 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
   }, [cloudId, ownershipVersion, locale, onAccessLost]);
   const servicePricing = catalog?.rows || [];
   const rows = servicePricing.filter(row => group === 'All services' || row.group === group);
+  const referenceDate = catalog && formatDateTime(`${catalog.referenceDate}T00:00:00Z`, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
   return <section className="page-content billing-page service-pricing-page" data-testid="billing-pricing-page">
-    <div className="page-intro"><div><p className="eyebrow">{translate('Realtek Managed Cloud')}</p><h2>{translate('Service pricing')}</h2><p>{translate('Compare approved OTA unit prices with public references selected from the official sources inspected for this review.')}</p></div><span className="pricing-draft">{translate('Reference review · 26 Sep 2026')}</span></div>
+    <div className="page-intro"><div><p className="eyebrow">{translate('Realtek Managed Cloud')}</p><h2>{translate('Service pricing')}</h2><p>{translate('Compare approved OTA unit prices with public references selected from the official sources inspected for this review.')}</p></div>{catalog && <span className="pricing-draft">{translate('Reference review')} · <time dateTime={catalog.referenceDate}>{referenceDate}</time></span>}</div>
     {tabs}
     {!catalog ? <section className="panel" role={error ? 'alert' : 'status'}><p>{translate(error ? 'Billing information temporarily unavailable' : 'Loading owner-scoped Billing…')}</p></section> : <>
     <section className="pricing-status-summary" aria-label={translate('Price status')}>
@@ -42,7 +43,7 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
     </section>
     <section className="pricing-intro" aria-label={translate('Service rates and billing basis')}>
       <div><h3>{translate('How these prices work')}</h3><p>{translate('This page does not verify your Cloud’s effective Billing rates. Your contract, active rate card and invoice determine actual charges; these references are not an invoice or spend forecast.')}</p><p>{translate('Monthly subtotal = measured usage × unit price ÷ the displayed unit size. Usage is aggregated by service and meter before the TWD amount is rounded; tax is handled by the effective Billing plan.')}</p></div>
-      <dl><div><dt>{translate('Currency')}</dt><dd>{catalog.currency} {translate('· NT$')}</dd></div><div><dt>{translate('Basis')}</dt><dd>{translate('Monthly usage')}</dd></div><div><dt>{translate('Reference checked')}</dt><dd><time dateTime={catalog.referenceDate}>{translate('26 Sep 2026')}</time></dd></div></dl>
+      <dl><div><dt>{translate('Currency')}</dt><dd>{catalog.currency} {translate('· NT$')}</dd></div><div><dt>{translate('Basis')}</dt><dd>{translate('Monthly usage')}</dd></div><div><dt>{translate('Reference checked')}</dt><dd><time dateTime={catalog.referenceDate}>{referenceDate}</time></dd></div></dl>
     </section>
     <div className="pricing-filter" role="group" aria-label={translate('Filter service prices')}>{pricingGroups.map(item => <button type="button" key={item} aria-pressed={group === item} onClick={() => setGroup(item)}>{translate(item)}<span>{item === 'All services' ? servicePricing.length : servicePricing.filter(row => row.group === item).length}</span></button>)}</div>
     <div className="pricing-table-wrap"><table className="pricing-table">
