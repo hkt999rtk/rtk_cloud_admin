@@ -2578,7 +2578,9 @@ export const en = Object.freeze({ translation: Object.freeze({
   "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.": "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.",
   "The current owner did not cover the complete UTC month. OTA charges require manual review.": "The current owner did not cover the complete UTC month. OTA charges require manual review.",
   "The full-month forecast is unavailable while OTA charges are held.": "The full-month forecast is unavailable while OTA charges are held.",
-  "This period is not a complete UTC month. OTA charges require a complete UTC month.": "This period is not a complete UTC month. OTA charges require a complete UTC month."
+  "This period is not a complete UTC month. OTA charges require a complete UTC month.": "This period is not a complete UTC month. OTA charges require a complete UTC month.",
+  "For a future OTA-inclusive rate card: each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, tax is calculated once on the invoice subtotal under the approved invoice tax policy, and subtotal plus tax is the total due. The tax shown on each line is an allocation of that one invoice tax amount. Existing invoices keep their issued tax policy.": "For a future OTA-inclusive rate card: each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, tax is calculated once on the invoice subtotal under the approved invoice tax policy, and subtotal plus tax is the total due. The tax shown on each line is an allocation of that one invoice tax amount. Existing invoices keep their issued tax policy.",
+  "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. Only qualifying measured usage is charged when an OTA rate card becomes effective; no separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.": "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. Only qualifying measured usage is charged when an OTA rate card becomes effective; no separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted."
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -5160,7 +5162,9 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.": "目前顯示的是其他已定價服務的金額。OTA 費用會在每月證據完成審核後再計入；此金額不是最終發票總額。",
   "The current owner did not cover the complete UTC month. OTA charges require manual review.": "目前擁有者的責任期間未涵蓋完整 UTC 月份。OTA 費用須經人工審核。",
   "The full-month forecast is unavailable while OTA charges are held.": "OTA 費用暫緩期間，無法提供整月費用預測。",
-  "This period is not a complete UTC month. OTA charges require a complete UTC month.": "此期間不是完整的 UTC 月份。OTA 費用須以完整 UTC 月份計算。"
+  "This period is not a complete UTC month. OTA charges require a complete UTC month.": "此期間不是完整的 UTC 月份。OTA 費用須以完整 UTC 月份計算。",
+  "For a future OTA-inclusive rate card: each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, tax is calculated once on the invoice subtotal under the approved invoice tax policy, and subtotal plus tax is the total due. The tax shown on each line is an allocation of that one invoice tax amount. Existing invoices keep their issued tax policy.": "未來 OTA 費率生效後：每個產品、每項計量的用量乘上單價，取整為新臺幣未稅明細小計。所有服務的未稅明細加總後，依核准的帳單稅務設定對帳單未稅總額計稅一次；未稅總額加稅額即為應付總額。明細所列稅額只是該筆帳單稅額的分攤。已開立帳單沿用開立當時的計稅規則。",
+  "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. Only qualifying measured usage is charged when an OTA rate card becomes effective; no separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.": "付費託管雲產品必須選用 OTA，才可建立新的 OTA 工作。OTA 費率生效後，僅符合條件的實際用量會計費；不需另外勾選 OTA 合約。關閉 OTA 前已授權的工作仍可完成並計費，既有韌體物件會持續計收儲存費，直到物件實體刪除。"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -7742,7 +7746,9 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.": "目前显示的是其他已定价服务的金额。OTA 费用会在每月证据完成审核后再计入；此金额不是最终发票总额。",
   "The current owner did not cover the complete UTC month. OTA charges require manual review.": "当前拥有者的责任期间未覆盖完整 UTC 月份。OTA 费用须经人工审核。",
   "The full-month forecast is unavailable while OTA charges are held.": "OTA 费用暂缓期间，无法提供整月费用预测。",
-  "This period is not a complete UTC month. OTA charges require a complete UTC month.": "此期间不是完整的 UTC 月份。OTA 费用须按完整 UTC 月份计算。"
+  "This period is not a complete UTC month. OTA charges require a complete UTC month.": "此期间不是完整的 UTC 月份。OTA 费用须按完整 UTC 月份计算。",
+  "For a future OTA-inclusive rate card: each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, tax is calculated once on the invoice subtotal under the approved invoice tax policy, and subtotal plus tax is the total due. The tax shown on each line is an allocation of that one invoice tax amount. Existing invoices keep their issued tax policy.": "未来 OTA 费率生效后：每个产品、每项计量的用量乘以单价，取整为新台币税前明细小计。所有服务的税前明细加总后，按核准的账单税务设置对账单税前总额计税一次；税前总额加税额即为应付总额。明细所列税额只是该笔账单税额的分摊。已开立账单沿用开立时的计税规则。",
+  "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. Only qualifying measured usage is charged when an OTA rate card becomes effective; no separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.": "付费托管云产品必须选择 OTA，才能建立新的 OTA 工作。OTA 费率生效后，仅符合条件的实际用量会计费；无需另行选择 OTA 合同。关闭 OTA 前已授权的工作仍可完成并计费，已有固件对象会持续计收存储费，直到对象被实际删除。"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });
