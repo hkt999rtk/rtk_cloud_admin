@@ -503,6 +503,23 @@ func (s *Server) apiPaymentIntent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, result)
 }
 
+func (s *Server) apiTopUpStatementPDF(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.paymentContext(w, r, "payment_intent.read")
+	if !ok {
+		return
+	}
+	download, err := s.billingClient.BillingDownload(ctx.context, ctx.actorID, ctx.org.ID, "/payment-intents/"+url.PathEscape(r.PathValue("intentId"))+"/statement.pdf")
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", `attachment; filename="top-up-transaction-detail.pdf"`)
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(download.Body)
+}
+
 func boundedPaymentQuery(r *http.Request) url.Values {
 	values := url.Values{}
 	for _, key := range []string{"limit", "offset"} {

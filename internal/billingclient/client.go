@@ -365,6 +365,9 @@ func withQuery(path string, query url.Values) string {
 	return path + "?" + query.Encode()
 }
 func downloadPermission(suffix string) string {
+	if strings.Contains(suffix, "/payment-intents/") && strings.HasSuffix(suffix, "/statement.pdf") {
+		return "payment_intent.read"
+	}
 	if strings.Contains(suffix, "/invoices/") {
 		return "invoice_document.read"
 	}

@@ -433,6 +433,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/developer/brand-clouds/{brandCloudID}/billing/topups/checkout", s.apiHostedTopUp)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/payment-intents", s.apiPaymentIntents)
 	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/payment-intents/{intentId}", s.apiPaymentIntent)
+	s.mux.HandleFunc("GET /api/developer/brand-clouds/{brandCloudID}/billing/payment-intents/{intentId}/statement.pdf", s.apiTopUpStatementPDF)
 	s.scopedCustomerRoutes()
 	s.mux.HandleFunc("GET /api/customers", s.apiCustomers)
 	s.mux.HandleFunc("GET /api/admin/customers", s.apiAdminCustomers)
