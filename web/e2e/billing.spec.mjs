@@ -57,18 +57,18 @@ test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and act
     return route.fulfill({ status: 503, json: { error: 'Accounting unavailable' } });
   });
   await page.getByRole('button', { name: 'Service Pricing', exact: true }).click();
-  await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
+  await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(15);
   await page.getByRole('button', { name: 'Billing Overview', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('temporarily unavailable');
   await expect(page.getByTestId('billing-page')).toHaveCount(0);
   await page.getByRole('link', { name: 'Service Pricing', exact: true }).click();
-  await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
+  await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(15);
 
   // A failed pricing API must not leave previously loaded amounts visible.
   await page.route('**/billing/pricing-references', route => route.fulfill({ status: 503, json: { error: 'Pricing unavailable' } }));
   await page.reload();
-  await expect(page.getByRole('alert')).toContainText('Billing information temporarily unavailable');
-  await expect(page.locator('.pricing-table tbody tr')).toHaveCount(0);
+  await expect(page.getByRole('alert').filter({ hasText: 'Billing information temporarily unavailable' })).toBeVisible();
+  await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(0);
   await expect(page.locator('.pricing-draft time, .pricing-intro time')).toHaveCount(0);
 });
 

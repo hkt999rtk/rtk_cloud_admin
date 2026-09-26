@@ -31,7 +31,7 @@
 | `rtk_cloud_admin/cmd/server` | 0.0% |
 | `rtk_cloud_admin/internal/accountclient` | 89.3% |
 | `rtk_cloud_admin/internal/app` | 80.0% |
-| `rtk_cloud_admin/internal/billingclient` | 40.0% |
+| `rtk_cloud_admin/internal/billingclient` | 39.2% |
 | `rtk_cloud_admin/internal/config` | 62.5% |
 | `rtk_cloud_admin/internal/correlation` | 90.5% |
 | `rtk_cloud_admin/internal/readinessfacts` | 86.0% |

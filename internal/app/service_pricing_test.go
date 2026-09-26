@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"rtk_cloud_admin/internal/accountclient"
+	"rtk_cloud_admin/internal/billingclient"
 	"rtk_cloud_admin/internal/config"
 )
 
@@ -109,5 +110,55 @@ func TestPricingReferencesRequireCurrentCloudOwnerAndWorkWithoutBillingService(t
 	ownerActive.Store(false)
 	if revoked := request(owner.ID, "en"); revoked.Code != http.StatusForbidden || strings.Contains(revoked.Body.String(), "reference_price") {
 		t.Fatalf("revoked owner still received prices: %d %s", revoked.Code, revoked.Body.String())
+	}
+}
+
+func TestEffectivePricingRequiresOwnerAndProxiesOnlyAuthenticatedBillingCard(t *testing.T) {
+	const cloudID = "11111111-1111-4111-8111-111111111111"
+	const ownerID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	account := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/developer/brand-clouds/"+cloudID {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"brand_cloud":{"id":"` + cloudID + `","owner_user_id":"` + ownerID + `","my_role":"owner","ownership_version":7,"capabilities":["billing_account.read"]}}`))
+	}))
+	defer account.Close()
+	billing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/orgs/"+cloudID+"/billing/pricing" ||
+			r.Header.Get("X-Billing-Permissions") != "billing_account.read" ||
+			r.Header.Get("X-Billing-Actor-ID") != ownerID ||
+			r.Header.Get("X-Billing-Ownership-Version") != "7" {
+			t.Errorf("unscoped effective pricing request %s %v", r.URL.Path, r.Header)
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		_, _ = w.Write([]byte(`{"currency":"TWD","as_of":"2026-11-05T00:00:00Z","current":null,"upcoming":null,"ota_eligibility":"not_priced"}`))
+	}))
+	defer billing.Close()
+	st := mustOpenStore(t)
+	owner, err := st.CreateSession("customer", ownerID, "owner@example.com", "owner-access", "refresh", cloudID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := NewWithOptions(st, Options{AccountClient: accountclient.New(account.URL),
+		BillingClient: billingclient.New(billing.URL, strings.Repeat("b", 32))})
+	path := "/api/developer/brand-clouds/" + cloudID + "/billing/pricing-effective"
+	request := func(cookie bool) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		if cookie {
+			req.AddCookie(&http.Cookie{Name: "rtk_admin_session", Value: owner.ID})
+		}
+		res := httptest.NewRecorder()
+		srv.ServeHTTP(res, req)
+		return res
+	}
+	if anonymous := request(false); anonymous.Code != http.StatusUnauthorized || strings.Contains(anonymous.Body.String(), "currency") {
+		t.Fatalf("anonymous effective pricing response: %d %s", anonymous.Code, anonymous.Body.String())
+	}
+	got := request(true)
+	if got.Code != http.StatusOK || got.Header().Get("Cache-Control") != "no-store" ||
+		got.Header().Get("X-Cloud-Ownership-Version") != "7" || !strings.Contains(got.Body.String(), `"cloud_id":"`+cloudID+`"`) {
+		t.Fatalf("owner effective pricing response: %d %s", got.Code, got.Body.String())
 	}
 }

@@ -82,6 +82,12 @@ func TestCloudBillingBrowserFixture(t *testing.T) {
 			writeJSON(w, map[string]any{"account": account, "forecast": map[string]string{"state": "insufficient_data"}})
 		case "billing/usage":
 			writeJSON(w, map[string]any{"currency": "TWD", "total_minor": 0, "lines": []any{}})
+		case "billing/pricing":
+			writeJSON(w, map[string]any{"currency": "TWD", "as_of": "2026-11-05T12:00:00Z", "current": map[string]any{
+				"id": "fixture-mqtt-card", "currency": "TWD", "effective_from": "2026-11-01T00:00:00Z", "tax_mode": "line",
+				"rates": []any{map[string]any{"service_code": "mqtt", "metric_code": "publish_count", "unit": "requests", "description": "MQTT publishes",
+					"unit_price_minor": 32, "unit_price_scale": 6, "quantity_scale": 0, "rounding_mode": "half_up"}},
+			}, "upcoming": nil, "ota_eligibility": "not_priced"})
 		case "billing/profile":
 			writeJSON(w, map[string]any{"billing_profile": map[string]any{"legal_name": name, "version": 1, "locale": "en-US", "timezone": "Asia/Taipei", "delivery_preference": "portal"}})
 		case "billing/invoices":
