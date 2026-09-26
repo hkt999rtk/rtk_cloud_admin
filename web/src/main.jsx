@@ -90,7 +90,6 @@ import {
   firmwareCampaignProgress,
   firmwareCampaignWaitingProgress,
   firmwareCampaignStatusLabel,
-  firmwareDashboardAction,
   firmwarePolicyLabel,
   productHasOTA,
   firmwareRiskRows,
@@ -3652,8 +3651,10 @@ function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onActio
         <div className="ota-dashboard-list">
           {campaigns.map((campaign) => {
             const waiting = firmwareCampaignWaitingProgress(campaign);
-            const control = firmwareDashboardAction(campaign, canManage);
-            const controlBusy = control && busyAction === `${campaign.campaign_id}:${control.action}`;
+            const action = firmwareCampaignActions(campaign, canManage)[0];
+            const control = ['start', 'resume', 'pause'].includes(action) ? action : null;
+            const controlLabel = control === 'pause' ? 'Stop OTA' : 'Start OTA';
+            const controlBusy = control && busyAction === `${campaign.campaign_id}:${control}`;
             const rateBusy = busyAction === `${campaign.campaign_id}:rate-limit`;
             const configuredRate = campaign.rate_limit_per_minute || 100;
             const effectiveRate = campaign.effective_rate_limit_per_minute || configuredRate;
@@ -3697,11 +3698,11 @@ function FirmwareOTADashboard({ campaigns, selectedCampaignId, onSelect, onActio
                   {control ? (
                     <button
                       type="button"
-                      className={control.action === 'pause' ? 'danger-button' : 'primary-button'}
+                      className={control === 'pause' ? 'danger-button' : 'primary-button'}
                       disabled={Boolean(busyAction)}
-                      onClick={() => onAction(campaign.campaign_id, control.action)}
+                      onClick={() => onAction(campaign.campaign_id, control)}
                     >
-                      {controlBusy ? `${control.label.replace(' OTA', '')}…` : control.label}
+                      {controlBusy ? `${controlLabel.replace(' OTA', '')}…` : controlLabel}
                     </button>
                   ) : <span className="muted">{canManage ? translate("No action available") : translate("Read-only")}</span>}
                 </div>

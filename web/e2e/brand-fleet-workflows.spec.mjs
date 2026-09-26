@@ -69,13 +69,20 @@ test.describe('Brandname async workflows', () => {
           campaign_id: 'upgrade-older', target_version: 'v1.2.3', policy: 'normal', state: 'paused',
           applied: 0, pending: 4, failed: 0, skipped: 0, total: 4,
           started_at: '2026-08-28T01:00:00Z', updated_at: '2026-08-28T01:05:00Z', rollouts: [],
+        }, {
+          campaign_id: 'upgrade-draft', target_version: 'v1.2.5', policy: 'normal', state: 'draft',
+          applied: 0, pending: 2, failed: 0, skipped: 0, total: 2, rollouts: [],
+        }, {
+          campaign_id: 'upgrade-completed', target_version: 'v1.2.2', policy: 'normal', state: 'completed',
+          applied: 1, pending: 0, failed: 1, skipped: 0, total: 2,
+          started_at: '2026-08-27T01:00:00Z', updated_at: '2026-08-27T01:05:00Z', rollouts: [],
         }],
       } });
     });
     await page.goto(`/console/clouds/${cloud}/firmware-ota?product_id=${product}`);
     await expect(page.getByRole('heading', { name: 'OTA Dashboard' })).toBeVisible();
     const dashboardRows = page.locator('.ota-dashboard-row');
-    await expect(dashboardRows).toHaveCount(2);
+    await expect(dashboardRows).toHaveCount(4);
     await expect(dashboardRows.nth(0)).toContainText('upgrade-newest');
     await expect(dashboardRows.nth(1)).toContainText('upgrade-older');
     await expect(dashboardRows.nth(0)).toContainText('3 / 10');
@@ -84,10 +91,18 @@ test.describe('Brandname async workflows', () => {
     await expect(page.getByText('Updating', { exact: true }).first()).toBeVisible();
     await dashboardRows.nth(0).getByRole('button', { name: 'Stop OTA' }).click();
     await dashboardRows.nth(1).getByRole('button', { name: 'Start OTA' }).click();
-    await expect.poll(() => requestedActions).toEqual([`${api}/update-plans/upgrade-newest/pause`, `${api}/update-plans/upgrade-older/resume`]);
+    await dashboardRows.filter({ hasText: 'upgrade-draft' }).getByRole('button', { name: 'Start OTA' }).click();
+    await expect(dashboardRows.filter({ hasText: 'upgrade-completed' }).getByRole('button', { name: /^(Start|Stop) OTA$/ })).toHaveCount(0);
+    await expect.poll(() => requestedActions).toEqual([`${api}/update-plans/upgrade-newest/pause`, `${api}/update-plans/upgrade-older/resume`, `${api}/update-plans/upgrade-draft/start`]);
     await expect(page.getByText('Camera Failed', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Update failed', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('checksum mismatch')).toBeVisible();
+
+    await login(page, 'observer');
+    await page.goto(`/console/clouds/${cloud}/firmware-ota?product_id=${product}`);
+    await expect(page.getByRole('heading', { name: 'OTA Dashboard' })).toBeVisible();
+    await expect(page.locator('.ota-dashboard-row').getByRole('button', { name: /^(Start|Stop) OTA$/ })).toHaveCount(0);
+    await expect(page.locator('.ota-dashboard-row').getByText('Read-only')).toHaveCount(4);
   });
 
   test('[UI-CA-OTA-003] firmware binary calculates release metadata before upload @brand-fleet @smoke', async ({ page }) => {

@@ -83,15 +83,6 @@ export function sortFirmwareCampaignsByStartTime(campaigns = []) {
   });
 }
 
-export function firmwareDashboardAction(campaign = {}, canManage = true) {
-  if (!canManage) return null;
-  const state = String(campaign.state || '').trim().toLowerCase();
-  if (state === 'draft') return { action: 'start', label: 'Start OTA' };
-  if (state === 'paused') return { action: 'resume', label: 'Start OTA' };
-  if (state === 'scheduled' || state === 'active') return { action: 'pause', label: 'Stop OTA' };
-  return null;
-}
-
 export function firmwareCampaignActions(campaign = {}, canManage = true) {
   if (!canManage) return [];
   const state = String(campaign.state || '').trim().toLowerCase();
