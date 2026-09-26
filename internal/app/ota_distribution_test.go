@@ -141,6 +141,14 @@ func TestOTADistributionInventoryFailuresRemainErrors(t *testing.T) {
 	}
 }
 
+func TestOTADistributionFiltersLocalInventoryByOrganization(t *testing.T) {
+	server := NewWithOptions(mustOpenStore(t), Options{})
+	devices, err := server.firmwareDistributionDevices(t.Context(), store.Session{}, "org-acme")
+	if err != nil || len(devices) != 2 || devices[0].ID != "dev-001" || devices[1].ID != "dev-002" {
+		t.Fatalf("local org-acme inventory = %+v, %v", devices, err)
+	}
+}
+
 func TestOTADistributionUsesPublishedReleasesAndVisibleCampaigns(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
