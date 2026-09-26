@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { parse } from '@babel/parser';
 import traverse from '@babel/traverse';
 import { placeholders } from '../localization/checksums.mjs';
+import { isServerOnlyPricingSource } from '../localization/server-only-pricing.mjs';
 
 const root = resolve(import.meta.dirname, '../src');
 const apiRoot = resolve(import.meta.dirname, '../../internal/app');
@@ -99,7 +100,7 @@ traverse(parse(pricingSource, { sourceType: 'module' }), {
       for (const row of path.node.init.elements) {
         if (row?.type !== 'ObjectExpression') continue;
         for (const field of row.properties) {
-          if (field.type === 'ObjectProperty' && ['name', 'unit', 'readiness', 'rule', 'benchmark', 'comparison'].includes(field.key.name) && field.value.type === 'StringLiteral') found.add(field.value.value);
+          if (field.type === 'ObjectProperty' && ['name', 'unit', 'referenceUnit', 'readiness', 'rule', 'benchmark', 'comparison'].includes(field.key.name) && field.value.type === 'StringLiteral') found.add(field.value.value);
         }
       }
     }
@@ -121,13 +122,14 @@ for (const name of await readdir(burnerRoot)) {
 }
 
 const missing = [...found].filter(key => !known.has(key) && !known.has(`${key}_one`) && !known.has(`${key}_other`)).sort();
+const pricingInPublicSource = [...found].filter(isServerOnlyPricingSource);
 if (process.argv.includes('--extract')) {
   for (const key of missing) catalog.strings.push({ key, source: key, context: 'Admin Console interface message', placeholders: placeholders(key) });
   await writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
   console.log(`Added ${missing.length} English strings to the catalog.`);
 } else {
-  if (missing.length || bareCopy.length) {
-    throw new Error(`Unmanaged Admin copy:\n${missing.map(key => `missing key: ${key}`).concat(bareCopy).join('\n')}`);
+  if (missing.length || bareCopy.length || pricingInPublicSource.length) {
+    throw new Error(`Unmanaged Admin copy:\n${missing.map(key => `missing key: ${key}`).concat(bareCopy, pricingInPublicSource.map(key => `numeric pricing copy must come from owner-scoped API: ${key}`)).join('\n')}`);
   }
   console.log(`Checked ${found.size} translation calls and production JSX copy.`);
 }

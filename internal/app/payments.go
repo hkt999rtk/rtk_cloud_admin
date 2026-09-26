@@ -22,13 +22,19 @@ type paymentBFFContext struct {
 }
 
 func (s *Server) paymentContext(w http.ResponseWriter, r *http.Request, permission string) (paymentBFFContext, bool) {
+	return s.billingOwnerContext(w, r, permission, true)
+}
+
+// billingOwnerContext also protects pricing research, which must remain
+// readable to the current owner when the accounting service is unavailable.
+func (s *Server) billingOwnerContext(w http.ResponseWriter, r *http.Request, permission string, requireBillingClient bool) (paymentBFFContext, bool) {
 	w.Header().Set("Cache-Control", "no-store")
 	session, ok := s.requestSession(r)
 	if !ok || session.AccessToken == "" || (session.Kind != "account" && session.Kind != "customer" && session.Kind != "platform_admin") {
 		http.Error(w, "global account authentication required", http.StatusUnauthorized)
 		return paymentBFFContext{}, false
 	}
-	if s.billingClient == nil || !s.billingClient.Enabled() {
+	if requireBillingClient && (s.billingClient == nil || !s.billingClient.Enabled()) {
 		http.Error(w, "Billing service is not configured", http.StatusServiceUnavailable)
 		return paymentBFFContext{}, false
 	}

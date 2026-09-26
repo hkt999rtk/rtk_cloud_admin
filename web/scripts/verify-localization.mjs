@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { localeConfig } from '../localization/config.mjs';
 import { fingerprint, placeholders, sourceHash } from '../localization/checksums.mjs';
+import { isServerOnlyPricingSource } from '../localization/server-only-pricing.mjs';
 
 const locales = localeConfig.locales.map(({ code }) => code).filter(code => code !== localeConfig.defaultLocale);
 const here = new URL('.', import.meta.url);
@@ -45,10 +46,11 @@ async function main() {
   const runtime = { en: resources.en, 'zh-TW': resources.zhTW, 'zh-CN': resources.zhCN };
   const apiResources = await readJSON('../../internal/app/localization.generated.json');
   const lastEntryBySource = new Map(catalog.strings.map(entry => [entry.source, entry]));
-  const sourceKeys = [...entries.keys()];
+  const sourceKeys = [...entries.values()].filter(entry => !isServerOnlyPricingSource(entry.source)).map(entry => entry.key);
+  const allKeys = [...entries.keys()];
 
   for (const [key, entry] of entries) {
-    if (runtime.en?.translation?.[key] !== entry.source) errors.push(`generated English resource differs for ${key}`);
+    if (!isServerOnlyPricingSource(entry.source) && runtime.en?.translation?.[key] !== entry.source) errors.push(`generated English resource differs for ${key}`);
   }
   requireExactKeys(runtime.en?.translation, sourceKeys, 'generated English resource', errors);
 
@@ -58,7 +60,7 @@ async function main() {
       errors.push(`${locale} translation artifact has an invalid header`);
       continue;
     }
-    requireExactKeys(translation.entries, sourceKeys, `${locale} translation artifact`, errors);
+    requireExactKeys(translation.entries, allKeys, `${locale} translation artifact`, errors);
     for (const [key, entry] of entries) {
       const value = translation.entries[key];
       if (!isObject(value) || value.status !== 'approved' || !isNonBlankString(value.text) || value.sourceHash !== sourceHash(entry) || value.fingerprint !== fingerprint(entry, locale, catalog) || !sameStrings(placeholders(value.text), placeholders(entry.source))) {
@@ -66,7 +68,7 @@ async function main() {
         continue;
       }
       if (value.text === entry.source && /[A-Za-z]{2}/.test(entry.source) && !languageNeutralCopy.has(entry.source)) errors.push(`${locale}: untranslated interface or API copy ${key}`);
-      if (runtime[locale]?.translation?.[key] !== value.text) errors.push(`generated ${locale} resource differs for ${key}`);
+      if (!isServerOnlyPricingSource(entry.source) && runtime[locale]?.translation?.[key] !== value.text) errors.push(`generated ${locale} resource differs for ${key}`);
       if (lastEntryBySource.get(entry.source) === entry && apiResources[locale]?.system?.[entry.source] !== value.text) errors.push(`generated ${locale} API resource differs for ${key}`);
     }
     requireExactKeys(runtime[locale]?.translation, sourceKeys, `generated ${locale} resource`, errors);

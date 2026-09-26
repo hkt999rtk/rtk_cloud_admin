@@ -28,7 +28,7 @@
     "e2e:report": "playwright show-report",
     "e2e:install": "playwright install chromium",
     "prepare:chipset-packages": "node scripts/sync-chipset-packages.mjs",
-    "build": "npm run prepare:chipset-packages && npm run prepare:developer-docs && npm run localization:check && vite build",
+    "build": "npm run prepare:chipset-packages && npm run prepare:developer-docs && npm run localization:check && vite build && node scripts/verify-public-pricing-assets.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "prepare:developer-docs": "node scripts/generate-factory-enrollment-sequence.mjs && node scripts/build-developer-docs.mjs",
     "localization:check": "npm run localization:source && node scripts/verify-localization.mjs",

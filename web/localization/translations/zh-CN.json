@@ -15031,6 +15031,414 @@
       "fingerprint": "a8fcbd51726e026e1cc00485ca2065576cfa5eba0c56a20e5672186cdd150884",
       "text": "此设备无法执行实时测试。",
       "status": "approved"
+    },
+    "API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.": {
+      "sourceHash": "dd360d11aa5e1dd76adec9071125782982a78eea0d3eaf41c34f4a889b06926a",
+      "fingerprint": "ab63335bbbd19f767f9b4b56252106f1f78ee26ec6f95abb029b7680e04428cd",
+      "text": "API Gateway 圣保罗区域的首个付费级距。RTK 仅计入已分类资料路由的成功请求。",
+      "status": "approved"
+    },
+    "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; approved NT$96 price stays separate from this reference.": {
+      "sourceHash": "f548d13a57503ba6aa1480395cf0ec9471c1b6e06cb30ce761324e1810c72957",
+      "fingerprint": "062f94fcb70af467635bf23496d765dd9720997f20868083552140a28435d3cd",
+      "text": "AWS Device Jobs 圣保罗区域的首个付费级距。RTK 计量首次持久化的装置指派；已核准的 NT$96 单价与此参考价分开。",
+      "status": "approved"
+    },
+    "CloudFront Asian edge proxy. Raw CDN traffic, retries and cache behavior differ from RTK first verified logical download.": {
+      "sourceHash": "cb4835e7daeaf77eb4958a3e99edf868ba63971a35614b85f6a000f667d4cdb8",
+      "fingerprint": "f4ed356fb1a7a483afbec3ce0201623c8bec6189d7c046d385d73da8255c2e72",
+      "text": "CloudFront 亚洲边缘传输参考值。原始 CDN 流量、重试和快取行为与 RTK 首次验证的逻辑下载量不同。",
+      "status": "approved"
+    },
+    "CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.": {
+      "sourceHash": "3273786180664670d483d28504eead5b179cdb8ac57b36381380745d124923f4",
+      "fingerprint": "6a4459a45feb6518ddcad0eef8d8a9623af5887a0dff8ab37df36246f783ceec",
+      "text": "CloudWatch 圣保罗区域的替代参考值。RTK 使用接收的未压缩位元组数 × 设定保留天数／30，因此计费量不同。",
+      "status": "approved"
+    },
+    "CloudWatch São Paulo reference. RTK has ingestion totals, but generic invoice integration still needs qualification.": {
+      "sourceHash": "be9419bf13748f3b298c217872c87fd38b946f76e7c7b3a412ba3f0b58c94754",
+      "fingerprint": "a0cee122256f4b45e5bdbc1bd69520d0ce498f95430b2f3fe486f88c418d75bb",
+      "text": "CloudWatch 圣保罗区域参考值。RTK 已有日志汇入总量，但一般发票整合仍待验证。",
+      "status": "approved"
+    },
+    "Compare approved OTA unit prices with the highest public research references for all services.": {
+      "sourceHash": "8ab18918ce2bf4fc7f5745969ab7389c62b5f97fb6d0e5a6f33594e6c93fec8e",
+      "fingerprint": "5d27e1ac90a2d6bce5fbbf2bec9a0193c26b2e55439967af5caa303eeb9d2b20",
+      "text": "比较已核准的 OTA 单价与各项服务研究所得的最高公开参考价。",
+      "status": "approved"
+    },
+    "Highest public reference": {
+      "sourceHash": "266af2c27c0d5063d6a0ccd4a482fab562b02907aefb5b2b84eabd987a0fb215",
+      "fingerprint": "cd132d44b6d069daf3c46f050aa6d70ed4935de906729dc82f85ba7da7c08108",
+      "text": "最高公开参考价",
+      "status": "approved"
+    },
+    "How these prices work": {
+      "sourceHash": "a12791818073aa64f0f3dd486ce5c692aa81ea726c532268fea55b8d740b82f5",
+      "fingerprint": "5eb371ca35e9d461cc24db14a24bd75fb460b384587c9a8180a4baf8fbc695f6",
+      "text": "这些价格如何计算",
+      "status": "approved"
+    },
+    "Included activities": {
+      "sourceHash": "b9b502ed8da413e13d6c2ca7b04cba2cc3c4f98c7aed6551a0426403d8c21bd0",
+      "fingerprint": "470f90e0e65b4c7f6e5e819cc90f83e142d2056ef0a920644a52354931c6149b",
+      "text": "不另收费的项目",
+      "status": "approved"
+    },
+    "Monthly subtotal = measured usage × unit price ÷ the displayed unit size. Usage is aggregated by service and meter before the TWD amount is rounded; tax is handled by the effective Billing plan.": {
+      "sourceHash": "53ec58153e51a62d92774d799f51e08b063302903b9f64183b9ef8b1cdbb54ba",
+      "fingerprint": "4315f2194b8e54f51ef7defd68cab40ac5ed378be2aacfbdcfca82a5641f220e",
+      "text": "每月小计＝计量使用量 × 单价 ÷ 所示计价单位。先按服务与计量项目汇总，再将新台币金额取整；税额依生效中的帐务方案处理。",
+      "status": "approved"
+    },
+    "No free usage allowance or volume discount is assumed in these references. Tax, validated metering, operating costs and margin require review before any new production rate is activated. Private Cloud requires a separate quote.": {
+      "sourceHash": "4ee3c9d77a3226c0d6592fd64fd3a3fa5552a68e309b2938e0ab470a96757167",
+      "fingerprint": "187f5cabc9ed3b960d251714300eedba54abb626c0f0257ea6e2f0e08a399fe6",
+      "text": "这些参考价未假设免费额度或用量折扣。任何新的正式费率生效前，都须确认税务、计量、营运成本与毛利。私有云需另行报价。",
+      "status": "approved"
+    },
+    "No separate service charge": {
+      "sourceHash": "c5bf308f23a08df78a4b6d3bfbbcea5e6b80eca71c62086fd9501cb2bb9ab4ab",
+      "fingerprint": "6d650552d6d710459975374beda93380d86bd172949f8463297b42fcccc48962",
+      "text": "不另收取服务费",
+      "status": "approved"
+    },
+    "OTA prices approved": {
+      "sourceHash": "34bc8cc12e520c510b7dfae86a70594928673dbed24aa6cc8a2fb4d8c9effb30",
+      "fingerprint": "d9fea969b793949c3b14a440745a68fd6753f7c4f0aa979db73562c4fe6e36d8",
+      "text": "OTA 单价已核准",
+      "status": "approved"
+    },
+    "Per-million and per-thousand prices are display units. Charges, when effective, are proportional to actual usage; there is no whole-block minimum. Money is rounded after monthly aggregation.": {
+      "sourceHash": "28958377e99999c568491eb4ef3e311d55abe915cb746390c1dcac6e01cf9543",
+      "fingerprint": "539097f0c4b511ccdaf0e35324a6938d81e5d8568378ebeb44537853f8d06556",
+      "text": "每百万次与每千次是价格展示单位。费率生效后按实际用量比例计费，不要求购买整个计价区块；每月汇总后再取整金额。",
+      "status": "approved"
+    },
+    "Price status": {
+      "sourceHash": "16f93386de78976409a6cb7597945a8ffce5e5563b9b116851ab53e969d79d2b",
+      "fingerprint": "7cbdc384c1f3c3569076f7a5f43bc8e5e53a142a868750d3d7003d94d77d313f",
+      "text": "价格状态",
+      "status": "approved"
+    },
+    "RTK price status": {
+      "sourceHash": "1e9b6bd2b2a92acb020d8bb1b219b69071bf6526d90546a85b4cd431c118a2c4",
+      "fingerprint": "17457f6265f8c41f5aeb5268f1bad64ab342320ed2d869253a6a1bfad02d313f",
+      "text": "RTK 费率状态",
+      "status": "approved"
+    },
+    "RTK storage and traffic use GiB (1,073,741,824 bytes); Shadow uses KiB (1,024 bytes). Provider byte units and counted events may differ, as noted in each row.": {
+      "sourceHash": "f51546c473b7fa690c5243395d74e712c2c2521638f8c0fbaf0d5058cb4fe4ff",
+      "fingerprint": "68b43832e4850a80d5100f9404ff183a54165f73c0c10c328430a00a3dcac924",
+      "text": "RTK 储存与传输量使用 GiB（1,073,741,824 位元组）；Shadow 使用 KiB（1,024 位元组）。供应商的位元组单位与计量事件可能不同，详见各列说明。",
+      "status": "approved"
+    },
+    "Reference checked": {
+      "sourceHash": "f7f3500338afe4093fe5f120047f474dc8b2821b409d4dd229d70c2ca71d2ccb",
+      "fingerprint": "67c63fd2805aee67734a5c31f238bf7c3f269e9e9066669d395854c06d42de33",
+      "text": "参考价核对日期",
+      "status": "approved"
+    },
+    "Research reference prices": {
+      "sourceHash": "cce17849b18267821b63013eb161af10824e2f90284ce70492bbb97070246748",
+      "fingerprint": "267335e0c856aaad6aaaec307e18473f2d1bddc31ded6eb41a3c817daef7d67f",
+      "text": "研究参考价",
+      "status": "approved"
+    },
+    "Research references are not approved customer charges. OTA has four approved unit prices, but they are not effective yet. An existing meter does not mean charging is enabled.": {
+      "sourceHash": "37ace1e92e449129b8028e7cc1b0c771e441a336b5bbe5d79d57ef3a9c238b82",
+      "fingerprint": "595b99d0669c2a2432b77d827ba05ab56b5dbf374a0fb18002610a24d2e13793",
+      "text": "研究参考价并非已核准的客户收费。OTA 四项单价虽已核准，但尚未生效；已有计量资料也不代表已启用收费。",
+      "status": "approved"
+    },
+    "São Paulo GET reference. RTK includes successful clip HEAD operations, so counted operations differ.": {
+      "sourceHash": "929cfbed5c9cc42e93aacdb5beb595b82da17ae8913b8cfc1c5489bbf1c84dd8",
+      "fingerprint": "6f3277f4854f0748120ef0a17f04c5893a92e0bfc4454b68e7a89837a6132db5",
+      "text": "圣保罗区域 GET 参考价。RTK 也计入成功的影片片段 HEAD 操作，因此计量事件不同。",
+      "status": "approved"
+    },
+    "São Paulo direct internet egress proxy. Clip delivery bytes need a separate validated RTK fact.": {
+      "sourceHash": "8dcdaf35822873baf43c18e9e2075990edad7ccd09a7ea3ac39bef0d0d71ca49",
+      "fingerprint": "01f8c6c10070d15bb69d7592572ed0b9ebd5f42f9edb0665fba0e52e02fb8cb8",
+      "text": "圣保罗区域直接网际网路传输的替代参考价。影片片段传输量仍需经 RTK 独立验证。",
+      "status": "approved"
+    },
+    "São Paulo hot-storage reference. Actual RTK clip byte-time metering still needs qualification.": {
+      "sourceHash": "84d6429aa6d483244737b31ed1fb048b4799c5fb81361b8278047e40149f52f4",
+      "fingerprint": "c2a6376b88bc9316b154c5c986423e46456ce7a4df97bbbf3223db16e4e75e74",
+      "text": "圣保罗区域热储存参考价。RTK 影片片段的位元组时间计量仍待验证。",
+      "status": "approved"
+    },
+    "São Paulo hot-storage reference. Approved RTK price uses physical OTA object byte-time.": {
+      "sourceHash": "9e05cc2cbc51b9317eff4e09ff8eeae224dd7f2788dba37c80b82e0063c4ce8b",
+      "fingerprint": "f03eab3a6cc18cf33f677d743d4ad16f3a029318c95624da2c6fe7c7e3997137",
+      "text": "圣保罗区域热储存参考价。已核准的 RTK 单价按 OTA 物件实际占用的位元组时间计算。",
+      "status": "approved"
+    },
+    "São Paulo reference. AWS uses 1 KB units; RTK proposes 1 KiB units, so byte boundaries differ.": {
+      "sourceHash": "ac3b66a4fb5a8a8a51d5c8949d0f7e90a7820f5f20f566d51989234625420311",
+      "fingerprint": "6e45b96ebe7dcce7d88b10b01293e2d2f588fc53250f7c1fc0f2c180d42fd7ba",
+      "text": "圣保罗区域参考价。AWS 使用 1 KB 单位，RTK 草案使用 1 KiB 单位，两者位元组门槛不同。",
+      "status": "approved"
+    },
+    "São Paulo reference. Provider PUT requests also include events that are not RTK successful object creations.": {
+      "sourceHash": "8136dee69ed5440e92569565ef047c6d2ee143ce5640eec90b4b66efba2279b4",
+      "fingerprint": "1d380f31f14161c49ddba1c9e073e015eeeeefe266a90a23ce9d652e29dc23f5",
+      "text": "圣保罗区域参考价。供应商 PUT 请求也包含不属于 RTK 成功建立物件的事件。",
+      "status": "approved"
+    },
+    "São Paulo reference. Provider PUT requests and successful RTK business writes are related but not identical events.": {
+      "sourceHash": "fb8de39a252f654841421dcfaaae0c512d860d7833d4bf9a19ae3640399ddfbc",
+      "fingerprint": "9deb366e03d7a658bc8ec6ffb0af8883cb6c8b757485488af1203edb63eb6590",
+      "text": "圣保罗区域参考价。供应商 PUT 请求与 RTK 成功的业务写入相关，但不是相同的事件。",
+      "status": "approved"
+    },
+    "São Paulo transfer-only proxy. AWS Kinesis Video Streams also bills TURN minutes, which cannot be converted to GiB without bitrate and viewer count.": {
+      "sourceHash": "e241e51646b0979efe5330a0c43e89efd905837edbf33609475eb4c923817985",
+      "fingerprint": "267f769cf4b156afa282d04cd73f0742a37c0e75b238303d249aea1f381f73bc",
+      "text": "圣保罗区域仅含传输量的替代参考价。AWS Kinesis Video Streams 另按 TURN 分钟收费；缺少位元率与观众数时无法换算成 GiB。",
+      "status": "approved"
+    },
+    "São Paulo, first paid tier. AWS also charges publish and delivery separately; its 5 KB units differ from RTK raw deliveries.": {
+      "sourceHash": "d888758c3b394ba0a94ade9a7868eac20c580f34a8640b092f58dbb9f6bab920",
+      "fingerprint": "1e44a0ae42fcaee27f1db2d1d3787cb119d2755e7c91e2292855ea32c353ea75",
+      "text": "圣保罗区域首个付费级距。AWS 也分别计收发布与传送，但其 5 KB 单位与 RTK 原始传送次数不同。",
+      "status": "approved"
+    },
+    "São Paulo, first paid tier. AWS rounds by 5 KB units; RTK counts raw accepted publishes, so large messages are not equivalent.": {
+      "sourceHash": "722f589f2f9a1c0de8e624e4d863f46cb9c82344e2f02f6acbb6521715b12840",
+      "fingerprint": "b3276ad2da872c4d2a36ef9abab7685aa3e16079c61e4a4ae5d9fcfba8dd22e1",
+      "text": "圣保罗区域首个付费级距。AWS 按 5 KB 单位进位；RTK 计算实际接收的发布次数，因此大讯息不能直接等同。",
+      "status": "approved"
+    },
+    "The four OTA customer unit prices are approved but have no effective date yet. OTA is not charged at these prices until an active Billing rate card includes them.": {
+      "sourceHash": "6c860472dbd4e42949d3500316a07e047e11c07891db2541cabe8561120902d7",
+      "fingerprint": "79701da476eab014a39bc9e2d1d4843a6b3fe192be984a042f1fa167c43dccc4",
+      "text": "四项 OTA 客户单价已核准，但尚未设定生效日。正式帐务价卡纳入这些费率之前，不会按这些单价收取 OTA 费用。",
+      "status": "approved"
+    },
+    "The other prices use the highest eligible public benchmark found in the reviewed sources. They are planning references, not a change to your active rate card.": {
+      "sourceHash": "43b88e841018b08c173b0f8e817fe111b86f0d928f4d37a86507a84a407d1b75",
+      "fingerprint": "69f2bb0c31197c0df79ff896a79daffcf058a7d41a25388600cb0f17e5278650",
+      "text": "其他价格采用已审查来源中符合条件的最高公开基准，仅供规划参考，不会变更您目前生效的价卡。",
+      "status": "approved"
+    },
+    "The public benchmarks use native USD prices. Planning references use US$1 = NT$32 and round up to NT$0.01; no exchange conversion occurs when a TWD invoice is issued.": {
+      "sourceHash": "eea43bd0ded375a325e0c214604f39e48efe0a81ce23e2f77a7b7968fc78c10b",
+      "fingerprint": "e0448e7e27350d08fde73ec53ad9111757b16c41c2be6aa904974ad447303258",
+      "text": "公开基准保留原始美元价格。规划参考价以 US$1＝NT$32 换算，并向上取至 NT$0.01；开立新台币发票时不再换汇。",
+      "status": "approved"
+    },
+    "This page does not verify your Cloud’s effective Billing rates. Your contract, active rate card and invoice determine actual charges; these references are not an invoice or spend forecast.": {
+      "sourceHash": "09cd586b0fdc9bd397981ccb7fa1b40874cb8841cd8637dac28caf9ab62af9a1",
+      "fingerprint": "76f17d0be9569a7ca57dc1259c8049916a99f41ba0b4d045003868a1d25e5940",
+      "text": "本页未验证您云端目前生效的帐务费率。实际费用以合约、生效中的价卡与发票为准；这些参考价不是发票，也不是支出预测。",
+      "status": "approved"
+    },
+    "US$0.0045 / remote action": {
+      "sourceHash": "1feb5c7f21c17920342b5fee8e27fb95b759d0737bf52411df1083201b0dbe3b",
+      "fingerprint": "d5360fd07b552575577dd0cadfd898eb87edb937ff4a11e87f9e5b31de842b30",
+      "text": "US$0.0045／次远端操作",
+      "status": "approved"
+    },
+    "US$0.0056 / 10,000 S3 GET requests": {
+      "sourceHash": "c9522d3ae7c490a259fca4c0e6e88e3e9e1b01b87634d408a1ecbac25b412fce",
+      "fingerprint": "1c8b3e987c98a64a330d427d06470ecde7493e4d2d60b604f7f7e19080244083",
+      "text": "US$0.0056／一万次 S3 GET 请求",
+      "status": "approved"
+    },
+    "US$0.007 / 1,000 S3 PUT requests": {
+      "sourceHash": "165ee9420d3fa4e89a279600594806ae9da641f4cc09c490fab545fea8868686",
+      "fingerprint": "3ceec11cddadc445799d3592663babaf2d60c8dccc268db8346816792d7cf975",
+      "text": "US$0.007／一千次 S3 PUT 请求",
+      "status": "approved"
+    },
+    "US$0.0405 / GB-month S3 Standard": {
+      "sourceHash": "036bbe57a9e6400d8f7d5d844c0555bb3eef67c002a25a4f9214b65cae829ccd",
+      "fingerprint": "8647d6bc654b355e8d364155263b8fca34b18fb8e6336c863e75541ade4055d3",
+      "text": "US$0.0405／GB 月（S3 Standard）",
+      "status": "approved"
+    },
+    "US$0.0408 / compressed GB-month archive": {
+      "sourceHash": "886258bd46583ecc20fee596b8dccef9bcaa0262607daa49e0d36154d6c6f4a5",
+      "fingerprint": "c9818517cd5ca93e6aba002638a735aa76ae771392f482304d6c21febddd6242",
+      "text": "US$0.0408／压缩后 GB 月封存",
+      "status": "approved"
+    },
+    "US$0.120 / GB CDN edge transfer": {
+      "sourceHash": "b18fdbcc9d592783f08ee4657ce1b2a3a3d72ca68f26188029a11f19a63a2355",
+      "fingerprint": "c76b5275b4397db0946007f857b1aed6f5f7e51462a83058b7d033a5455e617e",
+      "text": "US$0.120／GB CDN 边缘传输",
+      "status": "approved"
+    },
+    "US$0.150 / GB internet transfer": {
+      "sourceHash": "1cd6eb007ba40949fc0fd0816f2dffe3b9321f15322f0734d016bf732af0ef2e",
+      "fingerprint": "cad339df4971f094664cc7195a80c2c0e16da16ac5fe9b649ff7a9e1098bad3b",
+      "text": "US$0.150／GB 网际网路传输",
+      "status": "approved"
+    },
+    "US$0.90 / GB Standard log ingestion": {
+      "sourceHash": "9a6072dc93e0ef12094876e3ac61f839af0e96d4b18d04a60256741f8eecf775",
+      "fingerprint": "1b7cb9d043e39aee71250d670cf09fc3810aedaf527ebebe6ef169dace79b2f8",
+      "text": "US$0.90／GB 标准日志汇入",
+      "status": "approved"
+    },
+    "US$1.50 / million 5 KB message units": {
+      "sourceHash": "ff66e5b71d087b299eb3bb2fe10d40d6d08246b6f9adfa3c96c927ca97a1dcff",
+      "fingerprint": "b79c3fa66d82808e96f839cf67e58709e6afce073fa431c215bd4bafc1a64671",
+      "text": "US$1.50／百万个 5 KB 讯息单位",
+      "status": "approved"
+    },
+    "US$1.875 / million 1 KB operation units": {
+      "sourceHash": "43fc5a8262ce8cd58a55ab6c00de6075761f713a7dad25d0ced14c2070b7d7c0",
+      "fingerprint": "f5bd2f2b719d62c3df2db232ab81decb7e74d65e0098e21bf19fe4cc0e2da74b",
+      "text": "US$1.875／百万个 1 KB 操作单位",
+      "status": "approved"
+    },
+    "US$4.25 / million REST API requests": {
+      "sourceHash": "203f164e39d6a4855e796938eef2c6edbb083be2a383b56bb2d0ee97636d9746",
+      "fingerprint": "3c756224c86609038299bcea6ff16978670c05581fb9ac3493a42354d8cc396c",
+      "text": "US$4.25／百万次 REST API 请求",
+      "status": "approved"
+    },
+    "service meters": {
+      "sourceHash": "bd895372e074da28c04f89cdc39634117b3ef07baae83ee308721dee08599b66",
+      "fingerprint": "ab733d7de4b2fde02f3a8d5eacf231425b2c6982a0d509457718bc63107cb28a",
+      "text": "服务计量项目",
+      "status": "approved"
+    },
+    "Approved OTA price · not effective": {
+      "sourceHash": "cfac9fded845807b2b34a646a32bd9d90342cc0f7109cf9ed48b19341a6beb3a",
+      "fingerprint": "247ef836cf986e10ed7251d5eb6f556beee06dfb9377495561d15e4d581b2b9f",
+      "text": "OTA 单价已核准 · 尚未生效",
+      "status": "approved"
+    },
+    "Research reference · not effective": {
+      "sourceHash": "251d4567f884d33a64bc637993e15f12410f26ec68ef94a27232658f764d1c9c",
+      "fingerprint": "855216cc4e7429ca05e351d103e7ad0f4e0d0ae4d9a9a4fd2469c7db7d4fe7e4",
+      "text": "研究参考价 · 尚未生效",
+      "status": "approved"
+    },
+    "1 million AWS 1 KB operation units": {
+      "sourceHash": "cfdd35d83e7a15354964bcf18d491b01ea5e6f52213aa0e59d8239732f719126",
+      "fingerprint": "f7aa4ee398a23dd49dfce99710ebae7fe735feadedaff5d814c201a3d648b005",
+      "text": "百万个 AWS 1 KB 操作单位",
+      "status": "approved"
+    },
+    "1 million AWS 5 KB message units": {
+      "sourceHash": "c1987d4ea1cbfab8f6fa769cec63060f5e429a37c6a07cdbeff6d81b1421bfb2",
+      "fingerprint": "0034565d3a6ae22023734268ef5b663d5d7de25ad799b19c9bdd7e9ff46c9a41",
+      "text": "百万个 AWS 5 KB 讯息单位",
+      "status": "approved"
+    },
+    "1 million AWS REST requests": {
+      "sourceHash": "03088de3d542d26251865aa7ac642832b83dda6ca82bf24a16f8b43e5b24da05",
+      "fingerprint": "6f7c4336d6b1afafe23b8c5590333c9db0908bb0ac25017a2e5adbfb1c3d7559",
+      "text": "百万次 AWS REST 请求",
+      "status": "approved"
+    },
+    "1 million S3 GET requests": {
+      "sourceHash": "a6ba500cf500840c3a18f07846a1946b066f7ac9e81ab96c85e48f6eb77bd421",
+      "fingerprint": "0982edaf1574e57d8f04244fd5a119ae48495610422ff7a7ec01de5f0349df0e",
+      "text": "百万次 S3 GET 请求",
+      "status": "approved"
+    },
+    "1 million S3 PUT requests": {
+      "sourceHash": "e14560a782167605f8828eb77c0b71bda5e64c3d7e9d58fc178dd6612cc47afd",
+      "fingerprint": "13fc841223726268aeb9c13ab3ce0070e64d9d0a537c98f0d8c48b4c94b5d689",
+      "text": "百万次 S3 PUT 请求",
+      "status": "approved"
+    },
+    "1,000 AWS remote actions": {
+      "sourceHash": "b45ac7ae7cb73229e69b30c5e5fd743ef64f1b9a0fdb4712e48bfff81bddd1e3",
+      "fingerprint": "525124478d22b33697ac054203b407f0bcde5e6948927f8f46a0634941bff28e",
+      "text": "一千次 AWS 远端操作",
+      "status": "approved"
+    },
+    "GiB AWS internet transfer": {
+      "sourceHash": "7bcb4b205697523c6008f3744be5dbd8467e1752991b1e691bc2e5e1797dd4cb",
+      "fingerprint": "41dfd8ef969a46883e9e4193acb7f49ae4a97d4c0ed9fc1559b4de7708f794f6",
+      "text": "GiB AWS 网际网路传输",
+      "status": "approved"
+    },
+    "GiB CDN edge transfer": {
+      "sourceHash": "308535e4a582baf43d70cbd65772e1e897a012c7c8e9d8c0c8de3adb9e67ff4d",
+      "fingerprint": "2f889ee741ae09031709797219ec72dbad9201ef987d3f2f73f94a1eb275bc27",
+      "text": "GiB CDN 边缘传输",
+      "status": "approved"
+    },
+    "GiB-month compressed archive": {
+      "sourceHash": "d668234697cbf0a276d4b47bebb39cf0a605f772988dd583f8a0f084e50c8beb",
+      "fingerprint": "03a61a1d04da31f6bc3080fd32ecccc13ac5323225ecb9376ba469a16a335c92",
+      "text": "GiB 月压缩封存",
+      "status": "approved"
+    },
+    "Research reference only": {
+      "sourceHash": "64d36659bb1a50f971f10e6bd45a744642596459b56e1a1b7c7e869e5d259c0d",
+      "fingerprint": "308485e472adca01952fb16a8f881d633e0d2d400b504433bb2f024a0dda0380",
+      "text": "仅供研究参考",
+      "status": "approved"
+    },
+    "Your effective customer rate is not verified on this page. Check your active rate card, contract or invoice.": {
+      "sourceHash": "688f4f139ecf127a26775e0c8970a6d114bdd95f23872dcb0736222655234598",
+      "fingerprint": "1e859c0eb2fd2489b81e6b7a7ff39c8e86b6a7cb7bf3e7d9aa5a245611572c3a",
+      "text": "本页未验证您目前适用的正式费率。请查阅生效中的价卡、合约或发票。",
+      "status": "approved"
+    },
+    "Selected CloudFront Asian delivery regions outside China. Raw CDN bytes and retries differ from RTK first verified logical download.": {
+      "sourceHash": "085084a6a6f2758969555310332594067264eb66af5306ad60af4ad8fe5f1f54",
+      "fingerprint": "1c5d5b5c68667e29e1e4ee7275bc3b98af8424ce5b9cf9f8758bc680f32261d5",
+      "text": "CloudFront 指定的中国以外亚洲交付区域。原始 CDN 位元组数与重试流量，和 RTK 首次验证的逻辑下载量不同。",
+      "status": "approved"
+    },
+    "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.": {
+      "sourceHash": "975c812a824ef14d186d7551fe640217cd27728c05f56e8609982a9dd19dfa11",
+      "fingerprint": "33be4e2cf3995f4360fd894d72cba5d3a04da0f25a5eb944227aeac43a96e20b",
+      "text": "圣保罗区域参考价。AWS 标示为 1 KB 单位；是否等同 RTK 的 1 KiB 单位仍待确认。",
+      "status": "approved"
+    },
+    "Services with reference prices only": {
+      "sourceHash": "e4b9e44c5fc20e76e36bf0bb5f4302eb0f93473dfeedee779cdc22d71de7e9ff",
+      "fingerprint": "ab5adf2312573f505a7e0679afe694fc0ff3228544955507daa5ee77f5401878",
+      "text": "仅有参考价的服务",
+      "status": "approved"
+    },
+    "The other 11 services have no newly approved RTK price in this review. All 15 rows show a separate highest eligible public reference. Existing customer charges follow the active rate card, contract and invoice.": {
+      "sourceHash": "9f56f601b627b1fe86dcbfabf8d916decd491bd586d3ac7e71fa0b6449c9800b",
+      "fingerprint": "1c204bdaa7b8d1ad31db8970a65bc8b08fbf78398f81e5161d545f80600b25aa",
+      "text": "其余 11 项服务在本次审查中没有新核准的 RTK 单价。全部 15 行都另列符合条件的最高公开参考价。现有客户费用仍依据生效价卡、合同与发票计算。",
+      "status": "approved"
+    },
+    "Compare approved OTA unit prices with public references selected from the official sources inspected for this review.": {
+      "sourceHash": "89184478a6774a4394bb6bd17f67cd84ef159ab5daf1a4e1bc0341add3f3357e",
+      "fingerprint": "ba2a2eba4608d7f135a84df171a98aafc4b69ab44db3dcbe54932202d45a3e6e",
+      "text": "比较已核准的 OTA 单价与本次审查的官方来源中选出的公开参考价。",
+      "status": "approved"
+    },
+    "The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.": {
+      "sourceHash": "7ae66c6f468dd20369075633d7d17556b3391bc01e6a586e2673382eb75db374",
+      "fingerprint": "88c16f5ec80be98f0ac94251e3e41dd3fbb2648d2ef7829dddc30a17f9eeae50",
+      "text": "其余 11 项服务在本次审查中没有新核准的 RTK 单价。全部 15 行均显示已审查官方来源中符合条件的最高公开参考价。现有客户费用仍依生效价卡、合同与发票计算。",
+      "status": "approved"
+    },
+    "Highest inspected public reference": {
+      "sourceHash": "c55a6e312bb27d0cc4778ca6bd60bc24fa6e79144b1f3658d7ba087f5e28d969",
+      "fingerprint": "5e45452e1e679468e0735585eb941114593809f952e025db179129d0d9fb0924",
+      "text": "已审查来源中的最高公开参考价",
+      "status": "approved"
+    },
+    "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; the approved OTA price stays separate from this reference.": {
+      "sourceHash": "62c28e9651d6caffb0d74889a4e2a468a95ffb2f076508e5adff4cf1d26c4bfe",
+      "fingerprint": "0be3ad3f6b5c1a5e48c60e7b1815316f532db716385acf019909031243a51564",
+      "text": "AWS Device Jobs 圣保罗区域的首个付费级距。RTK 计量首次持久化的装置指派；已核准的 OTA 单价与此参考价分开。",
+      "status": "approved"
+    },
+    "Reference review": {
+      "sourceHash": "8807517f00505a8fd4ee6a8a791f8a66452d6e81b1e27d257d184a0433e897ad",
+      "fingerprint": "a4e5e8a0102795608d25713dca093e4e7ec5941f875d7048b5b8cf0a5b981d85",
+      "text": "参考价核查",
+      "status": "approved"
     }
   }
 }

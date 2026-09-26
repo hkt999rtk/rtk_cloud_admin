@@ -3085,7 +3085,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
 
   const billingTabs = <BillingTabs active={billingView} onSelect={selectBillingView} />;
 
-  if (billingView === 'pricing') return <ServicePricing tabs={billingTabs} />;
+  if (billingView === 'pricing') return <ServicePricing tabs={billingTabs} cloudId={cloudId} ownershipVersion={billingScope.version} onAccessLost={billingScope.onAccessLost} />;
 
   if (selectedInvoice) return <BillingInvoiceDetail invoice={selectedInvoice} onBack={() => { setSelectedInvoice(null); selectBillingView('invoices'); }} />;
   if (selectedActivity) return <BillingActivityDetail activity={selectedActivity} onBack={() => { setSelectedActivity(null); selectBillingView('activity'); }} />;

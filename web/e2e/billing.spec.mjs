@@ -24,16 +24,26 @@ test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and act
     contentType: 'image/png',
   });
 
-  // The proposal remains readable during an accounting outage; returning to
-  // actual account views must fetch live data and expose the failure.
-  await page.route('**/api/developer/brand-clouds/*/billing/**', route => route.fulfill({ status: 503, json: { error: 'Accounting unavailable' } }));
+  // Owner-scoped research remains readable during an accounting outage;
+  // returning to account views must fetch live data and expose the failure.
+  await page.route('**/api/developer/brand-clouds/*/billing/**', route => {
+    if (route.request().url().endsWith('/billing/pricing-references')) return route.continue();
+    return route.fulfill({ status: 503, json: { error: 'Accounting unavailable' } });
+  });
   await page.getByRole('button', { name: 'Service Pricing', exact: true }).click();
-  await expect(page.getByTestId('billing-pricing-page')).toBeVisible();
+  await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
   await page.getByRole('button', { name: 'Billing Overview', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('temporarily unavailable');
   await expect(page.getByTestId('billing-page')).toHaveCount(0);
   await page.getByRole('link', { name: 'Service Pricing', exact: true }).click();
-  await expect(page.getByTestId('billing-pricing-page')).toBeVisible();
+  await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
+
+  // A failed pricing API must not leave previously loaded amounts visible.
+  await page.route('**/billing/pricing-references', route => route.fulfill({ status: 503, json: { error: 'Pricing unavailable' } }));
+  await page.reload();
+  await expect(page.getByRole('alert')).toContainText('Billing information temporarily unavailable');
+  await expect(page.locator('.pricing-table tbody tr')).toHaveCount(0);
+  await expect(page.locator('.pricing-draft time, .pricing-intro time')).toHaveCount(0);
 });
 
 test('[UI-CA-BILLING-010] billing labels, statuses and pricing follow locale changes @billing @smoke', async ({ page, isMobile }) => {
@@ -47,9 +57,19 @@ test('[UI-CA-BILLING-010] billing labels, statuses and pricing follow locale cha
   await expect(page.getByTestId('billing-page')).toContainText('月底費用預測');
   await expect(page.getByTestId('billing-page')).not.toContainText('Available Balance');
   await expect(page.getByTestId('billing-page')).toContainText('需要私有雲？');
+  await page.route('**/billing/pricing-references', async route => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.catalog.reference_date = '2026-10-01';
+    await route.fulfill({ response, json: body });
+  });
   await page.getByRole('button', { name: '服務定價' }).click();
   await expect(page.getByTestId('billing-pricing-page')).toContainText('物聯網與訊息服務');
   await expect(page.getByTestId('billing-pricing-page')).toContainText('MQTT 訊息發布');
+  await expect(page.getByTestId('billing-pricing-page')).toContainText('US$1.50／百萬個 5 KB 訊息單位');
+  await expect(page.locator('.pricing-draft time')).toHaveAttribute('datetime', '2026-10-01');
+  await expect(page.locator('.pricing-draft time')).toHaveText('2026年10月1日');
+  await expect(page.locator('.pricing-intro time')).toHaveText('2026年10月1日');
   await page.reload();
   await expect(page.locator('[data-locale-selector]')).toHaveValue('zh-TW');
   await expect(page.getByTestId('billing-pricing-page')).toContainText('MQTT 訊息發布');
@@ -158,6 +178,8 @@ test('[UI-CA-BILLING-005] billing profile update preserves invoice snapshot sema
 });
 
 test('[UI-CA-BILLING-007] viewer has no Billing content and unscoped API is retired @billing @smoke', async ({page})=>{
+  const pricingPath = '/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/pricing-references';
+  expect((await page.request.get(pricingPath)).status()).toBe(401);
   await login(page,'billing_viewer');
   await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');
   await expect(page.getByRole('alert')).toContainText('Only the current owner');
@@ -165,6 +187,7 @@ test('[UI-CA-BILLING-007] viewer has no Billing content and unscoped API is reti
   await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing/pricing');
   await expect(page.getByRole('alert')).toContainText('Only the current owner');
   await expect(page.getByTestId('billing-pricing-page')).toHaveCount(0);
+  expect((await page.request.get(pricingPath)).status()).toBe(403);
   expect((await page.request.get('/api/billing/account')).status()).toBe(404);
   expect((await page.request.get('/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/account')).status()).toBe(403);
   expect((await page.request.get('/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/invoices/invoice-2026-000128/pdf')).status()).toBe(403);
