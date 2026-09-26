@@ -24,8 +24,8 @@ test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and act
     contentType: 'image/png',
   });
 
-  // The proposal remains readable during an accounting outage; returning to
-  // actual account views must fetch live data and expose the failure.
+  // Static research remains readable during an accounting outage; returning
+  // to actual account views must fetch live data and expose the failure.
   await page.route('**/api/developer/brand-clouds/*/billing/**', route => route.fulfill({ status: 503, json: { error: 'Accounting unavailable' } }));
   await page.getByRole('button', { name: 'Service Pricing', exact: true }).click();
   await expect(page.getByTestId('billing-pricing-page')).toBeVisible();

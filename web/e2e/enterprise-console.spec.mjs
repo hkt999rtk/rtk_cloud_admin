@@ -58,11 +58,20 @@ test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and 
     await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText('Billing Cloud 1');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
     if (label === 'Service Pricing') {
-      await expect(page.locator('.pricing-cost-value')).toHaveText('NT$232');
-      await expect(page.locator('.pricing-cost-value')).toBeInViewport();
+      await expect(page.locator('.pricing-status-summary')).toContainText('OTA prices approved');
+      await expect(page.locator('.pricing-status-summary')).toContainText('Research reference prices');
       await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
-      await expect(page.getByTestId('billing-pricing-page')).toContainText('not your Cloud’s actual spend');
-      const summary = await page.locator('.pricing-cost-summary').boundingBox();
+      await expect(page.locator('.pricing-table tbody tr[data-price-status="approved-pending"]')).toHaveCount(4);
+      await expect(page.locator('.pricing-table tbody tr[data-price-status="research"]')).toHaveCount(11);
+      const otaTask = page.locator('.pricing-table tbody tr').filter({ has: page.getByRole('rowheader', { name: /Firmware OTA tasks/ }) });
+      await expect(otaTask.locator('.pricing-rate')).toContainText('NT$96');
+      await expect(otaTask.locator('.pricing-reference')).toContainText('NT$144');
+      const shadow = page.locator('.pricing-table tbody tr').filter({ has: page.getByRole('rowheader', { name: /IoT Shadow/ }) });
+      await expect(shadow.locator('.pricing-rate')).not.toContainText('NT$60');
+      await expect(shadow.locator('.pricing-reference')).toContainText('1 million AWS 1 KB operation units');
+      await expect(page.getByTestId('billing-pricing-page')).toContainText('not an invoice or spend forecast');
+      await expect(page.getByTestId('billing-pricing-page')).not.toContainText('NT$232');
+      const summary = await page.locator('.pricing-status-summary').boundingBox();
       const rates = await page.locator('.pricing-intro').boundingBox();
       expect(summary.y + summary.height).toBeLessThanOrEqual(rates.y);
       await page.getByRole('button', { name: 'IoT and messaging 3', exact: true }).click();

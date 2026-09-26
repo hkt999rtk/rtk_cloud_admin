@@ -15245,6 +15245,384 @@
       "source": "Live testing is unavailable for this device.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "26 Sep 2026",
+      "source": "26 Sep 2026",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.",
+      "source": "API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; approved NT$96 price stays separate from this reference.",
+      "source": "AWS Device Jobs São Paulo first paid tier. RTK bills first durable device assignment; approved NT$96 price stays separate from this reference.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "CloudFront Asian edge proxy. Raw CDN traffic, retries and cache behavior differ from RTK first verified logical download.",
+      "source": "CloudFront Asian edge proxy. Raw CDN traffic, retries and cache behavior differ from RTK first verified logical download.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.",
+      "source": "CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "CloudWatch São Paulo reference. RTK has ingestion totals, but generic invoice integration still needs qualification.",
+      "source": "CloudWatch São Paulo reference. RTK has ingestion totals, but generic invoice integration still needs qualification.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Compare approved OTA unit prices with the highest public research references for all services.",
+      "source": "Compare approved OTA unit prices with the highest public research references for all services.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Highest public reference",
+      "source": "Highest public reference",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "How these prices work",
+      "source": "How these prices work",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Included activities",
+      "source": "Included activities",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Monthly subtotal = measured usage × unit price ÷ the displayed unit size. Usage is aggregated by service and meter before the TWD amount is rounded; tax is handled by the effective Billing plan.",
+      "source": "Monthly subtotal = measured usage × unit price ÷ the displayed unit size. Usage is aggregated by service and meter before the TWD amount is rounded; tax is handled by the effective Billing plan.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No free usage allowance or volume discount is assumed in these references. Tax, validated metering, operating costs and margin require review before any new production rate is activated. Private Cloud requires a separate quote.",
+      "source": "No free usage allowance or volume discount is assumed in these references. Tax, validated metering, operating costs and margin require review before any new production rate is activated. Private Cloud requires a separate quote.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No separate service charge",
+      "source": "No separate service charge",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA prices approved",
+      "source": "OTA prices approved",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Per-million and per-thousand prices are display units. Charges, when effective, are proportional to actual usage; there is no whole-block minimum. Money is rounded after monthly aggregation.",
+      "source": "Per-million and per-thousand prices are display units. Charges, when effective, are proportional to actual usage; there is no whole-block minimum. Money is rounded after monthly aggregation.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Price status",
+      "source": "Price status",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "RTK price status",
+      "source": "RTK price status",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "RTK storage and traffic use GiB (1,073,741,824 bytes); Shadow uses KiB (1,024 bytes). Provider byte units and counted events may differ, as noted in each row.",
+      "source": "RTK storage and traffic use GiB (1,073,741,824 bytes); Shadow uses KiB (1,024 bytes). Provider byte units and counted events may differ, as noted in each row.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Reference checked",
+      "source": "Reference checked",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Reference review · 26 Sep 2026",
+      "source": "Reference review · 26 Sep 2026",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Research reference prices",
+      "source": "Research reference prices",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Research references are not approved customer charges. OTA has four approved unit prices, but they are not effective yet. An existing meter does not mean charging is enabled.",
+      "source": "Research references are not approved customer charges. OTA has four approved unit prices, but they are not effective yet. An existing meter does not mean charging is enabled.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo GET reference. RTK includes successful clip HEAD operations, so counted operations differ.",
+      "source": "São Paulo GET reference. RTK includes successful clip HEAD operations, so counted operations differ.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo direct internet egress proxy. Clip delivery bytes need a separate validated RTK fact.",
+      "source": "São Paulo direct internet egress proxy. Clip delivery bytes need a separate validated RTK fact.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo hot-storage reference. Actual RTK clip byte-time metering still needs qualification.",
+      "source": "São Paulo hot-storage reference. Actual RTK clip byte-time metering still needs qualification.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo hot-storage reference. Approved RTK price uses physical OTA object byte-time.",
+      "source": "São Paulo hot-storage reference. Approved RTK price uses physical OTA object byte-time.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo reference. AWS uses 1 KB units; RTK proposes 1 KiB units, so byte boundaries differ.",
+      "source": "São Paulo reference. AWS uses 1 KB units; RTK proposes 1 KiB units, so byte boundaries differ.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo reference. Provider PUT requests also include events that are not RTK successful object creations.",
+      "source": "São Paulo reference. Provider PUT requests also include events that are not RTK successful object creations.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo reference. Provider PUT requests and successful RTK business writes are related but not identical events.",
+      "source": "São Paulo reference. Provider PUT requests and successful RTK business writes are related but not identical events.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo transfer-only proxy. AWS Kinesis Video Streams also bills TURN minutes, which cannot be converted to GiB without bitrate and viewer count.",
+      "source": "São Paulo transfer-only proxy. AWS Kinesis Video Streams also bills TURN minutes, which cannot be converted to GiB without bitrate and viewer count.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo, first paid tier. AWS also charges publish and delivery separately; its 5 KB units differ from RTK raw deliveries.",
+      "source": "São Paulo, first paid tier. AWS also charges publish and delivery separately; its 5 KB units differ from RTK raw deliveries.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo, first paid tier. AWS rounds by 5 KB units; RTK counts raw accepted publishes, so large messages are not equivalent.",
+      "source": "São Paulo, first paid tier. AWS rounds by 5 KB units; RTK counts raw accepted publishes, so large messages are not equivalent.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The four OTA customer unit prices are approved but have no effective date yet. OTA is not charged at these prices until an active Billing rate card includes them.",
+      "source": "The four OTA customer unit prices are approved but have no effective date yet. OTA is not charged at these prices until an active Billing rate card includes them.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The other prices use the highest eligible public benchmark found in the reviewed sources. They are planning references, not a change to your active rate card.",
+      "source": "The other prices use the highest eligible public benchmark found in the reviewed sources. They are planning references, not a change to your active rate card.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The public benchmarks use native USD prices. Planning references use US$1 = NT$32 and round up to NT$0.01; no exchange conversion occurs when a TWD invoice is issued.",
+      "source": "The public benchmarks use native USD prices. Planning references use US$1 = NT$32 and round up to NT$0.01; no exchange conversion occurs when a TWD invoice is issued.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This page does not verify your Cloud’s effective Billing rates. Your contract, active rate card and invoice determine actual charges; these references are not an invoice or spend forecast.",
+      "source": "This page does not verify your Cloud’s effective Billing rates. Your contract, active rate card and invoice determine actual charges; these references are not an invoice or spend forecast.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.0045 / remote action",
+      "source": "US$0.0045 / remote action",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.0056 / 10,000 S3 GET requests",
+      "source": "US$0.0056 / 10,000 S3 GET requests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.007 / 1,000 S3 PUT requests",
+      "source": "US$0.007 / 1,000 S3 PUT requests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.0405 / GB-month S3 Standard",
+      "source": "US$0.0405 / GB-month S3 Standard",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.0408 / compressed GB-month archive",
+      "source": "US$0.0408 / compressed GB-month archive",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.120 / GB CDN edge transfer",
+      "source": "US$0.120 / GB CDN edge transfer",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.150 / GB internet transfer",
+      "source": "US$0.150 / GB internet transfer",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$0.90 / GB Standard log ingestion",
+      "source": "US$0.90 / GB Standard log ingestion",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$1.50 / million 5 KB message units",
+      "source": "US$1.50 / million 5 KB message units",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$1.875 / million 1 KB operation units",
+      "source": "US$1.875 / million 1 KB operation units",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "US$4.25 / million REST API requests",
+      "source": "US$4.25 / million REST API requests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "service meters",
+      "source": "service meters",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Approved OTA price · not effective",
+      "source": "Approved OTA price · not effective",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Research reference · not effective",
+      "source": "Research reference · not effective",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million AWS 1 KB operation units",
+      "source": "1 million AWS 1 KB operation units",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million AWS 5 KB message units",
+      "source": "1 million AWS 5 KB message units",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million AWS REST requests",
+      "source": "1 million AWS REST requests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million S3 GET requests",
+      "source": "1 million S3 GET requests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1 million S3 PUT requests",
+      "source": "1 million S3 PUT requests",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "1,000 AWS remote actions",
+      "source": "1,000 AWS remote actions",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "GiB AWS internet transfer",
+      "source": "GiB AWS internet transfer",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "GiB CDN edge transfer",
+      "source": "GiB CDN edge transfer",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "GiB-month compressed archive",
+      "source": "GiB-month compressed archive",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Research reference only",
+      "source": "Research reference only",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Your effective customer rate is not verified on this page. Check your active rate card, contract or invoice.",
+      "source": "Your effective customer rate is not verified on this page. Check your active rate card, contract or invoice.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Selected CloudFront Asian delivery regions outside China. Raw CDN bytes and retries differ from RTK first verified logical download.",
+      "source": "Selected CloudFront Asian delivery regions outside China. Raw CDN bytes and retries differ from RTK first verified logical download.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.",
+      "source": "São Paulo reference. AWS lists 1 KB units; equivalence to RTK 1 KiB units is unverified.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

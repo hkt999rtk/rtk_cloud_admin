@@ -99,7 +99,7 @@ traverse(parse(pricingSource, { sourceType: 'module' }), {
       for (const row of path.node.init.elements) {
         if (row?.type !== 'ObjectExpression') continue;
         for (const field of row.properties) {
-          if (field.type === 'ObjectProperty' && ['name', 'unit', 'readiness', 'rule', 'benchmark', 'comparison'].includes(field.key.name) && field.value.type === 'StringLiteral') found.add(field.value.value);
+          if (field.type === 'ObjectProperty' && ['name', 'unit', 'referenceUnit', 'readiness', 'rule', 'benchmark', 'comparison'].includes(field.key.name) && field.value.type === 'StringLiteral') found.add(field.value.value);
         }
       }
     }
