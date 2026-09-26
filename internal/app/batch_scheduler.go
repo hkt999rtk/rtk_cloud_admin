@@ -100,6 +100,15 @@ func (s *Server) runNextDurableBatchJob(ctx context.Context, owner string) {
 	}
 	token, err := s.accountClient.ExchangeJobAuthorization(ctx, s.cfg.AccountManagerJobAuthorizationToken, job.AuthorizationID, job.ID, batchScopeHash(job.Scope))
 	if err != nil {
+		if job.Type == "product_services_apply" {
+			if retryable, _ := retryableJobError(err); retryable {
+				// The grant may still be valid. Keep the frozen upstream job
+				// resumable and exchange the same authorization on the next pass.
+				_ = s.jobs.YieldProductApplyJob(job.OrganizationID, job.ID)
+				_, _ = s.jobs.CompleteBatchJobBoundary(job.OrganizationID, job.ID, owner)
+				return
+			}
+		}
 		_ = s.jobs.FailBatchJobAuthorization(job.OrganizationID, job.ID)
 		return
 	}

@@ -184,6 +184,74 @@ func TestProductServiceApplyRestartRecoversInterruptedProgress(t *testing.T) {
 	}
 }
 
+func TestProductServiceApplyAuthorizationExchangeRetriesOutage(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		network bool
+	}{
+		{name: "server unavailable"},
+		{name: "network unavailable", network: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			status := http.StatusServiceUnavailable
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !strings.HasSuffix(r.URL.Path, "/exchange") {
+					t.Errorf("unexpected request during failed authorization exchange: %s", r.URL.Path)
+				}
+				w.WriteHeader(status)
+			}))
+			defer upstream.Close()
+			st := mustOpenStore(t)
+			job, err := st.CreateBatchJob(contracts.BatchJob{ID: "job-exchange-" + strings.ReplaceAll(tc.name, " ", "-"),
+				OrganizationID: "cloud-1", Type: "product_services_apply", State: "queued",
+				Scope:           map[string]any{"product_id": "product-1", "target_revision": int64(2)},
+				AuthorizationID: "authorization-1", AuthorizationStatus: "active", Total: 1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			srv := NewWithOptions(st, Options{Config: config.Config{AccountManagerJobAuthorizationToken: "service-token"}, AccountClient: accountclient.New(upstream.URL)})
+			if tc.network {
+				upstream.Close()
+			}
+			srv.runNextDurableBatchJob(context.Background(), "worker-1")
+			job, err = st.GetBatchJob(job.OrganizationID, job.ID)
+			if err != nil || job.State != "queued" || job.AuthorizationStatus != "active" {
+				t.Fatalf("temporary exchange failure abandoned the job: %+v, %v", job, err)
+			}
+			if !tc.network {
+				status = http.StatusForbidden
+				srv.runNextDurableBatchJob(context.Background(), "worker-1")
+				job, err = st.GetBatchJob(job.OrganizationID, job.ID)
+				if err != nil || job.State != "failed" || job.AuthorizationStatus != "revoked" {
+					t.Fatalf("definitive authorization denial was retried: %+v, %v", job, err)
+				}
+			}
+		})
+	}
+}
+
+func TestProductServiceApplyExchangeOutageFinishesCancelBoundary(t *testing.T) {
+	st := mustOpenStore(t)
+	job, err := st.CreateBatchJob(contracts.BatchJob{ID: "job-exchange-cancel", OrganizationID: "cloud-1",
+		Type: "product_services_apply", State: "queued", Scope: map[string]any{"product_id": "product-1"},
+		AuthorizationID: "authorization-1", AuthorizationStatus: "active", Total: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cancelErr error
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _, _, cancelErr = st.ActBatchJob(job.OrganizationID, job.ID, "cancel", "cancel-during-exchange")
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer upstream.Close()
+	srv := NewWithOptions(st, Options{Config: config.Config{AccountManagerJobAuthorizationToken: "service-token"}, AccountClient: accountclient.New(upstream.URL)})
+	srv.runNextDurableBatchJob(context.Background(), "worker-1")
+	job, err = st.GetBatchJob(job.OrganizationID, job.ID)
+	if cancelErr != nil || err != nil || job.State != "cancelled" || job.AuthorizationStatus != "active" {
+		t.Fatalf("cancel boundary was stranded after exchange outage: %+v cancel=%v read=%v", job, cancelErr, err)
+	}
+}
+
 func TestProductServiceApplyPaginatesBeyond250AndDownloadsAllResults(t *testing.T) {
 	const total = 301
 	completed, retries := 0, 0
