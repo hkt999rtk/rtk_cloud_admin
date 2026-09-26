@@ -18,6 +18,7 @@ import { OwnerHandoffPage } from './OwnerHandoff.jsx';
 import { handoffRoute } from './owner-handoff.mjs';
 import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
 import './cloud-billing.css';
+import './billing-topup.css';
 import { BillingTabs, ServicePricing } from './ServicePricing.jsx';
 import { BillingInvoiceDocument } from './BillingInvoiceDocument.jsx';
 import { cloudAPI, cloudURL, managedCloudRoute, managedCloudRequest, cloudWriteIntent } from './managed-clouds.mjs';
@@ -2904,7 +2905,9 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   const policy = data?.policy?.auto_topup || data?.account?.auto_topup || null;
   const providers = data?.account?.payment_providers || [];
   const setupProvider = providers.find((provider) => provider.capabilities?.hosted_setup);
-  const hostedChargeProvider = providers.find((provider) => provider.capabilities?.hosted_charge);
+  const hostedChargeProviders = providers.filter((provider) => provider.capabilities?.hosted_charge);
+  const [selectedHostedProvider, setSelectedHostedProvider] = useState('paypal');
+  const hostedChargeProvider = hostedChargeProviders.find((provider) => provider.name === selectedHostedProvider) || hostedChargeProviders[0];
   const policyState = autoTopUpAssessment(policy);
   const activeMethod = methods.find((method) => method.status === 'active') || methods[0];
   const canManageMethods = capabilities.includes('payment_method.manage');
@@ -2924,6 +2927,22 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   const [billingView, setBillingView] = useState(() => window.location.pathname.match(/\/billing\/(pricing|usage|invoices|activity|settings|profile)(?:\/|$)/)?.[1] || 'overview');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedActivity, setSelectedActivity] = useState(null);
+  const [selectedIntent, setSelectedIntent] = useState(null);
+  const linkedIntentID = new URLSearchParams(window.location.search).get('intent');
+
+  useEffect(() => {
+    if (!linkedIntentID || intents.some((intent) => intent.id === linkedIntentID)) return;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const response = await fetch(billingAPI(cloudId, `/api/billing/payment-intents/${encodeURIComponent(linkedIntentID)}`), { signal: controller.signal, cache: 'no-store' });
+        if (!response.ok || response.headers.get('X-Cloud-Ownership-Version') !== String(billingScope.version)) return;
+        const {payment_intent: intent} = await response.json();
+        if (!controller.signal.aborted && intent?.id === linkedIntentID && intent.reason === 'manual_top_up' && intent.state === 'succeeded') setSelectedIntent(intent);
+      } catch { /* The normal Billing view remains available if an old link cannot be loaded. */ }
+    })();
+    return () => controller.abort();
+  }, [cloudId, billingScope.version, linkedIntentID]);
 
   useEffect(() => {
     setThreshold(String(policy?.threshold_minor || 300));
@@ -3041,6 +3060,10 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
         provider: hostedChargeProvider.name,
       }, { 'Idempotency-Key': idempotency });
       const action = result?.payment_action;
+      if (action?.method === 'GET' && action.url && (!action.fields || Object.keys(action.fields).length === 0)) {
+        window.location.assign(action.url);
+        return;
+      }
       if (action?.method === 'POST' && action.url && action.fields) {
         const form = document.createElement('form');
         form.method = 'POST';
@@ -3054,6 +3077,8 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
         }
         document.body.append(form);
         form.submit();
+      } else {
+        setMessage('The payment provider did not return a usable checkout link. Check payment status before retrying.');
       }
       return;
     }
@@ -3092,6 +3117,8 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
 
   if (selectedInvoice) return <BillingInvoiceDetail invoice={selectedInvoice} onBack={() => { setSelectedInvoice(null); selectBillingView('invoices'); }} />;
   if (selectedActivity) return <BillingActivityDetail activity={selectedActivity} onBack={() => { setSelectedActivity(null); selectBillingView('activity'); }} />;
+  const topUpStatementIntent = selectedIntent || (linkedIntentID && intents.find((intent) => intent.id === linkedIntentID && intent.reason === 'manual_top_up' && intent.state === 'succeeded'));
+  if (topUpStatementIntent) return <BillingTopUpStatement intent={topUpStatementIntent} recipient={billingProfile} onBack={() => { setSelectedIntent(null); selectBillingView('settings'); }} />;
 
   if (billingView === 'overview') return <section className="page-content billing-page" data-testid="billing-page">
     <div className="page-intro"><div><p className="eyebrow">{translate("Commercial Settlement")}</p><h2>{translate("Billing overview")}</h2><p>{translate("Keep track of available balances, estimated charges for the month, invoices, and recent billing changes.")}</p></div><small>{translate("Updated")} {formatProviderTimestamp(summary.calculated_at || account?.updated_at)}</small></div>
@@ -3150,7 +3177,7 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       <BillingInvoiceDocument preview />
     </>}
   </section>;
-  if (billingView === 'activity') return <section className="page-content billing-page" data-testid="billing-activity-page"><div className="page-intro"><div><h2>{translate("Billing Activity")}</h2><p>{translate("Track top-ups, invoice charges, retries, and reconciliations with consistent status.")}</p></div></div>{billingTabs}<section className="panel"><BillingActivityTable activities={activities} onSelect={openBillingActivity} /></section></section>;
+  if (billingView === 'activity') return <section className="page-content billing-page" data-testid="billing-activity-page"><div className="page-intro"><div><h2>{translate("Billing Activity")}</h2><p>{translate("Track top-ups, invoice charges, retries, and reconciliations with consistent status.")}</p></div></div>{new URLSearchParams(window.location.search).get('payment') === 'returned' && <p className="notice" role="status">{translate("You have returned from PayPal. Check the payment status below; the balance is credited only after confirmation.")}</p>}{new URLSearchParams(window.location.search).get('payment') === 'cancelled' && <p className="notice" role="status">{translate("PayPal checkout was cancelled. No payment was confirmed.")}</p>}{billingTabs}<section className="panel"><BillingActivityTable activities={activities} onSelect={openBillingActivity} /></section></section>;
   if (billingView === 'profile') return <BillingProfilePage profile={billingProfile} tabs={billingTabs} canManage={capabilities.includes('billing_profile.manage')} onRefresh={onRefresh} />;
 
   return <section className="page-content billing-page" data-testid="billing-page">
@@ -3180,11 +3207,11 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
       </section>
 
       <section className="panel"><div className="panel-head"><div><h3>{translate("Payment Methods")}</h3><p>{translate("Only safe metadata such as provider, brand, last four digits, and expiration month is stored.")}</p></div></div>{methods.length ? <div className="payment-method-list">{methods.map((method) => <div className="payment-method-card" key={method.id}><div><strong>{paymentMethodLabel(method)}</strong><small>{method.provider} · {method.expiry_month && method.expiry_year ? `${String(method.expiry_month).padStart(2, '0')}/${method.expiry_year}` : translate("Expiration date not provided")}</small></div><span className={`status-badge ${method.status === 'active' ? 'good' : 'neutral'}`}>{billingStatusLabel(method.status)}</span>{canManageMethods && method.status === 'active' ? <button type="button" className="link-button" disabled={busy} onClick={() => mutate('DELETE', `/api/billing/payment-methods/${encodeURIComponent(method.id)}`, { reason: 'customer revoked payment method' })}>{translate("Revoke")}</button> : null}</div>)}</div> : <p className="empty-state">{translate("No verified payment methods are available.")}</p>}
-        <form className="inline-form" onSubmit={createManualTopUp}><label>{translate("Manual Top-Up Amount (TWD)")}<input type="number" min="1" step="1" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} /></label><button type="submit" className="ghost-button" disabled={busy || (!hostedChargeProvider && (!activeMethod || !chargeQualified)) || !capabilities.includes('payment_intent.create')}>{hostedChargeProvider ? translate("Continue to Card Top-Up") : translate("Top Up Now")}</button></form>
+        <form className="inline-form" onSubmit={createManualTopUp}><label>{translate("Manual Top-Up Amount (TWD)")}<input type="number" min="1" step="1" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} /></label>{hostedChargeProviders.length > 1 ? <label>{translate("Payment provider")}<select value={hostedChargeProvider?.name || ''} onChange={(event) => setSelectedHostedProvider(event.target.value)}>{hostedChargeProviders.map((provider) => <option key={provider.name} value={provider.name}>{provider.name === 'paypal' ? 'PayPal' : provider.name === 'newebpay' ? 'NewebPay' : provider.name}</option>)}</select></label> : null}<button type="submit" className="ghost-button" disabled={busy || (!hostedChargeProvider && (!activeMethod || !chargeQualified)) || !capabilities.includes('payment_intent.create')}>{hostedChargeProvider?.name === 'paypal' ? translate("Continue to PayPal") : hostedChargeProvider ? translate("Continue to Card Top-Up") : translate("Top Up Now")}</button></form>
       </section>
     </div>
 
-    <section className="panel"><div className="panel-head"><div><h3>{translate("Payment Intents")}</h3><p>{translate("Normalized states are shown for customer tracking. Provider transaction references and payloads are not displayed.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Created")}</th><th>{translate("Reason")}</th><th>{translate("Amount")}</th><th>{translate("Status")}</th></tr></thead><tbody>{intents.map((intent) => { const state = paymentIntentState(intent.state); return <tr key={intent.id}><td>{formatProviderTimestamp(intent.created_at)}</td><td>{intent.reason === 'auto_top_up' ? translate("Automatic Top-Up") : translate("Manual Top-Up")}</td><td>{formatMinorAmount(intent.amount_minor, intent.currency)}</td><td><span className={`status-badge ${state.tone}`}>{translate(state.label)}</span></td></tr>; })}</tbody></table>{!intents.length ? <p className="empty-state">{translate("No payment intents are available.")}</p> : null}</div></section>
+    <section className="panel"><div className="panel-head"><div><h3>{translate("Payment Intents")}</h3><p>{translate("Open a confirmed manual top-up to view or download its transaction detail.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Created")}</th><th>{translate("Reason")}</th><th>{translate("Amount")}</th><th>{translate("Status")}</th><th>{translate("Detail")}</th></tr></thead><tbody>{intents.map((intent) => { const state = paymentIntentState(intent.state); return <tr key={intent.id}><td>{formatProviderTimestamp(intent.created_at)}</td><td>{intent.reason === 'auto_top_up' ? translate("Automatic Top-Up") : translate("Manual Top-Up")}</td><td>{formatMinorAmount(intent.amount_minor, intent.currency)}</td><td><span className={`status-badge ${state.tone}`}>{translate(state.label)}</span></td><td>{intent.reason === 'manual_top_up' && intent.state === 'succeeded' ? <button type="button" className="link-button" onClick={() => setSelectedIntent(intent)}>{translate("View transaction detail")}</button> : translate("Available after payment")}</td></tr>; })}</tbody></table>{!intents.length ? <p className="empty-state">{translate("No payment intents are available.")}</p> : null}</div></section>
 
     <section className="panel"><div className="panel-head"><div><h3>{translate("Balance changes")}</h3><p>{translate("Non-overwritable ledger, only customer safety fields are displayed.")}</p></div></div><div className="table-wrap"><table className="data-table"><thead><tr><th>{translate("Time")}</th><th>{translate("Reason")}</th><th>{translate("Transfers")}</th><th>{translate("Balance after change")}</th></tr></thead><tbody>{ledger.map((entry) => <tr key={entry.id}><td>{formatProviderTimestamp(entry.created_at)}</td><td>{billingStatusLabel(entry.reason)}</td><td>{entry.direction === 'debit' ? '−' : '+'}{formatMinorAmount(entry.amount_minor, entry.currency)}</td><td>{formatMinorAmount(entry.balance_after_minor, entry.currency)}</td></tr>)}</tbody></table>{!ledger.length ? <p className="empty-state">{translate("There are currently no balance changes.")}</p> : null}</div></section>
   </section>;
@@ -3212,6 +3239,35 @@ function BillingInvoiceDetail({ invoice, onBack }) {
 
 function BillingActivityDetail({ activity, onBack }) {
   return <section className="page-content billing-page" data-testid="billing-activity-detail"><button type="button" className="link-button billing-back" onClick={onBack}>{translate("← Back to billing activity")}</button><div className="page-intro"><div><p className="eyebrow">{translate("Billing activity")}</p><h2>{activity.customer_reference}</h2><p>{activity.type === 'invoice' ? translate("Invoice charge") : translate("Automatic top-up")} · {formatMinorAmount(activity.amount_minor, activity.currency)}</p></div><span className={`status-badge ${activity.state === 'completed' ? 'good' : 'warning'}`}>{billingStatusLabel(activity.state)}</span></div><section className="panel"><h3>{translate("Processing timeline")}</h3><ol className="billing-timeline">{(activity.steps?.length ? activity.steps : [{ kind: activity.type, state: activity.state, occurred_at: activity.occurred_at, customer_reference: activity.customer_reference }]).map((step, index) => <li key={`${step.kind}-${index}`}><i className="fa-solid fa-circle-check" /><div><strong>{billingStatusLabel(step.kind)}</strong><p>{billingStatusLabel(step.state)} · {formatProviderTimestamp(step.occurred_at)}</p><small>{step.customer_reference}</small></div></li>)}</ol></section></section>;
+}
+
+function BillingTopUpStatement({ intent, recipient, onBack }) {
+  const {cloudId} = React.useContext(BillingScope);
+  const downloadURL = billingAPI(cloudId, `/api/billing/payment-intents/${encodeURIComponent(intent.id)}/statement.pdf`);
+  const provider = intent.provider === 'paypal' ? 'PayPal' : intent.provider === 'newebpay' ? 'NewebPay' : intent.provider;
+  const amount = formatMinorAmount(intent.amount_minor, intent.currency);
+  return <section className="page-content billing-page billing-topup-page" data-testid="billing-top-up-statement">
+    <button type="button" className="link-button billing-back" onClick={onBack}>{translate("← Back to payments")}</button>
+    <div className="page-intro"><div><p className="eyebrow">{translate("Payment record")}</p><h2>{translate("Top-up transaction detail")}</h2><p>{translate("Payment confirmation for your RTK Cloud prepaid balance.")}</p></div><a className="primary button-link" href={downloadURL}>{translate("Download PDF")}</a></div>
+    <article className="billing-topup-document" aria-label={translate("Top-up transaction detail")}>
+      <header className="topup-document-hero">
+        <div className="topup-document-brand"><span className="topup-document-mark" aria-hidden="true">{"RTK"}</span><span>{"RTK CLOUD"} <i>/</i> {"BILLING"}</span></div>
+        <span className="topup-document-status"><span aria-hidden="true">●</span> {translate("Paid · Confirmed")}</span>
+        <div className="topup-document-headline"><h3>{translate("Top-up transaction detail")}</h3><p>{translate("Payment confirmed and credited to your prepaid balance")}</p></div>
+        <div className="topup-document-paid"><span>{translate("Amount paid")}</span><strong>{amount}</strong></div>
+      </header>
+      <div className="topup-document-body">
+        <div className="topup-document-parties">
+          <section aria-label={translate("Recipient")}><h4>{translate("Billed to")}</h4><strong>{recipient.legal_name || translate("Billing account holder")}</strong>{recipient.contact_email && <p>{recipient.contact_email}</p>}<p className="topup-document-balance">{translate("RTK Cloud prepaid balance")}</p><p className="topup-document-delivery">{translate("Delivery setting:")} {recipient.delivery_preference === 'portal_and_email' && recipient.contact_email ? translate("Portal + email to {{email}}", { email: recipient.contact_email }) : translate("Portal only")}</p></section>
+          <section aria-label={translate("Payment details")}><h4>{translate("Payment details")}</h4><dl><div><dt>{translate("Method")}</dt><dd>{provider}</dd></div><div><dt>{translate("Confirmed")}</dt><dd>{formatProviderTimestamp(intent.completed_at)}</dd></div><div><dt>{translate("Created")}</dt><dd>{formatProviderTimestamp(intent.created_at)}</dd></div></dl></section>
+        </div>
+        <section className="topup-document-breakdown" aria-label={translate("Transaction breakdown")}><h4>{translate("Transaction breakdown")}</h4><table><thead><tr><th scope="col">{translate("Description")}</th><th scope="col">{translate("Amount")}</th></tr></thead><tbody><tr><td><strong>{translate("Balance top-up")}</strong><span>{translate("One-time manual payment")}</span></td><td>{amount}</td></tr></tbody></table><div className="topup-document-total"><span>{translate("Total paid")}</span><strong>{amount}</strong></div></section>
+        <section className="topup-document-references" aria-label={translate("Reconciliation references")}><h4>{translate("Reconciliation references")}</h4><dl><div><dt>{translate("RTK transaction")}</dt><dd>{intent.id}</dd></div>{intent.merchant_order_reference && <div><dt>{translate("Merchant order")}</dt><dd>{intent.merchant_order_reference}</dd></div>}{intent.provider_transaction_reference && <div><dt>{provider} {translate("reference")}</dt><dd>{intent.provider_transaction_reference}</dd></div>}</dl></section>
+        <aside className="topup-document-note"><strong>{translate("About this record")}</strong><p>{translate("For payment reconciliation only. This is not a Taiwan uniform invoice.")}<br />{translate("Service charges appear separately in monthly billing.")}</p></aside>
+        <footer className="topup-document-footer"><span>{translate("Generated by RTK Billing")}</span><span>{translate("Payment processed by")} {provider}</span></footer>
+      </div>
+    </article>
+  </section>;
 }
 
 function BillingProfilePage({ profile, tabs, canManage, onRefresh }) {

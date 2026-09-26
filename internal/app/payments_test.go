@@ -88,6 +88,12 @@ func TestPaymentBFFUsesExplicitCloudAndForwardsControlHeaders(t *testing.T) {
 			_, _ = w.Write([]byte(`{"payment_intents":[{"id":"intent-1","state":"created"}],"pagination":{"limit":25,"offset":0,"total":1}}`))
 		case "/v1/orgs/11111111-1111-4111-8111-111111111111/payment-intents/intent-1":
 			_, _ = w.Write([]byte(`{"payment_intent":{"id":"intent-1","state":"created"},"attempts":[]}`))
+		case "/v1/orgs/11111111-1111-4111-8111-111111111111/payment-intents/intent-1/statement.pdf":
+			if r.Header.Get("X-Billing-Permissions") != "payment_intent.read" {
+				t.Fatalf("statement permission=%q", r.Header.Get("X-Billing-Permissions"))
+			}
+			w.Header().Set("Content-Type", "application/pdf")
+			_, _ = w.Write([]byte("%PDF-statement-fixture"))
 		default:
 			t.Fatalf("unexpected upstream path: %s", r.URL.Path)
 		}
@@ -184,6 +190,9 @@ func TestPaymentBFFUsesExplicitCloudAndForwardsControlHeaders(t *testing.T) {
 	}
 	if response := request(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/payment-intents/intent-1", "", nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "intent-1") {
 		t.Fatalf("intent status/body=%d/%s", response.Code, response.Body.String())
+	}
+	if response := request(http.MethodGet, "/api/developer/brand-clouds/11111111-1111-4111-8111-111111111111/billing/payment-intents/intent-1/statement.pdf", "", nil); response.Code != http.StatusOK || !strings.HasPrefix(response.Body.String(), "%PDF") || response.Header().Get("Content-Type") != "application/pdf" {
+		t.Fatalf("statement status/body=%d/%s", response.Code, response.Body.String())
 	}
 }
 
