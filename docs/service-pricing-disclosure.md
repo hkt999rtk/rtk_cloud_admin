@@ -1,0 +1,81 @@
+# Service Pricing customer disclosure specification
+
+Status: D0 customer-copy and interaction specification. The authenticated research page is implemented; effective-rate disclosure and invoice integration are **future work**. Last reviewed: 2026-09-26.
+
+Owner: Cloud Admin. The cross-repository sequence and activation gates live in the [OTA pricing activation plan](https://github.com/hkt999rtk/rtk_cloud_workspace/blob/main/docs/design/ota-pricing-activation-and-disclosure-plan.md); meter definitions and invoice rules live in the [OTA delivery and billing contract](https://github.com/hkt999rtk/rtk_cloud_contracts_doc/blob/main/ota_delivery_and_billing.md) and [pricing and invoicing contract](https://github.com/hkt999rtk/rtk_cloud_contracts_doc/blob/main/pricing_and_invoicing.md). The [research ledger](service-pricing-research.md) records benchmark sources and qualifications. This document specifies what a customer must see; it does not publish or activate a Billing rate card.
+
+## Access and source of truth
+
+- Show detailed prices only after login at Cloud Admin **Billing > Service Pricing** (`/console/clouds/{id}/billing/pricing`). The public site describes the business model without numeric tariffs. The Cloud owner must hold `billing_account.read`; the server must check the requested Brand Cloud, session, current ownership version and capability on every price request. Cloud or owner switches clear the old amounts before fetching the new scope. Return `Cache-Control: no-store`; deny anonymous and unauthorized requests. Numeric prices, benchmark amounts and localized benchmark strings must not be bundled in anonymous HTML, JavaScript or translation assets.
+- **Current implementation:** `GET /api/developer/brand-clouds/{id}/billing/pricing-references` serves the owner-scoped BFF research snapshot from `internal/app/service-pricing-reference.json`. `ServicePricing.jsx` renders its 15 rows after a complete, current-scope response. It contains four approved OTA prices without an effective date, and 11 research-only rows. It does **not** query an effective Billing version, establish a Product's entitlement, or show this Cloud's invoice rate. The route and client fail closed if access, ownership version or catalog validation fails; accounting outages do not change the separate research snapshot.
+- **Future A1 source:** a tenant-safe Billing current/upcoming price-book API, proxied by Cloud Admin under the same authorization, must supply the applicable `version_id`, UTC effective interval, TWD currency, tax policy, service/metric/unit, quantity scale, rounding rule and account/contract applicability. Query the version applicable to this Cloud and period. Do not infer an effective rate from the research endpoint, Product checkbox, metering readiness or an `active` database label. If A1 is unavailable, display **「目前無法確認適用費率」 / “Unable to verify applicable rates”**, hide effective amounts and disable any forecast that needs them. Retain an explicitly labelled research section only if its separate authorized request succeeds.
+- The customer's contract and issued invoice govern actual charges. A Product's enabled services control feature access; a valid applicable rate card controls the unit price; qualified usage controls quantity. None of these three alone proves that a charge is due.
+
+## Price status and page structure
+
+The page header identifies the selected Brand Cloud and Product, account/contract type, billing currency, current Billing version and UTC effective interval, tax treatment, and any scheduled next version and UTC start. Until A1 exists, the header must say that effective rates cannot be verified and omit those version and tax fields. Do not invent a tax exemption from a zero-valued default. Evaluation terms and private commercial quotes are displayed separately from managed-cloud usage prices.
+
+Use separate, visible sections and state labels. A research number never fills an empty effective-price cell; a pending approved number never fills it either.
+
+| Customer label | Required evidence | Display rule |
+| --- | --- | --- |
+| **當期有效價 / Effective customer rate** | A1 returns an applicable Billing pricing version for this Cloud, contract and UTC period. | Show rate, unit/scale, currency, tax status, version and effective interval. If absent or unverified, show “未設定／無法確認”, not NT$0 or “free”. |
+| **已排程待生效 / Scheduled, not yet effective** | A1 returns a future applicable, immutable version with a UTC effective date. | Show separate upcoming amount and date; current invoices still use the current version. |
+| **已核准待生效 / Approved, not effective** | An authorized approved-unit-price source exists, but A1 confirms no applicable effective or scheduled version. | Use for the four OTA values below. A missing A1 response does **not** prove this state; the current research page says only that its four approved prices have no activation date in this review. |
+| **研究參考價 / Research reference only** | The dated, owner-scoped research snapshot. | Show its source, selected benchmark, native-unit caveat and “非帳單依據 / Not an invoice rate”. It has no effective date. |
+| **未設定／不適用 / Unavailable or not applicable** | No verified applicable rate, or the contract does not cover the service. | Do not coerce to zero. Explain the reason only when an authoritative source supports it; link to contract or support. |
+| **此 Product 未啟用 / Product not enabled** | Product service entitlement query. | Keep it separate from every price state. The OTA dashboard shows “此產品尚未啟用 OTA 服務” when OTA is not selected. A rate alone must not make OTA available. |
+
+The target table columns, in order, are **service and billable item**, **when a unit is recorded**, **current effective rate**, **approved pending or scheduled rate**, **highest inspected public reference**, **formula and exclusions**, **selected Product service state**, and **status/effective date**. The current interim table has four columns—service, RTK price status, counting rule and public reference—and must retain its conspicuous “approved, not effective” and “research only” labels until A1 supplies effective rates. A “meter exists” badge is operational readiness, not billing status. Filters must not hide status or unit. On narrow screens, use horizontal table scrolling with a visible heading or clearly labelled stacked rows; keep every amount attached to its status and unit.
+
+## Fifteen service items and customer-facing counting copy
+
+All amounts in this table are **pre-tax**. “Highest” means the maximum eligible candidate in the explicitly inspected official-source set on 2026-09-26, not a worldwide maximum. The four approved OTA prices remain unchanged. The other 11 numbers are research values, even where an older environment already has an unrelated active MQTT price.
+
+| Item | Approved OTA price; highest inspected reference | What to tell the customer |
+| --- | --- | --- |
+| MQTT publish | —; NT$48 / million AWS 5 KB message units | Count each broker-accepted publish once. Payload transfer, connections and keep-alives add no separate MQTT charge. RTK counts raw messages; AWS rounds in 5 KB units. |
+| MQTT delivery | —; NT$48 / million AWS 5 KB message units | Count each subscriber delivery. A publish delivered to five subscribers is one publish plus five deliveries. AWS units differ from RTK raw deliveries. |
+| Device Shadow | —; NT$60 / million AWS 1 KB operation units | Proposed RTK unit is each successful state operation rounded by 1 KiB record/response size. MQTT transport, when used, follows MQTT rates. AWS 1 KB and RTK 1 KiB are not equivalent; RTK rate and meter need approval. |
+| WebRTC TURN relay | —; NT$4.80 / GiB transfer proxy | Count relay bytes sent to every viewer, if/when a qualified relay meter exists. Direct P2P media has no relay transfer charge; MQTT signaling follows MQTT rates. AWS TURN minutes are an additional, non-convertible provider cost, so this is not a complete TURN price. |
+| Clip/snapshot storage | —; NT$1.30 / GiB-month | Proposed meter is actual physical video bytes over storage time. OTA artifacts and logs are separate. The RTK meter still needs qualification. |
+| Clip/snapshot object write | —; NT$224 / million S3 PUT requests | Proposed meter counts successfully created video objects, not failed writes or OTA objects. Provider requests and RTK business writes are not identical. |
+| Clip/snapshot object read | —; NT$17.92 / million S3 GET requests | Proposed meter counts successful video GET/HEAD operations. OTA origin reads and CDN requests are not customer clip reads. The provider GET comparison excludes RTK HEAD semantics. |
+| Clip media download | —; NT$4.80 / GiB internet-transfer proxy | Proposed meter counts video bytes sent to the app, including bytes actually delivered on retries. OTA downloads use their own meter. Qualify the RTK delivery fact before billing. |
+| OTA first device assignment | **NT$96 / 1,000**; NT$144 / 1,000 AWS remote actions | Once per campaign/device on the first durable assignment. Notification, poll and retry do not add another assignment. AWS remote action is only a comparison. |
+| OTA verified download | **NT$0.96 / GiB**; NT$3.84 / GiB CDN egress proxy | Count artifact size once for the first authenticated `downloaded` report for the same deployment and exact artifact. URL issue, failed transfer, Range/retry and raw CDN bytes do not become customer download quantity. CDN logs reconcile provider cost and anomalies. |
+| OTA physical artifact storage | **NT$0.96 / GiB-month**; NT$1.30 / GiB-month | Actual firmware object bytes integrated across UTC storage time until physical deletion. Revoking or disabling an artifact does not erase stored bytes. |
+| OTA artifact write | **NT$144 / million**; NT$224 / million S3 PUT requests | One successful durable creation per immutable object key/version. Failed PUT and a retry without a new object do not add a write. OTA GET is not a separate customer read item. |
+| Device/application log ingest | —; NT$28.80 / GiB | Proposed meter is accepted, uncompressed log bytes including metadata. MQTT transport may separately count messages. Generic invoice integration remains unqualified. |
+| Log retention | —; NT$1.31 / GiB-month compressed-archive proxy | Existing proposal uses accepted bytes × configured retention days / 30; the provider benchmark uses compressed stored bytes. Explain the non-equivalence before any RTK rate approval. |
+| Other data APIs | —; NT$136 / million AWS REST requests | Proposed meter is successful classified data API calls. Exclude Shadow, OTA control, object operations, authentication and console administration. Route classification and meter are pending. |
+
+Included activities have no **separate** service fee in this model: Cloud/Product setup, team access, device enrollment, MQTT connections and keep-alives, SDK documentation, console administration and WebRTC signaling channel. An included activity can still generate an explicitly listed meter such as MQTT messages. Do not suggest that an unpriced service is permanently free.
+
+## Formula, examples and invoice/contract boundary
+
+Use one concise explanation next to the table: **measured quantity × applicable effective unit price ÷ displayed unit size = unrounded line amount**. Sum eligible usage by Product, service and meter for the invoice period, then round each invoice line to integer NT$ under the effective pricing contract; apply that version's tax policy afterward. A per-thousand or per-million denominator is a proportional display unit, not a minimum purchase block. GiB = 1,073,741,824 bytes; GiB-month is actual stored byte-time over the complete UTC month. State the UTC billing period and optionally give local-time equivalents. A usage estimate is not an issued invoice.
+
+Illustrative wording, only after A1 can verify the **effective** rate: “若當期有效價為 NT$96／1,000 次，同一 Product 在該 UTC 月有 1,500 次合格指派，未稅金額為 NT$144；稅額及總額依該版價卡與發票。” / “If the effective rate is NT$96 per 1,000 assignments and one Product has 1,500 eligible assignments in that UTC month, the pre-tax amount is NT$144. Tax and total follow that version and the invoice.” This example is hypothetical until the OTA rate is actually effective; it must not be presented as this Cloud's current charge. Do not restore the old mixed-reference NT$232 monthly example.
+
+Invoice and usage drilldowns must show Product, item, eligible quantity, unit and scale, actual applied rate, pre-tax line amount, tax and total, pricing version, UTC period and source reference. A sealed usage fact may exist before a rate is effective; that does not by itself make it billable. The four approved OTA values have no effective version or date today and must not be used to calculate a current spend forecast. An active non-OTA rate in staging or another environment does not authorize replacing that Cloud's invoice price with this research value.
+
+The managed-cloud usage table excludes one-time private-deployment licence fees and annual maintenance, which require a separate quote and contract. Evaluation terms require their own eligibility and duration explanation; do not imply that all accounts receive a free allowance. Show any contract-specific rate, tax, discount or allowance only from the applicable approved contract and effective price book. Where the Product is enabled but no applicable usage rate is verified, say “服務可用；目前尚無法確認適用用量費率，實際費用依合約與生效價卡” and link Billing/support, rather than showing NT$0.
+
+## Localization, accessibility and acceptance
+
+Maintain the complete customer copy in English, Traditional Chinese (`zh-TW`) and Simplified Chinese (`zh-CN`) through the existing localization workflow. Translate state, unit, comparison caveat, tax label, interval, error and example together. Preserve `GiB`, `KiB`, `UTC`, numeric values and version IDs; format dates and numbers for the chosen locale. The server must localize protected benchmark text after authorization rather than shipping translated amounts or full catalogs in public assets.
+
+| Concept | `en` | `zh-TW` | `zh-CN` |
+| --- | --- | --- | --- |
+| Effective rate | Effective customer rate | 當期有效價 | 当期有效价 |
+| Approved but inactive | Approved OTA price · not effective | OTA 核准價・尚未生效 | OTA 核准价・尚未生效 |
+| Research only | Research reference only · not an invoice rate | 研究參考價・非帳單依據 | 研究参考价・非账单依据 |
+| Rate unavailable | Unable to verify applicable rates | 目前無法確認適用費率 | 目前无法确认适用费率 |
+| Product disabled | This Product has not enabled OTA | 此產品尚未啟用 OTA 服務 | 此产品尚未启用 OTA 服务 |
+
+- Use semantic table headers (`scope="col"` and `scope="row"`), a useful caption with the filter result count, labelled group filters with `aria-pressed`, keyboard-operable tabs and links, and visible focus. Status must be words as well as color. Read each amount with its status, unit and comparison caveat in a screen reader. An external source link needs discernible text and the usual new-tab safety attributes.
+- Loading and failed requests use `role="status"`/`role="alert"`; clear old Cloud values immediately on navigation or ownership loss. A failed effective-rate call cannot silently fall back to reference amounts. A failed or malformed research call shows no research table. Changing locale, Product, Cloud, owner or UTC month must refresh the relevant scope without stale prices.
+- Acceptance covers all 15 rows and four approved OTA values; reference source links and comparison caveats; desktop, narrow screen and keyboard/reader paths; `en`/`zh-TW`/`zh-CN`; anonymous 401, non-owner 403, ownership-version change, missing permission, malformed catalog and BFF outage; and a scan of anonymous build assets for protected amounts. Future A1 tests additionally cover a real effective version, a future version, absent applicable plan, tax and contract exceptions, month turnover, Product disabled state and invoice drilldown against the actual applied version.
+
+The current interim page passes its own research-catalog checks. The additional A1 fields, Product state, current/upcoming rate display and invoice examples above remain implementation requirements, not claims about the present UI.
