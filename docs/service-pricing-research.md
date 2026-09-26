@@ -143,7 +143,7 @@ CDN cost and margin must be reviewed before activation.
    Their MQTT transport still has its message charge when used.
 5. Generic API charges exclude Shadow, WebRTC signaling, OTA dispatch and object
    operations. Console administration and authentication remain included.
-6. The old static NT$232 example combined research prices and must be removed
+6. The old static NT$232 example combined research prices and has been removed
    from customer UI. A later estimator may use only the Cloud's active Billing
    price version and should label hypothetical quantities separately from usage.
 7. OTA uses four customer meters: first device assignment, first verified
