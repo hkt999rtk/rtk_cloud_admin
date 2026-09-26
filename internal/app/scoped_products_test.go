@@ -48,18 +48,7 @@ func newScopedProductsFixture(t *testing.T) (*httptest.Server, *scopedProductsFi
 	clouds.mu.Unlock()
 	f := &scopedProductsFixture{products: map[string]accountclient.DeviceItemProfile{}, runs: map[string]accountclient.ProductionRun{}, allowed: true, clouds: clouds}
 	f.resetDevices()
-	for i := 0; i < 27; i++ {
-		id := fmt.Sprintf("33333333-3333-4333-8333-%012d", i)
-		if i == 0 {
-			id = productA
-		}
-		pkiStatus := ""
-		if i == 0 {
-			pkiStatus = "ready"
-		}
-		f.products[id] = accountclient.DeviceItemProfile{ID: id, BrandCloudID: cloudA, ProfileKey: fmt.Sprintf("camera-%02d", i), DisplayName: fmt.Sprintf("Camera %02d", i), Status: "active", PKIStatus: pkiStatus, Category: "ip_camera", Model: "R1", ServiceOptions: []string{"mqtt"}, CurrentUserRole: "product_owner"}
-	}
-	f.products[sharedProductID] = accountclient.DeviceItemProfile{ID: sharedProductID, BrandCloudID: cloudB, ProfileKey: "shared-product", DisplayName: "Shared sensor", Status: "active", Category: "mqtt_device", ServiceOptions: []string{"mqtt"}, CurrentUserRole: "product_owner", MetadataDefaults: map[string]any{"private_key": "never-project-this"}}
+	f.resetProducts()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/platform/service-options" {
 			if r.URL.Query().Get("brand_cloud_id") != cloudA {
@@ -219,6 +208,22 @@ func newScopedProductsFixture(t *testing.T) (*httptest.Server, *scopedProductsFi
 	}))
 	t.Cleanup(server.Close)
 	return server, f
+}
+
+func (f *scopedProductsFixture) resetProducts() {
+	f.products = map[string]accountclient.DeviceItemProfile{}
+	for i := 0; i < 27; i++ {
+		id := fmt.Sprintf("33333333-3333-4333-8333-%012d", i)
+		if i == 0 {
+			id = productA
+		}
+		pkiStatus := ""
+		if i == 0 {
+			pkiStatus = "ready"
+		}
+		f.products[id] = accountclient.DeviceItemProfile{ID: id, BrandCloudID: cloudA, ProfileKey: fmt.Sprintf("camera-%02d", i), DisplayName: fmt.Sprintf("Camera %02d", i), Status: "active", PKIStatus: pkiStatus, Category: "ip_camera", Model: "R1", ServiceOptions: []string{"mqtt"}, CurrentUserRole: "product_owner"}
+	}
+	f.products[sharedProductID] = accountclient.DeviceItemProfile{ID: sharedProductID, BrandCloudID: cloudB, ProfileKey: "shared-product", DisplayName: "Shared sensor", Status: "active", Category: "mqtt_device", ServiceOptions: []string{"mqtt"}, CurrentUserRole: "product_owner", MetadataDefaults: map[string]any{"private_key": "never-project-this"}}
 }
 
 func TestScopedProductCRUDUsesRequestedCloudAndCurrentAuthority(t *testing.T) {
@@ -418,9 +423,13 @@ func TestScopedProductBrowserFixture(t *testing.T) {
 			f.revoked = r.URL.Path == "/__fixture__/revoke"
 			f.badScope = r.URL.Path == "/__fixture__/invalid-products"
 			if r.URL.Path == "/__fixture__/reset" {
-				delete(f.products, createdProductID)
+				f.allowed = true
+				f.badDeviceScope = false
+				f.resetProducts()
 				clear(f.runs)
 				f.resetDevices()
+				clear(f.writes)
+				clear(f.keys)
 				f.clouds.mu.Lock()
 				clear(f.clouds.sharingInvites)
 				f.clouds.mu.Unlock()
