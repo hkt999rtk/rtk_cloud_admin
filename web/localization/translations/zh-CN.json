@@ -15655,6 +15655,18 @@
       "fingerprint": "7daf7c4010de78f318bb4abf3648694a1e6d2ec3d9b750229540666bcfcdae1a",
       "text": "此期间不是完整的 UTC 月份。OTA 费用须按完整 UTC 月份计算。",
       "status": "approved"
+    },
+    "For a future OTA-inclusive rate card: each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, tax is calculated once on the invoice subtotal under the approved invoice tax policy, and subtotal plus tax is the total due. The tax shown on each line is an allocation of that one invoice tax amount. Existing invoices keep their issued tax policy.": {
+      "sourceHash": "7fbbf7622e50eafb969c4eb363c9d8f68cff7be979be9d19e124ade22c8f821a",
+      "fingerprint": "5b70cd6a8842607da9b52ee9be520502585e75d7e94f24d7b2c8770d7a9d0cb3",
+      "text": "未来 OTA 费率生效后：每个产品、每项计量的用量乘以单价，取整为新台币税前明细小计。所有服务的税前明细加总后，按核准的账单税务设置对账单税前总额计税一次；税前总额加税额即为应付总额。明细所列税额只是该笔账单税额的分摊。已开立账单沿用开立时的计税规则。",
+      "status": "approved"
+    },
+    "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. Only qualifying measured usage is charged when an OTA rate card becomes effective; no separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.": {
+      "sourceHash": "a197fbe645d25f7b19c2478efc2b7e8f4dac07d1d5c9c2ef5c1f694dce0c5835",
+      "fingerprint": "704a3194a45b10e220dde1da0cd863721d6c00345bcaae492e5aea77439da5e2",
+      "text": "付费托管云产品必须选择 OTA，才能建立新的 OTA 工作。OTA 费率生效后，仅符合条件的实际用量会计费；无需另行选择 OTA 合同。关闭 OTA 前已授权的工作仍可完成并计费，已有固件对象会持续计收存储费，直到对象被实际删除。",
+      "status": "approved"
     }
   }
 }
