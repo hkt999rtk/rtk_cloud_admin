@@ -57,17 +57,34 @@ func (s *Server) createProductApplyJob(w http.ResponseWriter, r *http.Request, s
 		return
 	}
 	scope := map[string]any{"product_id": product, "upstream_job_id": upstream.ID, "target_revision": upstream.TargetRevision, "target_digest": upstream.TargetDigest, "preview_hash": previewHash}
-	grant, err := s.accountClient.CreateJobAuthorization(r.Context(), token, cloud, jobID, batchScopeHash(scope), capabilityProductServicesApply, []string{product}, time.Now().UTC().Add(6*24*time.Hour+23*time.Hour))
+	// Account Manager returns the original creation time on every idempotent
+	// admission. Use it so a lost authorization response can be retried with
+	// exactly the same grant request and expiry.
+	expiresAt := upstream.CreatedAt.UTC().Add(6*24*time.Hour + 23*time.Hour)
+	grant, err := s.accountClient.CreateJobAuthorization(r.Context(), token, cloud, jobID, batchScopeHash(scope), capabilityProductServicesApply, []string{product}, expiresAt)
 	if err != nil {
-		_ = s.accountClient.CancelServiceApplyJob(context.Background(), token, cloud, product, jobID)
+		var upstreamError *accountclient.HTTPError
+		if errors.As(err, &upstreamError) && upstreamError.StatusCode >= 400 && upstreamError.StatusCode < 500 {
+			_ = s.accountClient.CancelServiceApplyJob(context.Background(), token, cloud, product, jobID)
+		}
 		s.managedCloudError(w, session.ID, err)
 		return
 	}
 	job := contracts.BatchJob{ID: jobID, Type: "product_services_apply", Name: "Apply Product services", OrganizationID: cloud, CreatedBy: session.Email, Scope: scope, State: "queued", Total: upstream.TotalDevices, IdempotencyKey: key, AuthorizationID: grant.ID, AuthorizationStatus: "active"}
 	created, err := s.jobs.CreateBatchJob(job)
 	if err != nil {
-		_ = s.accountClient.RevokeJobAuthorization(context.Background(), s.cfg.AccountManagerJobAuthorizationToken, grant.ID)
-		_ = s.accountClient.CancelServiceApplyJob(context.Background(), token, cloud, product, jobID)
+		if existing, readErr := s.jobs.GetBatchJobByIdempotency(cloud, key); readErr == nil {
+			if existing.Type == "product_services_apply" && existing.ID == jobID && existing.Scope["product_id"] == product && existing.Scope["preview_hash"] == previewHash {
+				writeJSONStatus(w, http.StatusAccepted, map[string]any{"job": existing, "idempotent_replay": true})
+				return
+			}
+			_ = s.accountClient.RevokeJobAuthorization(context.Background(), s.cfg.AccountManagerJobAuthorizationToken, grant.ID)
+			_ = s.accountClient.CancelServiceApplyJob(context.Background(), token, cloud, product, jobID)
+			writeJSONStatus(w, http.StatusConflict, map[string]any{"code": "IDEMPOTENCY_KEY_REUSED"})
+			return
+		}
+		// A database error can be an ambiguous commit. Keep the upstream job and
+		// authorization so the same idempotency key can reconcile them on retry.
 		http.Error(w, "Product apply job could not be stored.", http.StatusServiceUnavailable)
 		return
 	}

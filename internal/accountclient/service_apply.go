@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 type ServiceApplyBlocker struct {
@@ -26,11 +27,12 @@ type ServiceApplyPreview struct {
 }
 
 type ServiceApplyJob struct {
-	ID             string `json:"id"`
-	TargetRevision int64  `json:"target_revision"`
-	TargetDigest   string `json:"target_digest"`
-	TotalDevices   int    `json:"total_devices"`
-	Status         string `json:"status"`
+	ID             string    `json:"id"`
+	TargetRevision int64     `json:"target_revision"`
+	TargetDigest   string    `json:"target_digest"`
+	TotalDevices   int       `json:"total_devices"`
+	Status         string    `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type ServiceApplyItem struct {
@@ -68,7 +70,7 @@ func (c *Client) CreateServiceApplyJob(ctx context.Context, token, cloud, produc
 		Job ServiceApplyJob `json:"job"`
 	}
 	err := c.doJSON(ctx, http.MethodPost, serviceApplyPath(cloud, product)+"-jobs", token, map[string]string{"job_id": jobID, "preview_token": previewToken}, &out)
-	if err == nil && (out.Job.ID != jobID || out.Job.TargetRevision < 1 || out.Job.TotalDevices < 0) {
+	if err == nil && (out.Job.ID != jobID || out.Job.TargetRevision < 1 || out.Job.TotalDevices < 0 || out.Job.CreatedAt.IsZero()) {
 		err = fmt.Errorf("incomplete Product service apply job")
 	}
 	return out.Job, err

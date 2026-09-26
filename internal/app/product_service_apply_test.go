@@ -12,8 +12,71 @@ import (
 	"time"
 
 	"rtk_cloud_admin/internal/accountclient"
+	"rtk_cloud_admin/internal/config"
 	"rtk_cloud_admin/internal/contracts"
+	"rtk_cloud_admin/internal/store"
 )
+
+func TestProductApplyAdmissionRecoversLostAuthorizationResponse(t *testing.T) {
+	createdAt := time.Date(2026, 9, 26, 12, 0, 0, 123456000, time.UTC)
+	jobID := productApplyJobID("cloud-1", "product-1", "request-1")
+	var firstExpiry string
+	var authorizationCalls, cancels int
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/service-apply-jobs"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"job": map[string]any{
+				"id": jobID, "target_revision": 2, "target_digest": "digest-2", "total_devices": 1,
+				"status": "active", "created_at": createdAt,
+			}})
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/job-authorizations"):
+			var input struct {
+				ExpiresAt string `json:"expires_at"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+				t.Error(err)
+			}
+			authorizationCalls++
+			if authorizationCalls == 1 {
+				firstExpiry = input.ExpiresAt
+				w.WriteHeader(http.StatusServiceUnavailable) // Persisted upstream; response was lost.
+				return
+			}
+			if input.ExpiresAt != firstExpiry {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
+			_, _ = w.Write([]byte(`{"id":"authorization-1"}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/cancel"):
+			cancels++
+			_, _ = w.Write([]byte(`{"job":{"status":"canceled"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+	st := mustOpenStore(t)
+	srv := NewWithOptions(st, Options{Config: config.Config{AccountManagerJobAuthorizationToken: "service-token"}, AccountClient: accountclient.New(upstream.URL)})
+	session := store.Session{ID: "session-1", Email: "creator@example.test"}
+	request := httptest.NewRequest(http.MethodPost, "/service-apply-jobs", nil)
+	first := httptest.NewRecorder()
+	srv.createProductApplyJob(first, request, session, "cloud-1", "product-1", "user-token", "preview-1", "request-1")
+	if first.Code == http.StatusAccepted || cancels != 0 {
+		t.Fatalf("ambiguous authorization response canceled upstream job: status=%d cancels=%d", first.Code, cancels)
+	}
+	second := httptest.NewRecorder()
+	srv.createProductApplyJob(second, request, session, "cloud-1", "product-1", "user-token", "preview-1", "request-1")
+	if second.Code != http.StatusAccepted || authorizationCalls != 2 || cancels != 0 {
+		t.Fatalf("same-key recovery failed: status=%d auth_calls=%d cancels=%d body=%s", second.Code, authorizationCalls, cancels, second.Body.String())
+	}
+	if firstExpiry != createdAt.Add(6*24*time.Hour+23*time.Hour).Format(time.RFC3339Nano) {
+		t.Fatalf("authorization expiry is not based on immutable admission: %s", firstExpiry)
+	}
+	if _, err := st.GetBatchJobByIdempotency("cloud-1", "request-1"); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestProductServiceApplyWaitsForAppliedRevision(t *testing.T) {
 	accepted, applied, dispatches, completions := false, false, 0, 0
