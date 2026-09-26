@@ -194,6 +194,7 @@ func (s *Server) apiManagedProductServiceApply(w http.ResponseWriter, r *http.Re
 			PreviewToken string `json:"preview_token"`
 		}
 		if decodeStrictManagedJSON(w, r, &input) != nil {
+			http.Error(w, "Invalid Product apply request.", http.StatusBadRequest)
 			return
 		}
 		s.createProductApplyJob(w, r.WithContext(ctx), session, cloud, product, session.AccessToken, input.PreviewToken, key)
