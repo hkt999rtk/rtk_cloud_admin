@@ -814,7 +814,7 @@ func scanProvisioningSource(row rowScannerSQL) (contracts.ProvisioningSource, er
 	return source, nil
 }
 
-const batchJobColumns = `id,organization_id,type,name,created_by,scope_json,state,total,completed,failed,skipped,created_at,updated_at,result_json,idempotency_key,authorization_id,authorization_status,state_version,checkpoint_json,failure_code,lease_owner,lease_until,CASE WHEN type IN ('provisioning_validation','device_provision') THEN EXISTS(SELECT 1 FROM batch_job_items bi WHERE bi.job_id=batch_jobs.id AND bi.state='failed' AND bi.retryable=1) ELSE state IN ('failed','partial_failed') END`
+const batchJobColumns = `id,organization_id,type,name,created_by,scope_json,state,total,completed,failed,skipped,created_at,updated_at,result_json,idempotency_key,authorization_id,authorization_status,state_version,checkpoint_json,failure_code,lease_owner,lease_until,CASE WHEN type IN ('provisioning_validation','device_provision','product_services_apply') THEN EXISTS(SELECT 1 FROM batch_job_items bi WHERE bi.job_id=batch_jobs.id AND bi.state='failed' AND bi.retryable=1) ELSE state IN ('failed','partial_failed') END`
 
 func (s *Store) GetBatchJobByIdempotency(organizationID, key string) (contracts.BatchJob, error) {
 	return scanBatchJob(s.db.QueryRow(`SELECT `+batchJobColumns+` FROM batch_jobs WHERE organization_id = ? AND idempotency_key = ?`, organizationID, key))
@@ -823,6 +823,26 @@ func (s *Store) GetBatchJobByIdempotency(organizationID, key string) (contracts.
 func (s *Store) ListBatchJobs(organizationID string, limit int) ([]contracts.BatchJob, error) {
 	page, err := s.ListBatchJobsPage(organizationID, contracts.BatchJobQuery{Limit: limit})
 	return page.Jobs, err
+}
+
+func (s *Store) ListProductApplyJobs(organizationID, productID string, limit int) ([]contracts.BatchJob, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 25
+	}
+	rows, err := s.db.Query(`SELECT `+batchJobColumns+` FROM batch_jobs WHERE organization_id=? AND type='product_services_apply' AND json_extract(scope_json,'$.product_id')=? ORDER BY created_at DESC,id DESC LIMIT ?`, organizationID, productID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	jobs := []contracts.BatchJob{}
+	for rows.Next() {
+		job, err := scanBatchJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
 }
 
 func (s *Store) ListBatchJobsPage(organizationID string, query contracts.BatchJobQuery) (contracts.BatchJobPage, error) {
@@ -839,6 +859,13 @@ func (s *Store) ListBatchJobsPage(organizationID string, query contracts.BatchJo
 			where = append(where, filter.column+" = ?")
 			args = append(args, strings.TrimSpace(filter.value))
 		}
+	}
+	if query.ExcludeProductApply {
+		where = append(where, "type <> 'product_services_apply'")
+	}
+	if query.ProductID != "" {
+		where = append(where, "type = 'product_services_apply'", "json_extract(scope_json,'$.product_id') = ?")
+		args = append(args, query.ProductID)
 	}
 	if query.From != "" {
 		where = append(where, "created_at >= ?")
@@ -1008,9 +1035,9 @@ func (s *Store) ActBatchJob(organizationID, id, action, key string) (contracts.B
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return contracts.BatchJob{}, receipt, false, err
 	}
-	var state string
+	var state, jobType string
 	var version int64
-	if err = tx.QueryRow(`SELECT state,state_version FROM batch_jobs WHERE organization_id=? AND id=?`, organizationID, id).Scan(&state, &version); err != nil {
+	if err = tx.QueryRow(`SELECT state,state_version,type FROM batch_jobs WHERE organization_id=? AND id=?`, organizationID, id).Scan(&state, &version, &jobType); err != nil {
 		return contracts.BatchJob{}, receipt, false, err
 	}
 	target := ""
@@ -1031,12 +1058,22 @@ func (s *Store) ActBatchJob(organizationID, id, action, key string) (contracts.B
 		} else if state == "running" || state == "pausing" {
 			target = "cancelling"
 		}
+	case "retry":
+		if jobType == "product_services_apply" && (state == "failed" || state == "partial_failed") {
+			var retryable int
+			if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM batch_job_items WHERE job_id=? AND state='failed' AND retryable=1)`, id).Scan(&retryable); err != nil {
+				return contracts.BatchJob{}, receipt, false, err
+			}
+			if retryable == 1 {
+				target = "queued"
+			}
+		}
 	}
 	if target == "" {
 		return contracts.BatchJob{}, receipt, false, fmt.Errorf("invalid transition")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	result, err := tx.Exec(`UPDATE batch_jobs SET state=?,state_version=state_version+1,updated_at=?,cancelled_at=CASE WHEN ?='cancelled' THEN ? ELSE cancelled_at END WHERE organization_id=? AND id=? AND state_version=?`, target, now, target, now, organizationID, id, version)
+	result, err := tx.Exec(`UPDATE batch_jobs SET state=?,state_version=state_version+1,updated_at=?,cancelled_at=CASE WHEN ?='cancelled' THEN ? ELSE cancelled_at END,completed=CASE WHEN ?='retry' THEN 0 ELSE completed END,failed=CASE WHEN ?='retry' THEN 0 ELSE failed END,skipped=CASE WHEN ?='retry' THEN 0 ELSE skipped END,checkpoint_json=CASE WHEN ?='retry' THEN '{"next_position":0}' ELSE checkpoint_json END WHERE organization_id=? AND id=? AND state_version=?`, target, now, target, now, action, action, action, action, organizationID, id, version)
 	if err != nil {
 		return contracts.BatchJob{}, receipt, false, err
 	}
@@ -1153,6 +1190,26 @@ func (s *Store) ListPendingBatchJobRevocations(limit int) ([]contracts.BatchJob,
 		job, scanErr := scanBatchJob(rows)
 		if scanErr != nil {
 			return nil, scanErr
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
+}
+
+func (s *Store) ListPendingProductApplyCancels(limit int) ([]contracts.BatchJob, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 25
+	}
+	rows, err := s.db.Query(`SELECT `+batchJobColumns+` FROM batch_jobs WHERE type='product_services_apply' AND (state IN ('cancelled','failed') OR (state='partial_failed' AND NOT EXISTS(SELECT 1 FROM batch_job_items i WHERE i.job_id=batch_jobs.id AND i.state='failed' AND i.retryable=1))) AND authorization_status='active' AND authorization_id<>'' ORDER BY updated_at,id LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	jobs := []contracts.BatchJob{}
+	for rows.Next() {
+		job, err := scanBatchJob(rows)
+		if err != nil {
+			return nil, err
 		}
 		jobs = append(jobs, job)
 	}

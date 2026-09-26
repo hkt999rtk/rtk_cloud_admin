@@ -315,6 +315,8 @@ type DeviceItemProfile struct {
 	MetadataSchema     map[string]any `json:"metadata_schema"`
 	ServiceOptions     []string       `json:"service_options"`
 	LogRetentionDays   *int           `json:"log_retention_days,omitempty"`
+	GrantRevision      int64          `json:"grant_revision,omitempty"`
+	GrantDigest        string         `json:"grant_digest,omitempty"`
 	ClaimPolicy        map[string]any `json:"claim_policy"`
 	ProvisioningPolicy map[string]any `json:"provisioning_policy"`
 	CreatedAt          string         `json:"created_at"`

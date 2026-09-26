@@ -27,6 +27,8 @@ type scopedProduct struct {
 	Category         string   `json:"category"`
 	Services         []string `json:"service_options"`
 	LogRetentionDays *int     `json:"log_retention_days,omitempty"`
+	GrantRevision    int64    `json:"grant_revision,omitempty"`
+	GrantDigest      string   `json:"grant_digest,omitempty"`
 	Role             string   `json:"my_role"`
 	Actions          []string `json:"allowed_actions"`
 }
@@ -48,7 +50,7 @@ func scopedProductProjection(p accountclient.DeviceItemProfile, cloud accountcli
 	if cloud.MyRole == "viewer" {
 		role = "product_viewer"
 	}
-	return scopedProduct{p.PKIStatus, p.PKIOperationID, p.PKIIssuerID, p.ID, p.BrandCloudID, p.DisplayName, p.ProfileKey, p.Status, p.Model, p.Category, services, p.LogRetentionDays, role, actions}
+	return scopedProduct{PKIStatus: p.PKIStatus, PKIOperationID: p.PKIOperationID, PKIIssuerID: p.PKIIssuerID, ID: p.ID, CloudID: p.BrandCloudID, Name: p.DisplayName, Key: p.ProfileKey, Status: p.Status, Model: p.Model, Category: p.Category, Services: services, LogRetentionDays: p.LogRetentionDays, GrantRevision: p.GrantRevision, GrantDigest: p.GrantDigest, Role: role, Actions: actions}
 }
 
 func scopedProductQuery(in url.Values, list bool) (url.Values, error) {

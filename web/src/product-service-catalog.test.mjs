@@ -48,3 +48,14 @@ test('Logger retention is sent only when the registered option is selected', () 
   assert.equal(productServiceWritePayload({ ...form, service_capabilities: ['mqtt'] }, null, withLogger).log_retention_days, undefined);
   assert.equal(productServiceWritePayload({ ...form, log_retention_days: undefined }, null, withLogger).log_retention_days, 7);
 });
+
+test('changing only Logger retention creates a new grant revision while metadata edit leaves it pinned', () => {
+  const form = { name: 'Camera', product_model: 'R1', category: 'ip_camera', service_capabilities: ['mqtt','device_logging'], original_services: ['mqtt','device_logging'], log_retention_days: 90, original_log_retention_days: 7 };
+  const changed = productServiceWritePayload(form, {id:'p1'}, catalog);
+  assert.deepEqual(changed.service_capabilities, ['mqtt','device_logging']);
+  assert.equal(changed.catalog_revision, catalog.catalog_revision);
+  assert.equal(changed.log_retention_days, 90);
+  const metadataOnly = productServiceWritePayload({...form,log_retention_days:7}, {id:'p1'}, catalog);
+  assert.equal(metadataOnly.service_capabilities, undefined);
+  assert.equal(metadataOnly.log_retention_days, undefined);
+});

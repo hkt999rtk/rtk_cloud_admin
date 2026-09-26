@@ -19,6 +19,31 @@ export function productURL(cloudId,productId) {
   if (!uuid.test(productId)) throw new Error('Invalid Product ID');
   return cloudURL(cloudId)+'/products/'+productId;
 }
+export function productServiceApplyAPI(cloudId,productId,jobId='') {
+  if(!uuid.test(productId) || (jobId && !/^job-[0-9a-f]{24}$/.test(jobId))) throw new Error('Invalid Product apply scope');
+  return productAPI(cloudId,productId)+'/service-apply-jobs'+(jobId?'/'+jobId:'');
+}
+export async function fetchProductServiceApplyPreview(cloudId,productId,{signal}={}) {
+  const result=await managedCloudRequest(productAPI(cloudId,productId)+'/service-apply-preview',{signal});
+  if(!result||typeof result.preview_token!=='string'||!Number.isSafeInteger(result.target_revision)||result.target_revision<1||!Number.isSafeInteger(result.total_devices)||result.total_devices<0||!Array.isArray(result.blockers)) throw {status:502};
+  return result;
+}
+export async function fetchProductServiceApplyJobs(cloudId,productId,{signal}={}) {
+  const result=await managedCloudRequest(productServiceApplyAPI(cloudId,productId),{signal});
+  if(!Array.isArray(result?.jobs)) throw {status:502};
+  return result.jobs;
+}
+export async function fetchProductServiceApplyJob(cloudId,productId,jobId,{signal}={}) {
+  const result=await managedCloudRequest(productServiceApplyAPI(cloudId,productId,jobId),{signal});
+  if(result?.job?.id!==jobId||result.job?.type!=='product_services_apply') throw {status:502};
+  return result.job;
+}
+export async function fetchProductServiceApplyItems(cloudId,productId,jobId,{offset=0,signal}={}) {
+  const query=new URLSearchParams({limit:'25',offset:String(offset)});
+  const result=await managedCloudRequest(productServiceApplyAPI(cloudId,productId,jobId)+'/items?'+query,{signal});
+  if(!Array.isArray(result?.items)||result.pagination?.offset!==offset||!Number.isSafeInteger(result.pagination?.total)) throw {status:502};
+  return result;
+}
 export function productInvitationDestination(result) {
   const cloud=result?.invitation?.brand_cloud_id, product=result?.invitation?.product_id;
   if(!uuid.test(cloud||'')) return '/console/clouds';

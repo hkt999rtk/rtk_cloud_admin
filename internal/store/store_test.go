@@ -236,6 +236,34 @@ func TestBatchJobsPersistByOrganizationAndCanRetry(t *testing.T) {
 	}
 }
 
+func TestProductApplyJobListRequiresProductScope(t *testing.T) {
+	st, err := Open(t.TempDir() + "/scoped-jobs.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, job := range []contracts.BatchJob{
+		{OrganizationID: "cloud-a", Type: "device_provision", Scope: map[string]any{"product_id": "product-a"}},
+		{OrganizationID: "cloud-a", Type: "product_services_apply", Scope: map[string]any{"product_id": "product-a"}},
+		{OrganizationID: "cloud-a", Type: "product_services_apply", Scope: map[string]any{"product_id": "product-b"}},
+	} {
+		if _, err := st.CreateBatchJob(job); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fleet, err := st.ListBatchJobsPage("cloud-a", contracts.BatchJobQuery{ExcludeProductApply: true})
+	if err != nil || fleet.Total != 1 || fleet.Jobs[0].Type != "device_provision" {
+		t.Fatalf("fleet list exposed Product apply jobs: %+v %v", fleet, err)
+	}
+	product, err := st.ListBatchJobsPage("cloud-a", contracts.BatchJobQuery{Type: "product_services_apply", ProductID: "product-a"})
+	if err != nil || product.Total != 1 || product.Jobs[0].Scope["product_id"] != "product-a" {
+		t.Fatalf("Product list crossed scope: %+v %v", product, err)
+	}
+}
+
 func TestDurableBatchJobCASLeaseCheckpointAndItems(t *testing.T) {
 	st, err := Open(t.TempDir() + "/durable-jobs.db")
 	if err != nil {

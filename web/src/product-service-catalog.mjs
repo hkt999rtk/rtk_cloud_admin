@@ -24,7 +24,7 @@ export function productServiceCapabilityLabel(value, catalog) {
 
 export function productServiceAvailability(option) {
   if (option.selectable) return 'Available';
-  return ({ service_suspended: 'Service suspended', service_unavailable: 'Service not ready', dependency_unavailable: 'Required service unavailable', product_writes_disabled: 'Product feature selection is disabled', not_registered: 'No longer registered' })[option.unavailable_reason] || option.unavailable_reason || 'Unavailable';
+  return ({ service_suspended: 'Service suspended', service_unavailable: 'Service not ready', dependency_unavailable: 'Required service unavailable', product_writes_disabled: 'Product feature selection is disabled', not_registered: 'No longer registered', lease_expired: 'Service registration expired', service_unpublished: 'Service not published', service_disabled: 'Service disabled' })[option.unavailable_reason] || option.unavailable_reason || 'Unavailable';
 }
 
 export function productServiceChoices(catalog, selected = []) {
@@ -41,13 +41,14 @@ export function productServiceWritePayload(form, editingProduct, catalog) {
   const payload = { name: form.name, product_model: form.product_model, category: form.category };
   const selected = [...new Set(form.service_capabilities.map(normalizeProductServiceCapability))];
   const original = (form.original_services || []).map(normalizeProductServiceCapability);
-  const changed = !editingProduct || selected.length !== original.length
+  const retentionChanged = selected.includes('device_logging') && (!editingProduct || Number(form.log_retention_days || 7) !== Number(form.original_log_retention_days || 7));
+  const changed = !editingProduct || retentionChanged || selected.length !== original.length
     || selected.some((code) => !original.includes(code));
   if (changed) {
     payload.service_capabilities = selected;
     if (catalog?.product_writes_enabled) payload.catalog_revision = catalog.catalog_revision;
   }
-  if (selected.includes('device_logging')) {
+  if (retentionChanged) {
     payload.log_retention_days = Number(form.log_retention_days || 7);
   }
   return payload;
