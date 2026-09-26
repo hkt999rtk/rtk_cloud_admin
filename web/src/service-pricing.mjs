@@ -64,3 +64,35 @@ export async function fetchServicePricing(cloudId, ownershipVersion, locale, { s
   if (response.headers.get('X-Cloud-Ownership-Version') !== String(ownershipVersion)) throw Object.assign(new Error('Cloud ownership changed'), { status: 409 });
   return mergeServicePricingCatalog(await response.json(), cloudId, locale);
 }
+
+export function validateEffectivePricing(payload, cloudId) {
+  const book = payload?.price_book;
+  if (payload?.cloud_id !== cloudId || book?.currency !== 'TWD' ||
+      !Number.isFinite(Date.parse(book.as_of)) ||
+      !['not_priced', 'provisional', 'held_for_review'].includes(book.ota_eligibility)) throw invalidCatalog();
+  for (const version of [book.current, book.upcoming]) {
+    if (version === null) continue;
+    if (!version || !version.id || version.currency !== 'TWD' || !Number.isFinite(Date.parse(version.effective_from)) ||
+        !Array.isArray(version.rates) || version.rates.length === 0) throw invalidCatalog();
+    const identities = new Set();
+    for (const rate of version.rates) {
+      const key = `${rate.service_code}\0${rate.metric_code}\0${rate.unit}`;
+      if (!rate.service_code || !rate.metric_code || !rate.unit || !rate.description || identities.has(key) ||
+          !Number.isSafeInteger(rate.unit_price_minor) || rate.unit_price_minor < 0 ||
+          !Number.isInteger(rate.unit_price_scale) || rate.unit_price_scale < 0 || rate.unit_price_scale > 9 ||
+          !['half_up', 'down', 'up'].includes(rate.rounding_mode)) throw invalidCatalog();
+      identities.add(key);
+    }
+    if (version.tax_mode === 'invoice_total' &&
+        (!Number.isInteger(version.invoice_tax_rate_basis_points) || version.invoice_tax_rate_basis_points < 0 ||
+         version.invoice_tax_rate_basis_points > 10000 || !['half_up', 'down', 'up'].includes(version.invoice_tax_rounding_mode))) throw invalidCatalog();
+  }
+  return book;
+}
+
+export async function fetchEffectivePricing(cloudId, ownershipVersion, { signal, fetcher = fetch } = {}) {
+  const response = await fetcher(billingAPI(cloudId, '/api/billing/pricing-effective'), { signal, cache: 'no-store' });
+  if (!response.ok) throw Object.assign(new Error('Effective pricing unavailable'), { status: response.status });
+  if (response.headers.get('X-Cloud-Ownership-Version') !== String(ownershipVersion)) throw Object.assign(new Error('Cloud ownership changed'), { status: 409 });
+  return validateEffectivePricing(await response.json(), cloudId);
+}

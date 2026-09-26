@@ -58,27 +58,29 @@ test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and 
     await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText('Billing Cloud 1');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
     if (label === 'Service Pricing') {
+      await expect(page.getByTestId('pricing-effective-table').locator('tbody tr')).toHaveCount(1);
+      await expect(page.getByTestId('pricing-effective-table')).toContainText('MQTT publishes');
       await expect(page.locator('.pricing-status-summary')).toContainText('OTA prices approved');
       await expect(page.locator('.pricing-status-summary')).toContainText('Services with reference prices only');
       await expect(page.locator('.pricing-status-summary')).toContainText('highest eligible public reference among the official sources inspected');
-      await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
+      await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(15);
       await expect(page.locator('.pricing-table tbody tr[data-price-status="approved-pending"]')).toHaveCount(4);
       await expect(page.locator('.pricing-table tbody tr[data-price-status="research"]')).toHaveCount(11);
-      const otaTask = page.locator('.pricing-table tbody tr').filter({ has: page.getByRole('rowheader', { name: /Firmware OTA tasks/ }) });
+      const otaTask = page.getByTestId('pricing-reference-table').locator('tbody tr').filter({ has: page.getByRole('rowheader', { name: /Firmware OTA tasks/ }) });
       await expect(otaTask.locator('.pricing-rate')).toContainText('NT$96');
       await expect(otaTask.locator('.pricing-reference')).toContainText('NT$144');
-      const shadow = page.locator('.pricing-table tbody tr').filter({ has: page.getByRole('rowheader', { name: /IoT Shadow/ }) });
+      const shadow = page.getByTestId('pricing-reference-table').locator('tbody tr').filter({ has: page.getByRole('rowheader', { name: /IoT Shadow/ }) });
       await expect(shadow.locator('.pricing-rate')).not.toContainText('NT$60');
       await expect(shadow.locator('.pricing-reference')).toContainText('1 million AWS 1 KB operation units');
-      await expect(page.getByTestId('billing-pricing-page')).toContainText('not an invoice or spend forecast');
+      await expect(page.getByTestId('billing-pricing-page')).toContainText('Current effective rate card');
       await expect(page.getByTestId('billing-pricing-page')).not.toContainText('NT$232');
       const summary = await page.locator('.pricing-status-summary').boundingBox();
       const rates = await page.locator('.pricing-intro').boundingBox();
       expect(summary.y + summary.height).toBeLessThanOrEqual(rates.y);
       await page.getByRole('button', { name: 'IoT and messaging 3', exact: true }).click();
-      await expect(page.locator('.pricing-table tbody tr')).toHaveCount(3);
+      await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(3);
       await page.reload();
-      await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
+      await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(15);
     }
     await testInfo.attach(label, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
   }
