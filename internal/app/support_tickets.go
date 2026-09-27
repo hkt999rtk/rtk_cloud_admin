@@ -376,12 +376,21 @@ func (s *Server) supportDetailPayload(ctx context.Context, ticket zammadclient.T
 			attachments = append(attachments, map[string]any{"id": file.ID, "filename": file.Filename, "size": file.Size, "url": fmt.Sprintf("%s/%d/articles/%d/attachments/%d", base, ticket.ID, article.ID, file.ID)})
 		}
 		actorID := ""
+		author := article.From
+		if article.Sender == "Agent" {
+			if id, ok := article.Preferences["rtk_actor_id"].(string); ok {
+				actorID = id
+			}
+			if name, ok := article.Preferences["rtk_actor_name"].(string); ok && name != "" {
+				author = name
+			}
+		}
 		if article.OriginByID > 0 {
 			if user, lookupErr := s.zammadClient.User(ctx, article.OriginByID); lookupErr == nil && strings.HasPrefix(user.Login, "rtk-") {
 				actorID = strings.TrimPrefix(user.Login, "rtk-")
 			}
 		}
-		public = append(public, map[string]any{"id": article.ID, "author": article.From, "rtk_actor_id": actorID,
+		public = append(public, map[string]any{"id": article.ID, "author": author, "rtk_actor_id": actorID,
 			"visibility": map[bool]string{true: "internal", false: "public"}[article.Internal], "created_at": article.CreatedAt,
 			"body": supportPlainText(article.Body), "attachments": attachments, "sender": article.Sender})
 	}
@@ -510,7 +519,14 @@ func supportArticlePayload(in supportInput, actor supportActor, userID, ticketID
 		articleType = "note"
 	}
 	article := map[string]any{"body": in.Body, "content_type": "text/plain", "type": articleType, "sender": sender,
-		"internal": in.Visibility == "internal", "from": actor.Name, "origin_by_id": userID, "attachments": in.Files}
+		"internal": in.Visibility == "internal", "from": actor.Name, "attachments": in.Files}
+	if agent {
+		// Zammad changes sender to Customer when origin_by_id is set, even if the
+		// origin user is an Agent. Preserve the RTK author separately.
+		article["preferences"] = map[string]any{"rtk_actor_id": actor.ID, "rtk_actor_name": actor.Name}
+	} else {
+		article["origin_by_id"] = userID
+	}
 	if ticketID > 0 {
 		article["ticket_id"] = ticketID
 	}

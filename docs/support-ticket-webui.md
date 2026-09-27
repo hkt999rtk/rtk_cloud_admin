@@ -54,7 +54,12 @@ routes; existing login and `next` handling support customer and Platform
 ticket deep links after server authorization.
 The BFF writes public messages as Zammad `web` communication articles and
 staff-only notes as `note` articles. Customer unread and displayed update time
-follow Zammad's last public contact, so an internal note does not create a
+follow Zammad's last public contact. Agent `web` replies advance that contact;
+Agent articles omit `origin_by_id` because Zammad would change their sender to
+Customer. The BFF stores the approved RTK Agent ID and name in article
+`preferences` for attribution. The dedicated Zammad instance sets
+`ticket_last_contact_behaviour=based_on_customer_reaction` so consecutive
+Customer replies also advance public contact. An internal note does not create a
 customer notification or reveal its timestamp. Agent unread follows ticket
 updates, including assignment and internal activity.
 
