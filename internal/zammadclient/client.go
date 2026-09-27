@@ -24,7 +24,7 @@ type Ticket struct {
 	ID            int64  `json:"id"`
 	Number        string `json:"number"`
 	Title         string `json:"title"`
-	CloudID       string `json:"rtk_cloud_id"`
+	CloudID       string `json:"rtk_cloud_uuid"`
 	Category      string `json:"rtk_category"`
 	GroupID       int64  `json:"group_id"`
 	OwnerID       int64  `json:"owner_id"`

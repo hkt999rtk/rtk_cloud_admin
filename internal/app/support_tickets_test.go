@@ -38,11 +38,11 @@ func TestSupportTicketsKeepCloudAndArticleBoundaries(t *testing.T) {
 		}
 		switch r.URL.Path {
 		case "/api/v1/tickets/search":
-			_ = json.NewEncoder(w).Encode([]any{map[string]any{"id": 1, "number": "1001", "title": "Cloud One case", "group_id": 7, "owner_id": 1, "owner": "-", "rtk_cloud_id": cloudOne, "state": "open", "updated_at": "2026-09-27T11:00:00Z"}, map[string]any{"id": 2, "number": "1002", "title": "Cloud Two case", "group_id": 7, "rtk_cloud_id": cloudTwo}})
+			_ = json.NewEncoder(w).Encode([]any{map[string]any{"id": 1, "number": "1001", "title": "Cloud One case", "group_id": 7, "owner_id": 1, "owner": "-", "rtk_cloud_uuid": cloudOne, "state": "open", "updated_at": "2026-09-27T11:00:00Z"}, map[string]any{"id": 2, "number": "1002", "title": "Cloud Two case", "group_id": 7, "rtk_cloud_uuid": cloudTwo}})
 		case "/api/v1/tickets/1":
-			_ = json.NewEncoder(w).Encode(map[string]any{"id": 1, "number": "1001", "title": "Cloud One case", "group_id": 7, "rtk_cloud_id": cloudOne, "state": "open", "updated_at": "2026-09-27T11:00:00Z"})
+			_ = json.NewEncoder(w).Encode(map[string]any{"id": 1, "number": "1001", "title": "Cloud One case", "group_id": 7, "rtk_cloud_uuid": cloudOne, "state": "open", "updated_at": "2026-09-27T11:00:00Z"})
 		case "/api/v1/tickets/2":
-			_ = json.NewEncoder(w).Encode(map[string]any{"id": 2, "number": "1002", "title": "Cloud Two case", "group_id": 7, "rtk_cloud_id": cloudTwo})
+			_ = json.NewEncoder(w).Encode(map[string]any{"id": 2, "number": "1002", "title": "Cloud Two case", "group_id": 7, "rtk_cloud_uuid": cloudTwo})
 		case "/api/v1/ticket_articles/by_ticket/1":
 			_ = json.NewEncoder(w).Encode([]any{map[string]any{"id": 10, "ticket_id": 1, "body": "hello", "internal": false, "sender": "Customer", "attachments": []any{}}, map[string]any{"id": 11, "ticket_id": 1, "body": "staff secret", "internal": true, "sender": "Agent", "attachments": []any{map[string]any{"id": 22, "filename": "secret.txt"}}}})
 		default:
