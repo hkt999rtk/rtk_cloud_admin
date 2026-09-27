@@ -2613,7 +2613,12 @@ export const en = Object.freeze({ translation: Object.freeze({
   "Allocated tax": "Allocated tax",
   "Line total": "Line total",
   "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.": "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.",
-  "Unit price before tax": "Unit price before tax"
+  "Unit price before tax": "Unit price before tax",
+  "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.": "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.",
+  "No Products are available in this Cloud.": "No Products are available in this Cloud.",
+  "OTA is currently enabled for this Product.": "OTA is currently enabled for this Product.",
+  "Product OTA service status": "Product OTA service status",
+  "Product service status is temporarily unavailable. Billing prices remain available.": "Product service status is temporarily unavailable. Billing prices remain available."
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -5230,7 +5235,12 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "Allocated tax": "分攤稅額",
   "Line total": "明細總額",
   "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.": "所有服務的未稅小計合併後，整張帳單只計算一次 5% 台灣營業稅並取整。OTA 不另行加稅，也不免稅。各明細稅額是這筆帳單稅額的分攤。",
-  "Unit price before tax": "未稅單價"
+  "Unit price before tax": "未稅單價",
+  "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.": "選擇產品，查看目前是否選用 OTA。關閉 OTA 前已授權的工作，仍依其歷史授權計費；此處的目前狀態不決定那些費用。",
+  "No Products are available in this Cloud.": "此雲端目前沒有可查看的產品。",
+  "OTA is currently enabled for this Product.": "此產品目前已啟用 OTA 服務。",
+  "Product OTA service status": "產品 OTA 服務狀態",
+  "Product service status is temporarily unavailable. Billing prices remain available.": "暫時無法取得產品服務狀態，計費價格仍可查看。"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -7847,7 +7857,12 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "Allocated tax": "分摊税额",
   "Line total": "明细总额",
   "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.": "所有服务的未税小计合并后，整张账单只计算一次 5% 台湾营业税并取整。OTA 不另行加税，也不免税。各明细税额是这笔账单税额的分摊。",
-  "Unit price before tax": "税前单价"
+  "Unit price before tax": "税前单价",
+  "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.": "选择产品，查看目前是否选用 OTA。关闭 OTA 前已授权的工作，仍按其历史授权计费；此处的当前状态不决定那些费用。",
+  "No Products are available in this Cloud.": "此云端目前没有可查看的产品。",
+  "OTA is currently enabled for this Product.": "此产品目前已启用 OTA 服务。",
+  "Product OTA service status": "产品 OTA 服务状态",
+  "Product service status is temporarily unavailable. Billing prices remain available.": "暂时无法取得产品服务状态，计费价格仍可查看。"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });

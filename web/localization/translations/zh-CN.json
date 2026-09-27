@@ -15865,6 +15865,36 @@
       "fingerprint": "55e356fee5a6b73378d47ee6e7b6fbd89a64db1a9b30d3e01bfb0929b1bf4614",
       "text": "所有服务的未税小计合并后，整张账单只计算一次 5% 台湾营业税并取整。OTA 不另行加税，也不免税。各明细税额是这笔账单税额的分摊。",
       "status": "approved"
+    },
+    "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.": {
+      "sourceHash": "bf1f8680d118882c36d547e3cd980115da6547649a1847485c4c55c38b75abfc",
+      "fingerprint": "0d8c12abbe5a114a24b61403cbc1295599c2c05243e89fdf74cd1bbe75383bc7",
+      "text": "选择产品，查看目前是否选用 OTA。关闭 OTA 前已授权的工作，仍按其历史授权计费；此处的当前状态不决定那些费用。",
+      "status": "approved"
+    },
+    "No Products are available in this Cloud.": {
+      "sourceHash": "0c68d69286bee48f220bc4e44d23d50d2c15700ecb78aeda1ef1b704a8958eb5",
+      "fingerprint": "014f825663d0ce55a3a1dd5b9085f486a3d599b0624a87c39430a4e89e312bb4",
+      "text": "此云端目前没有可查看的产品。",
+      "status": "approved"
+    },
+    "OTA is currently enabled for this Product.": {
+      "sourceHash": "0f7483bc6a1414e73ef0af631dcd728e4d6e00932a9d16a58cbe5f14d59474ea",
+      "fingerprint": "a4e82a354acf41a4869507451c6ce52466748eff5177bad5a9979f3330ed9901",
+      "text": "此产品目前已启用 OTA 服务。",
+      "status": "approved"
+    },
+    "Product OTA service status": {
+      "sourceHash": "fbd9ab8529b57b42246e7d6c8831351b0021aff20d56b05a3cd314e83ff77ec7",
+      "fingerprint": "43621d8bd5d87431aee92668719d43b8be161e4177c55f867935a2d42e9ae0d7",
+      "text": "产品 OTA 服务状态",
+      "status": "approved"
+    },
+    "Product service status is temporarily unavailable. Billing prices remain available.": {
+      "sourceHash": "2a4f7fa2044bd0849e65c368bcf0f520cdfab0da4c46ef88999d67ff4c768eea",
+      "fingerprint": "66857b5f6d1457cd0f06020f4f38def4ba755eb97575125fa14b65d2107a5e32",
+      "text": "暂时无法取得产品服务状态，计费价格仍可查看。",
+      "status": "approved"
     }
   }
 }

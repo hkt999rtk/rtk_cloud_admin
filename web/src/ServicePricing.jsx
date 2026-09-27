@@ -1,6 +1,8 @@
 import { activeLocale, formatDateTime, translate } from './i18n/index.mjs';
 import React, { useEffect, useState } from 'react';
 import { fetchEffectivePricing, fetchServicePricing, pricingGroups, pricingSources } from './service-pricing.mjs';
+import { fetchCloudProducts } from './cloud-products.mjs';
+import { productHasOTA } from './firmware.mjs';
 import './service-pricing.css';
 
 const formatPrice = amount => `${translate('NT$')}${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
@@ -18,6 +20,10 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
   const [error, setError] = useState(false);
   const [effective, setEffective] = useState(null);
   const [effectiveError, setEffectiveError] = useState(false);
+  const [productPage, setProductPage] = useState(null);
+  const [productOffset, setProductOffset] = useState(0);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [productError, setProductError] = useState(false);
   const locale = activeLocale();
   useEffect(() => {
     const controller = new AbortController();
@@ -43,6 +49,21 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
       });
     return () => controller.abort();
   }, [cloudId, ownershipVersion, locale, onAccessLost]);
+  useEffect(() => {
+    setProductOffset(0);
+    setSelectedProductId('');
+    setProductPage(null);
+  }, [cloudId, ownershipVersion]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setProductPage(null);
+    setProductError(false);
+    fetchCloudProducts(cloudId, '', { offset: productOffset, signal: controller.signal })
+      .then(result => { if (!controller.signal.aborted) setProductPage(result); })
+      .catch(() => { if (!controller.signal.aborted) setProductError(true); });
+    return () => controller.abort();
+  }, [cloudId, ownershipVersion, productOffset]);
+  const selectedProduct = productPage?.products.find(product => product.id === selectedProductId);
   const servicePricing = catalog?.rows || [];
   const rows = servicePricing.filter(row => group === 'All services' || row.group === group);
   const referenceDate = catalog && formatDateTime(`${catalog.referenceDate}T00:00:00Z`, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -63,6 +84,17 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
   return <section className="page-content billing-page service-pricing-page" data-testid="billing-pricing-page">
     <div className="page-intro"><div><p className="eyebrow">{translate('Realtek Managed Cloud')}</p><h2>{translate('Service pricing')}</h2><p>{translate('Compare approved OTA unit prices with public references selected from the official sources inspected for this review.')}</p></div>{catalog && <span className="pricing-draft">{translate('Reference review')} · <time dateTime={catalog.referenceDate}>{referenceDate}</time></span>}</div>
     {tabs}
+    <section className="panel pricing-product" aria-label={translate('Product OTA service status')}>
+      <h3>{translate('Product OTA service status')}</h3>
+      <p>{translate('Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.')}</p>
+      {productError ? <p role="alert">{translate('Product service status is temporarily unavailable. Billing prices remain available.')}</p> : !productPage ? <p role="status">{translate('Loading Products…')}</p> : <>
+        {productPage.pagination.total === 0 ? <p>{translate('No Products are available in this Cloud.')}</p> : <>
+          <label>{translate('Product')} <select value={selectedProductId} onChange={event => setSelectedProductId(event.target.value)}><option value="">{translate('Select Product')}</option>{productPage.products.map(product => <option key={product.id} value={product.id}>{product.name || product.id}</option>)}</select></label>
+          {selectedProduct && <p className="pricing-product-result" role="status"><strong>{selectedProduct.name || selectedProduct.id}</strong> · {productHasOTA(selectedProduct) ? translate('OTA is currently enabled for this Product.') : translate('OTA is not enabled for this Product.')}{selectedProduct.grant_revision ? ` · ${translate('Authorization version')} ${selectedProduct.grant_revision}` : ''}</p>}
+          {productPage.pagination.total > 25 && <div className="pricing-product-pages"><button type="button" disabled={productOffset === 0} onClick={() => { setSelectedProductId(''); setProductOffset(Math.max(0, productOffset - 25)); }}>{translate('Previous')}</button><span>{productOffset + 1}–{Math.min(productOffset + 25, productPage.pagination.total)} / {productPage.pagination.total}</span><button type="button" disabled={productOffset + 25 >= productPage.pagination.total} onClick={() => { setSelectedProductId(''); setProductOffset(productOffset + 25); }}>{translate('Next')}</button></div>}
+        </>}
+      </>}
+    </section>
     <section className="panel pricing-effective" aria-label={translate('Current effective rate card')}>
       <h3>{translate('Current effective rate card')}</h3>
       {!effective ? <p role={effectiveError ? 'alert' : 'status'}>{effectiveError ? effectiveUnavailable : effectiveLoading}</p> : <>
@@ -87,12 +119,13 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
     <div className="pricing-filter" role="group" aria-label={translate('Filter service prices')}>{pricingGroups.map(item => <button type="button" key={item} aria-pressed={group === item} onClick={() => setGroup(item)}>{translate(item)}<span>{item === 'All services' ? servicePricing.length : servicePricing.filter(row => row.group === item).length}</span></button>)}</div>
     <div className="pricing-table-wrap"><table className="pricing-table" data-testid="pricing-reference-table">
       <caption>{translate(group)} · {rows.length} {translate('service meters')}</caption>
-      <thead><tr><th scope="col">{translate('Service')}</th><th scope="col">{translate('RTK price status')}</th><th scope="col">{translate('How usage is counted')}</th><th scope="col">{translate('Highest inspected public reference')}</th></tr></thead>
+      <thead><tr><th scope="col">{translate('Service')}</th><th scope="col">{translate('RTK price status')}</th><th scope="col">{translate('How usage is counted')}</th><th scope="col">{translate('Highest inspected public reference')}</th><th scope="col">{translate('Product')}</th></tr></thead>
       <tbody>{rows.map(row => <tr key={row.id} data-price-status={row.priceStatus}>
         <th scope="row"><strong>{translate(row.name)}</strong><p>{translate(row.description)}</p><span className={`pricing-readiness ${row.readiness === 'Metering pending' ? 'pending' : ''}`}>{translate(row.readiness)}</span></th>
         <td data-label={translate('RTK price status')} className="pricing-rate">{row.priceStatus === 'approved-pending' ? <><span className="pricing-price-status approved-pending">{effectiveError ? otaUnknownBadge : effective ? otaIsEffective ? otaActiveBadge : otaPendingBadge : otaUnknownBadge}</span><strong>{formatPrice(row.price)}</strong><span>/ {translate(row.unit)}{translate(', before tax')}</span></> : <><span className="pricing-price-status research">{translate('Research reference only')}</span><p>{translate('The effective customer rate, if any, is shown in the Billing card above.')}</p></>}</td>
         <td data-label={translate('How usage is counted')}>{translate(row.rule)}</td>
         <td data-label={translate('Highest inspected public reference')} className="pricing-reference"><strong>{formatPrice(row.referencePrice)} / {translate(row.referenceUnit || row.unit)}</strong><a href={pricingSources[row.source].url} target="_blank" rel="noopener noreferrer">{pricingSources[row.source].name} ↗</a><span>{row.benchmark}</span><p>{translate(row.comparison)}</p></td>
+        <td data-label={translate('Product')}>{row.id.startsWith('ota') ? selectedProduct ? productHasOTA(selectedProduct) ? translate('OTA is currently enabled for this Product.') : translate('OTA is not enabled for this Product.') : translate('Select Product') : '—'}</td>
       </tr>)}</tbody>
     </table></div>
     <section className="panel pricing-included"><p className="eyebrow">{translate('No separate service charge')}</p><h3>{translate('Included activities')}</h3><p>{translate('Cloud and product setup, team access, device enrollment, MQTT connections and keep-alives, SDK documentation and console administration carry no separate fee.')}</p><p>{translate('WebRTC signaling has no extra channel or signaling surcharge. Its MQTT messages follow the MQTT rates; direct P2P media has no cloud transfer fee.')}</p></section>

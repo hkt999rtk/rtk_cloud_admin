@@ -15865,6 +15865,36 @@
       "fingerprint": "8ffcaa9ae75e9cae98b1b21d315123c62ea604340ca413fd6e4087a91aa2ccbe",
       "text": "所有服務的未稅小計合併後，整張帳單只計算一次 5% 台灣營業稅並取整。OTA 不另行加稅，也不免稅。各明細稅額是這筆帳單稅額的分攤。",
       "status": "approved"
+    },
+    "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.": {
+      "sourceHash": "bf1f8680d118882c36d547e3cd980115da6547649a1847485c4c55c38b75abfc",
+      "fingerprint": "fd24ba2cac99b6a7c3a808e2a7957a4b532c22286ada8dbf635bc7b3a994b3d9",
+      "text": "選擇產品，查看目前是否選用 OTA。關閉 OTA 前已授權的工作，仍依其歷史授權計費；此處的目前狀態不決定那些費用。",
+      "status": "approved"
+    },
+    "No Products are available in this Cloud.": {
+      "sourceHash": "0c68d69286bee48f220bc4e44d23d50d2c15700ecb78aeda1ef1b704a8958eb5",
+      "fingerprint": "c66482744a6e523a472d416aaf8aa05463698ba51bef75473af83312b66aab45",
+      "text": "此雲端目前沒有可查看的產品。",
+      "status": "approved"
+    },
+    "OTA is currently enabled for this Product.": {
+      "sourceHash": "0f7483bc6a1414e73ef0af631dcd728e4d6e00932a9d16a58cbe5f14d59474ea",
+      "fingerprint": "72466f8da3de609b9f3645b35e7d43c84aa27dae18d1078973e15c06e67217d5",
+      "text": "此產品目前已啟用 OTA 服務。",
+      "status": "approved"
+    },
+    "Product OTA service status": {
+      "sourceHash": "fbd9ab8529b57b42246e7d6c8831351b0021aff20d56b05a3cd314e83ff77ec7",
+      "fingerprint": "1db59b8fcca38fabf15cd37a0159b68bcb367106f0f94aed79c87b50612b4016",
+      "text": "產品 OTA 服務狀態",
+      "status": "approved"
+    },
+    "Product service status is temporarily unavailable. Billing prices remain available.": {
+      "sourceHash": "2a4f7fa2044bd0849e65c368bcf0f520cdfab0da4c46ef88999d67ff4c768eea",
+      "fingerprint": "3c4761157e37e067da26a212d49cc5e9cd6f0498803a09dd9414a075270fcf74",
+      "text": "暫時無法取得產品服務狀態，計費價格仍可查看。",
+      "status": "approved"
     }
   }
 }
