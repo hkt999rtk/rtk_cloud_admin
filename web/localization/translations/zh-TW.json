@@ -15895,6 +15895,12 @@
       "fingerprint": "3c4761157e37e067da26a212d49cc5e9cd6f0498803a09dd9414a075270fcf74",
       "text": "暫時無法取得產品服務狀態，計費價格仍可查看。",
       "status": "approved"
+    },
+    "Current service prices may differ from the rates on this issued invoice.": {
+      "sourceHash": "f80a03d80ab9f43d33fa7979fbcbb5a350856887e8e90c3c4bd67e1753d9db0e",
+      "fingerprint": "492e13ec3ed62f552786750284b778f6a4ba1323d5bd9f034211c77a75a5667c",
+      "text": "目前的服務價格可能與這張已開立帳單所採用的費率不同。",
+      "status": "approved"
     }
   }
 }

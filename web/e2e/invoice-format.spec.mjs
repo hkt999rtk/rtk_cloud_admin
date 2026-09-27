@@ -64,6 +64,8 @@ test('[UI-CA-INVOICE-002] issued invoice preserves recorded tax and scaled usage
   await expect(invoice.locator('.invoice-document-totals > div').nth(1)).toContainText('$0');
   await expect(invoice.locator('.invoice-document-totals > div').last()).toContainText('1,000');
   await expect(page.getByRole('link', { name: 'Download PDF' })).toHaveCount(0);
+  await expect(page.getByTestId('billing-invoice-detail').getByRole('link', { name: 'Service Pricing' })).toHaveAttribute('href', '/console/clouds/11111111-1111-4111-8111-111111111111/billing/pricing');
+  await expect(page.getByTestId('billing-invoice-detail')).toContainText('Current service prices may differ from the rates on this issued invoice.');
   await checkLayout(page, testInfo);
   await page.getByRole('button', { name: 'Back to invoices' }).click();
   await expect(page).toHaveURL(new RegExp(`${invoicesURL}$`));

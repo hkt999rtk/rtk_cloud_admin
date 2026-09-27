@@ -6355,6 +6355,8 @@ th {
 .money-credit { color: #07834f; font-weight: 700; }
 .icon-download { color: #1265e6; padding: 8px; }
 .billing-back { margin-bottom: 14px; }
+.billing-invoice-pricing { margin: 0 0 16px; color: #526b7f; font-size: 13px; line-height: 1.6; }
+.billing-invoice-pricing a { color: #1760a5; text-decoration: underline; text-underline-offset: 3px; }
 .button-link { display: inline-flex; align-items: center; text-decoration: none; }
 
 .billing-timeline {
