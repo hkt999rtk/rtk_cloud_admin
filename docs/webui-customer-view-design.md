@@ -278,6 +278,15 @@ The impact preview must show affected Product/device counts, region/group scope,
 current service state, and whether reprovisioning or firmware update may be
 required.
 
+When editing an existing Product, place an explanatory note beside Available
+Services. It must say that service changes apply to future production runs;
+existing devices require a separate entitlement update and then a verified
+mTLS `/request_token` call. `/refresh_token` retains the old token's options,
+and a restart works only if firmware makes the mTLS request on startup. Removing
+a service does not immediately invalidate issued tokens or active connections.
+Show this note before Save in English, Traditional Chinese, and Simplified
+Chinese without adding a confirmation step or changing the Product write API.
+
 ### Required Non-ideal States
 
 Each page must have a designed state for loading, no data, stale data,
