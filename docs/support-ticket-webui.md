@@ -52,6 +52,11 @@ marker. Unread indicators are hints, not an authorization source. No ticket
 email or push delivery is assumed. The browser uses only same-origin Admin BFF
 routes; existing login and `next` handling support customer and Platform
 ticket deep links after server authorization.
+The BFF writes public messages as Zammad `web` communication articles and
+staff-only notes as `note` articles. Customer unread and displayed update time
+follow Zammad's last public contact, so an internal note does not create a
+customer notification or reveal its timestamp. Agent unread follows ticket
+updates, including assignment and internal activity.
 
 Create and reply forms require text, show a sending state and enforce the
 contract's attachment limits before submit. Buttons prevent accidental repeat

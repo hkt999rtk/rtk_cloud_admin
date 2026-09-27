@@ -85,7 +85,7 @@ func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
 				t.Errorf("ticket scope was not server-controlled: %#v", input)
 			}
 			initial := input["article"].(map[string]any)
-			if initial["internal"] != false || initial["origin_by_id"] != float64(3) {
+			if initial["internal"] != false || initial["origin_by_id"] != float64(3) || initial["type"] != "web" {
 				t.Errorf("initial public author mismatch: %#v", initial)
 			}
 			articles = append(articles, map[string]any{"id": int64(11), "ticket_id": int64(1), "body": initial["body"], "from": "Customer", "sender": "Customer", "internal": false, "origin_by_id": int64(3), "created_at": "2026-09-27T11:00:00Z", "attachments": []any{}})
@@ -109,8 +109,20 @@ func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
 		case r.Method == "POST" && path == "/api/v1/ticket_articles":
 			var input map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&input)
+			articleType := "web"
+			if input["internal"] == true {
+				articleType = "note"
+			}
+			if input["type"] != articleType {
+				t.Errorf("article type %v, want %s", input["type"], articleType)
+			}
 			input["id"] = int64(12 + len(articles))
-			input["created_at"] = "2026-09-27T12:00:00Z"
+			createdAt := time.Date(2026, 9, 27, 11+len(articles), 0, 0, 0, time.UTC).Format(time.RFC3339)
+			input["created_at"] = createdAt
+			ticket["updated_at"] = createdAt
+			if articleType == "web" {
+				ticket["last_contact_at"] = createdAt
+			}
 			if files, ok := input["attachments"].([]any); ok && len(files) > 0 {
 				input["attachments"] = []any{map[string]any{"id": 31, "filename": "evidence.png", "size": "12"}}
 			}
@@ -169,7 +181,14 @@ func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
 	if reply := call(agent.ID, "POST", agentBase+"/1/articles", "application/json", strings.NewReader(`{"body":"A public reply","visibility":"public"}`), 200); !strings.Contains(reply, "A public reply") {
 		t.Fatalf("public agent reply missing: %s", reply)
 	}
+	if list := call(customer.ID, "GET", customerBase, "", nil, 200); !strings.Contains(list, `"unread":true`) {
+		t.Fatalf("public reply should be unread to customer: %s", list)
+	}
+	call(customer.ID, "POST", customerBase+"/1/seen", "", nil, 200)
 	call(agent.ID, "POST", agentBase+"/1/articles", "application/json", strings.NewReader(`{"body":"Private diagnosis","visibility":"internal"}`), 200)
+	if list := call(customer.ID, "GET", customerBase, "", nil, 200); !strings.Contains(list, `"unread":false`) || !strings.Contains(list, `"updated_at":"2026-09-27T12:00:00Z"`) {
+		t.Fatalf("internal note changed customer-visible activity: %s", list)
+	}
 	if detail := call(customer.ID, "GET", customerBase+"/1", "", nil, 200); strings.Contains(detail, "Private diagnosis") || !strings.Contains(detail, "A public reply") {
 		t.Fatalf("customer article projection wrong: %s", detail)
 	}
