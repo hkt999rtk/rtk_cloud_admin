@@ -15865,6 +15865,24 @@
       "fingerprint": "55e356fee5a6b73378d47ee6e7b6fbd89a64db1a9b30d3e01bfb0929b1bf4614",
       "text": "所有服务的未税小计合并后，整张账单只计算一次 5% 台湾营业税并取整。OTA 不另行加税，也不免税。各明细税额是这笔账单税额的分摊。",
       "status": "approved"
+    },
+    "Saving service changes affects future production runs. Existing devices keep their current services until you apply the new authorization version to them.": {
+      "sourceHash": "507849ec46e883e8b8b556e9d899b967d741561fb54943bfe8aeb0c4ab701237",
+      "fingerprint": "7f653d8a34cacb5fb17f8690b1c9083e91c10cd4abd31768da8a502318cda591",
+      "text": "保存服务能力变更后，新的授权版本只会应用于后续创建的生产批次。现有设备会保留当前的服务能力，直到您另外将新授权版本应用到这些设备。",
+      "status": "approved"
+    },
+    "After applying it, each device must obtain a new token through mTLS /request_token. /refresh_token keeps the old options; restarting helps only if firmware makes the mTLS request on startup.": {
+      "sourceHash": "914ef497ad81e98b8a5186b3dc4888100ac4bad3cb9d712efc218209919b6c2a",
+      "fingerprint": "8ebafa457588b60f203144720b4b790e8a738286214c6153d74419612f41b202",
+      "text": "应用后，每台设备都必须通过 mTLS /request_token 获取新 token。/refresh_token 会保留旧的服务能力；只有固件在启动时会重新发起 mTLS 请求，重启才有效。",
+      "status": "approved"
+    },
+    "Removing a service does not immediately invalidate issued tokens or active connections.": {
+      "sourceHash": "ad03c3bd673f43f0a74a1c728d3e117db1c5331634c3b97a0a25b3a5d8fecede",
+      "fingerprint": "df42c962aaedceb55de0306fcaf11fb4e6311b1e3df75a883301d6b49ec06b0a",
+      "text": "移除服务不会立即使已签发的 token 或现有连接失效。",
+      "status": "approved"
     }
   }
 }
