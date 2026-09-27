@@ -109,6 +109,17 @@ func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
 		case r.Method == "POST" && path == "/api/v1/ticket_articles":
 			var input map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&input)
+			if input["sender"] == "Agent" {
+				if _, hasOrigin := input["origin_by_id"]; hasOrigin {
+					t.Errorf("Zammad coerces Agent sender to Customer when origin_by_id is set: %#v", input)
+				}
+				preferences, ok := input["preferences"].(map[string]any)
+				if !ok || preferences["rtk_actor_id"] != "a1" || preferences["rtk_actor_name"] != "Agent One" {
+					t.Errorf("missing trusted Agent attribution: %#v", input)
+				}
+				// Zammad derives the From field from the integration account.
+				input["from"] = "Integration Account"
+			}
 			articleType := "web"
 			if input["internal"] == true {
 				articleType = "note"
@@ -120,6 +131,7 @@ func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
 			createdAt := time.Date(2026, 9, 27, 11+len(articles), 0, 0, 0, time.UTC).Format(time.RFC3339)
 			input["created_at"] = createdAt
 			ticket["updated_at"] = createdAt
+			// The dedicated Zammad instance uses based_on_customer_reaction.
 			if articleType == "web" {
 				ticket["last_contact_at"] = createdAt
 			}
@@ -178,7 +190,7 @@ func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
 	call(agent.ID, "PATCH", agentBase+"/1", "application/json", strings.NewReader(`{"owner_id":0}`), 200)
 	call(agent.ID, "GET", agentBase+"?queue=mine", "", nil, 200)
 	call(agent.ID, "PATCH", agentBase+"/1", "application/json", strings.NewReader(`{"owner_id":9,"state":"closed"}`), 200)
-	if reply := call(agent.ID, "POST", agentBase+"/1/articles", "application/json", strings.NewReader(`{"body":"A public reply","visibility":"public"}`), 200); !strings.Contains(reply, "A public reply") {
+	if reply := call(agent.ID, "POST", agentBase+"/1/articles", "application/json", strings.NewReader(`{"body":"A public reply","visibility":"public"}`), 200); !strings.Contains(reply, "A public reply") || !strings.Contains(reply, `"author":"Agent One"`) || !strings.Contains(reply, `"rtk_actor_id":"a1"`) {
 		t.Fatalf("public agent reply missing: %s", reply)
 	}
 	if list := call(customer.ID, "GET", customerBase, "", nil, 200); !strings.Contains(list, `"unread":true`) {
@@ -210,6 +222,10 @@ func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
 	attachment := call(customer.ID, "GET", customerBase+"/1/articles/"+strconv.Itoa(12+len(articles)-1)+"/attachments/31", "", nil, 200)
 	if attachment != "image-bytes" {
 		t.Fatalf("attachment download = %q", attachment)
+	}
+	call(customer.ID, "POST", customerBase+"/1/articles", "application/json", strings.NewReader(`{"body":"Another customer update"}`), 200)
+	if list := call(customer.ID, "GET", customerBase, "", nil, 200); !strings.Contains(list, `"last_public_activity_at":"2026-09-27T15:00:00Z"`) {
+		t.Fatalf("consecutive customer replies should advance public activity: %s", list)
 	}
 	// Invalid browser input and reduced support permissions must fail before
 	// any scoped ticket or article can be changed.

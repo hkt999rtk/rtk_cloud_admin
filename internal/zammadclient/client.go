@@ -44,17 +44,18 @@ type Attachment struct {
 }
 
 type Article struct {
-	ID          int64        `json:"id"`
-	TicketID    int64        `json:"ticket_id"`
-	Body        string       `json:"body"`
-	ContentType string       `json:"content_type"`
-	Internal    bool         `json:"internal"`
-	Sender      string       `json:"sender"`
-	From        string       `json:"from"`
-	OriginByID  int64        `json:"origin_by_id"`
-	CreatedByID int64        `json:"created_by_id"`
-	CreatedAt   string       `json:"created_at"`
-	Attachments []Attachment `json:"attachments"`
+	ID          int64          `json:"id"`
+	TicketID    int64          `json:"ticket_id"`
+	Body        string         `json:"body"`
+	ContentType string         `json:"content_type"`
+	Internal    bool           `json:"internal"`
+	Sender      string         `json:"sender"`
+	From        string         `json:"from"`
+	OriginByID  int64          `json:"origin_by_id"`
+	Preferences map[string]any `json:"preferences"`
+	CreatedByID int64          `json:"created_by_id"`
+	CreatedAt   string         `json:"created_at"`
+	Attachments []Attachment   `json:"attachments"`
 }
 
 type User struct {
