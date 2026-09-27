@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { fetchServicePricing, mergeServicePricingCatalog, servicePricing } from './service-pricing.mjs';
+import { fetchEffectivePricing, fetchServicePricing, mergeServicePricingCatalog, servicePricing, validateEffectivePricing } from './service-pricing.mjs';
 import { resources } from './i18n/resources.generated.mjs';
 
 const cloud = '11111111-1111-4111-8111-111111111111';
@@ -48,4 +48,25 @@ test('pricing fetch requires the current ownership version and fails closed on A
   assert.equal(options.headers['X-RTK-Locale'], 'en');
   await assert.rejects(fetchServicePricing(cloud, '8', 'en', { fetcher }), { status: 409 });
   await assert.rejects(fetchServicePricing(cloud, '7', 'en', { fetcher: async () => new Response('denied', { status: 403 }) }), { status: 403 });
+});
+
+test('effective price book is owner scoped and never inferred from reference prices', async () => {
+  const book = { currency: 'TWD', as_of: '2026-11-05T12:00:00Z', ota_eligibility: 'provisional',
+    current: { id: 'published', currency: 'TWD', effective_from: '2026-11-01T00:00:00Z',
+      tax_mode: 'invoice_total', invoice_tax_rate_basis_points: 500, invoice_tax_rounding_mode: 'half_up',
+      rates: [{ service_code: 'ota', metric_code: 'device_task', unit: 'tasks', description: 'Firmware OTA device tasks',
+        unit_price_minor: 96, unit_price_scale: 3, rounding_mode: 'half_up' }] }, upcoming: null };
+  const response = { cloud_id: cloud, price_book: book };
+  assert.equal(validateEffectivePricing(response, cloud), book);
+  assert.throws(() => validateEffectivePricing({ ...response, cloud_id: 'other' }, cloud), /Invalid service pricing/);
+  assert.throws(() => validateEffectivePricing({ ...response, price_book: { ...book, current: null, ota_eligibility: 'active' } }, cloud), /Invalid service pricing/);
+  assert.throws(() => validateEffectivePricing({ ...response, price_book: { ...book, current: { ...book.current, rates: [...book.current.rates, book.current.rates[0]] } } }, cloud), /Invalid service pricing/);
+  const fetcher = async (url, options) => {
+    assert.match(url, /\/billing\/pricing-effective$/);
+    assert.equal(options.cache, 'no-store');
+    return new Response(JSON.stringify(response), { status: 200, headers: { 'X-Cloud-Ownership-Version': '7' } });
+  };
+  assert.equal((await fetchEffectivePricing(cloud, '7', { fetcher })).current.id, 'published');
+  await assert.rejects(fetchEffectivePricing(cloud, '8', { fetcher }), { status: 409 });
+  await assert.rejects(fetchEffectivePricing(cloud, '7', { fetcher: async () => new Response('unavailable', { status: 503 }) }), { status: 503 });
 });

@@ -15841,6 +15841,300 @@
       "fingerprint": "e323ab05a5d9de92f03f3be1afe30186df05c037409ab5e945b9d9caa1a5a3aa",
       "text": "← 返回付款頁面",
       "status": "approved"
+    },
+    "Estimated cost excluding OTA": {
+      "sourceHash": "3189d4ffe2a9250b3b90828b1fbfbf527941b49041533072d42c736abf6c9733",
+      "fingerprint": "04d98e0c4edc094a42d0f9f3f15cd31508def19688d8410de6cb6131d20cfc7f",
+      "text": "不含 OTA 的預估費用",
+      "status": "approved"
+    },
+    "OTA estimate pending review": {
+      "sourceHash": "3c90f7438a01a20c4b4d6082daadab1b68f00f8cd0e48f06e87cbcadcdfb7637",
+      "fingerprint": "9bad8c27319a07ab0074d902e5e57bb26d75946c50070aa6466fe2c8dc7545ed",
+      "text": "OTA 費用預估待審核",
+      "status": "approved"
+    },
+    "Pending OTA review": {
+      "sourceHash": "f136d204cd30e708d789d52c1ee16f500de0cc9996cb564beac3356c446d5ef9",
+      "fingerprint": "23b028af0709c72f85fedb737a80557e720fd0b6ec91f0712992a2e84563c41a",
+      "text": "等待 OTA 審核",
+      "status": "approved"
+    },
+    "Subtotal excluding OTA": {
+      "sourceHash": "bc912ab4ba3c68f28ee0ad0f668243b89b855e5a4f4a5cd1b0a72ba35ac40fc7",
+      "fingerprint": "963930445ee364134cfe6580134930e36b1b62c7499f647e50f2f929d0bc0f70",
+      "text": "不含 OTA 小計",
+      "status": "approved"
+    },
+    "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.": {
+      "sourceHash": "c3d34ecf7ac836eaac7047db804648ab77bf0e882e2d1ec000eb3eb06327c066",
+      "fingerprint": "59eef931dc3228a3e889238bf4cc2e647a2f197b37cb679362438e4b1ef0d024",
+      "text": "目前顯示的是其他已定價服務的金額。OTA 費用會在每月證據完成審核後再計入；此金額不是最終發票總額。",
+      "status": "approved"
+    },
+    "The current owner did not cover the complete UTC month. OTA charges require manual review.": {
+      "sourceHash": "3c52a67b18d4a2b7652c95f4b61397d436b9975a96f5abfccd51b19b7539670f",
+      "fingerprint": "68e2bf7faab8b8dcc05bcb252f9c9cd5139781f9226be0fe9d2c0be0098414c2",
+      "text": "目前擁有者的責任期間未涵蓋完整 UTC 月份。OTA 費用須經人工審核。",
+      "status": "approved"
+    },
+    "The full-month forecast is unavailable while OTA charges are held.": {
+      "sourceHash": "48d4cf98ca53f3959c0b3ddd7563dbbad743e5cef0d73f5a61a24773ae8df4b5",
+      "fingerprint": "ed816ceab71fe925e99ab5776ff97461c83d3be3c7d88fd2231b56e6b82fcdb9",
+      "text": "OTA 費用暫緩期間，無法提供整月費用預測。",
+      "status": "approved"
+    },
+    "This period is not a complete UTC month. OTA charges require a complete UTC month.": {
+      "sourceHash": "9ca822e302f2c0f9e16d0baa4257dd47fb940932c754e622a19c5b19c147f160",
+      "fingerprint": "71ebd4f1796f47272dce911f89fc05a4dfcea60bd41851dbec80f7ee607460c9",
+      "text": "此期間不是完整的 UTC 月份。OTA 費用須以完整 UTC 月份計算。",
+      "status": "approved"
+    },
+    "For a future OTA-inclusive rate card: each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, tax is calculated once on the invoice subtotal under the approved invoice tax policy, and subtotal plus tax is the total due. The tax shown on each line is an allocation of that one invoice tax amount. Existing invoices keep their issued tax policy.": {
+      "sourceHash": "7fbbf7622e50eafb969c4eb363c9d8f68cff7be979be9d19e124ade22c8f821a",
+      "fingerprint": "d566d46f57ecfe5831cce0751a06357cc5d887b41eb471ec7bca399f94812bbb",
+      "text": "未來 OTA 費率生效後：每個產品、每項計量的用量乘上單價，取整為新臺幣未稅明細小計。所有服務的未稅明細加總後，依核准的帳單稅務設定對帳單未稅總額計稅一次；未稅總額加稅額即為應付總額。明細所列稅額只是該筆帳單稅額的分攤。已開立帳單沿用開立當時的計稅規則。",
+      "status": "approved"
+    },
+    "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. Only qualifying measured usage is charged when an OTA rate card becomes effective; no separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.": {
+      "sourceHash": "a197fbe645d25f7b19c2478efc2b7e8f4dac07d1d5c9c2ef5c1f694dce0c5835",
+      "fingerprint": "63847704b2abacb0c08f59afa6666eb68f364d56c8bb178f6a036afb1ef0542b",
+      "text": "付費託管雲產品必須選用 OTA，才可建立新的 OTA 工作。OTA 費率生效後，僅符合條件的實際用量會計費；不需另外勾選 OTA 合約。關閉 OTA 前已授權的工作仍可完成並計費，既有韌體物件會持續計收儲存費，直到物件實體刪除。",
+      "status": "approved"
+    },
+    "Billing unit and rounding": {
+      "sourceHash": "ff45af5c6b3985359e0f1040c98ab36ae2ad17b42d0de91bfc5839017fc19b9b",
+      "fingerprint": "dcadd16f5d85c70c21c53aaadaabdadaefd27fd4d42e490f20e66d4f512508d7",
+      "text": "計費單位與取整規則",
+      "status": "approved"
+    },
+    "Current effective rate card": {
+      "sourceHash": "86717c8c6d4ae5f8cfa9aca701d9fc1f23c526a05690a2e136fe4aec8730a373",
+      "fingerprint": "d8fdebc5e7284de15bef73b4c61d60092a412b4c9dca76caf94ebe71218eb12c",
+      "text": "目前生效價卡",
+      "status": "approved"
+    },
+    "Each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, then Taiwan business tax of 5% is calculated once on the invoice subtotal using half-up rounding. Subtotal plus tax is the total due. Tax shown on each line allocates that one invoice tax amount. Existing invoices keep their issued tax policy.": {
+      "sourceHash": "5cc7f070592fcd5df5bb39478bc72f14071f0fdb355ba98817d22750ca381939",
+      "fingerprint": "149dfe22598ac20dc30d52fd740b0fa3ac01519ace3a5d3cbdecba7dec605b40",
+      "text": "每個產品、每項計量的用量乘以單價，取整後成為該明細的未稅新台幣小計。先加總所有服務明細，再對整張帳單的未稅總額以四捨五入計算一次 5% 台灣營業稅。未稅總額加上稅額即為應付總額。各明細顯示的稅額只是這筆整單稅額的分攤；已開立帳單保留原本稅務規則。",
+      "status": "approved"
+    },
+    "Effective from": {
+      "sourceHash": "59fa5e894564ec97e46f3ff4f517f33cab899474c1f290b1195496d50b7b4afe",
+      "fingerprint": "249b4a29ee4a617a6a4f676db229bf797023255b356c0e3ca68efddbf8ec3926",
+      "text": "生效時間",
+      "status": "approved"
+    },
+    "Effective unit price before tax": {
+      "sourceHash": "9b09955018bb1cfeb21ec6a6a5441b5abb62edc65466f9e2b2cdcfb18bded761",
+      "fingerprint": "590ab18498d08f58f0bb7956e044ed7f1513ff1e5a1293b69a1a8c629508cb61",
+      "text": "生效未稅單價",
+      "status": "approved"
+    },
+    "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. OTA billing also requires commercial status for the entire UTC month, an active Billing account at settlement, verified Product grants, measured usage and an effective OTA rate. No separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.": {
+      "sourceHash": "1ae56dc5ea507e9850c2339a416235a1bc94ca0b21dcdb00ba72e2f69534bda2",
+      "fingerprint": "6eed0c1ec8007c77e6acfa3442586e44a52513de82108370feb5a7c54e673e38",
+      "text": "付費 Managed Cloud 的產品須先選用 OTA，才能建立新更新工作。OTA 計費還須具備整個 UTC 月的 commercial 層級、結算時 active 的 Billing 帳戶、可驗證的產品授權、實際用量及生效 OTA 費率；不需另行勾選 OTA 合約。關閉 OTA 前已授權的工作可以完成，已存在的韌體持續計入儲存量，直到物件實體刪除。",
+      "status": "approved"
+    },
+    "Includes OTA rates": {
+      "sourceHash": "d6dff6099d23525e8b5c22e5f51d8da846f55df093781d7e6d8734a853807f06",
+      "fingerprint": "ff32335c088a0df6785534dc07f103dab7d814a10e350f83d61bb872efe70823",
+      "text": "包含 OTA 費率",
+      "status": "approved"
+    },
+    "Meter": {
+      "sourceHash": "663e65ce6a643657dea108c28de9ceda5ece136fa7f5b87e93c75ee832075497",
+      "fingerprint": "4650117f1cb7f37068caa8a9829caae95ff8499be850b8cb2d9a3d49961608bd",
+      "text": "計費項目",
+      "status": "approved"
+    },
+    "Next published rate card": {
+      "sourceHash": "d35de67f6daaa5d0e5acbcbe8bf9ea631623a66cceada8bf31e51a389f42d2cb",
+      "fingerprint": "081b34bcc3b7e9529cc31ee2cf6d55c4364b9d47467e67e072b2993606cfe30c",
+      "text": "下一版已發佈價卡",
+      "status": "approved"
+    },
+    "No effective TWD rate card is available for this Cloud. Approved and reference prices below do not create a charge.": {
+      "sourceHash": "2523df54a4ea23ef44a43ca6176686117c998e4094a4d8739cf21c508ac3aca0",
+      "fingerprint": "7d5f0fa008ca073e096b5d1edb41b4cff04858514731be14589d0797feed3544",
+      "text": "此雲端目前沒有可用的生效新台幣價卡。下方核准價與參考價都不會因此產生費用。",
+      "status": "approved"
+    },
+    "Quantity precision pending review": {
+      "sourceHash": "2b1c526d63dc1bd50d90f4faade44ec232e96fceb7d1e1927dfe00f1ae2680ce",
+      "fingerprint": "a02d20ca489e35bb9403df01a3f49e07b1784782fee5c34e6547b3866f552b29",
+      "text": "用量精度待確認",
+      "status": "approved"
+    },
+    "References assume no free allowance or volume discount. Taiwan business tax is added to the combined invoice subtotal, not separately to OTA. Government electronic-invoice issuance is not handled in this phase. Private Cloud requires a separate quote.": {
+      "sourceHash": "0f67144797e4106a701ffdebf2b2b8c4051263b87f0a7845178935779604b936",
+      "fingerprint": "cd8c739d8e427430f39c19fc5e9354b603077b83980125a93744bf1436ef8f4e",
+      "text": "參考價未假設免費額度或用量折扣。台灣營業稅對整張帳單的未稅總額計算，不對 OTA 另行加稅。本階段暫不處理政府電子發票開立；私有雲另行報價。",
+      "status": "approved"
+    },
+    "Research references are not approved customer charges. The current Billing rate card above determines actual rates; an existing meter or an approved proposal alone does not enable charging.": {
+      "sourceHash": "53b69f22473d14662145139daaf9f820eaacea00167dc1f59d9b7c1933eaf48a",
+      "fingerprint": "464348acc1e6af6a06c0b5d4c1ef859f6dce751440472f76daff3522df1a85f7",
+      "text": "研究參考價不是已核准的客戶費率。實際單價以本頁上方的 Billing 生效價卡為準；僅有計量器或核准草案不會啟動收費。",
+      "status": "approved"
+    },
+    "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption.": {
+      "sourceHash": "191a054e685d7a7b0ca04b992a7385af04a522f36519bb14b9d39c99198cd15e",
+      "fingerprint": "e91429948cefbe2d19cf6f6d89c8a940d3f1679e31e223477e03ae579c72552b",
+      "text": "所有服務的未稅小計合併後，整張帳單只計算一次 5% 台灣營業稅並取整。OTA 不另行加稅，也不免稅。",
+      "status": "approved"
+    },
+    "The current rate card above comes from Billing. The approved and public reference prices below are separate and never replace an effective rate.": {
+      "sourceHash": "06252f73e00c222f7fc0a18736006a0f531d72d133f579657e9fc5c41bb6a9eb",
+      "fingerprint": "b50b58ae158140ad97231c990d38a9039057cfce99aad8bb3153f20ca686c370",
+      "text": "上方的目前生效價卡來自 Billing。下方核准價與公開參考價分別呈現，不會取代生效費率。",
+      "status": "approved"
+    },
+    "The effective customer rate, if any, is shown in the Billing card above.": {
+      "sourceHash": "6f9b5c8e3ed9698dbd541aef6dc29502e521ea02c03f6ce609530cb055e41ec3",
+      "fingerprint": "7a391e3e6b1b1e57e004428968a87f3ba2592c7fbf3725c67698f3a7cf94c233",
+      "text": "若有生效的客戶費率，會顯示於上方的 Billing 價卡。",
+      "status": "approved"
+    },
+    "This effective rate card uses its recorded historical tax policy; see each issued invoice for the exact tax amount.": {
+      "sourceHash": "157ddb1846cd9c3027d9c201637830da126c45bc38875aa32ac8d70c78bb4b3a",
+      "fingerprint": "3fa622dfd87c31ecd8dd1d577e306e74502fe979430c99f91b2ffa2b85f351af",
+      "text": "這版生效價卡依其記錄的稅務規則計算；實際稅額請查看已開立帳單。",
+      "status": "approved"
+    },
+    "decimal places": {
+      "sourceHash": "bc94cc9d92d5eae6beb4fed772b424d6d0a2ff3dac50f08ec0e95421d42fc173",
+      "fingerprint": "032de14dcbae968f89efb65b788a9523fe86cde6eb343e73daa2e7e34508e41e",
+      "text": "位小數",
+      "status": "approved"
+    },
+    "Approved OTA baseline · see effective card above": {
+      "sourceHash": "4669c9610870c8648e47fa4a6cce218eb8e941a38d59409a19868c87228881ef",
+      "fingerprint": "ef39db9b37a3aca1cb86985d1cd77ddc07de4d21fa7a466135837d9145221a69",
+      "text": "OTA 已核准基準價 · 請查看上方生效價卡",
+      "status": "approved"
+    },
+    "Loading your effective Billing rates…": {
+      "sourceHash": "c82817c964b1d4558faddc0f4d12c060dd9cba5ce403ed85925cc81892320fb6",
+      "fingerprint": "a5d36824df0ae4d3b702c65cf4317f5b4b3bed3e596cf42eab3f334bcbcd3885",
+      "text": "正在載入您的 Billing 生效費率…",
+      "status": "approved"
+    },
+    "OTA account eligibility is provisional for the current UTC month and is checked again at settlement. Only Products with OTA selected and verified usage can be charged.": {
+      "sourceHash": "56568cea6a6ee6db9f9424d479dd6115ed3109c55e2f03d272b4c9553754e097",
+      "fingerprint": "1d9a8ec25ce8e4397373390ec5e1d433d6000b481dfffe934e158e023255888f",
+      "text": "本 UTC 月的 OTA 帳戶資格目前為暫定，結算時會再次查核。只有選用 OTA 且用量已驗證的產品才可能收費。",
+      "status": "approved"
+    },
+    "OTA charges are held for review because paid-account eligibility could not be verified for this UTC month.": {
+      "sourceHash": "17952db66e527c48716aefc707b3f09d584550dfcb22588877b8f90a6266c6e0",
+      "fingerprint": "700b10e7c8e9a99a566fce40f5ed43b2dcc678e804eeb978098943efeb0aa38c",
+      "text": "本 UTC 月的付費帳戶資格無法驗證，OTA 費用已暫緩審核。",
+      "status": "approved"
+    },
+    "OTA is included in the current effective rate card. Product selection, paid-account eligibility, and verified usage still control each charge.": {
+      "sourceHash": "a3970543ec113e07b2535efacbc215d5f3cb91d7e2f7b06f7c246f761a89a1db",
+      "fingerprint": "a8b5043f2f9880fb14e887928696c11d2eda40593975f5c4178e4fdbdcd8d46f",
+      "text": "目前生效價卡已包含 OTA。每筆費用仍須符合產品選用、付費帳戶資格及用量驗證條件。",
+      "status": "approved"
+    },
+    "OTA is included in the next published rate card. Its listed UTC date controls when these prices can begin to apply.": {
+      "sourceHash": "42470c02b90d45cfeca97136cc7c92b517cd99e16d87e0d438a533d7e6ea3144",
+      "fingerprint": "21f6b55a11eaf89341392e947b562274688a2bf75fea428aa96604c912845b6d",
+      "text": "下一版已發佈價卡包含 OTA，列出的 UTC 生效時間才是這些費率開始適用的時間。",
+      "status": "approved"
+    },
+    "Your effective Billing rates cannot be verified right now. Reference prices below are not used for billing.": {
+      "sourceHash": "bac488cc99a60f868ca227f04f8d33511f3483eb58c6a8991556ac79ee7a4a91",
+      "fingerprint": "718cdcb1ed629004e2d1b693193db42dfc32dd54abeb3922732b2c025f67cc0e",
+      "text": "目前無法驗證您的 Billing 生效費率。下方參考價不會用於計費。",
+      "status": "approved"
+    },
+    "For the approved OTA-inclusive TWD policy, each Product and meter’s usage × its unit price is rounded to a pre-tax line subtotal. All service line subtotals are added, then Taiwan business tax of 5% is calculated once on the invoice subtotal using half-up rounding. Subtotal plus tax is the total due. Tax shown on each line allocates that one invoice tax amount. Existing invoices keep their issued tax policy.": {
+      "sourceHash": "dcbde8dceab806eb68403b6d9a459c129ecd459447ff6f10bc80d8736882f4ed",
+      "fingerprint": "170aa4158165c35a70709259bd6aeb525a67e6ebb33347e14b6fa0c648c30654",
+      "text": "依已核准的 OTA 新台幣計費政策，每個產品、每項計量的用量乘以單價，取整後成為該明細的未稅小計。先加總所有服務明細，再對整張帳單的未稅總額以四捨五入計算一次 5% 台灣營業稅。未稅總額加上稅額即為應付總額。各明細顯示的稅額只是這筆整單稅額的分攤；已開立帳單保留原本稅務規則。",
+      "status": "approved"
+    },
+    "References assume no free allowance or volume discount. Under the approved OTA-inclusive policy, Taiwan business tax is added to the combined invoice subtotal, not separately to OTA. Government electronic-invoice issuance is not handled in this phase. Private Cloud requires a separate quote.": {
+      "sourceHash": "5416379ed4495909a024abe0712533c2bd8beee9e556f21d45fdf4431e54cc2b",
+      "fingerprint": "f102febac32cb660a8f3b443c6cc2740e2082a2d58b9cfdf0b480decbe6368d2",
+      "text": "參考價未假設免費額度或用量折扣。依已核准的 OTA 計費政策，台灣營業稅對整張帳單的未稅總額計算，不對 OTA 另行加稅。本階段暫不處理政府電子發票開立；私有雲另行報價。",
+      "status": "approved"
+    },
+    "Approved OTA price · effective status unavailable": {
+      "sourceHash": "aaef08098c2ac8ac42b61381ca2986b398cdfed9f407a14c6e57883e11423f6c",
+      "fingerprint": "d59c860e4d8222cd6dda8f98eb6a26edf378f24d0ff90331db6b710d214df62a",
+      "text": "OTA 已核准價 · 生效狀態無法確認",
+      "status": "approved"
+    },
+    "The four OTA unit prices are approved. Current effectiveness cannot be verified until Billing responds.": {
+      "sourceHash": "4db609caa0af0969ac3113eca3e0db4063d93cc651b0939606c18f3311ded93e",
+      "fingerprint": "c824777499429df6ba9ca7d0adc8a621a4318aaac205d9b9a1c6407369133433",
+      "text": "四項 OTA 單價已核准。Billing 回應前無法確認目前是否生效。",
+      "status": "approved"
+    },
+    "Unit price before tax": {
+      "sourceHash": "262a56606a58e0a11caa86450fb09babfee25d8770e4e3704d50a8723f2ef44f",
+      "fingerprint": "fb7cbbd4f0e311fcad54041e7d3334137ae537dcf95de3caeac40cfdd3c0e7c8",
+      "text": "未稅單價",
+      "status": "approved"
+    },
+    "Allocated tax": {
+      "sourceHash": "e4a83448d57d188ff51404c5d820d3b1c83bcda2f61ff01f0cb636bf54d30b0d",
+      "fingerprint": "df5e2883c50462e1c63ae4177c269509e8ba6ba9d1356b53dedc41bc1f0c8994",
+      "text": "分攤稅額",
+      "status": "approved"
+    },
+    "Line total": {
+      "sourceHash": "8d8470e0f1437e5ff274da153b3536d6d2b15924ef2ad184a4506665b128e815",
+      "fingerprint": "9362391529da91e68a7df5fa510aa2138d38c3114122d3c804db555cdb32e186",
+      "text": "明細總額",
+      "status": "approved"
+    },
+    "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.": {
+      "sourceHash": "99e74acb0516f77dc97fff41f919c98710fa515b06908e66baa7518224626b4e",
+      "fingerprint": "8ffcaa9ae75e9cae98b1b21d315123c62ea604340ca413fd6e4087a91aa2ccbe",
+      "text": "所有服務的未稅小計合併後，整張帳單只計算一次 5% 台灣營業稅並取整。OTA 不另行加稅，也不免稅。各明細稅額是這筆帳單稅額的分攤。",
+      "status": "approved"
+    },
+    "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.": {
+      "sourceHash": "bf1f8680d118882c36d547e3cd980115da6547649a1847485c4c55c38b75abfc",
+      "fingerprint": "fd24ba2cac99b6a7c3a808e2a7957a4b532c22286ada8dbf635bc7b3a994b3d9",
+      "text": "選擇產品，查看目前是否選用 OTA。關閉 OTA 前已授權的工作，仍依其歷史授權計費；此處的目前狀態不決定那些費用。",
+      "status": "approved"
+    },
+    "No Products are available in this Cloud.": {
+      "sourceHash": "0c68d69286bee48f220bc4e44d23d50d2c15700ecb78aeda1ef1b704a8958eb5",
+      "fingerprint": "c66482744a6e523a472d416aaf8aa05463698ba51bef75473af83312b66aab45",
+      "text": "此雲端目前沒有可查看的產品。",
+      "status": "approved"
+    },
+    "OTA is currently enabled for this Product.": {
+      "sourceHash": "0f7483bc6a1414e73ef0af631dcd728e4d6e00932a9d16a58cbe5f14d59474ea",
+      "fingerprint": "72466f8da3de609b9f3645b35e7d43c84aa27dae18d1078973e15c06e67217d5",
+      "text": "此產品目前已啟用 OTA 服務。",
+      "status": "approved"
+    },
+    "Product OTA service status": {
+      "sourceHash": "fbd9ab8529b57b42246e7d6c8831351b0021aff20d56b05a3cd314e83ff77ec7",
+      "fingerprint": "1db59b8fcca38fabf15cd37a0159b68bcb367106f0f94aed79c87b50612b4016",
+      "text": "產品 OTA 服務狀態",
+      "status": "approved"
+    },
+    "Product service status is temporarily unavailable. Billing prices remain available.": {
+      "sourceHash": "2a4f7fa2044bd0849e65c368bcf0f520cdfab0da4c46ef88999d67ff4c768eea",
+      "fingerprint": "3c4761157e37e067da26a212d49cc5e9cd6f0498803a09dd9414a075270fcf74",
+      "text": "暫時無法取得產品服務狀態，計費價格仍可查看。",
+      "status": "approved"
+    },
+    "Current service prices may differ from the rates on this issued invoice.": {
+      "sourceHash": "f80a03d80ab9f43d33fa7979fbcbb5a350856887e8e90c3c4bd67e1753d9db0e",
+      "fingerprint": "492e13ec3ed62f552786750284b778f6a4ba1323d5bd9f034211c77a75a5667c",
+      "text": "目前的服務價格可能與這張已開立帳單所採用的費率不同。",
+      "status": "approved"
     }
   }
 }

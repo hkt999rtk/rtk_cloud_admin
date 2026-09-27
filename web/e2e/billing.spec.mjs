@@ -2,6 +2,56 @@ import { expect, test } from '@playwright/test';
 
 import { expectNoCJKText, login } from './fixtures/session.mjs';
 
+test('[UI-CA-BILLING-012] pricing shows the selected Product OTA status without changing rate status @billing @smoke', async ({ page }) => {
+  const cloud = '11111111-1111-4111-8111-111111111111';
+  const enabled = '22222222-2222-4222-8222-222222222222';
+  const disabled = '33333333-3333-4333-8333-333333333333';
+  await login(page, 'billing_owner');
+  await page.route(`**/api/developer/brand-clouds/${cloud}/products?*`, route => route.fulfill({ json: {
+    products: [
+      { id: enabled, brand_cloud_id: cloud, name: 'OTA camera', status: 'active', service_options: ['mqtt', 'ota'], grant_revision: 3 },
+      { id: disabled, brand_cloud_id: cloud, name: 'Basic camera', status: 'active', service_options: ['mqtt'], grant_revision: 2 },
+    ],
+    pagination: { limit: 25, offset: 0, total: 2 },
+  } }));
+  await page.goto(`/console/clouds/${cloud}/billing/pricing`);
+  const status = page.getByRole('region', { name: 'Product OTA service status' });
+  await expect(status.getByRole('combobox')).toBeVisible();
+  await status.getByRole('combobox').selectOption(enabled);
+  await expect(status).toContainText('OTA is currently enabled for this Product.');
+  await expect(page.getByTestId('pricing-reference-table').locator('tr[data-price-status="approved-pending"]').first()).toContainText('OTA is currently enabled for this Product.');
+  await status.getByRole('combobox').selectOption(disabled);
+  await expect(status).toContainText('OTA is not enabled for this Product.');
+  await expect(page.getByTestId('pricing-reference-table').locator('tr[data-price-status="approved-pending"]').first()).toContainText('OTA is not enabled for this Product.');
+  await expect(page.locator('.pricing-status-summary')).toContainText('The four OTA customer unit prices are approved but have no effective date yet.');
+});
+
+test('[UI-CA-BILLING-011] held OTA estimate excludes OTA from displayed totals @billing @smoke', async ({ page, isMobile }) => {
+  await login(page, 'billing_owner');
+  await page.route('**/billing/usage', async route => {
+    const response = await route.fetch();
+    const usage = await response.json();
+    usage.ota_estimate_status = 'held_for_review';
+    usage.ota_estimate_reason = 'owner_month_incomplete';
+    await route.fulfill({ response, json: usage });
+  });
+  await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');
+
+  await expect(page.getByTestId('billing-ota-estimate-hold')).toContainText('The current owner did not cover the complete UTC month');
+  await expect(page.getByTestId('billing-page')).toContainText('Estimated cost excluding OTA');
+  await expect(page.getByTestId('billing-page')).toContainText('Subtotal excluding OTA');
+  await expect(page.getByTestId('billing-page')).toContainText('Pending OTA review');
+
+  await page.getByRole('button', { name: 'Usage and Forecast' }).click();
+  await expect(page.getByTestId('billing-usage-page')).toContainText('Subtotal excluding OTA');
+  await expect(page.getByTestId('billing-usage-page')).toContainText('Pending OTA review');
+  if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  if (isMobile) await page.locator('.mobile-nav-close').click();
+  await expect(page.getByTestId('billing-usage-page')).toContainText('OTA');
+  await expect(page.getByTestId('billing-usage-page')).not.toContainText('Subtotal excluding OTA');
+});
+
 test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and activity evidence @billing @smoke', async ({ page }, testInfo) => {
   await login(page, 'billing_owner');
   await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');
@@ -31,18 +81,18 @@ test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and act
     return route.fulfill({ status: 503, json: { error: 'Accounting unavailable' } });
   });
   await page.getByRole('button', { name: 'Service Pricing', exact: true }).click();
-  await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
+  await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(15);
   await page.getByRole('button', { name: 'Billing Overview', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('temporarily unavailable');
   await expect(page.getByTestId('billing-page')).toHaveCount(0);
   await page.getByRole('link', { name: 'Service Pricing', exact: true }).click();
-  await expect(page.locator('.pricing-table tbody tr')).toHaveCount(15);
+  await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(15);
 
   // A failed pricing API must not leave previously loaded amounts visible.
   await page.route('**/billing/pricing-references', route => route.fulfill({ status: 503, json: { error: 'Pricing unavailable' } }));
   await page.reload();
-  await expect(page.getByRole('alert')).toContainText('Billing information temporarily unavailable');
-  await expect(page.locator('.pricing-table tbody tr')).toHaveCount(0);
+  await expect(page.getByRole('alert').filter({ hasText: 'Billing information temporarily unavailable' })).toBeVisible();
+  await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(0);
   await expect(page.locator('.pricing-draft time, .pricing-intro time')).toHaveCount(0);
 });
 

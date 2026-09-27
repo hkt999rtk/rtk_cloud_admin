@@ -16057,6 +16057,300 @@
       "source": "← Back to payments",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Estimated cost excluding OTA",
+      "source": "Estimated cost excluding OTA",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA estimate pending review",
+      "source": "OTA estimate pending review",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Pending OTA review",
+      "source": "Pending OTA review",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Subtotal excluding OTA",
+      "source": "Subtotal excluding OTA",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.",
+      "source": "The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The current owner did not cover the complete UTC month. OTA charges require manual review.",
+      "source": "The current owner did not cover the complete UTC month. OTA charges require manual review.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The full-month forecast is unavailable while OTA charges are held.",
+      "source": "The full-month forecast is unavailable while OTA charges are held.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This period is not a complete UTC month. OTA charges require a complete UTC month.",
+      "source": "This period is not a complete UTC month. OTA charges require a complete UTC month.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "For a future OTA-inclusive rate card: each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, tax is calculated once on the invoice subtotal under the approved invoice tax policy, and subtotal plus tax is the total due. The tax shown on each line is an allocation of that one invoice tax amount. Existing invoices keep their issued tax policy.",
+      "source": "For a future OTA-inclusive rate card: each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, tax is calculated once on the invoice subtotal under the approved invoice tax policy, and subtotal plus tax is the total due. The tax shown on each line is an allocation of that one invoice tax amount. Existing invoices keep their issued tax policy.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. Only qualifying measured usage is charged when an OTA rate card becomes effective; no separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.",
+      "source": "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. Only qualifying measured usage is charged when an OTA rate card becomes effective; no separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Billing unit and rounding",
+      "source": "Billing unit and rounding",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Current effective rate card",
+      "source": "Current effective rate card",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, then Taiwan business tax of 5% is calculated once on the invoice subtotal using half-up rounding. Subtotal plus tax is the total due. Tax shown on each line allocates that one invoice tax amount. Existing invoices keep their issued tax policy.",
+      "source": "Each Product and meter’s usage × its unit price is rounded to a pre-tax TWD line subtotal. All service line subtotals are added, then Taiwan business tax of 5% is calculated once on the invoice subtotal using half-up rounding. Subtotal plus tax is the total due. Tax shown on each line allocates that one invoice tax amount. Existing invoices keep their issued tax policy.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Effective from",
+      "source": "Effective from",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Effective unit price before tax",
+      "source": "Effective unit price before tax",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. OTA billing also requires commercial status for the entire UTC month, an active Billing account at settlement, verified Product grants, measured usage and an effective OTA rate. No separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.",
+      "source": "For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. OTA billing also requires commercial status for the entire UTC month, an active Billing account at settlement, verified Product grants, measured usage and an effective OTA rate. No separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Includes OTA rates",
+      "source": "Includes OTA rates",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Meter",
+      "source": "Meter",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Next published rate card",
+      "source": "Next published rate card",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No effective TWD rate card is available for this Cloud. Approved and reference prices below do not create a charge.",
+      "source": "No effective TWD rate card is available for this Cloud. Approved and reference prices below do not create a charge.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Quantity precision pending review",
+      "source": "Quantity precision pending review",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "References assume no free allowance or volume discount. Taiwan business tax is added to the combined invoice subtotal, not separately to OTA. Government electronic-invoice issuance is not handled in this phase. Private Cloud requires a separate quote.",
+      "source": "References assume no free allowance or volume discount. Taiwan business tax is added to the combined invoice subtotal, not separately to OTA. Government electronic-invoice issuance is not handled in this phase. Private Cloud requires a separate quote.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Research references are not approved customer charges. The current Billing rate card above determines actual rates; an existing meter or an approved proposal alone does not enable charging.",
+      "source": "Research references are not approved customer charges. The current Billing rate card above determines actual rates; an existing meter or an approved proposal alone does not enable charging.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption.",
+      "source": "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The current rate card above comes from Billing. The approved and public reference prices below are separate and never replace an effective rate.",
+      "source": "The current rate card above comes from Billing. The approved and public reference prices below are separate and never replace an effective rate.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The effective customer rate, if any, is shown in the Billing card above.",
+      "source": "The effective customer rate, if any, is shown in the Billing card above.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This effective rate card uses its recorded historical tax policy; see each issued invoice for the exact tax amount.",
+      "source": "This effective rate card uses its recorded historical tax policy; see each issued invoice for the exact tax amount.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "decimal places",
+      "source": "decimal places",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Approved OTA baseline · see effective card above",
+      "source": "Approved OTA baseline · see effective card above",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Loading your effective Billing rates…",
+      "source": "Loading your effective Billing rates…",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA account eligibility is provisional for the current UTC month and is checked again at settlement. Only Products with OTA selected and verified usage can be charged.",
+      "source": "OTA account eligibility is provisional for the current UTC month and is checked again at settlement. Only Products with OTA selected and verified usage can be charged.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA charges are held for review because paid-account eligibility could not be verified for this UTC month.",
+      "source": "OTA charges are held for review because paid-account eligibility could not be verified for this UTC month.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA is included in the current effective rate card. Product selection, paid-account eligibility, and verified usage still control each charge.",
+      "source": "OTA is included in the current effective rate card. Product selection, paid-account eligibility, and verified usage still control each charge.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA is included in the next published rate card. Its listed UTC date controls when these prices can begin to apply.",
+      "source": "OTA is included in the next published rate card. Its listed UTC date controls when these prices can begin to apply.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Your effective Billing rates cannot be verified right now. Reference prices below are not used for billing.",
+      "source": "Your effective Billing rates cannot be verified right now. Reference prices below are not used for billing.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "For the approved OTA-inclusive TWD policy, each Product and meter’s usage × its unit price is rounded to a pre-tax line subtotal. All service line subtotals are added, then Taiwan business tax of 5% is calculated once on the invoice subtotal using half-up rounding. Subtotal plus tax is the total due. Tax shown on each line allocates that one invoice tax amount. Existing invoices keep their issued tax policy.",
+      "source": "For the approved OTA-inclusive TWD policy, each Product and meter’s usage × its unit price is rounded to a pre-tax line subtotal. All service line subtotals are added, then Taiwan business tax of 5% is calculated once on the invoice subtotal using half-up rounding. Subtotal plus tax is the total due. Tax shown on each line allocates that one invoice tax amount. Existing invoices keep their issued tax policy.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "References assume no free allowance or volume discount. Under the approved OTA-inclusive policy, Taiwan business tax is added to the combined invoice subtotal, not separately to OTA. Government electronic-invoice issuance is not handled in this phase. Private Cloud requires a separate quote.",
+      "source": "References assume no free allowance or volume discount. Under the approved OTA-inclusive policy, Taiwan business tax is added to the combined invoice subtotal, not separately to OTA. Government electronic-invoice issuance is not handled in this phase. Private Cloud requires a separate quote.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Approved OTA price · effective status unavailable",
+      "source": "Approved OTA price · effective status unavailable",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The four OTA unit prices are approved. Current effectiveness cannot be verified until Billing responds.",
+      "source": "The four OTA unit prices are approved. Current effectiveness cannot be verified until Billing responds.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Allocated tax",
+      "source": "Allocated tax",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Line total",
+      "source": "Line total",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.",
+      "source": "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unit price before tax",
+      "source": "Unit price before tax",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.",
+      "source": "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No Products are available in this Cloud.",
+      "source": "No Products are available in this Cloud.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA is currently enabled for this Product.",
+      "source": "OTA is currently enabled for this Product.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product OTA service status",
+      "source": "Product OTA service status",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product service status is temporarily unavailable. Billing prices remain available.",
+      "source": "Product service status is temporarily unavailable. Billing prices remain available.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Current service prices may differ from the rates on this issued invoice.",
+      "source": "Current service prices may differ from the rates on this issued invoice.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

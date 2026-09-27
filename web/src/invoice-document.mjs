@@ -20,3 +20,10 @@ export function invoiceQuantity(line) {
   if (!Number.isFinite(quantity)) return 'Not available';
   return new Intl.NumberFormat(formatLocale(), { maximumFractionDigits: 10 }).format(quantity);
 }
+
+export function invoiceUnitPrice(line) {
+  if (line.unit_price_minor == null || line.unit_price_scale == null) return null;
+  const price = Number(line.unit_price_minor) / (10 ** line.unit_price_scale);
+  if (!Number.isFinite(price)) return null;
+  return new Intl.NumberFormat(formatLocale(), { maximumFractionDigits: 9 }).format(price);
+}

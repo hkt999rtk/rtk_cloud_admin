@@ -59,3 +59,16 @@ func (s *Server) apiBillingPricingReferences(w http.ResponseWriter, r *http.Requ
 		"catalog":  catalog,
 	})
 }
+
+func (s *Server) apiBillingPricingEffective(w http.ResponseWriter, r *http.Request) {
+	ctx, ok := s.billingOwnerContext(w, r, "billing_account.read", true)
+	if !ok {
+		return
+	}
+	result, err := s.billingClient.BillingPricing(ctx.context, ctx.actorID, ctx.org.ID)
+	if err != nil {
+		s.writePaymentBFFError(w, ctx.session.ID, err)
+		return
+	}
+	writeJSON(w, map[string]any{"cloud_id": ctx.org.ID, "price_book": result})
+}

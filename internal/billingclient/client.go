@@ -172,6 +172,11 @@ func (c *Client) BillingAccount(ctx context.Context, actorID, orgID string) (Bil
 	err := c.do(ctx, "GET", orgPath(orgID, "/billing/account"), actorID, "billing_account.read", nil, &out, nil)
 	return out, err
 }
+func (c *Client) BillingPricing(ctx context.Context, actorID, orgID string) (map[string]any, error) {
+	var out map[string]any
+	err := c.do(ctx, "GET", orgPath(orgID, "/billing/pricing"), actorID, "billing_account.read", nil, &out, nil)
+	return out, err
+}
 func (c *Client) BillingSummary(ctx context.Context, actorID, orgID string) (map[string]any, error) {
 	var out map[string]any
 	err := c.do(ctx, "GET", orgPath(orgID, "/billing/summary"), actorID, "billing_summary.read", nil, &out, nil)

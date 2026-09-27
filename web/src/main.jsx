@@ -2890,12 +2890,23 @@ function CloudBillingApp() {
   return <CloudConsoleShell me={state?.me} cloud={state?.cloud} active="billing" title={translate("Billing")} onError={setError}><div className="billing-workspace">{error ? <p role="alert">{translate(error)}</p> : !state && <p role="status">{translate("Loading owner-scoped Billing…")}</p>}<div className="inline-actions"><button onClick={()=>setReload(v=>v+1)}>{translate("Refresh Billing")}</button>{error && !pricingOnly && <a className="ghost-button" href={`/console/clouds/${cloudId}/billing/pricing`}>{translate("Service Pricing")}</a>}</div>{state && <BillingScope.Provider value={{cloudId,version:state.data.ownershipVersion,onAccessLost:()=>{setState(null);setError(billingScopeError(403));}}}><BillingPage key={`${cloudId}:${state.data.ownershipVersion}`} data={state.data} loading={false} capabilities={state.cloud.capabilities} onRefresh={()=>setReload(v=>v+1)} /></BillingScope.Provider>}</div></CloudConsoleShell>;
 }
 
+function OTAEstimateHoldNotice({ reason }) {
+  return <div className="notice billing-ota-hold" role="status" data-testid="billing-ota-estimate-hold">
+    <strong>{translate('OTA estimate pending review')}</strong>
+    <p>{translate('The amounts shown include other priced services. OTA charges are excluded until the monthly evidence can be reviewed; this is not the final invoice total.')}</p>
+    <p>{reason === 'owner_month_incomplete'
+      ? translate('The current owner did not cover the complete UTC month. OTA charges require manual review.')
+      : translate('This period is not a complete UTC month. OTA charges require a complete UTC month.')}</p>
+  </div>;
+}
+
 function BillingPage({ data, loading, capabilities, onRefresh }) {
   const billingScope = React.useContext(BillingScope);
   const {cloudId} = billingScope;
   const account = data?.account?.account;
   const summary = data?.summary || {};
   const usage = data?.usage || summary?.current_period || {};
+  const otaEstimateHeld = usage.ota_estimate_status === 'held_for_review';
   const invoices = data?.invoices?.invoices || [];
   const activities = data?.activity?.activities || [];
   const billingProfile = data?.profile?.billing_profile || data?.profile?.profile || {};
@@ -3118,11 +3129,12 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   if (selectedInvoice) return <BillingInvoiceDetail invoice={selectedInvoice} onBack={() => { setSelectedInvoice(null); selectBillingView('invoices'); }} />;
   if (selectedActivity) return <BillingActivityDetail activity={selectedActivity} onBack={() => { setSelectedActivity(null); selectBillingView('activity'); }} />;
   const topUpStatementIntent = selectedIntent || (linkedIntentID && intents.find((intent) => intent.id === linkedIntentID && intent.reason === 'manual_top_up' && intent.state === 'succeeded'));
-  if (topUpStatementIntent) return <BillingTopUpStatement intent={topUpStatementIntent} recipient={billingProfile} onBack={() => { setSelectedIntent(null); selectBillingView('settings'); }} />;
+  if (topUpStatementIntent) return <BillingTopUpStatement intent={topUpStatementIntent} onBack={() => { setSelectedIntent(null); selectBillingView('settings'); }} />;
 
   if (billingView === 'overview') return <section className="page-content billing-page" data-testid="billing-page">
     <div className="page-intro"><div><p className="eyebrow">{translate("Commercial Settlement")}</p><h2>{translate("Billing overview")}</h2><p>{translate("Keep track of available balances, estimated charges for the month, invoices, and recent billing changes.")}</p></div><small>{translate("Updated")} {formatProviderTimestamp(summary.calculated_at || account?.updated_at)}</small></div>
     {billingTabs}
+    {otaEstimateHeld && <OTAEstimateHoldNotice reason={usage.ota_estimate_reason} />}
     <details className="ui-settings-advanced" data-testid="managed-cloud-plan"><summary>{translate("Service plan and deployment options")}</summary><section className="managed-cloud-plan">
       <div className="managed-cloud-plan-main">
         <span className="managed-cloud-plan-badge">{translate("Recommended plan")}</span>
@@ -3144,13 +3156,13 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
     </section></details>
     <div className="metric-grid billing-overview-metrics">
       <MetricCard icon="wallet" label="Available Balance" value={formatMinorAmount(account?.available_balance_minor, account?.currency)} hint={summary.runway?.state === 'available' ? translate('Estimated availability {{days}} days', { days: summary.runway.projected_days }) : translate('Insufficient usage to estimate available days')} tone="info" />
-      <MetricCard icon="chart-column" label="Estimated Cost This Month" value={formatMinorAmount(usage.total_minor, usage.currency || account?.currency)} hint={translate('From {{date}} · Estimate', { date: formatProviderTimestamp(usage.period_start) })} tone="neutral" />
-      <MetricCard icon="chart-line" label="End-of-Month Forecast" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency || account?.currency) : translate('Insufficient data')} hint={summary.forecast?.state === 'available' ? translate('{{confidence}} confidence · {{days}} observation days', { confidence: summary.forecast.confidence === 'medium' ? translate('Medium') : translate('Low'), days: summary.forecast.observation_days }) : translate('Available after at least one complete observation day')} tone="neutral" />
+      <MetricCard icon="chart-column" label={otaEstimateHeld ? translate('Estimated cost excluding OTA') : 'Estimated Cost This Month'} value={formatMinorAmount(usage.total_minor, usage.currency || account?.currency)} hint={translate('From {{date}} · Estimate', { date: formatProviderTimestamp(usage.period_start) })} tone="neutral" />
+      <MetricCard icon="chart-line" label="End-of-Month Forecast" value={otaEstimateHeld ? translate('Pending OTA review') : summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency || account?.currency) : translate('Insufficient data')} hint={otaEstimateHeld ? translate('The full-month forecast is unavailable while OTA charges are held.') : summary.forecast?.state === 'available' ? translate('{{confidence}} confidence · {{days}} observation days', { confidence: summary.forecast.confidence === 'medium' ? translate('Medium') : translate('Low'), days: summary.forecast.observation_days }) : translate('Available after at least one complete observation day')} tone="neutral" />
       <MetricCard icon="credit-card" label="Payment method" value={paymentMethodLabel(activeMethod)} hint={activeMethod ? translate('Status is OK') : translate('No payment method set')} tone={activeMethod?.status === 'active' ? 'good' : 'warning'} />
     </div>
     <div className="billing-overview-grid">
       <section className="panel billing-auto-card"><div className="panel-head"><div><h3>{translate("Automatic Top-Up ·")} {policy?.enabled ? translate("Enabled") : translate("Disabled")}</h3><p>{policy ? translate("Top up {{value0}} when the balance falls below {{value1}}.", { value0: formatMinorAmount(policy.top_up_amount_minor, policy.currency), value1: formatMinorAmount(policy.threshold_minor, policy.currency) }) : translate("Set a threshold and payment method to enable automatic top-up.")}</p></div><span className={`status-badge ${policyState.tone}`}>{translate(policyState.label)}</span></div>{policy?.last_succeeded_at ? <p>{translate("Last top-up:")} {formatProviderTimestamp(policy.last_succeeded_at)}</p> : null}<button type="button" className="ghost-button" onClick={() => selectBillingView('settings')}>{translate("Manage Automatic Top-Up")}</button></section>
-      <section className="panel billing-usage-card" id="billing-usage"><div className="panel-head"><div><h3>{translate("Estimated Cost by Service Category")}</h3><p>{translate("Once the pricing version is locked, the settlement result becomes an immutable invoice.")}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{translate(line.description)}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>{translate("Total")}</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
+      <section className="panel billing-usage-card" id="billing-usage"><div className="panel-head"><div><h3>{translate("Estimated Cost by Service Category")}</h3><p>{translate("Once the pricing version is locked, the settlement result becomes an immutable invoice.")}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{translate(line.description)}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>{otaEstimateHeld ? translate('Subtotal excluding OTA') : translate('Total')}</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
     </div>
     <div className="billing-overview-grid lower">
       <section className="panel"><div className="panel-head"><div><h3>{translate("View Invoice")}</h3><p>{translate("Invoiced and immutable PDF documents.")}</p></div><button type="button" className="link-button" onClick={() => selectBillingView('invoices')}>{translate("All invoices")}</button></div><BillingInvoiceTable invoices={invoices.slice(0, 3)} onSelect={openBillingInvoice} /></section>
@@ -3161,12 +3173,13 @@ function BillingPage({ data, loading, capabilities, onRefresh }) {
   if (billingView === 'usage') return <section className="page-content billing-page" data-testid="billing-usage-page">
     <div className="page-intro"><div><h2>{translate("Usage and Forecast")}</h2><p>{translate("The Billing server estimates costs using the applicable pricing version. The end-of-month forecast is not a final invoice.")}</p></div><small>{translate("Data through")} {formatProviderTimestamp(usage.usage_through)}</small></div>
     {billingTabs}
+    {otaEstimateHeld && <OTAEstimateHoldNotice reason={usage.ota_estimate_reason} />}
     <div className="metric-grid billing-overview-metrics">
-      <MetricCard icon="chart-column" label="Month to Date" value={formatMinorAmount(usage.total_minor, usage.currency)} hint={translate('{{count}} usage records', { count: formatNumber(usage.fact_count || 0) })} tone="info" />
-      <MetricCard icon="chart-line" label="End-of-Month Forecast" value={summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency) : translate('Insufficient data')} hint={summary.forecast?.state === 'available' ? translate('Approximately {{amount}} remaining · {{confidence}} confidence', { amount: formatMinorAmount(summary.forecast.projected_remaining_minor, usage.currency), confidence: summary.forecast.confidence === 'medium' ? translate('Medium') : translate('Low') }) : translate('At least one complete observation day is required')} tone="neutral" />
+      <MetricCard icon="chart-column" label={otaEstimateHeld ? translate('Estimated cost excluding OTA') : 'Month to Date'} value={formatMinorAmount(usage.total_minor, usage.currency)} hint={translate('{{count}} usage records', { count: formatNumber(usage.fact_count || 0) })} tone="info" />
+      <MetricCard icon="chart-line" label="End-of-Month Forecast" value={otaEstimateHeld ? translate('Pending OTA review') : summary.forecast?.state === 'available' ? formatMinorAmount(summary.forecast.projected_period_total_minor, usage.currency) : translate('Insufficient data')} hint={otaEstimateHeld ? translate('The full-month forecast is unavailable while OTA charges are held.') : summary.forecast?.state === 'available' ? translate('Approximately {{amount}} remaining · {{confidence}} confidence', { amount: formatMinorAmount(summary.forecast.projected_remaining_minor, usage.currency), confidence: summary.forecast.confidence === 'medium' ? translate('Medium') : translate('Low') }) : translate('At least one complete observation day is required')} tone="neutral" />
       <MetricCard icon="wallet" label="Balance Runway" value={summary.runway?.state === 'available' ? translate('{{days}} days', { days: summary.runway.projected_days }) : translate('Insufficient data')} hint={summary.runway?.state === 'available' ? translate('Average daily cost {{amount}}', { amount: formatMinorAmount(summary.runway.average_daily_cost_minor, usage.currency) }) : translate('Cannot be estimated yet')} tone="neutral" />
     </div>
-    <section className="panel billing-usage-card"><div className="panel-head"><div><h3>{translate("Cost This Month by Service Category")}</h3><p>{formatProviderTimestamp(usage.period_start)} – {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{translate(line.description)} · {line.quantity} {translate(line.unit)}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>{translate("Month to Date")}</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
+    <section className="panel billing-usage-card"><div className="panel-head"><div><h3>{translate("Cost This Month by Service Category")}</h3><p>{formatProviderTimestamp(usage.period_start)} – {formatProviderTimestamp(usage.period_end)}</p></div></div><div className="billing-breakdown">{(usage.lines || []).map((line) => <div key={`${line.service_code}-${line.metric_code}`}><span><strong>{String(line.service_code || '').toUpperCase()}</strong><small>{translate(line.description)} · {line.quantity} {translate(line.unit)}</small></span><b>{formatMinorAmount(line.total_minor, usage.currency)}</b></div>)}</div><div className="billing-total"><span>{otaEstimateHeld ? translate('Subtotal excluding OTA') : translate('Month to Date')}</span><strong>{formatMinorAmount(usage.total_minor, usage.currency)}</strong></div></section>
   </section>;
 
   if (billingView === 'invoices') return <section className="page-content billing-page" data-testid="billing-invoices-page">
@@ -3233,6 +3246,7 @@ function BillingInvoiceDetail({ invoice, onBack }) {
   return <section className="page-content billing-page" data-testid="billing-invoice-detail">
     <button type="button" className="link-button billing-back" onClick={onBack}>{translate("← Back to invoices")}</button>
     <div className="page-intro"><div><p className="eyebrow">{translate("Invoice")}</p><h2>{invoice.invoice_number}</h2></div>{invoice.document ? <a className="primary button-link" href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}>{translate("Download PDF")}</a> : null}</div>
+    <p className="billing-invoice-pricing"><a href={`/console/clouds/${cloudId}/billing/pricing`}>{translate('Service Pricing')}</a> · {translate('Current service prices may differ from the rates on this issued invoice.')}</p>
     <BillingInvoiceDocument invoice={invoice} />
   </section>;
 }
@@ -3241,7 +3255,7 @@ function BillingActivityDetail({ activity, onBack }) {
   return <section className="page-content billing-page" data-testid="billing-activity-detail"><button type="button" className="link-button billing-back" onClick={onBack}>{translate("← Back to billing activity")}</button><div className="page-intro"><div><p className="eyebrow">{translate("Billing activity")}</p><h2>{activity.customer_reference}</h2><p>{activity.type === 'invoice' ? translate("Invoice charge") : translate("Automatic top-up")} · {formatMinorAmount(activity.amount_minor, activity.currency)}</p></div><span className={`status-badge ${activity.state === 'completed' ? 'good' : 'warning'}`}>{billingStatusLabel(activity.state)}</span></div><section className="panel"><h3>{translate("Processing timeline")}</h3><ol className="billing-timeline">{(activity.steps?.length ? activity.steps : [{ kind: activity.type, state: activity.state, occurred_at: activity.occurred_at, customer_reference: activity.customer_reference }]).map((step, index) => <li key={`${step.kind}-${index}`}><i className="fa-solid fa-circle-check" /><div><strong>{billingStatusLabel(step.kind)}</strong><p>{billingStatusLabel(step.state)} · {formatProviderTimestamp(step.occurred_at)}</p><small>{step.customer_reference}</small></div></li>)}</ol></section></section>;
 }
 
-function BillingTopUpStatement({ intent, recipient, onBack }) {
+function BillingTopUpStatement({ intent, onBack }) {
   const {cloudId} = React.useContext(BillingScope);
   const downloadURL = billingAPI(cloudId, `/api/billing/payment-intents/${encodeURIComponent(intent.id)}/statement.pdf`);
   const provider = intent.provider === 'paypal' ? 'PayPal' : intent.provider === 'newebpay' ? 'NewebPay' : intent.provider;
@@ -3258,7 +3272,7 @@ function BillingTopUpStatement({ intent, recipient, onBack }) {
       </header>
       <div className="topup-document-body">
         <div className="topup-document-parties">
-          <section aria-label={translate("Recipient")}><h4>{translate("Billed to")}</h4><strong>{recipient.legal_name || translate("Billing account holder")}</strong>{recipient.contact_email && <p>{recipient.contact_email}</p>}<p className="topup-document-balance">{translate("RTK Cloud prepaid balance")}</p><p className="topup-document-delivery">{translate("Delivery setting:")} {recipient.delivery_preference === 'portal_and_email' && recipient.contact_email ? translate("Portal + email to {{email}}", { email: recipient.contact_email }) : translate("Portal only")}</p></section>
+          <section aria-label={translate("Recipient")}><h4>{translate("Billed to")}</h4><strong>{translate("Billing account holder")}</strong><p className="topup-document-balance">{translate("RTK Cloud prepaid balance")}</p></section>
           <section aria-label={translate("Payment details")}><h4>{translate("Payment details")}</h4><dl><div><dt>{translate("Method")}</dt><dd>{provider}</dd></div><div><dt>{translate("Confirmed")}</dt><dd>{formatProviderTimestamp(intent.completed_at)}</dd></div><div><dt>{translate("Created")}</dt><dd>{formatProviderTimestamp(intent.created_at)}</dd></div></dl></section>
         </div>
         <section className="topup-document-breakdown" aria-label={translate("Transaction breakdown")}><h4>{translate("Transaction breakdown")}</h4><table><thead><tr><th scope="col">{translate("Description")}</th><th scope="col">{translate("Amount")}</th></tr></thead><tbody><tr><td><strong>{translate("Balance top-up")}</strong><span>{translate("One-time manual payment")}</span></td><td>{amount}</td></tr></tbody></table><div className="topup-document-total"><span>{translate("Total paid")}</span><strong>{amount}</strong></div></section>
