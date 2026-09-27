@@ -1,0 +1,110 @@
+.billing-topup-page > .page-intro { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 0 0 24px; }
+.billing-topup-page > .page-intro h2 { margin: 0 0 6px; }
+.billing-topup-page > .page-intro p:last-child { margin: 0; color: #637488; }
+.billing-topup-page > .page-intro .button-link { flex: 0 0 auto; }
+
+.billing-topup-document {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto 40px;
+  overflow: hidden;
+  border: 1px solid #dbe4ec;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 22px 60px rgb(21 48 73 / 10%);
+  color: #172c42;
+  font-variant-numeric: tabular-nums;
+}
+
+.topup-document-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 34px 20px;
+  padding: 36px 42px 34px;
+  background: #0e233e;
+  color: #fff;
+}
+
+.topup-document-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-self: start;
+  color: #c5d8e7;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .16em;
+}
+
+.topup-document-brand i { padding: 0 5px; color: #65d5bd; font-style: normal; }
+.topup-document-mark { display: grid; place-items: center; width: 32px; height: 32px; border-left: 3px solid #39c5ab; color: #fff; letter-spacing: -.05em; font-size: 14px; }
+
+.topup-document-status {
+  align-self: start;
+  padding: 8px 13px;
+  border-radius: 999px;
+  background: #153d46;
+  color: #baf4df;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.topup-document-status span { padding-right: 7px; color: #5cdbab; font-size: 10px; }
+.topup-document-headline { grid-column: 1 / -1; }
+.topup-document-headline h3 { margin: 0 0 8px; color: #fff; font-size: clamp(23px, 3vw, 30px); font-weight: 650; letter-spacing: -.04em; }
+.topup-document-headline p { margin: 0; color: #b8cbda; font-size: 13px; }
+.topup-document-paid { grid-column: 1 / -1; display: grid; gap: 5px; }
+.topup-document-paid span { color: #b8cbda; font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+.topup-document-paid strong { color: #fff; font-size: clamp(34px, 5vw, 44px); font-weight: 720; letter-spacing: -.05em; line-height: 1.1; }
+
+.topup-document-body { padding: 34px 42px 26px; }
+.topup-document-body h4 { margin: 0 0 19px; color: #657689; font-size: 10px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; }
+.topup-document-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 38px; padding-bottom: 38px; border-bottom: 1px solid #dfe6ed; }
+.topup-document-parties section { min-width: 0; }
+.topup-document-parties strong { display: block; margin-bottom: 6px; font-size: 16px; overflow-wrap: anywhere; }
+.topup-document-parties p { margin: 5px 0 0; color: #647487; font-size: 12px; overflow-wrap: anywhere; }
+.topup-document-parties .topup-document-balance { margin-top: 23px; }
+.topup-document-parties .topup-document-delivery { max-width: 340px; margin-top: 12px; color: #17627a; font-size: 11px; font-weight: 650; }
+.topup-document-parties dl { display: grid; gap: 14px; margin: 0; }
+.topup-document-parties dl div { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 12px; font-size: 12px; }
+.topup-document-parties dt { color: #647487; }
+.topup-document-parties dd { margin: 0; font-weight: 650; overflow-wrap: anywhere; }
+
+.topup-document-breakdown { padding-top: 34px; }
+.topup-document-breakdown table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.topup-document-breakdown th { padding: 12px 14px; background: #f1f5f8; color: #637488; font-size: 10px; font-weight: 750; letter-spacing: .11em; text-align: left; text-transform: uppercase; }
+.topup-document-breakdown th:last-child { width: 30%; text-align: right; }
+.topup-document-breakdown td { padding: 20px 14px 21px; border-bottom: 1px solid #dfe6ed; font-size: 13px; }
+.topup-document-breakdown td:last-child { text-align: right; font-weight: 700; white-space: nowrap; }
+.topup-document-breakdown td strong { display: block; margin-bottom: 4px; }
+.topup-document-breakdown td span { color: #647487; font-size: 11px; }
+.topup-document-total { display: flex; justify-content: flex-end; align-items: baseline; gap: 48px; padding: 24px 10px 4px; }
+.topup-document-total span { color: #647487; font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+.topup-document-total strong { color: #17627a; font-size: 24px; letter-spacing: -.04em; }
+
+.topup-document-references { padding: 31px 0 34px; }
+.topup-document-references dl { display: grid; gap: 10px; margin: 0; padding-top: 16px; border-top: 1px solid #dfe6ed; }
+.topup-document-references dl div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 18px; font-size: 11px; }
+.topup-document-references dt { color: #647487; }
+.topup-document-references dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.topup-document-note { padding: 17px 20px; border-left: 3px solid #36c4a8; border-radius: 0 5px 5px 0; background: #f3f7f8; }
+.topup-document-note strong { display: block; margin-bottom: 6px; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.topup-document-note p { margin: 0; color: #526579; font-size: 11px; line-height: 1.65; }
+.topup-document-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 26px; color: #748396; font-size: 10px; }
+
+@media (max-width: 650px) {
+  .billing-topup-page > .page-intro { align-items: flex-start; flex-direction: column; }
+  .topup-document-hero { gap: 24px 12px; padding: 26px 22px; }
+  .topup-document-status { align-self: center; padding: 7px 9px; font-size: 10px; }
+  .topup-document-brand { gap: 7px; font-size: 9px; letter-spacing: .08em; }
+  .topup-document-body { padding: 27px 22px 23px; }
+  .topup-document-parties { grid-template-columns: 1fr; gap: 28px; }
+  .topup-document-parties .topup-document-balance { margin-top: 15px; }
+  .topup-document-breakdown th:last-child { width: 36%; }
+  .topup-document-total { gap: 15px; justify-content: space-between; }
+  .topup-document-total strong { font-size: 20px; }
+  .topup-document-references dl div { grid-template-columns: 1fr; gap: 3px; }
+  .topup-document-footer { flex-direction: column; gap: 5px; }
+}

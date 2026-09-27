@@ -3560,7 +3560,7 @@ paths:
       x-rtk-requirement-ids:
         - REQ-CA-BILLING-001
       tags: [Billing]
-      summary: Persist a manual top-up and return a provider-hosted POST action.
+      summary: Persist a manual top-up and return a provider-hosted POST form or GET redirect.
       parameters: [{ $ref: '#/components/parameters/BillingDisplayedOwnershipVersion' }, { $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody:
         required: true
@@ -3575,7 +3575,7 @@ paths:
                 currency: { type: string, enum: [TWD] }
                 provider: { type: string, pattern: '^[a-z0-9_]{1,32}$' }
       responses:
-        "202": { description: Hosted card checkout action accepted. }
+        "202": { description: Provider-hosted checkout action accepted. }
         "400": { $ref: "#/components/responses/PaymentError" }
         "409": { $ref: "#/components/responses/PaymentError" }
 
@@ -3608,6 +3608,22 @@ paths:
       responses:
         "200": { description: Safe intent detail. }
         "404": { $ref: "#/components/responses/PaymentError" }
+
+  /api/developer/brand-clouds/{brandCloudID}/billing/payment-intents/{intentId}/statement.pdf:
+    parameters:
+      - { name: brandCloudID, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: intentId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: downloadApiBillingTopUpTransactionDetail
+      x-rtk-feature-id: FEAT-CA-BFF-001
+      x-rtk-requirement-ids: [REQ-CA-BILLING-001]
+      tags: [Billing]
+      summary: Download the PDF transaction detail for a confirmed manual top-up.
+      description: Owner scoped and available only after payment confirmation. This is not a statutory tax invoice.
+      responses:
+        "200": { description: One-page transaction detail., content: { application/pdf: { schema: { type: string, format: binary } } } }
+        "403": { $ref: "#/components/responses/PaymentError" }
+        "409": { $ref: "#/components/responses/PaymentError" }
 
   /api/developer/brand-clouds/{brandCloudID}/provisioning/sources:
     post:
