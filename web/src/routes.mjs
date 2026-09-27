@@ -31,6 +31,7 @@ export const customerNavGroups = [
     labelKey: 'Management',
     items: [
       { id: 'access', labelKey: 'Members & Access', segment: 'members', icon: 'users', capabilities: ['team.read', 'role_assignment.read'] },
+      { id: 'support', labelKey: 'Support', segment: 'support', icon: 'headset', capabilities: ['ticket.read'] },
       { id: 'billing', labelKey: 'Billing', segment: 'billing', icon: 'credit-card', capabilities: ['billing_account.read'], ownerOnly: true },
       { id: 'settings', labelKey: 'Settings', segment: 'settings', icon: 'gear', alwaysVisible: true },
     ],
@@ -51,6 +52,7 @@ const cloudRouteSegments = Object.freeze({
   'stream-health': 'analytics',
   reports: 'analytics/reports',
   access: 'members',
+  support: 'support',
   billing: 'billing',
   settings: 'settings',
 });
@@ -62,6 +64,7 @@ export const pageIcons = Object.freeze({
   'my-clouds': 'cloud', overview: 'gauge-high', devices: 'video',
   'product-services': 'boxes-stacked', 'chipset-sdk': 'code-branch', 'developer-docs': 'book-open',
   groups: 'tags', provisioning: 'file-csv', access: 'user-shield', settings: 'gear', billing: 'credit-card',
+  support: 'headset', 'platform-support': 'headset',
   'firmware-ota': 'microchip', 'stream-health': 'tower-broadcast', reports: 'chart-column', analytics: 'chart-column',
   'platform-dashboard': 'gauge-high', 'platform-grafana': 'chart-simple', 'platform-health': 'heart-pulse',
   'platform-logs': 'file-lines', 'platform-brand-clouds': 'cloud',
@@ -126,6 +129,13 @@ export const platformNavGroups = [
     items: [
       { id: 'platform-operations', labelKey: 'Operations Log', path: '/admin/ops', icon: 'list-check' },
       { id: 'platform-audit', labelKey: 'Audit Log', path: '/admin/audit', icon: 'shield-halved' },
+    ],
+  },
+  {
+    id: 'platform-support',
+    labelKey: 'Support',
+    items: [
+      { id: 'platform-support', labelKey: 'Support', path: '/admin/support', icon: 'headset', capabilities: ['ticket.support.read'] },
     ],
   },
 ];
@@ -273,6 +283,8 @@ export function titleFor(active) {
     reports: 'Reports',
     analytics: 'Analytics',
     billing: 'Billing',
+    support: 'Support',
+    'platform-support': 'Support',
     'platform-dashboard': 'Platform Home',
     'platform-grafana': 'Grafana',
     'platform-health': 'Service Health',
@@ -308,6 +320,7 @@ export function routeFromPath(path) {
   if (path === '/admin/ops' || path.startsWith('/admin/ops/')) return 'platform-operations';
   if (path === '/admin/operations' || path.startsWith('/admin/operations/')) return 'platform-operations';
   if (path === '/admin/audit' || path.startsWith('/admin/audit/')) return 'platform-audit';
+  if (path === '/admin/support' || path.startsWith('/admin/support/')) return 'platform-support';
   if (path.startsWith('/admin/')) return 'not-found';
   if (path === '/console/clouds' || path === '/console/clouds/') return 'my-clouds';
   const canonicalCloud = String(path || '').match(/^\/console\/clouds\/([^/]+)(?:\/(.*))?\/?$/);
@@ -325,6 +338,7 @@ export function routeFromPath(path) {
     if (suffix === 'analytics' || suffix.startsWith('analytics/')) return 'analytics';
     if (suffix === 'members' || suffix.startsWith('members/')) return 'access';
     if (suffix === 'billing' || suffix.startsWith('billing/')) return 'billing';
+    if (suffix === 'support' || suffix.startsWith('support/')) return 'support';
     if (suffix === 'settings' || suffix.startsWith('settings/')) return 'settings';
     return 'not-found';
   }

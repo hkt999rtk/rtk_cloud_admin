@@ -16135,6 +16135,420 @@
       "fingerprint": "492e13ec3ed62f552786750284b778f6a4ba1323d5bd9f034211c77a75a5667c",
       "text": "目前的服務價格可能與這張已開立帳單所採用的費率不同。",
       "status": "approved"
+    },
+    " Internal note": {
+      "sourceHash": "81c5df308c9f7151075469176521c0b9fabf3aa0c792f01c18ebac724fbed121",
+      "fingerprint": "24dc3cd1b3e7aa2b825e3ce0c324aaca9631fe8b5701a54c5b25ad264e2091cd",
+      "text": " 內部備註",
+      "status": "approved"
+    },
+    " Public reply": {
+      "sourceHash": "ce145512c0fa8f90af0c93b6267dccc6f95142030fb68f54bc50787180baba10",
+      "fingerprint": "4aa079111a1c36993f7ff439c13cbe31020abacc94b9c55d3951921936df9841",
+      "text": " 公開回覆",
+      "status": "approved"
+    },
+    " · Updated ": {
+      "sourceHash": "3f41a9d79081e18239885c1dcf38cd25b94454b8945a2a411b03bf8871fbab13",
+      "fingerprint": "1842922093853b724a09d95772f67b26838f08074be21fae7e5b948ff1bafc04",
+      "text": " · 更新於 ",
+      "status": "approved"
+    },
+    "All states": {
+      "sourceHash": "9ebb32b24853cac45d73f09a3f008c0c92ba1a5d17387ed62ed6e91117ec97de",
+      "fingerprint": "7cf736e30bed24000256088c807e53e08bf7296c7f13fe2e1b64f5009c4b50c9",
+      "text": "所有狀態",
+      "status": "approved"
+    },
+    "Attachments": {
+      "sourceHash": "9020319bbddabdae2b96f434ff66590654c3e8be571bfc229ecf5e7da0a0919a",
+      "fingerprint": "0a5063926f91800001b91eeb413f9398058aa786f33fdd8e5b40dc5fc062af67",
+      "text": "附件",
+      "status": "approved"
+    },
+    "Back to tickets": {
+      "sourceHash": "c6b507d4551e4b7c7b63e51846853bf485831d45df6e94389e755aa9d63f3db4",
+      "fingerprint": "8005d859c670fae14574ea969eba6d8805d078aa627b82d661666b30079766c2",
+      "text": "返回案件列表",
+      "status": "approved"
+    },
+    "Claim ticket": {
+      "sourceHash": "c7e3c3471c013464bb971edbe8e00a57144c16673efd593f025cd253fee046c2",
+      "fingerprint": "ec4e05b5e7ce5c2e85285b879642e63249d12916ff6881d937da97873ab515d2",
+      "text": "認領案件",
+      "status": "approved"
+    },
+    "Cloud ticket": {
+      "sourceHash": "cef2a259a8e0abf6444e6351d81ae64d3cd7ad779f6ae13021468408dbd28c6f",
+      "fingerprint": "52745e590343553edd38d01ac3f6b18adcb26b1481816d0fb1a184e32300df0e",
+      "text": "雲端案件",
+      "status": "approved"
+    },
+    "Cloud: ": {
+      "sourceHash": "9b788d3c5dfc12db9b25b4f84786b02bd6a1f112e7c85d28c5a490d5efe1195e",
+      "fingerprint": "df44134bf7a6abd1eabebbf10b32620debc0bec12be9feededd1784d5380fc56",
+      "text": "雲端：",
+      "status": "approved"
+    },
+    "Conversation": {
+      "sourceHash": "49f08c4ef22dc23b16b4f19c1e1bebcb0e4be7f0af11732985cd391e9dd8d849",
+      "fingerprint": "a0181bcec3c97b23a693ff7ba3591260ca5acb1cddfe8f17aa213caa3b2a2c18",
+      "text": "對話",
+      "status": "approved"
+    },
+    "Enter a message of at most 20,000 characters.": {
+      "sourceHash": "5bcf4c87bb0117303c2cd1c2d3011b941550b3f4b858b74759398aa1811c2880",
+      "fingerprint": "98bf3f3546b18c80fc6517dd524e2a55b4eb54c7bd4b34dad399caaacb6caefb",
+      "text": "請輸入不超過 20,000 字的訊息。",
+      "status": "approved"
+    },
+    "Incident": {
+      "sourceHash": "cd42e0aa4ebd3b762c60b6b9a7f1ed73a0bdf98fa9d4aad552cbe42fb8c4fce7",
+      "fingerprint": "63dbc4f2dc19f9cf57962104cdd07ba69e2df007f2d51456466818dbe439d438",
+      "text": "事件",
+      "status": "approved"
+    },
+    "Integration": {
+      "sourceHash": "275ac304df9c60c9d6147e8032e671b7aabdaf831eb9240d7f70e5a0b4fb2025",
+      "fingerprint": "26052a8df5bd8c84b550f31c9cda8c8a0359f39dfdded81cc46b3ab6fa624888",
+      "text": "整合",
+      "status": "approved"
+    },
+    "Loading conversation…": {
+      "sourceHash": "e9ee0fb86b4842c51c7158894fa878625fd9aabf833355692405379ca083f7d3",
+      "fingerprint": "be3d775fe6522d78717f746a89303b684aefefe21a3571a203b16442e66fd124",
+      "text": "正在載入對話…",
+      "status": "approved"
+    },
+    "Loading tickets…": {
+      "sourceHash": "f0f6fa32ed69b9c19cc5ab8be4878c3201c37a161a7de65edb98e82951ef26a0",
+      "fingerprint": "d3a2119681629e983806cf5e0aaa447453c501142cd2e569ededa0296ee4b96f",
+      "text": "正在載入案件…",
+      "status": "approved"
+    },
+    "New": {
+      "sourceHash": "bc438485da4219c3c447c477c1909d5ead55fd69410761142a3e7d22115cfb96",
+      "fingerprint": "f294257df4e36736264194e50130b98b49f4961243e8b36772b8b36938f63d1e",
+      "text": "新案件",
+      "status": "approved"
+    },
+    "New ticket": {
+      "sourceHash": "037f1a6c7fd970297a8a077f6b1fe5b305f421823387e2ed5934e82e39008b9c",
+      "fingerprint": "93cbfdbf39380ed75b5a6159298460aab6dd4d67eaa57e259692ddb07e6504d4",
+      "text": "建立案件",
+      "status": "approved"
+    },
+    "No tickets match this view.": {
+      "sourceHash": "32fd2fd76595bc67ce1d03640ed7eec080443731f921c06f9cf8f9f289839ff1",
+      "fingerprint": "f825d7269058d115b1ec9c383e0ff76878bfe663695fac2bd98650d8337e02a9",
+      "text": "目前沒有符合條件的案件。",
+      "status": "approved"
+    },
+    "Page ": {
+      "sourceHash": "c396fce364871c4ff0fb4cf2f33a8c245ca5f0d58d0768c867cea63f7c67393e",
+      "fingerprint": "09d767c4b777f60b499c48a2e9ca14db5064bd01ac3fb9516da5d50a68321a2e",
+      "text": "第 ",
+      "status": "approved"
+    },
+    "Replies require a Cloud editing membership.": {
+      "sourceHash": "f7733c538fc3ea24623b8cba411476997a6574b62fb85394e168a78be4998bb0",
+      "fingerprint": "061383a29c98c6dc3b2c71c4524e61505f1d4511de55d8a2d824c8f03f32996f",
+      "text": "需要具備雲端編輯權限才能回覆。",
+      "status": "approved"
+    },
+    "Sending a reply will reopen this ticket.": {
+      "sourceHash": "08610256a477c58923b764f19cea4a1223a140e4025739a9d2d1bff0e6a56a8b",
+      "fingerprint": "6e5a547d34ed0b6208dfef84d5e0da182947b12fd06e9a2719edc91c96c2ba1f",
+      "text": "送出回覆後，此案件將重新開啟。",
+      "status": "approved"
+    },
+    "Subject": {
+      "sourceHash": "b1c3de7743a298177bb61004f8f5894ea0f3859c18d05d63e6f0aeac9c976bb1",
+      "fingerprint": "19f269f6d01af3d3e865ccc53f437736df84905598ba57bec2f211c72d1df743",
+      "text": "主旨",
+      "status": "approved"
+    },
+    "Subject or ticket number": {
+      "sourceHash": "b9802ec1db5413c97c36e9f5cddf960a3cd266d8bb7940b786c69d4aacdf912d",
+      "fingerprint": "b54172d1508a8cc432765b6f8eafa712d12aa9288fb692c4dc93a31375cad57f",
+      "text": "主旨或案件編號",
+      "status": "approved"
+    },
+    "Support": {
+      "sourceHash": "a837ec5d9afd57e789a12bcc26fceaf7d29ce35a4b3fde2e3df69accacadfa1c",
+      "fingerprint": "ff78309a0f1306689d7fa9b5f17ac165ce8da44b429c555b5134b2ac13212836",
+      "text": "客服支援",
+      "status": "approved"
+    },
+    "Support queue": {
+      "sourceHash": "ddd067d703e75561ea7851f41100d542aaa49b37649f509a22d061c7206dfa79",
+      "fingerprint": "4ab9a417420a4d4415c78cbe2913cf0cdd8fb99071815e1c28a86c891dfda2ab",
+      "text": "客服案件佇列",
+      "status": "approved"
+    },
+    "Technical or service support for this Brand Cloud.": {
+      "sourceHash": "dc7d2b75b5752ad0c2a72cc620af8a316c2d81db3b96d29c3ea2d0d486ce9261",
+      "fingerprint": "33f8395d386a2048dab787019e18f99109d2f8c298277426b73b7685d77c6311",
+      "text": "針對此品牌雲端的技術或服務支援。",
+      "status": "approved"
+    },
+    "Ticket #": {
+      "sourceHash": "2850d0443c3ad89ac99cf15ba1b8328bb9c1f261afafb5990e5e9aafee43ef4a",
+      "fingerprint": "7d95d18daa67c56a584d5b6bc45f468dc1f4ded82be64248edb642ac94aa4d35",
+      "text": "案件編號 #",
+      "status": "approved"
+    },
+    "Try again": {
+      "sourceHash": "3f96dee2e946543836600a1999f9581aa573a581f9381912baf750753092f737",
+      "fingerprint": "13565f8016a2495333ff8506a98125f3b57cafa15a3603f9829fdca880ce6079",
+      "text": "重試",
+      "status": "approved"
+    },
+    "Unread": {
+      "sourceHash": "33f7b9b0a388f57525a15a6698cdcfcf311278bef214f3ad13728704be582457",
+      "fingerprint": "9deeea1ae74079cb290783ed8b0151303ad6ddfaee8607407580d458d80238c9",
+      "text": "未讀",
+      "status": "approved"
+    },
+    "Up to 5 files, 10 MiB each; 25 MiB total.": {
+      "sourceHash": "9a0599aefe2671bf0118833eecfd5ad35ebb71a616e14c44acc5e211ed573b71",
+      "fingerprint": "15eb0a83bce4a05600b484413f0a9413c111464d081804756b82bdde57047bfc",
+      "text": "最多 5 個檔案，每個 10 MiB，總計 25 MiB。",
+      "status": "approved"
+    },
+    "Visibility": {
+      "sourceHash": "8dd3c68dcd9ea9c308b868e2eda8da962aae410407c0b9ab9425763a5e25b46b",
+      "fingerprint": "fd36f0ae5d8605c67d9f79977a61cd349a18e860d6ee8c86f7c002539b07a95b",
+      "text": "可見範圍",
+      "status": "approved"
+    },
+    "Add internal note": {
+      "sourceHash": "6545738fd6086a1aeae9d1b4f4da186a3c755bb8516a438c2a9e8fe5dfa18fa5",
+      "fingerprint": "31816c4a5fed9eaa33a2e549d180649cf200fb9b93c6449ca460f769144386cd",
+      "text": "新增內部備註",
+      "status": "approved"
+    },
+    "Agent search is unavailable.": {
+      "sourceHash": "6cab48e0cc44424028cb8f0c532c3e6dc5194c93138b3af919bf9b635469007b",
+      "fingerprint": "2d61267bd0cd65256fba740f7f5191400efcdbe21b6c4346d48743530f4914fb",
+      "text": "暫時無法搜尋客服人員。",
+      "status": "approved"
+    },
+    "All members of this Cloud can see its support conversations.": {
+      "sourceHash": "b4c5ba9ff32c54c6bee74aca25881b59a4c7d8540e00184c12470045eab694a5",
+      "fingerprint": "41a1a88ad7d7fb8349a8fc64e574b00e17cfaa4243afb9c1c67d0e7afe08313e",
+      "text": "此雲端的所有成員都可以查看客服對話。",
+      "status": "approved"
+    },
+    "Assign": {
+      "sourceHash": "c431b3406aceedebb4d432fd6eadab03db38e186f3265114cb21b55e22d918b9",
+      "fingerprint": "4d1f96c8d0aff08a04773c9cd731b955237bf0ba7a35795852420fab526e3a71",
+      "text": "指派",
+      "status": "approved"
+    },
+    "Assign ticket": {
+      "sourceHash": "13d5d7fa0cf5139489cd9dfd486d4b6e784ea6c63865101d757af483d53a5fbe",
+      "fingerprint": "1d34f2ae6aa0ab082773332278e6371afa9da076572736132deea3ff658cd943",
+      "text": "指派案件",
+      "status": "approved"
+    },
+    "Attach up to 5 files.": {
+      "sourceHash": "7672cbab981ada7d9f9468e1e82d604994d4a1b6ce75b8d3b3d78309064f3407",
+      "fingerprint": "5e3a835d6ad775e1398d51527a5c3f886e57122818e6d874b3fd1e72601db78f",
+      "text": "最多可附加 5 個檔案。",
+      "status": "approved"
+    },
+    "Brand Cloud support": {
+      "sourceHash": "6a9343cf2647018b468c328d81e556aa542304920504e128912aea5ee1504af0",
+      "fingerprint": "9a609cdd2af8cfc40ce3aff6e74b7cd1b623b8e13bb22151f697fd37e5ef0d23",
+      "text": "品牌雲端客服",
+      "status": "approved"
+    },
+    "Check the fields and try again.": {
+      "sourceHash": "a5bd94a626ff7399edd84fa6c706585de65f953242c1f8b84c2bcf962bdcdf79",
+      "fingerprint": "34942ba4b7e5425f31dc5820e0b62902be2a16ee90fac7aefc5d8a7d486ff57c",
+      "text": "請檢查輸入欄位後重試。",
+      "status": "approved"
+    },
+    "Cloud member": {
+      "sourceHash": "d7bdb73ef6c6ff556e974506edf170801fab0030fd8b88249ed8b4b4acd670df",
+      "fingerprint": "54fb79400b69406dd695961cb93e1cb3c75847938eea02c2ebaaa2f26e74715e",
+      "text": "雲端成員",
+      "status": "approved"
+    },
+    "Cloud message": {
+      "sourceHash": "969d28862f90f952d4fd3f1ea28700ba12f78ca3ed6122e3693f0591be645284",
+      "fingerprint": "61b5b49aa016b556578437878bebd8a6d2ad3e2a5c43047efd0a7cb92311928c",
+      "text": "雲端訊息",
+      "status": "approved"
+    },
+    "Create ticket": {
+      "sourceHash": "d4dfe060bfe570315486102cd21eba1dcd0820d4d803f4acf93e7302bb9c151a",
+      "fingerprint": "effc15a438123486e37e1164705e1e2736286e188af2b15b20a55f40f2bbdd39",
+      "text": "建立案件",
+      "status": "approved"
+    },
+    "Download attachment": {
+      "sourceHash": "dc73aed0812a29bbb3bcc84da165a0b1b5940b19b8fd3f94a739983f66a74723",
+      "fingerprint": "241fd91a3316b1e49677a52358cf8ba93f6f4ab220f64e1279b698936f7c1a84",
+      "text": "下載附件",
+      "status": "approved"
+    },
+    "Each file must be 10 MiB or smaller.": {
+      "sourceHash": "ea116adcabb5881c18e609f99312b4ab6a014d63f1940b8a4079d59112b1b0ba",
+      "fingerprint": "12734a347c5f4e1eedd4be9667be7c9fe489455d805733d9caf58de95830c4e6",
+      "text": "每個檔案不得超過 10 MiB。",
+      "status": "approved"
+    },
+    "Inspect and respond to tickets across Clouds.": {
+      "sourceHash": "77349c67bbb3471de6ac9a1c0a8c7d80c338b03b309e480eac83165bfbb6f309",
+      "fingerprint": "9aa70b8e3ad652ad40a3f7f023e4e861c0892215d34457d2b1841e84f8d3ca46",
+      "text": "查看並回覆所有雲端的客服案件。",
+      "status": "approved"
+    },
+    "Mine": {
+      "sourceHash": "6e2e0ed9b90e3583ca27258180ed5987e4ef8106f0cdac7bba4596ceb8a9c35b",
+      "fingerprint": "1debe1087a4bb64950adf1ec779489d18928924bba92a3f21c67fc37f88cc4cc",
+      "text": "我的案件",
+      "status": "approved"
+    },
+    "New support ticket": {
+      "sourceHash": "638016f12c6ae5c50c95072253466363c3ceddd7655ab5168bafd45b1ee42e8b",
+      "fingerprint": "cac736cbf0ef1c240ae20bfc31444c66a2f1d2bb24ee71162b39aa7b1517dac3",
+      "text": "建立客服案件",
+      "status": "approved"
+    },
+    "Platform support queue": {
+      "sourceHash": "4cc0fa2ba44c8960d8e2627e8a21c3b32736849ba49dace157c332253c5686de",
+      "fingerprint": "55df01706004f80437e86a61b0a75c5c9664f75a20b5277a5f241c559ba73db1",
+      "text": "平台客服案件佇列",
+      "status": "approved"
+    },
+    "Reopen": {
+      "sourceHash": "866bab2e891aabb10f9210f01d3bf1e8ca0e0eb1abb769cc029664f6d173762e",
+      "fingerprint": "a5ac9b865f64adb9770f72793148281c498289e117cacb0305a3358db5b90aae",
+      "text": "重新開啟",
+      "status": "approved"
+    },
+    "Reply to ticket": {
+      "sourceHash": "a6d1f42e7019ab2fb8339de37d85ae4b6683970036310298882251c3e94825c6",
+      "fingerprint": "1243d5749da61810dd06e252ef72b3ac759a711ccdbaa24866a3fb3dc557cafc",
+      "text": "回覆案件",
+      "status": "approved"
+    },
+    "Search support agent": {
+      "sourceHash": "21f06a508370da14a44975c370ff772cf09fcc981f660abb79c8af4878070581",
+      "fingerprint": "a5e45614b02504f738e4088d8733fa50598633ea639fe1eec612c073f777e09b",
+      "text": "搜尋客服人員",
+      "status": "approved"
+    },
+    "Select an agent": {
+      "sourceHash": "6d6aa455111118d150b199b61f6ba12a34bc09aa0716472b57e4aa4d4d4730d1",
+      "fingerprint": "7210678493221114ad866b9e09c31e63a3f9bc95a98409502370f9580c811107",
+      "text": "選擇客服人員",
+      "status": "approved"
+    },
+    "Send reply": {
+      "sourceHash": "a8ad3943ead62dbaa25a410d382d30a37b8aa6cc8c395e8de015482c7691b0e7",
+      "fingerprint": "67d126c751009233856285594b0681e067cdcd1a429d523548a2104b42e555e0",
+      "text": "送出回覆",
+      "status": "approved"
+    },
+    "Sending…": {
+      "sourceHash": "0ef955749441caace2429803357d6805545b90a8eaf8d3118a43b231c43ab445",
+      "fingerprint": "7bf2ec982b91e735b5afd1806f21004e8e52a069fde6f1db48ecab2861ffa476",
+      "text": "傳送中…",
+      "status": "approved"
+    },
+    "Staff only note": {
+      "sourceHash": "e32ea75caeba3e06c08a16370fc11d0a3cc67a96a2f18da93a858a08108d63ed",
+      "fingerprint": "c729e127f0802a4cf2562f9d6d3e0c6924b1b222c69f6b56cd68ec61efc3c48a",
+      "text": "僅客服可見備註",
+      "status": "approved"
+    },
+    "Staff only — Cloud members cannot see this note.": {
+      "sourceHash": "161c7bcc8cd1a12f848f4a422844a530207a63fd5f11f8d89196468b82d96cd7",
+      "fingerprint": "f94dd336d617c1c1335f73977f01be93c6e19193b88f52e48c71c41a817b439e",
+      "text": "僅客服人員可見，雲端成員無法查看此備註。",
+      "status": "approved"
+    },
+    "Support agent": {
+      "sourceHash": "f11c3e089b3a779a35c003025b8ce82ce1b2b99ddca3162a8bcbd5eb1c57fc6c",
+      "fingerprint": "07b583f306851fa0823d2ae5ec16e1384db92fd547de8c0c778f61ca1700d535",
+      "text": "客服人員",
+      "status": "approved"
+    },
+    "Support reply": {
+      "sourceHash": "697361e4d70376d4d043cc0080dd88c92d9e54c9a33fa634ec66d2e108996527",
+      "fingerprint": "49ccc840688f6db51708b0b0b4f49803fa70428f9b5a4dff2786eefd72f1eeda",
+      "text": "客服回覆",
+      "status": "approved"
+    },
+    "Support service is temporarily unavailable. Your draft is still here.": {
+      "sourceHash": "479ad86f7b0eda782e64397fbe728e2b0c95d49bc1acffdea3e93d855e705633",
+      "fingerprint": "2480ec62a8ea204a2f6a47537bb91dd29b23215534c920c6a225b783f3cdb773",
+      "text": "客服服務暫時無法使用，草稿仍保留於此。",
+      "status": "approved"
+    },
+    "Support service unavailable.": {
+      "sourceHash": "2df2486592acd963fbcc1c2f8c25762c0c7aca780be7313ff187422c0ef9892a",
+      "fingerprint": "aa861fc8ef3db1cb889eae498fb0e8cc5cde9a9ea5e33fcd9946fa6c08633954",
+      "text": "客服服務暫時無法使用。",
+      "status": "approved"
+    },
+    "Team": {
+      "sourceHash": "b334ab1b65fa914b913e1b04b095b20f9c57f2363d012ebfffa4c2d13c21a14a",
+      "fingerprint": "153122dc2d9ce55b14fe9bc4d86e78893a635a515ef2c7f7a5806416239db432",
+      "text": "團隊案件",
+      "status": "approved"
+    },
+    "The combined upload must be 25 MiB or smaller.": {
+      "sourceHash": "c7e373e9b3aeed8fa80a6fc99369c793659b3c3ce91ee000bead36aa42262c7e",
+      "fingerprint": "9d0825dc5fb7b78820afb7c669e7d76b13d6ce075564211a08c8046164972893",
+      "text": "附件總大小不得超過 25 MiB。",
+      "status": "approved"
+    },
+    "The request failed. Refresh this ticket before retrying.": {
+      "sourceHash": "c51716666de5cbcec89bbaa33b2e11c0e77cb4b1ba2970f87535726f129f2908",
+      "fingerprint": "561c7fce7299394bb806552f7a84531774150f5474deae7fa2e8cab2962200c7",
+      "text": "送出失敗，請重新整理案件後再試。",
+      "status": "approved"
+    },
+    "The upload exceeds the size limit.": {
+      "sourceHash": "99afe73d027f68bac432e9d7b40fa138d5f6da7a04eb1d795a312657aed4bdbe",
+      "fingerprint": "5fd55ab401cc2fd78df637af49204d16eca28ba193cf7df4716fab5ec61f6339",
+      "text": "上傳內容超過大小限制。",
+      "status": "approved"
+    },
+    "This ticket is unavailable in this Cloud.": {
+      "sourceHash": "8b0d51e8cac7f1dda3418a83226a966b9f58369ce19811697fe55137de4fd0ab",
+      "fingerprint": "230cce8dc8a330c172ac9374190d3d006f2cf8d7994b4bacbea306fabb7b241f",
+      "text": "此雲端無法存取該案件。",
+      "status": "approved"
+    },
+    "Update failed.": {
+      "sourceHash": "ce4f2838f39928404ee7971ef5f4d20de3a5dfe15dd436e88d3d8df228452916",
+      "fingerprint": "e69fb13d950a2eb7132c6b0f3d8889ce8cf1fb29a7b0e256dff67100afb0fecd",
+      "text": "更新失敗。",
+      "status": "approved"
+    },
+    "Visible to all members of the Cloud.": {
+      "sourceHash": "ac4a8633f1ee4b4728d77cea80563bc0dd8b24a4ba88bf9e9b50f30712931127",
+      "fingerprint": "4d6dc2b0cd124b057081e1ba1661e9ab74866cc530f86047db34653bd2adf2f6",
+      "text": "此雲端的所有成員皆可查看。",
+      "status": "approved"
+    },
+    "You no longer have access to this ticket.": {
+      "sourceHash": "aa2699d0b6141a0f2d5acbc820c790371696c6cc2a4428a79eabc0bf63c54c6b",
+      "fingerprint": "757fc077c449829de01407eaeeece19ec5cdb96b3d79bc341de50bf5637ddcd5",
+      "text": "你已無權存取此案件。",
+      "status": "approved"
+    },
+    "Your session has expired. Sign in again.": {
+      "sourceHash": "a4a6fcbf2ba3eb08140a0bc80a8697d38a28287d2f2a68dcbfdea373d5d1426f",
+      "fingerprint": "68b64c6b7a072d1c4be681691b9c85ee48c47dc885a5baa98cb8b5457cf7bbdc",
+      "text": "登入已逾時，請重新登入。",
+      "status": "approved"
     }
   }
 }

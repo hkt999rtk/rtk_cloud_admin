@@ -1,6 +1,7 @@
-# Support Ticket WebUI Target
+# Support Ticket WebUI
 
-Status: draft target; no support-ticket screen is implemented.
+Status: implemented behind the default-off support-ticket feature flag;
+Zammad compatibility and rollout remain unqualified.
 
 Owner: rtk_cloud_admin.
 
@@ -22,9 +23,9 @@ customer route as an agent shortcut.
 
 Reuse the existing Admin shell, table density, colors, typography, focus states
 and responsive drawer. Do not embed the Zammad UI or expose its URL. The list
-page has a compact title, new-ticket action when allowed, search, state chips,
-and rows with ticket number, subject, category, state, assignee, last activity
-and unread marker. Empty, loading, permission and dependency-unavailable
+page has a compact title, new-ticket action when allowed, search, a state
+selector, and rows with ticket number, subject, category, state, last activity
+and unread marker. Ticket detail shows the assignee. Empty, loading, permission and dependency-unavailable
 states use the existing UI patterns. Search and state filters persist in the
 page URL; Cloud switch clears ticket-specific selection and request caches.
 
@@ -45,18 +46,21 @@ in customer output. Agents can close/reopen from the detail header.
 
 ## Notifications and interaction
 
-V1 uses in-app unread markers and a Support navigation badge, with polling
+V1 uses in-app unread row markers, with polling
 only while a support view is open. Opening a ticket advances that actor's read
-marker. Badge and row counts are hints, not an authorization source. No ticket
+marker. Unread indicators are hints, not an authorization source. No ticket
 email or push delivery is assumed. The browser uses only same-origin Admin BFF
 routes; existing login and `next` handling support customer and Platform
 ticket deep links after server authorization.
 
-Create and reply forms require text, show upload progress and enforce the
+Create and reply forms require text, show a sending state and enforce the
 contract's attachment limits before submit. Buttons prevent accidental repeat
 submission while pending; a timeout keeps the draft and offers a refresh of
 the ticket before retry. Server-returned validation errors appear beside the
 relevant field. The UI does not display raw Zammad errors or tokens.
+
+A navigation badge and byte-level upload progress can be added after the
+initial release; neither is required for ticket access or read tracking.
 
 ## Acceptance views
 

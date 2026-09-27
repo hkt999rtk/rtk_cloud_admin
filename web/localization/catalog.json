@@ -16351,6 +16351,420 @@
       "source": "Current service prices may differ from the rates on this issued invoice.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": " Internal note",
+      "source": " Internal note",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": " Public reply",
+      "source": " Public reply",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": " · Updated ",
+      "source": " · Updated ",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "All states",
+      "source": "All states",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Attachments",
+      "source": "Attachments",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Back to tickets",
+      "source": "Back to tickets",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Claim ticket",
+      "source": "Claim ticket",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud ticket",
+      "source": "Cloud ticket",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud: ",
+      "source": "Cloud: ",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Conversation",
+      "source": "Conversation",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Enter a message of at most 20,000 characters.",
+      "source": "Enter a message of at most 20,000 characters.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Incident",
+      "source": "Incident",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Integration",
+      "source": "Integration",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Loading conversation…",
+      "source": "Loading conversation…",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Loading tickets…",
+      "source": "Loading tickets…",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "New",
+      "source": "New",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "New ticket",
+      "source": "New ticket",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No tickets match this view.",
+      "source": "No tickets match this view.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Page ",
+      "source": "Page ",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Replies require a Cloud editing membership.",
+      "source": "Replies require a Cloud editing membership.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Sending a reply will reopen this ticket.",
+      "source": "Sending a reply will reopen this ticket.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Subject",
+      "source": "Subject",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Subject or ticket number",
+      "source": "Subject or ticket number",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Support",
+      "source": "Support",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Support queue",
+      "source": "Support queue",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Technical or service support for this Brand Cloud.",
+      "source": "Technical or service support for this Brand Cloud.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Ticket #",
+      "source": "Ticket #",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Try again",
+      "source": "Try again",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unread",
+      "source": "Unread",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Up to 5 files, 10 MiB each; 25 MiB total.",
+      "source": "Up to 5 files, 10 MiB each; 25 MiB total.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Visibility",
+      "source": "Visibility",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Add internal note",
+      "source": "Add internal note",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Agent search is unavailable.",
+      "source": "Agent search is unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "All members of this Cloud can see its support conversations.",
+      "source": "All members of this Cloud can see its support conversations.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Assign",
+      "source": "Assign",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Assign ticket",
+      "source": "Assign ticket",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Attach up to 5 files.",
+      "source": "Attach up to 5 files.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Brand Cloud support",
+      "source": "Brand Cloud support",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Check the fields and try again.",
+      "source": "Check the fields and try again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud member",
+      "source": "Cloud member",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Cloud message",
+      "source": "Cloud message",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Create ticket",
+      "source": "Create ticket",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Download attachment",
+      "source": "Download attachment",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Each file must be 10 MiB or smaller.",
+      "source": "Each file must be 10 MiB or smaller.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Inspect and respond to tickets across Clouds.",
+      "source": "Inspect and respond to tickets across Clouds.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Mine",
+      "source": "Mine",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "New support ticket",
+      "source": "New support ticket",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Platform support queue",
+      "source": "Platform support queue",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Reopen",
+      "source": "Reopen",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Reply to ticket",
+      "source": "Reply to ticket",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Search support agent",
+      "source": "Search support agent",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Select an agent",
+      "source": "Select an agent",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Send reply",
+      "source": "Send reply",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Sending…",
+      "source": "Sending…",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Staff only note",
+      "source": "Staff only note",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Staff only — Cloud members cannot see this note.",
+      "source": "Staff only — Cloud members cannot see this note.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Support agent",
+      "source": "Support agent",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Support reply",
+      "source": "Support reply",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Support service is temporarily unavailable. Your draft is still here.",
+      "source": "Support service is temporarily unavailable. Your draft is still here.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Support service unavailable.",
+      "source": "Support service unavailable.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Team",
+      "source": "Team",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The combined upload must be 25 MiB or smaller.",
+      "source": "The combined upload must be 25 MiB or smaller.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The request failed. Refresh this ticket before retrying.",
+      "source": "The request failed. Refresh this ticket before retrying.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The upload exceeds the size limit.",
+      "source": "The upload exceeds the size limit.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This ticket is unavailable in this Cloud.",
+      "source": "This ticket is unavailable in this Cloud.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Update failed.",
+      "source": "Update failed.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Visible to all members of the Cloud.",
+      "source": "Visible to all members of the Cloud.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "You no longer have access to this ticket.",
+      "source": "You no longer have access to this ticket.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Your session has expired. Sign in again.",
+      "source": "Your session has expired. Sign in again.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

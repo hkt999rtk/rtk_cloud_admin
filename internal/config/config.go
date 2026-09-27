@@ -9,6 +9,11 @@ import (
 )
 
 type Config struct {
+	SupportTicketsEnabled               bool
+	ZammadBaseURL                       string
+	ZammadAPIToken                      string
+	ZammadSupportGroupID                int64
+	ZammadUnassignedOwnerID             int64
 	TestLabEnabled                      bool
 	TestLabMQTTURL                      string
 	TestLabMQTTBackend                  string
@@ -48,6 +53,11 @@ type Config struct {
 
 func FromEnv() Config {
 	return Config{
+		SupportTicketsEnabled:               truthy(os.Getenv("SUPPORT_TICKETS_ENABLED")),
+		ZammadBaseURL:                       os.Getenv("ZAMMAD_BASE_URL"),
+		ZammadAPIToken:                      os.Getenv("ZAMMAD_API_TOKEN"),
+		ZammadSupportGroupID:                int64Value("ZAMMAD_SUPPORT_GROUP_ID", 0),
+		ZammadUnassignedOwnerID:             int64Value("ZAMMAD_UNASSIGNED_OWNER_ID", 1),
 		TestLabEnabled:                      truthy(os.Getenv("CLOUD_ADMIN_TEST_LAB_ENABLED")),
 		TestLabMQTTURL:                      os.Getenv("CLOUD_ADMIN_TEST_LAB_MQTT_URL"),
 		TestLabMQTTBackend:                  os.Getenv("CLOUD_ADMIN_TEST_LAB_MQTT_BACKEND"),
@@ -99,6 +109,14 @@ func duration(key string, fallback time.Duration) time.Duration {
 		return time.Duration(seconds) * time.Second
 	}
 	return fallback
+}
+
+func int64Value(key string, fallback int64) int64 {
+	value, err := strconv.ParseInt(strings.TrimSpace(os.Getenv(key)), 10, 64)
+	if err != nil || value <= 0 {
+		return fallback
+	}
+	return value
 }
 
 func getenv(key, fallback string) string {

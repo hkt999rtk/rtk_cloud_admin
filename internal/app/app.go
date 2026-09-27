@@ -36,6 +36,7 @@ import (
 	"rtk_cloud_admin/internal/sdkportalclient"
 	"rtk_cloud_admin/internal/store"
 	"rtk_cloud_admin/internal/videoclient"
+	"rtk_cloud_admin/internal/zammadclient"
 
 	cloudlogger "github.com/hkt999rtk/rtk_cloud_logger"
 	"go.uber.org/zap"
@@ -58,6 +59,8 @@ type Server struct {
 	logger              *zap.Logger
 	reportStorage       reportstorage.Store
 	sdkPortalClient     *sdkportalclient.Client
+	zammadClient        *zammadclient.Client
+	supportReadMarkers  *store.Store
 }
 
 type Options struct {
@@ -149,6 +152,8 @@ func NewWithOptions(st *store.Store, opts Options) *Server {
 		videoClient:         opts.VideoClient,
 		logger:              opts.Logger,
 		reportStorage:       reportstorage.Store{Endpoint: opts.Config.ReportObjectStorageEndpoint, Bucket: opts.Config.ReportObjectStorageBucket, Region: opts.Config.ReportObjectStorageRegion, AccessKey: opts.Config.ReportObjectStorageAccessKey, SecretKey: opts.Config.ReportObjectStorageSecretKey},
+		zammadClient:        zammadclient.New(opts.Config.ZammadBaseURL, opts.Config.ZammadAPIToken),
+		supportReadMarkers:  st,
 	}
 	s.configureSDKPortal()
 	s.routes()
@@ -313,6 +318,7 @@ func singleJoiningSlash(base, path string) string {
 }
 
 func (s *Server) routes() {
+	s.supportTicketRoutes()
 	s.mux.HandleFunc("GET /healthz", s.health)
 	s.mux.HandleFunc("GET /metrics/prometheus", s.metricsPrometheus)
 	s.mux.HandleFunc("GET /api/summary", s.apiSummary)
@@ -781,7 +787,7 @@ func isKnownConsolePath(requestPath string) bool {
 	if len(parts) == 1 {
 		return true
 	}
-	for _, segment := range []string{"test-lab", "products", "fleet", "firmware-ota", "analytics", "members", "billing", "settings", "owner-transfer"} {
+	for _, segment := range []string{"test-lab", "products", "fleet", "firmware-ota", "analytics", "members", "billing", "settings", "owner-transfer", "support"} {
 		if parts[1] == segment {
 			return true
 		}
@@ -796,7 +802,7 @@ func isKnownAdminPath(requestPath string) bool {
 	}
 	for _, prefix := range []string{
 		"/admin/grafana", "/admin/resources", "/admin/health", "/admin/brand-clouds",
-		"/admin/chipset-providers", "/admin/sso", "/admin/logs", "/admin/ops", "/admin/operations", "/admin/audit",
+		"/admin/chipset-providers", "/admin/sso", "/admin/logs", "/admin/ops", "/admin/operations", "/admin/audit", "/admin/support",
 	} {
 		if path == prefix || strings.HasPrefix(path, prefix+"/") {
 			return true
@@ -894,9 +900,27 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		me.Email = upstream.User.Email
 		me.Name = fallback(upstream.User.Name, upstream.User.Email)
 		for _, org := range upstream.Memberships() {
-			me.Memberships = append(me.Memberships, membershipFromOrganization(org))
+			membership := membershipFromOrganization(org)
+			if s.cfg.SupportTicketsEnabled {
+				switch strings.ToLower(strings.TrimSpace(org.Role)) {
+				case "owner", "admin", "member":
+					membership.Capabilities = append(membership.Capabilities, "ticket.read", "ticket.write")
+				case "viewer":
+					membership.Capabilities = append(membership.Capabilities, "ticket.read")
+				}
+			}
+			me.Memberships = append(me.Memberships, membership)
 		}
 		me.PlatformCapabilities = upstream.EffectivePlatformCapabilities()
+		if !s.cfg.SupportTicketsEnabled {
+			filtered := me.PlatformCapabilities[:0]
+			for _, capability := range me.PlatformCapabilities {
+				if !strings.HasPrefix(capability, "ticket.support.") {
+					filtered = append(filtered, capability)
+				}
+			}
+			me.PlatformCapabilities = filtered
+		}
 		if session.Kind == "platform_admin" {
 			me.Capabilities = me.PlatformCapabilities
 			me.UpstreamAccountManager = true
@@ -6814,7 +6838,7 @@ func platformAdminCompatibilityCapabilities() []string {
 
 func hasAnyPlatformCapability(capabilities []string) bool {
 	for _, capability := range capabilities {
-		if strings.HasPrefix(strings.TrimSpace(capability), "platform.") || strings.HasPrefix(strings.TrimSpace(capability), "platform_") || capability == "acl.read" || capability == "acl.manage" || strings.HasPrefix(capability, "quota_request.") {
+		if strings.HasPrefix(strings.TrimSpace(capability), "platform.") || strings.HasPrefix(strings.TrimSpace(capability), "platform_") || capability == "acl.read" || capability == "acl.manage" || strings.HasPrefix(capability, "quota_request.") || strings.HasPrefix(capability, "ticket.support.") {
 			return true
 		}
 	}

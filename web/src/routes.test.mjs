@@ -133,7 +133,7 @@ test('billing subpaths remain addressable inside the tenant billing section', ()
 test('customer nav follows the approved Customer View design order', () => {
   assert.deepEqual(
     customerNavItems.map((item) => item.labelKey),
-    ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings'],
+    ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Support', 'Billing', 'Settings'],
   );
   assert.deepEqual(customerNavGroups.map((group) => group.labelKey), ['Clouds', 'Brand Cloud', 'Features', 'Management']);
 });
@@ -147,11 +147,12 @@ test('customer nav is derived from active membership capabilities', () => {
   ]).flatMap((group) => group.items).map((item) => item.labelKey);
   assert.deepEqual(labels, ['My Clouds', 'Overview', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'Analytics', 'Settings']);
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['team.read']).flatMap((group) => group.items).some((item) => item.id === 'access'), true);
+  assert.equal(cloudNavGroupsForCapabilities(cloud, ['ticket.read']).flatMap((group) => group.items).some((item) => item.id === 'support'), true);
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read']).flatMap((group) => group.items).some((item) => item.id === 'billing'), false);
   assert.equal(cloudNavGroupsForCapabilities(cloud, ['billing_account.read'], { isOwner: true }).flatMap((group) => group.items).some((item) => item.id === 'billing'), true);
   assert.deepEqual(cloudNavGroupsForCapabilities('', null).flatMap((group) => group.items).map((item) => item.id), ['my-clouds', 'chipset-sdk', 'developer-docs']);
   const unscoped = cloudShellNavGroups('', null, { showOwnerOnly: true }).flatMap((group) => group.items);
-  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Billing', 'Settings']);
+  assert.deepEqual(unscoped.map((item) => item.labelKey), ['My Clouds', 'Overview', 'Products', 'Cloud Test Lab', 'ChipSet & SDK', 'Developer Docs', 'Fleet Management', 'Firmware & OTA', 'Analytics', 'Members & Access', 'Support', 'Billing', 'Settings']);
   assert.equal(unscoped.find((item) => item.id === 'my-clouds').disabled, false);
   assert.equal(unscoped.find((item) => item.id === 'chipset-sdk').disabled, false);
   assert.equal(unscoped.filter((item) => !item.global).every((item) => item.disabled), true);
@@ -213,14 +214,14 @@ test('retired customer pages are not exposed in section navigation', () => {
 });
 
 test('platform nav follows the unified shell group order', () => {
-  assert.deepEqual(platformNavGroups.map((group) => group.labelKey), ['Platform Overview', 'Monitoring and Diagnostics', 'Organizations and Products', 'Operations and Audit']);
+  assert.deepEqual(platformNavGroups.map((group) => group.labelKey), ['Platform Overview', 'Monitoring and Diagnostics', 'Organizations and Products', 'Operations and Audit', 'Support']);
   assert.deepEqual(
     platformNavItems.map((item) => item.labelKey),
-    ['Platform Home', 'Grafana', 'Service Health', 'Service Logs', 'Brand Cloud Management', 'SSO Providers', 'Operations Log', 'Audit Log'],
+    ['Platform Home', 'Grafana', 'Service Health', 'Service Logs', 'Brand Cloud Management', 'SSO Providers', 'Operations Log', 'Audit Log', 'Support'],
   );
   assert.deepEqual(
     platformNavItems.map((item) => item.path),
-    ['/admin', '/admin/grafana', '/admin/health', '/admin/logs', '/admin/brand-clouds', '/admin/sso', '/admin/ops', '/admin/audit'],
+    ['/admin', '/admin/grafana', '/admin/health', '/admin/logs', '/admin/brand-clouds', '/admin/sso', '/admin/ops', '/admin/audit', '/admin/support'],
   );
 });
 
