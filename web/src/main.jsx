@@ -15,6 +15,7 @@ import { productInvitationDestination } from './cloud-products.mjs';
 import { ProductServiceApply } from './ProductServiceApply.jsx';
 import { normalizeProductServiceCapability, productServiceAvailability, productServiceCapabilityLabel, productServiceChoices, productServiceWritePayload } from './product-service-catalog.mjs';
 import { OwnerHandoffPage } from './OwnerHandoff.jsx';
+import { SupportTickets } from './SupportTickets.jsx';
 import { handoffRoute } from './owner-handoff.mjs';
 import { cloudBillingRoute, billingAPI, billingScopeError, fetchCloudBillingData } from './cloud-billing.mjs';
 import './cloud-billing.css';
@@ -1330,6 +1331,7 @@ function App() {
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'reports' ? <ReportsPage data={reports} products={products?.products || []} loading={loading} canCreate={canUseCapability({ capabilities: me?.capabilities || [] }, 'reports.create')} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'groups' ? <GroupsPage data={groups} loading={loading} onRefresh={() => setRefreshTick((tick) => tick + 1)} /> : null}
         {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'billing' ? <section className="panel"><h2>{translate("Select a cloud for Billing")}</h2><p>{translate("Billing is scoped to the cloud URL, not the shared active-cloud session.")}</p><a href="/console/clouds">{translate("Open My Clouds")}</a></section> : null}
+        {!needsPlatformAccess && !customerViewPending && !customerViewBlocked && active === 'support' ? <SupportTickets key={urlCloudId} cloudId={urlCloudId} capabilities={me?.capabilities || []} /> : null}
         {!needsPlatformAccess && active === 'platform-dashboard' ? <PlatformDashboardLanding dashboard={platformDashboard} summary={summary} health={health} operations={operations} logs={serviceLogs} /> : null}
         {!needsPlatformAccess && active === 'platform-grafana' ? <PlatformGrafanaView status={platformGrafanaStatus} /> : null}
         {!needsPlatformAccess && active === 'platform-health' ? <PlatformHealth summary={summary} health={health} /> : null}
@@ -1378,6 +1380,7 @@ function App() {
         ) : null}
         {!needsPlatformAccess && active === 'platform-operations' ? <Operations operations={operations} /> : null}
         {!needsPlatformAccess && active === 'platform-audit' ? <AuditLog audit={audit} loading={loading} /> : null}
+        {!needsPlatformAccess && active === 'platform-support' ? <SupportTickets platform capabilities={me?.capabilities || []} /> : null}
     </CloudConsoleShell>
   );
 }

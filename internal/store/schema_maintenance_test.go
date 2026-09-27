@@ -210,7 +210,7 @@ func TestSchemaMaintenanceRejectsIncompatibleOrUnavailableDatabase(t *testing.T)
 			}
 			switch scenario {
 			case "future version":
-				if _, err := s.db.Exec(`INSERT INTO schema_migrations VALUES(12,'future','now')`); err != nil {
+				if _, err := s.db.Exec(`INSERT INTO schema_migrations VALUES(13,'future','now')`); err != nil {
 					t.Fatal(err)
 				}
 				r, err := s.CheckSchemaMaintenance()

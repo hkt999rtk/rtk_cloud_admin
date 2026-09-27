@@ -24,7 +24,7 @@ func (s *Store) CheckSchemaMaintenance() (SchemaMaintenanceReport, error) {
 }
 
 func checkSchemaMaintenance(db schemaQueryer) (SchemaMaintenanceReport, error) {
-	r := SchemaMaintenanceReport{TargetVersion: 11, Ready: true, Rows: map[string]int{}}
+	r := SchemaMaintenanceReport{TargetVersion: migrations[len(migrations)-1].version, Ready: true, Rows: map[string]int{}}
 	var exists int
 	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='schema_migrations'`).Scan(&exists); err != nil {
 		return r, err

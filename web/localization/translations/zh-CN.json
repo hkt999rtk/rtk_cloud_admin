@@ -16136,6 +16136,420 @@
       "text": "目前的服务价格可能与这张已开立账单所采用的费率不同。",
       "status": "approved"
     },
+    " Internal note": {
+      "sourceHash": "81c5df308c9f7151075469176521c0b9fabf3aa0c792f01c18ebac724fbed121",
+      "fingerprint": "8bdfed89b2a2968a1e6d2ffe3ec8a3a50a8ee10580678f21c5452f100b7ab5d7",
+      "text": " 内部备注",
+      "status": "approved"
+    },
+    " Public reply": {
+      "sourceHash": "ce145512c0fa8f90af0c93b6267dccc6f95142030fb68f54bc50787180baba10",
+      "fingerprint": "6e68914d88045e1479bf32bd6eb6d8594100cb2bfff674aaa50bc758afdad70e",
+      "text": " 公开回复",
+      "status": "approved"
+    },
+    " · Updated ": {
+      "sourceHash": "3f41a9d79081e18239885c1dcf38cd25b94454b8945a2a411b03bf8871fbab13",
+      "fingerprint": "72f00193586bfd8a3ee567063392757926d786c205196ed7345249cb3aa8ff2d",
+      "text": " · 更新于 ",
+      "status": "approved"
+    },
+    "All states": {
+      "sourceHash": "9ebb32b24853cac45d73f09a3f008c0c92ba1a5d17387ed62ed6e91117ec97de",
+      "fingerprint": "9b490b974600e02d97cafce11c793738ed5050b520e71c6900f4efb5a14e5604",
+      "text": "所有状态",
+      "status": "approved"
+    },
+    "Attachments": {
+      "sourceHash": "9020319bbddabdae2b96f434ff66590654c3e8be571bfc229ecf5e7da0a0919a",
+      "fingerprint": "a59195e93748789a52e6c3bf517110e63507bfce20521925651d71af3beb4c1b",
+      "text": "附件",
+      "status": "approved"
+    },
+    "Back to tickets": {
+      "sourceHash": "c6b507d4551e4b7c7b63e51846853bf485831d45df6e94389e755aa9d63f3db4",
+      "fingerprint": "becb7a99342d901b251a23518ef0f6ed21a24f3433dbec0fed8eff21390ca15b",
+      "text": "返回工单列表",
+      "status": "approved"
+    },
+    "Claim ticket": {
+      "sourceHash": "c7e3c3471c013464bb971edbe8e00a57144c16673efd593f025cd253fee046c2",
+      "fingerprint": "04217692e80dd3766d165b905e1352ad9115aff0e553aa724f5a059fcc557287",
+      "text": "认领工单",
+      "status": "approved"
+    },
+    "Cloud ticket": {
+      "sourceHash": "cef2a259a8e0abf6444e6351d81ae64d3cd7ad779f6ae13021468408dbd28c6f",
+      "fingerprint": "5d865a7d95019f517e45a76f0727dad7454d95341414e4719367b84be1d61c59",
+      "text": "云端工单",
+      "status": "approved"
+    },
+    "Cloud: ": {
+      "sourceHash": "9b788d3c5dfc12db9b25b4f84786b02bd6a1f112e7c85d28c5a490d5efe1195e",
+      "fingerprint": "2394e992035347763e827c8d8a2c204ba3c4fdaa6ebb73e585bf97e68f645bdb",
+      "text": "云端：",
+      "status": "approved"
+    },
+    "Conversation": {
+      "sourceHash": "49f08c4ef22dc23b16b4f19c1e1bebcb0e4be7f0af11732985cd391e9dd8d849",
+      "fingerprint": "5dd93852770cc0301fea5da441bc21cc0d15a023376f8821b923f5808de586c6",
+      "text": "对话",
+      "status": "approved"
+    },
+    "Enter a message of at most 20,000 characters.": {
+      "sourceHash": "5bcf4c87bb0117303c2cd1c2d3011b941550b3f4b858b74759398aa1811c2880",
+      "fingerprint": "ffa3ec32de1afa7ea8a13ec3dbfc6f0faaa91d28c96162a2935af3e8425453ac",
+      "text": "请输入不超过 20,000 字的消息。",
+      "status": "approved"
+    },
+    "Incident": {
+      "sourceHash": "cd42e0aa4ebd3b762c60b6b9a7f1ed73a0bdf98fa9d4aad552cbe42fb8c4fce7",
+      "fingerprint": "217ac4099eca3e1d213d055101d4285483396e30329096bd5975ca2c6c930430",
+      "text": "事件",
+      "status": "approved"
+    },
+    "Integration": {
+      "sourceHash": "275ac304df9c60c9d6147e8032e671b7aabdaf831eb9240d7f70e5a0b4fb2025",
+      "fingerprint": "cae4811a3ff2466a66fe8763db7902c037be7d19b532b875c2a884d207fc8ad6",
+      "text": "集成",
+      "status": "approved"
+    },
+    "Loading conversation…": {
+      "sourceHash": "e9ee0fb86b4842c51c7158894fa878625fd9aabf833355692405379ca083f7d3",
+      "fingerprint": "89c1c38712cd741d91c67c55c4d69ad2b529c56f45f00a3786af7b2eb9632129",
+      "text": "正在加载对话…",
+      "status": "approved"
+    },
+    "Loading tickets…": {
+      "sourceHash": "f0f6fa32ed69b9c19cc5ab8be4878c3201c37a161a7de65edb98e82951ef26a0",
+      "fingerprint": "e5914106aad5f791ee169fb4187346853080b13d2b394e2dbfe47a3994a76cc4",
+      "text": "正在加载工单…",
+      "status": "approved"
+    },
+    "New": {
+      "sourceHash": "bc438485da4219c3c447c477c1909d5ead55fd69410761142a3e7d22115cfb96",
+      "fingerprint": "adf3f293d748cb0df78fbfe81c283a07003d994491624ef2e0dbc232935a2c37",
+      "text": "新工单",
+      "status": "approved"
+    },
+    "New ticket": {
+      "sourceHash": "037f1a6c7fd970297a8a077f6b1fe5b305f421823387e2ed5934e82e39008b9c",
+      "fingerprint": "0059f31289f08b8db201eaa39d41afca69d227179abe9acabb0bbe4e543d16ef",
+      "text": "新建工单",
+      "status": "approved"
+    },
+    "No tickets match this view.": {
+      "sourceHash": "32fd2fd76595bc67ce1d03640ed7eec080443731f921c06f9cf8f9f289839ff1",
+      "fingerprint": "b22ee956cf539a0f4cba7f9291232aee3e2039fba6bac9853094a17b1bad5e4f",
+      "text": "目前没有符合条件的工单。",
+      "status": "approved"
+    },
+    "Page ": {
+      "sourceHash": "c396fce364871c4ff0fb4cf2f33a8c245ca5f0d58d0768c867cea63f7c67393e",
+      "fingerprint": "bd5c014e525a0750c55fff02e08d44e529cd917f59a4c3b5b2612a0470e66a6e",
+      "text": "第 ",
+      "status": "approved"
+    },
+    "Replies require a Cloud editing membership.": {
+      "sourceHash": "f7733c538fc3ea24623b8cba411476997a6574b62fb85394e168a78be4998bb0",
+      "fingerprint": "be6f57145150acdf9aa2f0d29d31286e305ee6e5b82f0defc1eddbce897c10c9",
+      "text": "需要云端编辑权限才能回复。",
+      "status": "approved"
+    },
+    "Sending a reply will reopen this ticket.": {
+      "sourceHash": "08610256a477c58923b764f19cea4a1223a140e4025739a9d2d1bff0e6a56a8b",
+      "fingerprint": "57047432a817a5afd9f76419c2b43dc1bb136a5fd468dac502f9915b272ce3c4",
+      "text": "发送回复后，此工单将重新打开。",
+      "status": "approved"
+    },
+    "Subject": {
+      "sourceHash": "b1c3de7743a298177bb61004f8f5894ea0f3859c18d05d63e6f0aeac9c976bb1",
+      "fingerprint": "a17e2b1583911b8726a37a853582b66f28730f4e2203ba29071226fe8195c855",
+      "text": "主题",
+      "status": "approved"
+    },
+    "Subject or ticket number": {
+      "sourceHash": "b9802ec1db5413c97c36e9f5cddf960a3cd266d8bb7940b786c69d4aacdf912d",
+      "fingerprint": "5fb5ad073e7e6bcc8fc9ab1b2dbdbd89ff3e5b1c8785fcfbcf3d3cd0bfd31c3f",
+      "text": "主题或工单编号",
+      "status": "approved"
+    },
+    "Support": {
+      "sourceHash": "a837ec5d9afd57e789a12bcc26fceaf7d29ce35a4b3fde2e3df69accacadfa1c",
+      "fingerprint": "1922e9f5b67fdfea8faf6cedd1b550db6d14f344bf38e60fe1be7c8e860f8f59",
+      "text": "客服支持",
+      "status": "approved"
+    },
+    "Support queue": {
+      "sourceHash": "ddd067d703e75561ea7851f41100d542aaa49b37649f509a22d061c7206dfa79",
+      "fingerprint": "64c7d4447cdf1156ddc7bdf0889715c6d7d07e02556fc3e414d4708fb8071d22",
+      "text": "客服工单队列",
+      "status": "approved"
+    },
+    "Technical or service support for this Brand Cloud.": {
+      "sourceHash": "dc7d2b75b5752ad0c2a72cc620af8a316c2d81db3b96d29c3ea2d0d486ce9261",
+      "fingerprint": "153d5c7439773b9978c59f5c1480d907b4d31e5482791ae63f4be372c10d74cc",
+      "text": "针对该品牌云端的技术或服务支持。",
+      "status": "approved"
+    },
+    "Ticket #": {
+      "sourceHash": "2850d0443c3ad89ac99cf15ba1b8328bb9c1f261afafb5990e5e9aafee43ef4a",
+      "fingerprint": "b87dd3d9c621bbb8a84dfa92ba424f480d15f1bdb6eeae7335650ad7ba882037",
+      "text": "工单编号 #",
+      "status": "approved"
+    },
+    "Try again": {
+      "sourceHash": "3f96dee2e946543836600a1999f9581aa573a581f9381912baf750753092f737",
+      "fingerprint": "a3115c3e038c7f81e15d0695515ba1717bee31fb053e3dbb771aa17d617cdff7",
+      "text": "重试",
+      "status": "approved"
+    },
+    "Unread": {
+      "sourceHash": "33f7b9b0a388f57525a15a6698cdcfcf311278bef214f3ad13728704be582457",
+      "fingerprint": "6bd6a171afbbeece01abd22e73f041144c099d70a10af2fbaf8ef957f1728699",
+      "text": "未读",
+      "status": "approved"
+    },
+    "Up to 5 files, 10 MiB each; 25 MiB total.": {
+      "sourceHash": "9a0599aefe2671bf0118833eecfd5ad35ebb71a616e14c44acc5e211ed573b71",
+      "fingerprint": "ee57fb7ba0d8cd3b881f56986511ccac73e332b93cf8b54ea6fad1be3e838988",
+      "text": "最多 5 个文件，每个 10 MiB，总计 25 MiB。",
+      "status": "approved"
+    },
+    "Visibility": {
+      "sourceHash": "8dd3c68dcd9ea9c308b868e2eda8da962aae410407c0b9ab9425763a5e25b46b",
+      "fingerprint": "aa6b52bcb80f94dfefc7b7d81aca508359ae0648ca5f186fd7a18bf8cb5e7772",
+      "text": "可见范围",
+      "status": "approved"
+    },
+    "Add internal note": {
+      "sourceHash": "6545738fd6086a1aeae9d1b4f4da186a3c755bb8516a438c2a9e8fe5dfa18fa5",
+      "fingerprint": "5d42bfca19b7725726efb282244beb2121934a4da63c845edbd0998aa154e92f",
+      "text": "添加内部备注",
+      "status": "approved"
+    },
+    "Agent search is unavailable.": {
+      "sourceHash": "6cab48e0cc44424028cb8f0c532c3e6dc5194c93138b3af919bf9b635469007b",
+      "fingerprint": "7e33b156ae05511409ecb21433c5ce87a3a5d07681673bdfed682b507ad97390",
+      "text": "暂时无法搜索客服人员。",
+      "status": "approved"
+    },
+    "All members of this Cloud can see its support conversations.": {
+      "sourceHash": "b4c5ba9ff32c54c6bee74aca25881b59a4c7d8540e00184c12470045eab694a5",
+      "fingerprint": "10fb986b4cb15f5ce8c4ffa764f8ed43dd0b2b6a495b97fc8d6442c364fb60ef",
+      "text": "该云端的所有成员都可以查看客服对话。",
+      "status": "approved"
+    },
+    "Assign": {
+      "sourceHash": "c431b3406aceedebb4d432fd6eadab03db38e186f3265114cb21b55e22d918b9",
+      "fingerprint": "bb79f669a533490aa05b10b385f6957aebeae0271759cc3054fc3811a7ce038f",
+      "text": "指派",
+      "status": "approved"
+    },
+    "Assign ticket": {
+      "sourceHash": "13d5d7fa0cf5139489cd9dfd486d4b6e784ea6c63865101d757af483d53a5fbe",
+      "fingerprint": "4fcd75ad21f9662b2df5bcfe82c6e052ce9543f7d9063588c0b2971580f432be",
+      "text": "指派工单",
+      "status": "approved"
+    },
+    "Attach up to 5 files.": {
+      "sourceHash": "7672cbab981ada7d9f9468e1e82d604994d4a1b6ce75b8d3b3d78309064f3407",
+      "fingerprint": "c4d004a8db4ee8d6a44e0400c43fba9764aa410e67063cce0301f186fbf100aa",
+      "text": "最多可附加 5 个文件。",
+      "status": "approved"
+    },
+    "Brand Cloud support": {
+      "sourceHash": "6a9343cf2647018b468c328d81e556aa542304920504e128912aea5ee1504af0",
+      "fingerprint": "a2f4b12c01db9f05f884b70d88fad3ef4315ae052832d423e91008cc966cdb88",
+      "text": "品牌云端客服",
+      "status": "approved"
+    },
+    "Check the fields and try again.": {
+      "sourceHash": "a5bd94a626ff7399edd84fa6c706585de65f953242c1f8b84c2bcf962bdcdf79",
+      "fingerprint": "bc42c896547d68cbb64679579accb8884611e8ed6a31e7182621e76c82feac0b",
+      "text": "请检查输入字段后重试。",
+      "status": "approved"
+    },
+    "Cloud member": {
+      "sourceHash": "d7bdb73ef6c6ff556e974506edf170801fab0030fd8b88249ed8b4b4acd670df",
+      "fingerprint": "8435edc04e5cf27c9b9520f6df6aab147b6ccd1e3900f47e87d55cfd9b3bd702",
+      "text": "云端成员",
+      "status": "approved"
+    },
+    "Cloud message": {
+      "sourceHash": "969d28862f90f952d4fd3f1ea28700ba12f78ca3ed6122e3693f0591be645284",
+      "fingerprint": "f7d33b9fa727a4914862091a969a7fdace034db7a0da69e6da9bd8eb99fbd38c",
+      "text": "云端消息",
+      "status": "approved"
+    },
+    "Create ticket": {
+      "sourceHash": "d4dfe060bfe570315486102cd21eba1dcd0820d4d803f4acf93e7302bb9c151a",
+      "fingerprint": "93aeac8cf4cf807b9187ff59945297c777659ea7028058ad64c4f2696ade7ef6",
+      "text": "创建工单",
+      "status": "approved"
+    },
+    "Download attachment": {
+      "sourceHash": "dc73aed0812a29bbb3bcc84da165a0b1b5940b19b8fd3f94a739983f66a74723",
+      "fingerprint": "0036907f82f39e89e87d1ae68df2a3c62c79cf3f9cf5cdf5c72cc5c4f7165583",
+      "text": "下载附件",
+      "status": "approved"
+    },
+    "Each file must be 10 MiB or smaller.": {
+      "sourceHash": "ea116adcabb5881c18e609f99312b4ab6a014d63f1940b8a4079d59112b1b0ba",
+      "fingerprint": "12cbfa76a330174e19c242159f60e7ae0b725130b73d426f3b0d1f4d74503643",
+      "text": "每个文件不得超过 10 MiB。",
+      "status": "approved"
+    },
+    "Inspect and respond to tickets across Clouds.": {
+      "sourceHash": "77349c67bbb3471de6ac9a1c0a8c7d80c338b03b309e480eac83165bfbb6f309",
+      "fingerprint": "d42f12b45a33e32e91e99d24791de1bf221f1cc041f3ee8523ab450ff5c84b82",
+      "text": "查看并回复所有云端的客服工单。",
+      "status": "approved"
+    },
+    "Mine": {
+      "sourceHash": "6e2e0ed9b90e3583ca27258180ed5987e4ef8106f0cdac7bba4596ceb8a9c35b",
+      "fingerprint": "4b29455e5727e7a7703cc5cb9fe5c13b29a379d040cb182a71d04dea51bec7c3",
+      "text": "我的工单",
+      "status": "approved"
+    },
+    "New support ticket": {
+      "sourceHash": "638016f12c6ae5c50c95072253466363c3ceddd7655ab5168bafd45b1ee42e8b",
+      "fingerprint": "b249f4f51b21cccaf84703d08ec6e96699794366df51f1ec4fa9419241d911a5",
+      "text": "新建客服工单",
+      "status": "approved"
+    },
+    "Platform support queue": {
+      "sourceHash": "4cc0fa2ba44c8960d8e2627e8a21c3b32736849ba49dace157c332253c5686de",
+      "fingerprint": "d23b2ec665de61f1eed6bd08f9e1e984d68f81a099130ac4bfabb9ff0918d6cb",
+      "text": "平台主管客服工单队列",
+      "status": "approved"
+    },
+    "Reopen": {
+      "sourceHash": "866bab2e891aabb10f9210f01d3bf1e8ca0e0eb1abb769cc029664f6d173762e",
+      "fingerprint": "2f933bda73610dafc9d6f2d2fb11316e55174c59ee7b4c44a7c3cdd4e1b3d5ca",
+      "text": "重新打开",
+      "status": "approved"
+    },
+    "Reply to ticket": {
+      "sourceHash": "a6d1f42e7019ab2fb8339de37d85ae4b6683970036310298882251c3e94825c6",
+      "fingerprint": "1f47ec7a9e837c1f700d08217d71863acf4c32e669963ce9c8a2258715c4083e",
+      "text": "回复工单",
+      "status": "approved"
+    },
+    "Search support agent": {
+      "sourceHash": "21f06a508370da14a44975c370ff772cf09fcc981f660abb79c8af4878070581",
+      "fingerprint": "796a578fd1e1f21cb819aa9481dd5d709f4dbd724925fb8de49300e983f2ac70",
+      "text": "搜索客服人员",
+      "status": "approved"
+    },
+    "Select an agent": {
+      "sourceHash": "6d6aa455111118d150b199b61f6ba12a34bc09aa0716472b57e4aa4d4d4730d1",
+      "fingerprint": "80d7539a8e6c6e261f257964aebdafb5a3a26ac1af0a174aa2b8bdfb56d022ce",
+      "text": "选择客服人员",
+      "status": "approved"
+    },
+    "Send reply": {
+      "sourceHash": "a8ad3943ead62dbaa25a410d382d30a37b8aa6cc8c395e8de015482c7691b0e7",
+      "fingerprint": "d719dab96c17f4b5701889aa82b0a1d38c51af4ab702ee0d0457872cee40d66d",
+      "text": "发送回复",
+      "status": "approved"
+    },
+    "Sending…": {
+      "sourceHash": "0ef955749441caace2429803357d6805545b90a8eaf8d3118a43b231c43ab445",
+      "fingerprint": "a01f57c8968fc5cc744f030111edd1df14d724e473523031c3eb1a7cdbcda2f2",
+      "text": "发送中…",
+      "status": "approved"
+    },
+    "Staff only note": {
+      "sourceHash": "e32ea75caeba3e06c08a16370fc11d0a3cc67a96a2f18da93a858a08108d63ed",
+      "fingerprint": "a93d7a5ad48e7f78663457716dd128590fadfcc2943520ec169a4daaa65902c4",
+      "text": "仅客服可见备注",
+      "status": "approved"
+    },
+    "Staff only — Cloud members cannot see this note.": {
+      "sourceHash": "161c7bcc8cd1a12f848f4a422844a530207a63fd5f11f8d89196468b82d96cd7",
+      "fingerprint": "2c321bc165b18d2ea3611a55030a59b74c930dec1655805aad85828e415096d7",
+      "text": "仅客服人员可见，云端成员无法查看此备注。",
+      "status": "approved"
+    },
+    "Support agent": {
+      "sourceHash": "f11c3e089b3a779a35c003025b8ce82ce1b2b99ddca3162a8bcbd5eb1c57fc6c",
+      "fingerprint": "16111fcbf407e53f7b4f8e5e07af0923e76597544862adf953b32e53b998cc5b",
+      "text": "客服人员",
+      "status": "approved"
+    },
+    "Support reply": {
+      "sourceHash": "697361e4d70376d4d043cc0080dd88c92d9e54c9a33fa634ec66d2e108996527",
+      "fingerprint": "2bf285331c4c619d8cf764c2249dffd6b5180db7087d1b1e1e5abd524af6b865",
+      "text": "客服回复",
+      "status": "approved"
+    },
+    "Support service is temporarily unavailable. Your draft is still here.": {
+      "sourceHash": "479ad86f7b0eda782e64397fbe728e2b0c95d49bc1acffdea3e93d855e705633",
+      "fingerprint": "91bb236334686ec5a8056445a74c572d5035bc8f1a02418e3873dd9f244e61db",
+      "text": "客服服务暂时不可用，草稿仍保留在此。",
+      "status": "approved"
+    },
+    "Support service unavailable.": {
+      "sourceHash": "2df2486592acd963fbcc1c2f8c25762c0c7aca780be7313ff187422c0ef9892a",
+      "fingerprint": "bc6d0b11513d60df13c45a910aadd4f5f43058cee4659edc5658a37321da34a2",
+      "text": "客服服务暂时不可用。",
+      "status": "approved"
+    },
+    "Team": {
+      "sourceHash": "b334ab1b65fa914b913e1b04b095b20f9c57f2363d012ebfffa4c2d13c21a14a",
+      "fingerprint": "65c39914c0dc1072f574253899063daeb6cf24129031e3e739a99af29b83c9f1",
+      "text": "团队工单",
+      "status": "approved"
+    },
+    "The combined upload must be 25 MiB or smaller.": {
+      "sourceHash": "c7e373e9b3aeed8fa80a6fc99369c793659b3c3ce91ee000bead36aa42262c7e",
+      "fingerprint": "278c786f9bee3dfe4906c83fd06f4f5e3268b3323169463faf6ed8b0df9afc41",
+      "text": "附件总大小不得超过 25 MiB。",
+      "status": "approved"
+    },
+    "The request failed. Refresh this ticket before retrying.": {
+      "sourceHash": "c51716666de5cbcec89bbaa33b2e11c0e77cb4b1ba2970f87535726f129f2908",
+      "fingerprint": "eee64d7ef53ca1c45032d54c36ffedf76cf9b2f681a271116dc0b7eea653603d",
+      "text": "发送失败，请刷新工单后再试。",
+      "status": "approved"
+    },
+    "The upload exceeds the size limit.": {
+      "sourceHash": "99afe73d027f68bac432e9d7b40fa138d5f6da7a04eb1d795a312657aed4bdbe",
+      "fingerprint": "c4a45b7b188012d938ac6128d66d3f582ac448e1c6535d00ec96be85b247e7e1",
+      "text": "上传内容超过大小限制。",
+      "status": "approved"
+    },
+    "This ticket is unavailable in this Cloud.": {
+      "sourceHash": "8b0d51e8cac7f1dda3418a83226a966b9f58369ce19811697fe55137de4fd0ab",
+      "fingerprint": "37de5cd63467549cdc5e23ce284ca222136bd0a121526eb842016bd42ac60d5c",
+      "text": "该云端无法访问此工单。",
+      "status": "approved"
+    },
+    "Update failed.": {
+      "sourceHash": "ce4f2838f39928404ee7971ef5f4d20de3a5dfe15dd436e88d3d8df228452916",
+      "fingerprint": "3234385e8f09fe89b3b196ad81e664c984a59f95fe5f2dcd83e76bdd5663fc59",
+      "text": "更新失败。",
+      "status": "approved"
+    },
+    "Visible to all members of the Cloud.": {
+      "sourceHash": "ac4a8633f1ee4b4728d77cea80563bc0dd8b24a4ba88bf9e9b50f30712931127",
+      "fingerprint": "d861b7c7fec95b6bd4b0e268dce87259b8b5cfe7d06416a4884b4b126f2f2d07",
+      "text": "该云端的所有成员均可查看。",
+      "status": "approved"
+    },
+    "You no longer have access to this ticket.": {
+      "sourceHash": "aa2699d0b6141a0f2d5acbc820c790371696c6cc2a4428a79eabc0bf63c54c6b",
+      "fingerprint": "15ce8ea7327a88fa47288e6bf66c330aca3e888bd91dc7efb7f8d3f061e1fa05",
+      "text": "你已无权访问此工单。",
+      "status": "approved"
+    },
+    "Your session has expired. Sign in again.": {
+      "sourceHash": "a4a6fcbf2ba3eb08140a0bc80a8697d38a28287d2f2a68dcbfdea373d5d1426f",
+      "fingerprint": "8dbf6fb7f3fbec6e8c53469f851e3f1128760f47d003823419b85c03c63bee3e",
+      "text": "登录已过期，请重新登录。",
+      "status": "approved"
+    },
     "Saving service changes affects future production runs. Existing devices keep their current services until you apply the new authorization version to them.": {
       "sourceHash": "507849ec46e883e8b8b556e9d899b967d741561fb54943bfe8aeb0c4ab701237",
       "fingerprint": "7f653d8a34cacb5fb17f8690b1c9083e91c10cd4abd31768da8a502318cda591",

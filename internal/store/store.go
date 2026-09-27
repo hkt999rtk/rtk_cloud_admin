@@ -404,6 +404,15 @@ DROP TABLE IF EXISTS platform_admins;
 -- Force reauthentication through the global-user flow after identity cutover.
 DELETE FROM sessions;
 `},
+	{version: 12, name: "support_ticket_read_markers", sql: `
+CREATE TABLE support_ticket_read_markers (
+  actor_id TEXT NOT NULL,
+  scope_id TEXT NOT NULL,
+  ticket_id INTEGER NOT NULL,
+  seen_at TEXT NOT NULL,
+  PRIMARY KEY (actor_id, scope_id, ticket_id)
+);
+`},
 }
 
 func (s *Store) AppliedMigrations() ([]int, error) {
