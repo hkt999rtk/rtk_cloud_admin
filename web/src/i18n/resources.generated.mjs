@@ -2658,7 +2658,9 @@ export const en = Object.freeze({ translation: Object.freeze({
   "OTA is currently enabled for this Product.": "OTA is currently enabled for this Product.",
   "Product OTA service status": "Product OTA service status",
   "Product service status is temporarily unavailable. Billing prices remain available.": "Product service status is temporarily unavailable. Billing prices remain available.",
-  "Current service prices may differ from the rates on this issued invoice.": "Current service prices may differ from the rates on this issued invoice."
+  "Current service prices may differ from the rates on this issued invoice.": "Current service prices may differ from the rates on this issued invoice.",
+  "Pricing version": "Pricing version",
+  "Usage fact references": "Usage fact references"
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -5320,7 +5322,9 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "OTA is currently enabled for this Product.": "此產品目前已啟用 OTA 服務。",
   "Product OTA service status": "產品 OTA 服務狀態",
   "Product service status is temporarily unavailable. Billing prices remain available.": "暫時無法取得產品服務狀態，計費價格仍可查看。",
-  "Current service prices may differ from the rates on this issued invoice.": "目前的服務價格可能與這張已開立帳單所採用的費率不同。"
+  "Current service prices may differ from the rates on this issued invoice.": "目前的服務價格可能與這張已開立帳單所採用的費率不同。",
+  "Pricing version": "計費價卡版本",
+  "Usage fact references": "用量紀錄編號"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -7982,7 +7986,9 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "OTA is currently enabled for this Product.": "此产品目前已启用 OTA 服务。",
   "Product OTA service status": "产品 OTA 服务状态",
   "Product service status is temporarily unavailable. Billing prices remain available.": "暂时无法取得产品服务状态，计费价格仍可查看。",
-  "Current service prices may differ from the rates on this issued invoice.": "目前的服务价格可能与这张已开立账单所采用的费率不同。"
+  "Current service prices may differ from the rates on this issued invoice.": "目前的服务价格可能与这张已开立账单所采用的费率不同。",
+  "Pricing version": "计费价卡版本",
+  "Usage fact references": "用量记录编号"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });

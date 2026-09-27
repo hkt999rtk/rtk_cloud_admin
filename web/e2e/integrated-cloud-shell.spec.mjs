@@ -113,6 +113,15 @@ test('[UI-CA-MULTICLOUD-SHELL-001] integrated shell keeps every feature and requ
 
 test('[UI-CA-MULTICLOUD-ANALYTICS-001] unavailable Overview and Stream Health values use their page labels', async ({ page }) => {
   await login(page, 'billing_owner');
+  await page.route(`**/api/developer/brand-clouds/${cloudA}/fleet/overview*`, (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      presence: { current: { online: 0, total: 0 } },
+      health: { source: { status: 'unavailable' } },
+      sessions: { source: { status: 'unavailable' } },
+    }),
+  }));
   await page.route(`**/api/developer/brand-clouds/${cloudA}/fleet/health-summary*`, (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
