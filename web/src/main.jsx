@@ -3219,6 +3219,7 @@ function BillingInvoiceDetail({ invoice, onBack }) {
   return <section className="page-content billing-page" data-testid="billing-invoice-detail">
     <button type="button" className="link-button billing-back" onClick={onBack}>{translate("← Back to invoices")}</button>
     <div className="page-intro"><div><p className="eyebrow">{translate("Invoice")}</p><h2>{invoice.invoice_number}</h2></div>{invoice.document ? <a className="primary button-link" href={billingAPI(cloudId, `/api/billing/invoices/${encodeURIComponent(invoice.id)}/pdf`)}>{translate("Download PDF")}</a> : null}</div>
+    <p className="billing-invoice-pricing"><a href={`/console/clouds/${cloudId}/billing/pricing`}>{translate('Service Pricing')}</a> · {translate('Current service prices may differ from the rates on this issued invoice.')}</p>
     <BillingInvoiceDocument invoice={invoice} />
   </section>;
 }

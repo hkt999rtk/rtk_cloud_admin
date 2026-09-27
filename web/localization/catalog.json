@@ -16109,6 +16109,12 @@
       "source": "Product service status is temporarily unavailable. Billing prices remain available.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Current service prices may differ from the rates on this issued invoice.",
+      "source": "Current service prices may differ from the rates on this issued invoice.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }
