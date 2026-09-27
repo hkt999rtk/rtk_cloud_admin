@@ -16351,6 +16351,18 @@
       "source": "Current service prices may differ from the rates on this issued invoice.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Pricing version",
+      "source": "Pricing version",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Usage fact references",
+      "source": "Usage fact references",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

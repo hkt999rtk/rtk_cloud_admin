@@ -16135,6 +16135,18 @@
       "fingerprint": "a4d1df179ac4febff23e745d36e1738b318c6022b479946e72434e71a484cfd3",
       "text": "目前的服务价格可能与这张已开立账单所采用的费率不同。",
       "status": "approved"
+    },
+    "Pricing version": {
+      "sourceHash": "cdb30bf1440fea8e6d3375cee3cb7c9ac341add1f0db61a77694e0650a153706",
+      "fingerprint": "30dff32553fc29b0f39b149a065d9944f21382942dceead13276085ac124b701",
+      "text": "计费价卡版本",
+      "status": "approved"
+    },
+    "Usage fact references": {
+      "sourceHash": "97e1fe7514e0d6951d934e7e16ce6bdbcd23f563bff87e96c20ab91b53234b59",
+      "fingerprint": "2295e7f735c7cbdcc1b7ede722c33b56e827ed26b57b5c5435b30e648b477989",
+      "text": "用量记录编号",
+      "status": "approved"
     }
   }
 }

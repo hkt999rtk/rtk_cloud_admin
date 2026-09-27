@@ -49,8 +49,8 @@ test('[UI-CA-INVOICE-002] issued invoice preserves recorded tax and scaled usage
   await page.route(invoicesAPI, async route => {
     const response = await route.fetch();
     const body = await response.json();
-    body.invoices = [{ ...body.invoices[0], subtotal_minor: 1000, tax_minor: 0, total_minor: 1000, amount_settled_minor: 0, amount_due_minor: 1000, state: 'issued', document: null,
-      lines: [{ id: 'scaled', service_code: 'storage', description: 'Scaled storage usage', quantity: 125, quantity_scale: 2, unit: 'GB-month', subtotal_minor: 1000, total_minor: 1000 }] }];
+    body.invoices = [{ ...body.invoices[0], pricing_version_id: 'twd-ota-2026-11', subtotal_minor: 1000, tax_minor: 0, total_minor: 1000, amount_settled_minor: 0, amount_due_minor: 1000, state: 'issued', document: null,
+      lines: [{ id: 'scaled', service_code: 'storage', description: 'Scaled storage usage', quantity: 125, quantity_scale: 2, unit: 'GB-month', subtotal_minor: 1000, total_minor: 1000, usage_fact_refs: ['usage-fact-1'] }] }];
     await route.fulfill({ response, json: body });
   });
   await page.goto(invoicesURL);
@@ -59,6 +59,10 @@ test('[UI-CA-INVOICE-002] issued invoice preserves recorded tax and scaled usage
   await expect(invoice).toBeVisible();
   await expect(page.getByTestId('invoice-preview')).toHaveCount(0);
   await expect(invoice).toContainText('1.25');
+  await expect(invoice).toContainText('twd-ota-2026-11');
+  await expect(invoice).toContainText('2 decimal places');
+  await invoice.getByText('Usage fact references (1)').click();
+  await expect(invoice).toContainText('usage-fact-1');
   await expect(invoice).not.toContainText('5%');
   await expect(invoice).not.toContainText('This invoice is settled');
   await expect(invoice.locator('.invoice-document-totals > div').nth(1)).toContainText('$0');
