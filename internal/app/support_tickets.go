@@ -239,7 +239,7 @@ func (s *Server) supportList(w http.ResponseWriter, r *http.Request) {
 	perPage := supportPage(r.URL.Query().Get("per_page"), 30, 100)
 	query := "group_id:" + strconv.FormatInt(s.cfg.ZammadSupportGroupID, 10)
 	if actor.CloudID != "" {
-		query += " AND rtk_cloud_id:" + actor.CloudID
+		query += " AND rtk_cloud_uuid:" + actor.CloudID
 	}
 	q := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	if len(q) > 100 {
@@ -395,7 +395,7 @@ func (s *Server) supportCreate(w http.ResponseWriter, r *http.Request) {
 	article := supportArticlePayload(in, actor, user.ID, 0, false)
 	ticket, err := s.zammadClient.CreateTicket(r.Context(), map[string]any{
 		"title": in.Title, "group_id": s.cfg.ZammadSupportGroupID, "customer_id": user.ID,
-		"rtk_cloud_id": actor.CloudID, "rtk_category": in.Category, "article": article,
+		"rtk_cloud_uuid": actor.CloudID, "rtk_category": in.Category, "article": article,
 	})
 	if err != nil {
 		supportUpstreamError(w, err)
@@ -673,6 +673,28 @@ func (s *Server) supportZammadUser(ctx context.Context, actor supportActor, agen
 	}
 	user, err := s.zammadClient.CreateUser(ctx, map[string]any{"login": login, "email": actor.Email, "firstname": name, "lastname": "RTK", "roles": []string{"Customer"}})
 	if err != nil {
+		var upstream zammadclient.HTTPError
+		if errors.As(err, &upstream) && upstream.Status == http.StatusUnprocessableEntity {
+			// A prior create may have committed before the search index caught up.
+			for attempt := 0; attempt < 20; attempt++ {
+				if attempt > 0 {
+					select {
+					case <-ctx.Done():
+						return zammadclient.User{}, ctx.Err()
+					case <-time.After(500 * time.Millisecond):
+					}
+				}
+				found, lookupErr := s.zammadClient.SearchUsers(ctx, "login:"+login)
+				if lookupErr != nil {
+					return zammadclient.User{}, lookupErr
+				}
+				for _, existing := range found {
+					if existing.Login == login {
+						return existing, nil
+					}
+				}
+			}
+		}
 		return zammadclient.User{}, err
 	}
 	if user.Login != login {

@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"mime/multipart"
@@ -14,6 +15,7 @@ import (
 
 	"rtk_cloud_admin/internal/accountclient"
 	"rtk_cloud_admin/internal/config"
+	"rtk_cloud_admin/internal/zammadclient"
 )
 
 func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
@@ -37,7 +39,7 @@ func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
 		8: {"id": 8, "login": "rtk-a1", "email": "agent@example.test", "firstname": "Agent", "lastname": "One", "roles": []string{"Agent"}},
 		9: {"id": 9, "login": "rtk-a2", "email": "agent2@example.test", "firstname": "Agent", "lastname": "Two", "roles": []string{"Agent"}},
 	}
-	ticket := map[string]any{"id": int64(1), "number": "1001", "title": "Camera offline", "group_id": int64(7), "owner_id": int64(1), "owner": "-", "rtk_cloud_id": cloud, "rtk_category": "incident", "state": "open", "created_at": "2026-09-27T11:00:00Z", "updated_at": "2026-09-27T11:00:00Z", "last_contact_at": "2026-09-27T11:00:00Z"}
+	ticket := map[string]any{"id": int64(1), "number": "1001", "title": "Camera offline", "group_id": int64(7), "owner_id": int64(1), "owner": "-", "rtk_cloud_uuid": cloud, "rtk_category": "incident", "state": "open", "created_at": "2026-09-27T11:00:00Z", "updated_at": "2026-09-27T11:00:00Z", "last_contact_at": "2026-09-27T11:00:00Z"}
 	articles := []map[string]any{}
 	var createdCustomers int
 	var notificationsSuppressed bool
@@ -79,7 +81,7 @@ func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
 		case r.Method == "POST" && path == "/api/v1/tickets":
 			var input map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&input)
-			if input["rtk_cloud_id"] != cloud || input["group_id"] != float64(7) || input["customer_id"] != float64(3) {
+			if input["rtk_cloud_uuid"] != cloud || input["group_id"] != float64(7) || input["customer_id"] != float64(3) {
 				t.Errorf("ticket scope was not server-controlled: %#v", input)
 			}
 			initial := input["article"].(map[string]any)
@@ -261,4 +263,30 @@ func TestSupportTicketCustomerAndAgentWorkflow(t *testing.T) {
 	call(customer.ID, "POST", customerBase+"/1/articles", oversizedWriter.FormDataContentType(), &oversizedUpload, 413)
 	role = "viewer"
 	call(customer.ID, "POST", customerBase+"/1/articles", "application/json", strings.NewReader(`{"body":"Viewer cannot reply"}`), 403)
+}
+
+func TestSupportCustomerCreateRecoversFromSearchIndexDelay(t *testing.T) {
+	var searches, creates int
+	zammad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/users/search":
+			searches++
+			if searches == 1 {
+				_ = json.NewEncoder(w).Encode([]any{})
+				return
+			}
+			_ = json.NewEncoder(w).Encode([]any{map[string]any{"id": 5, "login": "rtk-u1", "roles": []string{"Customer"}}})
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/users":
+			creates++
+			http.Error(w, "login already exists", http.StatusUnprocessableEntity)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer zammad.Close()
+	s := &Server{zammadClient: zammadclient.New(zammad.URL, "probe-token")}
+	user, err := s.supportZammadUser(context.Background(), supportActor{ID: "u1", Email: "user@example.test"}, false, true)
+	if err != nil || user.ID != 5 || searches != 2 || creates != 1 {
+		t.Fatalf("index-lag recovery: user=%+v err=%v searches=%d creates=%d", user, err, searches, creates)
+	}
 }
