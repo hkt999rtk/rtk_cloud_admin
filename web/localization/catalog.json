@@ -16055,6 +16055,30 @@
       "source": "The four OTA unit prices are approved. Current effectiveness cannot be verified until Billing responds.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Allocated tax",
+      "source": "Allocated tax",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Line total",
+      "source": "Line total",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.",
+      "source": "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Unit price before tax",
+      "source": "Unit price before tax",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

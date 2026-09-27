@@ -29,12 +29,13 @@
 .invoice-document-meta dl > div, .invoice-document-totals > div { display: grid; grid-template-columns: 1fr 1.3fr; gap: 16px; }
 .billing-invoice-document dt { color: #62748a; }
 .billing-invoice-document dd { margin: 0; text-align: right; }
-.invoice-document-lines { width: 100%; min-width: 0; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.invoice-document-table-wrap { overflow-x: auto; }
+.invoice-document-lines { width: 100%; min-width: 760px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
 .invoice-document-lines caption { text-align: left; font-weight: 600; padding-bottom: 12px; }
 .invoice-document-lines caption span { display: block; margin-top: 4px; font-size: 11px; font-weight: 400; color: #62748a; }
 .billing-invoice-document .invoice-document-lines th { padding: 12px; text-align: left; background: #f1f5fa; color: #526880; font-size: 11px; }
 .billing-invoice-document .invoice-document-lines td { padding: 16px 12px; vertical-align: top; border-bottom: 1px solid #e4eaf2; line-height: 1.6; font-size: 13px; }
-.invoice-document-lines th:first-child { width: 50%; }
+.invoice-document-lines th:first-child { width: 27%; }
 .billing-invoice-document .invoice-document-lines th:last-child, .invoice-document-lines td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 .invoice-document-lines td span { display: block; color: #62748a; font-size: 12px; }
 .invoice-document-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; padding-block: 28px; }
@@ -52,6 +53,6 @@
   .invoice-document-amount { text-align: left; }
   .invoice-document-meta, .invoice-document-summary { grid-template-columns: 1fr; gap: 24px; padding-block: 24px; }
   .billing-invoice-document .invoice-document-lines th, .billing-invoice-document .invoice-document-lines td { padding: 12px 6px; font-size: 12px; }
-  .invoice-document-lines th:first-child { width: 44%; }
+  .invoice-document-lines th:first-child { width: 27%; }
   .invoice-document-lines td span { font-size: 11px; }
 }
