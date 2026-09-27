@@ -198,9 +198,11 @@ func (s *Server) supportTicketView(ticket zammadclient.Ticket, actor supportActo
 		scopeID = "platform"
 	}
 	seenAt, _ := s.supportReadMarkers.SupportTicketSeenAt(actor.ID, scopeID, ticket.ID)
-	activity := ticket.LastContactAt
-	if activity == "" {
-		activity = ticket.UpdatedAt
+	publicActivity := supportPublicActivityAt(ticket)
+	activity := supportActivityAt(ticket, actor)
+	updatedAt := ticket.UpdatedAt
+	if actor.CloudID != "" {
+		updatedAt = publicActivity
 	}
 	assigneeID := ticket.OwnerID
 	assignee := ticket.Owner
@@ -211,10 +213,24 @@ func (s *Server) supportTicketView(ticket zammadclient.Ticket, actor supportActo
 	return map[string]any{
 		"id": ticket.ID, "number": ticket.Number, "cloud_id": ticket.CloudID,
 		"title": ticket.Title, "category": ticket.Category, "state": ticket.State,
-		"created_at": ticket.CreatedAt, "updated_at": ticket.UpdatedAt,
-		"last_public_activity_at": activity, "assignee_id": assigneeID, "assignee": assignee,
+		"created_at": ticket.CreatedAt, "updated_at": updatedAt,
+		"last_public_activity_at": publicActivity, "assignee_id": assigneeID, "assignee": assignee,
 		"unread": supportActivityAfter(activity, seenAt),
 	}
+}
+
+func supportPublicActivityAt(ticket zammadclient.Ticket) string {
+	if ticket.LastContactAt != "" {
+		return ticket.LastContactAt
+	}
+	return ticket.CreatedAt
+}
+
+func supportActivityAt(ticket zammadclient.Ticket, actor supportActor) string {
+	if actor.CloudID == "" && ticket.UpdatedAt != "" {
+		return ticket.UpdatedAt
+	}
+	return supportPublicActivityAt(ticket)
 }
 
 func (s *Server) supportUnassigned(ticket zammadclient.Ticket) bool {
@@ -415,7 +431,7 @@ func (s *Server) supportCreate(w http.ResponseWriter, r *http.Request) {
 		supportUpstreamError(w, err)
 		return
 	}
-	_ = s.supportReadMarkers.MarkSupportTicketSeen(actor.ID, actor.CloudID, ticket.ID, ticket.LastContactAt)
+	_ = s.supportReadMarkers.MarkSupportTicketSeen(actor.ID, actor.CloudID, ticket.ID, supportActivityAt(ticket, actor))
 	writeJSONStatus(w, http.StatusCreated, view)
 }
 
@@ -480,7 +496,7 @@ func (s *Server) supportReply(w http.ResponseWriter, r *http.Request) {
 	if scopeID == "" {
 		scopeID = "platform"
 	}
-	_ = s.supportReadMarkers.MarkSupportTicketSeen(actor.ID, scopeID, updated.ID, updated.LastContactAt)
+	_ = s.supportReadMarkers.MarkSupportTicketSeen(actor.ID, scopeID, updated.ID, supportActivityAt(updated, actor))
 	s.supportWriteDetail(w, r, updated, actor)
 }
 
@@ -489,7 +505,11 @@ func supportArticlePayload(in supportInput, actor supportActor, userID, ticketID
 	if agent {
 		sender = "Agent"
 	}
-	article := map[string]any{"body": in.Body, "content_type": "text/plain", "type": "note", "sender": sender,
+	articleType := "web"
+	if in.Visibility == "internal" {
+		articleType = "note"
+	}
+	article := map[string]any{"body": in.Body, "content_type": "text/plain", "type": articleType, "sender": sender,
 		"internal": in.Visibility == "internal", "from": actor.Name, "origin_by_id": userID, "attachments": in.Files}
 	if ticketID > 0 {
 		article["ticket_id"] = ticketID
@@ -586,10 +606,7 @@ func (s *Server) supportSeen(w http.ResponseWriter, r *http.Request) {
 	if scopeID == "" {
 		scopeID = "platform"
 	}
-	activity := ticket.LastContactAt
-	if activity == "" {
-		activity = ticket.UpdatedAt
-	}
+	activity := supportActivityAt(ticket, actor)
 	if err := s.supportReadMarkers.MarkSupportTicketSeen(actor.ID, scopeID, ticket.ID, activity); err != nil {
 		http.Error(w, "Read marker unavailable", http.StatusServiceUnavailable)
 		return
