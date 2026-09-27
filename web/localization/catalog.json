@@ -16079,6 +16079,36 @@
       "source": "Unit price before tax",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.",
+      "source": "Choose a Product to see whether OTA is currently selected. This status does not determine historical charges for work authorized before OTA was turned off.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "No Products are available in this Cloud.",
+      "source": "No Products are available in this Cloud.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "OTA is currently enabled for this Product.",
+      "source": "OTA is currently enabled for this Product.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product OTA service status",
+      "source": "Product OTA service status",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Product service status is temporarily unavailable. Billing prices remain available.",
+      "source": "Product service status is temporarily unavailable. Billing prices remain available.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }
