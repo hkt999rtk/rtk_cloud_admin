@@ -1,5 +1,13 @@
 .service-pricing-page { --pricing-ink: #153754; --pricing-blue: #1760a5; display: grid; gap: 20px; min-width: 0; }
 .pricing-draft { display: inline-flex; align-self: flex-start; white-space: nowrap; padding: 7px 12px; border-radius: 20px; background: #fff4d8; color: #78551a; font-size: 12px; font-weight: 650; }
+.pricing-product { padding: 20px 24px; }
+.pricing-product h3 { margin: 0 0 8px; color: var(--pricing-ink); }
+.pricing-product p { margin: 8px 0; color: #526b7f; line-height: 1.6; }
+.pricing-product label { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; font-weight: 600; }
+.pricing-product select { max-width: 100%; min-width: 240px; padding: 8px; }
+.pricing-product-result { padding: 10px 12px; border-radius: 8px; background: #eff6fb; }
+.pricing-product-pages { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.pricing-product-pages button { padding: 7px 10px; }
 .pricing-status-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; color: var(--pricing-ink); }
 .pricing-status-summary > div { padding: 24px; border: 1px solid #ccdfea; border-radius: 12px; background: #eff6fb; }
 .pricing-status-summary > div:last-child { background: #f8fafc; }
@@ -25,6 +33,7 @@
 .pricing-table thead th:nth-child(1) { width: 21%; }
 .pricing-table thead th:nth-child(2) { width: 19%; }
 .pricing-table thead th:nth-child(3) { width: 30%; }
+.pricing-table thead th:nth-child(5) { width: 13%; }
 .pricing-table tbody th, .pricing-table td { padding: 21px 20px; vertical-align: top; border-top: 1px solid #e4ebf1; line-height: 1.65; color: #40596d; overflow-wrap: anywhere; background: #fff; }
 .pricing-table tbody th { text-align: left; font-weight: 400; }
 .pricing-table tbody th > strong { color: #153754; font-weight: 650; font-size: 14px; }
