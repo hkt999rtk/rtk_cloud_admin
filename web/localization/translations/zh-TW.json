@@ -16567,6 +16567,18 @@
       "fingerprint": "48b6ae967e73f6c1cf4f91697e45264df68d16b901ab528953b147c18df79434",
       "text": "移除服務不會立即使已發出的 token 或現有連線失效。",
       "status": "approved"
+    },
+    "Pricing version": {
+      "sourceHash": "cdb30bf1440fea8e6d3375cee3cb7c9ac341add1f0db61a77694e0650a153706",
+      "fingerprint": "af882773917a3a5c771bd2c37a829ad9f3d9814882bfabf710ed273e0b170996",
+      "text": "計費價卡版本",
+      "status": "approved"
+    },
+    "Usage fact references": {
+      "sourceHash": "97e1fe7514e0d6951d934e7e16ce6bdbcd23f563bff87e96c20ab91b53234b59",
+      "fingerprint": "ed203c8a8255baf6441568d29991950ee72efd98d50f9e951c1e1e83420e1350",
+      "text": "用量紀錄編號",
+      "status": "approved"
     }
   }
 }

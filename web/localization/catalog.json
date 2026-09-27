@@ -16783,6 +16783,18 @@
       "source": "Saving service changes affects future production runs. Existing devices keep their current services until you apply the new authorization version to them.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "Pricing version",
+      "source": "Pricing version",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Usage fact references",
+      "source": "Usage fact references",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }

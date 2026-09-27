@@ -38,6 +38,10 @@
 .invoice-document-lines th:first-child { width: 27%; }
 .billing-invoice-document .invoice-document-lines th:last-child, .invoice-document-lines td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 .invoice-document-lines td span { display: block; color: #62748a; font-size: 12px; }
+.invoice-line-sources { margin-top: 8px; color: #526880; font-size: 12px; }
+.invoice-line-sources summary { cursor: pointer; }
+.invoice-line-sources ul { margin: 6px 0 0; padding-left: 18px; }
+.invoice-line-sources li { overflow-wrap: anywhere; }
 .invoice-document-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; padding-block: 28px; }
 .invoice-document-note p { color: #62748a; font-size: 12px; line-height: 1.8; margin: 0; }
 .invoice-document-totals { align-content: start; font-size: 13px; }
