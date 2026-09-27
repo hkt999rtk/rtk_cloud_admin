@@ -15841,6 +15841,30 @@
       "fingerprint": "c824777499429df6ba9ca7d0adc8a621a4318aaac205d9b9a1c6407369133433",
       "text": "四項 OTA 單價已核准。Billing 回應前無法確認目前是否生效。",
       "status": "approved"
+    },
+    "Unit price before tax": {
+      "sourceHash": "262a56606a58e0a11caa86450fb09babfee25d8770e4e3704d50a8723f2ef44f",
+      "fingerprint": "fb7cbbd4f0e311fcad54041e7d3334137ae537dcf95de3caeac40cfdd3c0e7c8",
+      "text": "未稅單價",
+      "status": "approved"
+    },
+    "Allocated tax": {
+      "sourceHash": "e4a83448d57d188ff51404c5d820d3b1c83bcda2f61ff01f0cb636bf54d30b0d",
+      "fingerprint": "df5e2883c50462e1c63ae4177c269509e8ba6ba9d1356b53dedc41bc1f0c8994",
+      "text": "分攤稅額",
+      "status": "approved"
+    },
+    "Line total": {
+      "sourceHash": "8d8470e0f1437e5ff274da153b3536d6d2b15924ef2ad184a4506665b128e815",
+      "fingerprint": "9362391529da91e68a7df5fa510aa2138d38c3114122d3c804db555cdb32e186",
+      "text": "明細總額",
+      "status": "approved"
+    },
+    "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.": {
+      "sourceHash": "99e74acb0516f77dc97fff41f919c98710fa515b06908e66baa7518224626b4e",
+      "fingerprint": "8ffcaa9ae75e9cae98b1b21d315123c62ea604340ca413fd6e4087a91aa2ccbe",
+      "text": "所有服務的未稅小計合併後，整張帳單只計算一次 5% 台灣營業稅並取整。OTA 不另行加稅，也不免稅。各明細稅額是這筆帳單稅額的分攤。",
+      "status": "approved"
     }
   }
 }

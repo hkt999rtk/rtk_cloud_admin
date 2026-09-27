@@ -2638,7 +2638,11 @@
       "For the approved OTA-inclusive TWD policy, each Product and meter’s usage × its unit price is rounded to a pre-tax line subtotal. All service line subtotals are added, then Taiwan business tax of 5% is calculated once on the invoice subtotal using half-up rounding. Subtotal plus tax is the total due. Tax shown on each line allocates that one invoice tax amount. Existing invoices keep their issued tax policy.": "依已核准的 OTA 新台幣計費政策，每個產品、每項計量的用量乘以單價，取整後成為該明細的未稅小計。先加總所有服務明細，再對整張帳單的未稅總額以四捨五入計算一次 5% 台灣營業稅。未稅總額加上稅額即為應付總額。各明細顯示的稅額只是這筆整單稅額的分攤；已開立帳單保留原本稅務規則。",
       "References assume no free allowance or volume discount. Under the approved OTA-inclusive policy, Taiwan business tax is added to the combined invoice subtotal, not separately to OTA. Government electronic-invoice issuance is not handled in this phase. Private Cloud requires a separate quote.": "參考價未假設免費額度或用量折扣。依已核准的 OTA 計費政策，台灣營業稅對整張帳單的未稅總額計算，不對 OTA 另行加稅。本階段暫不處理政府電子發票開立；私有雲另行報價。",
       "Approved OTA price · effective status unavailable": "OTA 已核准價 · 生效狀態無法確認",
-      "The four OTA unit prices are approved. Current effectiveness cannot be verified until Billing responds.": "四項 OTA 單價已核准。Billing 回應前無法確認目前是否生效。"
+      "The four OTA unit prices are approved. Current effectiveness cannot be verified until Billing responds.": "四項 OTA 單價已核准。Billing 回應前無法確認目前是否生效。",
+      "Allocated tax": "分攤稅額",
+      "Line total": "明細總額",
+      "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.": "所有服務的未稅小計合併後，整張帳單只計算一次 5% 台灣營業稅並取整。OTA 不另行加稅，也不免稅。各明細稅額是這筆帳單稅額的分攤。",
+      "Unit price before tax": "未稅單價"
     },
     "service": {
       "Cloud-to-device or cloud-to-app file delivery.": "雲端到裝置或雲端到應用程式檔案交付.",
@@ -5298,7 +5302,11 @@
       "For the approved OTA-inclusive TWD policy, each Product and meter’s usage × its unit price is rounded to a pre-tax line subtotal. All service line subtotals are added, then Taiwan business tax of 5% is calculated once on the invoice subtotal using half-up rounding. Subtotal plus tax is the total due. Tax shown on each line allocates that one invoice tax amount. Existing invoices keep their issued tax policy.": "依已核准的 OTA 新台币计费政策，每个产品、每项计量的用量乘以单价，取整后成为该明细的未税小计。先加总所有服务明细，再对整张帐单的未税总额以四舍五入计算一次 5% 台湾营业税。未税总额加上税额即为应付总额。各明细显示的税额只是这笔整单税额的分摊；已开立帐单保留原本税务规则。",
       "References assume no free allowance or volume discount. Under the approved OTA-inclusive policy, Taiwan business tax is added to the combined invoice subtotal, not separately to OTA. Government electronic-invoice issuance is not handled in this phase. Private Cloud requires a separate quote.": "参考价未假设免费额度或用量折扣。依已核准的 OTA 计费政策，台湾营业税对整张帐单的未税总额计算，不对 OTA 另行加税。本阶段暂不处理政府电子发票开立；私有云另行报价。",
       "Approved OTA price · effective status unavailable": "OTA 已核准价 · 生效状态无法确认",
-      "The four OTA unit prices are approved. Current effectiveness cannot be verified until Billing responds.": "四项 OTA 单价已核准。Billing 回应前无法确认目前是否生效。"
+      "The four OTA unit prices are approved. Current effectiveness cannot be verified until Billing responds.": "四项 OTA 单价已核准。Billing 回应前无法确认目前是否生效。",
+      "Allocated tax": "分摊税额",
+      "Line total": "明细总额",
+      "Taiwan business tax is 5% on the combined pre-tax subtotal of all services, rounded once per invoice. OTA has no separate tax or exemption. Line tax amounts allocate that one invoice tax total.": "所有服务的未税小计合并后，整张账单只计算一次 5% 台湾营业税并取整。OTA 不另行加税，也不免税。各明细税额是这笔账单税额的分摊。",
+      "Unit price before tax": "税前单价"
     },
     "service": {
       "Cloud-to-device or cloud-to-app file delivery.": "云端到设备或云端到应用程式档案交付.",
