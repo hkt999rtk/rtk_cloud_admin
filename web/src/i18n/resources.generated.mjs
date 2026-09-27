@@ -2658,7 +2658,10 @@ export const en = Object.freeze({ translation: Object.freeze({
   "OTA is currently enabled for this Product.": "OTA is currently enabled for this Product.",
   "Product OTA service status": "Product OTA service status",
   "Product service status is temporarily unavailable. Billing prices remain available.": "Product service status is temporarily unavailable. Billing prices remain available.",
-  "Current service prices may differ from the rates on this issued invoice.": "Current service prices may differ from the rates on this issued invoice."
+  "Current service prices may differ from the rates on this issued invoice.": "Current service prices may differ from the rates on this issued invoice.",
+  "After applying it, each device must obtain a new token through mTLS /request_token. /refresh_token keeps the old options; restarting helps only if firmware makes the mTLS request on startup.": "After applying it, each device must obtain a new token through mTLS /request_token. /refresh_token keeps the old options; restarting helps only if firmware makes the mTLS request on startup.",
+  "Removing a service does not immediately invalidate issued tokens or active connections.": "Removing a service does not immediately invalidate issued tokens or active connections.",
+  "Saving service changes affects future production runs. Existing devices keep their current services until you apply the new authorization version to them.": "Saving service changes affects future production runs. Existing devices keep their current services until you apply the new authorization version to them."
 }) });
 
 export const zhTW = Object.freeze({ translation: Object.freeze({
@@ -5320,7 +5323,10 @@ export const zhTW = Object.freeze({ translation: Object.freeze({
   "OTA is currently enabled for this Product.": "此產品目前已啟用 OTA 服務。",
   "Product OTA service status": "產品 OTA 服務狀態",
   "Product service status is temporarily unavailable. Billing prices remain available.": "暫時無法取得產品服務狀態，計費價格仍可查看。",
-  "Current service prices may differ from the rates on this issued invoice.": "目前的服務價格可能與這張已開立帳單所採用的費率不同。"
+  "Current service prices may differ from the rates on this issued invoice.": "目前的服務價格可能與這張已開立帳單所採用的費率不同。",
+  "After applying it, each device must obtain a new token through mTLS /request_token. /refresh_token keeps the old options; restarting helps only if firmware makes the mTLS request on startup.": "套用後，每台裝置都必須透過 mTLS /request_token 取得新 token。/refresh_token 會保留舊的服務能力；只有韌體在開機時會重新發送 mTLS 請求，重新開機才有效。",
+  "Removing a service does not immediately invalidate issued tokens or active connections.": "移除服務不會立即使已發出的 token 或現有連線失效。",
+  "Saving service changes affects future production runs. Existing devices keep their current services until you apply the new authorization version to them.": "儲存服務能力變更後，新的授權版本只會套用到後續建立的生產批次。既有裝置會保留目前的服務能力，直到您另外將新授權版本套用到這些裝置。"
 }) });
 
 export const zhCN = Object.freeze({ translation: Object.freeze({
@@ -7982,7 +7988,10 @@ export const zhCN = Object.freeze({ translation: Object.freeze({
   "OTA is currently enabled for this Product.": "此产品目前已启用 OTA 服务。",
   "Product OTA service status": "产品 OTA 服务状态",
   "Product service status is temporarily unavailable. Billing prices remain available.": "暂时无法取得产品服务状态，计费价格仍可查看。",
-  "Current service prices may differ from the rates on this issued invoice.": "目前的服务价格可能与这张已开立账单所采用的费率不同。"
+  "Current service prices may differ from the rates on this issued invoice.": "目前的服务价格可能与这张已开立账单所采用的费率不同。",
+  "After applying it, each device must obtain a new token through mTLS /request_token. /refresh_token keeps the old options; restarting helps only if firmware makes the mTLS request on startup.": "应用后，每台设备都必须通过 mTLS /request_token 获取新 token。/refresh_token 会保留旧的服务能力；只有固件在启动时会重新发起 mTLS 请求，重启才有效。",
+  "Removing a service does not immediately invalidate issued tokens or active connections.": "移除服务不会立即使已签发的 token 或现有连接失效。",
+  "Saving service changes affects future production runs. Existing devices keep their current services until you apply the new authorization version to them.": "保存服务能力变更后，新的授权版本只会应用于后续创建的生产批次。现有设备会保留当前的服务能力，直到您另外将新授权版本应用到这些设备。"
 }) });
 
 export const resources = Object.freeze({ en, 'zh-TW': zhTW, 'zh-CN': zhCN });

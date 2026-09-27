@@ -9,6 +9,9 @@
 .cloud-products .my-clouds-actions button{align-items:center;display:inline-flex;gap:7px}
 .cloud-products fieldset{border:1px solid #dce3ec;border-radius:8px;padding:16px;margin:20px 0}
 .cloud-products fieldset label{display:flex;align-items:center;gap:8px;margin:10px 0}
+.cloud-products .product-service-change-note{border-left:3px solid var(--brand);border-radius:0 6px 6px 0;background:#f8fbfe;padding:10px 12px;margin:12px 0}
+.cloud-products .product-service-change-note p{margin:0 0 8px}
+.cloud-products .product-service-change-note p:last-child{margin-bottom:0}
 .cloud-products input[type=checkbox]{display:inline-block;width:auto;margin:0;padding:0}
 .cloud-product-enrollment{margin:20px 0;padding:clamp(18px,3vw,28px);border:1px solid #d4e1ed;border-radius:12px;background:#f8fbfe}
 .cloud-product-enrollment h3{display:flex;align-items:center;gap:9px;margin:0 0 12px}

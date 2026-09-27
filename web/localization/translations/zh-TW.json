@@ -16135,6 +16135,24 @@
       "fingerprint": "492e13ec3ed62f552786750284b778f6a4ba1323d5bd9f034211c77a75a5667c",
       "text": "目前的服務價格可能與這張已開立帳單所採用的費率不同。",
       "status": "approved"
+    },
+    "Saving service changes affects future production runs. Existing devices keep their current services until you apply the new authorization version to them.": {
+      "sourceHash": "507849ec46e883e8b8b556e9d899b967d741561fb54943bfe8aeb0c4ab701237",
+      "fingerprint": "900208f70454889a9fc4009edda6c12e399fe4d9e7ad109329e0947d28ba7ff4",
+      "text": "儲存服務能力變更後，新的授權版本只會套用到後續建立的生產批次。既有裝置會保留目前的服務能力，直到您另外將新授權版本套用到這些裝置。",
+      "status": "approved"
+    },
+    "After applying it, each device must obtain a new token through mTLS /request_token. /refresh_token keeps the old options; restarting helps only if firmware makes the mTLS request on startup.": {
+      "sourceHash": "914ef497ad81e98b8a5186b3dc4888100ac4bad3cb9d712efc218209919b6c2a",
+      "fingerprint": "e916794f14970f53267271147ec835dc26234e48835decc586c8f9906d7bdeaf",
+      "text": "套用後，每台裝置都必須透過 mTLS /request_token 取得新 token。/refresh_token 會保留舊的服務能力；只有韌體在開機時會重新發送 mTLS 請求，重新開機才有效。",
+      "status": "approved"
+    },
+    "Removing a service does not immediately invalidate issued tokens or active connections.": {
+      "sourceHash": "ad03c3bd673f43f0a74a1c728d3e117db1c5331634c3b97a0a25b3a5d8fecede",
+      "fingerprint": "48b6ae967e73f6c1cf4f91697e45264df68d16b901ab528953b147c18df79434",
+      "text": "移除服務不會立即使已發出的 token 或現有連線失效。",
+      "status": "approved"
     }
   }
 }

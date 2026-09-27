@@ -16351,6 +16351,24 @@
       "source": "Current service prices may differ from the rates on this issued invoice.",
       "context": "Admin Console interface message",
       "placeholders": []
+    },
+    {
+      "key": "After applying it, each device must obtain a new token through mTLS /request_token. /refresh_token keeps the old options; restarting helps only if firmware makes the mTLS request on startup.",
+      "source": "After applying it, each device must obtain a new token through mTLS /request_token. /refresh_token keeps the old options; restarting helps only if firmware makes the mTLS request on startup.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Removing a service does not immediately invalidate issued tokens or active connections.",
+      "source": "Removing a service does not immediately invalidate issued tokens or active connections.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Saving service changes affects future production runs. Existing devices keep their current services until you apply the new authorization version to them.",
+      "source": "Saving service changes affects future production runs. Existing devices keep their current services until you apply the new authorization version to them.",
+      "context": "Admin Console interface message",
+      "placeholders": []
     }
   ]
 }
