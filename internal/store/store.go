@@ -3,6 +3,7 @@ package store
 import (
 	"crypto/rand"
 	"database/sql"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,6 +17,9 @@ import (
 	"rtk_cloud_admin/internal/contracts"
 	"rtk_cloud_admin/internal/readinessfacts"
 )
+
+//go:embed schema_metadata.sql
+var schemaMetadataSQL string
 
 type Store struct {
 	db *sql.DB
@@ -413,6 +417,7 @@ CREATE TABLE support_ticket_read_markers (
   PRIMARY KEY (actor_id, scope_id, ticket_id)
 );
 `},
+	{version: 13, name: "schema_documentation_metadata", sql: schemaMetadataSQL},
 }
 
 func (s *Store) AppliedMigrations() ([]int, error) {
