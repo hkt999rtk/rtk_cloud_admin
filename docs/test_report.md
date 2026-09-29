@@ -4,7 +4,7 @@
 
 | Item | Result |
 |---|---|
-| Go total coverage | 79.6% |
+| Go total coverage | 79.5% |
 | Go coverage gate | >= 65.0% |
 | Report source | CI-generated canonical candidate |
 | Raw logs | GitHub Actions artifact only |
@@ -27,6 +27,7 @@
 | Package | Coverage |
 |---|---:|
 | `rtk_cloud_admin/cmd/s3put` | 73.4% |
+| `rtk_cloud_admin/cmd/schema-init` | 0.0% |
 | `rtk_cloud_admin/cmd/schema-maintenance` | 0.0% |
 | `rtk_cloud_admin/cmd/server` | 0.0% |
 | `rtk_cloud_admin/internal/accountclient` | 89.3% |
