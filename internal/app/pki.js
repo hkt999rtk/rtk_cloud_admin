@@ -11,7 +11,7 @@ async function request(path, body, method = 'POST', prefix = '/api/platform/pki'
   let key = sessionStorage.getItem(storage);
   if (!key) { key = crypto.randomUUID(); sessionStorage.setItem(storage, key); }
   const response = await fetch(prefix + path, { method, headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key }, body: method === 'GET' ? undefined : payload });
-  if (!response.ok) throw new Error(response.status === 403 ? 'Request denied. Check your role, independent approvals, issuer state and any enabled login policy.' : 'Request failed (' + response.status + '). Reload the operation before retrying.');
+  if (!response.ok) throw new Error(response.status === 403 ? 'Request denied. Check the configured environment operator, request digest, issuer state and login policy.' : 'Request failed (' + response.status + '). Reload the operation before retrying.');
   if (response.status === 204) return null;
   return response.json();
 }
@@ -59,9 +59,10 @@ bind('login', async body => {
 });
 bind('create', async body => { for (const key of Object.keys(body)) if (!body[key]) delete body[key]; const result = await request('/operations', body); await loadOperation(result.operation_id); });
 bind('lookup', body => loadOperation(body.operation.trim()));
-bind('approve', async body => {
+bind('authorize', async body => {
   if (!operation) throw new Error('Load and review an operation first.');
-  await request('/operations/' + operation.operation_id + '/approvals', { role: body.role, request_sha256: operation.request_sha256 }); await loadOperation(operation.operation_id);
+  if (!operation.configured_operator_id || !operation.configured_signer_reference) throw new Error('Environment operator policy is not enabled for this controller.');
+  await request('/operations/' + operation.operation_id + '/authorize', { request_sha256: operation.request_sha256 }); await loadOperation(operation.operation_id);
 });
 bind('action', async body => {
   if (!operation) throw new Error('Load and review an operation first.');
