@@ -86,6 +86,35 @@ test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and 
   }
 });
 
+test('[UI-CA-OTA-PRICING-001] published future OTA rates remain separate from current and research prices @smoke', async ({ page }) => {
+  await login(page, 'billing_owner');
+  await page.route('**/billing/pricing-effective', async route => {
+    const response = await route.fetch();
+    const payload = await response.json();
+    const current = payload.price_book.current;
+    payload.price_book.upcoming = {
+      ...current,
+      id: '99999999-9999-4999-8999-999999999999',
+      effective_from: '2026-11-01T00:00:00Z',
+      rates: [...current.rates, {
+        ...current.rates[0], service_code: 'ota', metric_code: 'first_device_assignment',
+        description: 'Firmware OTA tasks', unit: '1,000 device tasks', unit_price_minor: 96, unit_price_scale: 0,
+      }],
+    };
+    await route.fulfill({ response, json: payload });
+  });
+  await page.goto(`/console/clouds/${billingCloud}/billing`);
+  await page.getByRole('navigation', { name: 'Billing Pages' }).getByRole('button', { name: 'Service Pricing' }).click();
+  const current = page.getByTestId('pricing-effective-table');
+  const upcoming = page.getByTestId('pricing-upcoming-table');
+  await expect(current.locator('tbody tr')).toHaveCount(1);
+  await expect(current).not.toContainText('Firmware OTA tasks');
+  await expect(upcoming.locator('tbody tr')).toHaveCount(2);
+  await expect(upcoming).toContainText('Firmware OTA tasks');
+  await expect(upcoming).toContainText('NT$96');
+  await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(15);
+});
+
 test('[UI-CA-ENTERPRISE-DIALOG-001] create dialog traps focus, escapes, and restores focus @smoke', async ({ page }) => {
   await login(page, 'developer');
   await page.goto('/console/clouds');
