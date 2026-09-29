@@ -42,6 +42,8 @@ func TestPKIAndRecoveryClientRoutes(t *testing.T) {
 			_, _ = w.Write([]byte(`{"issuers":[]}`))
 		case "/v1/platform/pki/operations/" + operationID + "/cancel":
 			w.WriteHeader(http.StatusNoContent)
+		case "/v1/platform/pki/operations/" + operationID + "/authorize":
+			_, _ = w.Write([]byte(`{"status":"approved"}`))
 		case "/v1/platform/admin-recovery":
 			_, _ = w.Write([]byte(`{"requests":[]}`))
 		case "/v1/platform/admin-recovery/" + operationID + "/approve":
@@ -67,6 +69,10 @@ func TestPKIAndRecoveryClientRoutes(t *testing.T) {
 	got, err = client.PKI(t.Context(), "token", http.MethodPost, "/operations/"+operationID+"/cancel", "intent-1", nil)
 	if err != nil || string(got) != "null" {
 		t.Fatalf("PKI no-content response = %s, %v", got, err)
+	}
+	got, err = client.PKI(t.Context(), "token", http.MethodPost, "/operations/"+operationID+"/authorize", "intent-1", json.RawMessage(`{"request_sha256":"abc"}`))
+	if err != nil || string(got) != `{"status":"approved"}` {
+		t.Fatalf("PKI operator authorization = %s, %v", got, err)
 	}
 	got, err = client.AdminRecovery(t.Context(), "token", http.MethodGet, "", "intent-1", nil)
 	if err != nil || string(got) != `{"requests":[]}` {

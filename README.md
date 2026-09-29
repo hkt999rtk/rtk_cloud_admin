@@ -373,9 +373,12 @@ web/public/assets/realtek-logo.png
 The customer console exposes English MQTT and Device Shadow guides at `/console/developer-docs`, immediately below **ChipSet & SDK** in Features. Chapters, local full-text search, diagrams, and source-version metadata ship with the Admin release. Run `cd web && npm run build` to rebuild the documentation index and UI. Authoring and validation instructions are in [the content package](web/content/developer-docs/README.md).
 
 The Platform PKI console supports governed staging legacy import and CRL refresh.
-It loads the immutable migration manifest before making an operation available
-for approval. Supply existing public CA/CRL artifacts and reviewed issuance request
+It loads the immutable migration manifest before operator authorization. Supply existing public CA/CRL artifacts and reviewed issuance request
 IDs; the controller derives certificate fingerprints and live entitlement scope.
-Independent PKI Administrator and Security Custodian approvals are required.
+With the environment operator configured, the console sends the exact reviewed
+digest to `/operations/{id}/authorize`; no separate PKI Administrator or
+Security Custodian human signature is required. Existing environments keep the
+older approval route until their controlled cutover. The Account Manager
+administrator-account recovery form below it remains a separate workflow.
 The staging-wide 90-day deadline cannot be extended. See Video Cloud's
 `docs/production-pki-controller.md` for inventory, refresh and staged rollout gates.
