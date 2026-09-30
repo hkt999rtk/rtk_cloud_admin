@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { login } from './fixtures/session.mjs';
 
-test('[UI-CA-ACCESS-001] anonymous cannot read platform admin API', async ({ page }) => {
+test('[UI-CA-ACCESS-001] anonymous cannot read platform admin API', async ({ page }, testInfo) => {
   const response = await page.request.get('/api/admin/platform-dashboard');
   expect(response.status()).toBe(401);
   await page.goto('/');
+  await testInfo.attach('anonymous-access', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
 test('[UI-CA-ACCESS-002] customer cannot read platform admin API', async ({ page }) => {

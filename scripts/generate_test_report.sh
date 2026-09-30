@@ -18,11 +18,6 @@ status_for_log() {
   fi
 }
 
-total_coverage="unknown"
-if [ -s "$coverage_file" ]; then
-  total_coverage="$(go tool cover -func="$coverage_file" | awk '/^total:/ { print $3 }')"
-fi
-
 mkdir -p "$(dirname "$output")"
 cat > "$output" <<EOF
 # Test Report
@@ -31,7 +26,7 @@ cat > "$output" <<EOF
 
 | Item | Result |
 |---|---|
-| Go total coverage | ${total_coverage} |
+| Go total coverage | CI coverage artifact |
 | Go coverage gate | >= ${coverage_min}% |
 | Report source | CI-generated canonical candidate |
 | Raw logs | GitHub Actions artifact only |
