@@ -1,15 +1,18 @@
 import { activeLocale, formatDateTime, translate } from './i18n/index.mjs';
 import React, { useEffect, useState } from 'react';
-import { fetchEffectivePricing, fetchServicePricing, pricingGroups, pricingSources } from './service-pricing.mjs';
+import { displayEffectiveRate, effectiveRateLabel, fetchEffectivePricing, fetchServicePricing, pricingGroups, pricingSources } from './service-pricing.mjs';
 import { fetchCloudProducts } from './cloud-products.mjs';
 import { productHasOTA } from './firmware.mjs';
 import './service-pricing.css';
 
 const formatPrice = amount => `${translate('NT$')}${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-const formatEffectivePrice = rate => `${translate('NT$')}${(rate.unit_price_minor / 10 ** rate.unit_price_scale).toLocaleString('en-US', { maximumFractionDigits: 9 })}`;
+const formatEffectivePrice = rate => {
+  const { amount, unit } = displayEffectiveRate(rate);
+  return `${translate('NT$')}${amount.toLocaleString('en-US', { maximumFractionDigits: 9 })} / ${translate(unit)}`;
+};
 
 function PricingVersionTable({ version, caption, testId }) {
-  return <div className="pricing-table-wrap"><table className="pricing-table" data-testid={testId}><caption>{translate(caption)}</caption><thead><tr><th scope="col">{translate('Service')}</th><th scope="col">{translate('Meter')}</th><th scope="col">{translate('Unit price before tax')}</th><th scope="col">{translate('Billing unit and rounding')}</th></tr></thead><tbody>{version.rates.map(rate => <tr key={`${rate.service_code}:${rate.metric_code}:${rate.unit}`}><th scope="row">{rate.description}</th><td data-label={translate('Meter')}>{rate.service_code} · {rate.metric_code}</td><td data-label={translate('Unit price before tax')}>{formatEffectivePrice(rate)} / {rate.unit}</td><td data-label={translate('Billing unit and rounding')}>{rate.quantity_scale == null ? translate('Quantity precision pending review') : `${rate.quantity_scale} ${translate('decimal places')}`} · {rate.rounding_mode}</td></tr>)}</tbody></table></div>;
+  return <div className="pricing-table-wrap"><table className="pricing-table" data-testid={testId}><caption>{translate(caption)}</caption><thead><tr><th scope="col">{translate('Service')}</th><th scope="col">{translate('Meter')}</th><th scope="col">{translate('Unit price before tax')}</th><th scope="col">{translate('Billing unit and rounding')}</th></tr></thead><tbody>{version.rates.map(rate => <tr key={`${rate.service_code}:${rate.metric_code}:${rate.unit}`}><th scope="row">{translate(effectiveRateLabel(rate))}</th><td data-label={translate('Meter')}>{rate.service_code} · {rate.metric_code}</td><td data-label={translate('Unit price before tax')}>{formatEffectivePrice(rate)}</td><td data-label={translate('Billing unit and rounding')}>{rate.quantity_scale == null ? translate('Quantity precision pending review') : `${rate.quantity_scale} ${translate('decimal places')}`} · {rate.rounding_mode}</td></tr>)}</tbody></table></div>;
 }
 
 export function BillingTabs({ active, onSelect }) {
@@ -72,6 +75,9 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
   const rows = servicePricing.filter(row => group === 'All services' || row.group === group);
   const referenceDate = catalog && formatDateTime(`${catalog.referenceDate}T00:00:00Z`, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
   const currentRates = effective?.current?.rates || [];
+  const upcomingRates = effective?.upcoming?.rates || [];
+  const currentNonOTARates = currentRates.filter(rate => rate.service_code !== 'ota');
+  const upcomingNonOTARates = upcomingRates.filter(rate => rate.service_code !== 'ota');
   const otaIsEffective = currentRates.some(rate => rate.service_code === 'ota');
   const otaUpcoming = effective?.upcoming?.rates?.some(rate => rate.service_code === 'ota');
   const effectiveLoading = translate('Loading your effective Billing rates…');
@@ -114,7 +120,10 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
     {!catalog ? <section className="panel" role={error ? 'alert' : 'status'}><p>{translate(error ? 'Billing information temporarily unavailable' : 'Loading owner-scoped Billing…')}</p></section> : <>
     <section className="pricing-status-summary" aria-label={translate('Price status')}>
       <div><strong>4</strong><h3>{translate('OTA prices approved')}</h3><p>{effectiveError ? otaUnknownSummary : effective ? otaIsEffective ? otaActiveSummary : otaUpcoming ? otaUpcomingSummary : otaPendingSummary : effectiveLoading}</p></div>
-      <div><strong>11</strong><h3>{translate('Services with reference prices only')}</h3><p>{translate('The other 11 services have no newly approved RTK price in this review. All 15 rows show the highest eligible public reference among the official sources inspected. Existing customer charges follow the active rate card, contract and invoice.')}</p></div>
+      {currentNonOTARates.length ?
+        <div><strong>{currentNonOTARates.length}</strong><h3>{translate('Current effective rate card')}</h3><p>{translate('The current rate card above comes from Billing. The approved and public reference prices below are separate and never replace an effective rate.')}</p></div> : upcomingNonOTARates.length ?
+        <div><strong>{upcomingNonOTARates.length}</strong><h3>{translate('Next published rate card')}</h3><p>{translate('Effective from')} <time dateTime={effective.upcoming.effective_from}>{formatDateTime(effective.upcoming.effective_from, { timeZone: 'UTC' })}</time> {translate('UTC')}</p></div> :
+        <div><strong>11</strong><h3>{translate('Services with reference prices only')}</h3><p>{translate('Research references are not approved customer charges. The current Billing rate card above determines actual rates; an existing meter or an approved proposal alone does not enable charging.')}</p></div>}
     </section>
     <section className="pricing-intro" aria-label={translate('Service rates and billing basis')}>
       <div><h3>{translate('How these prices work')}</h3><p>{translate('The current rate card above comes from Billing. The approved and public reference prices below are separate and never replace an effective rate.')}</p><p>{translate('For the approved OTA-inclusive TWD policy, each Product and meter’s usage × its unit price is rounded to a pre-tax line subtotal. All service line subtotals are added, then Taiwan business tax of 5% is calculated once on the invoice subtotal using half-up rounding. Subtotal plus tax is the total due. Tax shown on each line allocates that one invoice tax amount. Existing invoices keep their issued tax policy.')}</p><p>{translate('For paid Managed Cloud, a Product must select OTA before new OTA work is allowed. OTA billing also requires commercial status for the entire UTC month, an active Billing account at settlement, verified Product grants, measured usage and an effective OTA rate. No separate OTA contract selection is needed. Work authorized before OTA is turned off may finish, and existing firmware storage continues until the object is physically deleted.')}</p></div>

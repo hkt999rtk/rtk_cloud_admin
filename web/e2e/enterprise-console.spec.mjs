@@ -115,6 +115,22 @@ test('[UI-CA-OTA-PRICING-001] published future OTA rates remain separate from cu
   await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(15);
 });
 
+test('[UI-CA-OTA-PRICING-002] first reviewed dev card appears as upcoming before its UTC month starts @smoke', async ({ page }) => {
+  await login(page, 'billing_owner');
+  await page.route('**/billing/pricing-effective', async route => {
+    const response = await route.fetch();
+    const payload = await response.json();
+    payload.price_book.upcoming = { ...payload.price_book.current, effective_from: '2026-10-01T00:00:00Z' };
+    payload.price_book.current = null;
+    await route.fulfill({ response, json: payload });
+  });
+  await page.goto(`/console/clouds/${billingCloud}/billing`);
+  await page.getByRole('navigation', { name: 'Billing Pages' }).getByRole('button', { name: 'Service Pricing' }).click();
+  await expect(page.getByTestId('pricing-upcoming-table')).toContainText('MQTT publishes');
+  await expect(page.locator('.pricing-status-summary')).toContainText('Next published rate card');
+  await expect(page.locator('.pricing-status-summary')).not.toContainText('Services with reference prices only');
+});
+
 test('[UI-CA-ENTERPRISE-DIALOG-001] create dialog traps focus, escapes, and restores focus @smoke', async ({ page }) => {
   await login(page, 'developer');
   await page.goto('/console/clouds');

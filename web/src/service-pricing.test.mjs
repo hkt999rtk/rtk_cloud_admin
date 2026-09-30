@@ -1,12 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { fetchEffectivePricing, fetchServicePricing, mergeServicePricingCatalog, servicePricing, validateEffectivePricing } from './service-pricing.mjs';
+import { displayEffectiveRate, effectiveRateLabel, fetchEffectivePricing, fetchServicePricing, mergeServicePricingCatalog, servicePricing, validateEffectivePricing } from './service-pricing.mjs';
 import { resources } from './i18n/resources.generated.mjs';
 
 const cloud = '11111111-1111-4111-8111-111111111111';
 const catalog = JSON.parse(readFileSync(new URL('../../internal/app/service-pricing-reference.json', import.meta.url), 'utf8'));
 const payload = { cloud_id: cloud, catalog };
+
+test('effective rates use readable proportional units without changing the Billing price', () => {
+  assert.deepEqual(displayEffectiveRate({ unit: 'requests', unit_price_minor: 48, unit_price_scale: 6 }), { amount: 48, unit: '1 million requests' });
+  assert.deepEqual(displayEffectiveRate({ unit: 'requests', unit_price_minor: 1792, unit_price_scale: 8 }), { amount: 17.92, unit: '1 million requests' });
+  assert.deepEqual(displayEffectiveRate({ unit: 'tasks', unit_price_minor: 96, unit_price_scale: 3 }), { amount: 96, unit: '1,000 device tasks' });
+  assert.deepEqual(displayEffectiveRate({ unit: 'GiB', unit_price_minor: 96, unit_price_scale: 2 }), { amount: 0.96, unit: 'GiB' });
+  assert.equal(effectiveRateLabel({ service_code: 'storage', metric_code: 'clip_object_read' }), 'Video object reads');
+});
 
 test('price amounts and provider benchmarks stay out of public client data and translations', () => {
   assert.equal(servicePricing.length, 15);

@@ -1,6 +1,6 @@
 # Service Pricing customer disclosure specification
 
-Status: customer-copy specification. Authenticated research and current/upcoming Billing price-book disclosure are implemented in code. Issued invoices display the applied pricing version and any Billing-provided usage fact references; Product-specific price state and a separate usage drilldown remain follow-up work. Last reviewed: 2026-09-28.
+Status: customer-copy specification. Authenticated research and current/upcoming Billing price-book disclosure are implemented in code. Development's reviewed first-card candidate is scheduled for a complete UTC month only after Billing publication; its effective status comes from Billing, not from this page. Issued invoices display the applied pricing version and any Billing-provided usage fact references; Product-specific price state and a separate usage drilldown remain follow-up work. Last reviewed: 2026-09-30.
 
 Owner: Cloud Admin. The cross-repository sequence and activation gates live in the [OTA pricing activation plan](https://github.com/hkt999rtk/rtk_cloud_workspace/blob/main/docs/design/ota-pricing-activation-and-disclosure-plan.md); meter definitions and invoice rules live in the [OTA delivery and billing contract](https://github.com/hkt999rtk/rtk_cloud_contracts_doc/blob/main/ota_delivery_and_billing.md) and [pricing and invoicing contract](https://github.com/hkt999rtk/rtk_cloud_contracts_doc/blob/main/pricing_and_invoicing.md). The [research ledger](service-pricing-research.md) records benchmark sources and qualifications. This document specifies what a customer must see; it does not publish or activate a Billing rate card. Numeric customer prices are supplied by authorized services and are intentionally omitted here.
 
@@ -14,6 +14,24 @@ Owner: Cloud Admin. The cross-repository sequence and activation gates live in t
 ## Price status and page structure
 
 The page header identifies the selected Brand Cloud and Product, account/contract type, billing currency, current Billing version and UTC effective interval, tax treatment, and any scheduled next version and UTC start. When A1 is unavailable, the page says effective rates cannot be verified and omits their amounts, version and tax fields. Do not invent a tax exemption from a zero-valued default. Evaluation terms and private commercial quotes are displayed separately from managed-cloud usage prices.
+
+For the development test card, the owner approved the highest researched
+non-OTA numbers as proposed **dev-only formal rates** on 2026-09-30. The
+reviewed full card has 11 priced meters and two zero-priced MQTT byte
+diagnostic meters. Its date and amounts appear as an upcoming Billing card
+only after protected publication; before that, the researched figures remain
+research rows, even if their numbers match the approved candidate. The first
+card begins at the next UTC month boundary and never reprices the current
+month. Rows without qualified source facts (Shadow, TURN, clip, logger and
+other APIs) have a rate but no chargeable quantity yet. OTA keeps its four
+separately approved prices and its own later reviewed publication.
+
+The effective and upcoming tables display exact request and operation prices
+per million, device tasks per thousand, and GiB/GiB-month prices per one
+unit. These are proportional display denominators, not minimum blocks. The
+table keeps the Billing metric code visible; localized names come from the
+authenticated page's non-price metadata. MQTT diagnostic bytes appear at
+zero as no separate bandwidth fee, not as a waiver of message charges.
 
 Use separate, visible sections and state labels. A research number never fills an empty effective-price cell; a pending approved number never fills it either.
 

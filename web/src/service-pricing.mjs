@@ -14,6 +14,36 @@ export const pricingSources = {
   api: { name: 'AWS API Gateway São Paulo price list', url: 'https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonApiGateway/current/sa-east-1/index.csv' },
 };
 
+// Display request and task prices at a readable proportional denominator.
+// The Billing API still supplies the exact price for one underlying unit.
+export function displayEffectiveRate(rate) {
+  const multiplier = rate.unit === 'requests' || rate.unit === 'units' ? 1_000_000 : rate.unit === 'tasks' ? 1_000 : 1;
+  const unit = rate.unit === 'requests' ? '1 million requests' : rate.unit === 'units' ? '1 million operation units' : rate.unit === 'tasks' ? '1,000 device tasks' : rate.unit;
+  return { amount: rate.unit_price_minor / 10 ** rate.unit_price_scale * multiplier, unit };
+}
+
+const effectiveRateNames = {
+  'mqtt/publish_count': 'MQTT publishes',
+  'mqtt/delivery_count': 'MQTT deliveries',
+  'shadow/operation_units': 'IoT Shadow',
+  'webrtc/turn_relay_gib': 'WebRTC TURN relay',
+  'storage/clip_storage_gib_month': 'Video storage',
+  'storage/clip_object_write': 'Video object writes',
+  'storage/clip_object_read': 'Video object reads',
+  'storage/clip_download_gib': 'Video media downloads',
+  'ota/device_task': 'Firmware OTA tasks',
+  'ota/successful_download_gib': 'OTA successful downloads',
+  'ota/artifact_storage_gib_month': 'OTA artifact storage',
+  'ota/artifact_write': 'OTA artifact writes',
+  'logger/ingest_gib': 'Device and application logs',
+  'logger/retention_gib_month': 'Log retention',
+  'api/data_request': 'Application API requests',
+};
+
+export function effectiveRateLabel(rate) {
+  return effectiveRateNames[`${rate.service_code}/${rate.metric_code}`] || rate.description;
+}
+
 export const servicePricing = [
   { id: 'mqtt-publish', group: 'IoT and messaging', name: 'MQTT publishes', description: 'Messages accepted from devices or applications.', referenceUnit: '1 million AWS 5 KB message units', priceStatus: 'research', unit: '1 million messages', readiness: 'Usage meter exists', rule: 'Count each accepted publish once. Payload traffic is included; no separate MQTT bandwidth fee.', source: 'iot', comparison: 'São Paulo, first paid tier. AWS rounds by 5 KB units; RTK counts raw accepted publishes, so large messages are not equivalent.' },
   { id: 'mqtt-delivery', group: 'IoT and messaging', name: 'MQTT deliveries', description: 'Messages delivered to subscribers.', referenceUnit: '1 million AWS 5 KB message units', priceStatus: 'research', unit: '1 million deliveries', readiness: 'Usage meter exists', rule: 'One publish to five subscribers counts as one publish plus five deliveries. Each broker delivery is counted.', source: 'iot', comparison: 'São Paulo, first paid tier. AWS also charges publish and delivery separately; its 5 KB units differ from RTK raw deliveries.' },
