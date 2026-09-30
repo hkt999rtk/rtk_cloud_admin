@@ -61,8 +61,8 @@ test('[UI-CA-ENTERPRISE-BILLING-001] all billing views retain cloud context and 
       await expect(page.getByTestId('pricing-effective-table').locator('tbody tr')).toHaveCount(1);
       await expect(page.getByTestId('pricing-effective-table')).toContainText('MQTT publishes');
       await expect(page.locator('.pricing-status-summary')).toContainText('OTA prices approved');
-      await expect(page.locator('.pricing-status-summary')).toContainText('Services with reference prices only');
-      await expect(page.locator('.pricing-status-summary')).toContainText('highest eligible public reference among the official sources inspected');
+      await expect(page.locator('.pricing-status-summary')).toContainText('Current effective rate card');
+      await expect(page.locator('.pricing-methodology')).toContainText('Research references are not approved customer charges.');
       await expect(page.getByTestId('pricing-reference-table').locator('tbody tr')).toHaveCount(15);
       await expect(page.locator('.pricing-table tbody tr[data-price-status="approved-pending"]')).toHaveCount(4);
       await expect(page.locator('.pricing-table tbody tr[data-price-status="research"]')).toHaveCount(11);
