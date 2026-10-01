@@ -52,7 +52,7 @@ test('[UI-CA-BILLING-011] held OTA estimate excludes OTA from displayed totals @
   await expect(page.getByTestId('billing-usage-page')).not.toContainText('Subtotal excluding OTA');
 });
 
-test('[UI-CA-BILLING-011] held log estimate excludes logs and disables the forecast @billing @smoke', async ({ page, isMobile }) => {
+test('[UI-CA-BILLING-013] held log estimate excludes logs and disables the forecast @billing @smoke', async ({ page, isMobile }) => {
   await login(page, 'billing_owner');
   await page.route('**/billing/usage', async route => {
     const response = await route.fetch();
@@ -79,7 +79,7 @@ test('[UI-CA-BILLING-011] held log estimate excludes logs and disables the forec
   await expect(page.getByTestId('billing-usage-page')).toContainText('不含日誌小計');
 });
 
-test('[UI-CA-BILLING-011] simultaneous OTA and log holds name both exclusions @billing @smoke', async ({ page }) => {
+test('[UI-CA-BILLING-014] simultaneous OTA and log holds name both exclusions @billing @smoke', async ({ page }) => {
   await login(page, 'billing_owner');
   await page.route('**/billing/usage', async route => {
     const response = await route.fetch();
