@@ -1083,8 +1083,8 @@ main {
   padding: 10px 12px;
 }
 
-.billing-ota-hold strong { display: block; }
-.billing-ota-hold p { margin: 5px 0 0; }
+.billing-estimate-hold strong { display: block; }
+.billing-estimate-hold p { margin: 5px 0 0; }
 
 .danger-button {
   background: #fff1f0;

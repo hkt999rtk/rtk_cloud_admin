@@ -13160,10 +13160,10 @@
       "text": "依成功收录、未压缩的日志位元组数计算，包含中继资料；保留费另计。若使用 MQTT 传输，讯息费仍适用。",
       "status": "approved"
     },
-    "Use recorded log bytes × configured retention days / 30. This proposal follows the existing retention estimate, not compressed archive size.": {
-      "sourceHash": "e1a84ca63a6e8fd77b34ab83e2f7b03ed7bb33e7771e189b4dda62c84c38f915",
-      "fingerprint": "5b7d67feb6f835e46887fc83d9ebb8d6220f04d170fa68727fa66d6b6ef5ee5c",
-      "text": "以记录的日志位元组数乘以设定保留天数，再除以 30。本提案沿用现有保留量估算，不依压缩封存容量计算。",
+    "Sum accepted uncompressed log bytes × retained time within each UTC month / 30 days. Retained time runs from acceptance to recorded expiry; time crossing a month boundary is split between months. Compressed archive size is not used.": {
+      "sourceHash": "411196f519b00d065836e42eb7dbe086241451e5161777db2f097d822bdc5fc0",
+      "fingerprint": "59fb4aa4b1e1180a6cfe912a81c4c5b9f123193b240b0637a9cb50e87dc7844b",
+      "text": "加总成功收录、未压缩的日志字节数乘以各 UTC 月内的保留时间，再除以 30 天。保留时间从收录起算至记录的到期时间；跨月部分分别计入各月。不使用压缩归档容量。",
       "status": "approved"
     },
     "Video and firmware storage": {
@@ -15050,10 +15050,10 @@
       "text": "CloudFront 亚洲边缘传输参考值。原始 CDN 流量、重试和快取行为与 RTK 首次验证的逻辑下载量不同。",
       "status": "approved"
     },
-    "CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.": {
-      "sourceHash": "3273786180664670d483d28504eead5b179cdb8ac57b36381380745d124923f4",
-      "fingerprint": "6a4459a45feb6518ddcad0eef8d8a9623af5887a0dff8ab37df36246f783ceec",
-      "text": "CloudWatch 圣保罗区域的替代参考值。RTK 使用接收的未压缩位元组数 × 设定保留天数／30，因此计费量不同。",
+    "CloudWatch São Paulo proxy. RTK uses accepted uncompressed byte-time normalized by 30 days; AWS uses compressed archive bytes, so quantities differ.": {
+      "sourceHash": "247cb9d29d1508d6e401a41bf09df889240fcb4a5e03a583b93f4d2ccb0b5b88",
+      "fingerprint": "7d8295020f57b7b4a2f6b3ee2563ea30a446d8bb22c722ba64740f3ffd9e8428",
+      "text": "CloudWatch 圣保罗区域参考值。RTK 以成功收录、未压缩的字节数乘以保留时间，再按 30 天换算；AWS 使用压缩归档字节数，因此用量基准不同。",
       "status": "approved"
     },
     "CloudWatch São Paulo reference. RTK has ingestion totals, but generic invoice integration still needs qualification.": {
@@ -16146,6 +16146,114 @@
       "sourceHash": "97e1fe7514e0d6951d934e7e16ce6bdbcd23f563bff87e96c20ab91b53234b59",
       "fingerprint": "2295e7f735c7cbdcc1b7ede722c33b56e827ed26b57b5c5435b30e648b477989",
       "text": "用量记录编号",
+      "status": "approved"
+    },
+    "CloudWatch São Paulo reference. RTK counts accepted log bytes, and the monthly source-to-invoice path requires qualification.": {
+      "sourceHash": "3c8a29e61109379d10d90b9ba632486459c40ec34656e88312250b73a174bcfe",
+      "fingerprint": "0364fd3e78036aa78e09de42c8b547f5e3d4472498ab27dd04af085fc858d53d",
+      "text": "CloudWatch 圣保罗参考价。RTK 计算已接受的日志字节；每月来源数据至发票的流程仍需完成验证。",
+      "status": "approved"
+    },
+    "Count accepted, uncompressed log bytes including metadata. Rejected logs are not charged. Retention is charged separately; MQTT transport keeps its own message fee.": {
+      "sourceHash": "2065f9fcf4b73fb0864c9d1e7edbce7d3c17981aea046d4958ae5961f8d88ebc",
+      "fingerprint": "4865b46a5ccca5ec0da44112f1250aab278f4bce0127961b2ac2a0d5b9f5e660",
+      "text": "只计算已接受的未压缩日志字节（含元数据）；拒收的日志不计费。留存费另计；若通过 MQTT 传输，MQTT 消息费仍另计。",
+      "status": "approved"
+    },
+    "Estimated cost excluding OTA and logs": {
+      "sourceHash": "5180c9184747ade4cabf66e0c1041f9aae82e314366e429a0e3cb300028ad2d2",
+      "fingerprint": "99579bf077a0759e833cf3036b9fa8d1cba63e6b12bcf3d055d8c1d31fce83ef",
+      "text": "不含 OTA 与日志的预估费用",
+      "status": "approved"
+    },
+    "Estimated cost excluding logs": {
+      "sourceHash": "17cdea9254de68d5a6045fb084b64b4d873dc4b3f4fc0edfa78807f323c6d35d",
+      "fingerprint": "58c3301bec82dd1fe1bb9e36a7d14e421de3bd2b9af961d356ce8a8997f02396",
+      "text": "不含日志的预估费用",
+      "status": "approved"
+    },
+    "Log charges are excluded from the amounts shown. Missing monthly evidence does not mean zero usage; this is not the final invoice total.": {
+      "sourceHash": "21529e3c33934bc2ae445171c25af112d31fa43a39ce2836dfe9091af6b6b0a1",
+      "fingerprint": "63d42aedcc1f2bb88091f90fa96d4aaa77f903c474db93209df4ed5390d32c03",
+      "text": "当前显示金额不含日志费用。缺少完整的每月来源证据不代表用量为零；此金额不是最终发票总额。",
+      "status": "approved"
+    },
+    "Log charges require manual review.": {
+      "sourceHash": "1a808d6deec35d8bf112c8c7944ba7cfebc44c21b1f7e05cdd7819c2ebe14c29",
+      "fingerprint": "344b64d35bed9eb80247a2c8122e97c8889112bf761e38b8646a312c1ac1d5f7",
+      "text": "日志费用须经人工审核。",
+      "status": "approved"
+    },
+    "Log estimate pending review": {
+      "sourceHash": "9af0a00b1cbd35e6133c5db06d974f8352e51fd62b683fcef5de189d2fd314f6",
+      "fingerprint": "0771f058bc67426bc5a65010a0cfedb93daf72b86166ae693978931955f2f4ae",
+      "text": "日志费用预估待审核",
+      "status": "approved"
+    },
+    "Log ingestion counts only accepted uncompressed bytes; rejected logs are not charged. Retention runs from acceptance to recorded expiry, split across UTC months and normalized by a fixed 30 days. Log charges for a month require frozen source records, Billing acknowledgments for every fact, and a verified monthly source seal. Missing evidence is not zero usage and prevents invoice close.": {
+      "sourceHash": "942ce9fb9f76f916ef02a28cc4e7ca5eb0279fd33e05af39f53a2f7207936f08",
+      "fingerprint": "5767df8cc4a40710b6571c02dbfb4af5c7711aa6dbddd813e4d744a672d39375",
+      "text": "日志写入只计算已接受的未压缩字节；拒收日志不计费。留存期从接受时间到记录的到期时间，跨 UTC 月分摊，并以固定 30 天换算。每月日志费用须在来源记录冻结、所有用量记录获得账务系统确认，且月度来源封存证明通过验证后才能开具发票。缺少证据不代表零用量，也不得关账。",
+      "status": "approved"
+    },
+    "Pending OTA and log review": {
+      "sourceHash": "b93054315f5930599ecc8f1af0d34b227fd5617b750b4b30afa6b180cfd300eb",
+      "fingerprint": "64c54a5ba52a5df11c53ca3a18c823b231e91865c5cb764c2800941d3f81d8b2",
+      "text": "等待 OTA 与日志审核",
+      "status": "approved"
+    },
+    "Pending log review": {
+      "sourceHash": "fca679982f7a1eb0718093c1dbca05cdefe3fe24473a8bebdac9be2f90c8d055",
+      "fingerprint": "a18e6ba5f4f6a05a3189076cea542302a3a86f45c8fb487a1f4b006a24c5acf7",
+      "text": "等待日志审核",
+      "status": "approved"
+    },
+    "Subtotal excluding OTA and logs": {
+      "sourceHash": "e0a9a2ff428ed459fda5e00722310f985e3eb77afdaa7a684e4448801192fc75",
+      "fingerprint": "cce1bf80f8bd85f01fee338a3ea9b1353b8c0ec45e8bb1fdd9a568b6acb96f31",
+      "text": "不含 OTA 与日志小计",
+      "status": "approved"
+    },
+    "Subtotal excluding logs": {
+      "sourceHash": "713dae06904c5d4c1171735ebdaf6c2e7363985a2666484f3fc40882d3587550",
+      "fingerprint": "9cd15567a38571bc3d785847555b38629ff5105b14a52c2b903941a705a8dbc8",
+      "text": "不含日志小计",
+      "status": "approved"
+    },
+    "Sum accepted uncompressed log bytes × retained time within each UTC month / 30 days. Retained time runs from acceptance to recorded expiry; time crossing a month boundary is split between months. Rejected logs and compressed archive size are excluded.": {
+      "sourceHash": "b4fd76901a82348891cf1de03270b2ea9adb058e8a35ffc73a3e0386be7f59d7",
+      "fingerprint": "bca848240c5b91f598e1df324693fe33d378b4e57990b60c4dea1d75946b5d21",
+      "text": "以每个 UTC 月内已接受的未压缩日志字节 × 留存时间 ÷ 30 天计算。留存时间从接受到记录的到期时间；跨月期间分摊至各月。拒收日志及压缩归档大小不计入。",
+      "status": "approved"
+    },
+    "The current owner did not cover the complete UTC month. Log charges require manual review.": {
+      "sourceHash": "af350904284605a176ffbcc0dfd0c989c8c19ecff50c4760eb6a4dd54d213c8d",
+      "fingerprint": "1a7065dee21029090a3b8688bb7fc4abb29ebdcae754df529962d699589fe981",
+      "text": "当前拥有者的责任期间未涵盖完整 UTC 月份。日志费用须经人工审核。",
+      "status": "approved"
+    },
+    "The full-month forecast is unavailable while OTA and log charges are held.": {
+      "sourceHash": "482c39ecbe0e44592026ce1de135aea4e14838dd061674cde915b44c0b6a24f3",
+      "fingerprint": "fc57e3ad476dcc0f113ae66e084ebc8387c2743d2969d37d56f47750bcc584a1",
+      "text": "OTA 与日志费用暂缓期间，无法提供整月费用预测。",
+      "status": "approved"
+    },
+    "The full-month forecast is unavailable while log charges are held.": {
+      "sourceHash": "1e176d3b17e38826022183ed429e36d6fa257e226bfdba64c5c26cf85f04ce00",
+      "fingerprint": "e0f92578eed3dcc3ea1f58f8fab7e1c0e12948f6f62632034aab6b3bb76f122c",
+      "text": "日志费用暂缓期间，无法提供整月费用预测。",
+      "status": "approved"
+    },
+    "The log rate card is incomplete. Log charges need review before they can be estimated.": {
+      "sourceHash": "ad96fb10fa1cfe011fa33feb7c48dcfefd7b1d9701068982f89acd0e5ff5eee1",
+      "fingerprint": "d48f5aa6204ca88dff83e6a31e14c22afde731aa95f66d451424009e2116946d",
+      "text": "日志价卡不完整，须审核后才能预估日志费用。",
+      "status": "approved"
+    },
+    "This period is not a complete UTC month. Log charges require a complete UTC month.": {
+      "sourceHash": "f375475d88a5c36b402f1684855e3cc0918938e8609c10f95528534fd02c17e1",
+      "fingerprint": "b9909945ab09b145e1649daac569b876b54d5d58c3050337ae728459393912c7",
+      "text": "此期间不是完整的 UTC 月份。日志费用须以完整 UTC 月份计算。",
       "status": "approved"
     }
   }
