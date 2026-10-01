@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { displayEffectiveRate, effectiveRateLabel, fetchEffectivePricing, fetchServicePricing, mergeServicePricingCatalog, servicePricing, validateEffectivePricing } from './service-pricing.mjs';
+import { displayEffectiveRate, effectiveRateLabel, fetchEffectivePricing, fetchServicePricing, mergeServicePricingCatalog, servicePricing, validateEffectivePricing, watchEffectivePricing } from './service-pricing.mjs';
 import { resources } from './i18n/resources.generated.mjs';
 
 const cloud = '11111111-1111-4111-8111-111111111111';
@@ -14,6 +14,77 @@ test('effective rates use readable proportional units without changing the Billi
   assert.deepEqual(displayEffectiveRate({ unit: 'tasks', unit_price_minor: 96, unit_price_scale: 3 }), { amount: 96, unit: '1,000 device tasks' });
   assert.deepEqual(displayEffectiveRate({ unit: 'GiB', unit_price_minor: 96, unit_price_scale: 2 }), { amount: 0.96, unit: 'GiB' });
   assert.equal(effectiveRateLabel({ service_code: 'storage', metric_code: 'clip_object_read' }), 'Video object reads');
+  assert.equal(effectiveRateLabel({ service_code: 'logger', metric_code: 'retained_gib_month' }), 'Log retention');
+  assert.equal(effectiveRateLabel({ service_code: 'logger', metric_code: 'retention_gib_month' }), 'Log retention');
+});
+
+test('log retention explains UTC-month allocation and fixed thirty-day normalization in every locale', () => {
+  const ingest = servicePricing.find(row => row.id === 'log-ingest');
+  const retention = servicePricing.find(row => row.id === 'log-retention');
+  assert.match(retention.rule, /within each UTC month \/ 30 days/);
+  assert.match(retention.rule, /month boundary is split between months/);
+  assert.match(retention.rule, /Rejected logs/);
+  assert.match(ingest.rule, /Rejected logs are not charged/);
+  for (const [locale, resource] of Object.entries(resources)) {
+    assert.ok(resource.translation[ingest.rule], `missing log ingestion rule in ${locale}`);
+    assert.ok(resource.translation[retention.rule], `missing retention rule in ${locale}`);
+    assert.ok(resource.translation[retention.comparison], `missing retention comparison in ${locale}`);
+    assert.ok(resource.translation['Log ingestion counts only accepted uncompressed bytes; rejected logs are not charged. Retention runs from acceptance to recorded expiry, split across UTC months and normalized by a fixed 30 days. Log charges for a month require frozen source records, Billing acknowledgments for every fact, and a verified monthly source seal. Missing evidence is not zero usage and prevents invoice close.'], `missing monthly Logger charging explanation in ${locale}`);
+  }
+});
+
+test('effective pricing refreshes at a published boundary, UTC month turnover, and return to the page', () => {
+  let now = Date.parse('2026-10-01T00:00:00Z');
+  let timeout;
+  let delay;
+  let refreshes = 0;
+  const listeners = new Map();
+  const visibilityListeners = new Map();
+  const browser = {
+    Date: { now: () => now },
+    setTimeout: (callback, millis) => { timeout = callback; delay = millis; return 1; },
+    clearTimeout: id => { assert.equal(id, 1); timeout = null; },
+    addEventListener: (name, callback) => listeners.set(name, callback),
+    removeEventListener: name => listeners.delete(name),
+    document: {
+      visibilityState: 'visible',
+      addEventListener: (name, callback) => visibilityListeners.set(name, callback),
+      removeEventListener: name => visibilityListeners.delete(name),
+    },
+  };
+  let dispose = watchEffectivePricing({ upcoming: { effective_from: '2026-10-02T00:00:00Z' } }, () => refreshes++, browser);
+  assert.equal(delay, 24 * 60 * 60 * 1000 + 1);
+  now += delay;
+  timeout();
+  assert.equal(refreshes, 1);
+  browser.document.visibilityState = 'hidden';
+  visibilityListeners.get('visibilitychange')();
+  assert.equal(refreshes, 1);
+  browser.document.visibilityState = 'visible';
+  visibilityListeners.get('visibilitychange')();
+  listeners.get('focus')();
+  assert.equal(refreshes, 3);
+  const removedCallback = listeners.get('focus');
+  dispose();
+  removedCallback();
+  assert.equal(refreshes, 3);
+  assert.equal(timeout, null);
+  assert.equal(listeners.size, 0);
+  assert.equal(visibilityListeners.size, 0);
+  now = Date.parse('2026-10-31T23:59:58Z');
+  dispose = watchEffectivePricing(null, () => refreshes++, browser);
+  assert.equal(delay, 2001);
+  now += delay;
+  timeout();
+  assert.equal(refreshes, 4);
+  dispose();
+  now = Date.parse('2026-10-01T00:00:00Z');
+  dispose = watchEffectivePricing({ current: { effective_until: '2026-10-01T00:00:01Z' }, upcoming: { effective_from: '2026-10-02T00:00:00Z' } }, () => refreshes++, browser);
+  assert.equal(delay, 1001);
+  dispose();
+  dispose = watchEffectivePricing(null, () => refreshes++, browser);
+  assert.equal(delay, 2_147_483_647);
+  dispose();
 });
 
 test('price amounts and provider benchmarks stay out of public client data and translations', () => {

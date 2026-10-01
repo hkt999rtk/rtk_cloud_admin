@@ -1,6 +1,6 @@
 import { activeLocale, formatDateTime, translate } from './i18n/index.mjs';
 import React, { useEffect, useState } from 'react';
-import { displayEffectiveRate, effectiveRateLabel, fetchEffectivePricing, fetchServicePricing, pricingGroups, pricingSources } from './service-pricing.mjs';
+import { displayEffectiveRate, effectiveRateLabel, fetchEffectivePricing, fetchServicePricing, pricingGroups, pricingSources, watchEffectivePricing } from './service-pricing.mjs';
 import { fetchCloudProducts } from './cloud-products.mjs';
 import { productHasOTA } from './firmware.mjs';
 import './service-pricing.css';
@@ -27,6 +27,7 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
   const [error, setError] = useState(false);
   const [effective, setEffective] = useState(null);
   const [effectiveError, setEffectiveError] = useState(false);
+  const [pricingRefresh, setPricingRefresh] = useState(0);
   const [productPage, setProductPage] = useState(null);
   const [productOffset, setProductOffset] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -55,7 +56,12 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
         else setEffectiveError(true);
       });
     return () => controller.abort();
-  }, [cloudId, ownershipVersion, locale, onAccessLost]);
+  }, [cloudId, ownershipVersion, locale, onAccessLost, pricingRefresh]);
+  useEffect(() => watchEffectivePricing(effective, () => {
+    setEffective(null);
+    setEffectiveError(false);
+    setPricingRefresh(value => value + 1);
+  }), [effective, cloudId, ownershipVersion]);
   useEffect(() => {
     setProductOffset(0);
     setSelectedProductId('');
@@ -146,6 +152,7 @@ export function ServicePricing({ tabs, cloudId, ownershipVersion, onAccessLost }
       <li>{translate('Research references are not approved customer charges. The current Billing rate card above determines actual rates; an existing meter or an approved proposal alone does not enable charging.')}</li>
       <li>{translate('Per-million and per-thousand prices are display units. Charges, when effective, are proportional to actual usage; there is no whole-block minimum. Money is rounded after monthly aggregation.')}</li>
       <li>{translate('RTK storage and traffic use GiB (1,073,741,824 bytes); Shadow uses KiB (1,024 bytes). Provider byte units and counted events may differ, as noted in each row.')}</li>
+      <li>{translate('Log ingestion counts only accepted uncompressed bytes; rejected logs are not charged. Retention runs from acceptance to recorded expiry, split across UTC months and normalized by a fixed 30 days. Log charges for a month require frozen source records, Billing acknowledgments for every fact, and a verified monthly source seal. Missing evidence is not zero usage and prevents invoice close.')}</li>
       <li>{catalog.fxNote}</li>
       <li>{translate('References assume no free allowance or volume discount. Under the approved OTA-inclusive policy, Taiwan business tax is added to the combined invoice subtotal, not separately to OTA. Government electronic-invoice issuance is not handled in this phase. Private Cloud requires a separate quote.')}</li>
     </ul><details><summary>{translate('Research sources')}</summary><div className="pricing-source-links">{Object.values(pricingSources).map(source => <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer">{source.name} ↗</a>)}</div></details></section>

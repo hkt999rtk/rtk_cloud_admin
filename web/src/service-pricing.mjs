@@ -36,6 +36,8 @@ const effectiveRateNames = {
   'ota/artifact_storage_gib_month': 'OTA artifact storage',
   'ota/artifact_write': 'OTA artifact writes',
   'logger/ingest_gib': 'Device and application logs',
+  'logger/retained_gib_month': 'Log retention',
+  // Display already-published legacy cards without rewriting their meter identity.
   'logger/retention_gib_month': 'Log retention',
   'api/data_request': 'Application API requests',
 };
@@ -57,8 +59,8 @@ export const servicePricing = [
   { id: 'ota-successful-download', group: 'Device operations', name: 'OTA successful downloads', description: 'Firmware artifact verified by a target device.', referenceUnit: 'GiB CDN edge transfer', priceStatus: 'approved-pending', unit: 'GiB verified', readiness: 'Qualification pending', rule: 'Count the release artifact size once on the first authenticated downloaded report for each deployment and exact artifact. Failed transfers, URL grants and Range retries add no customer bytes.', source: 'cloudfront', comparison: 'Selected CloudFront Asian delivery regions outside China. Raw CDN bytes and retries differ from RTK first verified logical download.' },
   { id: 'ota-artifact-storage', group: 'Device operations', name: 'OTA artifact storage', description: 'Firmware objects retained in private storage.', priceStatus: 'approved-pending', unit: 'GiB-month', readiness: 'Qualification pending', rule: 'Integrate actual object bytes over UTC time until physical deletion, including revoked or disabled artifacts. Release metadata alone is insufficient.', source: 's3', comparison: 'São Paulo hot-storage reference. Approved RTK price uses physical OTA object byte-time.' },
   { id: 'ota-artifact-write', group: 'Device operations', name: 'OTA artifact writes', description: 'Successful creation of firmware objects.', referenceUnit: '1 million S3 PUT requests', priceStatus: 'approved-pending', unit: '1 million writes', readiness: 'Qualification pending', rule: 'Count one committed object creation by immutable object key or version. Failed PUTs and retries without a new object are excluded.', source: 's3', comparison: 'São Paulo reference. Provider PUT requests also include events that are not RTK successful object creations.' },
-  { id: 'log-ingest', group: 'Device operations', name: 'Device and application logs', description: 'Ingest runtime logs for diagnosis.', priceStatus: 'research', unit: 'GiB ingested', readiness: 'Usage totals exist', rule: 'Use accepted, uncompressed log bytes including metadata. Retention is charged separately. MQTT transport, when used, retains its message fee.', source: 'logs', comparison: 'CloudWatch São Paulo reference. RTK has ingestion totals, but generic invoice integration still needs qualification.' },
-  { id: 'log-retention', group: 'Device operations', name: 'Log retention', description: 'Keep runtime logs available for review.', referenceUnit: 'GiB-month compressed archive', priceStatus: 'research', unit: 'GiB-month', readiness: 'Usage totals exist', rule: 'Use recorded log bytes × configured retention days / 30. This proposal follows the existing retention estimate, not compressed archive size.', source: 'logs', comparison: 'CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.' },
+  { id: 'log-ingest', group: 'Device operations', name: 'Device and application logs', description: 'Ingest runtime logs for diagnosis.', priceStatus: 'research', unit: 'GiB ingested', readiness: 'Usage totals exist', rule: 'Count accepted, uncompressed log bytes including metadata. Rejected logs are not charged. Retention is charged separately; MQTT transport keeps its own message fee.', source: 'logs', comparison: 'CloudWatch São Paulo reference. RTK counts accepted log bytes, and the monthly source-to-invoice path requires qualification.' },
+  { id: 'log-retention', group: 'Device operations', name: 'Log retention', description: 'Keep runtime logs available for review.', referenceUnit: 'GiB-month compressed archive', priceStatus: 'research', unit: 'GiB-month', readiness: 'Usage totals exist', rule: 'Sum accepted uncompressed log bytes × retained time within each UTC month / 30 days. Retained time runs from acceptance to recorded expiry; time crossing a month boundary is split between months. Rejected logs and compressed archive size are excluded.', source: 'logs', comparison: 'CloudWatch São Paulo proxy. RTK uses accepted uncompressed byte-time normalized by 30 days; AWS uses compressed archive bytes, so quantities differ.' },
   { id: 'api', group: 'Device operations', name: 'Application API requests', description: 'Other device and application data API calls.', referenceUnit: '1 million AWS REST requests', priceStatus: 'research', unit: '1 million requests', readiness: 'Metering pending', rule: 'Count successful data API requests only. Excludes Shadow, WebRTC signaling, OTA task dispatch and object operations already covered above. Console administration and authentication are included.', source: 'api', comparison: 'API Gateway São Paulo first paid tier. RTK counts only successful classified data routes.' },
 ];
 
@@ -125,4 +127,27 @@ export async function fetchEffectivePricing(cloudId, ownershipVersion, { signal,
   if (!response.ok) throw Object.assign(new Error('Effective pricing unavailable'), { status: response.status });
   if (response.headers.get('X-Cloud-Ownership-Version') !== String(ownershipVersion)) throw Object.assign(new Error('Cloud ownership changed'), { status: 409 });
   return validateEffectivePricing(await response.json(), cloudId);
+}
+
+// Billing owns the rate switch; this timer only invalidates the displayed snapshot.
+export function watchEffectivePricing(book, refresh, browser = globalThis) {
+  const now = browser.Date.now();
+  const today = new Date(now);
+  let next = Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1);
+  for (const value of [book?.upcoming?.effective_from, book?.current?.effective_until]) {
+    const boundary = Date.parse(value);
+    if (Number.isFinite(boundary) && boundary > now) next = Math.min(next, boundary);
+  }
+  let active = true;
+  const refreshVisible = () => { if (active && browser.document.visibilityState !== 'hidden') refresh(); };
+  // Longer months exceed the browser's signed 32-bit timeout limit.
+  const timer = browser.setTimeout(refreshVisible, Math.min(next - now + 1, 2_147_483_647));
+  browser.addEventListener('focus', refreshVisible);
+  browser.document.addEventListener('visibilitychange', refreshVisible);
+  return () => {
+    active = false;
+    browser.clearTimeout(timer);
+    browser.removeEventListener('focus', refreshVisible);
+    browser.document.removeEventListener('visibilitychange', refreshVisible);
+  };
 }

@@ -13326,8 +13326,8 @@
       "placeholders": []
     },
     {
-      "key": "Use recorded log bytes × configured retention days / 30. This proposal follows the existing retention estimate, not compressed archive size.",
-      "source": "Use recorded log bytes × configured retention days / 30. This proposal follows the existing retention estimate, not compressed archive size.",
+      "key": "Sum accepted uncompressed log bytes × retained time within each UTC month / 30 days. Retained time runs from acceptance to recorded expiry; time crossing a month boundary is split between months. Compressed archive size is not used.",
+      "source": "Sum accepted uncompressed log bytes × retained time within each UTC month / 30 days. Retained time runs from acceptance to recorded expiry; time crossing a month boundary is split between months. Compressed archive size is not used.",
       "context": "Admin Console interface message",
       "placeholders": []
     },
@@ -15265,8 +15265,8 @@
       "placeholders": []
     },
     {
-      "key": "CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.",
-      "source": "CloudWatch São Paulo proxy. RTK uses accepted uncompressed bytes × configured days / 30, so billable quantities differ.",
+      "key": "CloudWatch São Paulo proxy. RTK uses accepted uncompressed byte-time normalized by 30 days; AWS uses compressed archive bytes, so quantities differ.",
+      "source": "CloudWatch São Paulo proxy. RTK uses accepted uncompressed byte-time normalized by 30 days; AWS uses compressed archive bytes, so quantities differ.",
       "context": "Admin Console interface message",
       "placeholders": []
     },
@@ -16361,6 +16361,114 @@
     {
       "key": "Usage fact references",
       "source": "Usage fact references",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "CloudWatch São Paulo reference. RTK counts accepted log bytes, and the monthly source-to-invoice path requires qualification.",
+      "source": "CloudWatch São Paulo reference. RTK counts accepted log bytes, and the monthly source-to-invoice path requires qualification.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Count accepted, uncompressed log bytes including metadata. Rejected logs are not charged. Retention is charged separately; MQTT transport keeps its own message fee.",
+      "source": "Count accepted, uncompressed log bytes including metadata. Rejected logs are not charged. Retention is charged separately; MQTT transport keeps its own message fee.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Estimated cost excluding OTA and logs",
+      "source": "Estimated cost excluding OTA and logs",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Estimated cost excluding logs",
+      "source": "Estimated cost excluding logs",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Log charges are excluded from the amounts shown. Missing monthly evidence does not mean zero usage; this is not the final invoice total.",
+      "source": "Log charges are excluded from the amounts shown. Missing monthly evidence does not mean zero usage; this is not the final invoice total.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Log charges require manual review.",
+      "source": "Log charges require manual review.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Log estimate pending review",
+      "source": "Log estimate pending review",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Log ingestion counts only accepted uncompressed bytes; rejected logs are not charged. Retention runs from acceptance to recorded expiry, split across UTC months and normalized by a fixed 30 days. Log charges for a month require frozen source records, Billing acknowledgments for every fact, and a verified monthly source seal. Missing evidence is not zero usage and prevents invoice close.",
+      "source": "Log ingestion counts only accepted uncompressed bytes; rejected logs are not charged. Retention runs from acceptance to recorded expiry, split across UTC months and normalized by a fixed 30 days. Log charges for a month require frozen source records, Billing acknowledgments for every fact, and a verified monthly source seal. Missing evidence is not zero usage and prevents invoice close.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Pending OTA and log review",
+      "source": "Pending OTA and log review",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Pending log review",
+      "source": "Pending log review",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Subtotal excluding OTA and logs",
+      "source": "Subtotal excluding OTA and logs",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Subtotal excluding logs",
+      "source": "Subtotal excluding logs",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "Sum accepted uncompressed log bytes × retained time within each UTC month / 30 days. Retained time runs from acceptance to recorded expiry; time crossing a month boundary is split between months. Rejected logs and compressed archive size are excluded.",
+      "source": "Sum accepted uncompressed log bytes × retained time within each UTC month / 30 days. Retained time runs from acceptance to recorded expiry; time crossing a month boundary is split between months. Rejected logs and compressed archive size are excluded.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The current owner did not cover the complete UTC month. Log charges require manual review.",
+      "source": "The current owner did not cover the complete UTC month. Log charges require manual review.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The full-month forecast is unavailable while OTA and log charges are held.",
+      "source": "The full-month forecast is unavailable while OTA and log charges are held.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The full-month forecast is unavailable while log charges are held.",
+      "source": "The full-month forecast is unavailable while log charges are held.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "The log rate card is incomplete. Log charges need review before they can be estimated.",
+      "source": "The log rate card is incomplete. Log charges need review before they can be estimated.",
+      "context": "Admin Console interface message",
+      "placeholders": []
+    },
+    {
+      "key": "This period is not a complete UTC month. Log charges require a complete UTC month.",
+      "source": "This period is not a complete UTC month. Log charges require a complete UTC month.",
       "context": "Admin Console interface message",
       "placeholders": []
     }

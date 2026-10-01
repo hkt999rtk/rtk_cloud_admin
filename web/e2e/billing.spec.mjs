@@ -52,6 +52,58 @@ test('[UI-CA-BILLING-011] held OTA estimate excludes OTA from displayed totals @
   await expect(page.getByTestId('billing-usage-page')).not.toContainText('Subtotal excluding OTA');
 });
 
+test('[UI-CA-BILLING-011] held log estimate excludes logs and disables the forecast @billing @smoke', async ({ page, isMobile }) => {
+  await login(page, 'billing_owner');
+  await page.route('**/billing/usage', async route => {
+    const response = await route.fetch();
+    const usage = await response.json();
+    usage.logger_estimate_status = 'held_for_review';
+    usage.logger_estimate_reason = 'pricing_incomplete';
+    await route.fulfill({ response, json: usage });
+  });
+  await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');
+
+  await expect(page.getByTestId('billing-log-estimate-hold')).toContainText('Missing monthly evidence does not mean zero usage');
+  await expect(page.getByTestId('billing-log-estimate-hold')).toContainText('The log rate card is incomplete');
+  await expect(page.getByTestId('billing-page')).toContainText('Estimated cost excluding logs');
+  await expect(page.getByTestId('billing-page')).toContainText('Subtotal excluding logs');
+  await expect(page.getByTestId('billing-page')).toContainText('Pending log review');
+  await expect(page.getByTestId('billing-page')).not.toContainText('1,135');
+
+  await page.getByRole('button', { name: 'Usage and Forecast' }).click();
+  await expect(page.getByTestId('billing-usage-page')).toContainText('Subtotal excluding logs');
+  await expect(page.getByTestId('billing-usage-page')).toContainText('Pending log review');
+  if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.locator('[data-locale-selector]').selectOption('zh-TW');
+  if (isMobile) await page.locator('.mobile-nav-close').click();
+  await expect(page.getByTestId('billing-usage-page')).toContainText('不含日誌小計');
+});
+
+test('[UI-CA-BILLING-011] simultaneous OTA and log holds name both exclusions @billing @smoke', async ({ page }) => {
+  await login(page, 'billing_owner');
+  await page.route('**/billing/usage', async route => {
+    const response = await route.fetch();
+    const usage = await response.json();
+    usage.ota_estimate_status = 'held_for_review';
+    usage.ota_estimate_reason = 'owner_month_incomplete';
+    usage.logger_estimate_status = 'held_for_review';
+    usage.logger_estimate_reason = 'period_not_utc_month';
+    await route.fulfill({ response, json: usage });
+  });
+  await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');
+
+  await expect(page.getByTestId('billing-ota-estimate-hold')).toBeVisible();
+  await expect(page.getByTestId('billing-log-estimate-hold')).toContainText('not a complete UTC month');
+  await expect(page.getByTestId('billing-page')).toContainText('Estimated cost excluding OTA and logs');
+  await expect(page.getByTestId('billing-page')).toContainText('Subtotal excluding OTA and logs');
+  await expect(page.getByTestId('billing-page')).toContainText('Pending OTA and log review');
+  await expect(page.getByTestId('billing-page')).not.toContainText('1,135');
+
+  await page.getByRole('button', { name: 'Usage and Forecast' }).click();
+  await expect(page.getByTestId('billing-usage-page')).toContainText('Subtotal excluding OTA and logs');
+  await expect(page.getByTestId('billing-usage-page')).toContainText('Pending OTA and log review');
+});
+
 test('[UI-CA-BILLING-001] billing overview exposes balance usage invoice and activity evidence @billing @smoke', async ({ page }, testInfo) => {
   await login(page, 'billing_owner');
   await page.goto('/console/clouds/11111111-1111-4111-8111-111111111111/billing');
