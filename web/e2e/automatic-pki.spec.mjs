@@ -50,4 +50,8 @@ test('[UI-CA-PKI-001] Cloud and Product show independent automatically refreshed
   if (isMobile) await page.locator('.mobile-nav-close').click();
   await expect(products.getByTestId('pki-status').first()).toHaveText('憑證授權中心已就緒');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  await page.clock.resume();
+  const screenshot = test.info().outputPath('final-viewport.png');
+  await page.screenshot({ path: screenshot });
+  await test.info().attach('final-viewport', { path: screenshot, contentType: 'image/png' });
 });
