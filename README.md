@@ -25,6 +25,9 @@ The service logging migration to `rtk_cloud_logger` zap and central journald
 forwarding is documented in
 [`docs/service_logging_migration.md`](docs/service_logging_migration.md).
 
+Object Storage bucket names, object-key families, ownership, and retention follow the
+workspace [Object Storage policy](https://github.com/hkt999rtk/rtk_cloud_workspace/blob/main/docs/object-storage-policy.md). The link also works from a standalone checkout.
+
 ## Current Scope
 
 Implemented in this first version:
@@ -323,9 +326,9 @@ deploy/check-release.sh dist/rtk_cloud_admin-v1.2.3
 ```
 
 Release runs upload the bundle, checksum, and manifest to Linode Object Storage
-under `releases/rtk_cloud_admin-<version>/`. The object filenames use the
-version directly, for example `v1.2.3.tar.gz`. Object Storage credentials belong
-in GitHub repository secrets and variables, not local `.env` files.
+using the registered release key family in the workspace [Object Storage policy](https://github.com/hkt999rtk/rtk_cloud_workspace/blob/main/docs/object-storage-policy.md).
+The published manifest records the exact bundle key. Object Storage credentials
+belong in GitHub repository secrets and variables, not local `.env` files.
 
 ## CI
 
