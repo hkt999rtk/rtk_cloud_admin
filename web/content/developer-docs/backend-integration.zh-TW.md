@@ -1,14 +1,14 @@
 ---
 title: 後端整合指南
-description: 選擇一個授權的後端身份，並在不借用裝置憑據的情況下執行已簽名的影子操作。
+description: 使用已授權的後端身分執行帶有簽章的 Shadow 操作，
+  不借用裝置驗證資訊。
 category: Build integrations
 keywords:
 - 後端
 - 伺服器
-- 體4
 - 授權
 - 管理員
-- 代表團
+- 委派授權
 - backend
 - server
 - SigV4
@@ -19,40 +19,39 @@ language: zh-TW
 applies_to: RTK Cloud contracts 9b1ed887912e; Account Manager 54b37b9c407d; Video
   Cloud 30fbb9a26155; Admin bbaf62f7d6b5
 last_verified: '2026-09-04'
-verification: 源/API審查；自動樣本檢查；如注釋所示，開發商代理服務配置讀取。完整的現場入職資格正在等待。
+verification: 來源／API 檢閱與範例自動檢查；標示處包含開發環境 Broker 設定讀取紀錄。完整的實際環境入門流程仍待驗證。
 ---
-
 
 # 後端整合指南
 
-## 後端責任界限
+## 後端的責任範圍
 
-後端首先檢查其呼叫者和目標。然後，它只使用經過批准的身份或委派路徑。特權令牌發行分支用於受信任的平臺協調；圖表沒有引入公共客戶委派API。請單獨觀察裝置報告的完成情況，與成功的光影變異分開。
+後端先檢查呼叫者與目標，再使用核准的身分或委派授權流程。具管理權限的 token 簽發流程僅供受信任的平台流程協調使用；圖中並未定義公開的客戶委派授權 API。Shadow 變更成功與裝置回報執行完成，必須分別確認。
 
-![後端責任界限](assets/backend-boundary.zh-TW.svg)
+![後端的責任範圍](assets/backend-boundary.zh-TW.svg)
 
-[全尺寸方塊圖](assets/backend-boundary.zh-TW.svg) · [Mermaid 原始檔](assets/backend-boundary.zh-TW.mmd)
+[檢視完整架構圖](assets/backend-boundary.zh-TW.svg) · [Mermaid 原始碼](assets/backend-boundary.zh-TW.mmd)
 
-## 目標和先決條件
+## 目標與事前準備
 
-從已經對目標裝置具有許可權的後端讀取或更新裝置影子。您需要目標裝置/影子識別符號，`iot_shadow`，以及一個經過批准的認證獲取路徑。伺服器端程式在獲取或使用服務認證之前必須檢查其自己的使用者/租戶的裝置授權。
+使用已獲得目標裝置存取權的後端，讀取或更新裝置影子。你需要目標裝置與 Shadow 的識別碼、`iot_shadow` 功能，以及經核准的驗證資訊取得流程。伺服器端程式在取得或使用服務驗證資訊前，必須先檢查自己的使用者或租戶是否有權存取該裝置。
 
-## 在選擇HTTP客戶端之前，請選擇一個身份
+## 先確認身分，再選擇 HTTP 用戶端
 
-|場景|支援的整合邊界|
+| 情境 | 支援的整合方式與限制 |
 | --- | --- |
-|使用者的應用程式|應用程式本地證書引導和裝置繫結的應用程式令牌；保留該應用程式上的私鑰|
-|使用委派的短命影子捆綁包的後端|只有在部署的批准委派邊界為請求的裝置提供時才使用捆綁包；本版本不定義通用委派API|
-|值得信賴的平臺/服務協調|單獨配置的影片雲管理員持有人可以撥打`/request_token`對於受主題約束的令牌；這是一種特權整合，而不是自助服務客戶訪問|
-|客戶後端正在尋找OAuth客戶端憑據授予|審查的契約沒有設立公共自助贈款；不要編造`/oauth/token`或重新使用帳戶經理令牌|
+| 使用者的應用程式 | 使用 App 本機憑證取得綁定裝置的 App token；私鑰須留在該應用程式中 |
+| 後端使用委派的短期 Shadow 憑證包 | 僅能使用部署環境經核准的委派授權流程，為指定裝置提供的資訊包；本版未定義通用委派授權 API |
+| 受信任的平台或服務流程協調 | 另外授予的 Video Cloud 管理員 Bearer token 可呼叫 `/request_token`，取得綁定特定主體的 token；這是特權整合，不是客戶自助功能 |
+| 客戶後端想使用 OAuth client-credentials 授權 | 已審查的規格未定義公開自助授權流程；不要自行假設存在 `/oauth/token`，或重用 Account Manager token |
 
-帳戶經理管理員角色和影片雲執行時管理員令牌是不同的授權。請勿複製應用程式/裝置的私鑰、抓取瀏覽器cookie，或將特權協調令牌暴露給前端。如果您的後端沒有經過批准的身份/委派路徑，請在開始之前從運營商那裡獲取該服務整合；API示例無法製造授權。
+Account Manager 管理員角色與 Video Cloud 執行階段管理員 token 是不同的權限。不要複製 App 或裝置私鑰、擷取瀏覽器 cookie，或將流程協調使用的特權 token 暴露給前端。若後端沒有核准的身分或委派授權流程，請先向維運人員取得服務整合方式；API 範例無法自行產生授權。
 
-[開啟重新設計的序列圖](assets/backend-shadow.zh-TW.html)
+[開啟後端 Shadow 操作時序圖](assets/backend-shadow.zh-TW.html)
 
-## 1. 值得信賴的協調：獲取裝置繫結的捆綁包
+## 1. 受信任後端：取得綁定裝置的憑證包
 
-僅在運營商已經配置了影片雲管理員持有人的情況下，在明確授權的受信任後端執行此部分。以下檔案是運營商提供的機密材料，而不是帳戶經理登入響應。請驗證其租戶/裝置許可權是否與請求相符。普通客戶整合必須使用其已批准的路徑。
+只有明確獲授權，且已由維運人員提供 Video Cloud 管理員 Bearer token 的受信任後端，才能執行本節。下方檔案是維運人員提供的機密資料，不是 Account Manager 登入回應。請確認其中的租戶與裝置權限符合請求。一般客戶整合應使用自己的核准流程。
 
 ```bash
 export ADMIN_TOKEN_FILE='/private/path/video-runtime-admin-token'
@@ -67,11 +66,11 @@ jq -e '.aws_credentials | .accessKeyId != null and .secretAccessKey != null and 
   "$TUTORIAL_DIR/backend-token.json"
 ```
 
-需要HTTP 200和一個可用返回的捆綁包。對於未活動的裝置、範圍錯誤、權利或策略缺失，仍然可以拒絕發行令牌。在403之後，切勿自動擴充套件許可權。某些部署不會向您的後端網路暴露特權發行；這是一個與運營商協商解決的整合邊界。
+必須收到 HTTP 200，且回傳的憑證包可用，才能繼續。裝置未啟用、授權範圍錯誤、服務使用權不足或政策限制，都可能導致 token 簽發遭拒。收到 403 後，絕不可自動擴大權限。有些部署不允許後端所在網路存取特權簽發介面；這需要與維運人員確認整合範圍。
 
-## 2. 閱讀並條件更新Shadow
+## 2. 讀取並依版本條件更新 Shadow
 
-關注完整的[簽名的HTTP助手](shadow-interfaces.zh-TW.md)，設定`TOKEN_FILE`到`backend-token.json`在載入其憑證欄位之前。始終使用返回的`iotDataEndpoint`，帶有簽名服務的區域和會話令牌`iotdevicegateway`; 這些是RTK端點憑據，不是AWS帳戶的憑據。
+請使用完整的 [HTTP 簽章輔助函式](shadow-interfaces.zh-TW.md)，在載入驗證欄位前，將 `TOKEN_FILE` 設為 `backend-token.json`。一律使用回傳的 `iotDataEndpoint`、區域與工作階段 token，簽章服務名稱使用 `iotdevicegateway`。這些是 RTK 端點的驗證資訊，不是 AWS 帳號驗證資訊。
 
 ```bash
 # After configuring shadow_http and SHADOW_URL from the interface guide:
@@ -82,16 +81,16 @@ PATCH="$(jq -nc --argjson version "$CURRENT_VERSION" \
 shadow_http -X POST -H 'Content-Type: application/json' --data-binary "$PATCH" "$SHADOW_URL"
 ```
 
-對於一個故意新的Shadow，請明確處理GET 404，並在第一次更新時省略版本。POST成功意味著Shadow突變已提交；請使用後續的GET或授權的MQTT訂閱來觀察裝置報告的收斂。僅僅因為POST成功而不返回硬體完成的響應是不合適的。
+若刻意建立新 Shadow，請明確處理 GET 404，並在首次更新時省略版本。POST 成功代表 Shadow 狀態變更已提交；裝置是否已達到預期狀態，仍須透過後續 GET 或已授權的 MQTT 訂閱，觀察裝置回報。**不可僅因 POST 成功，就回應硬體已執行完成。**
 
-## 3. 受限並行和安全更新
+## 3. 限制並行請求並安全更新驗證資訊
 
-按主機、裝置和到期日儲存暫存資料憑據，永遠不要僅僅按主機名稱。在SigV4捆綁包返回到期前獲取一個新的SigV4捆綁包；`/refresh_token`不保證SigV4捆綁包的重新整理。保持時鐘同步，避免同時進行重新整理。在撤銷或拒絕訪問後，驅逐快取授權。
+快取驗證資訊時，應依身分主體、裝置與到期時間區分，不可只按主機名稱區分。在回傳的有效期限到期前取得新的 SigV4 憑證包；`/refresh_token` 不保證更新 SigV4 資訊包。請保持系統時間同步，避免大量並行更新請求。身分撤銷或存取遭拒後，應移除快取的授權資訊。
 
-在409上，獲取並對話詢問者的當前意圖進行核對。在429或臨時服務錯誤時，在有限的預算內退縮。在超時後，在替換結果未知的突變之前獲取。使用唯一的`clientToken`對於每個待處理的請求；這是相關性，而不是同值性保證。對於多個裝置，請單獨授權和限定每個裝置的範圍，而不是將令牌從一個裝置擴充套件到整個車隊。
+收到 409 時，先執行 GET，再依呼叫者目前的意圖調整更新。收到 429 或暫時性服務錯誤時，採用設有上限的退避重試。狀態變更結果不確定而逾時時，重新寫入前先執行 GET。每筆待處理請求都應使用唯一的 `clientToken`；它用來關聯請求與回應，不提供冪等性保證。操作多個裝置時，須分別授權並限定每個裝置的範圍，不能將單一裝置 token 擴用至整個裝置群。
 
-## 預期結果和診斷
+## 預期結果與診斷
 
-讀取返回目標影子狀態；條件更新返回接受的補丁程式或衝突。記錄請求時間、操作、狀態/程式和相關性ID，而不會記錄秘密或私有狀態。在釋出整合之前，請透過預期的授權邊界確認不同裝置/雲端的負面測試失敗。
+讀取操作會回傳目標 Shadow 狀態；附帶版本條件的更新會回傳已接受的局部更新內容，或版本衝突。請記錄請求時間、操作、狀態／錯誤碼與關聯 ID，不要記錄機密或私人狀態。發布整合前，請用不同裝置或 Cloud 執行拒絕存取測試，確認預期的授權檢查確實阻擋請求。
 
-下一個：[影子API參考](shadow-reference.zh-TW.md)與[連線設定與服務限制](connection-settings.zh-TW.md).
+下一步：[Shadow API 參考](shadow-reference.zh-TW.md)與[連線設定及服務限制](connection-settings.zh-TW.md)。

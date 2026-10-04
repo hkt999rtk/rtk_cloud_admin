@@ -1,15 +1,14 @@
 ---
-title: 端到端應用程式與裝置範例
-description: 執行獨立的應用程式和裝置客戶端，並驗證所需到報告的收斂。
+title: 應用程式與裝置端對端範例
+description: 分別執行應用程式與裝置用戶端，確認 desired 與 reported 最後達成一致。
+
 category: Tutorials
 keywords:
-- 模仿者
-- 蟒
+- 模擬器
 - 應用程式
 - 裝置
 - 下載
-- 渴望的
-- 報告的
+- 狀態同步
 - simulator
 - Python
 - app
@@ -21,23 +20,23 @@ language: zh-TW
 applies_to: RTK Cloud contracts 9b1ed887912e; Account Manager 54b37b9c407d; Video
   Cloud 30fbb9a26155; Admin bbaf62f7d6b5
 last_verified: '2026-09-04'
-verification: 源/API審查；自動樣本檢查；如注釋所示，開發商代理服務配置讀取。完整的現場入職資格正在等待。
+verification: 已完成來源與 API 審查、自動化範例測試，並在註明處讀回開發環境 Broker 設定；尚待完整實際環境接入驗證。
+
 ---
 
+# 應用程式與裝置端對端範例
 
-# 端到端應用程式與裝置範例
+## 目標與前置條件
 
-## 目標和先決條件
+以兩個獨立驗證的 MQTT 用戶端，分別執行應用程式與模擬裝置。應用程式要求開啟電源，裝置模擬執行變更並回報，應用程式再透過 GET 確認預期狀態與回報狀態一致。本範例是協定用戶端，不能取代韌體的硬體驗證或裝置 owner 傳輸協定。
 
-將一個應用程式和一個模擬裝置作為兩個獨立的身份驗證MQTT客戶端執行。應用程式請求開機；裝置應用模擬更改並報告它；應用程式透過GET檢查收斂。此示例是一個協議客戶端，不是取代韌體硬體驗證或裝置所有者傳輸協議的替代品。
+先完成[雲端與裝置設定](setup-cloud-device.zh-TW.md)、[憑證設定](credential-setup.zh-TW.md)與[token 簽發](authentication.zh-TW.md)。你需要仍有效、**彼此獨立**的應用程式及裝置執行階段 token 檔案、已啟用的 `mqtt` 與 `iot_shadow`、獲授權的測試裝置、Python 3.10 以上版本，以及可取得指定版本相依套件的環境。請將驗證資訊檔案放在範例目錄以外。
 
-完成[雲/裝置設定](setup-cloud-device.zh-TW.md), [憑證設定](credential-setup.zh-TW.md)，和[代幣發行](authentication.zh-TW.md)。你需要電流**分開**應用程式/裝置執行時令牌檔案，`mqtt`與`iot_shadow`，一個授權的測試裝置、Python 3.10+以及訪問固定依賴項。將憑證檔案放在示例目錄之外。
+[開啟時序圖](assets/two-principal-demo.zh-TW.html)
 
-[開啟重新設計的序列圖](assets/two-principal-demo.zh-TW.html)
+## 1. 安裝範例
 
-## 1. 安裝示例
-
-[下載完整的Python示例](assets/shadow-demo.zip).將其提取到一個私人工作目錄中；該存檔包括`demo.py`, `recover.py`, `verify.py`, `requirements.txt`與`README.md`並且不包含憑據。
+[下載完整 Python 範例](assets/shadow-demo.zip)，解壓縮至只有你能存取的工作目錄。壓縮檔包含 `demo.py`、`recover.py`、`verify.py`、`requirements.txt` 與 `README.md`，不含驗證資訊。
 
 ```bash
 unzip shadow-demo.zip -d shadow-demo
@@ -48,7 +47,7 @@ python -m pip install -r requirements.txt
 python demo.py --help
 ```
 
-固定依賴項是`paho-mqtt==2.1.0`。該示例使用其回撥API版本2和MQTT 3.1.1。從以下處獲取端點、CA和裝置ID[開始之前](before-you-start.zh-TW.md)；兩個終端都需要相同的`MQTT_HOST`, `MQTT_PORT`, `CA_FILE`, `DEVICE_ID`, `SHADOW_NAME`與`TUTORIAL_DIR`。使用專用的名稱Shadow`tutorial`在一個平時空閒的測試裝置上。
+相依套件固定為 `paho-mqtt==2.1.0`，範例使用 callback API 第 2 版與 MQTT 3.1.1。請從[事前準備](before-you-start.zh-TW.md)取得 endpoint、CA 與裝置 ID。兩個終端機都需要相同的 `MQTT_HOST`、`MQTT_PORT`、`CA_FILE`、`DEVICE_ID`、`SHADOW_NAME` 與 `TUTORIAL_DIR`。請選擇沒有其他操作的測試裝置，並使用專用的 `tutorial` 具名影子。
 
 ## 2. 啟動模擬裝置
 
@@ -56,24 +55,24 @@ python demo.py --help
 python demo.py device --token-file "$TUTORIAL_DIR/device-token.json" --seconds 120
 ```
 
-客戶端等待成功連線和SUBACK，然後獲取影子。缺失的影子由報告初始模擬電源來處理`off`。重新連線/重新啟動時，它會讀取當前的預期狀態並應用支援的值。它只接受`power=on`或者`power=off`；重複資料不會重複模擬的硬體過渡。它只有在應用更改後才報告狀態。
+用戶端等待 CONNECT 與 SUBACK 成功後，才 GET 影子。若影子不存在，會回報模擬電源初始狀態 `off`。重新連線或啟動時，會讀取目前 desired 並套用支援的值。範例只接受 `power=on` 或 `power=off`；重複事件不會重做模擬硬體的狀態轉換，且只有套用變更後才會回報狀態。
 
-## 3. 在另一個終端執行應用程式
+## 3. 在另一個終端機執行應用程式
 
-啟動相同的虛擬環境並匯出相同的設定，然後執行：
+啟用相同的虛擬環境，匯出相同設定，再執行：
 
 ```bash
 python demo.py app --token-file "$TUTORIAL_DIR/app-token.json" --power on --seconds 45
 ```
 
-預期應用輸出：
+預期的應用程式輸出：
 
 ```text
 APP desired accepted; waiting for reported state
 PASS: desired=reported=on
 ```
 
-預期裝置輸出包括：
+預期的裝置輸出包含：
 
 ```text
 DEVICE ready: simulated power=off
@@ -81,18 +80,18 @@ DEVICE applied power=on
 DEVICE reported accepted
 ```
 
-以前存在的預期值可以在初始GET期間應用。不需要在兩個流程中使用固定線訂單。應用程式只有在更新被接受後，以及稍後的、足夠新的GET顯示預期值和報告值都等於請求的功率後，才會以狀態0退出。僅使用PUBACK無法列印PASS。
+初次 GET 時，可能就會套用先前已存在的 desired。因此不要要求兩個程序的輸出一定按固定順序出現。只有更新被接受，且後續取得足夠新的 GET 結果，顯示 desired 與 reported 都等於要求的電源狀態時，應用程式才會以狀態 0 結束。單靠 PUBACK 不會顯示 PASS。
 
-## 4. 練習離線恢復和故障
+## 4. 測試離線恢復與失敗情況
 
-停止裝置流程，使用應用程式請求相反的狀態，然後在應用程式的截止日期前重新啟動裝置。裝置獲取當前所需狀態；該示例不依賴於離線差分的重播。如果在截止日期前沒有裝置返回，應用程式將以未知收斂超時退出非零狀態。在決定是否重複突變之前，請閱讀當前狀態。
+停止裝置程序，讓應用程式要求相反狀態，並在應用程式逾時前重新啟動裝置。裝置會 GET 目前 desired；範例不依賴重播離線期間的 delta。如果裝置未在期限內恢復，應用程式會以非零狀態結束，並指出無法確認狀態是否一致。決定是否重送更新前，請先讀取目前狀態。
 
-嘗試一個沒有的裝置`iot_shadow`，只有在專用測試環境中才會發生未經授權的應用程式/裝置配對或過期的測試令牌。所需的政策結果是拒絕。在經過審查的服務路徑中，尚未合格執行「缺少能力強制執行」。將此負面測試記錄為釋出閘道器，而不是已證實的結果。意外成功的要求是需要報告的授權缺陷，而不是允許依賴該行為的許可。拒絕的確切層次可能有所不同：TLS、CONNECT、SUBACK 或一個被拒絕的影子響應。範例在斷開連線、訊息格式錯誤或接收佇列滿時退出；它不實施自動令牌更新或無限重連重試。
+只在專用測試環境中，測試未啟用 `iot_shadow` 的裝置、未獲授權的應用程式／裝置配對，或已過期的測試 token。依授權規則，這些情況都應被拒絕。目前審查過的服務流程，尚未完整驗證缺少功能授權時的拒絕行為；請將此負向測試列為發布前必須通過的條件，不要視為已驗證結果。若未獲授權的請求意外成功，應回報授權缺陷，不可依賴此行為。拒絕可能發生在 TLS、CONNECT、SUBACK 或影子的 rejected 回應。範例遇到斷線、格式錯誤的訊息或接收佇列已滿時會結束；它未實作自動更新 token 或無上限的重連。
 
-## 5.完成並適應
+## 5. 結束測試並整合至產品
 
-停止模擬器並使用[明確的影子刪除步驟](shadow-interfaces.zh-TW.md)僅移除教學狀態。對於硬體整合，請將模擬分配替換為實際操作和讀取回饋。對於長時間執行的產品，請在中新增受限恢復和更新行為[MQTT 連線指南](mqtt-connection.zh-TW.md)與[整合實作範例](integration-recipes.zh-TW.md).
+停止模擬器，依[影子刪除步驟](shadow-interfaces.zh-TW.md)只移除教學狀態。整合硬體時，將模擬賦值替換成真正的硬體操作與狀態讀回。若要用於長時間執行的產品，請加入 [MQTT 連線指南](mqtt-connection.zh-TW.md)與[整合實作範例](integration-recipes.zh-TW.md)所述、有次數與時間上限的恢復及更新機制。
 
-下載的客戶端驗證與生產合格性分開記錄。本地自動測試涵蓋響應相關性、拒絕請求、過期讀取、重複事件和超時行為。這並不證實任意環境的憑據或權利。
+下載用戶端的驗證紀錄與正式環境驗證分開維護。本機自動化測試涵蓋請求與回應對應、請求遭拒、過期讀取、重複事件及逾時處理；這些結果不能證明任意環境的驗證資訊或服務權限正確。
 
-建築：[應用程式、裝置和測試工具架構](integration-test-kit.zh-TW.md).
+架構說明：[應用程式、裝置與測試工具架構](integration-test-kit.zh-TW.md)。

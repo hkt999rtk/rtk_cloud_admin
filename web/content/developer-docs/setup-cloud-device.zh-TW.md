@@ -1,14 +1,14 @@
 ---
 title: 建立第一個雲端與裝置
-description: 在請求執行時憑據之前，請建立產品、解決裝置索賠並驗證啟動。
+description: 建立產品、完成裝置認領並驗證啟用結果，再請求
+  執行階段驗證資訊。
 category: Start here
 keywords:
-- 入職培訓
+- 入門
 - 產品
-- 索賠
-- 供應
-- 子
-- 物聯網_影子
+- 裝置認領
+- 佈建
+- 啟用
 - onboarding
 - Product
 - claim
@@ -19,41 +19,40 @@ language: zh-TW
 applies_to: RTK Cloud contracts 9b1ed887912e; Account Manager 54b37b9c407d; Video
   Cloud 30fbb9a26155; Admin bbaf62f7d6b5
 last_verified: '2026-09-04'
-verification: 源/API審查；自動樣本檢查；如注釋所示，開發商代理服務配置讀取。完整的現場入職資格正在等待。
+verification: 來源／API 檢閱與範例自動檢查；標示處包含開發環境 Broker 設定讀取紀錄。完整的實際環境入門流程仍待驗證。
 ---
-
 
 # 建立第一個雲端與裝置
 
-## 目標和先決條件
+## 目標與事前準備
 
-最後使用一個啟用的登入檔裝置，其對映的雲`devid`，一個成功的配置結果和一個授權的應用程式使用者。使用帶有出廠身份和有效索賠令牌、經過驗證的帳戶和管理目標雲/產品的許可權的專用測試裝置。從環境的連線遞接中獲取帳戶管理器公共HTTPS來源和CA捆綁包。
+完成本流程後，你應有一筆已啟用的裝置註冊資料、對應的雲端 `devid`、成功的佈建結果，以及已獲授權的應用程式使用者。請使用具有出廠身分與有效 Claim Token 的專用測試裝置，以及已驗證且有權管理目標 Cloud／Product 的帳號。從環境連線資訊取得 Account Manager 的公開 HTTPS 來源位址與 CA 憑證包。
 
-[開啟重新設計的序列圖](assets/first-device.zh-TW.html)
+[開啟首次裝置設定時序圖](assets/first-device.zh-TW.html)
 
-## 1.建立或選擇一個品牌雲和產品
+## 1. 建立或選取 Brand Cloud 與產品
 
-1. 登入Connect+並開啟**我的雲朵**.選擇預期的雲或使用**建立品牌雲**如果您的帳戶被允許建立一個帳戶。在管理之前，請完成所有者啟動。
-2. 在雲中，開啟**產品→新增產品**。 進入**產品名稱**, **產品型號**，以及適合您裝置的類別。類別是登入檔分類學，而不是憑證範圍。
-3. 選擇**裝置遙測**，對映為`mqtt`，並儲存產品。
-4. 安排`iot_shadow`與您的專案運營商一起在經批准的產品/裝置服務配置中。**目前的產品編輯器沒有單獨的陰影核取方塊。**選擇裝置遙測不會啟用影子。標準配置API接受`iot_shadow`，但權利和政策仍然決定了接受程度。
-5. 使用**會員和訪問**以及授權開發人員的適當產品範圍。僅有可見的產品或成功登入並不能證明執行時裝置訪問。消費者APP終端使用者繫結是一個單獨的身份流；不要假設控制檯會員資格是APP終端使用者繫結。
+1. 登入 Connect+ 並開啟 **My Clouds**。選取目標雲端；若帳號有建立權限，也可使用 **Create Brand Cloud** 建立。開始管理前，須先完成擁有者啟用流程。
+2. 在該雲端中開啟 **Products → Add Product**，填入 **Product Name**、**Product Model**，並選擇適合裝置的類別。類別是註冊資料的分類，不代表驗證資訊的授權範圍。
+3. 選取對應 `mqtt` 的 **Device Telemetry**，並儲存產品。
+4. 請與專案維運人員協調，在經核准的產品或裝置服務設定中加入 `iot_shadow`。**目前的產品編輯器沒有獨立的 Shadow 核取方塊。**選取 Device Telemetry 不會啟用 Shadow。正式佈建 API 接受 `iot_shadow`，但仍會檢查服務使用權與政策。
+5. 透過 **Members & Access**，在適當的產品範圍內授權開發者。能看見產品或成功登入，不代表執行階段能存取裝置。消費者 APP 終端使用者綁定屬於另一套身分流程；控制台成員資格不等於 APP 終端使用者綁定。
 
-對於現有產品，預覽服務更改的影響，並驗證是否已完成任何所需的重新配置。不要編輯令牌或放大索賠響應的服務列表，以繞過缺少權利。
+若使用既有產品，請先預覽服務變更的影響，並確認必要的重新佈建已完成。不要修改 token 或擴增認領回應中的服務清單，藉此繞過服務使用權限制。
 
-## 2. 保持識別符號分開
+## 2. 區分各種識別碼
 
-|識別符號|使用|
+| 識別碼 | 用途 |
 | --- | --- |
-|品牌雲/組織ID|客戶經理組織上下文；使用為所選雲返回的ID，永遠不要使用顯示名稱|
-|產品/裝置專案配置檔案ID|產品授權和裝置配置|
-|註冊處`device.id` |客戶經理裝置路由|
-| `provision_input.video_cloud_devid` |執行時間令牌`devid`，MQTT主題和影子`thingName` |
-|索取代幣|裝置附帶的擁有證明；不是登入或執行時令牌|
+| Brand Cloud／組織 ID | 指定 Account Manager 的組織範圍；使用所選雲端回傳的 ID，不可用顯示名稱代替 |
+| 產品／裝置項目設定檔 ID | 產品授權與裝置設定 |
+| 註冊資料中的 `device.id` | Account Manager 裝置 API 的路徑參數 |
+| `provision_input.video_cloud_devid` | 執行階段 token 的 `devid`、MQTT 主題與 Shadow 的 `thingName` |
+| 裝置認領碼（Claim Token） | 裝置隨附的持有證明，不是登入或執行階段 token |
 
-## 3. 透過帳戶經理解決索賠
+## 3. 透過 Account Manager 解析裝置認領資料
 
-以下是組織擁有的開發人員整合路徑，而不是單獨的消費者APP索賠API。請按照描述完成帳戶登入[憑證設定](credential-setup.zh-TW.md)，然後保留登入響應為`$TUTORIAL_DIR/account-login.json`.
+以下是組織持有裝置的開發者整合流程，不是另一套消費者 APP 認領 API。請依[憑證設定](credential-setup.zh-TW.md)完成帳號登入，並將登入回應儲存為 `$TUTORIAL_DIR/account-login.json`。
 
 ```bash
 export ACCOUNT_BASE='https://accounts.example.test'
@@ -70,9 +69,9 @@ export REGISTRY_DEVICE_ID="$(jq -er '.device.id' "$TUTORIAL_DIR/claim.json")"
 export DEVICE_ID="$(jq -er '.provision_input.video_cloud_devid' "$TUTORIAL_DIR/claim.json")"
 ```
 
-預期HTTP 201帶有`claim_id`, `device`，和`provision_input`。索賠解決建立/定位登入檔繫結；它確實**不**開始啟動。 儲存`activity_id`, `clip_public_key`，以及回傳的批准服務列表`provision_input`；即使只是進行影子練習，也不要編造它們。
+預期收到 HTTP 201，並包含 `claim_id`、`device` 與 `provision_input`。認領解析會建立或找出裝置註冊資料的綁定，但**不會**啟動裝置啟用流程。請保留 `provision_input` 中回傳的 `activity_id`、`clip_public_key` 及核准服務清單；即使只測試 Shadow，也不要自行編造這些值。
 
-## 4. 開始配置並閱讀其結果
+## 4. 開始佈建並檢查結果
 
 ```bash
 jq -e '.provision_input | .service_options | index("mqtt") != null and index("iot_shadow") != null' \
@@ -90,20 +89,20 @@ curl --fail-with-body --silent --show-error --cacert "$CA_FILE" \
   > "$TUTORIAL_DIR/provisioning-state.json"
 ```
 
-201建立一個操作；200可以返回現有的操作。僅此兩者都不能證明啟動已完成。在工作等待時，請再次使用有限取樣讀取配置狀態。 檢查`operation.status`, `readiness.state`, `readiness.sources`，和`video_metadata`；檢查`readiness.failure`當存在時；在終端故障時停止並記錄其操作ID。在重試不確定請求時保留相同的操作身份，而不是啟動無關的重複操作。
+201 代表建立一筆操作；200 則可能回傳既有操作。兩者都不能單獨證明裝置已啟用。操作尚未完成時，請在設定的輪詢上限內再次讀取佈建狀態。檢查 `operation.status`、`readiness.state`、`readiness.sources` 與 `video_metadata`；若有 `readiness.failure`，也須檢查。遇到無法繼續的失敗狀態時，請停止並記錄操作 ID。請求結果不確定而需重試時，保留相同操作識別資訊，避免建立無關的重複操作。
 
-## 5. 準備檢查和故障恢復
+## 5. 就緒檢查與失敗復原
 
-- 確認登入檔裝置已啟用並對映到預期的`DEVICE_ID`.
-- 確認配置成功，裝置已啟動並具有兩個功能。
-- 確認證書身份與那個匹配`DEVICE_ID`並且應用程式使用者已獲得授權。
-- 發放單獨的應用程式/裝置令牌，然後單獨驗證連線、SUBACK和影子GET。一個新的影子GET可能會正確返回404。
-- MQTT教學連線不實現服務的所有者傳輸協議，也不證明車隊線上指示器應該更改。
+- 確認裝置註冊資料已啟用，且對應預期的 `DEVICE_ID`。
+- 確認佈建成功，裝置已啟用且具備兩項功能。
+- 確認憑證身分符合該 `DEVICE_ID`，且 App 使用者有權存取。
+- 分別簽發 App 與裝置 token，再分別驗證 CONNECT、SUBACK 與 Shadow GET。尚未建立的 Shadow，GET 正常情況下可能回傳 404。
+- MQTT 教學中的連線沒有實作服務的裝置主連線（owner transport）協定，也不能據此認定 Fleet 線上狀態指示應該改變。
 
-對於無效/已申請的令牌，請使用申請解決方案/轉讓策略；重複呼叫配置不會修復所有權。對於403，請驗證雲端、產品範圍和裝置繫結。對於待啟用的裝置，請檢查操作，而不是更換裝置憑據。 如果`iot_shadow`缺失，請返回產品/權利設定步驟。
+若認領碼無效或已使用，請依認領解析或所有權移轉政策處理；反覆呼叫佈建 API 無法修復所有權。遇到 403 時，請確認雲端、產品授權範圍與裝置綁定。若啟用仍在等待中，應檢查操作狀態，不要替換裝置驗證資訊。若缺少 `iot_shadow`，請返回產品與服務使用權設定步驟。
 
-下一個：[設定裝置與應用程式憑證](credential-setup.zh-TW.md)，接著[兩個主要示例](app-device-example.zh-TW.md).
+下一步：[設定裝置與 App 憑證](credential-setup.zh-TW.md)，再執行 [App 與裝置整合範例](app-device-example.zh-TW.md)。
 
-繼續：[所有權和釋出生命週期](ownership-sharing.zh-TW.md).
+延伸閱讀：[所有權與解除綁定的生命週期](ownership-sharing.zh-TW.md)。
 
-建築：[帳戶、工廠和執行時生命週期層](device-presence.zh-TW.md).
+架構說明：[帳號、出廠身分與執行階段的生命週期](device-presence.zh-TW.md)。

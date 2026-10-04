@@ -3,13 +3,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { localeConfig } from '../localization/config.mjs';
 import { fingerprint, placeholders, sourceHash } from '../localization/checksums.mjs';
 import { isServerOnlyPricingSource } from '../localization/server-only-pricing.mjs';
+import { isLanguageNeutral, translationQualityErrors } from '../localization/quality.mjs';
 
 const locales = localeConfig.locales.map(({ code }) => code).filter(code => code !== localeConfig.defaultLocale);
 const here = new URL('.', import.meta.url);
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isNonBlankString = value => typeof value === 'string' && value.trim().length > 0;
 const sameStrings = (left, right) => left.length === right.length && left.every((value, index) => value === right[index]);
-const languageNeutralCopy = new Set(['CSV', 'Connect+', 'Grafana', 'HTTP', 'HTTP / SigV4', 'JSON', 'MQTT', 'Realtek', 'SDK', 'WebRTC', 'YouTube', 'mm', '· NT$']);
 
 async function readJSON(relativePath) {
   return JSON.parse(await readFile(new URL(relativePath, here), 'utf8'));
@@ -67,7 +67,8 @@ async function main() {
         errors.push(`${locale} translation artifact is invalid for ${key}`);
         continue;
       }
-      if (value.text === entry.source && /[A-Za-z]{2}/.test(entry.source) && !languageNeutralCopy.has(entry.source)) errors.push(`${locale}: untranslated interface or API copy ${key}`);
+      if (value.text === entry.source && /[A-Za-z]{2}/.test(entry.source) && !isLanguageNeutral(entry.source)) errors.push(`${locale}: untranslated interface or API copy ${key}`);
+      errors.push(...translationQualityErrors(entry.source, value.text).map(error => `${locale}: ${key}: ${error}`));
       if (!isServerOnlyPricingSource(entry.source) && runtime[locale]?.translation?.[key] !== value.text) errors.push(`generated ${locale} resource differs for ${key}`);
       if (lastEntryBySource.get(entry.source) === entry && apiResources[locale]?.system?.[entry.source] !== value.text) errors.push(`generated ${locale} API resource differs for ${key}`);
     }

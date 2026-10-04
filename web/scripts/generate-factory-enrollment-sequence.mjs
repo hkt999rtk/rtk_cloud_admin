@@ -6,11 +6,11 @@ const variants={
   en:{lang:'en',title:'Formal factory enrollment sequence',note:'This is the authorized mass-production flow. Cloud Test Lab is a simplified development test and must not be used for mass production.',actors:['Cloud owner','Platform operator','Factory gateway','Device','Factory enrollment service','Account Manager','Product issuer'],steps:[
     [2,1,'Submit factory CSR'],[1,2,'Issue factory client certificate'],[0,5,'Create Product production run'],[0,2,'Deliver batch JWT securely (shown once)'],[3,2,'Generate key locally; send device CSR'],[2,4,'mTLS + JWT + device CSR'],[4,5,'Check run, Cloud, Product and quota'],[4,6,'Sign using this Product issuer'],[6,2,'Return device certificate and chain'],[2,3,'Install certificate; retain device key']
   ]},
-  'zh-TW':{lang:'zh-Hant',title:'正式工廠簽發時序圖',note:'這是經授權的量產流程。Cloud Test Lab 是簡化的開發測試流程，不可用於量產。',actors:['雲端管理者','平台管理員','工廠閘道','裝置','工廠簽發服務','帳戶管理服務','產品簽發者'],steps:[
-    [2,1,'提交工廠 CSR'],[1,2,'簽發工廠用戶端憑證'],[0,5,'建立產品生產批次'],[0,2,'安全交付一次顯示的批次 JWT'],[3,2,'本機產生私鑰，交付裝置 CSR'],[2,4,'mTLS + JWT + 裝置 CSR'],[4,5,'檢查批次、雲端、產品與配額'],[4,6,'由此產品簽發者簽署'],[6,2,'回傳裝置憑證與憑證鏈'],[2,3,'安裝憑證；私鑰留在裝置']
+  'zh-TW':{lang:'zh-Hant',title:'正式工廠簽發時序圖',note:'這是經授權的量產流程。Cloud Test Lab 是簡化的開發測試流程，不可用於量產。',actors:['雲端擁有者','平台管理員','工廠閘道','裝置','工廠簽發服務','Account Manager','Product 簽發者'],steps:[
+    [2,1,'提交工廠 CSR'],[1,2,'簽發工廠用戶端憑證'],[0,5,'建立 Product 生產批次'],[0,2,'安全交付批次 JWT（僅顯示一次）'],[3,2,'本機產生私鑰，傳送裝置 CSR'],[2,4,'mTLS + JWT + 裝置 CSR'],[4,5,'檢查批次、Cloud、Product 與配額'],[4,6,'由此 Product 簽發者簽署'],[6,2,'回傳裝置憑證與憑證鏈'],[2,3,'安裝憑證；私鑰留在裝置']
   ]},
-  'zh-CN':{lang:'zh-Hans',title:'正式工厂签发时序图',note:'这是经授权的量产流程。Cloud Test Lab 是简化的开发测试流程，不可用于量产。',actors:['云端管理员','平台管理员','工厂网关','设备','工厂签发服务','账户管理服务','产品签发者'],steps:[
-    [2,1,'提交工厂 CSR'],[1,2,'签发工厂客户端证书'],[0,5,'创建产品生产批次'],[0,2,'安全交付仅显示一次的批次 JWT'],[3,2,'本地生成私钥，交付设备 CSR'],[2,4,'mTLS + JWT + 设备 CSR'],[4,5,'检查批次、云端、产品与配额'],[4,6,'由此产品签发者签署'],[6,2,'返回设备证书与证书链'],[2,3,'安装证书；私钥留在设备']
+  'zh-CN':{lang:'zh-Hans',title:'正式工厂签发时序图',note:'这是经授权的量产流程。Cloud Test Lab 是简化的开发测试流程，不可用于量产。',actors:['云端所有者','平台管理员','工厂网关','设备','工厂签发服务','Account Manager','Product 签发者'],steps:[
+    [2,1,'提交工厂 CSR'],[1,2,'签发工厂客户端证书'],[0,5,'创建 Product 生产批次'],[0,2,'安全交付批次 JWT（仅显示一次）'],[3,2,'本地生成私钥，发送设备 CSR'],[2,4,'mTLS + JWT + 设备 CSR'],[4,5,'检查批次、Cloud、Product 与配额'],[4,6,'由此 Product 签发者签署'],[6,2,'返回设备证书与证书链'],[2,3,'安装证书；私钥留在设备']
   ]}
 };
 const escape=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');

@@ -1,8 +1,8 @@
 flowchart LR
-    Client["已验证的MQTT客户端"] --> Broker["经纪人：身份、命名空间和主题策略"]
-    Broker -->|"一般应用主题"| General["应用程式定义主题订阅者"]
-    Broker -->|"装置传输主题"| Transport["支援的装置传输协议"]
-    Broker -->|"执行时日志主题"| Logs["专用的执行时日志模式"]
-    Broker -->|"保留的$vc Shadow主题"| Shadow["影子请求/响应协议"]
-    Shadow -->|"接受、拒绝和通知"| Broker
-    Note["一般主题中的装置ID不是每个装置的访问控制"] -.-> General
+    Client["已通过验证的 MQTT 客户端"] --> Broker["Broker：身份、命名空间与主题规则"]
+    Broker -->|"一般应用程序主题"| General["应用程序自定义主题的订阅者"]
+    Broker -->|"设备传输主题"| Transport["支持的设备传输协议"]
+    Broker -->|"运行时日志主题"| Logs["专用的运行时日志格式"]
+    Broker -->|"保留的 $vc 影子主题"| Shadow["影子请求／响应协议"]
+    Shadow -->|"accepted、rejected 与通知"| Broker
+    Note["一般主题含有设备 ID，不代表有逐设备访问控制。"] -.-> General

@@ -1,15 +1,13 @@
 ---
-title: 装置影子 API 与讯息参考
-description: 查询影子路径、主题字尾、档案栏位、限制和错误。
+title: 设备影子 API 与消息参考
+description: 查询影子 API 路径、主题后缀、文档字段、限制与错误码。
 category: Reference
 keywords:
-- '409'
-- '413'
-- '429'
-- 客户端令牌
-- 版本
-- 8千位元组
-- 名称
+- 版本冲突
+- 大小限制
+- 速率限制
+- 影子名称
+- 请求关联
 - '409'
 - '413'
 - '429'
@@ -20,38 +18,37 @@ keywords:
 language: zh-CN
 applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
 last_verified: '2026-09-04'
-verification: 来源审查和本地测试；现场环境资格待定
+verification: 已完成来源审查与本地测试；尚待实际环境验证
 ---
 
+# 设备影子 API 与消息参考
 
-# 装置影子 API 与讯息参考
+## 识别值与 API 路径
 
-## 身份和路线
-
-|专案|契约|
+| 项目 | 规格 |
 | --- | --- |
-| `devid` / `thingName` |1-128个字元，`[A-Za-z0-9:_-]+` |
-|命名的影子|1-64个字元，`[$A-Za-z0-9:_-]+` |
-|无名MQTT根| `$vc/devices/{devid}/shadow` |
-|命名为MQTT根| `$vc/devices/{devid}/shadow/name/{shadowName}` |
-|阅读| `GET /things/{thingName}/shadow?name={shadowName}` |
-|更新/建立| `POST /things/{thingName}/shadow?name={shadowName}` |
-|删除| `DELETE /things/{thingName}/shadow?name={shadowName}` |
-|名称列表| `GET /api/things/shadow/ListNamedShadowsForThing/{thingName}` |
+| `devid` / `thingName` | 1–128 个字符，符合 `[A-Za-z0-9:_-]+` |
+| 命名影子名称 | 1–64 个字符，符合 `[$A-Za-z0-9:_-]+` |
+| 未命名影子的 MQTT 根路径 | `$vc/devices/{devid}/shadow` |
+| 命名影子的 MQTT 根路径 | `$vc/devices/{devid}/shadow/name/{shadowName}` |
+| 读取 | `GET /things/{thingName}/shadow?name={shadowName}` |
+| 更新／创建 | `POST /things/{thingName}/shadow?name={shadowName}` |
+| 删除 | `DELETE /things/{thingName}/shadow?name={shadowName}` |
+| 列出命名影子 | `GET /api/things/shadow/ListNamedShadowsForThing/{thingName}` |
 
-省略`name`选择无名影子。URL编码名称和ID。列表接受`pageSize`从1到100，以及不透明的`nextToken`。老的`/api/devices/{devid}/shadow`与`/api/devices/{devid}/shadows`路由不是公共相容路由。
+省略 `name` 即选择未命名影子。名称与 ID 都必须做 URL 编码。列表 API 接受 1 到 100 的 `pageSize`，以及不应解读内容的 `nextToken`。旧的 `/api/devices/{devid}/shadow` 与 `/api/devices/{devid}/shadows` 路径不属于公开支持的兼容路径。
 
-## MQTT字尾
+## MQTT 主题后缀
 
-将这些字尾新增到所选根字元中。客户端释出请求并订阅响应/通知；服务端传送后者。
+将下列后缀接在所选的根路径后。客户端发布请求，并订阅由服务传送的响应与通知。
 
-|请求字尾|响应字尾|其他通知|
+| 请求后缀 | 响应后缀 | 其他通知 |
 | --- | --- | --- |
 | `/get` | `/get/accepted`, `/get/rejected` | — |
 | `/update` | `/update/accepted`, `/update/rejected` | `/update/delta`, `/update/documents` |
 | `/delete` | `/delete/accepted`, `/delete/rejected` | — |
 
-在请求之前订阅确切的主题。删除忽略MQTT有效负载。本契约中没有MQTT列表操作；请使用HTTP进行名称阴影列表。
+传送请求前，先订阅完整且明确的主题。DELETE 会忽略 MQTT payload。本规格没有定义 MQTT 列表操作；要列出命名影子，请使用 HTTP。
 
 ## 更新请求
 
@@ -63,64 +60,64 @@ verification: 来源审查和本地测试；现场环境资格待定
 }
 ```
 
-`state`是更新容器。 供应`desired`, `reported`，或两者都用于状态更改；空状态物件也被接受。`version`与`clientToken`是可选的。在本例中，版本7是示例：用当前的GET版本替换或省略它以获得无条件补丁。客户端不会写入差分、元资料或时间戳。
+更新内容放在 `state` 中。若要变更状态，请提供 `desired`、`reported` 或两者；空的 state 对象也会被接受。`version` 与 `clientToken` 都是可选。示例中的版本 7 仅供示意，请改用 GET 取得的当前版本；若省略版本，就会无条件应用部分更新。客户端不能写入 delta、元数据或时间戳。
 
-|栏位或规则|含义|
+| 字段或规则 | 说明 |
 | --- | --- |
-|物件补丁|递回合并；省略的属性仍然存在|
-|财产`null` |移除该属性|
-| `desired:null` / `reported:null` |移除该部分|
-|阵列|原子替换；空元素无效|
-| `version` |比较和更新保护器；不匹配返回409|
-| `clientToken` |相关性字串，最多64个UTF-8位元组；不重复|
+| 对象的部分更新 | 递归合并；未提供的属性保留原值 |
+| 属性值为 `null` | 删除该属性 |
+| `desired:null` / `reported:null` | 删除整个区段 |
+| 数组 | 以原子方式整体替换；不得包含 null 元素 |
+| `version` | 更新前比对版本；不符时返回 409 |
+| `clientToken` | 对应请求与响应的字符串，最多 64 个 UTF-8 字节；不提供请求去重 |
 
-## 回复档案
+## 响应文档
 
-|回应|内容|
+| 响应 | 内容 |
 | --- | --- |
-|被接受|当前状态、元资料、版本、周期时间戳；省略了空部分|
-|更新已接受|接受所需/报告的补丁程式和相关元资料；而不是整个档案|
-|更新三角形|完成顶级层面的当前差异`state`，所需元资料、版本、时间戳|
-|更新档案| `previous`与`current`快照，每个快照都包含状态/元资料/版本；信封时间戳|
-|已接受删除| `{}` |
-|被拒绝| `code`, `message`，时代`timestamp`，以及一个有效的请求`clientToken`在适用的情况下|
+| GET accepted | 当前状态、元数据、版本与 Unix 时间戳；空区段会省略 |
+| UPDATE accepted | 接受的 desired/reported 部分更新与相关元数据；不是完整文档 |
+| UPDATE delta | 最上层 `state` 包含当前完整的状态差异，另有 desired 元数据、版本及时间戳 |
+| UPDATE documents | `previous` 与 `current` 快照，各含 state/metadata/version；外层另有时间戳 |
+| DELETE accepted | `{}` |
+| Rejected | `code`、`message`、Unix `timestamp`，以及适用时带回的有效请求 `clientToken` |
 
-例如，三角事件使用`state.power`，而完整的GET使用`state.delta.power`.元资料映象属性结构，无需`children`封面。公共国家档案没有`updated_at`。 治疗`clientToken`作为特定于响应的响应，而不是假设每条讯息都会回应它。
+例如，delta 事件使用 `state.power`，完整 GET 响应则使用 `state.delta.power`。元数据的结构对应各属性，不会多包一层 `children`。公开的状态文档没有 `updated_at`。是否带回 `clientToken` 取决于响应类型，不要假设每则消息都会附带它。
 
-示例被拒绝的回复：
+rejected 响应示例：
 
 ```json
 {"code":409,"message":"Version conflict","timestamp":1788480000,"clientToken":"tutorial-app-on"}
 ```
 
-## 限制和错误
+## 限制与错误
 
-|限制|价值|
+| 限制 | 数值或规则 |
 | --- | --- |
-|所需/报告的状态大小|8 KiB，不包括生成的元资料；合并储存状态重新验证|
-|状态巢状|最多八个级别|
-|编码|有效的UTF-8 JSON|
-| `clientToken` |最多64个UTF-8位元组|
-|命名列表页面大小| 1–100 |
-|删除版本连续性|48小时墓碑视窗|
-|请求机票价格和机上容量|部署定义；不要硬编码未记录的通用数字|
+| desired/reported 状态大小 | 8 KiB，不计入服务产生的元数据；合并后的存储状态会再次验证 |
+| 状态嵌套层数 | 最多八层 |
+| 编码 | 有效的 UTF-8 JSON |
+| `clientToken` | 最多 64 个 UTF-8 字节 |
+| 命名影子列表的每页条数 | 1–100 |
+| 删除后的版本延续 | 删除记录保留 48 小时 |
+| 请求速率与同时处理容量 | 由部署环境决定；不可将未记载的数字当作所有环境通用的限制 |
 
-|程式|开发者行动|
+| 错误码 | 开发者处理方式 |
 | --- | --- |
-| 400 |正确的JSON、名称、状态形状或无效的阵列/空值使用|
-| 401 |重新验证或更正SigV4签名/到期时间|
-| 403 |正确的主旨、目标装置、功能或策略|
-| 404 |读取目标缺失；第一次更新会建立一个影子|
-| 409 |获取最新资讯，进行对账，然后只有在仍然合适的情况下才会重试|
-| 413 |减少状态或请求大小；考虑合并状态大小|
-| 415 |正确的内容型别或不受支援的编码|
-| 429 |降低并发性/速度并缩小距离|
-| 500 / 503 |将其视为临时服务故障；在重试不确定突变之前阅读|
+| 400 | 修正 JSON、名称、状态结构，或无效的数组／null 用法 |
+| 401 | 重新验证身份，或修正 SigV4 签名与有效期限 |
+| 403 | 检查身份、目标设备、启用功能及授权规则 |
+| 404 | 读取的目标不存在；第一次 UPDATE 会创建影子 |
+| 409 | GET 最新状态，重新计算更新内容；确认仍有必要后才重试 |
+| 413 | 缩小状态或请求内容，并检查合并后的状态大小 |
+| 415 | 修正内容类型或不支持的编码 |
+| 429 | 降低并发数或请求速率，并延迟重试 |
+| 500 / 503 | 视为暂时性服务故障；若不确定更新是否完成，重试前先读取状态 |
 
-MQTT应用程式错误出现在被拒绝的主题上，带有`code`；代理服务故障是一个独立的层。HTTP错误包括状态、JSON和相容性标头。 看到[介面序列](shadow-interfaces.zh-CN.md)与[故障序列](troubleshooting.zh-CN.md).
+MQTT 应用层错误会在 rejected 主题中带有 `code`；MQTT Broker 的错误属于另一层。HTTP 错误包含状态码、JSON 与兼容性HTTP 头。详见[接口时序](shadow-interfaces.zh-CN.md)与[失败处理时序](troubleshooting.zh-CN.md)。
 
-## 交付和并发
+## 消息传递与并发更新
 
-每个影子都有越来越多的变异版本。标准通知协议至少一次，按每个影子的版本顺序排列；允许重复。这不是一个精确一次的交付承诺或保证离线订阅者会收到每个事件。不同的影子具有独立的排序。HTTP变异成功不会等待通知交付。对于相同版本的事件，请独立跟踪事件型别并请求相关性。
+每个影子的更新版本会持续递增。标准通知规范采用至少一次投递，同一影子依版本排序，允许重复消息；这不代表恰好一次传递，也不保证离线订阅者能收到每个事件。不同影子的顺序互不相关。HTTP 更新成功不会等待通知送达。同版本事件的类型与请求对应关系应分别跟踪。
 
-继续：[完整的API和讯息示例](api-examples.zh-CN.md).
+延伸阅读：[完整 API 与消息示例](api-examples.zh-CN.md)。

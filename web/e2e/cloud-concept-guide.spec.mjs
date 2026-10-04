@@ -153,7 +153,7 @@ test('[UI-CA-CLOUD-GUIDE-002] Empty My Clouds retains its guide and the edit dia
   if (isMobile) await page.locator('.mobile-nav-close').click();
   await expect(page.getByRole('button', { name: '我擁有的', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '編輯', exact: true }).first().click();
-  const translatedDialog = page.getByRole('dialog', { name: '編輯雲', exact: true });
+  const translatedDialog = page.getByRole('dialog', { name: '編輯雲端', exact: true });
   await expect(translatedDialog.getByRole('textbox', { name: '說明', exact: true })).toBeVisible();
   await expect(translatedDialog).toContainText('更改雲端名稱不會改變雲端 ID。');
   await expect(translatedDialog).not.toContainText('slug');

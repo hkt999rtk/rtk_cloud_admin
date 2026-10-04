@@ -1,41 +1,30 @@
 ---
-title: PRO2 云端范例
-description: 构建、燃烧和测试独立的MQTT和H.264示例。
+title: PRO2 云端示例
+description: 构建、烧录并测试独立的 MQTT 与 H.264 示例。
 category: Firmware
-keywords:
-- PRO2
-- MQTT
-- H264
-- 照相机
-- 韧体中的程式）
-- UART
-- H264
-- camera
-- firmware
-- UART
+keywords: [PRO2, MQTT, H264, camera, firmware, UART, 摄像头, 固件, 烧录, 串口]
 language: zh-CN
 applies_to: AmebaPro2 SDK 9.6e
 last_verified: 2026-09-07
-verification: 来源和主机验证；物理板接受待定。
+verification: 源码与主机端验证；实体开发板验收仍待完成。
 ---
+# PRO2 云端示例
 
-# PRO2 云端范例
+## 选择测试方式
 
-## 选择您的测试路径
+打开 [PRO2 云端示例](/console/chipset-sdk/pro2/cloud-examples)选择版本。每个版本都包含源码、本离线指南、三个完整的非 TrustZone Flash 镜像，以及对应的 SHA-256 校验文件。版本清单会标明准确的源码与 SDK 版本。
 
-开放[PRO2 云端范例](/console/chipset-sdk/pro2/cloud-examples)选择一个版本。每个版本都有此离线指南的源程式、三个完整的非TrustZone快闪记忆体映像和SHA-256侧载程式。版本清单确定了确切的源程式和SDK修订版本。
+**网站提供的二进制文件是隔离测试版本。**其中的 Wi-Fi 占位值、自签名身份与保留的 `.test` 服务无法连接你的 Cloud。仅可用于检查下载、镜像传输与开发板启动。使用测试配置时，反复出现网络错误属于预期行为。镜像传输成功，不代表云端连接或摄像头运行正常。
 
-**网站二进位制档案是孤立的测试构建。**他们的Wi-Fi位元组，自签身份和保留`.test`服务无法连线到您的云端。仅使用它们来检查下载、映像传输和板子启动。它们可能会反复报告网路错误；这是测试设定中预期的。成功传输映像并不能证明云端连线或相机操作。
+要测试实际 Cloud，请从 Developer UI 下载自己的设备证书，并在本地重新构建。设备证书与观看端或用户凭证不同。这些示例未实现证书签发、在线编译、音频，或烧录后的凭证配置。
 
-对于真正的云测试，请从开发者介面下载您自己的装置证书，然后在本地重新构建。装置证书与检视器/使用者凭据不同。这些示例不实现证书发行、线上编译、音讯或后快闪记忆体凭据配置。
+## 准备硬件与依赖工具
 
-## 准备硬体和依赖项
+请使用兼容 SDK 9.6e 的 AmebaPro2 开发板、稳定的开发板电源，以及符合开发板指定电压的 USB UART。将适配器 TX 接至开发板 RX、适配器 RX 接至开发板 TX，并共接 GND。不要接入 RS-232 电压，也不要假设 UART 适配器能为开发板供电。请按开发板手册确认 UART 与下载引脚。摄像头默认为 GC2053；使用其他传感器时，必须明确选择。
 
-使用与SDK 9.6e相容的AmebaPro2板、稳定的板电力和板上的USB UART，电压为板上的说明所示。将介面卡TX连线到板RX，介面卡RX连线到板TX，并连线到共同的GND。不要连线RS-232电压或假设UART介面卡可以为板供电。请使用板上的手册确认UART/下载引脚。相机预设为GC2053；必须明确选择不同的感测器。
+通过已授权的 SDK 发布渠道获取原版 AmebaPro2 SDK 9.6e 与 RTK Ameba WebRTC SDK。本源码压缩包不包含原版 SDK。请在 `dependencies.json` 选择 RTK 版本，并安装 GCC 10.3.1/newlib 4.1.0（gcc-arm-none-eabi-10.3-2021.10）、Python 3、CMake、Ninja 和 OpenSSL。构建流程会检查这些版本，并在构建前后计算厂商 SDK 的哈希值。
 
-透过您授权的SDK分发渠道获取原始AmebaPro2 SDK 9.6e和RTK Ameba WebRTC SDK。原始SDK不包含在本源存档中。选择RTK修订版本`dependencies.json`. 安装GCC 10.3.1/newlib 4.1.0（gcc-arm-none-eabi-10.3-2021.10）、Python 3、CMake、Ninja和OpenSSL。构建检查这些版本，并在构建前后对供应商SDK进行杂凑。
-
-将储存库分开，并配置它们的绝对路径：
+请将各代码仓库放在不同目录，并配置绝对路径：
 
 ```sh
 export RTK_AMEBA_SDK_ROOT=/absolute/path/to/sdk-ameba-v9.6e
@@ -45,61 +34,61 @@ mkdir -p local
 cp config/device.example.json local/device.local.json
 ```
 
-## 配置您自己的云
+## 配置自己的 Cloud
 
-设定`wifi_ssid`, `wifi_password`与`wifi_security` (`wpa2-aes`, `open`或者`provisioned`）。配置模式等待外部管理的Wi-Fi关联；此应用程式不会配置或重新连线该关联本身。
+配置 `wifi_ssid`、`wifi_password` 和 `wifi_security`（`wpa2-aes`、`open` 或 `provisioned`）。Provisioned 模式会等待外部管理的 Wi-Fi 连接；本应用不会自行配置或重新建立该连接。
 
-设定`device_id`, `token_url`, `cloud_base_url`, `mqtt_broker_host`与`mqtt_broker_port`从您选择的云端使用。使用其装置mTLS令牌端点，而不是普通的HTTP API埠。 一套`mqtt_command_topic`, `mqtt_presence_topic`与`mqtt_tenant_topic_prefix`到装置的授权主题。不要混合环境或装置ID。
+根据所选 Cloud 配置 `device_id`、`token_url`、`cloud_base_url`、`mqtt_broker_host` 和 `mqtt_broker_port`。请使用该环境的设备 mTLS Token 端点，不是纯 HTTP API 端口。将 `mqtt_command_topic`、`mqtt_presence_topic` 和 `mqtt_tenant_topic_prefix` 设为设备获授权的主题。不要混用不同环境或设备 ID。
 
-设定`device_certificate_chain_pem`, `device_private_key_pem`, `https_server_ca_pem`与`mqtt_server_ca_pem`到您当地的PEM档案。构建检查格式、有效日期、身份和匹配金钥；执行时验证伺服器CA和主机名。在TLS之前需要有效的SNTP时间。
+将 `device_certificate_chain_pem`、`device_private_key_pem`、`https_server_ca_pem` 和 `mqtt_server_ca_pem` 设为本地 PEM 文件路径。构建时会检查格式、有效期、身份与密钥配对；运行时会验证服务器 CA 与主机名。进行 TLS 前，必须先通过 SNTP 获取正确时间。
 
-**纯文字私钥/证书档案和嵌入式金钥阵列仅用于开发快捷方式。**生产私钥必须配置到**PRO2保护区**。在生产前，请将开发凭证整合替换为受保护区域签名/访问。此版本不实现该整合。切勿提交这些本地档案或释出包含您真实私钥的韧体映像。
+**明文私钥／证书文件与内嵌密钥数组，仅可作为开发时的简化方式。**生产私钥必须预配到 **PRO2 protected zone**。量产前，须将开发用凭证集成改为通过 protected zone 签名与访问；此版本尚未实现该集成。不要提交这些本地文件，也不要发布包含真实私钥的固件镜像。
 
-## 源程式码概述
+## 源码导览
 
-`common/app.c`启动一个FreeRTOS工作者，加入/等待Wi-Fi，同步时间，执行所选的示例，然后在五秒后清理并重试。`common/network.c`拥有明确配置的Wi-Fi连线，但在应用程式重试期间保留外部管理的配置Wi-Fi。
+`common/app.c` 启动 FreeRTOS 工作进程，连接或等待 Wi-Fi、同步时间、运行所选示例，最后清理并在五秒后重试。`common/network.c` 管理明确配置的 Wi-Fi 连接；应用重试时，会保留由外部管理的 provisioned Wi-Fi 连接。
 
-`common/mqtt_identity.c`在MQTT连线前更新云凭据，并在不记录令牌的情况下提取代理服务身份。`common/video.c`配置和检测外部RTK装置/媒体服务。RTK SDK提供现有的协议实现；这些示例并没有分叉它。
+`common/mqtt_identity.c` 在 MQTT CONNECT 前更新云端凭证，并获取 Broker 身份信息，不将 Token 写入日志。`common/video.c` 负责配置与轮询外部 RTK 设备／媒体服务。RTK SDK 提供现有协议实现；这些示例不另建协议分支。
 
-`tools/build.py`将外部CMake钩子注入原始SDK中。`assets/test_video.c`包含合成影片。不需要SD卡。修改每个示例的`main.c`用于应用程式行为，并更改装置身份和端点的本地配置。
+`tools/build.py` 向原版 SDK 注入外部 CMake hook。`assets/test_video.c` 包含合成测试视频，无需 SD 卡。应用行为可修改各示例的 `main.c`；设备身份与端点则修改本地配置。
 
 ## MQTT
 
-从提取的源根构建：
+在解压后的源码根目录执行构建：
 
 ```sh
 python3 tools/build.py mqtt --config local/device.local.json
 ```
 
-`examples/mqtt/main.c`建立mTLS令牌提供商和MQTTS传输，订阅命令，并在订阅后释出存在状态。它不会连结WebRTC媒体引擎。使用授权的云应用程式订阅装置的存在主题，并向其命令主题释出命令。使用UART位元组计数日志和应用程式有效载荷验证双方收件。断开/重新连线代理服务，并验证重新订阅和新的存在状态。不要将装置凭据用作检视器凭据。
+`examples/mqtt/main.c` 创建 mTLS Token 提供程序与 MQTTS 传输，订阅命令，并在订阅完成后发布在线状态。此示例不链接 WebRTC 媒体引擎。请使用已授权的 Cloud 应用，订阅设备在线状态主题，并向命令主题发布命令。通过 UART 字节数日志与应用消息内容，确认双方都收到数据。断开并重新连接 Broker，验证重新订阅与新的在线状态。不要将设备凭证当作观看端凭证。
 
-## Webrtc-测试影片
+## Webrtc-test-video
 
 ```sh
 python3 tools/build.py webrtc_test_video --config local/device.local.json
 ```
 
-`examples/webrtc_test_video/main.c`传送内建的320×240、15 FPS、两秒合成H.264剪辑。帧的节奏是连续的，时间戳在回圈中保持连续；每个帧都是IDR，带有SPS/PPS，满足下一个关键帧请求。`common/playback.h`处理节奏/时间戳计算。
+`examples/webrtc_test_video/main.c` 发送内置的 320×240、15 FPS、两秒合成 H.264 视频。帧会按配置速率发送，循环播放时时间戳持续递增；每帧都是带有 SPS/PPS 的 IDR，因此可满足下一个关键帧请求。`common/playback.h` 负责发送节奏与时间戳计算。
 
-为同一装置/环境开启一个授权的RTK云检视器。确认剪辑在多个回圈中重复播放，关闭检视器，重新连线并确认影片恢复播放。先测试直接模式。 一套`force_relay`转为真实并重建强制继电器；验证继电器候选证据。TURN凭据/URL来自Cloud ICE配置。使用相应的伺服器配置测试TURN/UDP和TURN/TCP；不支援TURN/TLS。
+打开已授权的 RTK Cloud 观看端，使用相同设备与环境。确认视频可连续循环播放多次，关闭观看端后重新连接，再确认播放恢复。先测试直连模式。要强制中继，将 `force_relay` 设为 true 并重新构建，且检查 relay candidate 的证据。TURN 凭证与 URL 来自 Cloud ICE 配置。结合对应服务器配置测试 TURN/UDP 与 TURN/TCP；不支持 TURN/TLS。
 
-## Webrtc摄像头
+## Webrtc-camera
 
 ```sh
 python3 tools/build.py webrtc_camera --config local/device.local.json --sensor SENSOR_GC2053
 ```
 
-`examples/webrtc_camera/main.c`使用外部MMFv2相机/H.264桥接器和有限帧池。预设影片为1080p，15 FPS，2,097,152 bps。选择SDK感测器头中为您的板定义的感测器；不受支援的选择或容量报告错误。
+`examples/webrtc_camera/main.c` 使用外部 MMFv2 摄像头／H.264 桥接层，以及设有容量上限的帧池。默认视频为 1080p、15 FPS、2,097,152 bps。请选择 SDK 传感器头文件中适用于开发板的传感器；不支持的选项或容量会报告错误。
 
-确认观看器显示一个不断变化的直播场景。请求关键帧，关闭并重新开启会话，并验证流媒体恢复。清理在销毁装置伫列和帧池之前停止摄像头生产者。在重复会话和在硬体上长时间执行时检查记忆体；主机/QEMU测试不模拟MMF、感测器DMA或物理Wi-Fi。
+确认观看端显示持续变化的实时画面。请求关键帧，关闭并重新打开会话，再验证流恢复。清理时会先停止摄像头帧生产端，再销毁设备队列与帧池。请在实体硬件上反复建立会话并长时间运行，观察内存使用；主机／QEMU 测试不会模拟 MMF、传感器 DMA 或实体 Wi-Fi。
 
-## 从URL或本地档案烧录
+## 从 URL 或本地文件烧录
 
-在HTTPS上使用桌面Chrome或Edge与Web序列连线。关闭其他持有USB UART的程式。
+请使用支持 Web Serial 的桌面版 Chrome 或 Edge，通过 HTTPS 打开页面。关闭其他占用 USB UART 的程序。
 
-对于网站影象，请选择**烧掉这个例子**，阅读并接受释出条款，然后下载韧体。浏览器在启用烧录之前会检查其大小和SHA-256。如果之前的URL过期，则重试以获取新的URL。在烧录之前必须解决CORS/网路错误或杂凑值不匹配。
+使用网站镜像时，选择 **Burn this example**，阅读并接受发布条款后下载固件。浏览器会先检查文件大小与 SHA-256，再允许烧录。如果此前 URL 已过期，重试会获取新 URL。CORS／网络错误或哈希不符，必须先解决才能烧录。
 
-对于您自己的构建，请开启[PRO2韧体烧录器](/console/chipset-sdk/pro2/firmware-burner)，连线UART，开启韧体面板，并从中选择匹配的档案`output/`:
+使用自行构建的版本时，打开 [PRO2 固件烧录工具](/console/chipset-sdk/pro2/firmware-burner)，连接 UART，打开固件面板，再从 `output/` 选择对应文件：
 
 ```text
 amebapro2_mqtt_flash_ntz.bin
@@ -107,19 +96,19 @@ amebapro2_webrtc_test_video_flash_ntz.bin
 amebapro2_webrtc_camera_flash_ntz.bin
 ```
 
-这些是完整的非信任区快闪记忆体映像，写入于**0x0**。请勿选择仅限应用程式`firmware_ntz.bin`对于此全图流。明细档识别影象布局；仅档名无法确定相容性。在写入之前，请将显示的SHA-256与后备车进行比较。
+这些都是完整的非 TrustZone Flash 镜像，写入地址为 **0x0**。此完整镜像流程不可选择仅含应用的 `firmware_ntz.bin`。版本清单会标明镜像布局，仅凭文件名无法确认兼容性。写入前，请比对界面上的 SHA-256 与校验文件。
 
-对于具有启动和重置控制的板子：按住启动键，按下一次重置键，释放启动键，然后开始烧录。如果控制不同，请遵循板子的下载模式说明。保持验证开启。整个晶片的擦除也会删除其他快闪记忆体内容；仅在故意需要时使用。成功验证后，重置到正常启动，并观察115200位/秒的UART。DTR/RTS重置需要正确连线这些引脚；否则手动重置。
+开发板如果有 BOOT 与 RESET 控制：按住 BOOT、按一下 RESET、松开 BOOT，再开始烧录。如果控制方式不同，请按开发板的下载模式说明操作。请保持烧录校验启用。整片芯片擦除也会移除其他 Flash 内容，仅在确实需要时使用。校验成功后，复位为正常启动，并以 115200 baud 观察 UART。DTR/RTS 复位需要正确接线，否则请手动复位。
 
-## 结果和恢复
+## 结果确认与故障恢复
 
-真正的配置构建应该达到`EXAMPLE_NETWORK_READY`与`EXAMPLE_READY kind=...`.仅仅这些标记无法证明MQTT接收或影片播放：还要检查接收应用程式。网路/时间故障会导致有限重试；检查Wi-Fi模式、DHCP、DNS和SNTP。TLS故障需要匹配身份、CA、时间和端点检查。切勿将私钥或令牌贴上到诊断日志中。
+完成真实环境配置的版本应输出 `EXAMPLE_NETWORK_READY` 和 `EXAMPLE_READY kind=...`。这些标记本身不能证明 MQTT 已收到数据或视频已播放，还须检查接收端应用。网络或时间同步失败会触发有次数上限的重试；请检查 Wi-Fi 模式、DHCP、DNS 和 SNTP。TLS 失败时，须检查身份是否匹配、CA、时间与端点。不要将私钥或 Token 粘贴到诊断日志中。
 
-如果UART正在使用，请关闭另一个终端。如果下载模式超时，请重复BOOT/RESET序列。在中断闪烁或验证失败后，请保持板块处于下载模式，并以较低速度重试；不要将部分映像视为可引导。在URL过期或校验和不匹配后，下载新的位元组。
+UART 被占用时，关闭其他终端。进入下载模式超时时，重新执行 BOOT／RESET 步骤。烧录中断或校验失败后，让开发板保持下载模式，并降低速度重试；不要将不完整镜像视为可启动版本。URL 过期或校验不符时，请重新下载文件。
 
-释出验证报告区分了编译器、主机、QEMU和物理板证据。已知限制：在重新订阅过程中，带有31秒令牌的两次QEMU压力执行失败；示例使用现有的300秒令牌请求。物理快闪记忆体/引导、相机、Wi-Fi恢复和真正的使用者云访问仍然待定，直到单独测试。
+版本验证报告分别记录编译器、主机、QEMU 与实体开发板的验证证据。已知限制：使用 31 秒 Token 的两个会话 QEMU 压力测试，在重新订阅时失败；示例沿用现有的 300 秒 Token 请求。实体烧录／启动、摄像头、Wi-Fi 恢复与真实用户 Cloud 访问，都仍需单独测试后才能确认。
 
-## 重现本地验证
+## 复现本地验证流程
 
 ```sh
 python3 tools/test_local.py
@@ -131,4 +120,4 @@ python3 tools/test_qemu.py udp
 python3 tools/test_turn_tcp.py
 ```
 
-本地测试还需要FFmpeg、ffprobe、一个主机C/C++编译器和libcjson。QEMU/TURN测试需要外部RTK SDK的主机/QEMU先决条件；TCP框架使用Docker Coturn。使用以下方法记录预期和观察到的结果`docs/hardware-checklist.md`，并保留`docs/validation.md`附上您的释放证据。
+本地测试另需 FFmpeg、ffprobe、主机 C/C++ 编译器与 libcjson。QEMU／TURN 测试需要外部 RTK SDK 所列的主机／QEMU 必备工具；TCP 测试工具使用 Docker Coturn。请按 `docs/hardware-checklist.md` 记录预期与实际结果，并将 `docs/validation.md` 一并保留为版本验证证据。

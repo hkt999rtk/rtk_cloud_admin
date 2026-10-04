@@ -11,7 +11,14 @@ const catalogPath = resolve(import.meta.dirname, '../localization/catalog.json')
 const catalog = JSON.parse(await readFile(catalogPath, 'utf8'));
 const known = new Set(catalog.strings.map(({ key }) => key));
 const found = new Set();
+const references = new Map();
 const bareCopy = [];
+function record(key, filename) {
+  found.add(key);
+  const locations = references.get(key) || new Set();
+  locations.add(filename);
+  references.set(key, locations);
+}
 
 for (const name of await readdir(root)) {
   if (!/\.(jsx|mjs)$/.test(name) || name.endsWith('.test.mjs')) continue;
@@ -21,17 +28,17 @@ for (const name of await readdir(root)) {
     CallExpression(path) {
       if (path.node.callee.type !== 'Identifier' || !['translate', 'ask', 'setError', 'setProductNameError', 'setMessage'].includes(path.node.callee.name)) return;
       const key = path.node.arguments[0];
-      if (key?.type === 'StringLiteral' && key.value) found.add(key.value);
+      if (key?.type === 'StringLiteral' && key.value) record(key.value, `web/src/${name}`);
       if (path.node.callee.name === 'ask' && key?.type === 'TemplateLiteral') bareCopy.push(`${name}:${path.node.loc.start.line}: confirmation text`);
     },
     ReturnStatement(path) {
       if (path.getFunctionParent()?.node.id?.name !== 'webhookError') return;
-      if (path.node.argument?.type === 'StringLiteral') found.add(path.node.argument.value);
+      if (path.node.argument?.type === 'StringLiteral') record(path.node.argument.value, `web/src/${name}`);
     },
     ObjectProperty(path) {
       const field = path.node.key.name || path.node.key.value;
       if (!['label', 'title', 'detail', 'hint', 'message', 'description', 'reason'].includes(field)) return;
-      if (path.node.value?.type === 'StringLiteral' && /[A-Za-z]{2}/.test(path.node.value.value)) found.add(path.node.value.value);
+      if (path.node.value?.type === 'StringLiteral' && /[A-Za-z]{2}/.test(path.node.value.value)) record(path.node.value.value, `web/src/${name}`);
     },
     JSXText(path) {
       if (path.findParent(parent => parent.isJSXElement() && ['code', 'pre', 'kbd'].includes(parent.node.openingElement.name?.name))) return;
@@ -41,7 +48,7 @@ for (const name of await readdir(root)) {
     JSXAttribute(path) {
       const element = path.parentPath.node.name?.name;
       if (element === 'MetricCard' && ['label', 'hint'].includes(path.node.name.name) && path.node.value?.type === 'StringLiteral') {
-        found.add(path.node.value.value);
+        record(path.node.value.value, `web/src/${name}`);
       }
       if (!['aria-label', 'placeholder', 'title', 'alt'].includes(path.node.name.name)) return;
       if (/^[A-Z]/.test(element || '')) return;
@@ -73,34 +80,34 @@ for (const name of await readdir(apiRoot)) {
   const systemMessage = /(?:"(?:source_message|message)"|SourceMessage)\s*:\s*("(?:\\.|[^"\\])*")/g;
   for (const match of source.matchAll(systemMessage)) {
     const value = JSON.parse(match[1]);
-    if (/[A-Za-z]{2}/.test(value)) found.add(value);
+    if (/[A-Za-z]{2}/.test(value)) record(value, `internal/app/${name}`);
   }
   for (const match of source.matchAll(/unavailableTelemetryForDevice\([^,\n]+,\s*"[^"]+",\s*("(?:\\.|[^"\\])*")/g)) {
-    found.add(JSON.parse(match[1]));
+    record(JSON.parse(match[1]), `internal/app/${name}`);
   }
   const telemetryErrors = source.match(/func telemetryUnavailableFromVideoCloudError\([^]*?(?=\nfunc |$)/)?.[0] || '';
   for (const match of telemetryErrors.matchAll(/return\s+"[^"]+",\s*("(?:\\.|[^"\\])*")/g)) {
-    found.add(JSON.parse(match[1]));
+    record(JSON.parse(match[1]), `internal/app/${name}`);
   }
 }
 
 const readinessFacts = await readFile(resolve(apiRoot, '../readinessfacts/facts.go'), 'utf8');
 for (const match of readinessFacts.matchAll(/(?:Detail:\s*|fact\.Detail\s*=\s*)("(?:\\.|[^"\\])*")/g)) {
   if (readinessFacts.slice(match.index + match[0].length).trimStart().startsWith('+')) continue;
-  found.add(JSON.parse(match[1]));
+  record(JSON.parse(match[1]), 'internal/readinessfacts/facts.go');
 }
 
 const pricingSource = await readFile(resolve(root, 'service-pricing.mjs'), 'utf8');
 traverse(parse(pricingSource, { sourceType: 'module' }), {
   VariableDeclarator(path) {
     if (path.node.id.name === 'pricingGroups' && path.node.init?.type === 'ArrayExpression') {
-      for (const item of path.node.init.elements) if (item?.type === 'StringLiteral') found.add(item.value);
+      for (const item of path.node.init.elements) if (item?.type === 'StringLiteral') record(item.value, 'web/src/service-pricing.mjs');
     }
     if (path.node.id.name === 'servicePricing' && path.node.init?.type === 'ArrayExpression') {
       for (const row of path.node.init.elements) {
         if (row?.type !== 'ObjectExpression') continue;
         for (const field of row.properties) {
-          if (field.type === 'ObjectProperty' && ['name', 'unit', 'referenceUnit', 'readiness', 'rule', 'benchmark', 'comparison'].includes(field.key.name) && field.value.type === 'StringLiteral') found.add(field.value.value);
+          if (field.type === 'ObjectProperty' && ['name', 'unit', 'referenceUnit', 'readiness', 'rule', 'benchmark', 'comparison'].includes(field.key.name) && field.value.type === 'StringLiteral') record(field.value.value, 'web/src/service-pricing.mjs');
         }
       }
     }
@@ -116,7 +123,7 @@ for (const name of await readdir(burnerRoot)) {
     StringLiteral(path) {
       const value = path.node.value;
       if (value.startsWith('fa-solid ') || value.includes('SFMono-Regular')) return;
-      if (/\b[A-Za-z]{2,}\b.*\s+.*\b[A-Za-z]{2,}\b/.test(value)) found.add(value);
+      if (/\b[A-Za-z]{2,}\b.*\s+.*\b[A-Za-z]{2,}\b/.test(value)) record(value, `web/src/pro2-firmware-burner/${name}`);
     },
   });
 }
@@ -125,6 +132,10 @@ const missing = [...found].filter(key => !known.has(key) && !known.has(`${key}_o
 const pricingInPublicSource = [...found].filter(isServerOnlyPricingSource);
 if (process.argv.includes('--extract')) {
   for (const key of missing) catalog.strings.push({ key, source: key, context: 'Admin Console interface message', placeholders: placeholders(key) });
+  for (const entry of catalog.strings) {
+    const locations = references.get(entry.key);
+    if (locations) entry.context = `Used in ${[...locations].sort().join(', ')}. ${entry.context.replace(/^Used in .*?\. /, '')}`;
+  }
   await writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
   console.log(`Added ${missing.length} English strings to the catalog.`);
 } else {

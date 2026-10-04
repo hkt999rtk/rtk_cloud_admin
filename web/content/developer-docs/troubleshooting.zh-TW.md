@@ -1,65 +1,64 @@
 ---
 title: 疑難排解與相容性
-description: 按協議層診斷故障，並瞭解RTK Shadow相容性邊界。
+description: 依協定層定位問題，瞭解 RTK 裝置影子的相容範圍。
+
 category: Operate and troubleshoot
 keywords:
-- '401'
-- '403'
-- '409'
-- 暫停
-- 伺服器
-- 體4
-- SUBACK
+- 疑難排解
+- 相容性
+- 逾時
+- 身分驗證
+- 版本衝突
 - '401'
 - '403'
 - '409'
 - timeout
 - AWS
 - SigV4
+- SUBACK
 language: zh-TW
 applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
 last_verified: '2026-09-04'
-verification: 來源審查和本地測試；現場環境資格待定
+verification: 已完成來源審查與本機測試；尚待實際環境驗證
 ---
-
 
 # 疑難排解與相容性
 
-從第一個故障層開始：TLS、令牌發行、MQTT連線、訂閱、釋出、影子響應，然後是裝置操作。一個層次的成功並不證明下一層。
+從第一個失敗的環節開始檢查：TLS、token 簽發、MQTT 連線、訂閱、發布、影子回應，再到裝置操作。某一層成功，不代表下一層也成功。
 
-[開啟重新設計的序列圖](assets/authentication-failures.zh-TW.html)
+[開啟時序圖](assets/authentication-failures.zh-TW.html)
 
-## 症狀清單
+## 症狀檢查表
 
-|症狀|檢查並下一步操作|
+| 症狀 | 檢查項目與下一步 |
 | --- | --- |
-|TLS握手失敗|端點主機名稱、CA捆綁包、時鐘、證書有效期、匹配的私鑰|
-|令牌請求被拒絕|請求範圍、證書衍生裝置ID、活動裝置、應用程式授權、功能|
-|MQTT連線被拒絕|返回的使用者名稱和基本客戶端ID、允許的角色字尾、當前訪問令牌，`mqtt`能力|
-|一個連線反覆斷開|另一個過程可能使用相同的客戶端ID|
-|訂閱被拒絕|使用確切授予的主題；廣泛的影子萬用字元和另一個裝置保留的主題不等同|
-|一般主題有效，影子失敗|驗證`iot_shadow`獨立確認目標/主要許可權|
-|釋出成功，沒有Shadow回覆|在請求之前驗證SUBACK，確切的響應主題、待處理的請求令牌和應用程式超時|
-|Shadow GET返回404|啟動不會建立狀態；第一個有效的UPDATE會建立狀態|
-|在所需更新後沒有差異|獲取當前狀態；請求的屬性可能已經與報告的狀態匹配|
-|裝置從未改變狀態|已接受的Shadow補丁程式不會執行硬體；檢查韌體處理|
-|HTTP簽名被拒絕|使用返回的端點/地區、服務`iotdevicegateway`，會話令牌，當前憑據和時鐘|
-| 409 |獲取當前版本並進行對賬；不要重新傳送不變的過期版本|
-|重複通知|至少一次交付允許重複；不丟失相同版本的事件型別的去重|
-|429或緩慢的響應|限制併發執行，降低速度並退縮；請求部署限制|
+| TLS 交握失敗 | 檢查端點主機名稱、CA 憑證組、時鐘、憑證有效期限，以及私鑰是否匹配 |
+| token 請求被拒絕 | 檢查請求 scope、憑證對應的裝置 ID、裝置是否啟用、應用程式授權及服務功能 |
+| MQTT CONNECT 被拒絕 | 使用回傳的 username 與 Client ID 基底、允許的角色後綴、有效 access token，並確認已啟用 `mqtt` |
+| 某個連線反覆斷開 | 可能有另一個程序使用相同 Client ID |
+| SUBSCRIBE 被拒絕 | 使用明確獲授權的完整主題；廣泛的 Shadow 萬用字元或其他裝置的保留主題不具相同權限 |
+| 一般主題可用，影子操作失敗 | 另外檢查 `iot_shadow`，並確認目標與呼叫者權限 |
+| 發布成功，沒有影子回應 | 確認請求前已收到 SUBACK、完整回應主題正確，並檢查等待中的請求 token 及應用程式逾時 |
+| 影子 GET 回傳 404 | 啟用裝置不會建立狀態；第一次有效 UPDATE 才會建立 |
+| 更新 desired 後沒有 delta | GET 目前狀態；要求的屬性可能已與 reported 一致 |
+| 裝置狀態始終未改變 | 影子接受部分更新不會直接操作硬體；請檢查韌體處理流程 |
+| HTTP 簽章被拒絕 | 使用回傳的 endpoint／region、服務名稱 `iotdevicegateway`、session token、有效驗證資訊及正確時鐘 |
+| 409 | GET 目前版本後重新計算更新內容；不要原樣重送過期版本 |
+| 通知重複 | 至少一次傳遞允許重複；去重時不能漏掉同版本的不同事件類型 |
+| 429 或回應緩慢 | 限制並行數、降低速率並延遲重試；向管理員確認部署限制 |
 
-如需支援，請記錄UTC時間、操作、協議、狀態/錯誤程式、clientToken、裝置/影子識別符號（如果允許）以及SDK/客戶端版本。請排除原始令牌、憑證捆綁包、私鑰和敏感應用程式有效載荷。
+需要支援時，請記錄 UTC 時間、操作、協定、狀態／錯誤碼、clientToken、允許提供的裝置／影子識別值，以及 SDK／用戶端版本。不要附上原始 token、整組驗證資訊、私鑰或敏感的應用程式 payload。
 
-## 相容性邊界
+## 相容範圍
 
-RTK Shadow遵循AWS風格的檔案、合併、差分、版本和HTTP資料平面模型。RTK MQTT使用`$vc/devices/{devid}/shadow/...`. `$aws/things/...`不是別名。AWS Device SDK MQTT主題構建器需要適應`$vc`；AWS服務SDK使用帶有返回的SigV4憑據的自定義HTTP端點。
+RTK Shadow 採用 AWS 風格的文件、合併、delta、版本及 HTTP 資料介面模型。RTK MQTT 使用 `$vc/devices/{devid}/shadow/...`，`$aws/things/...` 不是別名。AWS Device SDK 的 MQTT 主題產生方式需要調整為 `$vc`；AWS 服務 SDK 則使用自訂 HTTP 端點與回傳的 SigV4 驗證資訊。
 
-`thingName`是RTK嗎`devid`。命名和未命名的影子是獨立的。不要使用舊的`/api/devices/{devid}/shadow`路由，從主題字串中推斷憑據，或插入內部租戶字首。不要假設檔案模型本身會限制裝置僅報告和應用程式僅為所需；策略定義許可權。
+`thingName` 就是 RTK 的 `devid`。具名與未命名影子彼此獨立。不要使用舊的 `/api/devices/{devid}/shadow` 路徑、從主題字串推導驗證資訊，或自行插入內部租戶前綴。文件模型本身不會限制裝置只能寫 reported、應用程式只能寫 desired；權限由授權規則決定。
 
-## 資格狀態
+## 驗證狀態
 
-本版本與頁面元資料中的源快照相關聯。本地協議測試和圖表檢查記錄在維護者驗證報告中。生產連線限制、經紀商策略和權利執行必須根據您的目標環境進行驗證；本版本不證實部署。API行為、憑據或許可權不得更改以使示例透過。
+本版對應各頁中繼資料列出的原始碼快照。本機協定測試與圖表檢查結果記錄在維護者驗證報告中。正式環境的連線限制、Broker 規則及服務授權限制，必須在目標環境驗證；本版不代表任何部署已通過認證。不要為了讓範例通過，就變更 API 行為、驗證資訊或權限。
 
-返回[概述](overview.zh-TW.md), [MQTT快速入門](mqtt-quickstart.zh-TW.md)，或者[影子快速入門](shadow-quickstart.zh-TW.md).
+返回[概覽](overview.zh-TW.md)、[MQTT 快速入門](mqtt-quickstart.zh-TW.md)或[裝置狀態同步快速入門](shadow-quickstart.zh-TW.md)。
 
-繼續：[分步整合除錯](debugging.zh-TW.md).
+延伸閱讀：[逐步整合除錯](debugging.zh-TW.md)。

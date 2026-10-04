@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import { Marked, Renderer } from 'marked';
 import { parse } from 'yaml';
 import { configuredLocales } from '../localization/config.mjs';
+import { documentationQualityErrors, translationQualityErrors } from '../localization/quality.mjs';
 
 const root = resolve(import.meta.dirname, '../content/developer-docs');
 const output = resolve(import.meta.dirname, '../public/assets/developer-docs');
@@ -14,6 +15,7 @@ const slugs = sourceIndex.sections.map(entry => entry.slug);
 if (new Set(slugs).size !== slugs.length) throw new Error('Duplicate documentation slug');
 const englishHeadings = new Map();
 const englishExamples = new Map();
+const englishPages = new Map();
 const catalogVersions = {};
 
 for (const locale of configuredLocales) {
@@ -25,6 +27,11 @@ for (const locale of configuredLocales) {
   for (const entry of index.sections) {
     if (entry.source !== `${entry.slug}.${locale}.md` || !/^[a-z-]+$/.test(entry.slug)) throw new Error('Invalid source path');
     const raw = await readFile(resolve(root, entry.source), 'utf8');
+    if (locale === 'en') englishPages.set(entry.slug, raw);
+    else {
+      const errors = documentationQualityErrors(englishPages.get(entry.slug), raw);
+      if (errors.length) throw new Error(`${entry.source}: ${errors.join('; ')}`);
+    }
     const examples = raw.match(/^(```|~~~)[^\n]*\n[\s\S]*?^\1\s*$/gm) || [];
     if (locale === 'en') englishExamples.set(entry.slug, examples);
     else if (JSON.stringify(examples) !== JSON.stringify(englishExamples.get(entry.slug))) throw new Error(`${entry.source}: code examples differ from English`);
@@ -100,6 +107,11 @@ for (const file of await readdir(resolve(root, 'assets'))) {
   const svg = await readFile(resolve(root, 'assets', file.replace('.mmd', '.svg')), 'utf8');
   const hash = createHash('sha256').update(source).digest('hex');
   if (!svg.includes(`source-sha256: ${hash}`)) throw new Error(`Regenerate diagram ${file}`);
+  if (/\.(?:zh-TW|zh-CN)\.mmd$/.test(file)) {
+    const english = await readFile(resolve(root, 'assets', file.replace(/\.(?:zh-TW|zh-CN)\.mmd$/, '.mmd')), 'utf8');
+    const errors = translationQualityErrors(english, source.toString());
+    if (errors.length) throw new Error(`${file}: ${errors.join('; ')}`);
+  }
 }
 for (const file of await readdir(resolve(root, 'assets'))) {
   if (!file.endsWith('.html') || /\.(?:zh-TW|zh-CN)\.html$/.test(file)) continue;
@@ -108,6 +120,8 @@ for (const file of await readdir(resolve(root, 'assets'))) {
   for (const locale of configuredLocales.filter(value => value !== 'en')) {
     const target = file.replace(/\.html$/, `.${locale}.html`);
     const localized = await readFile(resolve(root, 'assets', target), 'utf8');
+    const errors = translationQualityErrors(english, localized);
+    if (errors.length) throw new Error(`${target}: ${errors.join('; ')}`);
     const htmlLang = locale === 'zh-TW' ? 'zh-Hant' : 'zh-Hans';
     if (!localized.includes(`<html lang="${htmlLang}">`) || [...localized.matchAll(/<text\b[^>]*>[^<>]*<\/text>/g)].length !== textCount || !/[\u3400-\u9fff]/.test(localized)) {
       throw new Error(`Invalid localized sequence diagram ${target}`);

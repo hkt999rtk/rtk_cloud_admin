@@ -103,7 +103,7 @@ test('[UI-CA-TESTLAB-001] Console lab preserves scope and distinguishes local ch
   if (await menu.isVisible()) await menu.click();
   await page.locator('[data-locale-selector]').selectOption('zh-TW');
   if (await page.locator('.mobile-nav-close').isVisible()) await page.locator('.mobile-nav-close').click();
-  await expect(credentials).toContainText('裝置憑證已可下載');
+  await expect(credentials).toContainText('裝置驗證資訊已可下載');
   await expect(credentials).toContainText('device.key');
   await expect(credentials.getByText('下載說明')).toBeVisible();
   await expect(credentials.getByText('blob: 網址')).toBeHidden();

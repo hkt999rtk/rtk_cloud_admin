@@ -1,13 +1,14 @@
 ---
-title: 快速入门：同步装置状态
-description: 从应用程式请求开机，并确认装置报告了所应用状态。
+title: 设备状态同步快速入门
+description: 从应用程序要求开启电源，并确认设备上报操作完成后的实际状态。
+
 category: Tutorials
 keywords:
-- 渴望的
-- 报告的
-- 三角洲
-- 力量
-- 快速启动
+- 期望状态
+- 上报状态
+- 状态差异
+- 电源
+- 快速入门
 - desired
 - reported
 - delta
@@ -16,19 +17,18 @@ keywords:
 language: zh-CN
 applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
 last_verified: '2026-09-04'
-verification: 来源审查和本地测试；现场环境资格待定
+verification: 已完成来源审查与本地测试；尚待实际环境验证
 ---
 
+# 设备状态同步快速入门
 
-# 快速入门：同步装置状态
+目标：使用专用的命名影子，完成 desired → 设备操作 → reported 的完整流程。请先完成[事前准备](before-you-start.zh-CN.md)与[身份验证](authentication.zh-CN.md)，并分别备妥应用程序及设备的令牌文件。两个身份必须指向同一设备与品牌云端，且已启用 `mqtt` 和 `iot_shadow`。
 
-目标：使用专用的名为Shadow的装置完成一个真实的理想→装置操作→报告的周期。 完整的[设定](before-you-start.zh-CN.md)与[身分验证](authentication.zh-CN.md)，包括单独的应用程式和装置令牌档案。两个主机都必须针对相同的装置和品牌云`mqtt`与`iot_shadow`启用。
+[开启时序图](assets/shadow-sync.zh-CN.html)
 
-[开启重新设计的序列图](assets/shadow-sync.zh-CN.html)
+## 1. 先订阅，再传送
 
-## 1. 传送前订阅
-
-在终端A中，设定根并启动装置观察器。重复使用这个`ROOT`终端B中的值。
+在终端 A 配置主题根路径，并启动设备端监听程序。终端 B 也要使用相同的 `ROOT` 值。
 
 ```bash
 export ROOT="\$vc/devices/$DEVICE_ID/shadow/name/$SHADOW_NAME"
@@ -42,9 +42,9 @@ mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" --cafile "$CA_FILE" \
   -t "$ROOT/update/delta" -t "$ROOT/update/documents"
 ```
 
-等待所有请求的订阅成功。观察者会显示本教学的交换；一个真正的应用程式和韧体都保持自己的订阅和待处理请求状态。
+等所有订阅都成功后再继续。这个监听程序用来显示教学中的消息往返；实际应用程序与固件应各自维护订阅，以及尚待响应的请求状态。
 
-在终端B中定义一个小型发布助手：
+在终端 B 定义发布消息的辅助函数：
 
 ```bash
 export ROOT="\$vc/devices/$DEVICE_ID/shadow/name/$SHADOW_NAME"
@@ -58,13 +58,13 @@ shadow_publish() {
 }
 ```
 
-## 2.先阅读，然后建立基线
+## 2. 先读取，再创建初始状态
 
 ```bash
 shadow_publish "$TUTORIAL_DIR/device-token.json" get '{"clientToken":"tutorial-get-1"}'
 ```
 
-新的教学《Shadow》回归`get/rejected`带有程式404。现有的程式会返回`get/accepted`；在继续之前，请验证使用是否安全。在本模拟器练习中，将关机设定为所需和实际状态。在硬体上，仅报告您实际验证过的状态。
+若教学影子尚不存在，会收到带有 404 错误码的 `get/rejected`；若已存在，会收到 `get/accepted`，请先确认可以安全使用这份状态。本模拟器练习将期望状态与实际状态都设为电源关闭。若使用真实硬件，只能上报实际确认过的状态。
 
 ```bash
 shadow_publish "$TUTORIAL_DIR/app-token.json" update \
@@ -74,38 +74,38 @@ shadow_publish "$TUTORIAL_DIR/device-token.json" update \
   '{"state":{"reported":{"power":"off"}},"clientToken":"tutorial-baseline-device"}'
 ```
 
-等待第二个接受的响应。第一次更新会建立一个丢失的影子；不需要明确建立API。
+等待第二个 accepted 响应。影子不存在时，第一次 UPDATE 就会创建它，不需要额外调用创建 API。
 
-## 3.从应用程式中请求更改
+## 3. 从应用程序要求变更
 
 ```bash
 shadow_publish "$TUTORIAL_DIR/app-token.json" update \
   '{"state":{"desired":{"power":"on"}},"clientToken":"tutorial-app-on"}'
 ```
 
-预期`update/accepted`与`clientToken:"tutorial-app-on"`与`update/delta`谁的顶级层`state.power`是`"on"`。三角洲事件的形状不是`state.delta.power`；GET响应使用这种层次结构。版本和时间戳是伺服器值，不需要与固定示例匹配。
+预期会收到包含 `clientToken:"tutorial-app-on"` 的 `update/accepted`，以及最上层 `state.power` 为 `"on"` 的 `update/delta`。delta 事件不使用 `state.delta.power` 结构；那是 GET 响应的结构。版本与时间戳由服务器产生，不需要与固定示例数值相同。
 
-## 4. 申请并报告实际状态
+## 4. 执行操作，上报实际状态
 
-模拟开机，或让韧体应用并验证硬体操作。只有这样才能传送：
+先模拟开启电源，或由固件执行操作并确认硬件结果，之后才传送：
 
 ```bash
 shadow_publish "$TUTORIAL_DIR/device-token.json" update \
   '{"state":{"reported":{"power":"on"}},"clientToken":"tutorial-device-on"}'
 ```
 
-等待其接受的响应。如果硬体失败，请保持报告的状态准确，并透过应用程式诊断揭示故障；切勿仅仅因为收到所需内容就报告成功。
+等待此请求的 accepted 响应。如果硬件操作失败，reported 仍须反映真实状态，并通过应用程序的诊断机制显示错误；不可只因收到 desired 就上报成功。
 
-## 5. 验证收敛性
+## 5. 确认状态一致
 
 ```bash
 shadow_publish "$TUTORIAL_DIR/app-token.json" get '{"clientToken":"tutorial-get-2"}'
 ```
 
-在`get/accepted`，检查`state.desired.power`与`state.reported.power`都是`"on"`与`state.delta.power`缺失。现有名称的Shadow中的其他属性可能仍然存在差异。在全新的教学中，Shadow只有`power`，三角洲部分被完全省略了。
+在 `get/accepted` 中，确认 `state.desired.power` 与 `state.reported.power` 都是 `"on"`，且没有 `state.delta.power`。若使用既有命名影子，其他属性仍可能存在差异。若是只含 `power` 的新教学影子，整个 delta 区段会被省略。
 
-如果没有达尔塔到达，请获取当前状态：所需值可能已经等于报告值，订阅可能失败，或者装置可能缺少许可权。不要使用固定睡眠作为成功突变的证据。
+若未收到 delta，请 GET 当前状态：desired 可能原本就等于 reported，也可能是订阅失败，或设备缺少权限。等待固定秒数并不能证明更新成功。
 
-下一个：[MQTT和HTTP操作](shadow-interfaces.zh-CN.md)与[离线恢复](integration-recipes.zh-CN.md).要删除教学状态，请在停止观察者后使用介面指南中的明确删除步骤。
+下一步：[MQTT 与 HTTP 操作](shadow-interfaces.zh-CN.md)及[离线恢复](integration-recipes.zh-CN.md)。若要删除教学状态，请先停止监听程序，再依接口指南中的删除步骤操作。
 
-建筑：[影子档案体系结构](shadow-concepts.zh-CN.md).
+架构说明：[影子文档的组成](shadow-concepts.zh-CN.md)。

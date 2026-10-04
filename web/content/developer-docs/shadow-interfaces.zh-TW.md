@@ -1,15 +1,13 @@
 ---
-title: 透過 MQTT 與 HTTP 使用裝置影子
-description: 使用精確的MQTT主題或已簽名的HTTP請求執行影子操作。
+title: 透過 MQTT 與 HTTP 操作裝置影子
+description: 使用完整 MQTT 主題或簽署過的 HTTP 請求操作裝置影子。
 category: Build integrations
 keywords:
-- 體4
-- 得到
-- 貼文
+- 簽署請求
+- 讀取
+- 更新
 - 刪除
-- 公認的
-- 被拒絕的
-- 為事物列出命名陰影
+- 具名影子清單
 - SigV4
 - GET
 - POST
@@ -20,41 +18,40 @@ keywords:
 language: zh-TW
 applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
 last_verified: '2026-09-04'
-verification: 來源審查和本地測試；現場環境資格待定
+verification: 已完成來源審查與本機測試；尚待實際環境驗證
 ---
 
+# 透過 MQTT 與 HTTP 操作裝置影子
 
-# 透過 MQTT 與 HTTP 使用裝置影子
+兩種介面都可以操作同一裝置、同一名稱的影子。HTTP 需要啟用 `iot_shadow`；MQTT 需要同時啟用 `mqtt` 與 `iot_shadow`。授權規則也必須允許目前身分存取目標裝置並執行該操作。
 
-使用任何一個介面對同一裝置和影子名稱。HTTP要求`iot_shadow`; MQTT需要這兩個`mqtt`與`iot_shadow`。授權還必須允許主機、裝置和操作。
+## 兩種介面，共用同一份狀態
 
-## 兩個介面通向同一個狀態
+MQTT 與 HTTP 透過不同的驗證與回應流程，存取同一裝置、同一名稱的影子。雖然文件操作規則相同，MQTT 的傳輸確認並不等於 HTTP 或影子操作成功。兩種介面仍各自檢查服務功能是否啟用，以及呼叫者是否有權限。
 
-MQTT和HTTP透過不同的身份驗證和響應路徑針對相同的裝置和影子名稱進行處理。它們共享的檔案語義並不使MQTT確認等同於HTTP或影子成功。能力和主檢查仍然在每個介面上獨立適用。
+![兩種介面存取同一份狀態](assets/shadow-interface-map.zh-TW.svg)
 
-![兩個介面通向同一個狀態](assets/shadow-interface-map.zh-TW.svg)
+[開啟完整方塊圖](assets/shadow-interface-map.zh-TW.svg) · [Mermaid 原始檔](assets/shadow-interface-map.zh-TW.mmd)
 
-[全尺寸方塊圖](assets/shadow-interface-map.zh-TW.svg) · [Mermaid 原始檔](assets/shadow-interface-map.zh-TW.mmd)
+## MQTT 請求與回應
 
-## MQTT請求和響應
+[開啟時序圖](assets/shadow-mqtt-request.zh-TW.html)
 
-[開啟重新設計的序列圖](assets/shadow-mqtt-request.zh-TW.html)
+使用[裝置狀態同步快速入門](shadow-quickstart.zh-TW.md)中的 `shadow_publish` 輔助函式。請先訂閱該操作完整且明確的 accepted 與 rejected 主題。GET 可附帶 `clientToken` 來對應請求與回應；UPDATE 則傳送 JSON 部分更新。DELETE 會忽略 payload，成功時回傳空物件，因此不能依賴刪除回應帶回 `clientToken`。
 
-使用`shadow_publish`來自的助手[影子快速入門](shadow-quickstart.zh-TW.md)。首先訂閱操作的確切接受和拒絕主題。GET可以承擔一個`clientToken`用於相關性；UPDATE帶有JSON補丁。DELETE忽略其有效載荷，並返回一個空的接受物件，因此不要依賴於刪除`clientToken`回聲。
-
-要明確刪除測試影子，請先觀察兩種刪除響應主題，然後釋出：
+若要明確刪除測試影子，請先監聽兩個刪除回應主題，再發布：
 
 ```bash
 shadow_publish "$TUTORIAL_DIR/app-token.json" delete '{}'
 ```
 
-之後的GET應該返回404。為相同的影子序列化刪除，以避免模稜兩可的響應。完整的主題字尾在[參考](shadow-reference.zh-TW.md).
+刪除後再次 GET 應回傳 404。同一影子的刪除操作請依序執行，避免無法判斷回應屬於哪次請求。完整主題後綴請見[參考文件](shadow-reference.zh-TW.md)。
 
-## 簽名的HTTP請求
+## 簽署 HTTP 請求
 
-[開啟重新設計的序列圖](assets/shadow-http-request.zh-TW.html)
+[開啟時序圖](assets/shadow-http-request.zh-TW.html)
 
-以下Bash助手使用curl的SigV4簽名者。使用以下完成令牌發行`aws_iot_data:true`首先。憑據屬於RTK的自定義端點；不需要AWS帳戶憑據。
+以下 Bash 輔助函式使用 curl 的 SigV4 簽署功能。請先在申請 token 時指定 `aws_iot_data:true`。取得的驗證資訊適用於 RTK 自訂端點，不需要 AWS 帳戶的驗證資訊。
 
 ```bash
 export TOKEN_FILE="$TUTORIAL_DIR/app-token.json"
@@ -74,9 +71,9 @@ ENCODED_NAME="$(jq -rn --arg v "$SHADOW_NAME" '$v|@uri')"
 SHADOW_URL="${SHADOW_ENDPOINT%/}/things/$ENCODED_DEVICE/shadow?name=$ENCODED_NAME"
 ```
 
-請完全按照返回的內容使用端點和區域。保持機器時鐘同步。要使用無名影子，請省略完整的`?name=...`查詢；`name=`不是無名之影。
+請原樣使用回傳的 endpoint 與 region，並保持電腦時鐘同步。若要操作未命名影子，請省略整段 `?name=...` 查詢字串；傳入 `name=` 並不代表未命名影子。
 
-### 閱讀和更新
+### 讀取與更新
 
 ```bash
 shadow_http "$SHADOW_URL"
@@ -86,29 +83,29 @@ shadow_http -X POST -H 'Content-Type: application/json' \
 shadow_http "$SHADOW_URL"
 ```
 
-如果初始GET返回404，則POST建立影子。成功POST返回接受的補丁程式，而最終GET返回完整的當前狀態。HTTP完成不會等待MQTT傳輸或裝置執行。請保持快速入門中的MQTT觀察器執行，以觀察跨協議通知。
+若第一次 GET 回傳 404，POST 會建立影子。POST 成功時回傳接受的部分更新，最後的 GET 才會回傳目前完整狀態。HTTP 請求完成時，不會等待 MQTT 通知送達或裝置執行操作。請持續執行快速入門中的 MQTT 監聽程式，以觀察由 HTTP 操作觸發的 MQTT 通知。
 
-### 名為Shadows的列表
+### 列出具名影子
 
 ```bash
 shadow_http "${SHADOW_ENDPOINT%/}/api/things/shadow/ListNamedShadowsForThing/$ENCODED_DEVICE?pageSize=10"
 ```
 
-閱讀`results`，可選的`nextToken`，和`timestamp`。 什麼時候`nextToken`存在，將其URL編碼，並在下一個使用相同裝置的請求中保持不變地傳送。不要解碼或修改遊標。未命名的影子未列出；缺失的東西會返回空列表。
+讀取 `results`、可能出現的 `nextToken`，以及 `timestamp`。若有 `nextToken`，請將它做 URL 編碼後，原樣帶入同一裝置的下一次請求；不要解碼或修改這個分頁游標。清單不包含未命名影子；Thing 不存在時會回傳空清單。
 
 ### 刪除教學狀態
 
-只有在完成此測試Shadow後才能執行：
+完成這個測試影子的操作後，才執行下列命令：
 
 ```bash
 shadow_http -X DELETE "$SHADOW_URL"
 shadow_http "$SHADOW_URL"
 ```
 
-成功時，DELETE返回一個空的JSON物件；以下GET返回404。GET和DELETE不得有請求身分。在48小時內重新建立將繼續之前的版本序列。
+DELETE 成功時回傳空 JSON 物件，接著 GET 會回傳 404。GET 與 DELETE 不可帶請求本文。若在刪除後 48 小時內重建，版本編號會延續原本的序列。
 
-## 故障處理
+## 錯誤處理
 
-讀取HTTP狀態和錯誤JSON；`--fail-with-body`在返回非零的退出狀態時保留錯誤內容。對於401，請檢查憑據、會話令牌、時鐘、端點和區域。對於409，請透過新的GET進行協調，而不是重複播放過時的補丁程式。在未更正請求的情況下，不要重試永久的4xx錯誤。
+請同時檢查 HTTP 狀態碼與錯誤 JSON。`--fail-with-body` 會保留錯誤本文，並讓命令以非零狀態結束。遇到 401 時，檢查驗證資訊、session token、時鐘、endpoint 與 region。遇到 409 時，重新 GET 最新狀態並計算更新內容，不要直接重送過期的部分更新。對於持續性的 4xx 錯誤，應先修正請求再重試。
 
-下一個：[完整的參考資料](shadow-reference.zh-TW.md).
+下一步：[完整參考文件](shadow-reference.zh-TW.md)。
