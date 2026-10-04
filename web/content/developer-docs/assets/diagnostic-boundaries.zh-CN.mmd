@@ -1,9 +1,9 @@
 flowchart TB
-    Config["端点、DNS、时钟和CA"] --> TLS["TLS和证书身份"]
-    TLS --> Token["代币发行和目标授权"]
+    Config["端点、DNS、时钟与 CA"] --> TLS["TLS 与证书身份"]
+    TLS --> Token["令牌 签发与目标授权"]
     Token --> Connect["MQTT CONNACK"]
-    Connect --> Subscribe["确切主题SUBACK"]
-    Subscribe --> Delivery["MQTT PUBACK：仅限传输"]
-    Delivery --> Shadow["影子接受/拒绝和当前GET状态"]
-    Shadow --> Hardware["韧体执行和真实报告的状态"]
-    Note["找到第一个失败的可观察边界。上述成功并不证明下面的成功。"] -.-> Config
+    Connect --> Subscribe["完整主题的 SUBACK"]
+    Subscribe --> Delivery["MQTT PUBACK：只确认传输"]
+    Delivery --> Shadow["影子 accepted／rejected 与 GET 当前状态"]
+    Shadow --> Hardware["固件执行与如实上报 reported"]
+    Note["找出第一个失败环节；上层成功不代表下层成功。"] -.-> Config

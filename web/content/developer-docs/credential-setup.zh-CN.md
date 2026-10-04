@@ -1,13 +1,14 @@
 ---
-title: 设定装置与应用程式凭证
-description: 生成本地应用程式金钥和CSR，获取证书，并区分工厂装置身份与执行时令牌。
+title: 配置设备与 App 证书
+description: 在本地生成 App 密钥与 CSR、获取证书，并区分
+  设备出厂身份与运行时令牌。
 category: Start here
 keywords:
+- 证书
+- 私钥
+- 注册
+- 证书轮换
 - CSR
-- 凭证
-- 应用程式使用者
-- 登记
-- 其他
 - certificate
 - app-user
 - enrollment
@@ -16,38 +17,37 @@ language: zh-CN
 applies_to: RTK Cloud contracts 9b1ed887912e; Account Manager 54b37b9c407d; Video
   Cloud 30fbb9a26155; Admin bbaf62f7d6b5
 last_verified: '2026-09-04'
-verification: 源/API审查；自动样本检查；如注释所示，开发商代理服务配置读取。完整的现场入职资格正在等待。
+verification: 来源／API 审查与示例自动检查；标示处包含开发环境 Broker 配置读取记录。完整的实际环境入门流程仍待验证。
 ---
 
+# 配置设备与 App 证书
 
-# 设定装置与应用程式凭证
+## 凭证的类型与用途
 
-## 凭证型别及其目的地
+账号访问令牌用于调用 Account Manager API。设备与 App 证书用于获取限定授权范围的运行时凭证；MQTT 使用运行时 JWT，HTTP Shadow 签名则使用请求获取的 SigV4 凭证包。私钥须保留在所属客户端。下图整理了各类凭证的用途，并非注册流程的先后顺序。
 
-帐户访问令牌用于帐户管理器API。装置/应用程式证书引导范围内的执行时凭据；MQTT使用执行时JWT，而已签名的HTTP Shadow使用其请求的SigV4捆绑包。私钥仍然留在其所有者客户端上。此图表对映的是凭据的使用情况，而不是注册的顺序。
+![凭证的类型与用途](assets/credential-uses.zh-CN.svg)
 
-![凭证型别及其目的地](assets/credential-uses.zh-CN.svg)
+[查看完整架构图](assets/credential-uses.zh-CN.svg) · [Mermaid 源码](assets/credential-uses.zh-CN.mmd)
 
-[全尺寸方块图](assets/credential-uses.zh-CN.svg) · [Mermaid 原始档](assets/credential-uses.zh-CN.mmd)
+## 目标与准备工作
 
-## 目标和先决条件
+为同一个已授权测试设备，分别准备设备与 App 的凭证。你需要已完成验证、可使用密码登录的开发者账号、Account Manager 的 HTTPS 源地址和 CA 信任链，以及[开始之前](before-you-start.zh-CN.md)创建的私有教程目录。仅支持 SSO 的账号，应使用经批准的 SDK／SSO 初始化流程；本密码登录示例不能替代该流程。
 
-为同一授权测试装置准备独立装置和应用程式凭据。您需要一个具有密码登入方法的已验证开发者帐户、帐户管理器HTTPS来源、其CA信任链以及来自的私人教学目录。[开始之前](before-you-start.zh-CN.md).仅限SSO帐户应使用其已批准的SDK/SSO启动程式；此密码示例不能取代该流程。
-
-[开启重新设计的序列图](assets/app-enrollment.zh-CN.html)
+[打开 App 证书注册时序图](assets/app-enrollment.zh-CN.html)
 
 ## 选择正确的身份
 
-|客户|启动身份|所需处理|
+| 客户端 | 首次获取凭证时使用的身份 | 注意事项 |
 | --- | --- | --- |
-|装置韧体|工厂/装置注册证书匹配执行时`devid` |保留相应的装置私钥；启动是一个单独的先决条件|
-|开发人员的应用程式模拟|带有主题的全球使用者证书`app-user:<user_id>` |请按照以下登入/CSR步骤操作；角色是会员资格，而不是证书主题|
-|消费者应用程式|APP终端使用者证书，`app-end-user:<end_user_id>` |使用APP终端使用者登入/系结工作流程；不要替换控制台使用者的身份|
-|值得信赖的协调后端|明确规定的影片云管理员许可权|看到[后端整合](backend-integration.zh-CN.md)；不要提取控制台会话凭据|
+| 设备固件 | 通过工厂或设备注册获取，且与运行时 `devid` 一致的证书 | 保留对应设备私钥；设备激活是另一项必要条件 |
+| 开发者模拟的 App | 主体为 `app-user:<user_id>` 的全局用户证书 | 按下列登录／CSR 步骤操作；角色由成员资格决定，不是证书主体 |
+| 消费者 APP | APP 终端用户证书：`app-end-user:<end_user_id>` | 使用 APP 终端用户登录与绑定流程，不可用控制台用户身份代替 |
+| 受信任的流程编排后端 | 明确授予的 Video Cloud 管理员权限 | 参阅[后端集成](backend-integration.zh-CN.md)；不要提取控制台会话凭证 |
 
-## 1. 登入并检查引导状态
+## 1. 登录并检查证书初始化状态
 
-此命令列练习仅在私人开发机器上使用可汇出的本地PEM档案。生产移动应用程式必须使用其平台金钥提供商和仅限证书的捆绑包，保留不可汇出的金钥。
+本命令行练习仅在私有开发机器上使用可导出的本地 PEM 文件。生产移动 App 必须使用平台密钥提供程序以及仅含证书的证书包，并保留不可导出的私钥。
 
 ```bash
 export ACCOUNT_BASE='https://accounts.example.test'
@@ -63,11 +63,11 @@ export USER_ID="$(jq -er '.user.id' "$TUTORIAL_DIR/account-login.json")"
 jq -er '.app_certificate.status' "$TUTORIAL_DIR/account-login.json"
 ```
 
-`csr_required`表示登入成功，但没有返回可用应用程式证书。这不是执行时令牌响应。如果状态是`issued`，重复使用本地保留的匹配金钥；验证其公钥是否与返回的叶子证书匹配。不要生成替换金钥，并静默地将其与旧证书配对。
+`csr_required` 表示登录成功，但尚未返回可用的 App 证书；这不是运行时令牌的响应。如果状态为 `issued`，请复用本地保留的对应密钥，并确认其公钥与返回的终端证书一致。不要生成新密钥后，在未检查的情况下与旧证书配对。
 
-## 2. 根据需要生成金钥和CSR
+## 2. 必要时生成密钥与 CSR
 
-仅在第一次引导时执行此步骤，当`csr_required`已返回，您没有现有的匹配金钥。OpenSSL必须支援EC P-256。
+仅在首次初始化时收到 `csr_required`，且没有现有对应密钥的情况下，才执行此步骤。OpenSSL 必须支持 EC P-256。
 
 ```bash
 export APP_KEY="$TUTORIAL_DIR/app-key.pem"
@@ -88,28 +88,28 @@ openssl pkey -in "$APP_KEY" -pubout -outform DER | openssl dgst -sha256
 openssl x509 -in "$APP_CERT" -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256
 ```
 
-两个公共金钥杂凑值必须匹配。验证返回的主体、证书有效期和发行元资料。新的SDK整合应解析`certificate_bundle`并验证其身份/SPKI，而不是从档名中重建身份。上述PEM栏位仍然对命令列教学有用。如果客户端需要一个中间链，请将叶节尾随返回的中间链作为其客户端证书档案提供；请将环境的伺服器CA信任捆绑单独保留。
+两个公钥的哈希值必须相同。请验证返回的证书主体、有效期和签发元数据。新的 SDK 集成应解析 `certificate_bundle` 并验证其中的身份与 SPKI，不要从文件名推导身份。上述 PEM 字段仍可用于命令行教程。如果客户端需要中间证书链，请将终端证书放在前面，再接上返回的中间证书，作为客户端证书文件；环境的服务器 CA 信任证书包须单独保留。
 
-客户经理致电`POST /v1/certificates/app/issue`在服务mTLS内部。应用程式不得直接呼叫发布端。CSR不授权选择另一个使用者的主体或签名CA。
+Account Manager 会在内部通过服务间 mTLS 调用 `POST /v1/certificates/app/issue`。应用不可直接调用证书签发服务。持有 CSR 并不代表有权指定其他用户的主体或选择签名 CA。
 
-## 3.透过注册获得装置凭证
+## 3. 通过注册获取设备证书
 
-**正式量产流程：**[查看工厂签发时序图](assets/factory-enrollment-formal.zh-CN.html)。图中分别标示工厂 mTLS 证书、产品生产批次 JWT、设备 CSR、配额检查及产品专属签发者。Cloud Test Lab 是简化的开发测试流程，**不可用于量产**。
+**正式量产流程：**[查看工厂签发时序图](assets/factory-enrollment-formal.zh-CN.html)。图中分别标示工厂 mTLS 证书、产品生产批次 JWT、设备 CSR、配额检查以及产品专属签发者。Cloud Test Lab 是简化的开发测试流程，**不可用于量产**。
 
 ![正式工厂签发时序图](assets/factory-enrollment-formal.zh-CN.svg)
 
-正式设备应使用经授权工厂流程签发的设备证书与对应私钥。开发测试则可使用短期测试设备证书。新设备通过受保护的工厂注册服务提交 CSR；单凭 CSR 不能取得证书。
+请使用经批准工厂流程预配的设备证书与对应私钥；开发练习可使用经授权的短期测试设备证书包。新硬件设备应自行生成并保留密钥，通过受身份验证保护的工厂接口 `POST /v1/factory/enroll` 提交 CSR。工厂授权、生产批次信息和服务使用权检查都属于该流程；不存在供开发者未经验证即可签发证书的端点。
 
-工厂设备的签发流程：
+工厂设备的处理流程：
 
-1. 由对目标云和产品具有设备管理权限的用户，通过 Account Manager 创建生产批次。取得有期限的生产批次授权 JWT 后，应安全地交给获准的工厂网关，不可写入设备固件。
-2. 在设备上生成私钥与 CSR，私钥保留在设备内。CSR 的主体 CN 必须与设备 ID（`devid`）相同。
-3. 获准的工厂网关须使用平台签发的工厂客户端证书及私钥，调用 `POST {FACTORY_ENROLL_URL}/v1/factory/enroll`，以 `Authorization: Bearer <生产批次 JWT>` 传入授权，并在 JSON 中提供 `request_id`、`devid` 与 `csr_pem`。若另提供 `service_options`，其内容必须与生产批次一致。各产品共用服务入口；JWT 将请求绑定到特定云和产品，由该产品的证书签发者处理。公开入口启用后，可在产品页面获取完整 HTTPS 网址；管理后台网址不是签发入口。
-4. 将返回的设备证书和证书链安装到持有对应私钥的设备。设备激活与账户绑定仍须另外完成。
+1. 具有目标 Cloud 与 Product 设备管理权限的用户，通过 Account Manager 创建生产批次。获取的短期生产批次 JWT 是工厂凭证，应安全交付经批准的工厂网关，不可放入设备固件。
+2. 在设备上生成私钥与 CSR，并将私钥保留在设备内。CSR 主体的 CN 必须等于设备的 `devid`。
+3. 从获准的网关使用平台签发的客户端证书与密钥，发送 `POST {FACTORY_ENROLL_URL}/v1/factory/enroll`。请求须携带 `Authorization: Bearer <production-run JWT>`，JSON 内容包含 `request_id`、`devid` 和 `csr_pem`。如果包含 `service_options`，必须与生产批次一致。各产品共用服务 URL；JWT 会将请求绑定至一个 Cloud 与 Product，并选定该产品的证书签发者。公开网关启用后，可在产品页面找到完整 HTTPS URL；Admin Console 的 URL 不是注册服务地址。
+4. 安装返回的设备证书、证书链与对应私钥。设备激活与账号绑定须另行完成。
 
-成功时，服务会返回已签发的证书与证书包；安装前请核对设备身份及证书链。开发测试设备请使用 Cloud Test Lab，无须走工厂生产流程。
+成功响应会包含已签名证书与证书包；安装前，请验证返回的设备身份与证书链。仅凭 CSR 不代表有权签发设备证书。仅用于开发的设备应使用 Cloud Test Lab，而非工厂流程。
 
-经授权的工厂网关可依下例提交单台设备 CSR。`FACTORY_ENROLL_ENDPOINT` 应填写产品页面显示的完整网址。工厂客户端私钥与批次 JWT 应留在网关；重试同一设备请求时请沿用相同的 `request_id`。
+经授权的工厂网关可按以下示例提交一个设备 CSR。请将 `FACTORY_ENROLL_ENDPOINT` 设为产品页面显示的完整 URL。工厂客户端私钥与批次 JWT 必须留在网关上；重试同一设备请求时，复用相同的 `request_id`。
 
 ```bash
 jq -n --arg request_id "$REQUEST_ID" --arg devid "$DEVICE_ID" \
@@ -122,20 +122,20 @@ curl --fail-with-body --silent --show-error \
   "$FACTORY_ENROLL_ENDPOINT" > "$CERTIFICATE_RESPONSE"
 ```
 
-[开启重新设计的序列图](assets/device-enrollment.zh-CN.html)
+[打开设备注册时序图](assets/device-enrollment.zh-CN.html)
 
-设定`DEVICE_CERT`与`DEVICE_KEY`到提供的测试PEM路径。使用与上述相同的OpenSSL比较验证它们的匹配公钥，并验证证书衍生的身份匹配`DEVICE_ID`。不要自签证书，并假设云信任它。不要将生产装置的私钥复制到应用程式或后端。
+将 `DEVICE_CERT` 和 `DEVICE_KEY` 设为提供的测试 PEM 文件路径。使用上方相同的 OpenSSL 方法比对公钥，并确认从证书获取的身份与 `DEVICE_ID` 一致。不要自行创建自签名证书并假设云端会信任它，也不要将生产设备私钥复制到 App 或后端。
 
-## 4. 交换证书以获得执行时凭据
+## 4. 使用证书获取运行时凭证
 
-关注[身分验证与存取控制](authentication.zh-CN.md)呼叫特定角色验证的mTLS来源`POST /request_token`，产生单独的`device-token.json`与`app-token.json`。 请求`aws_iot_data:true`对于HTTP Shadow。仅将帐户管理器令牌用于帐户管理器API；将发行的执行时令牌用于MQTT，并将返回的SigV4捆绑包用于HTTP Shadow。
+按照[身份验证与访问控制](authentication.zh-CN.md)，向对应角色且已确认的 mTLS 源地址调用 `POST /request_token`，分别获取 `device-token.json` 和 `app-token.json`。HTTP Shadow 需要传入 `aws_iot_data:true`。Account Manager 令牌仅用于 Account Manager API；MQTT 使用签发的运行时令牌，HTTP Shadow 则使用返回的 SigV4 凭证包。
 
-## 续订、轮换和故障
+## 更新、轮换与失败处理
 
-有效的证书可以引导另一个短命的执行时令牌。执行时令牌续订不会续订到期证书。当全球使用者的本地金钥被故意替换时，登入契约支援`rotate_app_certificate:true`带有一个新的有效`app_csr_pem`；这会撤销该全球使用者的以前有效证书，可能会影响其他应用程式安装。请勿在例行登入或重试时设定轮换。
+有效证书可用于获取新的短期运行时令牌，但刷新令牌不会延长证书有效期。如果主动替换全局用户的本地密钥，登录接口支持传入 `rotate_app_certificate:true` 和新的有效 `app_csr_pem`。这会吊销该全局用户此前仍有效的证书，可能影响其他 App 安装。普通登录或重试时，不要启用证书轮换。
 
-错误的CSR主题返回`app_certificate_csr_invalid`；不可用的发布端可能会退货`app_certificate_issuer_unavailable`. 在重试之前解决根本原因。对于TLS失败，请验证主机名、信任链、时钟和金钥配对；对于执行时403，请验证装置系结和服务功能。请将登入/CSR响应档案保密，并在练习结束后删除教学凭据。
+CSR 主体错误时会返回 `app_certificate_csr_invalid`；签发服务不可用时，可能返回 `app_certificate_issuer_unavailable`。请先排除原因再重试。TLS 失败时，检查主机名、信任链、系统时间与密钥配对；运行时收到 403 时，检查设备绑定与服务功能。登录与 CSR 响应文件应妥善保密，练习结束后删除教程使用的凭证。
 
-下一个：[建立第一个云端与装置](setup-cloud-device.zh-CN.md)如果启动不完整，否则[端到端应用程式与装置范例](app-device-example.zh-CN.md).
+下一步：如果设备尚未激活，请阅读[创建第一个云与设备](setup-cloud-device.zh-CN.md)；否则可运行 [App 与设备端到端示例](app-device-example.zh-CN.md)。
 
-有关身份、帐户系结和执行时凭证的体系结构检视，请参阅[所有权和共享](ownership-sharing.zh-CN.md).
+有关身份、账号绑定与运行时凭证的架构说明，请参阅[所有权与共享](ownership-sharing.zh-CN.md)。

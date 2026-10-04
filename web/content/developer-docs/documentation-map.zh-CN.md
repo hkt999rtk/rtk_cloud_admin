@@ -1,14 +1,15 @@
 ---
-title: 文件导览
-description: 选择一个韧体、应用程式或后端学习路线，然后浏览完整的档案集合。
+title: 文档导航
+description: 依固件、应用程序或后端开发角色选择阅读路线，浏览完整文档。
+
 category: Start here
 keywords:
 - 开始
-- 学习途径
-- 韧体中的程式）
-- 应用程式
+- 阅读路线
+- 固件
+- 应用程序
 - 后端
-- 内容
+- 目录
 - start
 - learning path
 - firmware
@@ -18,76 +19,75 @@ keywords:
 language: zh-CN
 applies_to: Developer Docs Core + P0 + P1 source edition
 last_verified: '2026-09-04'
-verification: 导航和本地搜寻检查；服务资格因页面而异
+verification: 已检查导航与本地搜索；服务验证状态以各页说明为准。
 ---
 
+# 文档导航
 
-# 文件导览
+## 选择阅读路线
 
-## 选择你的道路
-
-|开发人员|建议的顺序|
+| 开发角色 | 建议顺序 |
 | --- | --- |
-|装置韧体|先决条件→云/装置设定→凭据设定→MQTT快速入门→影子快速入门→两个主机元例→状态模型→凭据恢复|
-|应用程式|先决条件→凭证设定→身份验证→双主机示例→API示例→状态模型→除错|
-|后端|先决条件→云/装置设定→后端指南→HTTP介面→API示例→冲突食谱→连线限制|
+| 设备固件 | 事前准备 → 云端与设备配置 → 证书配置 → MQTT 快速入门 → 影子快速入门 → 应用程序与设备示例 → 状态模型 → 凭证恢复 |
+| 应用程序 | 事前准备 → 证书配置 → 身份验证 → 应用程序与设备示例 → API 示例 → 状态模型 → 调试 |
+| 后端 | 事前准备 → 云端与设备配置 → 后端指南 → HTTP 接口 → API 示例 → 冲突处理 → 连接限制 |
 
-先阅读[开始之前](before-you-start.zh-CN.md)。这两个快速入门教导了单个协议的互动；[应用程式和装置示例](app-device-example.zh-CN.md)将它们连线起来。只有当您的授权测试身份/装置尚未准备好时，才需要注册。
+先从[事前准备](before-you-start.zh-CN.md)开始。两篇快速入门分别介绍单一协议的互动，再由[应用程序与设备示例](app-device-example.zh-CN.md)串起完整流程。只有尚未备妥获授权的测试身份或设备时，才需要进行注册。
 
-## 按任务浏览
+## 依任务浏览
 
-### 入门
+### 从这里开始
 
-- [云端服务概览](overview.zh-CN.md)— 了解MQTT讯息传递、影子状态以及装置和应用程式的角色。
-- [开始之前](before-you-start.zh-CN.md)— 准备一个测试装置、授权身份、端点和命令列工具。
-- [建立第一个云端与装置](setup-cloud-device.zh-CN.md)— 在请求执行时凭据之前，建立产品、解决装置索赔并验证启动。
-- [设定装置与应用程式凭证](credential-setup.zh-CN.md)— 生成本地应用程式金钥和CSR，获取证书，并区分工厂装置身份与执行时令牌。
+- [云端服务概览](overview.zh-CN.md)：了解 MQTT 消息传递、影子状态，以及设备与应用程序的分工。
+- [事前准备](before-you-start.zh-CN.md)：备妥测试设备、获授权的身份、端点与命令行工具。
+- [配置第一个云端与设备](setup-cloud-device.zh-CN.md)：创建 Product、完成设备认领，并在申请运行时凭证前确认设备已启用。
+- [设备与应用程序证书配置](credential-setup.zh-CN.md)：在本地产生应用程序密钥与 CSR、取得证书，并区分设备出厂身份与运行时令牌。
 
 ### 教学
 
-- [快速入门：连线与交换讯息](mqtt-quickstart.zh-CN.md)— 释出JSON讯息，并透过第二个已验证的MQTT连线接收讯息。
-- [快速入门：同步装置状态](shadow-quickstart.zh-CN.md)—从应用程式请求开机，并确认装置报告了所应用状态。
-- [端到端应用程式与装置范例](app-device-example.zh-CN.md)—执行独立的应用程式和装置客户端，并验证所需到报告的收敛。
+- [连接与消息交换快速入门](mqtt-quickstart.zh-CN.md)：发布 JSON 消息，并由另一个已验证的 MQTT 连接接收。
+- [设备状态同步快速入门](shadow-quickstart.zh-CN.md)：从应用程序要求开启电源，确认设备上报操作后的状态。
+- [应用程序与设备端对端示例](app-device-example.zh-CN.md)：分别执行两个客户端，确认 desired 与 reported 最后一致。
 
 ### 概念
 
-- [装置影子概念](shadow-concepts.zh-CN.md)— 了解所需和报告的状态、差异、名称、合并规则和版本。
-- [设计装置状态模型](state-model.zh-CN.md)—设计相容的所需和报告状态、名为Shadows的状态、故障报告和并行写入器。
-- [装置在线状态与生命周期](device-presence.zh-CN.md)—区分帐户就绪性、MQTT连线性、所有者运输和应用程式健康状况。
+- [设备影子概念](shadow-concepts.zh-CN.md)：了解 desired、reported、delta、影子名称、合并规则及版本。
+- [设计设备状态模型](state-model.zh-CN.md)：设计兼容的 desired/reported 结构、命名影子、错误上报及并发写入。
+- [设备连接状态与生命周期](device-presence.zh-CN.md)：区分账户就绪状态、MQTT 连接、owner 传输连接与应用程序健康状态。
 
 
-### 构建整合
+### 集成开发
 
-- [身分验证与存取控制](authentication.zh-CN.md)—获取执行时令牌，并将其元资料对映到MQTT和Shadow HTTP凭据中。
-- [MQTT 连线指南](mqtt-connection.zh-CN.md)—在不假设持久离线交付的情况下配置客户端身份和恢复。
-- [后端整合指南](backend-integration.zh-CN.md)— 选择一个授权的后端身份，并在不借用装置凭据的情况下执行已签名的影子操作。
-- [透过 MQTT 与 HTTP 使用装置影子](shadow-interfaces.zh-CN.md)—使用精确的MQTT主题或已签名的HTTP请求执行影子操作。
-- [整合实作范例](integration-recipes.zh-CN.md)—从离线期间恢复，解决冲突，并保持报告的状态真实。
-- [装置所有权与分享](ownership-sharing.zh-CN.md)— 了解帐户系结、授权共享和转售，而不会将它们与装置身份混淆。
-
-
-### 操作和故障排除
-
-- [凭证更新与连线复原](credential-recovery.zh-CN.md)— 更新执行时凭据，并在到期或网路丢失后恢复订阅和状态。
-- [整合除错](debugging.zh-CN.md)— 找到第一个故障的协议层，并准备一份有用的消毒支援报告。
-- [疑难排解与相容性](troubleshooting.zh-CN.md)—按协议层诊断故障，并了解RTK Shadow相容性边界。
-- [整合测试工具组](integration-test-kit.zh-CN.md)—执行只读MQTT影子探测器和自愿模拟控制演习，然后评估生命周期和故障案例。
+- [身份验证与访问控制](authentication.zh-CN.md)：取得运行时令牌，并将返回数据用于 MQTT 与影子 HTTP 验证。
+- [MQTT 连接指南](mqtt-connection.zh-CN.md)：配置客户端身份与恢复流程，不依赖离线消息的持久传递。
+- [后端集成指南](backend-integration.zh-CN.md)：选择获授权的后端身份，不借用设备凭证，完成已签名的影子操作。
+- [通过 MQTT 与 HTTP 操作设备影子](shadow-interfaces.zh-CN.md)：使用完整 MQTT 主题或已签名 HTTP 请求进行操作。
+- [集成实现示例](integration-recipes.zh-CN.md)：处理离线恢复与版本冲突，并如实上报设备状态。
+- [设备所有权与分享](ownership-sharing.zh-CN.md)：了解账户绑定、授权分享与转售，并区分这些操作与设备身份。
 
 
-### 参考
+### 维运与疑难排解
 
-- [MQTT 主题与讯息参考](mqtt-topics.zh-CN.md)— 单独定义的应用程式讯息、装置传输信封和保留的影子主题。
-- [装置影子 API 与讯息参考](shadow-reference.zh-CN.md)—查询影子路径、主题字尾、档案栏位、限制和错误。
-- [API 与讯息范例](api-examples.zh-CN.md)—检查完整的说明符号和影子讯息，包括栏位省略和相关性规则。
-- [连线设定与服务限制](connection-settings.zh-CN.md)—区分契约限制、观察到的dev经纪商设定以及需要环境资格的特征。
-- [相容性与版本说明](compatibility-releases.zh-CN.md)— 跟踪合格客户的证据、RTK名称空间差异和档案更改。
+- [凭证更新与连接恢复](credential-recovery.zh-CN.md)：在凭证过期或网络中断后，更新运行时凭证并恢复订阅与状态。
+- [集成调试指南](debugging.zh-CN.md)：定位第一个失败的协议层，整理不含敏感信息的支持报告。
+- [疑难排解与兼容性](troubleshooting.zh-CN.md)：依协议层诊断失败原因，了解 RTK Shadow 的兼容范围。
+- [集成测试工具包](integration-test-kit.zh-CN.md)：执行 MQTT Shadow 只读检查与明确启用的模拟控制，再验证生命周期及失败情况。
 
-## 如何使用此集合
 
-教学包含目标、先决条件、顺序、可执行步骤和预期结果。概念解释设计选择。整合指南解释机制。参考资料拥有自己的确切协议栏位和限制；示例在不重新定义它们的情况下说明它们。操作章节解释恢复和诊断。
+### 参考文档
 
-在桌面上使用章节组，或在手机上使用分组章节选择器。搜寻覆盖了本地发布的所有页面。来源设计档案、维护者备注和执行时凭据不包括在网站索引中。页面URL在导航组更改时保持稳定。
+- [MQTT 主题与消息参考](mqtt-topics.zh-CN.md)：区分应用程序自定义消息、设备传输封装与影子保留主题。
+- [设备影子 API 与消息参考](shadow-reference.zh-CN.md)：查询影子路径、主题后缀、文档字段、限制与错误。
+- [API 与消息示例](api-examples.zh-CN.md)：查看完整令牌与影子消息，理解字段省略及请求与响应对应规则。
+- [连接配置与服务限制](connection-settings.zh-CN.md)：区分规格限制、观测到的开发环境 Broker 配置，以及仍需实际环境验证的功能。
+- [兼容性与版本说明](compatibility-releases.zh-CN.md)：查阅客户端验证记录、RTK 命名空间差异及文档更新。
 
-## 版本和资格
+## 如何使用这组文档
 
-每页都列出了适用的快照和执行的验证型别。本地样本测试不是即时环境资格。 阅读[相容性与版本说明](compatibility-releases.zh-CN.md)在依赖客户端/版本组合之前。流媒体/WebRTC、OTA和遥测汇入仍然是未来的批次；SDK下载仍然在[晶片组和SDK](/console/chipset-sdk).
+教学提供目标、前置条件、时序、可执行步骤与预期结果；概念章节说明设计选择；集成指南解释运作机制。精确的协议字段与限制以参考文档为准，示例只作说明，不会重新定义规格。维运章节则介绍恢复与诊断。
+
+桌面版可使用章节分组，移动版可使用分组章节菜单。搜索在本地涵盖所有已发布页面。网站索引不包含原始设计文档、维护者笔记或运行时凭证。即使导航分组调整，页面网址仍保持不变。
+
+## 版本与验证
+
+每页都会标示适用的源代码快照，以及已执行的验证类型。本地示例测试不等于实际环境验证。使用特定客户端与版本组合前，请先读[兼容性与版本说明](compatibility-releases.zh-CN.md)。Streaming／WebRTC、OTA 与 Telemetry 数据接收仍属后续批次；SDK 下载仍在 [ChipSet & SDK](/console/chipset-sdk)。

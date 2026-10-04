@@ -1,13 +1,14 @@
 ---
 title: API 與訊息範例
-description: 檢查完整的說明符號和影子訊息，包括欄位省略和相關規則。
+description: 查看完整 token 與影子訊息範例，瞭解欄位省略及請求與回應的對應規則。
+
 category: Reference
 keywords:
-- JSON
-- 公認的
-- 三角洲
-- 檔案
+- 訊息範例
+- 欄位省略
+- 請求對應
 - 單位
+- JSON
 - accepted
 - delta
 - documents
@@ -16,21 +17,20 @@ language: zh-TW
 applies_to: RTK contracts 9b1ed887912e; Account Manager 54b37b9c407d; Video Cloud
   30fbb9a26155; Admin bbaf62f7d6b5
 last_verified: '2026-09-04'
-verification: 來源審查和本地檢查；現場環境資格待定
+verification: 已完成來源審查與本機檢查；尚待實際環境驗證
 ---
-
 
 # API 與訊息範例
 
-## 目的和先決條件
+## 用途與前置條件
 
-完成後，使用這些固定裝置構建解析器[令牌設定](authentication.zh-TW.md)與[Shadow介面教學](shadow-interfaces.zh-TW.md).以下的所有識別符號、令牌字串和時間戳僅供說明，不是捕獲的憑據。使用裝置`device-1`，名叫Shadow`tutorial`，和力量`off` → `on`。 這[參考](shadow-reference.zh-TW.md)擁有路線、驗證和尺寸限制。
+完成 [token 設定](authentication.zh-TW.md)與[影子介面教學](shadow-interfaces.zh-TW.md)後，可用本頁範例開發解析器。下列識別值、token 字串與時間戳記全是示意資料，不是實際擷取的驗證資訊。範例使用裝置 `device-1`、具名影子 `tutorial`，以及電源 `off` → `on` 的變化。路徑、驗證規則與大小限制以[參考文件](shadow-reference.zh-TW.md)為準。
 
-[開啟重新設計的序列圖](assets/message-shapes.zh-TW.html)
+[開啟時序圖](assets/message-shapes.zh-TW.html)
 
-## 令牌的成功和失敗
+## token 簽發成功與失敗
 
-一個說明性的HTTP 200響應`POST /request_token`與`scope:app`, `devid:device-1`與`aws_iot_data:true`:
+以 `scope:app`、`devid:device-1` 與 `aws_iot_data:true` 呼叫 `POST /request_token`，HTTP 200 回應範例如下：
 
 ```json
 {
@@ -62,9 +62,9 @@ verification: 來源審查和本地檢查；現場環境資格待定
 }
 ```
 
-請勿將這些佔位符複製到客戶端中。`mqtt`是條件元資料；在嘗試MQTT之前需要它。`aws_credentials`在審查的實現中按要求返回；其令牌模式尚未完全反映在標準OpenAPI中。`tenantId`可以省略。`refresh_token`可以缺席，不是單獨的OAuth授予。沒有公共的`expires_in`或序列化`expiry`檢查令牌響應中的欄位。從以下時間開始安排JWT續訂`exp`（Unix秒）；SigV4`expiration`是一個RFC 3339 UTC字串。
+不要直接把這些示意值複製到用戶端。`mqtt` 是有條件回傳的連線資料，嘗試 MQTT 前必須先確認它存在。在已審查的實作中，提出要求時會回傳 `aws_credentials`，但其 token 結構尚未完整反映在標準 OpenAPI 中。`tenantId` 可以省略。`refresh_token` 可能不存在，也不代表獨立的 OAuth 授權流程。已檢查的 token 回應沒有公開的 `expires_in` 或序列化 `expiry` 欄位。JWT 更新時間應依 `exp`（Unix 秒數）安排；SigV4 的 `expiration` 則是 RFC 3339 格式的 UTC 字串。
 
-一個說明性的HTTP 401令牌發行失敗示例：
+token 簽發失敗的 HTTP 401 回應範例：
 
 ```json
 {
@@ -73,11 +73,11 @@ verification: 來源審查和本地檢查；現場環境資格待定
 }
 ```
 
-令牌失敗使用`status`/`reason`，而不是Shadow錯誤模式。TLS失敗不會產生HTTP JSON。首先分類狀態和操作；不要在散文中分支`reason`。客戶經理登入響應是一個不同的模式，包含`user`, `tokens`與`app_certificate`；見[憑證設定](credential-setup.zh-TW.md).
+token 失敗使用 `status`／`reason`，不是影子的錯誤結構。TLS 失敗不會產生 HTTP JSON。請先依狀態碼與操作分類，不要依 `reason` 的自然語言文字判斷程式分支。Account Manager 登入回應使用另一種結構，包含 `user`、`tokens` 與 `app_certificate`，詳見[憑證設定](credential-setup.zh-TW.md)。
 
-## 閱讀當前檔案
+## 讀取目前文件
 
-發布`{"clientToken":"read-7"}`到`$vc/devices/device-1/shadow/name/tutorial/get`，或執行帶有簽名的HTTP GET。在請求更改電源之前，MQTT接受的響應：
+將 `{"clientToken":"read-7"}` 發布到 `$vc/devices/device-1/shadow/name/tutorial/get`，或執行已簽署的 HTTP GET。要求變更電源前，MQTT accepted 回應範例如下：
 
 ```json
 {
@@ -107,11 +107,11 @@ verification: 來源審查和本地檢查；現場環境資格待定
 }
 ```
 
-GET返回完整的當前狀態。省略空差分。HTTP GET沒有MQTT請求令牌可以回聲。狀態/屬性元資料時間戳和信封時間戳是Unix秒，而不是毫秒。`version`是每個Shadow生命週期中伺服器擁有的整數，而不是跨裝置共享的時鐘或版本。
+GET 回傳目前完整狀態，空的 delta 會省略。HTTP GET 沒有可帶回的 MQTT 請求 token。狀態／屬性中繼資料與訊息外層的時間戳記，單位都是 Unix 秒數，不是毫秒。`version` 是伺服器為各影子生命週期管理的整數，不是時鐘，也不是跨裝置共用的版本。
 
-## 更新並觀察三個不同的訊息
+## 更新並觀察三種不同訊息
 
-將此補丁程式釋出到相同的根目錄中`/update`或使用已簽名的HTTP POST：
+將下列部分更新發布到相同根路徑的 `/update`，或使用已簽署的 HTTP POST：
 
 ```json
 {
@@ -125,7 +125,7 @@ GET返回完整的當前狀態。省略空差分。HTTP GET沒有MQTT請求令�
 }
 ```
 
-一個`/update/accepted`訊息（或成功的HTTP更新正文）包含已接受的補丁程式，而不是完整的狀態：
+`/update/accepted` 訊息（或 HTTP 更新成功的回應本文）包含接受的部分更新，不是完整狀態：
 
 ```json
 {
@@ -147,7 +147,7 @@ GET返回完整的當前狀態。省略空差分。HTTP GET沒有MQTT請求令�
 }
 ```
 
-這個`/update/delta`訊息在內部直接放置差異`state`:
+`/update/delta` 訊息將差異直接放在 `state` 中：
 
 ```json
 {
@@ -165,7 +165,7 @@ GET返回完整的當前狀態。省略空差分。HTTP GET沒有MQTT請求令�
 }
 ```
 
-`/update/documents`包含快照和信封時間戳。快照物件不包含差分、時間戳或clientToken：
+`/update/documents` 包含快照及外層時間戳記。快照物件本身不含 delta、timestamp 或 clientToken：
 
 ```json
 {
@@ -220,11 +220,11 @@ GET返回完整的當前狀態。省略空差分。HTTP GET沒有MQTT請求令�
 }
 ```
 
-經過檢查的序列化器可能在delta/檔案上包含一個非空的突變令牌；不需要在未經請求的通知上包含一個令牌。使用接受/拒絕對請求完成進行關聯，並獨立處理通知狀態。事件可能會重複，並在不同時間到達不同的客戶端。 這`previous`當不存在以前的狀態時，物件沒有狀態/元資料；不要要求非空部分。
+已檢查的序列化程式，可能在 delta/documents 附上非空的更新請求 token；對主動推送的通知，不要要求一定有 token。請以 accepted/rejected 對應請求是否完成，並獨立處理通知中的狀態。事件可能重複，也可能在不同時間抵達各用戶端。先前狀態不存在時，`previous` 不含 state/metadata；不要要求這些區段一定非空。
 
-## 報告實際狀態，移除欄位並處理錯誤
+## 回報實際狀態、移除欄位與處理錯誤
 
-開啟電源後，裝置提交：
+完成電源操作後，裝置提交：
 
 ```json
 {
@@ -237,9 +237,9 @@ GET返回完整的當前狀態。省略空差分。HTTP GET沒有MQTT請求令�
 }
 ```
 
-一旦接受，新的GET將顯示所需和報告的功率`on`並省略空三角。裝置執行僅由韌體的實際操作/讀取來建立；PUBACK或所需的接受都無法證明這一點。
+請求被接受後，新的 GET 會顯示 desired 與 reported 電源皆為 `on`，並省略空的 delta。只有韌體的實際操作與讀回結果，才能確認裝置已執行；PUBACK 與 desired accepted 都無法證明。
 
-移除補丁明確使用空值；省略會使現有屬性保持不變：
+刪除屬性的部分更新必須明確使用 null；省略屬性會保留原值：
 
 ```json
 {
@@ -252,9 +252,9 @@ GET返回完整的當前狀態。省略空差分。HTTP GET沒有MQTT請求令�
 }
 ```
 
-相應的已接受補丁程式保留了`power:null`；刪除值的屬性元資料被省略。陣列原子替換，空陣列元素無效。接受刪除是`{}`; MQTT DELETE忽略其有效負載，因此不要等待回聲的clientToken。
+對應的 accepted 部分更新會保留 `power:null`，但不包含已刪除屬性的中繼資料。陣列以原子方式整組取代，null 陣列元素無效。DELETE accepted 為 `{}`；MQTT DELETE 會忽略 payload，因此不要等待回應帶回 clientToken。
 
-過時的MQTT拒絕版本：
+版本過期的 MQTT 拒絕回應：
 
 ```json
 {
@@ -265,7 +265,7 @@ GET返回完整的當前狀態。省略空差分。HTTP GET沒有MQTT請求令�
 }
 ```
 
-HTTP使用其狀態和影子錯誤正文；檢查[錯誤操作](shadow-reference.zh-TW.md). 未正確或無效的相關性值無需回響。HTTP名稱列表響應可以是：
+HTTP 使用狀態碼及影子錯誤本文，請參考[錯誤處理方式](shadow-reference.zh-TW.md)。格式錯誤或無效的請求對應值不一定會被帶回。HTTP 具名影子清單回應範例如下：
 
 ```json
 {
@@ -276,23 +276,23 @@ HTTP使用其狀態和影子錯誤正文；檢查[錯誤操作](shadow-reference
 }
 ```
 
-`nextToken`是可選的和不透明的；永遠不要從名稱中推斷它。在同時建立/刪除時，使用真正的nextToken，直到缺失，不要假設在同時建立/刪除下有一個穩定的快照。
+`nextToken` 是選填且不應自行解讀的游標，絕不能從影子名稱推導。請持續使用實際回傳的 nextToken，直到不再出現；若同時有建立或刪除操作，不要假設分頁結果來自固定不變的快照。
 
-## 現場存在和單位
+## 欄位是否存在與單位
 
-|場地|存在/所有權|單元或省略規則|
+| 欄位 | 出現條件／管理者 | 單位或省略規則 |
 | --- | --- | --- |
-|更新`state` |請求容器|所需/報告的補丁程式；省略的屬性保持不變|
-|請求`version` |可選的比較和更新保護器|來自當前GET的伺服器整數；永遠不是時間戳|
-|請求`clientToken` |可選的呼叫者相關性|最多64個UTF-8位元組；不是重試重複資料刪除金鑰|
-|回應`version` |伺服器擁有對狀態響應的控制權|每個影子生命週期；已接受的刪除無任何|
-|回應`timestamp` |在定義時由伺服器擁有|Unix秒；不在內部檔案快照中|
-|屬性元資料`timestamp` |伺服器擁有的財產更新時間|Unix秒；內嵌如狀態，移除的屬性元資料省略|
-|得到`state.delta` |只有當存在差異時|Delta通知相反使用頂級級別`state` |
-| `previous` / `current` |檔案通知快照|僅限狀態、元資料和版本；省略了空格部分|
-|錯誤`code` / `message` |陰影拒絕|數字狀態類似的程式和診斷散文；令牌錯誤使用不同的模式|
-|列表`nextToken` |可選的繼續|不透明；缺席表示沒有下一頁|
+| 更新 `state` | 請求內容容器 | desired/reported 部分更新；省略的屬性保持原值 |
+| 請求 `version` | 選填的更新前版本比對 | 使用目前 GET 回傳的伺服器整數版本，不是時間戳記 |
+| 請求 `clientToken` | 選填，由呼叫者對應請求與回應 | 最多 64 個 UTF-8 位元組；不是重試去重金鑰 |
+| 回應 `version` | 狀態回應中由伺服器管理 | 各影子生命週期獨立；DELETE accepted 不含此欄位 |
+| 回應 `timestamp` | 規格定義處由伺服器產生 | Unix 秒數；documents 的內部快照不含此欄位 |
+| 屬性中繼資料 `timestamp` | 伺服器記錄的屬性更新時間 | Unix 秒數；巢狀結構對應狀態，已刪除屬性的中繼資料會省略 |
+| GET `state.delta` | 有差異時才出現 | delta 通知則使用最上層 `state` |
+| `previous` / `current` | documents 通知中的快照 | 只含 state、metadata 與 version；空區段會省略 |
+| 錯誤 `code` / `message` | 影子拒絕回應 | 類似狀態碼的數字及診斷文字；token 錯誤使用另一種結構 |
+| 清單 `nextToken` | 有下一頁時才出現 | 不應解讀其內容；沒有此欄位表示沒有下一頁 |
 
-## 解析器接受清單
+## 解析器驗收清單
 
-接受省略的空狀態部分、可選相關性以及額外的欄位；拒絕您的應用程式依賴它們的無效形狀。將Unix秒與RFC 3339到期時間分開。切勿將更新補丁程式解釋為替換快照。測試缺少的影子、刪除、清除空值、重複事件和版本衝突。下一個：[狀態設計](state-model.zh-TW.md)與[整合除錯](debugging.zh-TW.md).
+應能接受省略的空狀態區段、選填的請求對應值及額外欄位；對應用程式依賴的資料結構，則應拒絕無效格式。區分 Unix 秒數與 RFC 3339 格式的有效期限。不可把部分更新當成完整取代快照。請測試影子不存在、刪除、null 移除、重複事件與版本衝突。下一步：[狀態設計](state-model.zh-TW.md)及[整合除錯](debugging.zh-TW.md)。

@@ -1,12 +1,12 @@
 flowchart LR
-    Config["公共端点/CA/测试装置设定"] --> Kit["验证.py"]
-    Tokens["私人独立应用程式和装置令牌档案"] --> Kit
-    Kit -->|"预设：只读"| Probe["TLS，精确订阅，相关GET"]
-    Probe --> Service["目标MQTT/影子服务"]
-    Kit -->|"明确的——练习"| App["应用程式演示：所需的更新和收敛检查"]
-    Kit -->|"监督和停止"| Device["装置模拟器：申请和报告"]
+    Config["公开端点／CA／测试设备配置"] --> Kit["verify.py"]
+    Tokens["分开存放的应用程序与设备私人 令牌 文件"] --> Kit
+    Kit -->|"默认：只读"| Probe["TLS、完整主题订阅、可对应响应的 GET"]
+    Probe --> Service["目标 MQTT／影子服务"]
+    Kit -->|"明确指定 --exercise"| App["应用程序示例：更新 desired 并确认状态一致"]
+    Kit -->|"管理运行并负责停止"| Device["设备模拟器：应用配置并上报"]
     App <--> Service
     Device <--> Service
-    Probe --> Evidence["消毒结果/退出程式"]
+    Probe --> Evidence["已移除敏感信息的结果／退出码"]
     App --> Evidence
-    Matrix["单独的实时资格：所有权、撤销、HTTP、存在"] -.-> Evidence
+    Matrix["另行验证实际环境：所有权、撤销、HTTP、连接状态"] -.-> Evidence

@@ -1,22 +1,22 @@
 flowchart TB
     subgraph Factory["工廠層"]
-        Identity["裝置身份和規範權利"]
+        Identity["裝置身分與標準服務授權"]
     end
     subgraph Account["帳戶層"]
-        Claim["索賠/使用者組織繫結"] --> Activation["非同步配置操作"]
-        Release["未配置"] -->|"釋出"| Claim
+        Claim["認領／使用者與組織綁定"] --> Activation["非同步配置作業"]
+        Release["解除配置"] -->|"解除"| Claim
     end
-    subgraph Runtime["執行時層"]
-        Enabled["雲啟動狀態"]
-        Owner["現任所有者運輸"]
-        Shadow["持續的影子狀態"]
+    subgraph Runtime["執行階段層"]
+        Enabled["雲端啟用狀態"]
+        Owner["目前 owner 傳輸連線"]
+        Shadow["持久儲存的影子狀態"]
     end
     Identity --> Claim
     Activation --> Enabled
-    Enabled -->|"允許授權的執行時使用"| Owner
-    Enabled -->|"允許授權的州政府訪問"| Shadow
-    Release -.->|"儲存"| Identity
-    Owner -.->|"獨立於儲存狀態"| Shadow
-    Status["艦隊/準備狀態顯示：檢查來源和觀察時間"]
+    Enabled -->|"允許獲授權的執行階段存取"| Owner
+    Enabled -->|"允許獲授權的狀態存取"| Shadow
+    Release -.->|"保留"| Identity
+    Owner -.->|"與儲存狀態彼此獨立"| Shadow
+    Status["裝置群／就緒狀態：檢查來源與觀測時間"]
     Activation --> Status
     Owner --> Status

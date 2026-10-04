@@ -1,58 +1,59 @@
 ---
 title: 雲端服務概覽
-description: 瞭解MQTT訊息傳遞、影子狀態以及裝置和應用程式的角色。
+description: 了解 MQTT 訊息交換、Shadow 狀態，以及裝置
+  與應用程式各自的角色。
 category: Start here
 keywords:
-- MQTT
-- Shadow
 - 架構
 - 裝置
 - 後端
+- 裝置影子
+- MQTT
+- Shadow
 - architecture
 - device
 - backend
 language: zh-TW
 applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
 last_verified: '2026-09-04'
-verification: 來源審查和本地測試；現場環境資格待定
+verification: 來源檢閱與本機測試；實際環境驗證仍待完成
 ---
-
 
 # 雲端服務概覽
 
-RTK Cloud 串連裝置韌體、應用程式與後端服務。MQTT 提供依主題交換訊息的機制。裝置影子儲存裝置的預期狀態與回報狀態，因此即使應用程式與裝置未同時線上，也能協調狀態。
+RTK Cloud 串連裝置韌體、應用程式與後端服務。MQTT 提供依主題交換訊息的機制。裝置影子（Device Shadow）儲存裝置的預期狀態與回報狀態，讓應用程式和裝置即使未同時在線，也能同步狀態。
 
-![裝置和應用程式透過MQTT或帶有簽名的HTTPS交換MQTT訊息並使用影子服務。](assets/service-overview.zh-TW.svg)
+![裝置與應用程式交換 MQTT 訊息，並透過 MQTT 或帶有簽章的 HTTPS 使用 Shadow 服務。](assets/service-overview.zh-TW.svg)
 
-[開啟全尺寸圖表](assets/service-overview.zh-TW.svg) · [Mermaid 原始檔](assets/service-overview.zh-TW.mmd)
+[檢視完整架構圖](assets/service-overview.zh-TW.svg) · [Mermaid 原始碼](assets/service-overview.zh-TW.mmd)
 
-## 選擇一個介面
+## 選擇整合介面
 
-|目標|介面|
+| 目標 | 使用介面 |
 | --- | --- |
-|交換應用程式定義的訊息|MQTT通用主題|
-|保留請求的配置和實際裝置狀態|MQTT或HTTP上的裝置影子|
-|從HTTP後端讀取或更改Shadow|已簽名的Shadow HTTP API|
-|整合受支援的客戶端軟體包| [晶片組和SDK手冊](/console/chipset-sdk) |
+| 交換應用程式自訂訊息 | 一般 MQTT 主題 |
+| 保存預期設定與裝置實際狀態 | 透過 MQTT 或 HTTP 使用裝置影子 |
+| 從 HTTP 後端讀取或修改 Shadow | 使用簽章的 Shadow HTTP API |
+| 整合受支援的用戶端套件 | [Chipset 與 SDK 手冊](/console/chipset-sdk) |
 
-裝置韌體通常應用所需的設定並報告實際狀態。應用程式和後端通常要求更改並觀察收斂。這是一種應用程式慣例，而不是內建的所需/報告訪問限制：許可權來自主機和產品策略。
+裝置韌體通常負責套用預期設定並回報實際狀態；App 與後端則提出變更，並觀察裝置是否達到預期狀態。這是應用程式的分工慣例，不是內建的 desired／reported 存取限制；實際權限由身分主體與產品政策決定。
 
-## 能力是獨立的
+## 各項功能分別啟用
 
-|啟用功能| 一般 MQTT |HTTP 影子|MQTT影子|
+| 已啟用功能 | 一般 MQTT | HTTP Shadow | MQTT Shadow |
 | --- | --- | --- | --- |
 | `mqtt` | 是 | 否 | 否 |
 | `iot_shadow` | 否 | 是 | 否 |
-| 兩者皆是 | 是 | 是 | 是 |
+| 兩者皆啟用 | 是 | 是 | 是 |
 
-透過產品的服務設定配置這些功能。令牌不能啟用產品/裝置無權使用的功能。憑據和策略也必須授權該操作。
+請透過產品的服務設定啟用功能。產品或裝置若未取得某項服務使用權，token 也無法替它啟用該功能。執行操作時，驗證資訊與政策同樣必須允許該操作。
 
-公共裝置身份是`devid`；Shadow HTTP API呼叫相同的值`thingName`。示例用法`device-1`和一個命名的影子`tutorial`將教學狀態與無名影子分開。
+公開裝置識別碼是 `devid`；Shadow HTTP API 將相同的值稱為 `thingName`。範例使用 `device-1` 與具名 Shadow `tutorial`，將教學狀態和未命名 Shadow 分開。
 
-## 學習路徑
+## 建議閱讀順序
 
-先閱讀[雲/裝置設定](setup-cloud-device.zh-TW.md)與[憑證設定](credential-setup.zh-TW.md)，接著[開始之前](before-you-start.zh-TW.md)，完成[MQTT訊息交換](mqtt-quickstart.zh-TW.md)，再閱讀[影子狀態同步](shadow-quickstart.zh-TW.md). 流媒體、OTA和遙測服務指南計劃在後續版本中提供。
+先閱讀[雲端與裝置設定](setup-cloud-device.zh-TW.md)及[憑證設定](credential-setup.zh-TW.md)，再完成[開始之前](before-you-start.zh-TW.md)的準備，接著實作 [MQTT 訊息交換](mqtt-quickstart.zh-TW.md)與 [Shadow 狀態同步](shadow-quickstart.zh-TW.md)。串流、OTA 與遙測服務指南預計在後續版本提供。
 
-要使用完整的雙客戶端程式，請使用[端到端應用程式與裝置範例](app-device-example.zh-TW.md)。伺服器團隊應該閱讀[後端整合](backend-integration.zh-TW.md)；檢查[連線設定與服務限制](connection-settings.zh-TW.md)在選擇生產客戶端設定之前。
+完整的雙用戶端程式請參閱 [App 與裝置端到端範例](app-device-example.zh-TW.md)。伺服器開發團隊應閱讀[後端整合](backend-integration.zh-TW.md)；決定正式用戶端設定前，請確認[連線設定與服務限制](connection-settings.zh-TW.md)。
 
-繼續：[選擇一個開發人員學習途徑](documentation-map.zh-TW.md).
+延伸閱讀：[選擇開發者學習路徑](documentation-map.zh-TW.md)。

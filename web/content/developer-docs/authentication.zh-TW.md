@@ -1,14 +1,13 @@
 ---
 title: 身分驗證與存取控制
-description: 獲取執行時令牌，並將其元資料對映到MQTT和Shadow HTTP憑據中。
+description: 取得執行階段 token，並將回傳資訊用於 MQTT 與 Shadow HTTP
+  的身分驗證。
 category: Build integrations
 keywords:
-- 請求_令牌
-- 重新整理_令牌
-- 其他
-- 體4
-- 客戶端_id
-- aws_憑據
+- 身分驗證
+- 存取控制
+- 簽章
+- token 更新
 - request_token
 - refresh_token
 - mTLS
@@ -18,27 +17,26 @@ keywords:
 language: zh-TW
 applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
 last_verified: '2026-09-04'
-verification: 來源審查和本地測試；現場環境資格待定
+verification: 來源檢閱與本機測試；實際環境驗證仍待完成
 ---
-
 
 # 身分驗證與存取控制
 
-經過驗證的裝置證書識別了裝置。應用程式證書識別了應用程式使用者；應用程式執行時令牌還會與請求的裝置繫結。在測試時，請將這兩個身份分開。
+裝置憑證通過驗證後，用來識別裝置；App 憑證則用來識別應用程式使用者。App 的執行階段 token 還會綁定請求中指定的裝置。測試時，請分別使用這兩種身分。
 
-[開啟重新設計的序列圖](assets/authentication.zh-TW.html)
+[開啟驗證流程時序圖](assets/authentication.zh-TW.html)
 
-## 身份驗證邊界
+## 各類驗證資訊的適用範圍
 
-在各自的邊界上使用每個憑據。帳戶經理持有人不是MQTT密碼；執行時JWT不是AWS帳戶憑據。下面的共享地圖補充了令牌交換序列和詳細的憑據設定指南。
+各類驗證資訊都有各自的用途。Account Manager 的 Bearer token 不能作為 MQTT 密碼；執行階段 JWT 也不是 AWS 帳號的驗證資訊。下圖整理各種驗證資訊的用途，可搭配 token 交換時序圖與憑證設定指南閱讀。
 
-![身份驗證邊界](assets/credential-uses.zh-TW.svg)
+![各類驗證資訊的適用範圍](assets/credential-uses.zh-TW.svg)
 
-[全尺寸方塊圖](assets/credential-uses.zh-TW.svg) · [Mermaid 原始檔](assets/credential-uses.zh-TW.mmd)
+[檢視完整架構圖](assets/credential-uses.zh-TW.svg) · [Mermaid 原始碼](assets/credential-uses.zh-TW.mmd)
 
-## 獲取執行時憑據
+## 取得執行階段驗證資訊
 
-完成後[先決條件](before-you-start.zh-TW.md)，在您的私人工作目錄中執行以下操作。`aws_iot_data`請求HTTP示例使用的短暫的憑證捆綁包。
+完成[事前準備](before-you-start.zh-TW.md)後，在私人工作目錄中執行以下指令。`aws_iot_data` 用來請求 HTTP 範例所需的短期憑證包。
 
 ```bash
 jq -n --arg devid "$DEVICE_ID" \
@@ -58,27 +56,27 @@ curl --fail-with-body --silent --show-error \
   "$APP_TOKEN_BASE/request_token" > "$TUTORIAL_DIR/app-token.json"
 ```
 
-發生HTTP錯誤後請勿繼續。請確認每個檔案都不是空的`access_token`, `mqtt.username`，和`mqtt.client_id`不列印他們的值。HTTP Shadow示例還需要`aws_credentials`物件。缺失的欄位不是需要編造的值：檢查能力啟用、端點版本和發行策略。
+若收到 HTTP 錯誤，請先停止。確認每個檔案都包含非空的 `access_token`、`mqtt.username` 與 `mqtt.client_id`，但不要印出這些值。HTTP Shadow 範例還需要 `aws_credentials` 物件。若缺少欄位，請檢查服務功能是否已啟用、端點版本與簽發政策，不要自行填入值。
 
-## 將憑據對映到協議
+## 將驗證資訊填入協定欄位
 
-|連線欄位|價值|
+| 連線欄位 | 填入的值 |
 | --- | --- |
-|MQTT使用者名稱|回應`mqtt.username` |
-|MQTT密碼|回應`access_token` |
-|MQTT客戶端ID|回應`mqtt.client_id`，可選後跟一個允許的角色字尾|
-|HTTP 影子訪問金鑰| `aws_credentials.accessKeyId` |
-|HTTP 影子金鑰| `aws_credentials.secretAccessKey` |
-|HTTP 影子會話令牌| `aws_credentials.sessionToken` |
-|HTTP影子區域和端點| `aws_credentials.region`, `aws_credentials.iotDataEndpoint` |
+| MQTT 使用者名稱 | 回應中的 `mqtt.username` |
+| MQTT 密碼 | 回應中的 `access_token` |
+| MQTT Client ID | 回應中的 `mqtt.client_id`，可加上允許的角色後綴 |
+| HTTP Shadow 存取金鑰 | `aws_credentials.accessKeyId` |
+| HTTP Shadow 秘密金鑰 | `aws_credentials.secretAccessKey` |
+| HTTP Shadow 工作階段 token | `aws_credentials.sessionToken` |
+| HTTP Shadow 區域與端點 | `aws_credentials.region`, `aws_credentials.iotDataEndpoint` |
 
-MQTT使用者名必須與簽名的Brand Cloud身份相匹配。不要在主題前加上Brand Cloud ID。同時的MQTT連線需要不同的客戶端ID。這些教學附加`-watch`與`-send`到返回的基礎。檢查後的實現允許1-64個ASCII字母、數字、下劃線或連字元字尾；使用簡短的固定角色。
+MQTT 使用者名稱必須符合已簽署的 Brand Cloud 身分。不要在主題前加上 Brand Cloud ID。同時存在的 MQTT 連線必須使用不同的 Client ID；本教學會在回傳的基礎 ID 後加上 `-watch` 或 `-send`。經檢查的實作允許後綴使用 1–64 個 ASCII 字母、數字、底線或連字號；建議使用簡短且固定的角色名稱。
 
-普通受保護的服務HTTP API通常使用承載人授權。公共Shadow HTTP契約使用帶有服務名稱的SigV4`iotdevicegateway`；使用返回的憑證捆綁包，而不是假設承運人示例適用。
+一般受保護的服務 HTTP API 通常使用 Bearer 驗證。公開的 Shadow HTTP 介面規格則要求使用 SigV4，服務名稱為 `iotdevicegateway`。請使用回傳的憑證包，不要直接套用 Bearer 範例。
 
-## 在到期前續訂
+## 在到期前更新 token
 
-從已簽署的JWT中安排令牌續訂`exp`，不是要求的`expiry`持續時間。將解碼的索賠視為排程資料，而不是本地驗證的授權。`/refresh_token`使用歷史上命名的仍然有效的簽名令牌`refresh_token`欄位；這不是一個不透明的重新整理許可權。
+請依已簽署 JWT 中的 `exp` 安排 token 更新時間，不要依請求中的 `expiry` 時長推算。解碼後的 JWT 宣告只供排程使用，不代表已在本機驗證授權。`/refresh_token` 的 `refresh_token` 欄位沿用既有命名，實際接收的是仍有效的已簽署 token，並非獨立的不透明更新授權。
 
 ```bash
 jq '{refresh_token:.access_token}' "$TUTORIAL_DIR/device-token.json" \
@@ -89,12 +87,12 @@ curl --fail-with-body --silent --show-error --cacert "$CA_FILE" \
   "$API_BASE/refresh_token" > "$TUTORIAL_DIR/device-token-next.json"
 ```
 
-在更換當前令牌檔案之前，請驗證響應。使用其新密碼和返回的元資料重新連線MQTT。如果舊令牌已過期或重新發行失敗，請透過證書引導流程獲取新令牌。要更新HTTP Shadow憑據，請重複`/request_token`與`aws_iot_data:true`；不要假設重新發行會重新發行該捆綁包。
+先驗證回應，再替換目前的 token 檔案。使用新密碼與回傳資訊重新建立 MQTT 連線。若舊 token 已到期或重新簽發失敗，請透過憑證驗證流程取得新 token。若要更新 HTTP Shadow 驗證資訊，請再次呼叫 `/request_token` 並帶入 `aws_iot_data:true`；不要假設 token 重新簽發時也會回傳該憑證包。
 
-## 故障檢查
+## 失敗時的檢查項目
 
-TLS故障發生在HTTP響應之前。檢查伺服器信任鏈、證書有效性、私鑰和端點。HTTP令牌拒絕可能表明裝置身份不匹配、未活動裝置、缺少許可權或不可用的裝置投影。成功發行後的MQTT拒絕需要檢查使用者名稱、客戶端ID、令牌到期日和`mqtt`能力。
+TLS 錯誤發生在收到 HTTP 回應之前。請檢查伺服器信任鏈、憑證效期、私鑰與端點。HTTP token 請求遭拒可能是裝置身分不符、裝置尚未啟用、權限不足，或裝置資料投影不可用。若 token 已成功簽發，但 MQTT 連線遭拒，請檢查使用者名稱、Client ID、token 到期時間與 `mqtt` 功能。
 
-下一個：[MQTT快速入門](mqtt-quickstart.zh-TW.md)或者[簽名的HTTP影子請求](shadow-interfaces.zh-TW.md).
+下一步：[MQTT 快速入門](mqtt-quickstart.zh-TW.md)或[使用簽章的 HTTP Shadow 請求](shadow-interfaces.zh-TW.md)。
 
-繼續：[憑證更新和恢復](credential-recovery.zh-TW.md).
+延伸閱讀：[驗證資訊更新與連線復原](credential-recovery.zh-TW.md)。

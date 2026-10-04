@@ -1,12 +1,13 @@
 ---
 title: 裝置所有權與分享
-description: 瞭解帳戶繫結、授權共享和轉售，而不會將它們與裝置身份混淆。
+description: 了解帳號綁定、授權分享與轉售流程，並區分
+  這些操作和裝置身分。
 category: Build integrations
 keywords:
 - 所有權
 - 分享
-- 未規劃
-- 轉移
+- 解除綁定
+- 移轉
 - ownership
 - sharing
 - unprovision
@@ -15,70 +16,69 @@ language: zh-TW
 applies_to: RTK contracts 9b1ed887912e; Account Manager 54b37b9c407d; Video Cloud
   30fbb9a26155; Admin bbaf62f7d6b5
 last_verified: '2026-09-04'
-verification: 來源審查和本地軟體包檢查；即時生命週期資格待定
+verification: 來源檢閱與本機套件檢查；實際環境生命週期驗證仍待完成
 ---
-
 
 # 裝置所有權與分享
 
-## 目標和先決條件
+## 目標與事前準備
 
-為組織擁有的或消費者裝置選擇正確的生命週期。準備一個授權的測試帳戶、登入檔裝置ID和執行時`devid`使用[雲/裝置設定](setup-cloud-device.zh-TW.md).切勿從證書檔名、MQTT主題或成功登入中推斷所有權。
+為組織持有或消費者持有的裝置選擇正確的生命週期流程。請依[雲端與裝置設定](setup-cloud-device.zh-TW.md)準備已授權的測試帳號、裝置註冊 ID 與執行階段 `devid`。不要從憑證檔名、MQTT 主題或登入成功推斷所有權。
 
-## 架構和責任界限
+## 架構與責任範圍
 
-![身份訪問](assets/identity-access.zh-TW.svg)
+![身分與存取權](assets/identity-access.zh-TW.svg)
 
-[全尺寸方塊圖](assets/identity-access.zh-TW.svg) · [Mermaid 原始檔](assets/identity-access.zh-TW.mmd)
+[檢視完整架構圖](assets/identity-access.zh-TW.svg) · [Mermaid 原始碼](assets/identity-access.zh-TW.mmd)
 
 
-## 三種不同的所有權
+## 三種不同層次的歸屬
 
-|概念|它控制什麼|
+| 概念 | 決定的內容 |
 | --- | --- |
-|工廠身份|裝置證書、不可變的生產上下文和規範服務權利|
-|帳戶繫結|哪些組織/使用者可以管理或操作該裝置|
-|車主運輸|哪個活躍的執行時會話接收裝置命令；請參閱[存在和生命週期](device-presence.zh-TW.md) |
+| 出廠身分 | 裝置憑證、不可變更的生產資訊與正式服務使用權 |
+| 帳號綁定 | 哪個組織或使用者可以管理或操作裝置 |
+| 裝置主連線（owner transport） | 由哪個使用中的執行階段工作階段接收裝置命令；參閱[線上狀態與生命週期](device-presence.zh-TW.md) |
 
-控制檯使用者、消費者APP終端使用者和裝置證書是不同的主體。組織索賠使用`POST /v1/orgs/{orgId}/devices/claim/resolve`. 消費者APP索賠使用`POST /v1/app/devices/claim/resolve`使用APP終端使用者承載者並建立終端使用者繫結。不要用控制檯登入令牌代替APP身份。兩者都使用入職中解釋的索賠請求形狀；啟動是一個單獨的步驟。
+控制台使用者、消費者 APP 終端使用者與裝置憑證，代表不同的驗證主體。組織認領使用 `POST /v1/orgs/{orgId}/devices/claim/resolve`；消費者 APP 認領使用 `POST /v1/app/devices/claim/resolve`，並以 APP 終端使用者的 Bearer token 建立終端使用者綁定。不可用控制台登入 token 代替 APP 身分。兩者都使用入門流程所述的認領請求格式；裝置啟用須另行完成。
 
-## 分享是一種授權決定
+## 分享必須透過授權
 
-使用已批准的雲/產品會員資格和訪問範圍工作流程進行開發人員協作。給某人發放證書、令牌檔案或索取令牌並非分享。雲所有權轉讓、產品所有權轉讓和裝置索取轉讓是不同的操作。
+開發者協作應使用核准的 Cloud／Product 成員資格與存取範圍流程。將憑證、token 檔案或 Claim Token 交給別人，不是分享授權。Cloud 所有權移轉、Product 所有權移轉與裝置認領移轉是不同操作。
 
-審查的公共契約沒有建立一個通用消費者裝置邀請/共享API。不要發明`/devices/{id}/share`，假設組織會員資格會建立消費者繫結，或將所有者的憑據複製到另一個使用者。需要家庭共享的產品必須首先與服務所有者確認其支援的繫結/許可契約。
+已審查的公開規格未定義通用的消費者裝置邀請或分享 API。不要自行假設有 `/devices/{id}/share`，不要假設組織成員資格會建立消費者綁定，也不要將擁有者的驗證資訊複製給其他使用者。若產品需要家庭分享功能，應先向服務負責團隊確認支援的綁定與權限規格。
 
-對於任何受支援的贈款，請驗證收件人只能訪問預期的裝置和操作，並用現有連線和新的憑據請求測試刪除。本版本不符合通用即時撤銷/斷開連線延遲的條件。
+對任何支援的授權方式，都須確認接受授權者只能存取指定裝置並執行允許的操作。移除授權時，要同時測試既有連線與新的驗證資訊請求。本版尚未驗證共通的即時撤銷或斷線延遲保證。
 
-## 釋出一個正常裝置以進行轉售
+## 解除一般裝置綁定以供轉售
 
-[開啟重新設計的序列圖](assets/ownership-release.zh-TW.html)
+[開啟解除所有權綁定時序圖](assets/ownership-release.zh-TW.html)
 
-只有當當前所有者打算釋放裝置時才使用未配置。此命令更改所有權；僅在明確選擇的一次性測試裝置上執行。它使用帳戶管理器令牌，而不是影片雲執行時令牌。
+只有目前擁有者確實要放棄裝置所有權時，才使用 unprovision。此指令會變更所有權，只能在明確選定、可捨棄的測試裝置上執行。它使用 Account Manager token，不是 Video Cloud 執行階段 token。
 
 ```bash
 curl --fail-with-body --silent --show-error --cacert "$CA_FILE"   -H "Authorization: Bearer $(jq -er '.tokens.access_token' "$TUTORIAL_DIR/account-login.json")"   -X POST "$ACCOUNT_BASE/v1/orgs/$ORG_ID/devices/$REGISTRY_DEVICE_ID/unprovision"   > "$TUTORIAL_DIR/unprovision-result.json"
 jq -e '.unprovision.status == "unprovisioned"' "$TUTORIAL_DIR/unprovision-result.json"
 ```
 
-HTTP 200確認了帳戶側的繫結釋放。響應包括`device_id`, `organization_id`, `video_cloud_devid`, `status`和RFC 3339`unprovisioned_at`裡面`unprovision`.跨服務清理是非同步執行的；響應並不能證明每個快取會話都已經停止。根據契約，之前的使用者必須失去組織範圍的列表/檢視/控制權。單獨評估現有的MQTT和HTTP訪問資格，並報告任何執法差距。
+HTTP 200 表示帳號端綁定已解除。回應的 `unprovision` 中包含 `device_id`、`organization_id`、`video_cloud_devid`、`status`，以及 RFC 3339 格式的 `unprovisioned_at`。跨服務清理以非同步方式執行；此回應不能證明所有快取工作階段都已停止。依規格，原使用者必須失去組織範圍內的列出、檢視與控制權。請另外驗證既有 MQTT 與 HTTP 存取，並回報任何未落實的限制。
 
-下一個所有者必須提供新的所有權證明，解決索賠並再次提供。工廠身份、證書和標準服務選項保持完整。這並不允許將舊所有者的執行緒令牌轉讓給買家。
+下一位擁有者必須提供新的持有證明，完成認領解析並重新佈建。出廠身分、憑證與正式服務選項會保留。這不代表可以將舊擁有者的執行階段 token 交給買家。
 
-## 選擇正確的破壞操作
+## 選擇正確的破壞性操作
 
-|操作|預期結果|不要假設|
+| 操作 | 預期結果 | 不代表 |
 | --- | --- | --- |
-|未規劃|釋放當前賬戶的轉售/重新登記繫結|工廠身份被撤銷、雲有效載荷被抹除或硬體重置|
-|停用|為了安全或拆解，封鎖/移除雲服務訪問許可權|自動可用於另一個所有者|
-|軟禁用|停用帳戶登入檔/訪問記錄|所有權釋放或物理裝置停用|
-|出廠重置|裝置本地產品行為|雲所有權釋出|
-|管理員索賠轉讓|支援授權轉移到另一個組織|普通客戶自助服務許可|
+| Unprovision | 解除目前帳號綁定，以供轉售或重新設定 | 撤銷出廠身分、清除雲端資料或重設硬體 |
+| Deactivate | 因安全或停用需求，阻擋或移除雲端服務存取權 | 裝置會自動開放給其他擁有者 |
+| Soft-disable | 停用帳號端的裝置註冊或存取記錄 | 已解除所有權，或實體裝置已除役 |
+| Factory reset | 依產品定義重設裝置本機狀態 | 已解除雲端所有權 |
+| Admin claim transfer | 由支援人員授權，將認領移轉至另一組織 | 一般客戶具備自助移轉權限 |
 
-`POST /v1/admin/device-claims/{claimId}/transfer`是一個需要明確理由和證據的平臺管理員覆蓋。它只移動尚未啟動影片雲啟動的索賠。啟動後的跨組織移動將返回`409 cloud_lifecycle_bound`；它不會遷移執行時會話或媒體。這不是正常的客戶轉售API。支援流程不得暴露原始索賠材料或私鑰。資料抹除和保留的影子/媒體處理需要明確的產品政策；未配置不是對資料刪除的全面保證。
+`POST /v1/admin/device-claims/{claimId}/transfer` 是平台管理員介入的操作，必須提供明確理由與證據。它只能移轉尚未開始 Video Cloud 啟用流程的認領。開始啟用後，跨組織移轉會回傳 `409 cloud_lifecycle_bound`；此 API 不會遷移執行階段工作階段或媒體，也不是一般客戶轉售 API。支援流程不得洩露原始認領資料或私鑰。資料清除，以及保留的 Shadow／媒體如何處理，都須由產品政策明確定義；unprovision 不保證刪除所有資料。
 
-## 故障檢查和接受
+## 失敗檢查與驗收
 
-在401中，在正確的身份系統中重新驗證身份。在403中，檢查活動會員資格、目標所有權和未配置許可權。在409中，解決生命週期衝突，而不是切換到管理端點。在不確定的超時後，在重複變更之前，透過授權的管理工作流程檢查當前的繫結。
+收到 401 時，請在正確的身分系統重新驗證。收到 403 時，檢查有效成員資格、目標所有權與 unprovision 權限。收到 409 時，應解決生命週期衝突，不要改用管理員端點。若請求逾時而結果不確定，重複變更前，先透過已授權的管理流程檢查目前綁定。
 
-測試舊使用者拒絕、下一個所有者索賠、保留工廠身份、非同步清理失敗和恢復。不要使用生產裝置測試所有權轉讓。下一個：[憑證恢復](credential-recovery.zh-TW.md), [整合測試工具組](integration-test-kit.zh-TW.md).
+請測試原使用者存取遭拒、新擁有者認領、出廠身分保留，以及非同步清理失敗與復原。不要用正式裝置測試所有權移轉。下一步：[驗證資訊復原](credential-recovery.zh-TW.md)、[整合測試工具組](integration-test-kit.zh-TW.md)。

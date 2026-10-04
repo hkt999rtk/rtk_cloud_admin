@@ -1,13 +1,14 @@
 ---
 title: 裝置影子概念
-description: 瞭解所需和報告的狀態、差異、名稱、合併規則和版本。
+description: 瞭解 desired、reported、delta、影子名稱、合併規則與版本。
+
 category: Concepts
 keywords:
-- 渴望的
-- 報告的
-- 三角洲
+- 預期狀態
+- 回報狀態
+- 狀態差異
 - 版本
-- 命名的影子
+- 具名影子
 - desired
 - reported
 - delta
@@ -16,49 +17,48 @@ keywords:
 language: zh-TW
 applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
 last_verified: '2026-09-04'
-verification: 來源審查和本地測試；現場環境資格待定
+verification: 已完成來源審查與本機測試；尚待實際環境驗證
 ---
-
 
 # 裝置影子概念
 
-影子是一個儲存的JSON狀態檔案，而不是連線或命令佇列。裝置可以在請求的狀態仍然可用以進行後續協調時斷開連線。
+裝置影子（Device Shadow）是儲存在雲端的 JSON 狀態文件。它不代表連線，也不是命令佇列。裝置離線時，預期狀態仍會保留，供裝置重新連線後讀取並同步。
 
-[開啟重新設計的序列圖](assets/shadow-sync.zh-TW.html)
+[開啟時序圖](assets/shadow-sync.zh-TW.html)
 
-## 在Shadow檔案中
+## 影子文件的組成
 
-期望值是意圖，報告值是觀察值，而差異值是服務計算的差異值。元資料和版本屬於服務。顯示的客戶端角色是典型的應用程式職責，而不是自動的僅期望值/僅報告值許可規則。差異值是匯出的，而不是獨立可寫的欄位。
+desired 表示預期狀態，reported 表示裝置回報狀態，delta 則是服務計算出的狀態差異。中繼資料與版本由服務管理。圖中的用戶端分工是常見的應用設計，並不表示系統會自動限制各方只能寫入 desired 或 reported。delta 是衍生資料，不能獨立寫入。
 
-![在Shadow檔案中](assets/shadow-document-model.zh-TW.svg)
+![影子文件的組成](assets/shadow-document-model.zh-TW.svg)
 
-[全尺寸方塊圖](assets/shadow-document-model.zh-TW.svg) · [Mermaid 原始檔](assets/shadow-document-model.zh-TW.mmd)
+[開啟完整方塊圖](assets/shadow-document-model.zh-TW.svg) · [Mermaid 原始檔](assets/shadow-document-model.zh-TW.mmd)
 
-## 狀態列位
+## 狀態欄位
 
-- `desired`：應用程式想要的狀態。
-- `reported`：裝置報告的實際狀態。
-- `delta`：與報告狀態不同的所需屬性；由服務計算。
-- `metadata`：服務編寫的時間戳映象狀態屬性。
-- `version`：檔案的變異版本越來越多。
-- `timestamp`：服務編寫的時代時間戳。
+- `desired`：應用程式希望裝置達到的預期狀態。
+- `reported`：裝置回報的實際狀態。
+- `delta`：desired 中與 reported 不同的屬性，由服務計算。
+- `metadata`：服務產生的屬性時間戳記，結構對應各狀態屬性。
+- `version`：文件每次異動時遞增的版本。
+- `timestamp`：服務產生的 Unix 時間戳記。
 
-為了想要的`power:"on"`並報告了`power:"off"`，三角洲包含`power:"on"`。在韌體應用更改並報告後`power:"on"`，這種差異消失了。收斂的檔案省略了一個空的三角形；不需要`delta:{}`或一個特殊的空三角形事件。
+例如，desired 為 `power:"on"`、reported 為 `power:"off"` 時，delta 會包含 `power:"on"`。韌體完成操作並回報 `power:"on"` 後，這項差異就會消失。狀態一致時，文件會省略空的 delta；不要要求一定收到 `delta:{}` 或專門表示 delta 為空的事件。
 
-## 名稱和生命週期
+## 名稱與生命週期
 
-每個裝置都可以有一個無名影子和獨立版本的命名影子。省略HTTP`name`查詢引數，或省略`/name/{shadowName}`在MQTT中，要選擇無名影子。本指南使用有名的影子`tutorial`.
+每個裝置可以有一個未命名影子，以及多個各自管理版本的具名影子。在 HTTP 中省略 `name` 查詢參數，或在 MQTT 主題中省略 `/name/{shadowName}`，即可選擇未命名影子。本教學使用名為 `tutorial` 的具名影子。
 
-裝置啟動不會建立影子。對於丟失的影子，GET返回404。第一次有效的UPDATE建立它。在48小時內刪除和重新建立影子會繼續其版本序列。在那之後，墓碑視窗過期後，重新建立會重新啟動初始版本的行為；應用程式必須考慮新的生命週期，而不是永久拒絕較低版本。
+啟用裝置不會自動建立影子。讀取尚不存在的影子時，GET 會回傳 404；第一次有效的 UPDATE 才會建立它。刪除影子後若在 48 小時內重建，版本編號會延續先前的序列。這段刪除記錄保留期結束後，重建時會重新採用初始版本規則；應用程式必須識別新的生命週期，不能永久拒絕較小的版本號。
 
-## 補丁程式和衝突
+## 部分更新與版本衝突
 
-更新可迭代地合併物件。`null`刪除一個屬性；`desired:null`或者`reported:null`刪除該部分。陣列原子替換，不能包含空元素。補丁程式的可選`version`必須與當前狀態匹配，否則請求將以409失敗。
+更新會遞迴合併 JSON 物件。`null` 會刪除屬性；`desired:null` 或 `reported:null` 會刪除整個區段。陣列以原子方式整組取代，且不得包含 null 元素。部分更新（patch）可選填 `version`；若有提供，必須符合目前版本，否則請求會以 409 失敗。
 
-接受的更新包含接受的補丁程式，而不是完整的替換快照。使用GET獲取當前的完整狀態或`update/documents`以前/當前快照的通知。
+UPDATE accepted 回應只包含接受的部分更新，不是完整狀態快照。若需要目前完整狀態，請使用 GET；若需要更新前後的快照，請讀取 `update/documents` 通知。
 
-通知可能會重複發出。跟蹤版本和事件型別，並單獨對應請求響應：接受的訊息在處理之前不得導致您丟棄相同版本的差異。 看到[整合食譜](integration-recipes.zh-TW.md).
+通知可能重複送達。請分別追蹤版本、事件類型及請求與回應的對應關係：收到 accepted 後，不可因此丟棄尚未處理的同版本 delta。詳見[整合實作範例](integration-recipes.zh-TW.md)。
 
-下一個：[同步您的第一個狀態](shadow-quickstart.zh-TW.md).
+下一步：[同步第一個裝置狀態](shadow-quickstart.zh-TW.md)。
 
-繼續：[設計您的裝置狀態模型](state-model.zh-TW.md).
+延伸閱讀：[設計裝置狀態模型](state-model.zh-TW.md)。

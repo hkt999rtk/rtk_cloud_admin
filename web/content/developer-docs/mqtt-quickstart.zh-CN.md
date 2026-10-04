@@ -1,31 +1,32 @@
 ---
-title: 快速入门：连线与交换讯息
-description: 释出一个JSON讯息，并透过第二个已验证的MQTT连线接收它。
+title: 快速入门：连接与交换消息
+description: 发布一条 JSON 消息，再通过另一条已验证的 MQTT
+  连接接收。
 category: Tutorials
 keywords:
 - 发布
 - 订阅
+- 消息交换
+- publish
+- subscribe
 - SUBACK
 - PUBACK
 - mosquitto
-- publish
-- subscribe
 language: zh-CN
 applies_to: RTK Cloud contracts snapshot 9b1ed887912e; service snapshot 30fbb9a26155
 last_verified: '2026-09-04'
-verification: 来源审查和本地测试；现场环境资格待定
+verification: 来源审查与本地测试；实际环境验证仍待完成
 ---
 
+# 快速入门：连接与交换消息
 
-# 快速入门：连线与交换讯息
+目标：在应用自定义的主题收到 `{"temperature_c":23}`。请先完成[身份验证](authentication.zh-CN.md)。以下两条连接都使用测试设备令牌，但使用不同的角色后缀。先以同一身份确认 MQTT 运行，再在 Shadow 教程中加入第二个身份主体。
 
-目标：接收`{"temperature_c":23}`，透过应用程式定义的主题传送。请先完成[身分验证](authentication.zh-CN.md)。下方两个连线都使用测试装置权杖，但采用不同的角色字尾。这样可先验证 MQTT 机制，再于装置影子教学加入第二个主体。
+[打开 MQTT 消息交换时序图](assets/mqtt-exchange.zh-CN.html)
 
-[开启重新设计的序列图](assets/mqtt-exchange.zh-CN.html)
+## 1. 启动订阅端
 
-## 1. 开始订阅者
-
-在设定了先决变数的A终端执行：
+在已配置必要变量的终端 A 中执行：
 
 ```bash
 mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" --cafile "$CA_FILE" \
@@ -36,11 +37,11 @@ mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" --cafile "$CA_FILE" \
   -t "tutorials/$DEVICE_ID/temperature"
 ```
 
-在释出之前，请等待除错输出显示成功SUBACK。仅仅执行一个执行中的过程并不能证明订阅成功。这些本地测试命令将凭据作为过程引数传递；使用孤立的开发机器，并避免在共享日志中捕获命令呼叫。
+请等待调试输出显示 SUBACK 成功后再发布消息。进程正在运行，不代表订阅成功。这些本地测试命令会通过进程参数传入凭证；请使用隔离的开发机器，避免将命令调用内容记录在共享日志中。
 
-## 2. 释出讯息
+## 2. 发布消息
 
-在B埠，使用相同的环境和`TUTORIAL_DIR`:
+在终端 B 使用相同环境与 `TUTORIAL_DIR` 执行：
 
 ```bash
 mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" --cafile "$CA_FILE" \
@@ -51,20 +52,20 @@ mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" --cafile "$CA_FILE" \
   -t "tutorials/$DEVICE_ID/temperature" -m '{"temperature_c":23}'
 ```
 
-## 3. 验证交付
+## 3. 验证消息传递
 
-终端A应该列印：
+终端 A 应显示：
 
 ```text
 tutorials/device-1/temperature {"temperature_c":23}
 ```
 
-JSON是您的应用程式的示例模式；代理服务不会将其转换为影子状态。在QoS 1结束时发布命令确认传输接收，而不是订阅者业务逻辑。重复传送仍然是可能的。完成后，请使用Ctrl-C停止订阅者。
+这份 JSON 是应用自定义的示例数据格式；Broker 不会将其转成 Shadow 状态。QoS 1 发布命令完成，仅确认传输层已收到消息，不代表订阅端的业务逻辑已完成。消息仍可能重复传递。完成后，使用 Ctrl-C 停止订阅端。
 
-## 如果没有收到讯息
+## 未收到消息时
 
-检查SUBACK是否成功，匹配主题拼写，匹配品牌云身份，以及不同的客户端ID。不要指望您稍后订阅时会重播较早的未保留讯息。成功的通用主题并不能表明影子许可权。
+确认 SUBACK 成功、主题拼写一致、Brand Cloud 身份一致，且 Client ID 不同。较晚才订阅时，不会重放此前未保留的消息。普通主题操作成功，不代表已具备 Shadow 权限。
 
-下一个：[连线行为](mqtt-connection.zh-CN.md), [主题参考](mqtt-topics.zh-CN.md)，或者[影子快速入门](shadow-quickstart.zh-CN.md).
+下一步：[连接行为](mqtt-connection.zh-CN.md)、[主题参考](mqtt-topics.zh-CN.md)或 [Shadow 快速入门](shadow-quickstart.zh-CN.md)。
 
-建筑：[MQTT主题架构](mqtt-topics.zh-CN.md).
+架构说明：[MQTT 主题架构](mqtt-topics.zh-CN.md)。

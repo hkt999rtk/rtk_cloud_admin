@@ -1,13 +1,14 @@
 ---
-title: 裝置在線狀態與生命週期
-description: 區分帳戶就緒性、MQTT連線性、所有者傳輸和應用程式健康狀況。
+title: 裝置線上狀態與生命週期
+description: 區分帳號就緒狀態、MQTT 連線、裝置主連線
+  與應用程式健康狀態。
 category: Concepts
 keywords:
-- 存在
-- 線上的
-- 所有人
-- 運輸
-- 活化
+- 線上狀態
+- 裝置主連線
+- 擁有者
+- 傳輸
+- 啟用
 - presence
 - online
 - owner
@@ -17,69 +18,68 @@ language: zh-TW
 applies_to: RTK contracts 9b1ed887912e; Account Manager 54b37b9c407d; Video Cloud
   30fbb9a26155; Admin bbaf62f7d6b5
 last_verified: '2026-09-04'
-verification: 來源審查和本地軟體包檢查；即時生命週期資格待定
+verification: 來源檢閱與本機套件檢查；實際環境生命週期驗證仍待完成
 ---
 
+# 裝置線上狀態與生命週期
 
-# 裝置在線狀態與生命週期
+## 目標與事前準備
 
-## 目標和先決條件
+本節說明為何裝置已能交換 MQTT 訊息，Fleet 卻仍顯示離線。請先閱讀[雲端服務概覽](overview.zh-TW.md)，並使用 [ChipSet & SDK](/console/chipset-sdk) 提供的受支援裝置 SDK。教學模擬器只實作 Shadow 互動，未實作裝置主連線（owner transport）的完整生命週期。
 
-解釋為什麼裝置可以在Fleet仍然顯示離線的情況下交換MQTT訊息。 閱讀[雲端服務概覽](overview.zh-TW.md)並使用受支援的裝置SDK[晶片組和SDK](/console/chipset-sdk)。教學模擬器實現了影子互動；它不實現完整的所有者傳輸生命週期。
+## 架構與責任範圍
 
-## 架構和責任界限
+![生命週期分層](assets/lifecycle-layers.zh-TW.svg)
 
-![生命週期層](assets/lifecycle-layers.zh-TW.svg)
+[檢視完整架構圖](assets/lifecycle-layers.zh-TW.svg) · [Mermaid 原始碼](assets/lifecycle-layers.zh-TW.mmd)
 
-[全尺寸方塊圖](assets/lifecycle-layers.zh-TW.svg) · [Mermaid 原始檔](assets/lifecycle-layers.zh-TW.mmd)
+![控制拓樸](assets/control-topology.zh-TW.svg)
 
-![控制拓撲](assets/control-topology.zh-TW.svg)
-
-[全尺寸方塊圖](assets/control-topology.zh-TW.svg) · [Mermaid 原始檔](assets/control-topology.zh-TW.mmd)
+[檢視完整架構圖](assets/control-topology.zh-TW.svg) · [Mermaid 原始碼](assets/control-topology.zh-TW.mmd)
 
 
-## 觀察正確的層
+## 分清楚觀察的是哪一層
 
-|觀察|它證明瞭什麼|它沒有證明什麼|
+| 觀察結果 | 可以證明 | 不能證明 |
 | --- | --- | --- |
-|登記裝置存在|存在帳戶側註冊/繫結|雲啟動或網路連線|
-|配置成功|啟動操作已完成|裝置目前可以連線|
-|MQTT CONNACK|代理服務接受了此MQTT連線|所有者會話已註冊或硬體健康|
-|Shadow接受了|狀態突變被接受了|裝置執行了它，或者車隊線上|
-|活躍的車主運輸|服務可以將支援的裝置命令路由到該所有者|每項硬體功能都正常工作。|
-|真實報告的狀態|韌體報告的觀察到的/應用狀態|在該報告之後，裝置將永遠保持可訪問狀態。|
+| 存在裝置註冊記錄 | 帳號端已有註冊或綁定 | 雲端啟用完成，或網路已連線 |
+| 佈建成功 | 啟用操作已完成 | 裝置目前可連線 |
+| MQTT CONNACK | Broker 接受此次 MQTT 連線 | 主連線工作階段已註冊，或硬體運作正常 |
+| Shadow accepted | 狀態變更已被接受 | 裝置已執行，或 Fleet 顯示線上 |
+| 裝置主連線有效 | 服務可以將受支援的裝置命令送至目前主連線 | 所有硬體功能都正常 |
+| 如實回報狀態 | 韌體回報了觀察到或已套用的狀態 | 裝置回報後會一直保持可連線 |
 
-將最後觀察到的時間戳和來源與狀態一起保留。一個快取的`reported.power`不是心跳。不要從應用程式的MQTT連線或通用主題訂閱中推斷車隊狀態。帳戶就緒性和執行時存在是獨立的預測，可能在不同時間發生變化。
+請將最後觀察時間與資料來源一起保存在狀態旁。快取的 `reported.power` 不是心跳訊號。不要從 App 的 MQTT 連線或一般主題訂閱推導 Fleet 狀態。帳號就緒狀態與執行階段線上狀態是不同的資料投影，更新時間也可能不同。
 
-## 一個可更換的車主運輸
+## 唯一且可被取代的裝置主連線
 
-[開啟重新設計的序列圖](assets/presence-owner.zh-TW.html)
+[開啟裝置主連線時序圖](assets/presence-owner.zh-TW.html)
 
-標準裝置傳輸契約允許每個裝置最多有一個主動所有者。WebSocket優先於MQTT。新的WebSocket所有者可以替換MQTT所有者；新的MQTT會話不得替換現有的WebSocket所有者。在同一傳輸內重新連線會替換之前的會話。這些是所有者傳輸規則，而不是禁止單獨授權的影子觀察器連線。
+正式裝置傳輸規格規定，每個裝置最多只有一個有效主連線。WebSocket 優先於 MQTT：新的 WebSocket 主連線可以取代 MQTT 主連線，但新的 MQTT 工作階段不可取代既有 WebSocket 主連線。同一種傳輸重新連線時，會取代先前的工作階段。這些規則只針對裝置主連線，不禁止另外建立已授權的 Shadow 觀察連線。
 
-命令僅路由到當前所有者。該服務不會分發到兩個傳輸器，也不會靜默地恢復到非所有者。沒有所有者，命令傳送將會明確失敗。如果主動所有者缺乏所需的功能，第二個非所有者連線並非一種工作繫結。
+命令只會送至目前主連線。服務不會同時送到兩種傳輸，也不會自動改送至非主連線。沒有主連線時，命令傳遞會明確失敗。若主連線缺少必要功能，建立第二條非主連線也無法繞過此限制。
 
-裝置WebSocket升級是`GET /ws/device?devid={devid}`與`Authorization: Bearer <runtime token>`當需要傳輸授權時。使用已釋出的安全WebSocket來源；切勿將令牌放入查詢字串中。此端點是一個裝置協議，而不是透過WebSocket的MQTT。使用SDK執行其完全支援的整個生命週期，而不是構建任意的心跳幀。
+裝置 WebSocket 升級請求是 `GET /ws/device?devid={devid}`；需要傳輸驗證時，須帶入 `Authorization: Bearer <runtime token>`。請使用環境公布的安全 WebSocket 來源位址，不可將 token 放在查詢字串中。此端點使用裝置協定，不是 MQTT over WebSocket。請透過 SDK 完成支援的完整生命週期，不要自行編造心跳訊框。
 
-## 活力、斷開連線和網路更改
+## 連線存活、斷線與網路變更
 
-MQTT保持活度和WebSocket ping僅建立傳輸活度。當前的WebSocket協議將ping視為保持活度，而不是應用程式業務命令。成功的WebSocket JSON確認確認了幀處理，而不是每個下游硬體結果。
+MQTT Keep Alive 與 WebSocket ping 只能確認傳輸連線仍存活。目前的 WebSocket 協定將 ping 視為保活訊號，不是應用程式業務命令。WebSocket JSON 確認回應成功，只代表訊框已處理，不代表下游每項硬體操作都已完成。
 
-當連線被替換時，舊會話不得清除或覆蓋新所有者的狀態。檢查的會話登入檔測試涵蓋了過期會話的刪除和優先順序。在代理服務、傳輸和投影延遲後，可以檢測到網路丟失；契約沒有為艦隊建立一個通用秒數來顯示離線。
+連線被取代後，舊工作階段不可清除或覆寫新主連線的狀態。已檢查的工作階段註冊測試涵蓋舊工作階段刪除與優先順序。網路中斷可能要經過 Broker、傳輸層與資料投影的延遲才會被偵測到；規格未規定 Fleet 必須在統一的秒數內顯示離線。
 
-在更改網路後，使用當前憑據和支援的SDK重新連線。根據說明，獨立恢復Shadow訂閱並獲取當前所需的內容[恢復](credential-recovery.zh-TW.md)。不要依賴所有者更換來重播每條錯過的訊息。
+網路變更後，請使用目前有效的驗證資訊與受支援 SDK 重新連線。另依[復原指南](credential-recovery.zh-TW.md)恢復 Shadow 訂閱，並以 GET 取得目前預期狀態。不要依賴主連線替換來重播所有錯過的訊息。
 
 ## 生命週期診斷
 
-1. 確認正確的組織、登記裝置和對映的執行時ID。
-2. 在調查存在性之前，檢查配置結果和帳戶就緒性。
-3. 檢查執行時令牌/傳輸身份驗證，然後檢查SDK的所有者會話建立。
-4. 記錄目前運輸公司擁有該裝置的時間，以及該裝置是否已更換。
-5. 將斷開連線和投影時間戳與操作員的執行時證據相關聯。
-6. 測試一個受支援、無害的操作，並觀察其應用結果；僅僅連線狀態是不夠的。
+1. 確認組織、裝置註冊記錄與對應的執行階段 ID 正確。
+2. 檢查線上狀態前，先檢查佈建結果與帳號就緒狀態。
+3. 檢查執行階段 token 與傳輸驗證，再確認 SDK 建立主連線工作階段的結果。
+4. 記錄目前哪種傳輸是裝置主連線，以及是否發生替換。
+5. 將斷線與資料投影的時間戳記，和維運人員提供的執行紀錄對照。
+6. 測試一項受支援且不造成損害的操作，並觀察應用程式結果；只看連線狀態並不足夠。
 
-未配置、停用和登入檔儲存檔案停用具有不同的效果；請參閱[所有權和共享](ownership-sharing.zh-TW.md).當您的SDK沒有暴露所需的診斷時，請勿編造所有者狀態端點或控制幀。
+Unprovision、deactivate 與停用註冊記錄的效果不同，請參閱[所有權與分享](ownership-sharing.zh-TW.md)。若 SDK 未提供所需診斷功能，不要自行編造主連線狀態端點或控制訊框。
 
-## 資格案例
+## 驗證案例
 
-記錄相同運輸更換、MQTT→WebSocket接管、拒絕優先次序較低的接管、更換後舊會話斷開連線、無所有者命令失敗和網路丟失到離線延遲。圖表說明瞭契約；目標環境時間和完整的SDK路徑仍需要即時驗證。下一步：[整合除錯](debugging.zh-TW.md), [整合測試工具組](integration-test-kit.zh-TW.md).
+請記錄同種傳輸替換、MQTT→WebSocket 接管、低優先序接管遭拒、替換後舊工作階段斷線、無主連線時命令失敗，以及網路中斷到顯示離線的延遲。圖表描述的是規格；目標環境的實際時間與完整 SDK 流程，仍需在實際環境驗證。下一步：[整合除錯](debugging.zh-TW.md)、[整合測試工具組](integration-test-kit.zh-TW.md)。
