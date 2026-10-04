@@ -106,7 +106,7 @@ test('[UI-CA-BILLING-010] billing labels, statuses and pricing follow locale cha
   await expect(page.getByTestId('billing-page')).toContainText('本月預估費用');
   await expect(page.getByTestId('billing-page')).toContainText('月底費用預測');
   await expect(page.getByTestId('billing-page')).not.toContainText('Available Balance');
-  await expect(page.getByTestId('billing-page')).toContainText('需要私有雲？');
+  await expect(page.getByTestId('billing-page')).toContainText('需要私有雲端？');
   await page.route('**/billing/pricing-references', async route => {
     const response = await route.fetch();
     const body = await response.json();
