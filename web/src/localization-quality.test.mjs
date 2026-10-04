@@ -19,6 +19,11 @@ test('localization catches technical identifiers lost in prose and diagrams', ()
   }
   assert.match(translationQualityErrors('--exercise', '--exercise-disabled').join('\n'), /missing executable identifier/);
   assert.match(translationQualityErrors('SUBSCRIBE R/update/accepted', 'SUBSCRIBE R/更新/已接受').join('\n'), /missing executable identifier/);
+  for (const changed of ['R/update/accepted2', 'R/update/accepted-bad', 'R/update/Accepted']) {
+    assert.match(translationQualityErrors('R/update/accepted', changed).join('\n'), /missing executable identifier/);
+  }
+  assert.match(translationQualityErrors('SUBSCRIBE R/update/#', 'SUBSCRIBE R/update/+').join('\n'), /missing executable identifier/);
+  assert.deepEqual(translationQualityErrors('SUBSCRIBE R/update/#', '訂閱 R/update/#'), []);
   assert.match(translationQualityErrors('Account Manager login', '客戶經理登入').join('\n'), /missing technical name/);
   assert.match(translationQualityErrors('MQTT Broker', 'MQTT 經紀人').join('\n'), /broker translated as a person/);
   assert.match(translationQualityErrors('Boards', '董事會').join('\n'), /board translated as a committee/);

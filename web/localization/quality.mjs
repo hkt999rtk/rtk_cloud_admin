@@ -13,7 +13,7 @@ export const languageNeutralCopy = new Set([
 ]);
 
 const technicalNames = /\b(?:Account Manager|Video Cloud|MQTT|JWT|mTLS|TLS|HTTPS?|SigV4|WebSocket|WebRTC|Web Serial|Python|SDK|CSR|PKI|PEM|PUBACK|SUBACK|CONNACK|CRLF|CR|LF|SHA-256|UART|GPIO|I2C|SPI|FPS|IC)\b/g;
-const identifiers = /(?:\b[\w-]+\.py\b|--[a-z][\w-]*|\b(?:state|desired|reported)\.[a-z][\w]*(?:\.[a-z][\w]*)*(?:=[a-z][\w-]*)?|\bR\/[a-z]+(?:\/[a-z]+)*|\b(?:clientToken|devid|thingName|iotDataEndpoint|aws_iot_data|request_token|refresh_token)\b)/g;
+const identifiers = /(?:\b[\w-]+\.py\b|--[a-z][\w-]*|\b(?:state|desired|reported)\.[a-z][\w]*(?:\.[a-z][\w]*)*(?:=[a-z][\w-]*)?|\bR\/[\w/*+#-]+|\b(?:clientToken|devid|thingName|iotDataEndpoint|aws_iot_data|request_token|refresh_token)\b)/g;
 const units = /\b\d[\d,.]*\s*(?:baud|KiB|MiB|GiB|TiB)\b/g;
 const normalizeUnit = value => value.replace(/[\s,]/g, '');
 const badTranslations = [
