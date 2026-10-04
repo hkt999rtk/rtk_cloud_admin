@@ -2188,7 +2188,6 @@ function Overview({
   const tierLabel = formatTierLabel(activeMembership?.tier);
   const quotaLimit = activeMembership?.evaluation_device_quota ?? 5;
   const activeDevices = summary?.total_devices ?? 0;
-  const quotaRatio = `${activeDevices} / ${quotaLimit} devices`;
   const isEvaluation = (activeMembership?.tier || '').toLowerCase() === 'evaluation';
   const nearQuota = isEvaluation && activeDevices >= Math.max(quotaLimit - 1, 1);
   const current = fleetOverview?.health || fleetHealth?.current || {};
@@ -2292,7 +2291,7 @@ function Overview({
         <section className="panel quota-callout">
           <div>
             <h2>{translate("Evaluation quota")}</h2>
-            <p>{tierLabel} {translate("account for")} {activeMembership?.organization || translate("your active organization")} {translate("is near its")} {quotaRatio} {translate("cap.")}</p>
+            <p>{translate('{{organization}} is nearing its {{tier}} device quota ({{used}} / {{limit}} devices).', { organization: activeMembership?.organization || translate('your active organization'), tier: tierLabel, used: activeDevices, limit: quotaLimit })}</p>
           </div>
           <QuotaRaiseForm
             organizationId={activeMembership?.organization_id}
@@ -2409,7 +2408,7 @@ function DeveloperChipsetResources({ data, sdkRelease, loading, chipsetLoading =
     </section> : null}
     {isPRO2 && <section className="panel"><h2>{translate("PRO2 Cloud Examples")}</h2><p>{translate("MQTT, H.264 test video and live camera: source, firmware, guides and browser burning.")}</p><a className="primary-button" href={PRO2_EXAMPLES_PATH}>{translate("Explore cloud examples")}</a></section>}
     <section className="sdk-catalog-section" aria-labelledby="cloud-client-sdks-heading">
-      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading"><Icon name="cloud" />{translate("Cloud Client SDKs")}</h2><p>{translate("App SDKs are shared across chips. Device packages are shown for the selected chip; the complete bundle contains the entire release. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.")}</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>{translate("Release")} {sdkRelease.catalog.version}</strong><span>{translate("Terms")} {sdkRelease.catalog.terms_version}</span></div> : null}</div>
+      <div className="sdk-section-heading"><div><h2 id="cloud-client-sdks-heading"><Icon name="cloud" />{translate("Cloud Client SDKs")}</h2><p>{translate("App SDKs are shared across chips. Device packages are shown for the selected chip; the complete bundle contains the entire release. WebRTC support covers signaling or the device answerer integration boundary; your application still supplies the peer connection, media engine, tracks, and renderer.")}</p></div>{sdkRelease?.catalog ? <div className="sdk-release-summary"><strong>{translate("Version")} {sdkRelease.catalog.version}</strong><span>{translate("Terms")} {sdkRelease.catalog.terms_version}</span></div> : null}</div>
       {sdkLoading && !sdkRelease ? <CloudSDKCardSkeletons /> : null}
       {!sdkLoading && sdkRelease?.source_status === 'unpublished' ? <section className="panel split-panel"><div><h3>{translate("No Cloud Client SDK release yet")}</h3><p>{translate(sdkRelease.source_message)}</p></div></section> : null}
       {!sdkLoading && sdkRelease?.source_status === 'unavailable' ? <section className="panel split-panel"><div><h3>{translate("Cloud Client SDKs are temporarily unavailable")}</h3><p>{translate(sdkRelease.source_message)}</p>{retrySDK ? <button type="button" onClick={retrySDK}>{translate("Retry SDK catalog")}</button> : null}</div></section> : null}

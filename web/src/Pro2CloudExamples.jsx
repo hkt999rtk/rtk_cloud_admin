@@ -22,7 +22,7 @@ export function Pro2CloudExamples(){
  {catalog&&<><section className="panel pro2-release" aria-label={translate("Release package")}>
    <div className="pro2-release-info">
      <div className="pro2-release-heading">
-       <div><p className="eyebrow">{translate("RELEASE PACKAGE")}</p><h3>{translate("Release")} {catalog.version}</h3></div>
+       <div><p className="eyebrow">{translate("RELEASE PACKAGE")}</p><h3>{translate("Version")} {catalog.version}</h3></div>
        <span className="pro2-release-badge">{translate("Developer preview")}</span>
      </div>
      <p className="pro2-release-description">{translate("One release. Three ready-to-build cloud examples.")}</p>
