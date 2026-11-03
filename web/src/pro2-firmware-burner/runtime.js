@@ -1,4 +1,5 @@
-// Integrated from uartfwburn commit 81f808f; UI copy adapted for the Developer Console.
+// Integrated from uartfwburn commit 8608cad; UI copy adapted for the Developer Console.
+import { runBurnWorkflow } from './burn-workflow.js';
 import { SerialTransport } from './serial.js';
 import { BurnController, parseOffset } from './burner.js';
 import { sha256Hex } from './firmware-meta.js';
@@ -24,6 +25,7 @@ let sourceBusy = false;
 let remoteMetadata = null;
 const selectedFile = () => remoteFile || ui.firmware.files[0];
 let connectInProgress = false;
+let burnInProgress = false;
 let progressStartedAt = 0;
 let firmwareChecksum = '';
 let firmwareChecksumFile = null;
@@ -88,7 +90,7 @@ function updateSteps(state) {
   });
 }
 
-function isBusy() { return connectInProgress || Boolean(controller.abortController); }
+function isBusy() { return connectInProgress || burnInProgress || Boolean(controller.abortController); }
 
 function updateButtons() {
   const connected = transport.connected;
@@ -98,7 +100,7 @@ function updateButtons() {
   ui['open-burn'].disabled = !connected || busy;
   ui.disconnect.disabled = !connected || busy;
   ui.burn.disabled = !connected || !hasFirmware || busy || sourceBusy;
-  ui.cancel.disabled = !controller.abortController;
+  ui.cancel.disabled = !controller.abortController || controller.abortController.signal.aborted || !['connecting', 'erasing', 'transferring', 'verifying'].includes(controller.state);
   ui.connect.hidden = connected || Boolean(controller.abortController);
   ui['open-burn'].hidden = !connected || busy;
   ui.disconnect.hidden = !connected || busy;
@@ -111,8 +113,8 @@ function updateButtons() {
   ui['copy-checksum'].disabled = !firmwareChecksum;
   ui['reset-device'].disabled = !connected || busy || !ui['enter-download'].checked;
   ui['reset-device'].title = translate(ui['enter-download'].checked ? 'Reset the device through DTR/RTS.' : 'Enable DTR/RTS reset/boot control in Advanced settings first.');
-  for (const input of [ui.firmware, ui['download-baud'], ui.offset, ui.erase, ui['enter-download'], ui.verify, ui['open-terminal']]) input.disabled = busy;
-  ui.reset.disabled = busy || !ui['enter-download'].checked;
+  for (const input of [ui.firmware, ui['download-baud'], ui['console-baud'], ui['line-ending'], ui.offset, ui.erase, ui['enter-download'], ui.verify, ui['open-terminal']]) input.disabled = busy;
+  ui.reset.disabled = busy;
   root.dataset.uartConnected = String(connected);
   root.dataset.uartBusy = String(busy);
   ui['connection-label'].textContent = connected ? `${transport.baudRate} baud · ${translate(ownerLabel(transport.owner))}` : translate('Not connected');
@@ -173,7 +175,7 @@ function updateDownloadModeGuide() {
   const automatic = ui['enter-download'].checked;
   ui['manual-guide'].hidden = automatic;
   ui.burn.textContent = translate(automatic ? 'Start burn (enter download mode automatically)' : 'Device is in download mode — start burn');
-  if (!automatic) ui.reset.checked = false;
+
   updateButtons();
 }
 
@@ -222,7 +224,7 @@ function lowerDownloadBaud() {
 }
 
 async function connect() {
-  if (connectInProgress || transport.connected) return;
+  if (isBusy() || transport.connected) return;
   connectInProgress = true;
   clearRecovery();
   try {
@@ -242,6 +244,9 @@ async function connect() {
 }
 
 async function burn() {
+  if (isBusy()) return;
+  burnInProgress = true;
+  updateButtons();
   const file = selectedFile();
   try {
     if (!file) throw new Error('Choose a complete flash .bin first.');
@@ -251,50 +256,48 @@ async function burn() {
     progressStartedAt = Date.now();
     ui.progress.value = 0;
     ui['progress-text'].textContent = '0%';
-    await terminal.leave();
     const firmware = new Uint8Array(await file.arrayBuffer());
     const options = {
       baudRate: Number(ui['download-baud'].value), offset: parseOffset(ui.offset.value), erase: ui.erase.value,
       modeK: 1, enterDownload: ui['enter-download'].checked, verify: ui.verify.checked, pro2: true, reset: ui.reset.checked
     };
     log(translate('Firmware loaded: {{name}}, {{size}} bytes (not uploaded)', { name: file.name, size: file.size }));
-    await controller.burn(firmware, options);
-    if (ui['open-terminal'].checked) {
-      setStatus('completed', 'Burn and verification completed. Reopening the console at 115200 baud…');
-      await terminal.enter({ baudRate: Number(ui['console-baud'].value), hardwareReset: options.reset });
-      setStatus('terminal', translate('Burn and verification completed. UART reopened at {{baud}} baud. Terminal ready.', { baud: ui['console-baud'].value }));
-    } else {
-      transport.acquire('idle');
-      setStatus('completed', 'Burn and verification completed. The console was not opened automatically.');
-    }
+    const result = await runBurnWorkflow({ controller, transport, terminal, firmware, options,
+      consoleBaud: Number(ui['console-baud'].value), openTerminal: ui['open-terminal'].checked });
+    const verification = translate(result.verified ? 'Device verification completed.' : 'Device verification was not run.');
+    for (const warning of result.warnings) log(warning);
+    setStatus(result.consoleOpen && !result.warnings.length ? 'terminal' : 'completed',
+      `${translate('Firmware burn completed.')} ${verification} ${result.warnings.join(' ')}`);
     showBurnPanel(false);
   } catch (error) {
     if (error.name === 'AbortError') {
-      try {
-        await terminal.enter({ baudRate: Number(ui['console-baud'].value) });
-        setStatus('terminal', translate('Burn canceled. UART console reopened at {{baud}} baud.', { baud: ui['console-baud'].value }));
-      } catch {
-        setStatus('cancelled', 'Burn canceled. Reconnect UART if you want to continue.');
-      }
+      setStatus('cancelled', 'Burn canceled. Reconnect UART if you want to continue.');
       return;
     }
     log(translate('ERROR: {{message}}', { message: error.message }));
     setStatus('failed', actionError(error));
     showRecovery(error);
   } finally {
+    burnInProgress = false;
     updateButtons();
   }
 }
 
+async function runConnectionAction(action) {
+  if (isBusy()) return;
+  connectInProgress = true;
+  updateButtons();
+  try { await action(); }
+  catch (error) { setStatus('failed', actionError(error)); showRecovery(error); }
+  finally { connectInProgress = false; updateButtons(); }
+}
+
 async function returnToConsole() {
-  try {
+  await runConnectionAction(async () => {
     clearRecovery();
     await terminal.enter({ baudRate: Number(ui['console-baud'].value) });
     setStatus('terminal', translate('Console ready at {{baud}} baud.', { baud: ui['console-baud'].value }));
-  } catch (error) {
-    setStatus('failed', actionError(error));
-    showRecovery(error);
-  }
+  });
 }
 
 async function copyText(text, successMessage) {
@@ -325,7 +328,7 @@ if ('serial' in navigator && window.isSecureContext) {
 
 ui.firmware.addEventListener('change', () => { remoteFile = null; remoteMetadata = null; sourceBusy = false; calculateFirmwareChecksum(); });
 const onFirmwareSource = event => {
- if (controller.abortController) return;
+ if (isBusy()) return;
  ui.firmware.value = '';
  remoteFile = event.detail.file; remoteMetadata = event.detail.metadata || null; sourceBusy = event.detail.busy;
  if(remoteMetadata) ui.offset.value = `0x${remoteMetadata.flash_offset.toString(16)}`;
@@ -335,24 +338,23 @@ root.addEventListener('pro2-firmware-source', onFirmwareSource);
 ui.erase.addEventListener('change', () => { ui['erase-warning'].hidden = ui.erase.value !== 'chip'; });
 ui['enter-download'].addEventListener('change', updateDownloadModeGuide);
 ui['line-ending'].addEventListener('change', () => terminal.setLineEnding(ui['line-ending'].value));
-ui['console-baud'].addEventListener('change', async () => {
-  if (transport.connected && transport.owner === 'terminal') {
-    try { await terminal.enter({ baudRate: Number(ui['console-baud'].value) }); } catch (error) { setStatus('failed', actionError(error)); showRecovery(error); }
-  }
-});
+ui['console-baud'].addEventListener('change', () => runConnectionAction(async () => {
+  if (transport.connected && transport.owner === 'terminal') await terminal.enter({ baudRate: Number(ui['console-baud'].value) });
+}));
 ui.connect.addEventListener('click', connect);
 ui['open-burn'].addEventListener('click', () => showBurnPanel(true));
 ui['close-burn'].addEventListener('click', () => showBurnPanel(false));
-ui.disconnect.addEventListener('click', async () => {
+ui.disconnect.addEventListener('click', () => runConnectionAction(async () => {
   await terminal.leave();
   await transport.close();
   clearRecovery();
   setStatus('idle', 'UART disconnected. Reconnect when needed.');
-});
+}));
 ui.burn.addEventListener('click', burn);
 ui.cancel.addEventListener('click', () => controller.cancel());
 ui['retry-burn'].addEventListener('click', burn);
 ui['retry-low-baud'].addEventListener('click', () => {
+  if (isBusy()) return;
   const lowerBaud = lowerDownloadBaud();
   if (!lowerBaud) return;
   ui['download-baud'].value = lowerBaud;
@@ -371,12 +373,10 @@ ui['scroll-lock'].addEventListener('click', () => {
   ui['scroll-lock'].setAttribute('aria-pressed', String(locked));
   ui['scroll-lock'].textContent = translate(locked ? 'Scroll lock: on' : 'Scroll lock');
 });
-ui['reset-device'].addEventListener('click', async () => {
-  try {
+ui['reset-device'].addEventListener('click', () => runConnectionAction(async () => {
     if (transport.owner !== 'terminal') await terminal.enter({ baudRate: Number(ui['console-baud'].value) });
     await terminal.hardwareReset();
-  } catch (error) { setStatus('failed', actionError(error)); showRecovery(error); }
-});
+}));
 const onSerialDisconnect = async event => {
   if (event.target === transport.port) {
     controller.cancel();

@@ -84,7 +84,7 @@ export function Pro2FirmwareBurner() {
         <div className="pro2-checks">
           <label><input id="enter-download" type="checkbox" />{translate("Use DTR/RTS to control reset/boot pins (not UART flow control)")}</label>
           <label><input id="verify" type="checkbox" defaultChecked />{translate("Run SHA-256 verification after burning")}</label>
-          <label><input id="reset" type="checkbox" disabled />{translate("Reset through DTR/RTS after completion")}</label>
+          <label><input id="reset" type="checkbox" />{translate("Reset after successful burn")}</label>
         </div>
       </details>
     </section>

@@ -1,4 +1,4 @@
-// Integrated from uartfwburn commit 81f808f; UI copy adapted for the Developer Console.
+// Integrated from uartfwburn 8608cad; Console UI messages adapted.
 export const X = Object.freeze({ SOH: 0x01, STX: 0x02, EOT: 0x04, ACK: 0x06, NAK: 0x15, CAN: 0x18, CRC: 0x43 });
 
 export function crc16(data) {
@@ -9,8 +9,8 @@ export function crc16(data) {
   }
   return crc;
 }
-export function modeInfo(modeK, useCrc = true) {
-  if (!useCrc) return { start: X.SOH, payloadSize: 128, modeK: 1 };
+
+export function modeInfo(modeK) {
   const modes = { 1: [X.STX, 1024], 4: [0xa3, 4096], 8: [0xa4, 8192], 16: [0xa0, 16384], 32: [0xa1, 32768], 64: [0xa2, 65536] };
   const [start, payloadSize] = modes[modeK] || modes[1];
   return { start, payloadSize, modeK: modes[modeK] ? modeK : 1 };
@@ -38,19 +38,33 @@ export function makePacket(data, offset, blockNumber, modeK = 1, useCrc = true) 
   return { packet, payloadSize, count };
 }
 
+async function readByte(transport, signal) {
+  signal?.throwIfAborted();
+  if (transport.connected === false) throw new Error('UART disconnected');
+  const value = await transport.readByte(1000, signal);
+  signal?.throwIfAborted();
+  return value;
+}
+
+async function write(transport, data, signal) {
+  signal?.throwIfAborted();
+  await transport.write(data, 'protocol', signal);
+  signal?.throwIfAborted();
+}
+
 async function receiveStart(transport, signal) {
   for (let tries = 0; tries < 16; tries++) {
     let byte;
-    try { byte = await transport.readByte(1000, signal); } catch (error) {
-      if (error.name === 'AbortError') throw error;
+    try { byte = await readByte(transport, signal); } catch (error) {
+      if (!String(error.message).includes('timeout')) throw error;
       continue;
     }
     if (byte === X.CRC) return true;
     if (byte === X.NAK) return false;
     if (byte === X.CAN) {
       try {
-        if (await transport.readByte(1000, signal) === X.CAN) {
-          await transport.write(Uint8Array.of(X.ACK));
+        if (await readByte(transport, signal) === X.CAN) {
+          await write(transport, Uint8Array.of(X.ACK), signal);
           throw new Error('Device canceled XMODEM.');
         }
       } catch (error) { if (!String(error.message).includes('timeout')) throw error; }
@@ -60,38 +74,47 @@ async function receiveStart(transport, signal) {
   throw new Error('Timed out waiting for the XMODEM receiver.');
 }
 
-async function cancel(transport) { await transport.write(Uint8Array.of(X.CAN, X.CAN, X.CAN)); }
+async function cancel(transport) {
+  try { await transport.write(Uint8Array.of(X.CAN, X.CAN, X.CAN), 'protocol'); }
+  catch { /* Cleanup must not hide the transfer's original failure. */ }
+}
 
 export async function transmit(transport, data, { modeK = 1, signal, onProgress = () => {} } = {}) {
-  const useCrc = await receiveStart(transport, signal);
-  let offset = 0;
-  let block = 1;
-  while (offset < data.length) {
-    const { packet, payloadSize, count } = makePacket(data, offset, block, modeK, useCrc);
-    let acknowledged = false;
-    for (let tries = 0; tries < 25 && !acknowledged; tries++) {
-      await transport.write(packet);
-      try {
-        const response = await transport.readByte(1000, signal);
-        if (response === X.ACK) acknowledged = true;
-        else if (response === X.CAN && await transport.readByte(1000, signal) === X.CAN) {
-          await transport.write(Uint8Array.of(X.ACK));
-          throw new Error('Device canceled XMODEM.');
-        }
-      } catch (error) { if (error.name === 'AbortError' || String(error.message).includes('Device canceled')) throw error; }
+  signal?.throwIfAborted();
+  try {
+    const useCrc = await receiveStart(transport, signal);
+    let offset = 0;
+    let block = 1;
+    while (offset < data.length) {
+      const { packet, payloadSize, count } = makePacket(data, offset, block, modeK, useCrc);
+      let acknowledged = false;
+      for (let tries = 0; tries < 25 && !acknowledged; tries++) {
+        await write(transport, packet, signal);
+        try {
+          const response = await readByte(transport, signal);
+          if (response === X.ACK) acknowledged = true;
+          else if (response === X.CAN && await readByte(transport, signal) === X.CAN) {
+            await write(transport, Uint8Array.of(X.ACK), signal);
+            throw new Error('Device canceled XMODEM.');
+          }
+        } catch (error) { if (!String(error.message).includes('timeout')) throw error; }
+      }
+      if (!acknowledged) {
+        await cancel(transport);
+        throw new Error(`XMODEM block ${block} failed after retries`);
+      }
+      offset += count;
+      block = (block + 1) & 0xff;
+      onProgress(Math.min(offset, data.length), data.length);
+      if (payloadSize <= 0) throw new Error('Invalid XMODEM payload size.');
     }
-    if (!acknowledged) {
-      await cancel(transport);
-      throw new Error(`XMODEM block ${block} failed after retries`);
+    for (let tries = 0; tries < 10; tries++) {
+      await write(transport, Uint8Array.of(X.EOT, 0, 0, 0), signal);
+      try { if (await readByte(transport, signal) === X.ACK) return; } catch (error) { if (!String(error.message).includes('timeout')) throw error; }
     }
-    offset += count;
-    block = (block + 1) & 0xff;
-    onProgress(Math.min(offset, data.length), data.length);
-    if (payloadSize <= 0) throw new Error('Invalid XMODEM payload size.');
+    throw new Error('XMODEM EOT was not acknowledged.');
+  } catch (error) {
+    if (error.name === 'AbortError' && transport.connected !== false) await cancel(transport);
+    throw error;
   }
-  for (let tries = 0; tries < 10; tries++) {
-    await transport.write(Uint8Array.of(X.EOT, 0, 0, 0));
-    try { if (await transport.readByte(1000, signal) === X.ACK) return; } catch (error) { if (error.name === 'AbortError') throw error; }
-  }
-  throw new Error('XMODEM EOT was not acknowledged.');
 }

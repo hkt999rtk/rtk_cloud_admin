@@ -1,9 +1,8 @@
-// Integrated from uartfwburn commit 81f808f; UI copy adapted for the Developer Console.
+// Integrated from uartfwburn 8608cad; Console UI messages adapted.
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { sleep } from './serial.js';
-import { normalizeTerminalInput, StreamingTerminalDecoder } from './terminal-codec.js';
+import { normalizeTerminalInput, StreamingTerminalDecoder, validateLineEnding } from './terminal-codec.js';
 
 export class TerminalConsole {
   constructor(transport, element, { onLog = () => {}, onStatus = () => {} } = {}) {
@@ -34,8 +33,7 @@ export class TerminalConsole {
   }
 
   setLineEnding(mode) {
-    if (!['crlf', 'cr', 'lf'].includes(mode)) throw new Error(`invalid line ending: ${mode}`);
-    this.lineEnding = mode;
+    this.lineEnding = validateLineEnding(mode);
   }
 
   async handleInput(data) {
@@ -68,26 +66,22 @@ export class TerminalConsole {
     this.terminal.options.disableStdin = false;
     this.fit();
     this.focus();
-    this.onStatus('ready', `Console connected at baud rate ${baudRate}`);
+    this.onStatus('terminal', `Console connected at baud rate ${baudRate}`);
     this.onLog(`terminal active at ${baudRate}, line ending ${this.lineEnding.toUpperCase()}`);
     if (hardwareReset) await this.hardwareReset();
   }
 
   async hardwareReset() {
     if (!this.transport.port?.setSignals) {
-      this.onStatus('ready', 'Console ready. This adapter cannot reset the device automatically; reset it manually.');
+      this.onStatus('terminal', 'Console ready. This adapter cannot reset the device automatically; reset it manually.');
       return false;
     }
     try {
-      await this.transport.setSignals({ dataTerminalReady: true, requestToSend: true });
-      await sleep(50);
-      await this.transport.setSignals({ dataTerminalReady: true, requestToSend: false });
-      await sleep(50);
-      await this.transport.setSignals({ dataTerminalReady: true, requestToSend: true });
+      await this.transport.hardwareReset();
       this.onLog('hardware reset complete');
       return true;
     } catch (error) {
-      this.onStatus('ready', `Console ready. Automatic reset failed; reset the device manually: ${error.message}`);
+      this.onStatus('terminal', `Console ready. Automatic reset failed; reset the device manually: ${error.message}`);
       return false;
     }
   }
@@ -97,8 +91,8 @@ export class TerminalConsole {
     this.terminal.options.disableStdin = true;
     this.unsubscribe?.();
     this.unsubscribe = null;
-    if (this.transport.owner === 'terminal') this.transport.acquire('idle');
     await this.transport.drainWrites();
+    if (this.transport.owner === 'terminal') this.transport.acquire('idle');
   }
 
   clear() { this.terminal.clear(); }
