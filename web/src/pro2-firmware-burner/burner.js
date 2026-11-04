@@ -1,10 +1,37 @@
-// Integrated from uartfwburn commit 81f808f; UI copy adapted for the Developer Console.
+// Integrated from uartfwburn 8608cad; Console UI messages adapted.
 import { sleep } from './serial.js';
 import { transmit } from './xmodem.js';
 
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
 const VALID_STATES = new Set(['idle', 'connecting', 'ready', 'erasing', 'transferring', 'verifying', 'completed', 'cancelled', 'failed']);
+
+function checkedRange(base, length) {
+  if (!Number.isSafeInteger(base) || base < 0 || !Number.isSafeInteger(length) || length <= 0 || base + length > 0xffffffff) {
+    throw new Error('Flash range exceeds 32-bit addresses or has an invalid length.');
+  }
+  return base + length;
+}
+
+function eraseRange(base, length) {
+  const end = checkedRange(base, length);
+  const start = base & 0x07ffffff;
+  const maskedEnd = end & 0x07ffffff;
+  if (maskedEnd <= start || Math.floor(base / 0x08000000) !== Math.floor(end / 0x08000000)) {
+    throw new Error('Flash erase range crosses the address mask boundary.');
+  }
+  return { start, length: maskedEnd - start };
+}
+
+export function validateBurn(firmware, options) {
+  if (!(firmware instanceof Uint8Array) || firmware.length === 0) throw new Error('The firmware file is empty.');
+  checkedRange(options.offset, firmware.length);
+  if (![115200, 1000000, 2000000, 3000000, 4000000].includes(options.baudRate)) throw new Error('Unsupported burn baud rate.');
+  if (![1, 4, 8, 16, 32, 64].includes(options.modeK)) throw new Error('Unsupported XMODEM frame.');
+  if (!['none', 'chip', 'sector'].includes(options.erase)) throw new Error('Unsupported erase mode.');
+  if (options.erase === 'sector') eraseRange(options.offset, firmware.length);
+  if (options.verify && options.pro2 && options.offset !== 0) throw new Error('PRO2 device verification at nonzero offset is unconfirmed; burn stopped.');
+}
 
 export function parseOffset(text) {
   const value = text.trim();
@@ -47,13 +74,20 @@ export class BurnController {
 
   cancel() { this.abortController?.abort(); }
 
+  async write(data, signal) {
+    signal?.throwIfAborted();
+    await this.transport.write(data, 'protocol', signal);
+    signal?.throwIfAborted();
+  }
+
   async handshake(baudRate, signal) {
+    signal?.throwIfAborted();
     if (this.transport.baudRate !== 115200) await this.transport.reopen(115200);
     this.transport.flushInput();
     let pong = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       this.transport.flushInput();
-      await this.transport.write('ping\n');
+      await this.write('ping\n', signal);
       try { pong = await this.transport.readExact(4, 1000, signal); } catch (error) {
         if (error.name === 'AbortError') throw error;
         this.onLog(`ping attempt ${attempt} failed`);
@@ -64,7 +98,7 @@ export class BurnController {
     if (!pong) throw new Error('Ping failed. Confirm that the device is in UART download mode.');
     this.onLog('ping ok');
     this.transport.flushInput();
-    await this.transport.write(`ucfg ${baudRate} 0 0\n`);
+    await this.write(`ucfg ${baudRate} 0 0\n`, signal);
     await sleep(100, signal);
     if (baudRate !== this.transport.baudRate) await this.transport.reopen(baudRate);
     const ok = decoder.decode(await this.transport.readExact(2, 1000, signal));
@@ -73,6 +107,7 @@ export class BurnController {
   }
 
   async enterDownloadMode(signal) {
+    signal?.throwIfAborted();
     if (!this.transport.port?.setSignals) throw new Error('This USB UART adapter cannot control the reset/boot pins. Enter download mode manually and turn off automatic download mode.');
     if (this.transport.baudRate !== 115200) await this.transport.reopen(115200);
     await this.transport.setSignals({ dataTerminalReady: false, requestToSend: false });
@@ -82,7 +117,16 @@ export class BurnController {
       this.onLog(mini ? 'enter download mode: mini sequence' : 'enter download mode: normal sequence');
       try {
         await this.downloadModeSignals(mini, signal);
-        const response = decoder.decode(await this.transport.readSome(2000, signal));
+        const deadline = Date.now() + 2000;
+        let response = '';
+        while (response.length < 1024 && Date.now() < deadline) {
+          signal?.throwIfAborted();
+          const bytes = await this.transport.readSome(Math.max(1, deadline - Date.now()), signal);
+          response += decoder.decode(bytes).slice(0, 1024 - response.length);
+          response = response.split('\0', 1)[0];
+          if (/Test Mode|Download Image/.test(response)) break;
+          if (bytes.includes(0)) throw new Error('download mode banner mismatch');
+        }
         if (/Test Mode|Download Image/.test(response)) {
           await sleep(50, signal);
           this.transport.flushInput();
@@ -125,22 +169,29 @@ export class BurnController {
   }
 
   async erase(mode, base, length, signal) {
+    signal?.throwIfAborted();
     if (mode === 'none') return;
     this.setState('erasing', mode === 'chip' ? 'Erasing the entire flash…' : 'Erasing the firmware range…');
-    const command = mode === 'chip' ? 'ceras 0 0\r\n' : `seras ${base.toString(16)} ${(base + length).toString(16)} 0 0\r\n`;
-    await this.transport.write(command);
-    const response = decoder.decode(await this.transport.readSome(mode === 'chip' ? 120000 : 30000, signal));
+    const range = mode === 'sector' ? eraseRange(base, length) : null;
+    const command = mode === 'chip' ? 'ceras 0 0\n' : `seras ${range.start.toString(16)} ${range.length.toString(16)} 0 0\n`;
+    await this.write(command, signal);
+    const response = decoder.decode(await this.transport.readExact(2, 120000, signal));
+    signal?.throwIfAborted();
+    if (response !== 'OK') throw new Error(`Flash erase did not receive complete OK: ${JSON.stringify(response)}`);
     this.onLog(`erase response: ${JSON.stringify(response)}`);
   }
 
   async verifyHash(data, address, pro2, signal) {
+    signal?.throwIfAborted();
     const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', data));
-    const command = pro2 ? `hashq ${data.length} ${address.toString(16)} 0 ` : `hashq ${data.length} 0 0 `;
-    await this.transport.write(command);
+    const command = pro2 ? `hashq ${data.length} ${address.toString(16)} 0 \n` : `hashq ${data.length} 0 0 \n`;
+    await this.write(command, signal);
     const header = decoder.decode(await this.transport.readExact(6, 5000, signal));
     if (header !== 'hashs ') throw new Error(`Unexpected hashq response: ${JSON.stringify(header)}`);
-    await sleep(20000, signal);
+    await sleep(20, signal);
     const remote = await this.transport.readExact(64, 5000, signal);
+    signal?.throwIfAborted();
+    if (remote.length !== 64) throw new Error('Invalid hashq response length.');
     for (let i = 0; i < digest.length; i++) if (remote[i] !== digest[i]) throw new Error('SHA-256 verification failed.');
     this.onLog(`SHA-256 match: ${toHex(digest)}`);
   }
@@ -148,7 +199,7 @@ export class BurnController {
   async burn(firmware, options) {
     if (this.abortController) throw new Error('A firmware burn is already in progress.');
     if (!this.transport.connected) throw new Error('UART is not connected.');
-    if (!(firmware instanceof Uint8Array) || firmware.length === 0) throw new Error('The firmware file is empty.');
+    validateBurn(firmware, options);
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
     try {
@@ -164,13 +215,14 @@ export class BurnController {
         const address = options.offset + pos;
         const chunk = firmware.subarray(pos, pos + length);
         this.onLog(`download ${block}: 0x${address.toString(16)}..0x${(address + length).toString(16)}`);
-        await this.transport.write(fwdCommand(options.modeK, options.pro2, length, address));
+        await this.write(fwdCommand(options.modeK, options.pro2, length, address), signal);
         await transmit(this.transport, chunk, {
           modeK: options.modeK,
           signal,
           onProgress: (done) => this.onProgress(pos + done, firmware.length, 'transferring')
         });
-        const ok = decoder.decode(await this.transport.readExact(2, 5000, signal));
+        const ok = decoder.decode(await this.transport.readExact(2, 1000, signal));
+        signal.throwIfAborted();
         if (ok !== 'OK') throw new Error(`download final response: ${JSON.stringify(ok)}`);
         if (options.verify) {
           this.setState('verifying', `Verifying block  ${block + 1}…`);
@@ -179,15 +231,17 @@ export class BurnController {
         }
         pos += length;
       }
+      signal.throwIfAborted();
       this.onProgress(firmware.length, firmware.length, 'completed');
       this.setState('completed', 'Firmware burn completed.');
     } catch (error) {
-      if (error.name === 'AbortError') {
-        this.setState('cancelled', 'Firmware burn canceled.');
-        throw error;
-      }
-      else { this.setState('failed', error.message); throw error; }
+      if (error.name === 'AbortError') this.setState('cancelled', 'Firmware burn canceled. Confirm Download Mode before retrying.');
+      else this.setState('failed', error.message);
+      throw error;
     } finally {
+      try { await this.transport.drainWrites?.(); }
+      catch (error) { this.onLog(`UART cleanup: ${error.message}`); }
+      if (this.transport.owner === 'protocol') this.transport.acquire('idle');
       this.abortController = null;
     }
   }

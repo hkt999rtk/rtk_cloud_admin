@@ -59,11 +59,11 @@ test('PRO2 XMODEM retains CRC and 1K packet framing', () => {
 test('PRO2 XMODEM mode and checksum packets cover supported bootloader variants', () => {
   assert.deepEqual(modeInfo(32), { start: 0xa1, payloadSize: 32768, modeK: 32 });
   assert.deepEqual(modeInfo(99), { start: X.STX, payloadSize: 1024, modeK: 1 });
-  assert.deepEqual(modeInfo(16, false), { start: X.SOH, payloadSize: 128, modeK: 1 });
+  assert.deepEqual(modeInfo(16, false), { start: 0xa0, payloadSize: 16384, modeK: 16 });
   const { packet, payloadSize, count } = makePacket(Uint8Array.of(1, 2, 3), 0, 257, 16, false);
-  assert.equal(payloadSize, 128);
+  assert.equal(payloadSize, 16384);
   assert.equal(count, 3);
-  assert.deepEqual(Array.from(packet.slice(0, 3)), [X.SOH, 1, 0xfe]);
+  assert.deepEqual(Array.from(packet.slice(0, 3)), [0xa0, 1, 0xfe]);
   assert.equal(packet[6], 0x1a);
   assert.equal(packet.at(-1), packet.slice(3, -1).reduce((sum, byte) => (sum + byte) & 0xff, 0));
 });
@@ -76,7 +76,7 @@ test('PRO2 XMODEM transmits CRC and checksum sessions with progress', async () =
     assert.deepEqual(progress, [[3, 3]]);
     assert.equal(transport.writes.length, 2);
     assert.deepEqual(Array.from(transport.writes.at(-1)), [X.EOT, 0, 0, 0]);
-    assert.equal(transport.writes[0][0], start === X.CRC ? X.STX : X.SOH);
+    assert.equal(transport.writes[0][0], X.STX);
   }
 });
 
@@ -202,9 +202,9 @@ test('PRO2 serial transport opens, pumps, reopens, signals, and closes a port', 
   await transport.readLoop;
   assert.equal(transport.baudRate, 230400);
   assert.deepEqual(transport.buffer, [1, 2]);
-  await transport.write(Uint8Array.of(3), 'protocol');
-  assert.deepEqual(writes, [[3]]);
-  await assert.rejects(transport.open(115200), /already connected/);
+  await assert.rejects(transport.write(Uint8Array.of(3), 'protocol'), /not connected/);
+  assert.equal(transport.connected, false);
+  assert.deepEqual(writes, []);
   await transport.setSignals({ requestToSend: true });
   assert.deepEqual(port.signals, [{ requestToSend: true }]);
   reader.reads = [{ done: true }];
@@ -362,7 +362,7 @@ test('PRO2 automatic download mode supports normal and mini sequences', async ()
   const controller = new BurnController(transport, { onLog: value => logs.push(value) });
   await withoutDelay(() => controller.enterDownloadMode());
   assert.equal(transport.baudRate, 115200);
-  assert.ok(logs.includes('enter download mode: mini sequence'));
+  assert.ok(!logs.includes('enter download mode: mini sequence')); // A fragmented banner completes the first attempt.
   assert.ok(logs.includes('download mode ok'));
   assert.ok(signals.length > 4);
   await assert.rejects(new BurnController({ port: null }).enterDownloadMode(), /cannot control/);
@@ -383,7 +383,7 @@ test('PRO2 erase and hash verification emit commands and reject bad responses', 
   remote.set(digest);
   const transport = {
     someResponses: [encoder.encode('chip erased'), encoder.encode('range erased')],
-    exactResponses: [encoder.encode('hashs '), remote],
+    exactResponses: [encoder.encode('OK'), encoder.encode('OK'), encoder.encode('hashs '), remote],
     async write(value) { writes.push(value); },
     async readSome() { return this.someResponses.shift(); },
     async readExact() { return this.exactResponses.shift(); },
@@ -391,9 +391,9 @@ test('PRO2 erase and hash verification emit commands and reject bad responses', 
   const controller = new BurnController(transport, { onLog: value => logs.push(value) });
   await controller.erase('none', 0, 3);
   await controller.erase('chip', 0, 3);
-  await controller.erase('range', 0x1000, 3);
+  await controller.erase('sector', 0x1000, 3);
   await withoutDelay(() => controller.verifyHash(Uint8Array.of(1, 2, 3), 0x1000, true));
-  assert.deepEqual(writes.slice(0, 2), ['ceras 0 0\r\n', 'seras 1000 1003 0 0\r\n']);
+  assert.deepEqual(writes.slice(0, 2), ['ceras 0 0\n', 'seras 1000 3 0 0\n']);
   assert.match(writes[2], /^hashq 3 1000 0 /);
   assert.ok(logs.some(value => value.startsWith('SHA-256 match:')));
   const badHeader = new BurnController({ async write() {}, async readExact() { return encoder.encode('wrong!'); } });

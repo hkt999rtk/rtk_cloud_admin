@@ -16579,6 +16579,96 @@
       "status": "approved",
       "sourceHash": "c92a2df97aa54046edecf48e67909b78129b4e0222fa318cea1730196e44de18",
       "fingerprint": "73bc75fe5905e30f502f408e2ca2972ae978a15cff8728e230afd63841c3dcab"
+    },
+    "Device verification completed.": {
+      "sourceHash": "c386727acced0e40fe449edf112d70016a05e3d2bdfb0073c56235b4edf0a61a",
+      "fingerprint": "303cc07fc225d0aa9a775341f8e7451857e24754b10902b45d1662e412a76ec2",
+      "text": "裝置驗證已完成。",
+      "status": "approved"
+    },
+    "Device verification was not run.": {
+      "sourceHash": "c4952605608b398df76ca7bfc6db3afde3e77a110109ada01c208b5924ea90ec",
+      "fingerprint": "69a1edd143f7c67cafd461b3f8d0af48939fe2d9115d50323382aefd57d376ab",
+      "text": "未執行裝置驗證。",
+      "status": "approved"
+    },
+    "Firmware burn canceled. Confirm Download Mode before retrying.": {
+      "sourceHash": "e84a75f65af1c7e8176619c06a906b7af3b6cf90917e195856ee2a6c0b6bcc2f",
+      "fingerprint": "faa2621871be86d5f80ec5a25a226ff60a3a877fb4f0bc5642ac33f170879d5d",
+      "text": "韌體燒錄已取消。重試前請確認下載模式。",
+      "status": "approved"
+    },
+    "Flash erase range crosses the address mask boundary.": {
+      "sourceHash": "36a8921725d9f22f06328f3fa0416ec069034bbff16282bbb97359a80810c199",
+      "fingerprint": "8b7e35bd33a8cd946924cf144b589fa68424f03a7bd516efcb2acba6054052ba",
+      "text": "Flash 擦除範圍跨越位址遮罩邊界。",
+      "status": "approved"
+    },
+    "Flash range exceeds 32-bit addresses or has an invalid length.": {
+      "sourceHash": "807826f294cddc50b43e300bd9e938b43121cb53dcc98e4326c3e831f525300e",
+      "fingerprint": "e6262350838e031b3680e0df850e35fceef8408eb4923164c72eafcae98d323e",
+      "text": "Flash 範圍超出 32 位元位址或長度無效。",
+      "status": "approved"
+    },
+    "Invalid hashq response length.": {
+      "sourceHash": "9983152321a98dbacc6abf2222b54332dbd94078989218a23589599359ed2361",
+      "fingerprint": "5ac3d9b0c1d0bd497f6e9df4919681aca61f3d42e4b50e8548401d6197653726",
+      "text": "hashq 回應長度無效。",
+      "status": "approved"
+    },
+    "PRO2 device verification at nonzero offset is unconfirmed; burn stopped.": {
+      "sourceHash": "b579e08e5f00423316821fd7265bdb822ac740fa94e35ef4884090e84817e89a",
+      "fingerprint": "d3c7df1624fffec94507a889a7f3e1bd0016c0040846f284032d8f5c9b3d34d3",
+      "text": "尚未確認 PRO2 非零偏移的裝置驗證；燒錄已停止。",
+      "status": "approved"
+    },
+    "UART connection closed": {
+      "sourceHash": "6d4be3cc11fa8d55a9bde1aa7ecd7a0404a301ba57650b6ea27a27da17efc51e",
+      "fingerprint": "53002681e10831d77fb036706bdb274e2b8de355a9cac96a1044c4f0d3212412",
+      "text": "UART 連線已關閉",
+      "status": "approved"
+    },
+    "UART disconnected": {
+      "sourceHash": "91bf826c07defe020f6b1a02c677b54c90f608a8bcee180d7a800bc860640478",
+      "fingerprint": "95fb2c5f694f1380b65d9601cbf5aeb55105a9f2ef21aee5f11bd0d13286d2ef",
+      "text": "UART 已斷線",
+      "status": "approved"
+    },
+    "UART read stream closed": {
+      "sourceHash": "42c9ee5903d491956e9ec52a3d1aab989ddcd1cd65d945d69c1faed7ef1c6c0b",
+      "fingerprint": "43bbc41dcfe14319862d9aa6262a80b5abb681af577098b205b6b0bade1bdead",
+      "text": "UART 讀取串流已關閉",
+      "status": "approved"
+    },
+    "Unsupported XMODEM frame.": {
+      "sourceHash": "24cfd0cbe34ec9c0eea63f72ad26284c78b3a479f7dd8c730d9a41ffc7fb1b77",
+      "fingerprint": "cf583572adf1b26e094c51f674d65c6e87aeb7c8b0a48e40fea4e7b2dfea5f9a",
+      "text": "不支援的 XMODEM 封包格式。",
+      "status": "approved"
+    },
+    "Unsupported burn baud rate.": {
+      "sourceHash": "d2e92b7703df28297266943ed1bf2a20dbfb62d679a6278be940b9ad0dcb6434",
+      "fingerprint": "dc5ad2dede898aafbbc4548177c23bfc891af8ec14727194156843ac23543a20",
+      "text": "不支援的燒錄鮑率。",
+      "status": "approved"
+    },
+    "Unsupported erase mode.": {
+      "sourceHash": "b70fc3d08adfb0f28d1157c2ebb41b1376cdbaddfad25e3ba1406c016f6acaa0",
+      "fingerprint": "c6b49f0a7352f0247be5a6dfa35b8efd3aa9f95089ff3a70314526619088a83e",
+      "text": "不支援的擦除模式。",
+      "status": "approved"
+    },
+    "download mode banner mismatch": {
+      "sourceHash": "571d91b2a2f8df3e418457268d5dc2606e01675a3779a26280885302bbf2f4d1",
+      "fingerprint": "719e813f27b6303066564c9781f3e0c997e2b671a7129c6103b9e93a5bb7d351",
+      "text": "下載模式回應不相符",
+      "status": "approved"
+    },
+    "Reset after successful burn": {
+      "sourceHash": "cf5ef9142cf15430f5e582aa430cafe64831efba1521a1e70a205117e19a6858",
+      "fingerprint": "741cef9bacae7a5a9d5725e8b9d1b439279e11490ffa85c2d974ca87772dfcac",
+      "text": "成功燒錄後重設",
+      "status": "approved"
     }
   }
 }

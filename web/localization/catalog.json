@@ -17012,6 +17012,96 @@
       "source": "Transfer ID",
       "context": "Used in web/src/OwnerHandoff.jsx. Identifier of an ownership and billing handoff, displayed beside view.id. This is not firmware data transfer.",
       "placeholders": []
+    },
+    {
+      "key": "Device verification completed.",
+      "source": "Device verification completed.",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "Device verification was not run.",
+      "source": "Device verification was not run.",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "Firmware burn canceled. Confirm Download Mode before retrying.",
+      "source": "Firmware burn canceled. Confirm Download Mode before retrying.",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "Flash erase range crosses the address mask boundary.",
+      "source": "Flash erase range crosses the address mask boundary.",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "Flash range exceeds 32-bit addresses or has an invalid length.",
+      "source": "Flash range exceeds 32-bit addresses or has an invalid length.",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "Invalid hashq response length.",
+      "source": "Invalid hashq response length.",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "PRO2 device verification at nonzero offset is unconfirmed; burn stopped.",
+      "source": "PRO2 device verification at nonzero offset is unconfirmed; burn stopped.",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "UART connection closed",
+      "source": "UART connection closed",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "UART disconnected",
+      "source": "UART disconnected",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "UART read stream closed",
+      "source": "UART read stream closed",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "Unsupported XMODEM frame.",
+      "source": "Unsupported XMODEM frame.",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "Unsupported burn baud rate.",
+      "source": "Unsupported burn baud rate.",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "Unsupported erase mode.",
+      "source": "Unsupported erase mode.",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "download mode banner mismatch",
+      "source": "download mode banner mismatch",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
+    },
+    {
+      "key": "Reset after successful burn",
+      "source": "Reset after successful burn",
+      "context": "PRO2 firmware burn protocol and completion message.",
+      "placeholders": []
     }
   ]
 }

@@ -1,4 +1,4 @@
-// Integrated from uartfwburn commit 81f808f; UI copy adapted for the Developer Console.
+// Integrated from uartfwburn 8608cad; Console UI messages adapted.
 const encoder = new TextEncoder();
 
 export class SerialTransport {
@@ -17,10 +17,11 @@ export class SerialTransport {
     this.writeChain = Promise.resolve();
   }
 
-  get connected() { return Boolean(this.port?.readable && this.port?.writable); }
+  get connected() { return Boolean(this.port?.readable && this.port?.writable && !this.readError); }
 
   async requestAndOpen(baudRate = 115200) {
     if (!('serial' in navigator)) throw new Error('This browser does not support Web Serial.');
+    if (this.port) await this.close();
     this.port = await navigator.serial.requestPort();
     try {
       await this.open(baudRate);
@@ -48,7 +49,10 @@ export class SerialTransport {
     try {
       while (this.reader) {
         const { value, done } = await this.reader.read();
-        if (done) break;
+        if (done) {
+          if (this.reader) this.readError = new Error('UART read stream closed');
+          break;
+        }
         if (value?.length) this.routeIncoming(value);
       }
     } catch (error) {
@@ -59,12 +63,14 @@ export class SerialTransport {
     }
   }
 
-  write(data, expectedOwner) {
+  write(data, expectedOwner, signal) {
     const bytes = typeof data === 'string' ? encoder.encode(data) : data;
     const operation = this.writeChain.catch(() => {}).then(async () => {
-      if (!this.writer) throw new Error('UART is not connected.');
+      signal?.throwIfAborted();
+      if (!this.writer || this.readError) throw new Error('UART is not connected.');
       if (expectedOwner && this.owner !== expectedOwner) throw new Error(`UART is owned by ${this.owner}, not ${expectedOwner}`);
       await this.writer.write(bytes);
+      signal?.throwIfAborted();
     });
     this.writeChain = operation;
     return operation;
@@ -119,8 +125,11 @@ export class SerialTransport {
   async readByte(timeoutMs, signal) { return (await this.readExact(1, timeoutMs, signal))[0]; }
 
   async readSome(timeoutMs, signal) {
+    signal?.throwIfAborted();
     if (this.owner !== 'protocol') throw new Error('UART protocol reader is not active');
     if (!this.buffer.length) await this.waitForData(timeoutMs, signal);
+    signal?.throwIfAborted();
+    if (this.owner !== 'protocol') throw abortError('UART ownership changed');
     if (this.readError) throw new Error(`UART read failed: ${this.readError.message}`);
     if (!this.buffer.length) throw new Error(`UART read timeout (${timeoutMs} ms)`);
     return Uint8Array.from(this.buffer.splice(0));
@@ -128,6 +137,7 @@ export class SerialTransport {
 
   waitForData(timeoutMs, signal) {
     return new Promise((resolve, reject) => {
+      signal?.throwIfAborted();
       let settled = false;
       const finish = (error) => {
         if (settled) return;
@@ -147,6 +157,7 @@ export class SerialTransport {
   }
 
   async reopen(baudRate) {
+    await this.drainWrites();
     await this.closeStreams();
     await this.port.close();
     await this.open(baudRate);
@@ -155,6 +166,15 @@ export class SerialTransport {
   async setSignals(signals) {
     if (!this.port) throw new Error('UART is not connected.');
     await this.port.setSignals(signals);
+  }
+
+  async hardwareReset() {
+    // Original PE wrappers invert their integer arguments: 1 means CLR.
+    await this.setSignals({ dataTerminalReady: false, requestToSend: false });
+    await sleep(50);
+    await this.setSignals({ dataTerminalReady: false, requestToSend: true });
+    await sleep(50);
+    await this.setSignals({ dataTerminalReady: false, requestToSend: false });
   }
 
   async closeStreams() {
@@ -170,11 +190,13 @@ export class SerialTransport {
   }
 
   async close() {
-    this.acquire('idle');
+    this.readError = new Error('UART connection closed');
+    for (const wake of this.waiters) wake();
     await this.drainWrites();
     await this.closeStreams();
     if (this.port?.readable || this.port?.writable) await this.port.close();
     this.port = null;
+    this.acquire('idle');
     this.buffer = [];
     this.readError = null;
     this.terminalSubscribers.clear();
@@ -184,8 +206,15 @@ export class SerialTransport {
 
 export function sleep(ms, signal) {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener('abort', () => { clearTimeout(timer); reject(abortError()); }, { once: true });
+    signal?.throwIfAborted();
+    const finish = error => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', aborted);
+      error ? reject(error) : resolve();
+    };
+    const timer = setTimeout(() => finish(), ms);
+    const aborted = () => finish(signal.reason ?? abortError());
+    signal?.addEventListener('abort', aborted, { once: true });
   });
 }
 
